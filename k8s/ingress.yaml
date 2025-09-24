@@ -5,8 +5,7 @@ metadata:
 spec:
   ingressClassName: nginx       # 指定使用 NGINX Controller
   rules:
-  - host: demo.local            # 綁定一個域名
-    http:
+  - http:
       paths:
       - path: /
         pathType: Prefix

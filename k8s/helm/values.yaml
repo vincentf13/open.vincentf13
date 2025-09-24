@@ -1,5 +1,4 @@
 replicaCount: 2
-
 image:
   repository: demo
   tag: "latest"
@@ -7,7 +6,8 @@ image:
 imagePullSecrets: []
 
 nameOverride: ""
-fullnameOverride: ""
+fullnameOverride: demo
+
 
 serviceAccount:
   create: true
@@ -25,16 +25,17 @@ service:
   type: ClusterIP
   port: 8080       # 你的容器對外服務埠
 
+service:
+  port: 8080
+
 ingress:
-  enabled: false
-  className: ""
-  annotations: {}
+  enabled: true
+  className: nginx
   hosts:
-    - host: demo.local
-      paths:
+    - paths:
         - path: /
           pathType: Prefix
-  tls: []
+
 
 resources: {}      # 可改為 requests/limits
 
