@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo
+spec:
+  ingressClassName: nginx       # 指定使用 NGINX Controller
+  rules:
+  - host: demo.local            # 綁定一個域名
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: demo          # 對應剛剛 Helm 建的 Service
+            port:
+              number: 8080

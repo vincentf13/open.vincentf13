@@ -1,0 +1,70 @@
+replicaCount: 2
+
+image:
+  repository: demo
+  tag: "latest"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automount: true
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8080       # 你的容器對外服務埠
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: demo.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}      # 可改為 requests/limits
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+  # targetMemoryUtilizationPercentage: 80  # 若 HPA 模板有用到記憶體
+
+container:
+  port: 8080
+  env: []          # 例如 [{ name: JAVA_OPTS, value: "-Xms256m -Xmx512m" }]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+httpRoute:
+  enabled: false
+  host: demo.local
+  parentRef:
+    kind: Gateway
+    name: my-gateway
+    namespace: default
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: demo
+          port: 8080
