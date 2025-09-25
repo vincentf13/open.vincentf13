@@ -15,6 +15,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - run: mvn -B -DskipTests package
       - name: Build and Push
         run: |
           IMAGE=victorf13/demo:${{ github.sha }}
