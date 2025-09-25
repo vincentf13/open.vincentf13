@@ -2,6 +2,7 @@
 
 1. 安裝 Docker
    linux:
+
    ```bash
       curl -fsSL https://get.docker.com | sh
       sudo usermod -aG docker $USER
@@ -14,24 +15,17 @@
    並建立 k8s 集群: kind create cluster --config k8s/kind.yaml
    驗證集群啟動: kubectl cluster-info --context kind-demo
 4. 鏡像載入 kind k8s : kind load docker-image demo:latest --name mycluster
-5. 套用 Kubernetes 物件 (Deployment / Service)
-   kubectl apply -f k8s/deployment.yaml
-   kubectl apply -f k8s/service.yaml
-6. 套用 HPA
-   kubectl apply -f k8s/hpa.yaml
-   驗證:
-   kubectl get hpa demo-hpa
-   kubectl describe hpa demo-hpa
-7. 建置 ingress
+5. 建置 ingress
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
-   套用專案內的 ingress:
-   kubectl apply -f k8s/ingress.yaml
-8. hosts 檔加入
+6. 執行k8s腳本:
+   bash ./apply-k8s.sh
+7. hosts 檔加入
    127.0.0.1 demo.local
-9. 服務 port 轉發 : kubectl port-forward deployment/demo 8081:8080
+8. 服務 port 轉發 : kubectl port-forward deployment/demo 8081:8080
    Ingress port 轉發 : kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
-10. 測試 curl http://127.0.0.1:8081
+   檢查 Ingress path轉發 : kubectl describe ingress demo | sed -n '/Rules:/,$p'
+1. 測試 curl http://127.0.0.1:8081
 
 # Docker 鏡像更新至 K8S 指令
 
