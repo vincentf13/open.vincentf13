@@ -29,16 +29,19 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: Lilin-Li/GitOps
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
           path: gitops
       - name: Update image tag in manifests
+        working-directory: gitops
         run: |
           sed -i "s|image: victorf13/demo:.*|image: victorf13/demo:${{ github.sha }}|" k8s/deployment.yaml
+           git diff -- k8s/deployment.yaml  # 可視化確認有變更
       - name: Commit and push changes
         uses: EndBug/add-and-commit@v9
         with:
+          cwd: gitops                       # 指向 GitOps 目錄（actions 不吃 step 的 working-directory）
           message: "Update image to victorf13/demo:${{ github.sha }}"
-          add: "gitops/k8s/deployment.yaml"
+          add: "k8s/deployment.yaml"
           push: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
