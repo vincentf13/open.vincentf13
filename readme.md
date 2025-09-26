@@ -67,3 +67,10 @@ kubectl -n argocd port-forward svc/argocd-server 8082:443
 帳號: admin
 密碼: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 密碼尾端要去掉 %
+
+
+# Prometheus監控與告警
+
+  1. 依序執行 kubectl apply -f k8s/monitoring-namespace.yaml、kubectl apply -f k8s/prometheus-rbac.yaml，接著把其餘監控檔案套用到 monitoring 命名空間（例如逐一 kubectl apply -f k8s/<file>.yaml）。                                                                                                                                        
+  2. 以 kubectl -n monitoring get pods,svc、kubectl logs 驗證元件啟動，必要時 kubectl port-forward -n monitoring svc/prometheus 9090 查看 UI。                                                                                                                                                                                              
+  3. 調整 k8s/alertmanager-configmap.yaml 的 receivers 與 k8s/prometheus-ingress.yaml 的網域/TLS 設定，然後重新套用對應資源。     

@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+  labels:
+    app: prometheus
+  annotations:
+    kubernetes.io/description: Basic alert rules for service health
+    # 可增補更多規則檔案置於 /etc/prometheus/rules
+  
+data:
+  general-rules.yml: |
+    groups:
+      - name: service-health
+        rules:
+          - alert: TargetDown
+            expr: sum by (job, instance) (up == 0) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.job }} / {{ $labels.instance }} target down"
+              description: "Prometheus 已偵測 {{ $labels.instance }} (job {{ $labels.job }}) 連續 5 分鐘為 down 狀態。"
+          - alert: HighErrorRate
+            expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+            for: 10m
+            labels:
+              severity: critical
+            annotations:
+              summary: "HTTP 5xx rate high"
+              description: "HTTP 5xx rate > 5% 持續 10 分鐘，檢查服務健康情形。"

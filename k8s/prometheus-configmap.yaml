@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+  labels:
+    app: prometheus
+  annotations:
+    kubernetes.io/description: Base Prometheus configuration with kube discovery
+    # 這裡可以按需加入自訂 job
+  
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+      evaluation_interval: 30s
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - alertmanager.monitoring.svc.cluster.local:9093
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets:
+              - localhost:9090
+      - job_name: kubernetes-apiservers
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels:
+              - __meta_kubernetes_namespace
+              - __meta_kubernetes_service_name
+              - __meta_kubernetes_endpoint_port_name
+            action: keep
+            regex: default;kubernetes;https
+      - job_name: kubernetes-nodes
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+        metric_relabel_configs:
+          - action: replace
+            target_label: instance
+            source_labels:
+              - __meta_kubernetes_node_name
+      - job_name: kubernetes-cadvisor
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: instance
+            source_labels:
+              - __meta_kubernetes_node_name
+        metric_relabel_configs:
+          - action: drop
+            source_labels: [__name__]
+            regex: container_.*
+      - job_name: kubernetes-service-endpoints
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels:
+              - __meta_kubernetes_namespace
+            target_label: namespace
+          - source_labels:
+              - __meta_kubernetes_service_name
+            target_label: service
+          - source_labels:
+              - __meta_kubernetes_pod_name
+            target_label: pod
+          - source_labels:
+              - __meta_kubernetes_endpoint_port_name
+            target_label: endpoint
+          - action: keep
+            source_labels:
+              - __meta_kubernetes_endpoint_port_name
+            regex: metrics|http|https
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels:
+              - __meta_kubernetes_namespace
+            target_label: namespace
+          - source_labels:
+              - __meta_kubernetes_pod_name
+            target_label: pod
+          - action: keep
+            source_labels:
+              - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+            regex: "true"
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_annotation_prometheus_io_path
+            target_label: __metrics_path__
+            regex: (.+)
+          - action: replace
+            source_labels:
+              - __address__
+              - __meta_kubernetes_pod_annotation_prometheus_io_port
+            target_label: __address__
+            regex: (.+):(?:\d+);(\d+)
+            replacement: $1:$2
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+            regex: (https?)
+            target_label: __scheme__
