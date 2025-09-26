@@ -90,6 +90,18 @@ data:
           - source_labels:
               - __meta_kubernetes_endpoint_port_name
             target_label: endpoint
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_service_annotation_prometheus_io_path
+            target_label: __metrics_path__
+            regex: (.+)
+          - action: replace
+            source_labels:
+              - __address__
+              - __meta_kubernetes_service_annotation_prometheus_io_port
+            target_label: __address__
+            regex: (.+?)(?::\d+)?;(\d+)
+            replacement: $1:$2
           - action: keep
             source_labels:
               - __meta_kubernetes_endpoint_port_name
