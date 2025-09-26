@@ -58,6 +58,7 @@ MANIFESTS=(
   service.yaml
   hpa.yaml
   ingress.yaml
+  argo-ingress.yaml
 )
 
 for manifest in "${MANIFESTS[@]}"; do

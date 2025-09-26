@@ -39,7 +39,7 @@ jobs:
           test -f k8s/deployment.yaml                                                                                                                                                                                                                                                                                                             
           sed -i 's|image: victorf13/demo:.*|image: victorf13/demo:${{ github.sha }}|' k8s/deployment.yaml                                                                                                                                                                                                                                        
           grep -n 'image:' k8s/deployment.yaml || true                                                                                                                                                                                                                                                                                            
-          git status --short || true 
+          git status --short || true
       - name: Commit and push changes
         uses: EndBug/add-and-commit@v9
         with:
