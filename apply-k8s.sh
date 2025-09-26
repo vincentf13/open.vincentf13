@@ -58,7 +58,6 @@ MANIFESTS=(
   service.yaml
   hpa.yaml
   ingress.yaml
-  argo-ingress.yaml
 )
 
 for manifest in "${MANIFESTS[@]}"; do
@@ -79,3 +78,6 @@ for manifest in "${MANIFESTS[@]}"; do
   printf 'Applying %s\n' "$file"
   kubectl apply "${kubectl_args[@]}" -f "$file"
 done
+
+kubectl apply -f \
+https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml

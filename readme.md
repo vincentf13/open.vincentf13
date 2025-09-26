@@ -61,7 +61,8 @@ argocd app get gitops --refresh --grpc-web
 kubectl -n default get deploy demo -ojsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
 
 ## 驗證 POD 目前運行的image
-```
-POD=$(kubectl -n default get pods -l app=demo -o jsonpath='{.items[0].metadata.name}')
-kubectl -n default describe pod <pod-name> | grep Image:
-```
+kubectl -n argocd port-forward svc/argocd-server 8082:443
+訪問: https://127.0.0.1:8082/
+帳號: admin
+密碼: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+密碼尾端要去掉 %
