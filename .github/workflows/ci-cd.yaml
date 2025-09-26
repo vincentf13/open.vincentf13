@@ -35,7 +35,8 @@ jobs:
         working-directory: gitops
         run: |
           sed -i 's|image: victorf13/demo:.*|image: victorf13/demo:${{ github.sha }}|' k8s/deployment.yaml
-          git diff -- k8s/deployment.yaml  # 可視化確認有變更
+          grep -n 'image:' k8s/deployment.yaml
+          git status --short
       - name: Commit and push changes
         uses: EndBug/add-and-commit@v9
         with:
