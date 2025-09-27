@@ -1,3 +1,8 @@
+# The goal of this project
+This is a demo project that demonstrates how to set up a local Kubernetes cluster and implement CI/CD automation using GitHub Actions and ArgoCD. It also provisions essential infrastructure within the cluster, such as monitoring and alerting, and provides stress testing scripts to validate basic features like autoscaling and alert notifications.
+
+The goal of this project is to help developers easily build their own local development and testing environments.
+
 # k8s集群與元件建置
 
 1. 安裝 Docker
