@@ -16,12 +16,12 @@ data:
         rules:
           - alert: TargetDown
             expr: sum by (job, instance) (up == 0) > 0
-            for: 5m
+            for: 1m
             labels:
               severity: warning
             annotations:
               summary: "{{ $labels.job }} / {{ $labels.instance }} target down"
-              description: "Prometheus 已偵測 {{ $labels.instance }} (job {{ $labels.job }}) 連續 5 分鐘為 down 狀態。"
+              description: "Prometheus 已偵測 {{ $labels.instance }} (job {{ $labels.job }}) 連續 1 分鐘為 down 狀態。"
           - alert: HighErrorRate
             expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
             for: 10m
@@ -30,3 +30,11 @@ data:
             annotations:
               summary: "HTTP 5xx rate high"
               description: "HTTP 5xx rate > 5% 持續 10 分鐘，檢查服務健康情形。"
+          - alert: NodeCpuHigh
+            expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "CPU 使用率過高"
+              description: "{{ $labels.instance }} CPU 使用率 > 80% 已持續 1 分鐘，請檢查節點負載。"
