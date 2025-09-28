@@ -3,6 +3,66 @@ This is a demo project that demonstrates how to set up a local Kubernetes cluste
 
 The goal of this project is to help developers easily build their own local development and testing environments.
 
+# 快速啟動集群
+
+完成建置動作後，
+每次執行腳本: bash cluster-up.sh
+或著手動如下操作，即可啟動整個集群
+
+1. 開啟docker desktop
+   啟動k8s容器
+2. K8s集群配置
+   
+   檢查k8s 集群啟動 : 
+   kubectl cluster-info 
+   
+   Apply配置:
+   bash ./apply-k8s.sh
+   
+   啟動Ingress Controller
+   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+   kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
+   
+   驗證
+   kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80 &
+   
+   瀏覽器開 http://localhost:8081
+1. ArgoCD
+   
+   開啟ArgoCD連線
+   kubectl -n argocd port-forward svc/argocd-server 8080:443 &
+   
+   登入ArgoCD
+```
+argocd login localhost:8080 \
+--username admin \
+--password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
+--insecure --grpc-web
+   
+```
+   監聽Reop
+```
+argocd app create gitops \
+--repo https://github.com/Lilin-Li/GitOps.git \
+--path k8s \
+--dest-server https://kubernetes.default.svc \
+--dest-namespace default \
+--sync-policy automated --grpc-web
+```
+   
+   ArgoWeb
+   kubectl -n argocd port-forward svc/argocd-server 8082:443 &
+   訪問: https://127.0.0.1:8082/
+   帳號: admin
+   密碼: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+   密碼尾端要去掉 %
+   
+3. 監控與告警
+   bash ./apply-prometheus.sh
+   kubectl get pods -n monitoring
+   kubectl port-forward -n monitoring svc/prometheus 9090:9090 &， 瀏覽器開 http://localhost:9090
+   kubectl port-forward -n monitoring svc/alertmanager 9093:9093 &， http://localhost:9093
+#
 # k8s集群與元件建置
 
 1. 安裝 Docker
@@ -17,38 +77,42 @@ The goal of this project is to help developers easily build their own local deve
 2. build docker 鏡像
    docker build -t demo:latest .
    docker tag myapp:latest \<dockerhub-username>/demo:latest
+   
    推送鏡像
    docker login
-   docker push myusername/demo:latest
+   docker push \<dockerhub-username>/demo:latest
+   
+   k8s/deployment.yaml 配置鏡像
+   spec.template.spec.containers[0].image:  \<dockerhub-username>/demo:latest
 3. 安裝 kind，
    並建立 k8s 集群: kind create cluster
    驗證集群啟動: kubectl cluster-info --context kind-demo
-4. 建置 ingress
+4. 建置與啟動 ingress Controller
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
 5. 執行k8s腳本:
    bash ./apply-k8s.sh
-6. hosts 檔加入
-   127.0.0.1 demo.local
-7. 服務 port 轉發 : kubectl port-forward deployment/demo 8081:8080
-   Ingress port 轉發 : kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
+6. 驗證
+   
+   服務 port 轉發 :
+   kubectl port-forward deployment/demo 8081:8080
+   
+   Ingress port 轉發 : 
+   kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
+   
    檢查 Ingress path轉發 : kubectl describe ingress demo | sed -n '/Rules:/,$p'
-8. 測試 curl http://127.0.0.1:8081
+   
+   測試 curl http://127.0.0.1:8081
 
-# 啟動k8集群
-1. 開啟docker desktop，啟動k8s容器
-2. 檢查k8s 集群啟動 : kubectl cluster-info
-3. bash ./apply-k8s.sh
-4. kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
-5. bash ./apply-prometheus.sh
-   kubectl get pods -n monitoring
-   kubectl port-forward -n monitoring svc/prometheus 9090:9090
-   kubectl port-forward -n monitoring svc/alertmanager 9093:9093 
-# GitOps CI/CD
+# GitOps CI/CD 建置
 
-## 配置 GitHub Action
+##  GitHub Action建置
 
 自動打包、上傳鏡像，並更新 GitOps 庫 image TAG
+
+## 建置ArgoCD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 ## 開啟ArgoCD連線
 
@@ -56,11 +120,14 @@ kubectl -n argocd port-forward svc/argocd-server 8080:443
 
 ## 登入ArgoCLI
 
-argocd login localhost:8080 --username admin
---password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
+```
+argocd login localhost:8080 \
+--username admin \
+--password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
 --insecure --grpc-web
+```
 
-## 建立（repo 公開即可，不需先 repo add）
+## 監聽 Git Repo
 
 argocd app create gitops \
   --repo https://github.com/Lilin-Li/GitOps.git \
@@ -86,15 +153,22 @@ kubectl -n argocd port-forward svc/argocd-server 8082:443
 # Prometheus監控與告警
 
 ## 手動啟動
-  1. 依序執行 kubectl apply -f k8s/monitoring-namespace.yaml、kubectl apply -f k8s/prometheus-rbac.yaml，接著把其餘監控檔案套用到 monitoring 命名空間（例如逐一 kubectl apply -f k8s/\<file>.yaml）。                                                                                                                                        
-  2. 以 kubectl -n monitoring get pods,svc、kubectl logs 驗證元件啟動，必要時 kubectl port-forward -n monitoring svc/prometheus 9090 查看 UI。
-  3. 調整 k8s/alertmanager-configmap.yaml 的 receivers 與 k8s/prometheus-ingress.yaml 的網域/TLS 設定，然後重新套用對應資源。
+  1. 依序執行 
+     kubectl apply -f k8s/monitoring-namespace.yaml
+     kubectl apply -f k8s/prometheus-rbac.yaml
+     接著把其餘監控檔案套用到 monitoring 命名空間（例如逐一 kubectl apply -f k8s/\<file>.yaml）。                                                                                                                                        
+  2. 以 kubectl -n monitoring get pods,svc、
+     kubectl logs 驗證元件啟動。
+     必要時 kubectl port-forward -n monitoring svc/prometheus 9090 查看 UI。
+  3. 調整 k8s/alertmanager-configmap.yaml 的 receivers 
+     與 k8s/prometheus-ingress.yaml 的網域/TLS 設定，
+     然後重新套用對應資源。
 
 ## 腳本啟動
 執行 bash ./apply-prometheus.sh（必要時加 --context \<your-context>）部署整套監控堆疊，之後用 kubectl get pods -n monitoring 確認狀態。
 
 
-## Prometheus 存取                                                                                                                                                                                                                                                                                                                      
+## Prometheus 存取
   - 若已修改 k8s/prometheus/prometheus-ingress.yaml:13 的 host 為實際網域並配置 DNS→Ingress Controller，直接走 https://<你的網域>；未設 TLS 憑證可在 tls 區塊加入 secretName。                                                                                                                                                              
   - 無外網時可執行 kubectl port-forward -n monitoring svc/prometheus 9090:9090，瀏覽器開 http://localhost:9090；
   - Alertmanager 亦可用 kubectl port-forward -n monitoring svc/alertmanager 9093:9093，瀏覽器開 http://localhost:9093；  
