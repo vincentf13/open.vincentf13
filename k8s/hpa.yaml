@@ -16,4 +16,4 @@ spec:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 60   # CPU 使用率目標
+        averageUtilization: 80   # CPU 使用率至 80% 以便高負載時自動擴容
