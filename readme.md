@@ -176,15 +176,46 @@ kubectl -n argocd port-forward svc/argocd-server 8082:443
 
 
 ## Prometheus 存取
-  - 若已修改 k8s/prometheus/prometheus-ingress.yaml:13 的 host 為實際網域並配置 DNS→Ingress Controller，直接走 https://<你的網域>；未設 TLS 憑證可在 tls 區塊加入 secretName。                                                                                                                                                              
+  - 若已修改 k8s/prometheus/prometheus-ingress.yaml:13 的 host 為實際網域並配置 DNS→Ingress Controller，直接走 https://<你的網域>；未設 TLS 憑證可在 tls 區塊加入 secretName。  
   - 無外網時可執行 kubectl port-forward -n monitoring svc/prometheus 9090:9090，瀏覽器開 http://localhost:9090；
   - Alertmanager 亦可用 kubectl port-forward -n monitoring svc/alertmanager 9093:9093，瀏覽器開 http://localhost:9093；  
-  - 登入 Prometheus UI 後，Status → Targets 應看到 Kubernetes job 狀態；
-  - Alerts 頁面可觀察告警是否觸發。                                                                                                                                                                                                                                     
-  測試告警                                                                                                                                                                                                                                                                                                                                  
-  - TargetDown 規則（k8s/prometheus/prometheus-rules.yaml:17）會在某個 up 指標變 0 並持續 5 分鐘時觸發。可臨時 scale 任一被 Prometheus 抓取的服務至 0，例如 kubectl scale deployment demo --replicas=0，等待規則觸發，再 kubectl scale deployment demo --replicas=1 讓 alert 回復。                                                         
-  - HighErrorRate 公式（同檔案 :25）看的是 http_requests_total{status=~"5.."}，可在目標服務上短暫製造 5xx（例如對 demo 應用送錯誤請求或加一段測試端點回傳 500）。若想立刻驗證，可暫時把 for: 10m 改為 for: 0m 並 kubectl apply -f k8s/prometheus/prometheus-rules.yaml。                                                                    
+  - 登入 Prometheus UI 後，Status → Targets 應看到 Kubernetes job 狀態；  
+  測試告警                                                                                                                                                                                                                                                                                                                                                                              
   - 在 Prometheus UI 的 Alerts 分頁確認告警 firing，再到 Alertmanager (http://localhost:9093/#/alerts 經 port-forward) 查看分派情況；若要演練通知，可在 k8s/prometheus/alertmanager-configmap.yaml:21 加入真實接收器（例如 Slack webhook）後重新套用。                                                                                      
   後續建議 
-  1. 用 kubectl get pods -n monitoring 確認 Prometheus/Alertmanager 運行情況，必要時 kubectl logs 排查。  
-  2. 想長期保留資料可將 prometheus-deployment.yaml:56 的 emptyDir 換成 PVC；告警規則可再拆多個 ConfigMap。 
+  1. 想長期保留資料可將 prometheus-deployment.yaml:56 的 emptyDir 換成 PVC；告警規則可再拆多個 ConfigMap
+
+
+# Grafana建置
+
+## 建置
+ 1. 加入官方 repo：helm repo add grafana https://grafana.github.io/helm-charts && helm repo update
+2. 在 monitoring namespace 安裝：
+```
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+         helm upgrade --install grafana grafana/grafana \
+           --namespace monitoring \
+           --set service.type=ClusterIP \
+           --set persistence.enabled=false \
+           --set adminPassword=admin123
+```
+
+3. 取出 admin 密碼：
+   kubectl get secret grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d
+   去掉尾端的% 即是密碼
+4. kubectl port-forward svc/grafana -n monitoring 3000:80 &
+   瀏覽器開 http://localhost:3000
+
+## 接入Prometheus 數據
+
+  - 先 port-forward Grafana：kubectl -n monitoring port-forward svc/grafana 3000:80，瀏覽 http://localhost:3000 登入（預設 admin/安裝時設定的密碼）。
+  - 左側齒輪 → Data sources → Add data source → 選 Prometheus。
+  - HTTP > URL 填寫 Prometheus 服務位址。如果在同一 Kubernetes 叢集，可用 http://prometheus.monitoring.svc:9090 ；若透過本機 port-forward，填 http://
+  localhost:9090。
+  - Access 選 Server（Grafana 在叢集內能直接打到 Service），或 Browser（只在本機測試時透過瀏覽器連線本地 port-forward）。
+  - 保留預設的 Scrape interval / Query timeout，點 Save & test 確認連線成功，底下會顯示 Data source is working。
+  - 接著就能在 Dashboard 中使用 PromQL 查詢，例如 process_cpu_usage{app="demo"} 或 sum(rate(container_cpu_usage_seconds_total{namespace="default"}
+  [5m]))。
+
+
+

@@ -41,7 +41,7 @@ data:
       - name: demo-app
         rules:
           - alert: DemoProcessCpuHigh
-            expr: process_cpu_usage{app="demo"} * 100 > 80
+            expr: process_cpu_usage{application="demo"} * 100 > 80
             for: 5m
             labels:
               severity: critical
