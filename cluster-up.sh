@@ -52,9 +52,13 @@ main() {
   bash "$ROOT_DIR/apply-k8s.sh"
 
   local ingress_manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
+  local metrics_manifest="https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
   log_step "Ensuring ingress controller"
   kubectl apply -f "$ingress_manifest"
   kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
+
+  log_step "Ensuring metrics-server"
+  kubectl apply -f "$metrics_manifest"
 
   start_port_forward "Ingress controller 8081->80" --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
   start_port_forward "Argo CD API 8080->443" -n argocd port-forward svc/argocd-server 8080:443

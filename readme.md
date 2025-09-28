@@ -23,6 +23,10 @@ The goal of this project is to help developers easily build their own local deve
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
    
+   metric server
+   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+   
    驗證
    kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80 &
    
@@ -90,9 +94,12 @@ argocd app create gitops \
 3. 建置與啟動 ingress Controller
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
-4. 執行k8s腳本:
+4. 安裝 metric sever : 水平擴容必備
+   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+5. 執行k8s腳本:
    bash ./apply-k8s.sh
-5. 驗證
+6. 驗證
    
    服務 port 轉發 :
    kubectl port-forward deployment/demo 8081:8080

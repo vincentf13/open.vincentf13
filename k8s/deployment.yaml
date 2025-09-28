@@ -26,3 +26,6 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+      resources:
+        requests:
+          cpu: "100m"           # 自動擴容的必要條件，需配置
