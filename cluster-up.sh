@@ -47,6 +47,7 @@ main() {
   require_cmd kubectl
   require_cmd argocd
   require_cmd base64
+  require_cmd helm
 
   log_step "Applying core Kubernetes manifests"
   bash "$ROOT_DIR/apply-k8s.sh"
@@ -89,8 +90,21 @@ main() {
   bash "$ROOT_DIR/apply-prometheus.sh"
   kubectl get pods -n monitoring
 
+  log_step "Installing Grafana"
+  kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+  helm upgrade --install grafana grafana/grafana \
+    --namespace monitoring \
+    --set service.type=ClusterIP \
+    --set persistence.enabled=false \
+    --set adminPassword=admin123
+
+  log_step "Fetching Grafana admin password"
+  grafana_password=$(kubectl get secret grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 --decode)
+  printf 'Grafana admin password: %s\n' "$grafana_password"
+
   start_port_forward "Prometheus UI 9090->9090" -n monitoring port-forward svc/prometheus 9090:9090
   start_port_forward "Alertmanager UI 9093->9093" -n monitoring port-forward svc/alertmanager 9093:9093
+  start_port_forward "Grafana UI 3000->80" -n monitoring port-forward svc/grafana 3000:80
 
   printf '\nAll port-forwards are active. Press Ctrl+C to stop them when finished.\n'
   wait
