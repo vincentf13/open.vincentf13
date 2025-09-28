@@ -76,23 +76,23 @@ argocd app create gitops \
    windows: 安裝 Desktop desktop，並啟動
 2. build docker 鏡像
    docker build -t demo:latest .
-   docker tag myapp:latest \<dockerhub-username>/demo:latest
+   docker tag demo:latest victorf13/demo:latest
    
    推送鏡像
    docker login
-   docker push \<dockerhub-username>/demo:latest
+   docker push victorf13/demo:latest
    
    k8s/deployment.yaml 配置鏡像
-   spec.template.spec.containers[0].image:  \<dockerhub-username>/demo:latest
-3. 安裝 kind，
+   spec.template.spec.containers[0].image:  victorf13/demo:latest
+2. 安裝 kind，
    並建立 k8s 集群: kind create cluster
    驗證集群啟動: kubectl cluster-info --context kind-demo
-4. 建置與啟動 ingress Controller
+3. 建置與啟動 ingress Controller
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
-5. 執行k8s腳本:
+4. 執行k8s腳本:
    bash ./apply-k8s.sh
-6. 驗證
+5. 驗證
    
    服務 port 轉發 :
    kubectl port-forward deployment/demo 8081:8080
