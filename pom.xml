@@ -28,6 +28,7 @@
     </scm>
     <properties>
         <java.version>24</java.version>
+        <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
     </properties>
     <dependencies>
         <dependency>
@@ -120,7 +121,5 @@
             </plugin>
         </plugins>
     </build>
-    <properties>
-        <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
-    </properties>
+
 </project>
