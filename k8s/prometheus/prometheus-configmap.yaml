@@ -79,6 +79,9 @@ data:
           - action: labelmap
             regex: __meta_kubernetes_service_label_(.+)
           - source_labels:
+              - app
+            target_label: application
+          - source_labels:
               - __meta_kubernetes_namespace
             target_label: namespace
           - source_labels:
