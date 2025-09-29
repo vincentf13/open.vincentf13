@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: demo
-          image: victorf13/demo:9d174e24714aa3e8a427766bdb0a86600e3ceec9
+          image:  "${DOCKER_USER}/demo:latest"
           imagePullPolicy: Always
           ports:
             - name: http

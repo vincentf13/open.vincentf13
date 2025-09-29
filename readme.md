@@ -3,70 +3,7 @@ This is a demo project that demonstrates how to set up a local Kubernetes cluste
 
 The goal of this project is to help developers easily build their own local development and testing environments.
 
-# 快速啟動集群
-
-完成建置動作後，
-每次執行腳本: bash cluster-up.sh
-或著手動如下操作，即可啟動整個集群
-
-1. 開啟docker desktop
-   啟動k8s容器
-2. K8s集群配置
-   
-   檢查k8s 集群啟動 : 
-   kubectl cluster-info 
-   
-   Apply配置:
-   bash ./apply-k8s.sh
-   
-   啟動Ingress Controller
-   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-   kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
-   
-   metric server
-   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-
-   
-   驗證
-   kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80 &
-   
-   瀏覽器開 http://localhost:8081
-1. ArgoCD
-   
-   開啟ArgoCD連線
-   kubectl -n argocd port-forward svc/argocd-server 8080:443 &
-   
-   登入ArgoCD
-```
-argocd login localhost:8080 \
---username admin \
---password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
---insecure --grpc-web
-   
-```
-   監聽Reop
-```
-argocd app create gitops \
---repo https://github.com/Lilin-Li/GitOps.git \
---path k8s \
---dest-server https://kubernetes.default.svc \
---dest-namespace default \
---sync-policy automated --grpc-web
-```
-   
-   ArgoWeb
-   kubectl -n argocd port-forward svc/argocd-server 8082:443 &
-   訪問: https://127.0.0.1:8082/
-   帳號: admin
-   密碼: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
-   密碼尾端要去掉 %
-   
-3. 監控與告警
-   bash ./apply-prometheus.sh
-   kubectl get pods -n monitoring
-   kubectl port-forward -n monitoring svc/prometheus 9090:9090 &， 瀏覽器開 http://localhost:9090
-   kubectl port-forward -n monitoring svc/alertmanager 9093:9093 &， http://localhost:9093
-#
+# 
 # k8s集群與元件建置
 
 1. 安裝 Docker
@@ -78,7 +15,27 @@ argocd app create gitops \
    ```
 
    windows: 安裝 Desktop desktop，並啟動
-2. build docker 鏡像
+   
+   
+2. 配置環境變數
+	Bash 使用者
+```bash
+# Bash 使用者
+echo 'export DOCKER_USER=victorf13' >> ~/.bashrc
+source ~/.bashrc
+
+
+# Zsh 使用者（如使用 Oh My Zsh）
+echo 'export DOCKER_USER=victorf13' >> ~/.zshrc
+source ~/.zshrc
+
+
+# 驗證
+echo $DOCKER_USER
+````
+
+   
+3. build docker 鏡像
    docker build -t demo:latest .
    docker tag demo:latest victorf13/demo:latest
    
@@ -88,13 +45,13 @@ argocd app create gitops \
    
    k8s/deployment.yaml 配置鏡像
    spec.template.spec.containers[0].image:  victorf13/demo:latest
-2. 安裝 kind，
+4. 安裝 kind，
    並建立 k8s 集群: kind create cluster
    驗證集群啟動: kubectl cluster-info --context kind-demo
-3. 建置與啟動 ingress Controller
+5. 建置與啟動 ingress Controller
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
-4. 安裝 metric sever : 水平擴容必備
+6. 安裝 metric sever : 水平擴容必備
    kubectl delete -n kube-system deploy metrics-server
    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
    kubectl -n kube-system patch deployment metrics-server \
@@ -104,13 +61,15 @@ argocd app create gitops \
    types=InternalIP,Hostname,ExternalIP"}
    ]'
    
+   kubectl
+   
    驗證:  
    kubectl get hpa  
    看到看到數值如 `cpu: 25%/80%` 即正常。
 
-6. 執行k8s腳本:
+7. 執行k8s腳本:
    bash ./apply-k8s.sh
-7. 驗證
+8. 驗證
    
    服務 port 轉發 :
    kubectl port-forward deployment/demo 8081:8080
@@ -124,7 +83,7 @@ argocd app create gitops \
 
 # GitOps CI/CD 建置
 
-##  GitHub Action建置
+## GitHub Action建置
 
 自動打包、上傳鏡像，並更新 GitOps 庫 image TAG
 
@@ -231,8 +190,75 @@ kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f 
 
 
 
-#  K6壓力測試
+# K6壓力測試
 
 ```bash
 k6 run ./k6/k6.js
 ```
+
+#
+# 快速啟動集群
+
+## 腳本啟動
+完成建置動作後，每次執行腳本: bash cluster-up.sh
+
+## 手動啟動
+手動如下操作，即可啟動整個集群
+
+1. 開啟docker desktop
+   啟動k8s容器
+2. K8s集群配置
+   
+   檢查k8s 集群啟動 : 
+   kubectl cluster-info 
+   
+   Apply配置:
+   bash ./apply-k8s.sh
+   
+   啟動Ingress Controller
+   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+   kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
+   
+   metric server
+   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+   
+   驗證
+   kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80 &
+   
+   瀏覽器開 http://localhost:8081
+1. ArgoCD
+   
+   開啟ArgoCD連線
+   kubectl -n argocd port-forward svc/argocd-server 8080:443 &
+   
+   登入ArgoCD
+```
+argocd login localhost:8080 \
+--username admin \
+--password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
+--insecure --grpc-web
+   
+```
+   監聽Reop
+```
+argocd app create gitops \
+--repo https://github.com/Lilin-Li/GitOps.git \
+--path k8s \
+--dest-server https://kubernetes.default.svc \
+--dest-namespace default \
+--sync-policy automated --grpc-web
+```
+   
+   ArgoWeb
+   kubectl -n argocd port-forward svc/argocd-server 8082:443 &
+   訪問: https://127.0.0.1:8082/
+   帳號: admin
+   密碼: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+   密碼尾端要去掉 %
+   
+3. 監控與告警
+   bash ./apply-prometheus.sh
+   kubectl get pods -n monitoring
+   kubectl port-forward -n monitoring svc/prometheus 9090:9090 &， 瀏覽器開 http://localhost:9090
+   kubectl port-forward -n monitoring svc/alertmanager 9093:9093 &， http://localhost:9093
