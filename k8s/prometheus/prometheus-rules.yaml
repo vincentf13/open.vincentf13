@@ -41,11 +41,11 @@ data:
       - name: demo-app
         rules:
           - alert: DemoProcessCpuHigh
-            expr: process_cpu_usage{application="demo"} * 100 > 80
+            expr: process_cpu_usage{application="demo"} * 1000 > 80
             for: 1m
             labels:
               severity: critical
               service: demo
             annotations:
               summary: "demo 服務 CPU 超過80%"
-              description: "process_cpu_usage 高於 80% 已持續 5 分鐘，建議檢查工作負載或擴大服務。"
+              description: "process_cpu_usage 高於 80% 已持續 1 分鐘，建議檢查工作負載或擴大服務。"

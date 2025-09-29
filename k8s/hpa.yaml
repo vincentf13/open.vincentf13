@@ -17,3 +17,10 @@ spec:
       target:
         type: Utilization
         averageUtilization: 80   # CPU 使用率至 80% 以便高負載時自動擴容
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 30   # 縮容前需連續低於門檻的秒數
+      policies:
+        - type: Percent
+          value: 100                   # 允許的最大縮容幅度。100 代表可在一個 period 內最多減少當前副本數的 100%
+          periodSeconds: 60            # 計算幅度的時間窗，60 秒為一個縮容步長
