@@ -219,3 +219,9 @@ kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f 
 
 
 
+
+#  K6壓力測試
+
+```bash
+k6 run ./k6/k6.js
+```
