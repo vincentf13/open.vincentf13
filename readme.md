@@ -95,11 +95,22 @@ argocd app create gitops \
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
 4. 安裝 metric sever : 水平擴容必備
+   kubectl delete -n kube-system deploy metrics-server
    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+   kubectl -n kube-system patch deployment metrics-server \
+   --type='json' -p='[
+   {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
+   {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address
+   types=InternalIP,Hostname,ExternalIP"}
+   ]'
+   
+   驗證:  
+   kubectl get hpa  
+   看到看到數值如 `cpu: 25%/80%` 即正常。
 
-5. 執行k8s腳本:
+6. 執行k8s腳本:
    bash ./apply-k8s.sh
-6. 驗證
+7. 驗證
    
    服務 port 轉發 :
    kubectl port-forward deployment/demo 8081:8080

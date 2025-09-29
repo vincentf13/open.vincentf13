@@ -60,7 +60,11 @@ main() {
 
   log_step "Ensuring metrics-server"
   kubectl apply -f "$metrics_manifest"
-  kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s
+  kubectl -n kube-system patch deployment metrics-server \
+  --type='json' -p='[
+    {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
+    {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}
+  ]'
 
   start_port_forward "Ingress controller 8081->80" --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
   start_port_forward "Argo CD API 8080->443" -n argocd port-forward svc/argocd-server 8080:443
