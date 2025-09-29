@@ -17,24 +17,6 @@ The goal of this project is to help developers easily build their own local deve
    windows: 安裝 Desktop desktop，並啟動
    
    
-2. 配置環境變數
-	Bash 使用者
-```bash
-# Bash 使用者
-echo 'export DOCKER_USER=victorf13' >> ~/.bashrc
-source ~/.bashrc
-
-
-# Zsh 使用者（如使用 Oh My Zsh）
-echo 'export DOCKER_USER=victorf13' >> ~/.zshrc
-source ~/.zshrc
-
-
-# 驗證
-echo $DOCKER_USER
-````
-
-   
 3. build docker 鏡像
    docker build -t demo:latest .
    docker tag demo:latest victorf13/demo:latest
