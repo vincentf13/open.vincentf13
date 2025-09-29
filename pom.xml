@@ -96,6 +96,19 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                        <configuration>
+                            <additionalProperties>
+                                <build.timestamp>${maven.build.timestamp}</build.timestamp>
+                                <image.tag>${env.GITHUB_SHA}</image.tag>
+                            </additionalProperties>
+                        </configuration>
+                    </execution>
+                </executions>
                 <configuration>
                     <excludes>
                         <exclude>
@@ -107,5 +120,7 @@
             </plugin>
         </plugins>
     </build>
-
+    <properties>
+        <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
+    </properties>
 </project>

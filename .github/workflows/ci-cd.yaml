@@ -19,6 +19,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '24'
+      - name: Set GITHUB_SHA env
+        run: echo "GITHUB_SHA=${{ github.sha }}" >> $GITHUB_ENV
       - run: mvn -B -DskipTests package
       - name: Build and Push
         run: |
