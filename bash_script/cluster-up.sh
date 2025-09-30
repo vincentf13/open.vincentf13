@@ -11,9 +11,9 @@ APPLICATION_MANIFESTS=(
   demo/deployment.yaml
   demo/service.yaml
   demo/hpa.yaml
-  servicea/deployment.yaml
-  servicea/service.yaml
-  servicea/hpa.yaml
+  service-template/deployment.yaml
+  service-template/service.yaml
+  service-template/hpa.yaml
   ingress.yaml
 )
 

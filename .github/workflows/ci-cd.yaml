@@ -15,10 +15,10 @@ on:
 env:
   SERVICE_DIRS: |
     services/demo
-    services/servicea
+    services/service-template
   SERVICE_GLOBS: |
     services/demo/**
-    services/servicea/**
+    services/service-template/**
 
 jobs:
   detect-changes:

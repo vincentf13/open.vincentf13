@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: servicea
+  name: service-template
   labels:
-    app: servicea
+    app: service-template
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: servicea
+      app: service-template
   template:
     metadata:
       labels:
-        app: servicea
+        app: service-template
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8081"
     spec:
       containers:
-        - name: servicea
-          image: victorf13/servicea:latest
+        - name: service-template
+          image: victorf13/service-template:latest
           imagePullPolicy: Always
           ports:
             - name: http

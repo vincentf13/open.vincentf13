@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: service-template
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

@@ -1,10 +1,10 @@
-package com.example.servicea;
+package com.example.exchange.servicetemplate;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ServiceaApplicationTests {
+class ServiceTemplateApplicationTests {
 
     @Test
     void contextLoads() {

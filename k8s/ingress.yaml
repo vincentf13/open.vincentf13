@@ -17,10 +17,10 @@ spec:
                 name: demo
                 port:
                   number: 8080
-          - path: /servicea(/|$)(.*)
+          - path: /service-template(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
               service:
-                name: servicea
+                name: service-template
                 port:
                   number: 8080

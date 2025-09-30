@@ -19,8 +19,8 @@ The goal of this project is to help developers easily build their own local deve
 1. build docker 鏡像
    docker build -t demo:latest services/demo
    docker tag demo:latest \<dockerhub-user>/demo:latest
-   docker build -t servicea:latest services/servicea
-   docker tag servicea:latest \<dockerhub-user>/servicea:latest
+   docker build -t service-template:latest services/service-template
+   docker tag service-template:latest \<dockerhub-user>/service-template:latest
 2. 推送鏡像
    docker login
    docker push \<dockerhub-user>/demo:latest
@@ -29,8 +29,8 @@ The goal of this project is to help developers easily build their own local deve
    1. 調整 deployment 配置
       k8s/demo/deployment.yaml 配置鏡像
       spec.template.spec.containers[0].image:  \<dockerhub-user>/demo:latest
-      k8s/servicea/deployment.yaml 配置鏡像
-      spec.template.spec.containers[0].image:  \<dockerhub-user>/servicea:latest
+      k8s/service-template/deployment.yaml 配置鏡像
+      spec.template.spec.containers[0].image:  \<dockerhub-user>/service-template:latest
 2. 安裝 kind
    
    使用 kind 建立 k8s 集群: kind create cluster
