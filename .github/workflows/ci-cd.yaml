@@ -1,5 +1,12 @@
 name: CI Build and Push
 
+#
+# 必須在 GitHub 專案設定 → Settings → Secrets and variables → Actions 中建立：
+# 1. DOCKERHUB_USERNAME：可推送映像到 Docker Hub 的帳號。
+# 2. DOCKERHUB_TOKEN：對應帳號的存取 token/密碼。
+# 3. GH_PAT：至少擁有 repo 權限的 Personal Access Token，用來更新 GitOps 儲庫。
+#
+
 on:
   push:
     branches: ["**"]
