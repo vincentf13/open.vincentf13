@@ -24,6 +24,7 @@
         <module>account-ledger</module>
         <module>positions</module>
         <module>market-data</module>
+        <module>demo</module>
         <module>service-template</module>
     </modules>
 </project>
