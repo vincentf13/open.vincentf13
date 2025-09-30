@@ -28,9 +28,9 @@ public class DemoApplication {
     @GetMapping("/")
     public String hello() {
 
-        return "Hello Spring Boot in K8s! " +
-                "image.tag=" + tag +
-                "Build Time: " + buildProperties.getTime();
+        return "Hello Spring Boot in K8s!" +
+                "<br/>image.tag=" + tag +
+                "<br/>Build Time: " + buildProperties.getTime();
 
     }
 
