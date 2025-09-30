@@ -34,7 +34,6 @@
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         <redisson.version>3.35.0</redisson.version>
         <springdoc.version>2.6.0</springdoc.version>
-        <otel.exporter.version>1.43.0</otel.exporter.version>
     </properties>
 
     <dependencyManagement>
@@ -96,15 +95,6 @@
             <dependency>
                 <groupId>io.micrometer</groupId>
                 <artifactId>micrometer-registry-prometheus</artifactId>
-            </dependency>
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-tracing-bridge-otel</artifactId>
-            </dependency>
-            <dependency>
-                <groupId>io.opentelemetry</groupId>
-                <artifactId>opentelemetry-exporter-otlp</artifactId>
-                <version>${otel.exporter.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springdoc</groupId>
