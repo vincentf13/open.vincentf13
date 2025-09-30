@@ -10,20 +10,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
 @RestController
-public class ServiceAApplication {
+public class ServiceaApplication {
 
     private final BuildProperties buildProperties;
 
-    public ServiceAApplication(BuildProperties buildProperties) {
+    public ServiceaApplication(BuildProperties buildProperties) {
         this.buildProperties = buildProperties;
     }
 
     public static void main(String[] args) {
-        SpringApplication.run(ServiceAApplication.class, args);
+        SpringApplication.run(ServiceaApplication.class, args);
     }
 
     @GetMapping("/")
-    public String hello() { 
+    public String hello() {
         return "Hello from 微服務版  Service A!" +
                 "<br/>image.tag=" + buildProperties.get("image.tag") +
                 "<br/>Build Time: " + buildProperties.get("build.timestamp");

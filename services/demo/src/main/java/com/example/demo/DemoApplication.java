@@ -28,11 +28,9 @@ public class DemoApplication {
 
     @GetMapping("/")
     public String hello() {
-
         return "Hello Spring Boot 微服務版 in K8s! " +
                 "<br/>image.tag=" +  buildProperties.get("image.tag") +
                 "<br/>Build Time: " + buildProperties.get("build.timestamp");
-
     }
 
     @GetMapping("/burn")
