@@ -50,7 +50,7 @@ The goal of this project is to help developers easily build their own local deve
    看到看到數值如 `cpu: 25%/80%` 即正常。
 
 7. 執行k8s腳本:
-   bash ./bash_script/apply-k8s.sh
+   bash ./bash_script/cluster-up.sh --only-k8s
 8. 驗證
    
    服務 port 轉發 :
@@ -124,7 +124,7 @@ kubectl -n argocd port-forward svc/argocd-server 8082:443
      然後重新套用對應資源。
 
 ## 腳本啟動
-執行 bash ./bash_script/apply-prometheus.sh（必要時加 --context \<your-context>）部署整套監控堆疊，之後用 kubectl get pods -n monitoring 確認狀態。
+執行 bash ./bash_script/cluster-up.sh --only-prometheus（必要時加 --context \<your-context>）部署整套監控堆疊，之後用 kubectl get pods -n monitoring 確認狀態。
 
 
 ## Prometheus 存取
@@ -195,7 +195,7 @@ k6 run ./k6/k6.js
    kubectl cluster-info 
    
    Apply配置:
-   bash ./bash_script/apply-k8s.sh
+   bash ./bash_script/cluster-up.sh --only-k8s
    
    啟動Ingress Controller
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
@@ -240,7 +240,7 @@ argocd app create gitops \
    密碼尾端要去掉 %
    
 3. 監控與告警
-   bash ./bash_script/apply-prometheus.sh
+   bash ./bash_script/cluster-up.sh --only-prometheus
    kubectl get pods -n monitoring
    kubectl port-forward -n monitoring svc/prometheus 9090:9090 &， 瀏覽器開 http://localhost:9090
    kubectl port-forward -n monitoring svc/alertmanager 9093:9093 &， http://localhost:9093
