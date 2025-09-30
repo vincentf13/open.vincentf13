@@ -30,7 +30,7 @@ public class DemoApplication {
 
         return "Hello Spring Boot in K8s!" +
                 "<br/>image.tag=" +  buildProperties.get("image.tag") +
-                "<br/>Build Time: " + buildProperties.getTime();
+                "<br/>Build Time: " + buildProperties.get("build.timestamp");
 
     }
 
