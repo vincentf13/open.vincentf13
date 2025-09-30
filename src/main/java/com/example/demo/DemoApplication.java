@@ -29,7 +29,7 @@ public class DemoApplication {
     public String hello() {
 
         return "Hello Spring Boot in K8s!" +
-                "<br/>image.tag=" + tag +
+                "<br/>image.tag=" +  buildProperties.get("image.tag") +
                 "<br/>Build Time: " + buildProperties.getTime();
 
     }
