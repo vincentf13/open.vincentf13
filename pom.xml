@@ -15,7 +15,7 @@
 
     <modules>
         <module>services/demo</module>
-        <module>services/serviceA</module>
+        <module>services/servicea</module>
     </modules>
 
     <properties>

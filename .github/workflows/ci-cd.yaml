@@ -19,12 +19,12 @@ jobs:
         with:
           files: |
             services/demo/**
-            services/serviceA/**
+            services/servicea/**
       - name: Build matrix definition
         id: build-matrix
         run: |
           set -eo pipefail
-          declare -a services=("services/demo" "services/serviceA")
+          declare -a services=("services/demo" "services/servicea")
           declare -A seen=()
           matrix_entries=()
           while IFS= read -r file; do
@@ -33,7 +33,8 @@ jobs:
               if [[ $file == ${prefix}* && -z ${seen[$svc]:-} ]]; then
                 seen[$svc]=1
                 name=$(basename "$svc")
-                matrix_entries+=("{\"service\":\"$svc\",\"name\":\"$name\"}")
+                slug=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+                matrix_entries+=("{\"service\":\"$svc\",\"name\":\"$name\",\"image_slug\":\"$slug\"}")
               fi
             done
           done < <(printf "%s\n%s\n" "${{ steps.changed.outputs.modified_files }}" "${{ steps.changed.outputs.added_files }}" | tr ' ' '\n' | sort -u)
@@ -89,7 +90,8 @@ jobs:
           set -euo pipefail
           svc="${{ matrix.service }}"
           name="${{ matrix.name }}"
-          image="${IMAGE_REPO}/$name"
+          slug="${{ matrix.image_slug }}"
+          image="${IMAGE_REPO}/$slug"
           short_sha="${GITHUB_SHA::7}"
           docker buildx build "$svc" \
             --file "$svc/Dockerfile" \
@@ -110,17 +112,18 @@ jobs:
         env:
           IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}
           SERVICE_NAME: ${{ matrix.name }}
+          IMAGE_SLUG: ${{ matrix.image_slug }}
         run: |
           set -eo pipefail
           short_sha="${GITHUB_SHA::7}"
-          image="${IMAGE_REPO}/${SERVICE_NAME}:$short_sha"
+          image="${IMAGE_REPO}/${IMAGE_SLUG}:$short_sha"
           deployment_path="k8s/${SERVICE_NAME}/deployment.yaml"
           if [ ! -f "$deployment_path" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Missing deployment file for ${SERVICE_NAME}, nothing to update."
             exit 0
           fi
-          sed -i "s|image: .*${SERVICE_NAME}:.*|image: ${image}|" "$deployment_path"
+          sed -i "s|image: .*${IMAGE_SLUG}:.*|image: ${image}|" "$deployment_path"
           echo "deployment_path=$deployment_path" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
       - name: Commit and push manifest changes
@@ -129,6 +132,6 @@ jobs:
         with:
           cwd: gitops
           add: ${{ steps.manifest.outputs.deployment_path }}
-          message: "Update ${{ matrix.name }} image to ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.name }}:${{ github.sha }}"
+          message: "Update ${{ matrix.name }} image to ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image_slug }}:${{ github.sha }}"
           push: true
           github_token: ${{ secrets.GH_PAT }}

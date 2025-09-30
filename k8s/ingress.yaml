@@ -14,3 +14,10 @@ spec:
                 name: demo
                 port:
                   number: 8080
+          - path: /servicea
+            pathType: Prefix
+            backend:
+              service:
+                name: servicea
+                port:
+                  number: 8081

@@ -8,9 +8,9 @@
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
-    <artifactId>serviceA</artifactId>
-    <name>serviceA</name>
-    <description>serviceA</description>
+    <artifactId>servicea</artifactId>
+    <name>servicea</name>
+    <description>servicea</description>
 
     <dependencies>
         <dependency>

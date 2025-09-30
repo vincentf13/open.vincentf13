@@ -1,6 +1,6 @@
 spring:
   application:
-    name: serviceA
+    name: servicea
 
 management:
   endpoints:

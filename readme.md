@@ -20,6 +20,8 @@ The goal of this project is to help developers easily build their own local deve
 3. build docker 鏡像
    docker build -t demo:latest services/demo
    docker tag demo:latest victorf13/demo:latest
+   docker build -t servicea:latest services/servicea
+   docker tag servicea:latest victorf13/servicea:latest
    
    推送鏡像
    docker login
@@ -27,6 +29,8 @@ The goal of this project is to help developers easily build their own local deve
    
    k8s/demo/deployment.yaml 配置鏡像
    spec.template.spec.containers[0].image:  victorf13/demo:latest
+   k8s/servicea/deployment.yaml 配置鏡像
+   spec.template.spec.containers[0].image:  victorf13/servicea:latest
 4. 安裝 kind，
    並建立 k8s 集群: kind create cluster
    驗證集群啟動: kubectl cluster-info --context kind-demo
@@ -55,6 +59,7 @@ The goal of this project is to help developers easily build their own local deve
    
    服務 port 轉發 :
    kubectl port-forward deployment/demo 8081:8080
+   kubectl port-forward deployment/servicea 8082:8081
    
    Ingress port 轉發 : 
    kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
