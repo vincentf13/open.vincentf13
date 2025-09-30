@@ -20,12 +20,11 @@ jobs:
           files: |
             services/demo/**
             services/serviceA/**
-            services/serviceB/**
       - name: Build matrix definition
         id: build-matrix
         run: |
           set -eo pipefail
-          declare -a services=("services/demo" "services/serviceA" "services/serviceB")
+          declare -a services=("services/demo" "services/serviceA")
           declare -A seen=()
           matrix_entries=()
           while IFS= read -r file; do
@@ -59,7 +58,9 @@ jobs:
           distribution: temurin
           java-version: '24'
       - name: Build with Maven
-        run: mvn -B -Duser.timezone=Asia/Taipei clean package
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: mvn -B -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} clean package
 
   build-and-push:
     needs: [detect-changes, verify]
