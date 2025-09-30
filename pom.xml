@@ -28,7 +28,7 @@
     </modules>
 
     <properties>
-        <java.version>24</java.version>
+        <java.version>23</java.version>
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
         <image.tag>local</image.tag>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
@@ -58,49 +58,4 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-<!--        <build>-->
-<!--        <plugins>-->
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-compiler-plugin</artifactId>-->
-<!--                <configuration>-->
-<!--                    <annotationProcessorPaths>-->
-<!--                        <path>-->
-<!--                            <groupId>org.springframework.boot</groupId>-->
-<!--                            <artifactId>spring-boot-configuration-processor</artifactId>-->
-<!--                        </path>-->
-<!--                        <path>-->
-<!--                            <groupId>org.projectlombok</groupId>-->
-<!--                            <artifactId>lombok</artifactId>-->
-<!--                        </path>-->
-<!--                    </annotationProcessorPaths>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
-<!--            <plugin>-->
-<!--                <groupId>org.springframework.boot</groupId>-->
-<!--                <artifactId>spring-boot-maven-plugin</artifactId>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <goals>-->
-<!--                            <goal>build-info</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <additionalProperties>-->
-<!--                                <build.timestamp>${maven.build.timestamp}</build.timestamp>-->
-<!--                                <image.tag>${image.tag}</image.tag>-->
-<!--                            </additionalProperties>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--                <configuration>-->
-<!--                    <excludes>-->
-<!--                        <exclude>-->
-<!--                            <groupId>org.projectlombok</groupId>-->
-<!--                            <artifactId>lombok</artifactId>-->
-<!--                        </exclude>-->
-<!--                    </excludes>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
-<!--        </plugins>-->
-<!--    </build>-->
 </project>
