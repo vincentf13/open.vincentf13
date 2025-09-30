@@ -2,55 +2,132 @@ name: CI Build and Push
 
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
 
 jobs:
-  build:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      has_changes: ${{ steps.build-matrix.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: changed
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            services/demo/**
+            services/serviceA/**
+            services/serviceB/**
+      - name: Build matrix definition
+        id: build-matrix
+        run: |
+          set -eo pipefail
+          declare -a services=("services/demo" "services/serviceA" "services/serviceB")
+          declare -A seen=()
+          matrix_entries=()
+          while IFS= read -r file; do
+            for svc in "${services[@]}"; do
+              prefix="$svc/"
+              if [[ $file == ${prefix}* && -z ${seen[$svc]:-} ]]; then
+                seen[$svc]=1
+                name=$(basename "$svc")
+                matrix_entries+=("{\"service\":\"$svc\",\"name\":\"$name\"}")
+              fi
+            done
+          done < <(printf "%s\n%s\n" "${{ steps.changed.outputs.modified_files }}" "${{ steps.changed.outputs.added_files }}" | tr ' ' '\n' | sort -u)
+          if [ ${#matrix_entries[@]} -eq 0 ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "matrix={\"include\":[$(IFS=,; echo "${matrix_entries[*]}")]}" >> "$GITHUB_OUTPUT"
+          fi
+
+  verify:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     env:
       TZ: Asia/Taipei
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '24'
-      - name: Set GITHUB_SHA env
-        run: echo "GITHUB_SHA=${{ github.sha }}" >> $GITHUB_SHA
-      - run: mvn -B -Duser.timezone=Asia/Taipei clean package
-      - name: Build and Push
+      - name: Build with Maven
+        run: mvn -B -Duser.timezone=Asia/Taipei clean package
+
+  build-and-push:
+    needs: [detect-changes, verify]
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    env:
+      TZ: Asia/Taipei
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push image
+        env:
+          IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/demo
-          TAG_SHA=${{ github.sha }}
-          docker build -t $IMAGE:$TAG_SHA -t $IMAGE:latest .
-          docker push $IMAGE:$TAG_SHA
-          docker push $IMAGE:latest
+          set -euo pipefail
+          svc="${{ matrix.service }}"
+          name="${{ matrix.name }}"
+          image="${IMAGE_REPO}/$name"
+          short_sha="${GITHUB_SHA::7}"
+          docker buildx build "$svc" \
+            --file "$svc/Dockerfile" \
+            --tag "$image:$short_sha" \
+            --tag "$image:latest" \
+            --push
       - name: Checkout GitOps repo
-        uses: actions/checkout@v3
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/GitOps
           token: ${{ secrets.GH_PAT }}
           path: gitops
       - name: Update image tag in manifests
+        if: github.event_name == 'push'
+        id: manifest
         working-directory: gitops
+        env:
+          IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}
+          SERVICE_NAME: ${{ matrix.name }}
         run: |
-          set -x                                                                                                                                                                                                                                                                                                                                  
-          ls                                                                                                                                                                                                                                                                                                                                      
-          test -f k8s/deployment.yaml                                                                                                                                                                                                                                                                                                             
-          sed -i 's|image: ${{ secrets.DOCKERHUB_USERNAME }}/demo:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/demo:${{ github.sha }}|' k8s/deployment.yaml                                                                                                                                                                                                                                        
-          grep -n 'image:' k8s/deployment.yaml || true                                                                                                                                                                                                                                                                                            
-          git status --short || true
-      - name: Commit and push changes
+          set -eo pipefail
+          short_sha="${GITHUB_SHA::7}"
+          image="${IMAGE_REPO}/${SERVICE_NAME}:$short_sha"
+          deployment_path="k8s/${SERVICE_NAME}/deployment.yaml"
+          if [ ! -f "$deployment_path" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Missing deployment file for ${SERVICE_NAME}, nothing to update."
+            exit 0
+          fi
+          sed -i "s|image: .*${SERVICE_NAME}:.*|image: ${image}|" "$deployment_path"
+          echo "deployment_path=$deployment_path" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+      - name: Commit and push manifest changes
+        if: github.event_name == 'push' && steps.manifest.outputs.skip == 'false'
         uses: EndBug/add-and-commit@v9
         with:
           cwd: gitops
-          add: k8s/deployment.yaml
-          message: "Update image to ${{ secrets.DOCKERHUB_USERNAME }}/demo:${{ github.sha }}"
+          add: ${{ steps.manifest.outputs.deployment_path }}
+          message: "Update ${{ matrix.name }} image to ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.name }}:${{ github.sha }}"
           push: true
-          github_token: ${{ secrets.GH_PAT }}   # 關鍵：用 PAT 作為 input
+          github_token: ${{ secrets.GH_PAT }}
