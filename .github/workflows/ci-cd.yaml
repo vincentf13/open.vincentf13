@@ -23,7 +23,7 @@ jobs:
           java-version: '24'
       - name: Set GITHUB_SHA env
         run: echo "GITHUB_SHA=${{ github.sha }}" >> $GITHUB_SHA
-      - run: mvn -B -DskipTests package
+      - run: mvn -B -Duser.timezone=Asia/Taipei clean package
       - name: Build and Push
         run: |
           IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/demo
