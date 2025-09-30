@@ -105,7 +105,8 @@
                         <configuration>
                             <additionalProperties>
                                 <build.timestamp>${maven.build.timestamp}</build.timestamp>
-                                <image.tag>${env.GITHUB_SHA}</image.tag>
+                                <maven.build.timestamp.timezone>Asia/Taipei</maven.build.timestamp.timezone>
+                                <image.tag>${env.GITHUB_SHA}</image.tag>    <!-- GitAction注入  -->
                             </additionalProperties>
                         </configuration>
                     </execution>
