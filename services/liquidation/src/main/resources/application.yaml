@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: liquidation-service
+
+logging:
+  level:
+    com.example.exchange.liquidation: INFO

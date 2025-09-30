@@ -1,0 +1,16 @@
+openapi: 3.0.1
+info:
+  title: Account Service API
+  version: 0.1.0
+paths: {}
+components:
+  schemas:
+    AccountBalance:
+      type: object
+      properties:
+        accountId:
+          type: string
+        asset:
+          type: string
+        balance:
+          type: string

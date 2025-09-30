@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: matching-service
+
+logging:
+  level:
+    com.example.exchange.matching: DEBUG

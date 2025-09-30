@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: admin-service
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8080/oauth2/jwks
+
+logging:
+  level:
+    com.example.exchange.admin: INFO

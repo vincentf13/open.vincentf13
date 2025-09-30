@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: account-ledger-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ledger
+    username: ledger
+    password: ledger
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+logging:
+  level:
+    com.example.exchange.accountledger: INFO

@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: market-data-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

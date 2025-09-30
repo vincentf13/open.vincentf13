@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: wallet-service
+
+logging:
+  level:
+    com.example.exchange.wallet: INFO

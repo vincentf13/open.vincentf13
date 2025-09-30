@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: risk-margin-service
+  main:
+    banner-mode: "off"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+logging:
+  level:
+    com.example.exchange.riskmargin: INFO

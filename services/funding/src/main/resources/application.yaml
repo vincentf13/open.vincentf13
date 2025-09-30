@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: funding-service
+
+logging:
+  level:
+    com.example.exchange.funding: INFO
