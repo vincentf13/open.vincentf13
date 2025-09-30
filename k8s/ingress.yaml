@@ -20,4 +20,4 @@ spec:
               service:
                 name: servicea
                 port:
-                  number: 8081
+                  number: 8080
