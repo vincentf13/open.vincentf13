@@ -159,13 +159,15 @@ setup_ingress_and_metrics() {
     wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
 
   log_step "Ensuring metrics-server"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system delete deploy metrics-server --ignore-not-found
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$metrics_manifest"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system patch deployment metrics-server \
     --type='json' -p='[
       {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
       {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}
     ]'
+
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system rollout status deploy/metrics-server
+  kubectl get hpa
 }
 
 apply_prometheus_manifests() {

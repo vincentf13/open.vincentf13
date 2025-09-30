@@ -38,30 +38,35 @@ The goal of this project is to help developers easily build their own local deve
 3. 建置與啟動 ingress Controller
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
-4. 安裝 metric sever : 
-   水平擴容必備
-   kubectl delete -n kube-system deploy metrics-server
-   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-   kubectl -n kube-system patch deployment metrics-server \
-   --type='json' -p='[
-   {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
-   {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address
-   types=InternalIP,Hostname,ExternalIP"}
-   ]'
-   
-   驗證:  
-   kubectl get hpa  
-   過一陣子看到數值如 `cpu: 25%/80%` 即正常。
 
-5. 執行k8s腳本:
+4. 執行k8s腳本:
    bash ./bash_script/cluster-up.sh --only-k8s
-6. 驗證  
+5. 驗證  
    Ingress port 轉發 : 
    kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
     
    測試 curl http://127.0.0.1:8081
    應可正確訪問到服務接口。
 
+
+## 安裝 metric sever : 
+   水平擴容必備
+   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+   
+   下面指令執行時，注意不要把參數截掉到了
+   
+```
+kubectl -n kube-system patch deploy metrics-server --type='json' -p='[
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}
+]'
+```
+
+kubectl -n kube-system rollout status deploy/metrics-server
+   
+   驗證:  
+   kubectl get hpa  
+   過一陣子看到數值如 `cpu: 25%/80%` 即正常。
 ## GitOps CI/CD 建置
 
 ### CI
