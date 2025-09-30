@@ -1,19 +1,33 @@
-# Repository Guidelines
+# Project Handbook
 
-## Project Structure & Module Organization
-Application code now lives per service under `services/<service>/src` (for example `services/demo/src/main/java/com/example/demo`). Each service keeps its own `pom.xml`, `Dockerfile`, and resources alongside the code. Shared configuration, templates, and static assets stay under each service’s `src/main/resources`, with tests mirroring the package tree in `src/test/java`. Kubernetes manifests reside in `k8s/`; per-service resources live in subdirectories such as `k8s/demo/deployment.yaml` or `k8s/service-template/deployment.yaml`, while shared ingress remains at `k8s/ingress.yaml`. The Docker build context for each service is its own directory (e.g. `services/demo` or `services/service-template`).
+## Current Module Layout
+- Root aggregator `pom.xml` declares `common-sdk` and `services`; run module-specific commands from the repo root.
+- Shared code lives under `common-sdk`, which now bundles `core-utils`, `web`, `security`, `infra-sdk`, `dev-test`, `observability`, plus the relocated `api-interfaces`, `clients`, and `integration` suites.
+- Service implementations reside in `services/<service>/src`, each with its own `pom.xml`, `Dockerfile`, and resources (`src/main/resources`, `src/test/java`).
+- Kubernetes assets live in `k8s/`; per-service manifests sit under `k8s/<service>/`, while cross-cutting resources stay at the top level (e.g., `k8s/ingress.yaml`).
 
-## Build, Test, and Development Commands
-Run `./mvnw clean verify` before pushing; it compiles, runs unit tests, and leaves artifacts in `target/`. Use `./mvnw spring-boot:run` for a local dev server on port 8080. `./mvnw test` runs only the JUnit suite. Build container images via `docker build -t demo:latest .`, then load into kind with `kind load docker-image demo:latest --name mycluster`.
+## Build & Test Commands
+- Use the system Maven (`mvn`) because the wrapper (`mvnw`) is not checked in; install it if you prefer a pinned toolchain.
+- Full pipeline: `mvn clean verify` (compiles, runs unit tests, produces artifacts under `target/`).
+- Targeted build: `mvn -pl <module> -am verify` (e.g., `mvn -pl common-sdk/api-interfaces -am verify`).
+- Local service run: `mvn -pl services/<service> spring-boot:run` (defaults to port 8080 unless overridden).
 
-## Coding Style & Naming Conventions
-Follow standard Java style with 4-space indentation and UTF-8 sources. Use PascalCase for classes, camelCase for methods/fields, and upper snake case for constants. Name controllers, services, and repositories after their responsibility (e.g., `UserController`). Favor constructor injection, keep configuration in distinct classes, and remove debug prints like `System.out.printf` before committing.
+## Coding Style
+- Java sources are UTF-8 with 4-space indentation; use PascalCase for classes, camelCase for members, and UPPER_SNAKE_CASE for constants.
+- Prefer constructor injection, isolate config in dedicated classes, and remove transient debug output (`System.out.printf`, etc.) before committing.
+- Name components by responsibility (e.g., `UserController`, `OrderService`).
 
-## Testing Guidelines
-Place unit and slice tests in `src/test/java`, mirroring package names and ending classes with `*Tests`. Use `@SpringBootTest` only when full context wiring is required; otherwise prefer lighter slices or mocks. Cover success and failure paths, and ensure the suite remains green under `./mvnw verify`. Document any intentionally skipped tests in the PR description.
+## Testing Expectations
+- Mirror packages under `src/test/java`; suffix test classes with `*Tests`.
+- Reserve `@SpringBootTest` for full-context cases—favor slices, mocks, or plain unit tests otherwise.
+- Cover success and failure paths; keep the suite green under `mvn verify`. Document any intentionally skipped scenarios in PR notes.
 
-## Commit & Pull Request Guidelines
-Write concise, present-tense commit messages (e.g., `fix ingress host mapping`). Chinese summaries are fine; keep the first line under 50 characters and move detail to the body if needed. For PRs, link related issues, share repro steps for fixes, and include screenshots or curl samples when changing HTTP behavior. Confirm `./mvnw verify` and `kubectl apply -f k8s/*.yaml` succeed before requesting review.
+## Git & Review Workflow
+- Commit messages: concise, present tense (`fix ingress host mapping`); first line < 50 characters, further detail in the body if needed. Chinese summaries are acceptable.
+- Before opening a PR, confirm `mvn clean verify` and `kubectl apply -f k8s/<service>/*.yaml` succeed.
+- Link related issues, document reproduction steps for fixes, and attach screenshots or curl logs when changing HTTP behavior.
 
 ## Deployment Notes
-Apply manifests in order: deployment, service, HPA, then ingress (e.g. `kubectl apply -f k8s/demo/deployment.yaml`, `k8s/demo/service.yaml`, `k8s/demo/hpa.yaml`, followed by the service-template equivalents, and finally `k8s/ingress.yaml`). Keep image tags in the per-service deployment manifests (`k8s/demo/deployment.yaml`, `k8s/service-template/deployment.yaml`, etc.) aligned with published images; update the corresponding service/HPA manifests and ingress if ports or names change. For registry pushes, update each deployment (`kubectl set image deploy/demo ...`, `kubectl set image deploy/service-template ...`) and watch rollout status.
+- Apply manifests in order: deployment → service → HPA → ingress (e.g., `kubectl apply -f k8s/demo/deployment.yaml`, then service, HPA, and finally `k8s/ingress.yaml`).
+- Keep image tags in `k8s/<service>/deployment.yaml` aligned with published artifacts; update matching service/HPA manifests and ingress when ports or names change.
+- For live rollouts, `kubectl set image deploy/<service> <container>=<image>:<tag>` and monitor with `kubectl rollout status deploy/<service>`.
