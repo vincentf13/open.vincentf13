@@ -26,7 +26,7 @@ public class DemoApplication {
     }
 
     @GetMapping("/")
-    public String hello() {
+    public String hello() { 
 
         return "Hello Spring Boot in K8s!" +
                 "<br/>image.tag=" +  buildProperties.get("image.tag") +
