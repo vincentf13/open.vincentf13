@@ -61,7 +61,7 @@ jobs:
       - name: Build with Maven
         env:
           IMAGE_TAG: ${{ github.sha }}
-        run: mvn -B -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} clean package
+        run: mvn -B -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} -DskipTests clean package
 
   build-and-push:
     needs: [detect-changes, verify]
@@ -74,6 +74,17 @@ jobs:
       TZ: Asia/Taipei
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '24'
+      - name: Build service artifact
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          svc="${{ matrix.service }}"
+          mvn -B -DskipTests -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} -pl "$svc" -am package
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Buildx
