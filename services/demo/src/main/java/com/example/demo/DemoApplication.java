@@ -40,5 +40,5 @@ public class DemoApplication {
         while (System.currentTimeMillis() - start < ms) {
         }
         return "burn " + ms + "ms";
-    }
+    } 
 }
