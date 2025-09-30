@@ -1,12 +1,13 @@
 package com.example.demo;
 
 import io.micrometer.core.annotation.Timed;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.info.BuildProperties;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
 @RestController
@@ -28,7 +29,7 @@ public class DemoApplication {
     @GetMapping("/")
     public String hello() {
 
-        return "Hello Spring Boot in K8s!" +
+        return "Hello Spring Boot 微服務版 in K8s! " +
                 "<br/>image.tag=" +  buildProperties.get("image.tag") +
                 "<br/>Build Time: " + buildProperties.get("build.timestamp");
 

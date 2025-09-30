@@ -24,7 +24,7 @@ public class ServiceAApplication {
 
     @GetMapping("/")
     public String hello() {
-        return "Hello from Service A!" +
+        return "Hello from 微服務版  Service A!" +
                 "<br/>image.tag=" + buildProperties.get("image.tag") +
                 "<br/>Build Time: " + buildProperties.get("build.timestamp");
     }
