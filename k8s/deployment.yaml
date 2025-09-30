@@ -26,9 +26,6 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
-          env:
-            - name: APP_IMAGE_TAG
-              value: "${IMAGE_TAG}"      # envsubst/Actions 注入
           resources:
             requests:
               cpu: "100m"           # 自動擴容的必要條件，需配置
