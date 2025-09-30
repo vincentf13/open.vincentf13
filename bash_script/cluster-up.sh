@@ -159,6 +159,7 @@ setup_ingress_and_metrics() {
     wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
 
   log_step "Ensuring metrics-server"
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system delete deploy metrics-server --ignore-not-found
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$metrics_manifest"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system patch deployment metrics-server \
     --type='json' -p='[
