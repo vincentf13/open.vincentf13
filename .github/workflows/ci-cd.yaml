@@ -4,6 +4,15 @@ on:
   push:
     branches: ["**"]
 
+# 集中管理各微服務目錄與對應的變更偵測
+env:
+  SERVICE_DIRS: |
+    services/demo
+    services/servicea
+  SERVICE_GLOBS: |
+    services/demo/**
+    services/servicea/**
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -20,9 +29,7 @@ jobs:
         id: changed
         uses: tj-actions/changed-files@v45
         with:
-          files: |
-            services/demo/**
-            services/servicea/**
+          files: ${{ env.SERVICE_GLOBS }}
       - name: Log changed files
         if: steps.changed.outputs.all_changed_files != ''
         run: |
@@ -35,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Building matrix from detected changes..."
-          declare -a services=("services/demo" "services/servicea")
+          readarray -t services <<< "${SERVICE_DIRS}"
           declare -A seen=()
           matrix_entries=()
           while IFS= read -r file; do
