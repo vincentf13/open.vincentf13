@@ -2,10 +2,10 @@ spring:
   application:
     name: account-ledger-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/ledger
+    url: jdbc:mysql://localhost:3306/ledger
     username: ledger
     password: ledger
-    driver-class-name: org.postgresql.Driver
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: none
