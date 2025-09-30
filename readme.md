@@ -206,6 +206,5 @@ Grafana: http://localhost:3000/?orgId=1&from=now-6h&to=now&timezone=browser
 1. 安裝 K6
 2. 使用
 ```bash
-k6 run ./k6/k6.js
+k6 run ./integration/simulators/src/main/resources/k6/k6.js
 ```
-
