@@ -11,19 +11,30 @@ jobs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
       has_changes: ${{ steps.build-matrix.outputs.has_changes }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - id: changed
+      # Identify which microservices changed so downstream jobs can target only what is needed.
+      - name: Detect changed microservices
+        id: changed
         uses: tj-actions/changed-files@v45
         with:
           files: |
             services/demo/**
             services/servicea/**
-      - name: Build matrix definition
+      - name: Log changed files
+        if: steps.changed.outputs.all_changed_files != ''
+        run: |
+          echo "::group::Changed files"
+          echo "${{ steps.changed.outputs.all_changed_files }}" | tr ' ' '\n'
+          echo "::endgroup::"
+      # Convert the changed file list into a build matrix consumable by later jobs.
+      - name: Build service matrix
         id: build-matrix
         run: |
-          set -eo pipefail
+          set -euo pipefail
+          echo "Building matrix from detected changes..."
           declare -a services=("services/demo" "services/servicea")
           declare -A seen=()
           matrix_entries=()
@@ -41,9 +52,13 @@ jobs:
           if [ ${#matrix_entries[@]} -eq 0 ]; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo "::notice::No microservice changes detected; downstream jobs will be skipped."
           else
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "matrix={\"include\":[$(IFS=,; echo "${matrix_entries[*]}")]}" >> "$GITHUB_OUTPUT"
+            joined_entries=$(IFS=, ; echo "${matrix_entries[*]}")
+            matrix_json="{\"include\":[${joined_entries}]}"
+            echo "matrix=${matrix_json}" >> "$GITHUB_OUTPUT"
+            echo "Matrix definition: ${matrix_json}"
           fi
 
   verify:
@@ -53,15 +68,20 @@ jobs:
     env:
       TZ: Asia/Taipei
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Provision Java toolchain
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '24'
-      - name: Build with Maven
+      # Full build to ensure multi-module integrity before containerisation.
+      - name: Maven verify (skip tests for speed)
         env:
           IMAGE_TAG: ${{ github.sha }}
-        run: mvn -B -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} -DskipTests clean package
+        run: |
+          echo "Running full Maven build with image tag ${IMAGE_TAG}"
+          mvn -B -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} -DskipTests clean package
 
   build-and-push:
     needs: [detect-changes, verify]
@@ -73,18 +93,23 @@ jobs:
     env:
       TZ: Asia/Taipei
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Provision Java toolchain
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '24'
+      # Build only the microservice under test; `-am` ensures dependencies are available.
       - name: Build service artifact
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           set -euo pipefail
+          echo "::group::Building Maven artifacts for ${{ matrix.service }}"
           svc="${{ matrix.service }}"
           mvn -B -DskipTests -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} -pl "$svc" -am package
+          echo "::endgroup::"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Buildx
@@ -94,6 +119,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Build/push the container image, tagging with short SHA plus latest.
       - name: Build and push image
         env:
           IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -104,11 +130,14 @@ jobs:
           slug="${{ matrix.image_slug }}"
           image="${IMAGE_REPO}/$slug"
           short_sha="${GITHUB_SHA::7}"
+          echo "Building docker image ${image}:${short_sha} from ${svc}"
+          echo "::group::Docker build logs"
           docker buildx build "$svc" \
             --file "$svc/Dockerfile" \
             --tag "$image:$short_sha" \
             --tag "$image:latest" \
             --push
+          echo "::endgroup::"
       - name: Checkout GitOps repo
         if: github.event_name == 'push'
         uses: actions/checkout@v4
@@ -134,6 +163,7 @@ jobs:
             echo "Missing deployment file for ${SERVICE_NAME}, nothing to update."
             exit 0
           fi
+          echo "Updating ${deployment_path} to image ${image}"
           sed -i "s|image: .*${IMAGE_SLUG}:.*|image: ${image}|" "$deployment_path"
           echo "deployment_path=$deployment_path" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
