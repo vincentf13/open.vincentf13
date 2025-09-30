@@ -18,14 +18,14 @@ The goal of this project is to help developers easily build their own local deve
    
    
 3. build docker 鏡像
-   docker build -t demo:latest .
+   docker build -t demo:latest services/demo
    docker tag demo:latest victorf13/demo:latest
    
    推送鏡像
    docker login
    docker push victorf13/demo:latest
    
-   k8s/deployment.yaml 配置鏡像
+   k8s/demo/deployment.yaml 配置鏡像
    spec.template.spec.containers[0].image:  victorf13/demo:latest
 4. 安裝 kind，
    並建立 k8s 集群: kind create cluster

@@ -8,9 +8,9 @@ PROM_DIR="$K8S_DIR/prometheus"
 
 # Core application manifests applied to the cluster in order.
 APPLICATION_MANIFESTS=(
-  deployment.yaml
-  service.yaml
-  hpa.yaml
+  demo/deployment.yaml
+  demo/service.yaml
+  demo/hpa.yaml
   ingress.yaml
 )
 
