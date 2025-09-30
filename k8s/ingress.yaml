@@ -2,6 +2,9 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: demo
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
   rules:
@@ -14,8 +17,8 @@ spec:
                 name: demo
                 port:
                   number: 8080
-          - path: /servicea/
-            pathType: Prefix
+          - path: /servicea(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: servicea
