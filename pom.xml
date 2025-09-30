@@ -105,7 +105,7 @@
                         <configuration>
                             <additionalProperties>
                                 <build.timestamp>${maven.build.timestamp}</build.timestamp>
-                                <image.tag>${env.GITHUB_ENV}</image.tag>
+                                <image.tag>${env.GITHUB_SHA}</image.tag>
                             </additionalProperties>
                         </configuration>
                     </execution>
