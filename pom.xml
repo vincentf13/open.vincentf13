@@ -21,10 +21,7 @@
 
     <modules>
         <module>common-sdk</module>
-        <module>api-interfaces</module>
-        <module>clients</module>
         <module>services</module>
-        <module>integration</module>
     </modules>
 
     <properties>

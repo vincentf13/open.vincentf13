@@ -6,19 +6,21 @@
 
     <parent>
         <groupId>com.example.exchange</groupId>
-        <artifactId>my-exchange</artifactId>
+        <artifactId>common-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>integration</artifactId>
+    <artifactId>clients</artifactId>
     <packaging>pom</packaging>
 
-    <name>integration</name>
-    <description>Integration and simulator modules</description>
+    <name>clients</name>
+    <description>Generated clients aggregation</description>
 
     <modules>
-        <module>e2e-tests</module>
-        <module>simulators</module>
+        <module>account-client</module>
+        <module>marketdata-client</module>
+        <module>matching-client</module>
+        <module>risk-client</module>
     </modules>
 </project>

@@ -24,5 +24,8 @@
         <module>infra-sdk</module>
         <module>dev-test</module>
         <module>observability</module>
+        <module>api-interfaces</module>
+        <module>clients</module>
+        <module>integration</module>
     </modules>
 </project>
