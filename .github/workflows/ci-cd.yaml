@@ -10,48 +10,57 @@ name: CI Build and Push
 on:
   push:
     branches: ["**"]
+    # 任何分支推送都觸發流程
 
 # 集中管理各微服務目錄與對應的變更偵測
 env:
-  SERVICE_DIRS: |
+  SERVICE_DIRS: |  # 需要監控的微服務資料夾
     services/demo
     services/service-template
-  SERVICE_GLOBS: |
+  SERVICE_GLOBS: |  # 用於變更偵測的檔案範圍
     services/demo/**
     services/service-template/**
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
+    # 以 Ubuntu Runner 執行變更偵測
     outputs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
       has_changes: ${{ steps.build-matrix.outputs.has_changes }}
+    # 將偵測結果輸出給後續 Job 使用
     steps:
+      # 取得完整 Git 歷史作後續比較
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Identify which microservices changed so downstream jobs can target only what is needed.
+      # 判斷有哪些微服務有變動，後續工作只處理必要項目。
       - name: Detect changed microservices
         id: changed
         uses: tj-actions/changed-files@v45
         with:
           files: ${{ env.SERVICE_GLOBS }}
+      # 列出所有變更檔案供除錯參考
       - name: Log changed files
         if: steps.changed.outputs.all_changed_files != ''
         run: |
           echo "::group::Changed files"
           echo "${{ steps.changed.outputs.all_changed_files }}" | tr ' ' '\n'
           echo "::endgroup::"
-      # Convert the changed file list into a build matrix consumable by later jobs.
+      # 將變動檔案列表轉成矩陣格式，供後續 Job 動態決策。
       - name: Build service matrix
         id: build-matrix
         run: |
           set -euo pipefail
+          # 確保腳本遇到錯誤立即停止
           echo "Building matrix from detected changes..."
+          # 依據設定的服務清單建立陣列
           readarray -t services <<< "${SERVICE_DIRS}"
           declare -A seen=()
           matrix_entries=()
+          # seen 用來去除重複服務
+          # 掃描所有變動檔案並比對服務前綴
           while IFS= read -r file; do
             for svc in "${services[@]}"; do
               prefix="$svc/"
@@ -60,14 +69,17 @@ jobs:
                 name=$(basename "$svc")
                 slug=$(echo "$name" | tr '[:upper:]' '[:lower:]')
                 matrix_entries+=("{\"service\":\"$svc\",\"name\":\"$name\",\"image_slug\":\"$slug\"}")
+                # 收集後續矩陣所需欄位
               fi
             done
           done < <(printf "%s\n%s\n" "${{ steps.changed.outputs.modified_files }}" "${{ steps.changed.outputs.added_files }}" | tr ' ' '\n' | sort -u)
           if [ ${#matrix_entries[@]} -eq 0 ]; then
+            # 無服務變更
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
             echo "::notice::No microservice changes detected; downstream jobs will be skipped."
           else
+            # 有至少一個服務需要建置
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
             joined_entries=$(IFS=, ; echo "${matrix_entries[*]}")
             matrix_json="{\"include\":[${joined_entries}]}"
@@ -78,16 +90,23 @@ jobs:
   build-and-push:
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true'
+    # 僅在前段偵測到變更時才執行
     runs-on: ubuntu-latest
+    # 使用預設 Ubuntu Runner 進行建置
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    # 對每個受影響服務個別建置，互不阻塞
     env:
       TZ: Asia/Taipei
       MVND_NO_DAEMON: "true"
+    # 固定時區並停用 mvnd daemon，提高 CI 穩定性
     steps:
+      # 取得變更服務的原始碼
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       # 準備 JDK，並啟用 Maven 依賴快取
       - name: Provision Java toolchain
         uses: actions/setup-java@v4
@@ -105,6 +124,7 @@ jobs:
       - name: Install mvnd
         run: |
           set -euo pipefail
+          # 嚴格模式確保安裝流程安全
           MVND_VERSION=1.0.3
           if [ ! -x "$HOME/.mvnd/bin/mvnd" ]; then
             curl -fsSL https://downloads.apache.org/maven/mvnd/${MVND_VERSION}/maven-mvnd-${MVND_VERSION}-linux-amd64.tar.gz -o mvnd.tar.gz
@@ -121,14 +141,19 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           set -euo pipefail
+          # 確保 mvnd 指令出錯時立即失敗
           svc="${{ matrix.service }}"
           echo "::group::Building Maven artifacts for ${svc}"
           mvnd -B -T 1C -Dmaven.compiler.useIncrementalCompilation=false -DskipTests -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} -pl "$svc" -am clean package
+          # -T 1C 會依 CPU 自動分派執行緒
           echo "::endgroup::"
+      # 啟用 QEMU 支援多架構建置
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+      # 建立 Docker Buildx Builder
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
+      # 登入 Docker Hub 推送映像
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
@@ -140,6 +165,7 @@ jobs:
           IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           set -euo pipefail
+          # Docker 建置失敗時立即終止
           svc="${{ matrix.service }}"
           name="${{ matrix.name }}"
           slug="${{ matrix.image_slug }}"
@@ -153,6 +179,7 @@ jobs:
             --tag "$image:latest" \
             --push
           echo "::endgroup::"
+      # 拉取 GitOps 倉庫準備更新映像標籤
       - name: Checkout GitOps repo
         if: github.event_name == 'push'
         uses: actions/checkout@v4
@@ -160,6 +187,7 @@ jobs:
           repository: ${{ github.repository_owner }}/GitOps
           token: ${{ secrets.GH_PAT }}
           path: gitops
+      # 更新對應服務的部署檔，讓 ArgoCD 拉取最新映像
       - name: Update image tag in manifests
         if: github.event_name == 'push'
         id: manifest
@@ -170,6 +198,7 @@ jobs:
           IMAGE_SLUG: ${{ matrix.image_slug }}
         run: |
           set -eo pipefail
+          # 確保更新 manifest 過程出錯時即中止
           short_sha="${GITHUB_SHA::7}"
           image="${IMAGE_REPO}/${IMAGE_SLUG}:$short_sha"
           deployment_path="k8s/${SERVICE_NAME}/deployment.yaml"
@@ -182,6 +211,7 @@ jobs:
           sed -i "s|image: .*${IMAGE_SLUG}:.*|image: ${image}|" "$deployment_path"
           echo "deployment_path=$deployment_path" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
+      # 將更新後的 manifests 提交回 GitOps 倉庫
       - name: Commit and push manifest changes
         if: github.event_name == 'push' && steps.manifest.outputs.skip == 'false'
         uses: EndBug/add-and-commit@v9
