@@ -41,6 +41,11 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>org.mybatis.spring.boot</groupId>
+                <artifactId>mybatis-spring-boot-starter</artifactId>
+                <version>${mybatis-spring-boot.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -60,7 +65,7 @@
                                 <additionalProperties>
                                     <build.timestamp>${maven.build.timestamp}</build.timestamp>
                                     <maven.build.timestamp.timezone>Asia/Taipei</maven.build.timestamp.timezone>
-                                    <image.tag>${env.GITHUB_SHA}</image.tag>    <!-- GitAction注入  -->
+                                    <image.tag>${image.tag}</image.tag>
                                 </additionalProperties>
                             </configuration>
                         </execution>
