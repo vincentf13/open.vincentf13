@@ -141,11 +141,14 @@ jobs:
           # 嚴格模式確保安裝流程安全
           MVND_VERSION=1.0.5
           if [ ! -x "$HOME/.mvnd/bin/mvnd" ]; then
-            curl -fsSL https://downloads.apache.org/maven/mvnd/${MVND_VERSION}/maven-mvnd-${MVND_VERSION}-linux-amd64.tar.gz -o mvnd.tar.gz
-            tar -xzf mvnd.tar.gz
-            rm -rf $HOME/.mvnd
-            mv maven-mvnd-${MVND_VERSION}-linux-amd64 $HOME/.mvnd
-            rm mvnd.tar.gz
+            ARCHIVE_BASE="apache-maven-mvnd-${MVND_VERSION}-linux-amd64"
+            ARCHIVE_FILE="${ARCHIVE_BASE}.zip"
+            DOWNLOAD_URL="https://downloads.apache.org/maven/mvnd/${MVND_VERSION}/${ARCHIVE_FILE}"
+            curl -fsSL "$DOWNLOAD_URL" -o mvnd.zip
+            unzip -q mvnd.zip
+            rm -rf "$HOME/.mvnd"
+            mv "$ARCHIVE_BASE" "$HOME/.mvnd"
+            rm mvnd.zip
           fi
           echo "$HOME/.mvnd/bin" >> $GITHUB_PATH
       # 僅為目標微服務建置，`-am` 會帶入依賴模組。
