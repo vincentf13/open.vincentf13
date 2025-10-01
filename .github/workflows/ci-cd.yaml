@@ -14,6 +14,7 @@ on:
 
 # 集中管理各微服務目錄與對應的變更偵測
 env:
+  FORCE_BUILD_ALL: "true"  # 設為 true 時視為所有服務皆有變動
   SERVICE_DIRS: |  # 需要監控的微服務資料夾
     services/demo
     services/service-template
@@ -60,19 +61,33 @@ jobs:
           declare -A seen=()
           matrix_entries=()
           # seen 用來去除重複服務
-          # 掃描所有變動檔案並比對服務前綴
-          while IFS= read -r file; do
+          if [[ "${FORCE_BUILD_ALL}" == "true" ]]; then
+            echo "::notice::FORCE_BUILD_ALL is true; scheduling all services."
             for svc in "${services[@]}"; do
-              prefix="$svc/"
-              if [[ $file == ${prefix}* && -z ${seen[$svc]:-} ]]; then
+              [[ -z "$svc" ]] && continue
+              if [[ -z ${seen[$svc]:-} ]]; then
                 seen[$svc]=1
                 name=$(basename "$svc")
                 slug=$(echo "$name" | tr '[:upper:]' '[:lower:]')
                 matrix_entries+=("{\"service\":\"$svc\",\"name\":\"$name\",\"image_slug\":\"$slug\"}")
-                # 收集後續矩陣所需欄位
               fi
             done
-          done < <(printf "%s\n%s\n" "${{ steps.changed.outputs.modified_files }}" "${{ steps.changed.outputs.added_files }}" | tr ' ' '\n' | sort -u)
+          else
+            # 掃描所有變動檔案並比對服務前綴
+            while IFS= read -r file; do
+              for svc in "${services[@]}"; do
+                [[ -z "$svc" ]] && continue
+                prefix="$svc/"
+                if [[ $file == ${prefix}* && -z ${seen[$svc]:-} ]]; then
+                  seen[$svc]=1
+                  name=$(basename "$svc")
+                  slug=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+                  matrix_entries+=("{\"service\":\"$svc\",\"name\":\"$name\",\"image_slug\":\"$slug\"}")
+                  # 收集後續矩陣所需欄位
+                fi
+              done
+            done < <(printf "%s\n%s\n" "${{ steps.changed.outputs.modified_files }}" "${{ steps.changed.outputs.added_files }}" | tr ' ' '\n' | sort -u)
+          fi
           if [ ${#matrix_entries[@]} -eq 0 ]; then
             # 無服務變更
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
@@ -99,8 +114,7 @@ jobs:
     # 對每個受影響服務個別建置，互不阻塞
     env:
       TZ: Asia/Taipei
-      MVND_NO_DAEMON: "true"
-    # 固定時區並停用 mvnd daemon，提高 CI 穩定性
+    # 固定時區；mvnd native 版本不支援停用 daemon
     steps:
       # 取得變更服務的原始碼
       - name: Checkout repository
@@ -119,13 +133,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.HOME }}/.mvnd
-          key: mvnd-${{ runner.os }}-1.0.3
+          key: mvnd-${{ runner.os }}-1.0.5
       # 下載並安裝 mvnd，用於加速 Maven 構建
       - name: Install mvnd
         run: |
           set -euo pipefail
           # 嚴格模式確保安裝流程安全
-          MVND_VERSION=1.0.3
+          MVND_VERSION=1.0.5
           if [ ! -x "$HOME/.mvnd/bin/mvnd" ]; then
             curl -fsSL https://downloads.apache.org/maven/mvnd/${MVND_VERSION}/maven-mvnd-${MVND_VERSION}-linux-amd64.tar.gz -o mvnd.tar.gz
             tar -xzf mvnd.tar.gz
