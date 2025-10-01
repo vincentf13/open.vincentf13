@@ -18,7 +18,7 @@ env:
   SERVICE_DIRS: |  # 需要監控的微服務資料夾
     services/demo
     services/service-template
-  SERVICE_GLOBS: |  # 用於變更偵測的檔案範圍
+  SERVICE_GLOBS: |  # 用於變更偵測的檔案範圍 
     services/demo/**
     services/service-template/**
 
