@@ -141,7 +141,7 @@ jobs:
           # 嚴格模式確保安裝流程安全
           MVND_VERSION=1.0.5
           if [ ! -x "$HOME/.mvnd/bin/mvnd" ]; then
-            ARCHIVE_BASE="apache-maven-mvnd-${MVND_VERSION}-linux-amd64"
+            ARCHIVE_BASE="maven-mvnd-${MVND_VERSION}-linux-amd64"
             ARCHIVE_FILE="${ARCHIVE_BASE}.zip"
             DOWNLOAD_URL="https://downloads.apache.org/maven/mvnd/${MVND_VERSION}/${ARCHIVE_FILE}"
             curl -fsSL "$DOWNLOAD_URL" -o mvnd.zip
