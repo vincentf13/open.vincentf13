@@ -68,6 +68,13 @@
                                 <goal>repackage</goal>
                                 <goal>build-info</goal>
                             </goals>
+                            <configuration>
+                                <additionalProperties>
+                                    <build.timestamp>${maven.build.timestamp}</build.timestamp>
+                                    <maven.build.timestamp.timezone>Asia/Taipei</maven.build.timestamp.timezone>
+                                    <image.tag>${env.GITHUB_SHA}</image.tag>    <!-- GitAction注入  -->
+                                </additionalProperties>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>
@@ -81,7 +88,7 @@
                 <version>3.2.5</version>
                 <configuration>
                     <parallel>all</parallel>
-                    <threadCount>30</threadCount>
+                    <threadCount>15</threadCount>
                 </configuration>
             </plugin>
         </plugins>
