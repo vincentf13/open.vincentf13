@@ -24,7 +24,7 @@ env:
 
 jobs:
   detect-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest 
     # 以 Ubuntu Runner 執行變更偵測
     outputs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
