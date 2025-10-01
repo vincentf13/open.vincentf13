@@ -161,10 +161,12 @@ helm upgrade --install mon prometheus-community/kube-prometheus-stack \
 ```
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
          helm upgrade --install grafana grafana/grafana \
-           --namespace monitoring \
-           --set service.type=ClusterIP \
-           --set persistence.enabled=false \
-           --set adminPassword=admin123
+  --namespace monitoring \
+  --set service.type=ClusterIP \
+  --set persistence.enabled=true \
+  --set persistence.storageClassName=local-path \
+  --set persistence.size=1Gi \
+  --set adminPassword=admin123
 ```
 
 3. 取出 admin 密碼：
