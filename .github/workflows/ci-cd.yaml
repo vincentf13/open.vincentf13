@@ -84,15 +84,38 @@ jobs:
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     env:
       TZ: Asia/Taipei
+      MVND_NO_DAEMON: "true"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      # 準備 JDK，並啟用 Maven 依賴快取
       - name: Provision Java toolchain
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '23'
-      # Build only the microservice under test; `-am` ensures dependencies are available.
+          cache: maven
+      # 快取 mvnd 發行版，避免每次重新下載
+      - name: Cache mvnd distribution
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.HOME }}/.mvnd
+          key: mvnd-${{ runner.os }}-1.0.3
+      # 下載並安裝 mvnd，用於加速 Maven 構建
+      - name: Install mvnd
+        run: |
+          set -euo pipefail
+          MVND_VERSION=1.0.3
+          if [ ! -x "$HOME/.mvnd/bin/mvnd" ]; then
+            curl -fsSL https://downloads.apache.org/maven/mvnd/${MVND_VERSION}/maven-mvnd-${MVND_VERSION}-linux-amd64.tar.gz -o mvnd.tar.gz
+            tar -xzf mvnd.tar.gz
+            rm -rf $HOME/.mvnd
+            mv maven-mvnd-${MVND_VERSION}-linux-amd64 $HOME/.mvnd
+            rm mvnd.tar.gz
+          fi
+          echo "$HOME/.mvnd/bin" >> $GITHUB_PATH
+      # 僅為目標微服務建置，`-am` 會帶入依賴模組。
+      # 使用 mvnd 並行打包，提高 CI 構建速度
       - name: Build service artifact
         env:
           IMAGE_TAG: ${{ github.sha }}
@@ -100,7 +123,7 @@ jobs:
           set -euo pipefail
           svc="${{ matrix.service }}"
           echo "::group::Building Maven artifacts for ${svc}"
-          mvn -B -DskipTests -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} -pl "$svc" -am clean package
+          mvnd -B -T 1C -Dmaven.compiler.useIncrementalCompilation=false -DskipTests -Duser.timezone=Asia/Taipei -Dimage.tag=${IMAGE_TAG} -pl "$svc" -am clean package
           echo "::endgroup::"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -111,7 +134,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # Build/push the container image, tagging with short SHA plus latest.
+      # 建置並推送映像，使用短 SHA 與 latest 雙標籤。
       - name: Build and push image
         env:
           IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}
