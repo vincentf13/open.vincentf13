@@ -40,7 +40,7 @@ The goal of this project is to help developers easily build their own local deve
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
 
 4. 執行k8s腳本:
-   bash ./bash_script/cluster-up.sh --only-k8s
+   bash ./script/cluster-up.sh --only-k8s
 5. 驗證  
    Ingress port 轉發 : 
    kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
@@ -135,7 +135,7 @@ helm upgrade --install mon prometheus-community/kube-prometheus-stack \
 ```
   
 3. 腳本啟動
-   執行 bash ./bash_script/cluster-up.sh --only-prometheus 部署整套監控堆疊。
+   執行 bash ./script/cluster-up.sh --only-prometheus 部署整套監控堆疊。
    使用 kubectl get pods -n monitoring 確認狀態。
 
 
@@ -186,7 +186,7 @@ kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f 
 
 
 初始建置完成後，後續即可一鍵執行此腳本，一鍵啟動本地所有基礎設施。
-bash ./bash_script/cluster-up.sh
+bash ./script/cluster-up.sh
 
 腳本執行後，可直接訪問以下服務:
 K8S Ingress入口 :http://127.0.0.1:8081/
