@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.gateway.interfaces;
+package open.vincentf13.exchange.gateway.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

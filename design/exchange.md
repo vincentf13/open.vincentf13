@@ -10,7 +10,7 @@ open.vincent13/
         ├── matching/          # 撮合引擎（建議獨立進程與語言）
         ├── account-ledger/
         │   ├── interface/     # REST Controller、DTO、異常處理
-        │   ├── app/           # Application Service、用例編排、交易邏輯邊界
+        │   ├── service/       # Domain Service、用例編排、交易邏輯邊界
         │   ├── domain/        # 聚合根、值物件、領域服務、Repository 介面
         │   └── infra/         # Repository 實作、Outbox、DB Schema、映射層
         ├── positions/         # 倉位、PnL、逐倉/全倉管理
