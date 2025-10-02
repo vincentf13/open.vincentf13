@@ -78,7 +78,7 @@ push code到GitHub後，會跑這個腳本，自動掃描有哪些微服務有�
 注意事項:
 1. .github/workflows/ci-cd.yaml 腳本內有說明 git hub需要事先配置的變數。
 2. 需將每個微服務目錄，配置在.github/workflows/ci-cd.yaml 開頭的配置中。
-3. 你需要在同一個GitHub倉庫開一個名稱為 GitOps的倉庫，並且與我的GitOps倉庫( https://github.com/Lilin-Li/GitOps )有相同目錄結構與文件。Git Action 跑完CI後，會更新此倉庫內的K8s配置，更新 image的tag，供後面Argo 偵測變更，自動拉此image，部屬到您的 k8s。
+3. 你需要在同一個GitHub倉庫開一個名稱為 GitOps的倉庫，並且與我的GitOps倉庫( https://github.com/vincentf13/GitOps )有相同目錄結構與文件。Git Action 跑完CI後，會更新此倉庫內的K8s配置，更新 image的tag，供後面Argo 偵測變更，自動拉此image，部屬到您的 k8s。
 ### CD
 
 #### 建置ArgoCD

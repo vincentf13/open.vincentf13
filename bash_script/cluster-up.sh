@@ -228,7 +228,7 @@ configure_argocd() {
     printf 'Argo CD application "gitops" already exists; skipping create.\n'
   else
     argocd app create gitops \
-      --repo https://github.com/Lilin-Li/GitOps.git \
+      --repo https://github.com/vincentf13/GitOps.git \
       --path k8s \
       --dest-server https://kubernetes.default.svc \
       --dest-namespace default \
