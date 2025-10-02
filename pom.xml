@@ -12,7 +12,7 @@
     </parent>
 
     <groupId>open.vincentf13</groupId>
-    <artifactId>my-exchange</artifactId>
+    <artifactId>root</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
