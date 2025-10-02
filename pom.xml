@@ -21,7 +21,7 @@
 
     <modules>
         <module>common-sdk</module>
-        <module>services</module>
+        <module>service</module>
     </modules>
 
     <properties>

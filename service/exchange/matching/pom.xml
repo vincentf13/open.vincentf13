@@ -6,23 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13.exchange</groupId>
-        <artifactId>exchange</artifactId>
+        <artifactId>service-exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>market-data</artifactId>
-    <name>service-exchange-market-data</name>
-    <description>Market data aggregation and streaming</description>
+    <artifactId>service-exchange-matching</artifactId>
+    <name>service-exchange-matching</name>
+    <description>Matching engine service</description>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-websocket</artifactId>
+            <artifactId>spring-boot-starter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -30,18 +26,8 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>exchange-matching-rest-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
             <artifactId>core</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

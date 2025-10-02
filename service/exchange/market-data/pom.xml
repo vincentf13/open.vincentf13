@@ -5,15 +5,15 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>open.vincentf13</groupId>
-        <artifactId>services</artifactId>
+        <groupId>open.vincentf13.exchange</groupId>
+        <artifactId>service-exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>demo</artifactId>
-    <name>service-demo</name>
-    <description>Demo service for exchange platform</description>
+    <artifactId>service-exchange-market-data</artifactId>
+    <name>service-exchange-market-data</name>
+    <description>Market data aggregation and streaming</description>
 
     <dependencies>
         <dependency>
@@ -22,15 +22,20 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>exchange-matching-rest-api</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>spring-mvc</artifactId>
+            <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

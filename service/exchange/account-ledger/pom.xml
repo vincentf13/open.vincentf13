@@ -5,15 +5,15 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>open.vincentf13</groupId>
-        <artifactId>services</artifactId>
+        <groupId>open.vincentf13.exchange</groupId>
+        <artifactId>service-exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>service-template</artifactId>
-    <name>service-template</name>
-    <description>Bootstrap template for new exchange services</description>
+    <artifactId>service-exchange-account-ledger</artifactId>
+    <name>service-exchange-account-ledger</name>
+    <description>Account ledger service</description>
 
     <dependencies>
         <dependency>
@@ -24,14 +24,34 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+
         <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>spring-mvc</artifactId>
+            <artifactId>mysql</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>redis</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>kafka</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
