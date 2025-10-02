@@ -39,11 +39,6 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>utils</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
             <artifactId>redis</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -54,7 +49,7 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>security</artifactId>
+            <artifactId>spring-security</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -2,7 +2,7 @@
 
 ## Current Module Layout
 - Root aggregator `pom.xml` declares `common-sdk` and `services`; run module-specific commands from the repo root.
-- Shared code lives under `common-sdk`, which現在分成 `core`, `utils`, `web`, `openapi`, `security`, `nacos`, `mysql`, `redis`, `kafka`, `test`, `observability` 等子模組。
+- Shared code lives under `common-sdk`, which現在分成 `core`, `springmvc`, `openapi`, `spring-security`, `nacos`, `mysql`, `redis`, `kafka`, `test`, `observability` 等子模組。
 - Service implementations reside in `services/<service>/src`, each with its own `pom.xml`, `Dockerfile`, and resources (`src/main/resources`, `src/test/java`).
 - Kubernetes assets live in `k8s/`; per-service manifests sit under `k8s/<service>/`, while cross-cutting resources stay at the top level (e.g., `k8s/ingress.yaml`).
 

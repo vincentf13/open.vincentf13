@@ -30,7 +30,7 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>web</artifactId>
+            <artifactId>springmvc</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

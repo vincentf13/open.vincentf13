@@ -22,7 +22,6 @@
     <modules>
         <module>common-sdk</module>
         <module>services</module>
-        <module>integration</module>
     </modules>
 
     <properties>

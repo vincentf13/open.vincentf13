@@ -6,30 +6,23 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>integration</artifactId>
+        <artifactId>common-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>e2e-tests</artifactId>
-    <name>integration-e2e-tests</name>
-    <description>End-to-end integration tests</description>
+    <artifactId>spring-security</artifactId>
+    <name>spring-security-sdk</name>
+    <description>Shared auth, ACL, and crypto components</description>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>kafka</artifactId>
-            <scope>test</scope>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
     </dependencies>
 </project>

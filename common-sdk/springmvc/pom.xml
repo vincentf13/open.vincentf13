@@ -11,9 +11,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>web</artifactId>
-    <name>web-sdk</name>
-    <description>Shared web configuration and components</description>
+    <artifactId>springmvc</artifactId>
+    <name>springmvc-sdk</name>
+    <description>Shared Spring MVC configuration and components</description>
 
     <dependencies>
         <dependency>

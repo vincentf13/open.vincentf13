@@ -19,10 +19,9 @@
 
     <modules>
         <module>core</module>
-        <module>utils</module>
-        <module>web</module>
+        <module>springmvc</module>
         <module>openapi</module>
-        <module>security</module>
+        <module>spring-security</module>
         <module>nacos</module>
         <module>mysql</module>
         <module>redis</module>

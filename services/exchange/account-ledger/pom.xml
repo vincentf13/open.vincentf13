@@ -36,11 +36,6 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>utils</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
             <artifactId>mysql</artifactId>
             <version>${project.version}</version>
         </dependency>
