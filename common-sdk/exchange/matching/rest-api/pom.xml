@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>exchange-matching-rest-api</artifactId>
-    <name>exchange-matching-rest-api</name>
+    <name>sdk-exchange-matching-rest-api</name>
     <description>Matching service REST contracts</description>
 
     <dependencies>

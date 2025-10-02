@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>core</artifactId>
-    <name>core</name>
+    <name>sdk-core</name>
     <description>Core runtime components</description>
 
     <dependencies>

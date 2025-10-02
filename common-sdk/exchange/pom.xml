@@ -14,7 +14,7 @@
     <artifactId>exchange</artifactId>
     <packaging>pom</packaging>
 
-    <name>exchange</name>
+    <name>sdk-exchange</name>
     <description>Exchange service API contracts and clients</description>
 
     <modules>

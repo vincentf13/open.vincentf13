@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>demo</artifactId>
-    <name>demo</name>
+    <name>service-demo</name>
     <description>Demo service for exchange platform</description>
 
     <dependencies>

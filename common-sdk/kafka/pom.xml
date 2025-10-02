@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>kafka</artifactId>
-    <name>kafka-sdk</name>
+    <name>sdk-kafka</name>
     <description>Kafka integration helpers</description>
 
     <dependencies>

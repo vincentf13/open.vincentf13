@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>redis</artifactId>
-    <name>redis-sdk</name>
+    <name>sdk-redis</name>
     <description>Redis helper configuration</description>
 
     <dependencies>

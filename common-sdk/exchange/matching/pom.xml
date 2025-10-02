@@ -14,7 +14,7 @@
     <artifactId>exchange-matching</artifactId>
     <packaging>pom</packaging>
 
-    <name>exchange-matching</name>
+    <name>sdk-exchange-matching</name>
     <description>Matching service API contract and client aggregator</description>
 
     <modules>

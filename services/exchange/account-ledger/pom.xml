@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>account-ledger</artifactId>
-    <name>account-ledger-service</name>
+    <name>service-account-ledger</name>
     <description>Account ledger service</description>
 
     <dependencies>

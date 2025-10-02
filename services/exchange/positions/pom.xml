@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>positions</artifactId>
-    <name>positions-service</name>
+    <name>service-positions</name>
     <description>Positions and PnL projections</description>
 
     <dependencies>

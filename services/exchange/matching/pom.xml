@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>matching</artifactId>
-    <name>matching-service</name>
+    <name>service-matching</name>
     <description>Matching engine service</description>
 
     <dependencies>

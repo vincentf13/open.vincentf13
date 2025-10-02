@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>mysql</artifactId>
-    <name>mysql-sdk</name>
+    <name>sdk-mysql</name>
     <description>MySQL helpers and configuration</description>
 
     <dependencies>

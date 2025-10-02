@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>spring-mvc</artifactId>
-    <name>spring-mvc-sdk</name>
+    <name>sdk-spring-mvc</name>
     <description>Shared Spring MVC configuration and components</description>
 
     <dependencies>

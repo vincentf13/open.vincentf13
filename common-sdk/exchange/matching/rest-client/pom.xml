@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>exchange-matching-rest-client</artifactId>
-    <name>exchange-matching-rest-client</name>
+    <name>sdk-exchange-matching-rest-client</name>
     <description>REST client abstraction for the matching service</description>
 
     <dependencies>

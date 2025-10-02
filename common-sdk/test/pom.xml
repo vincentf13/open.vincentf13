@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>test</artifactId>
-    <name>test-support</name>
+    <name>test</name>
     <description>Shared development and test tooling</description>
 
     <dependencies>

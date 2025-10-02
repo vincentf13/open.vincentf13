@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>spring-security</artifactId>
-    <name>spring-security-sdk</name>
+    <name>sdk-spring-security</name>
     <description>Shared auth, ACL, and crypto components</description>
 
     <dependencies>
