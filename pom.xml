@@ -16,8 +16,8 @@
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>my-exchange</name>
-    <description>Exchange platform multi-module build</description>
+    <name>root</name>
+    <description>open.vincentf13 multi-module build</description>
 
     <modules>
         <module>common-sdk</module>

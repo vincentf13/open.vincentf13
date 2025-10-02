@@ -25,7 +25,7 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
-            <groupId>open.vincentf13</groupId>
+            <groupId>open.vincentf13.common</groupId>
             <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>

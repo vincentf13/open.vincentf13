@@ -11,6 +11,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <groupId>open.vincentf13.common</groupId>
     <artifactId>common-sdk</artifactId>
     <packaging>pom</packaging>
 
