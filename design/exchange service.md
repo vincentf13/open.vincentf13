@@ -1,53 +1,27 @@
-# 後端架構概覽
+# Exchange 服務架構
 
 ## 模組與目錄結構
 ```
-my-exchange/
-├── pom.xml
-├── common-sdk/
-│   ├── core-utils/            # 基礎工具、錯誤處理、Result 封裝（不含業務型別）
-│   ├── web/                   # Web 共用配置、CORS、觀測性
-│   ├── security/              # Auth/ACL/簽名 SDK，統一登入與敏感資料保護
-│   ├── infra-sdk/             # Config/Redis/Kafka/DB SDK，封裝基礎設施
-│   ├── dev-test/              # 測試與本地開發工具（Mock、Dummy Provider）
-│   └── observability/         # Log/Trace/Metrics Starter，保證全域一致的監控格式
-├── api-interfaces/            # OpenAPI/AsyncAPI 契約與跨服務 DTO
-├── clients/                   # 由契約生成的 Feign/Retrofit/gRPC 客戶端
-├── services/
-│   ├── gateway/               # API Gateway/BFF 層
-│   ├── risk-margin/           # 保證金、風控限額、下單前校驗
-│   ├── matching/              # 撮合引擎（建議獨立進程與語言）
-│   ├── account-ledger/
-│   │   ├── interface/         # REST Controller、DTO、異常處理
-│   │   ├── app/               # Application Service、用例編排、交易邏輯邊界
-│   │   ├── domain/            # 聚合根、值物件、領域服務、Repository 介面
-│   │   └── infra/             # Repository 實作、Outbox、DB Schema、映射層
-│   ├── positions/             # 倉位、PnL、逐倉/全倉管理
-│   ├── market-data/           # 行情匯聚、行情快照、WebSocket 推送
-│   ├── service-template/      # 新服務腳手架，示範 controller/監控樣板
-│   └── （其他非核心服務）     # funding、liquidation、admin、wallet（目前暫緩實作）
-└── integration/
-    ├── e2e-tests/             # 端對端測試場景
-    └── simulators/            # 壓測工具與撮合回放
-```
-
-### 共用 SDK 要點
-- **core-utils**：提供純技術層工具與錯誤模型，避免各服務重覆定義。
-- **security**：集中管理 JWT 驗證、ACL 與加密簽名，確保安全策略一致。
-- **infra-sdk**：對接配置中心（Nacos、Apollo）、Redis 序列化、Kafka Producer/Consumer、資料庫審計欄位與分頁封裝。
-- **observability**：標準化日誌格式（traceId、spanId、userId）、追蹤設定與 Prometheus 指標流程。
-
-> 備註：`funding`、`liquidation`、`admin`、`wallet` 服務目前僅保留設計位置，實作與部署延後。
-
-### 業務服務分層
-- **interface**：處理進出站協定與異常對應，保持無商業邏輯。
-- **app**：交易用例編排，定義交易邊界與事務控制。
-- **domain**：封裝領域模型、規則與 Repository 介面，保持不可變與明確語意。
-- **infra**：負責與資料庫、外部系統、Outbox 交互，提供實作細節。
-
+open.vincent13/
+└── services/
+     └── exchange/
+        ├── gateway/           # API Gateway/BFF 層
+        ├── risk-margin/       # 保證金、風控限額、下單前校驗
+        ├── matching/          # 撮合引擎（建議獨立進程與語言）
+        ├── account-ledger/
+        │   ├── interface/     # REST Controller、DTO、異常處理
+        │   ├── app/           # Application Service、用例編排、交易邏輯邊界
+        │   ├── domain/        # 聚合根、值物件、領域服務、Repository 介面
+        │   └── infra/         # Repository 實作、Outbox、DB Schema、映射層
+        ├── positions/         # 倉位、PnL、逐倉/全倉管理
+        ├── market-data/       # 行情匯聚、行情快照、WebSocket 推送
+        └── （其他非核心服務）     # funding、liquidation、admin、wallet（目前暫緩實作）
+   
+--- 
+# 業務概述
 ---
 
-# 交易所核心流程
+# 核心流程
 1. **下單入口**：請求進入 `gateway`，進行基本驗證與路由。
 2. **風險校驗**：`risk-margin` 依可用資產、風險規則同步檢查，未通過即時回應。
 3. **撮合執行**：合格訂單送入 `matching` 分片隊列；單寫者撮合產生成交與撤單事件，並寫入 WAL。
