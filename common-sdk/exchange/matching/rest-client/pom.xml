@@ -6,19 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>open-exchange-matching</artifactId>
+        <artifactId>exchange-matching</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>open-exchange-matching-rest-client</artifactId>
-    <name>open-exchange-matching-rest-client</name>
+    <artifactId>exchange-matching-rest-client</artifactId>
+    <name>exchange-matching-rest-client</name>
     <description>REST client abstraction for the matching service</description>
 
     <dependencies>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>open-exchange-matching-rest-api</artifactId>
+            <artifactId>exchange-matching-rest-api</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

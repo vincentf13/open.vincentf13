@@ -11,10 +11,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>open-exchange</artifactId>
+    <artifactId>exchange</artifactId>
     <packaging>pom</packaging>
 
-    <name>open-exchange</name>
+    <name>exchange</name>
     <description>Exchange service API contracts and clients</description>
 
     <modules>

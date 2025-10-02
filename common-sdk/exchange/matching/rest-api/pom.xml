@@ -6,13 +6,13 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>open-exchange-matching</artifactId>
+        <artifactId>exchange-matching</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>open-exchange-matching-rest-api</artifactId>
-    <name>open-exchange-matching-rest-api</name>
+    <artifactId>exchange-matching-rest-api</artifactId>
+    <name>exchange-matching-rest-api</name>
     <description>Matching service REST contracts</description>
 
     <dependencies>
