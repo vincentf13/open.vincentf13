@@ -8,7 +8,7 @@
         <groupId>open.vincentf13</groupId>
         <artifactId>services</artifactId>
         <version>0.0.1-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <artifactId>positions</artifactId>

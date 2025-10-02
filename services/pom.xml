@@ -18,12 +18,12 @@
     <description>Business service aggregation</description>
 
     <modules>
-        <module>gateway</module>
-        <module>risk-margin</module>
-        <module>matching</module>
-        <module>account-ledger</module>
-        <module>positions</module>
-        <module>market-data</module>
+        <module>exchange/gateway</module>
+        <module>exchange/risk-margin</module>
+        <module>exchange/matching</module>
+        <module>exchange/account-ledger</module>
+        <module>exchange/positions</module>
+        <module>exchange/market-data</module>
         <module>demo</module>
         <module>service-template</module>
     </modules>
