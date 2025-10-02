@@ -1,4 +1,4 @@
-package open.vincentf13.demo;
+package open.vincentf13.service.test;
 
 import io.micrometer.core.annotation.Timed;
 import org.springframework.boot.SpringApplication;
@@ -10,31 +10,31 @@ import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication(scanBasePackages = "open.vincentf13")
 @RestController
-public class DemoApplication {
+public class ServiceTestApplication {
     private final BuildProperties buildProperties;
 
-    public DemoApplication(BuildProperties buildProperties) {
+    public ServiceTestApplication(BuildProperties buildProperties) {
         this.buildProperties = buildProperties;
     }
 
     public static void main(String[] args) {
-        SpringApplication.run(DemoApplication.class, args);
+        SpringApplication.run(ServiceTestApplication.class, args);
     }
 
     @GetMapping("/")
     public String hello() {
-        return "Hello from 微服務版 Demo !" +
+        return "Hello from 微服務版 Service Test !" +
                 "<br/>image.tag =  " + buildProperties.get("image.tag") +
                 "<br/>Build Tim e: " + buildProperties.get("build.timestamp");
     }
 
     @GetMapping("/burn")
-    @Timed(value = "demo.burn")
+    @Timed(value = "service-test.burn")
     public String burn(@RequestParam(defaultValue = "200") int ms) {
         long start = System.currentTimeMillis();
         while (System.currentTimeMillis() - start < ms) {
             // busy wait for the requested duration
         }
-        return "demo burn " + ms + "ms";
+        return "service-test burn " + ms + "ms";
     }
 }

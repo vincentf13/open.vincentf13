@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: demo
+  name: service-test
   labels:
-    app: demo
+    app: service-test
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: demo
+      app: service-test
   template:
     metadata:
       labels:
-        app: demo
+        app: service-test
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8080"
     spec:
       containers:
-        - name: demo
-          image:  victorf13/demo:latest
+        - name: service-test
+          image:  victorf13/service-test:latest
           imagePullPolicy: Always
           ports:
             - name: http

@@ -1,5 +1,5 @@
 # The goal of this project
-This is a demo project that demonstrates how to set up a local Kubernetes cluster and implement CI/CD automation using GitHub Actions and ArgoCD. It also provisions essential infrastructure within the cluster, such as monitoring and alerting, and provides stress testing scripts to validate basic features like autoscaling and alert notifications.
+This project demonstrates how to set up a local Kubernetes cluster and implement CI/CD automation using GitHub Actions and ArgoCD. It also provisions essential infrastructure within the cluster, such as monitoring and alerting, and provides stress testing scripts to validate basic features like autoscaling and alert notifications.
 
 The goal of this project is to help developers easily build their own local development and testing environments.
 
@@ -17,24 +17,24 @@ The goal of this project is to help developers easily build their own local deve
 
 ## build與push鏡像到dockhub
 1. build docker 鏡像
-   docker build -t demo:latest services/demo
-   docker tag demo:latest \<dockerhub-user>/demo:latest
-   docker build -t service-template:latest services/service-template
+   docker build -t service-test:latest service/service-test
+   docker tag service-test:latest \<dockerhub-user>/service-test:latest
+   docker build -t service-template:latest service/service-template
    docker tag service-template:latest \<dockerhub-user>/service-template:latest
 2. 推送鏡像
    docker login
-   docker push \<dockerhub-user>/demo:latest
+   docker push \<dockerhub-user>/service-test:latest
 
 ## k8s集群與元件建置
    1. 調整 deployment 配置
-      k8s/demo/deployment.yaml 配置鏡像
-      spec.template.spec.containers[0].image:  \<dockerhub-user>/demo:latest
+      k8s/service-test/deployment.yaml 配置鏡像
+      spec.template.spec.containers[0].image:  \<dockerhub-user>/service-test:latest
       k8s/service-template/deployment.yaml 配置鏡像
       spec.template.spec.containers[0].image:  \<dockerhub-user>/service-template:latest
 2. 安裝 kind
    
    使用 kind 建立 k8s 集群: kind create cluster
-   驗證 k8s 集群啟動: kubectl cluster-info --context kind-demo
+   驗證 k8s 集群啟動: kubectl cluster-info --context kind-service-test
 3. 建置與啟動 ingress Controller
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
@@ -179,7 +179,7 @@ kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f 
   - HTTP > URL 填寫 Prometheus 服務位址。如果在同一 Kubernetes 叢集，可用 http://prometheus.monitoring.svc:9090 ；若透過本機 port-forward，填 http://localhost:9090。
   - Access 選 Server（Grafana 在叢集內能直接打到 Service），或 Browser（只在本機測試時透過瀏覽器連線本地 port-forward）。
   - 保留預設的 Scrape interval / Query timeout，點 Save & test 確認連線成功，底下會顯示 Data source is working。
-  - 接著就能在 Dashboard 中使用 PromQL 查詢，例如 process_cpu_usage{app="demo"} 或 sum(rate(container_cpu_usage_seconds_total{namespace="default"}[5m]))。
+  - 接著就能在 Dashboard 中使用 PromQL 查詢，例如 process_cpu_usage{app="service-test"} 或 sum(rate(container_cpu_usage_seconds_total{namespace="default"}[5m]))。
 
 
 # 一鍵啟動腳本
@@ -202,7 +202,7 @@ Grafana: http://localhost:3000/?orgId=1&from=now-6h&to=now&timezone=browser
 # 工具
 
 ## 檢查 Ingress path轉發
-  kubectl describe ingress demo | sed -n '/Rules:/,$p'  
+  kubectl describe ingress service-test | sed -n '/Rules:/,$p'  
 ## K6壓力測試
 
 1. 安裝 K6

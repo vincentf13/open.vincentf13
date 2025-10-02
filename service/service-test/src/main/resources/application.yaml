@@ -1,6 +1,6 @@
 spring:
   application:
-    name: demo
+    name: service-test
 
 management:
   endpoints:

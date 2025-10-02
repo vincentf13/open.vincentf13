@@ -11,9 +11,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>service-demo</artifactId>
-    <name>service-demo</name>
-    <description>Demo service for exchange platform</description>
+    <artifactId>service-test</artifactId>
+    <name>service-test</name>
+    <description>Test service for exchange platform</description>
 
     <dependencies>
         <dependency>

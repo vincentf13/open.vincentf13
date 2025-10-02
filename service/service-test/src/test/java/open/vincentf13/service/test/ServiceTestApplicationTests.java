@@ -1,10 +1,10 @@
-package open.vincentf13.demo;
+package open.vincentf13.service.test;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class DemoApplicationTests {
+class ServiceTestApplicationTests {
 
     @Test
     void contextLoads() {
