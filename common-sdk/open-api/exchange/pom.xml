@@ -18,9 +18,6 @@
     <description>Exchange service API contracts and clients</description>
 
     <modules>
-        <module>account-ledger</module>
-        <module>market-data</module>
         <module>matching</module>
-        <module>risk-margin</module>
     </modules>
 </project>
