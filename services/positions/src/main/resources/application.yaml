@@ -4,4 +4,4 @@ spring:
 
 logging:
   level:
-    com.example.exchange.positions: INFO
+    open.vincentf13.positions: INFO

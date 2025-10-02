@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.example.exchange</groupId>
+        <groupId>open.vincentf13</groupId>
         <artifactId>services</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -29,12 +29,12 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example.exchange</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>account-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.example.exchange</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>core-utils</artifactId>
             <version>${project.version}</version>
         </dependency>

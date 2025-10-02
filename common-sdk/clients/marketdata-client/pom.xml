@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.example.exchange</groupId>
+        <groupId>open.vincentf13</groupId>
         <artifactId>clients</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -17,7 +17,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.example.exchange</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>marketdata-api</artifactId>
             <version>${project.version}</version>
         </dependency>

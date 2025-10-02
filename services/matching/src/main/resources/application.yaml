@@ -4,4 +4,4 @@ spring:
 
 logging:
   level:
-    com.example.exchange.matching: DEBUG
+    open.vincentf13.matching: DEBUG

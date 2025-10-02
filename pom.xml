@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.example.exchange</groupId>
+    <groupId>open.vincentf13</groupId>
     <artifactId>my-exchange</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
