@@ -22,7 +22,6 @@
         <module>springmvc</module>
         <module>openapi</module>
         <module>spring-security</module>
-        <module>nacos</module>
         <module>mysql</module>
         <module>redis</module>
         <module>kafka</module>
