@@ -10,8 +10,8 @@ spec:
   rules:
     - http:
         paths:
-          - path: /
-            pathType: Prefix
+          - path: /service-test(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: service-test

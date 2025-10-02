@@ -20,7 +20,7 @@
     <description>open.vincentf13 multi-module build</description>
 
     <modules>
-        <module>common-sdk</module>
+        <module>sdk-common</module>
         <module>service</module>
     </modules>
 

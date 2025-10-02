@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>open.vincentf13</groupId>
+        <artifactId>service</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>open.vincentf13.exchange</groupId>
+    <artifactId>service-exchange</artifactId>
+    <packaging>pom</packaging>
+
+    <name>service-exchange</name>
+    <description>Exchange service aggregation</description>
+
+    <modules>
+        <module>service-exchange-gateway</module>
+        <module>service-exchange-risk-margin</module>
+        <module>service-exchange-matching</module>
+        <module>service-exchange-account-ledger</module>
+        <module>service-exchange-positions</module>
+        <module>service-exchange-market-data</module>
+    </modules>
+</project>

@@ -11,24 +11,22 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>service</artifactId>
+    <groupId>open.vincentf13.common</groupId>
+    <artifactId>sdk-common</artifactId>
     <packaging>pom</packaging>
 
-    <name>service</name>
-    <description>Business service aggregation</description>
+    <name>sdk-common</name>
+    <description>Shared SDK aggregation</description>
 
     <modules>
-        <module>service-exchange</module>
-        <module>service-test</module>
-        <module>service-template</module>
+        <module>sdk-core</module>
+        <module>sdk-spring-mvc</module>
+        <module>sdk-exchange</module>
+        <module>sdk-spring-security</module>
+        <module>sdk-mysql</module>
+        <module>sdk-redis</module>
+        <module>sdk-kafka</module>
+        <module>test</module>
+        <module>sdk-observability</module>
     </modules>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>
