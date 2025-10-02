@@ -1,6 +1,6 @@
-package open.vincentf13.common.open.exchange.matching.restclient;
+package open.vincentf13.common.exchange.matching.restclient;
 
-import open.vincentf13.common.open.exchange.matching.restapi.OrderCommandDto;
+import open.vincentf13.common.exchange.matching.restapi.OrderCommandDto;
 
 /**
  * Client abstraction for submitting orders to the matching engine.

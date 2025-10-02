@@ -1,4 +1,4 @@
-package open.vincentf13.common.open.exchange.matching.restapi;
+package open.vincentf13.common.exchange.matching.restapi;
 
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
