@@ -6,26 +6,18 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>root</artifactId>
+        <artifactId>open</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>common-sdk</artifactId>
+    <artifactId>open-exchange</artifactId>
     <packaging>pom</packaging>
 
-    <name>common-sdk</name>
-    <description>Shared SDK aggregation</description>
+    <name>open-exchange</name>
+    <description>Exchange service API contracts and clients</description>
 
     <modules>
-        <module>core</module>
-        <module>spring-mvc</module>
-        <module>open</module>
-        <module>spring-security</module>
-        <module>mysql</module>
-        <module>redis</module>
-        <module>kafka</module>
-        <module>test</module>
-        <module>observability</module>
+        <module>matching</module>
     </modules>
 </project>
