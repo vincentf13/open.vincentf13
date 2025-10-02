@@ -6,12 +6,12 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>common-sdk</artifactId>
+        <artifactId>sdk-common</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>core</artifactId>
+    <artifactId>sdk-core</artifactId>
     <name>sdk-core</name>
     <description>Core runtime components</description>
 

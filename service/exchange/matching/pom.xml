@@ -26,7 +26,7 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>core</artifactId>
+            <artifactId>sdk-core</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

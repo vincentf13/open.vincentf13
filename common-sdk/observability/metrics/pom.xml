@@ -6,13 +6,13 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>observability</artifactId>
+        <artifactId>sdk-observability</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>observability-metrics</artifactId>
-    <name>observability-metrics</name>
+    <artifactId>sdk-observability-metrics</artifactId>
+    <name>sdk-observability-metrics</name>
     <description>Metrics starter for Micrometer integrations</description>
 
     <dependencies>

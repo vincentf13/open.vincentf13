@@ -34,22 +34,22 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>core</artifactId>
+            <artifactId>sdk-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>redis</artifactId>
+            <artifactId>sdk-redis</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>kafka</artifactId>
+            <artifactId>sdk-kafka</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>spring-security</artifactId>
+            <artifactId>sdk-spring-security</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

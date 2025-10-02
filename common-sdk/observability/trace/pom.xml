@@ -6,13 +6,13 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>observability</artifactId>
+        <artifactId>sdk-observability</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>observability-trace</artifactId>
-    <name>observability-trace</name>
+    <artifactId>sdk-observability-trace</artifactId>
+    <name>sdk-observability-trace</name>
     <description>Tracing helpers starter</description>
 
     <dependencies>

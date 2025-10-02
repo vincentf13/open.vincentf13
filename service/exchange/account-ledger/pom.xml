@@ -27,22 +27,22 @@
 
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>core</artifactId>
+            <artifactId>sdk-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>mysql</artifactId>
+            <artifactId>sdk-mysql</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>redis</artifactId>
+            <artifactId>sdk-redis</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>kafka</artifactId>
+            <artifactId>sdk-kafka</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

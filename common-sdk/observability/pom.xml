@@ -6,15 +6,15 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>common-sdk</artifactId>
+        <artifactId>sdk-common</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>observability</artifactId>
+    <artifactId>sdk-observability</artifactId>
     <packaging>pom</packaging>
 
-    <name>observability</name>
+    <name>sdk-observability</name>
     <description>Logging, tracing, metrics starters</description>
 
     <modules>

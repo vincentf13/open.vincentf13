@@ -30,12 +30,12 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>exchange-matching-rest-api</artifactId>
+            <artifactId>sdk-exchange-matching-rest-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>core</artifactId>
+            <artifactId>sdk-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
