@@ -6,21 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>openapi</artifactId>
+        <artifactId>openapi-exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>openapi-clients</artifactId>
+    <artifactId>openapi-exchange-market-data</artifactId>
     <packaging>pom</packaging>
 
-    <name>openapi-clients</name>
-    <description>Generated clients aggregation</description>
+    <name>openapi-exchange-market-data</name>
+    <description>Market-data service API contract and client aggregator</description>
 
     <modules>
-        <module>account-client</module>
-        <module>marketdata-client</module>
-        <module>matching-client</module>
-        <module>risk-client</module>
+        <module>interface</module>
+        <module>clients</module>
     </modules>
 </project>

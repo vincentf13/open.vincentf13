@@ -6,12 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>openapi-interface</artifactId>
+        <artifactId>openapi-exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>marketdata-api</artifactId>
-    <name>marketdata-api</name>
-    <description>Market data streaming contracts</description>
+    <artifactId>openapi-exchange-risk-margin</artifactId>
+    <packaging>pom</packaging>
+
+    <name>openapi-exchange-risk-margin</name>
+    <description>Risk-margin service API contract and client aggregator</description>
+
+    <modules>
+        <module>interface</module>
+        <module>clients</module>
+    </modules>
 </project>

@@ -6,14 +6,14 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>openapi-interface</artifactId>
+        <artifactId>openapi-exchange-matching</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>risk-api</artifactId>
-    <name>risk-api</name>
-    <description>Risk engine contracts</description>
+    <artifactId>matching-api</artifactId>
+    <name>matching-api</name>
+    <description>Matching service engine contracts</description>
 
     <dependencies>
         <dependency>

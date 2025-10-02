@@ -6,20 +6,21 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>openapi-clients</artifactId>
+        <artifactId>open-api</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>matching-client</artifactId>
-    <name>matching-client</name>
-    <description>Client abstraction for the matching engine</description>
+    <artifactId>openapi-exchange</artifactId>
+    <packaging>pom</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>matching-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-    </dependencies>
+    <name>openapi-exchange</name>
+    <description>Exchange service API contracts and clients</description>
+
+    <modules>
+        <module>account-ledger</module>
+        <module>market-data</module>
+        <module>matching</module>
+        <module>risk-margin</module>
+    </modules>
 </project>

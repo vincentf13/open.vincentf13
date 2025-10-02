@@ -6,21 +6,20 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>openapi</artifactId>
+        <artifactId>openapi-exchange-matching</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>openapi-interface</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>matching-client</artifactId>
+    <name>matching-client</name>
+    <description>Client abstraction for the matching service</description>
 
-    <name>openapi-interface</name>
-    <description>Service contracts (OpenAPI / AsyncAPI)</description>
-
-    <modules>
-        <module>account-api</module>
-        <module>marketdata-api</module>
-        <module>matching-api</module>
-        <module>risk-api</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>matching-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
 </project>

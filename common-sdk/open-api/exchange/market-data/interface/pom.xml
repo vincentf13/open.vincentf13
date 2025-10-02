@@ -6,19 +6,12 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>common-sdk</artifactId>
+        <artifactId>openapi-exchange-market-data</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>openapi</artifactId>
-    <packaging>pom</packaging>
-
-    <name>openapi</name>
-    <description>API contract definitions and generated clients</description>
-
-    <modules>
-        <module>interface</module>
-        <module>clients</module>
-    </modules>
+    <artifactId>marketdata-api</artifactId>
+    <name>marketdata-api</name>
+    <description>Market-data service streaming contracts</description>
 </project>

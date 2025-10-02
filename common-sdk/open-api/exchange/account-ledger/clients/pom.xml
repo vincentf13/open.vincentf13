@@ -6,14 +6,14 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>openapi-clients</artifactId>
+        <artifactId>openapi-exchange-account-ledger</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>account-client</artifactId>
     <name>account-client</name>
-    <description>HTTP client for the account service</description>
+    <description>HTTP client for the account-ledger service</description>
 
     <dependencies>
         <dependency>
