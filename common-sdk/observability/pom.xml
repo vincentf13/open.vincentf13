@@ -12,17 +12,14 @@
     </parent>
 
     <artifactId>observability</artifactId>
-    <name>observability-sdk</name>
-    <description>Logging, metrics, tracing starter</description>
+    <packaging>pom</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
-        </dependency>
-    </dependencies>
+    <name>observability</name>
+    <description>Logging, tracing, metrics starters</description>
+
+    <modules>
+        <module>log</module>
+        <module>trace</module>
+        <module>metrics</module>
+    </modules>
 </project>

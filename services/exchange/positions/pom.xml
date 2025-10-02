@@ -35,7 +35,12 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>core-utils</artifactId>
+            <artifactId>core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>utils</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

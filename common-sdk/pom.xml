@@ -18,14 +18,16 @@
     <description>Shared SDK aggregation</description>
 
     <modules>
-        <module>core-utils</module>
+        <module>core</module>
+        <module>utils</module>
         <module>web</module>
+        <module>openapi</module>
         <module>security</module>
-        <module>infra-sdk</module>
-        <module>dev-test</module>
+        <module>nacos</module>
+        <module>mysql</module>
+        <module>redis</module>
+        <module>kafka</module>
+        <module>test</module>
         <module>observability</module>
-        <module>api-interfaces</module>
-        <module>clients</module>
-        <module>integration</module>
     </modules>
 </project>
