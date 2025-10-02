@@ -1,6 +1,6 @@
 package open.vincentf13.riskmargin.app;
 
-import open.vincentf13.api.risk.RiskCheckRequestDto;
+import open.vincentf13.common.open.exchange.riskmargin.interfaces.RiskCheckRequestDto;
 import open.vincentf13.riskmargin.domain.RiskDecision;
 import open.vincentf13.riskmargin.domain.RiskRuleRepository;
 import org.springframework.stereotype.Service;

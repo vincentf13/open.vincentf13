@@ -2,7 +2,7 @@ package open.vincentf13.accountledger.app;
 
 import open.vincentf13.accountledger.domain.AccountBalance;
 import open.vincentf13.accountledger.domain.LedgerRepository;
-import open.vincentf13.api.account.AccountBalanceDto;
+import open.vincentf13.common.open.exchange.accountledger.interfaces.AccountBalanceDto;
 import org.springframework.stereotype.Service;
 
 /**

@@ -1,6 +1,6 @@
 package open.vincentf13.riskmargin.interfaces;
 
-import open.vincentf13.api.risk.RiskCheckRequestDto;
+import open.vincentf13.common.open.exchange.riskmargin.interfaces.RiskCheckRequestDto;
 import open.vincentf13.riskmargin.app.RiskCheckService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;

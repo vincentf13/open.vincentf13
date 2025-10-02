@@ -1,6 +1,6 @@
 package open.vincentf13.marketdata.publisher;
 
-import open.vincentf13.api.marketdata.TradeEventDto;
+import open.vincentf13.common.open.exchange.marketdata.interfaces.TradeEventDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

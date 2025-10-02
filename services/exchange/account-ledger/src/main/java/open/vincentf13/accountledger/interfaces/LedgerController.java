@@ -1,7 +1,7 @@
 package open.vincentf13.accountledger.interfaces;
 
 import open.vincentf13.accountledger.app.LedgerService;
-import open.vincentf13.api.account.AccountBalanceDto;
+import open.vincentf13.common.open.exchange.accountledger.interfaces.AccountBalanceDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

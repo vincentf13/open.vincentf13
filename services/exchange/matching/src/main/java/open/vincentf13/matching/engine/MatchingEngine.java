@@ -1,6 +1,6 @@
 package open.vincentf13.matching.engine;
 
-import open.vincentf13.api.matching.OrderCommandDto;
+import open.vincentf13.common.open.exchange.matching.interfaces.OrderCommandDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
