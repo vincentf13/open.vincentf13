@@ -2,14 +2,14 @@
 
 ## Current Module Layout
 - Root aggregator `pom.xml` declares `common-sdk` and `services`; run module-specific commands from the repo root.
-- Shared code lives under `common-sdk`, which現在分成 `core`, `spring-mvc`, `open`, `spring-security`, `mysql`, `redis`, `kafka`, `test`, `observability` 等子模組。
+- Shared code lives under `common-sdk`, which現在分成 `core`, `spring-mvc`, `exchange`, `spring-security`, `mysql`, `redis`, `kafka`, `test`, `observability` 等子模組。
 - Service implementations reside in `services/<service>/src`, each with its own `pom.xml`, `Dockerfile`, and resources (`src/main/resources`, `src/test/java`).
 - Kubernetes assets live in `k8s/`; per-service manifests sit under `k8s/<service>/`, while cross-cutting resources stay at the top level (e.g., `k8s/ingress.yaml`).
 
 ## Build & Test Commands
 - Prefer the bundled Maven Daemon (`mvnd`, add it to your PATH for convenience) for faster builds; the system Maven (`mvn`) still works if you need the classic CLI.
 - Full pipeline: `mvnd clean verify` (or `mvn clean verify`) compiles, runs unit tests, and produces artifacts under `target/`.
-- Targeted build: `mvnd -pl <module> -am verify` (e.g., `mvnd -pl common-sdk/open/exchange/matching/rest-api -am verify`).
+- Targeted build: `mvnd -pl <module> -am verify` (e.g., `mvnd -pl common-sdk/exchange/matching/rest-api -am verify`).
 - Local service run: `mvnd -pl services/<service> spring-boot:run` (defaults to port 8080 unless overridden).
 
 ## Coding Style

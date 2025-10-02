@@ -20,7 +20,7 @@
     <modules>
         <module>core</module>
         <module>spring-mvc</module>
-        <module>open</module>
+        <module>exchange</module>
         <module>spring-security</module>
         <module>mysql</module>
         <module>redis</module>
