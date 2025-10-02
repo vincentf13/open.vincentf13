@@ -14,7 +14,7 @@
     <artifactId>services</artifactId>
     <packaging>pom</packaging>
 
-    <name>services</name>
+    <name>service</name>
     <description>Business service aggregation</description>
 
     <modules>

@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>gateway</artifactId>
-    <name>service-gateway</name>
+    <name>service-exchange-gateway</name>
     <description>API Gateway / BFF layer</description>
 
     <dependencies>

@@ -15,7 +15,7 @@
     <artifactId>exchange</artifactId>
     <packaging>pom</packaging>
 
-    <name>exchange-services</name>
+    <name>service-exchange</name>
     <description>Exchange service aggregation</description>
 
     <modules>

@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>risk-margin</artifactId>
-    <name>service-risk-margin</name>
+    <name>service-exchange-risk-margin</name>
     <description>Risk margin and pre-trade validation service</description>
 
     <dependencies>

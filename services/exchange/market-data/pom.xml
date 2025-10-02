@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>market-data</artifactId>
-    <name>service-market-data</name>
+    <name>service-exchange-market-data</name>
     <description>Market data aggregation and streaming</description>
 
     <dependencies>
