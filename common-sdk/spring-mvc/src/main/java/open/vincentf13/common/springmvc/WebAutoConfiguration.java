@@ -1,4 +1,4 @@
-package open.vincentf13.common.web;
+package open.vincentf13.common.springmvc;
 
 import org.springframework.context.annotation.Configuration;
 

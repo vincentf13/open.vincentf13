@@ -1,1 +1,1 @@
-open.vincentf13.common.web.WebAutoConfiguration
+open.vincentf13.common.springmvc.WebAutoConfiguration

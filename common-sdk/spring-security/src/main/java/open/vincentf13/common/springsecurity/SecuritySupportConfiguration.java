@@ -1,4 +1,4 @@
-package open.vincentf13.common.security;
+package open.vincentf13.common.springsecurity;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
