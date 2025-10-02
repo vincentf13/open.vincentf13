@@ -19,7 +19,7 @@
 
     <modules>
         <module>core</module>
-        <module>springmvc</module>
+        <module>spring-mvc</module>
         <module>openapi</module>
         <module>spring-security</module>
         <module>mysql</module>

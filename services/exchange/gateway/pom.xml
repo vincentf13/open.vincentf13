@@ -34,7 +34,7 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>springmvc</artifactId>
+            <artifactId>spring-mvc</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -11,8 +11,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>springmvc</artifactId>
-    <name>springmvc-sdk</name>
+    <artifactId>spring-mvc</artifactId>
+    <name>spring-mvc-sdk</name>
     <description>Shared Spring MVC configuration and components</description>
 
     <dependencies>
