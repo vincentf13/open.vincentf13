@@ -1,12 +1,12 @@
-package open.vincentf13.matching;
+package open.vincentf13.exchange.accountledger;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication(scanBasePackages = "open.vincentf13")
-public class MatchingApplication {
+public class AccountLedgerApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(MatchingApplication.class, args);
+        SpringApplication.run(AccountLedgerApplication.class, args);
     }
 }

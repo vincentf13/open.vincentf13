@@ -1,4 +1,4 @@
-package open.vincentf13.positions.app;
+package open.vincentf13.exchange.positions.app;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

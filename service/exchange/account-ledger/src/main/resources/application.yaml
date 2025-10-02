@@ -13,4 +13,4 @@ spring:
 
 logging:
   level:
-    open.vincentf13.accountledger: INFO
+    open.vincentf13.exchange.accountledger: INFO

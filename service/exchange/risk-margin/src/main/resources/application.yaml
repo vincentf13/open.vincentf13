@@ -12,4 +12,4 @@ management:
 
 logging:
   level:
-    open.vincentf13.riskmargin: INFO
+    open.vincentf13.exchange.riskmargin: INFO

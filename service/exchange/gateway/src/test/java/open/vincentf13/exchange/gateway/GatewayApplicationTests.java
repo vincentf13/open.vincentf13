@@ -1,4 +1,4 @@
-package open.vincentf13.gateway;
+package open.vincentf13.exchange.gateway;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

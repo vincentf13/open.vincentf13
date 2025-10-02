@@ -1,12 +1,12 @@
-package open.vincentf13.marketdata;
+package open.vincentf13.exchange.positions;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication(scanBasePackages = "open.vincentf13")
-public class MarketDataApplication {
+public class PositionsApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(MarketDataApplication.class, args);
+        SpringApplication.run(PositionsApplication.class, args);
     }
 }
