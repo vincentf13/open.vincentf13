@@ -23,12 +23,12 @@
         <module>sdk-spring-mvc</module>
         <module>sdk-spring-cloud-gateway</module>
         <module>sdk-spring-websocket</module>
-        <module>sdk-exchange</module>
+        <module>sdk-service-exchange</module>
         <module>sdk-spring-security</module>
-        <module>sdk-mysql</module>
-        <module>sdk-redis</module>
-        <module>sdk-kafka</module>
-        <module>sdk-test</module>
+        <module>sdk-infra-mysql</module>
+        <module>sdk-infra-redis</module>
+        <module>sdk-infra-kafka</module>
+        <module>sdk-core-test</module>
         <module>sdk-core-log</module>
         <module>sdk-core-trace</module>
         <module>sdk-core-metrics</module>

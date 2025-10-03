@@ -6,23 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-common</artifactId>
+        <artifactId>sdk-service-exchange-matching</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-mysql</artifactId>
-    <name>sdk-mysql</name>
-    <description>MySQL helpers and configuration</description>
+    <artifactId>sdk-service-exchange-matching-rest-api</artifactId>
+    <name>sdk-service-exchange-matching-rest-api</name>
+    <description>Matching service REST contracts</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-        </dependency>
-            <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-core</artifactId>
         </dependency>
     </dependencies>
 </project>

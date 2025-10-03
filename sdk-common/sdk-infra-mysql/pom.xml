@@ -11,22 +11,18 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-test</artifactId>
-    <name>sdk-test</name>
-    <description>Shared development and test tooling</description>
+    <artifactId>sdk-infra-mysql</artifactId>
+    <name>sdk-infra-mysql</name>
+    <description>MySQL helpers and configuration</description>
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>mysql</artifactId>
+            <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
         </dependency>
     </dependencies>
 </project>

@@ -79,32 +79,32 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-mysql</artifactId>
+                <artifactId>sdk-infra-mysql</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-redis</artifactId>
+                <artifactId>sdk-infra-redis</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-kafka</artifactId>
+                <artifactId>sdk-infra-kafka</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-exchange-matching-rest-api</artifactId>
+                <artifactId>sdk-service-exchange-matching-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-exchange-matching-rest-client</artifactId>
+                <artifactId>sdk-service-exchange-matching-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-test</artifactId>
+                <artifactId>sdk-core-test</artifactId>
                 <version>${project.version}</version>
                 <scope>test</scope>
             </dependency>

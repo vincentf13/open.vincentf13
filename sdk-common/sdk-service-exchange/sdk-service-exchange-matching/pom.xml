@@ -6,18 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-common</artifactId>
+        <artifactId>sdk-service-exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-exchange</artifactId>
+    <artifactId>sdk-service-exchange-matching</artifactId>
     <packaging>pom</packaging>
 
-    <name>sdk-exchange</name>
-    <description>Exchange service API contracts and clients</description>
+    <name>sdk-service-exchange-matching</name>
+    <description>Matching service API contract and client aggregator</description>
 
     <modules>
-        <module>sdk-commonmatching</module>
+        <module>rest-api</module>
+        <module>rest-client</module>
     </modules>
 </project>

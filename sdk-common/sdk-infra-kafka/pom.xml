@@ -6,19 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-exchange</artifactId>
+        <artifactId>sdk-common</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-exchange-matching</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>sdk-infra-kafka</artifactId>
+    <name>sdk-infra-kafka</name>
+    <description>Kafka integration helpers</description>
 
-    <name>sdk-exchange-matching</name>
-    <description>Matching service API contract and client aggregator</description>
-
-    <modules>
-        <module>rest-api</module>
-        <module>rest-client</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+    </dependencies>
 </project>

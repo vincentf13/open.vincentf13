@@ -6,19 +6,18 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-exchange-matching</artifactId>
+        <artifactId>sdk-common</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-exchange-matching-rest-client</artifactId>
-    <name>sdk-exchange-matching-rest-client</name>
-    <description>REST client abstraction for the matching service</description>
+    <artifactId>sdk-service-exchange</artifactId>
+    <packaging>pom</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-exchange-matching-rest-api</artifactId>
-        </dependency>
-    </dependencies>
+    <name>sdk-service-exchange</name>
+    <description>Exchange service API contracts and clients</description>
+
+    <modules>
+        <module>sdk-service-exchange-matching</module>
+    </modules>
 </project>

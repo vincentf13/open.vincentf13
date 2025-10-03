@@ -11,8 +11,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-redis</artifactId>
-    <name>sdk-redis</name>
+    <artifactId>sdk-infra-redis</artifactId>
+    <name>sdk-infra-redis</name>
     <description>Redis helper configuration</description>
 
     <dependencies>
