@@ -19,7 +19,7 @@
 
     <modules>
         <module>sdk-observability-log</module>
-        <module>trace</module>
+        <module>sdk-observability-trace</module>
         <module>sdk-observability-metrics</module>
     </modules>
 </project>
