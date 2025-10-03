@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 K8S_DIR="$REPO_ROOT/k8s"
 PROM_DIR="$K8S_DIR/infra-prometheus"
+GRAFANA_DIR="$K8S_DIR/infra-grafana"
 
 # Core application manifests applied to the cluster in order.
 APPLICATION_MANIFESTS=(
@@ -31,6 +32,13 @@ PROM_MANIFEST_ORDER=(
   prometheus-ingress.yaml
 )
 
+GRAFANA_MANIFEST_ORDER=(
+  grafana-secret.yaml
+  grafana-configmap.yaml
+  grafana-deployment.yaml
+  grafana-service.yaml
+)
+
 PORT_FORWARD_PIDS=()
 MODE="full"
 CONTEXT=""
@@ -44,11 +52,11 @@ Options:
   -c, --context NAME      kubeconfig context to target
   -n, --namespace NAME    namespace for application manifests (deployment/service/HPA/ingress)
       --only-k8s          apply only core application manifests
-      --only-prometheus   apply only monitoring stack manifests
+      --only-prometheus   apply only monitoring stack manifests (Prometheus + Grafana)
   -h, --help              show this help message
 
 Without flags the script provisions the full stack (application, ingress controller,
-metrics-server patch, Argo CD setup, monitoring stack, Grafana install, and port forwards).
+metrics-server patch, Argo CD setup, monitoring stack, and port forwards).
 USAGE
 }
 
@@ -127,6 +135,7 @@ parse_args() {
 ensure_directories() {
   [[ -d "$K8S_DIR" ]] || { printf 'Missing directory: %s\n' "$K8S_DIR" >&2; exit 1; }
   [[ -d "$PROM_DIR" ]] || { printf 'Missing directory: %s\n' "$PROM_DIR" >&2; exit 1; }
+  [[ -d "$GRAFANA_DIR" ]] || { printf 'Missing directory: %s\n' "$GRAFANA_DIR" >&2; exit 1; }
 }
 
 apply_application_manifests() {
@@ -197,21 +206,30 @@ apply_prometheus_manifests() {
   fi
 }
 
-install_grafana() {
-  log_step "Installing Grafana via Helm"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" create namespace monitoring --dry-run=client -o yaml | \
-    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f -
+apply_grafana_manifests() {
+  for manifest in "${GRAFANA_MANIFEST_ORDER[@]}"; do
+    local file="$GRAFANA_DIR/$manifest"
+    if [[ ! -f "$file" ]]; then
+      printf 'Missing manifest: %s\n' "$file" >&2
+      exit 1
+    fi
+  done
 
-  helm "${HELM_CONTEXT_ARGS[@]}" upgrade --install grafana grafana/grafana \
-    --namespace monitoring \
-    --set service.type=ClusterIP \
-    --set persistence.enabled=false \
-    --set adminPassword=admin123
+  for manifest in "${GRAFANA_MANIFEST_ORDER[@]}"; do
+    local file="$GRAFANA_DIR/$manifest"
+    printf 'Applying %s\n' "$file"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+  done
 
-  log_step "Fetching Grafana admin password"
   local grafana_password
-  grafana_password=$(kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get secret grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 --decode)
+  grafana_password=$(kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 --decode)
+  printf '\nGrafana applied. Admin user: admin\n'
   printf 'Grafana admin password: %s\n' "$grafana_password"
+}
+
+apply_monitoring_stack() {
+  apply_prometheus_manifests
+  apply_grafana_manifests
 }
 
 configure_argocd() {
@@ -247,10 +265,6 @@ main() {
   if [[ -n "$NAMESPACE" ]]; then
     KUBECTL_APP_ARGS+=(--namespace "$NAMESPACE")
   fi
-  HELM_CONTEXT_ARGS=()
-  if [[ -n "$CONTEXT" ]]; then
-    HELM_CONTEXT_ARGS=(--kube-context "$CONTEXT")
-  fi
 
   case "$MODE" in
     k8s)
@@ -263,16 +277,16 @@ main() {
       ;;
     prom)
       require_cmd kubectl
+      require_cmd base64
       ensure_directories
       log_step "Applying monitoring stack manifests"
-      apply_prometheus_manifests
+      apply_monitoring_stack
       return
       ;;
     full)
       require_cmd kubectl
       require_cmd argocd
       require_cmd base64
-      require_cmd helm
       ensure_directories
 
       log_step "Applying application manifests"
@@ -288,10 +302,8 @@ main() {
       start_port_forward "Argo CD UI (secondary) 8082->443" -n argocd port-forward svc/argocd-server 8082:443
 
       log_step "Applying monitoring stack"
-      apply_prometheus_manifests
+      apply_monitoring_stack
       kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pods -n monitoring
-
-      install_grafana
 
       start_port_forward "Prometheus UI 9090->9090" -n monitoring port-forward svc/prometheus 9090:9090
       start_port_forward "Alertmanager UI 9093->9093" -n monitoring port-forward svc/alertmanager 9093:9093

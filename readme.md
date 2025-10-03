@@ -155,31 +155,25 @@ helm upgrade --install mon prometheus-community/kube-prometheus-stack \
 
 ## Grafana建置
 
- 1. 加入官方 repo
-    helm repo add grafana https://grafana.github.io/helm-charts && helm repo update
-2. 安裝：
+1. 建立/更新資源
 ```
-kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
-         helm upgrade --install grafana grafana/grafana \
-  --namespace monitoring \
-  --set service.type=ClusterIP \
-  --set persistence.enabled=true \
-  --set persistence.storageClassName=local-path \
-  --set persistence.size=1Gi \
-  --set adminPassword=admin123
+kubectl apply -f k8s/infra-prometheus/monitoring-namespace.yaml
+kubectl apply -f k8s/infra-grafana/
+```
+   - `grafana-secret.yaml` 預設建立 `admin` / `admin123` 帳密，可自行調整後重新套用。
+   - `grafana-configmap.yaml` 會自動掛載 Prometheus DataSource (`http://prometheus.monitoring.svc:9090`)。
+
+2. 取得管理員密碼
+```
+kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d
 ```
 
-3. 取出 admin 密碼：
-   kubectl get secret grafana -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d
-   去掉尾端的% 即是密碼
-4. kubectl port-forward svc/grafana -n monitoring 3000:80 &
-5. 訪問:  http://localhost:3000   
-6.  接入Prometheus 數據
-  - http://localhost:3000， 左側齒輪 → Data sources → Add data source → 選 Prometheus。
-  - HTTP > URL 填寫 Prometheus 服務位址。如果在同一 Kubernetes 叢集，可用 http://prometheus.monitoring.svc:9090 ；若透過本機 port-forward，填 http://localhost:9090。
-  - Access 選 Server（Grafana 在叢集內能直接打到 Service），或 Browser（只在本機測試時透過瀏覽器連線本地 port-forward）。
-  - 保留預設的 Scrape interval / Query timeout，點 Save & test 確認連線成功，底下會顯示 Data source is working。
-  - 接著就能在 Dashboard 中使用 PromQL 查詢，例如 process_cpu_usage{app="service-test"} 或 sum(rate(container_cpu_usage_seconds_total{namespace="default"}[5m]))。
+3. 本地測試可透過 port-forward:
+```
+kubectl -n monitoring port-forward svc/grafana 3000:80
+```
+
+4. 造訪 http://localhost:3000 ，使用步驟 2 的密碼登入，Grafana 會自動載入 Prometheus Datasource；若需長期保存 Dashboard，請將 `grafana-deployment.yaml` 的 `emptyDir` 改成 PVC。
 
 
 # 一鍵啟動腳本
@@ -193,7 +187,7 @@ K8S Ingress入口 :http://127.0.0.1:8081/
 ArgoCD: https://127.0.0.1:8082/
 Promethous: http://localhost:9090/
 AlertManager: http://localhost:9093/#/alerts
-Grafana: http://localhost:3000/?orgId=1&from=now-6h&to=now&timezone=browser
+Grafana: http://localhost:3000/
 
 並且代碼推送至您的GitHub，自動執行CI/CD，更新你的本地K8s。
 
