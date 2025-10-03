@@ -20,33 +20,26 @@
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-spring-cloud-gateway</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-observability-metrics</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-core</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-spring-mvc</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-spring-security</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-test</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

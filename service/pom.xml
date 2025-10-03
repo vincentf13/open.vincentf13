@@ -17,6 +17,67 @@
     <name>service</name>
     <description>Business service aggregation</description>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-spring-mvc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-spring-cloud-gateway</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-spring-websocket</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-observability-metrics</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-spring-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-mysql</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-redis</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-kafka</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-exchange-matching-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-test</artifactId>
+                <version>${project.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <modules>
         <module>service-exchange</module>
         <module>service-test</module>
