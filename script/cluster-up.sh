@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 K8S_DIR="$REPO_ROOT/k8s"
-PROM_DIR="$K8S_DIR/prometheus"
+PROM_DIR="$K8S_DIR/infra-prometheus"
 
 # Core application manifests applied to the cluster in order.
 APPLICATION_MANIFESTS=(

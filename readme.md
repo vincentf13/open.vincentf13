@@ -140,7 +140,7 @@ helm upgrade --install mon prometheus-community/kube-prometheus-stack \
 
 
 4. 訪問 Prometheus 
-  - 若已修改 k8s/prometheus/prometheus-ingress.yaml:13 的 host 為實際網域並配置 DNS→Ingress Controller，直接走 https://<你的網域>；未設 TLS 憑證可在 tls 區塊加入 secretName。  
+  - 若已修改 k8s/infra-prometheus/prometheus-ingress.yaml:13 的 host 為實際網域並配置 DNS→Ingress Controller，直接走 https://<你的網域>；未設 TLS 憑證可在 tls 區塊加入 secretName。  
   - 無外網時可執行 kubectl port-forward -n monitoring svc/prometheus 9090:9090，瀏覽器開 http://localhost:9090；
   - Alertmanager 亦可用 kubectl port-forward -n monitoring svc/alertmanager 9093:9093，瀏覽器開 http://localhost:9093；  
   - 登入 Prometheus UI 後，Status → Targets 應看到 Kubernetes job 狀態；  
@@ -148,7 +148,7 @@ helm upgrade --install mon prometheus-community/kube-prometheus-stack \
 4. 測試告警                                                                                                                                                      
   - 在 Prometheus UI 的 Alerts 分頁確認告警 firing，
     再到 Alertmanager (http://localhost:9093/#/alerts 經 port-forward) 查看分派情況；
-    若要演練通知，可在 k8s/prometheus/alertmanager-configmap.yaml:21 加入真實接收器（例如 Slack webhook）後重新套用。                                                                                      
+    若要演練通知，可在 k8s/infra-prometheus/alertmanager-configmap.yaml:21 加入真實接收器（例如 Slack webhook）後重新套用。                                                                                      
 5. 後續建議 
     想長期保留資料可將 prometheus-deployment.yaml:56 的 emptyDir 換成 PVC；告警規則可再拆多個 ConfigMap
 
