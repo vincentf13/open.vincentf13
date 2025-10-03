@@ -24,9 +24,5 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>mysql</artifactId>
-        </dependency>
     </dependencies>
 </project>
