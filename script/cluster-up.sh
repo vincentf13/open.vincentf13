@@ -35,6 +35,7 @@ PROM_MANIFEST_ORDER=(
 GRAFANA_MANIFEST_ORDER=(
   grafana-secret.yaml
   grafana-configmap.yaml
+  grafana-pvc.yaml
   grafana-deployment.yaml
   grafana-service.yaml
 )
