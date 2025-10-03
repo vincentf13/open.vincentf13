@@ -308,7 +308,7 @@ main() {
 
       start_port_forward "Prometheus UI 9090->9090" -n monitoring port-forward svc/prometheus 9090:9090
       start_port_forward "Alertmanager UI 9093->9093" -n monitoring port-forward svc/alertmanager 9093:9093
-      start_port_forward "Grafana UI 3000->80" -n monitoring port-forward svc/grafana 3000:80
+      start_port_forward "Grafana UI 3000->80" -n monitoring port-forward svc/grafana 3000:3000
 
       printf '\nAll port-forwards are active. Press Ctrl+C to stop them when finished.\n'
       wait

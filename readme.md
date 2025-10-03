@@ -170,7 +170,7 @@ kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-passwor
 
 3. 本地測試可透過 port-forward:
 ```
-kubectl -n monitoring port-forward svc/grafana 3000:80
+kubectl -n monitoring port-forward svc/grafana 3000:3000
 ```
 
 4. 造訪 http://localhost:3000 ，使用步驟 2 的密碼登入，Grafana 會自動載入 Prometheus Datasource；若需長期保存 Dashboard，請將 `grafana-deployment.yaml` 的 `emptyDir` 改成 PVC。
