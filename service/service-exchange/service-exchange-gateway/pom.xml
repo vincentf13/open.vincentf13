@@ -18,8 +18,9 @@
     <dependencies>
 
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-spring-cloud-gateway</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
