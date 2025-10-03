@@ -20,7 +20,6 @@
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-kafka</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
