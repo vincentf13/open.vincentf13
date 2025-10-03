@@ -1,9 +1,3 @@
 spring:
   application:
     name: service-test
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus

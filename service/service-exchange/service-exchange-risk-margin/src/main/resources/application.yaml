@@ -4,12 +4,6 @@ spring:
   main:
     banner-mode: "off"
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-
 logging:
   level:
     open.vincentf13.exchange.riskmargin: INFO
