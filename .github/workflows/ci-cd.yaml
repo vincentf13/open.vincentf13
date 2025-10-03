@@ -14,7 +14,7 @@ on:
 
 # 集中管理各微服務目錄與對應的變更偵測
 env:
-  FORCE_BUILD_ALL: "true"  # 設為 true 時視為所有服務皆有變動
+  FORCE_BUILD_ALL: "false"  # 設為 true 時視為所有服務皆有變動
   SERVICE_DIRS: |  # 需要監控的微服務資料夾
     service/service-test
     service/service-template
