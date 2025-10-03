@@ -1,0 +1,55 @@
+spring:
+  profiles: dev
+
+# 讓 MyBatis 走 SLF4J（印 SQL 與參數）
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+logging:
+  level:
+    root: INFO
+    # 對自己專案的 mapper 套 DEBUG 看 SQL
+    open.vincentf13..mapper: DEBUG
+
+    # Web / MVC
+    org.springframework.web: INFO
+    org.springframework.web.servlet.DispatcherServlet: INFO
+    org.springframework.http: INFO
+
+    # Gateway / Netty
+    org.springframework.cloud.gateway: INFO
+    reactor.netty: WARN
+    io.netty: WARN
+
+    # Security
+    org.springframework.security: INFO
+    org.springframework.security.oauth2: INFO
+
+    # WebSocket / STOMP
+    org.springframework.web.socket: INFO
+    org.springframework.messaging: INFO
+
+    # JDBC / 連線池 / SQL
+    org.springframework.jdbc.core: INFO
+    com.zaxxer.hikari: INFO
+    com.zaxxer.hikari.pool: INFO
+    org.mybatis: INFO
+    org.apache.ibatis: INFO
+
+    # Kafka
+    org.apache.kafka.clients: INFO
+    org.apache.kafka.common.metrics: WARN
+    org.springframework.kafka: INFO
+    # 疑難排查臨時開：網路細節
+    # org.apache.kafka.clients.NetworkClient: DEBUG
+
+    # Redis（Lettuce）
+    io.lettuce.core: INFO
+    org.springframework.data.redis: INFO
+
+    # Tracing / Micrometer / OTel
+    io.micrometer: INFO
+    io.opentelemetry: WARN
+
+

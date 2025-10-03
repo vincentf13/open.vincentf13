@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds">
+
+    <!-- 開啟 Spring Boot 的屬性注入 -->
+    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>
+    <springProperty scope="context" name="LOG_LEVEL_ROOT" source="logging.level.root" defaultValue="INFO"/>
+
+    <!--  Pattern 格式: 生產環境打印 trace id -->
+    <property name="LOG_PATTERN_CONSOLE"
+              value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId:-} %X{spanId:-}] - %msg%n"/>
+    <property name="LOG_PATTERN_FILE"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId:-} %X{spanId:-}] - %msg%n"/>
+
+    <!-- ======================================== -->
+    <!-- 開發環境 profile: dev -->
+    <!-- ======================================== -->
+    <springProfile name="dev">
+
+        <!-- Console 輸出 (彩色) -->
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%cyan(%d{HH:mm:ss.SSS}) %highlight(%-5level) [%magenta(%thread)] %green(%logger{36}) - %msg%n
+                </pattern>
+            </encoder>
+        </appender>
+        <!-- 可選：開發也要落地檔案時開啟 -->
+<!--        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">-->
+<!--            <file>${LOG_DIR}/${APP_NAME}.log</file>-->
+<!--            <encoder>-->
+<!--                <pattern>${PATTERN}</pattern>-->
+<!--            </encoder>-->
+<!--            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">-->
+<!--                <fileNamePattern>${LOG_DIR}/${APP_NAME}.%d{yyyy-MM-dd}.log.gz</fileNamePattern>-->
+<!--                <maxHistory>7</maxHistory>-->
+<!--            </rollingPolicy>-->
+<!--        </appender>-->
+<!--        <root level="${LOG_LEVEL_ROOT}">-->
+<!--            <appender-ref ref="CONSOLE"/>-->
+<!--        </root>-->
+
+    </springProfile>
+
+    <!-- ======================================== -->
+    <!-- 生產環境 profile: prod -->
+    <!-- ======================================== -->
+    <springProfile name="prod">
+
+        <!-- 檔案輸出，滾動策略：每日 + 檔案大小上限 -->
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/app.log</file>
+            <encoder>
+                <pattern>${LOG_PATTERN_FILE}</pattern>
+            </encoder>
+
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <!-- 每天建立一個檔案 -->
+                <fileNamePattern>${LOG_PATH}/app.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <!-- 最多保存 30 天 -->
+                <maxHistory>30</maxHistory>
+                <!-- 若單檔太大自動分片 -->
+                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                    <maxFileSize>100MB</maxFileSize>
+                </timeBasedFileNamingAndTriggeringPolicy>
+            </rollingPolicy>
+        </appender>
+
+        <root level="${LOG_LEVEL_ROOT}">
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>

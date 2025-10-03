@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.mapstruct;
+package open.vincentf13.common.core.mapstruct;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.TargetType;

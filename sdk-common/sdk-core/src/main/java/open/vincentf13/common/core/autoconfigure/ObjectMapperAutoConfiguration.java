@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.autoconfigure;
+package open.vincentf13.common.core.autoconfigure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;

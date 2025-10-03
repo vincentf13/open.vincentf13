@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.jackson;
+package open.vincentf13.common.core.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
