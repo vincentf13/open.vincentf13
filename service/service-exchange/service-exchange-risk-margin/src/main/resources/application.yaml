@@ -1,8 +1,6 @@
 spring:
   application:
     name: risk-margin-service
-  main:
-    banner-mode: "off"
 
 logging:
   level:

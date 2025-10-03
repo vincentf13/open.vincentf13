@@ -1,0 +1,4 @@
+Spring:
+  main:
+    banner-mode: "off"
+    
