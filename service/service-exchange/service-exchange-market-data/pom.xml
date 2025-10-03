@@ -17,10 +17,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
-        <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-exchange-matching-rest-api</artifactId>
             <version>${project.version}</version>
@@ -28,6 +24,11 @@
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-spring-websocket</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
