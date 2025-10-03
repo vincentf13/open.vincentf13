@@ -6,10 +6,6 @@ spring:
     username: ledger
     password: ledger
     driver-class-name: com.mysql.cj.jdbc.Driver
-  jpa:
-    hibernate:
-      ddl-auto: none
-    open-in-view: false
 
 logging:
   level:
