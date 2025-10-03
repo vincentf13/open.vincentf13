@@ -6,19 +6,23 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-observability</artifactId>
+        <artifactId>sdk-common</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-observability-trace</artifactId>
-    <name>sdk-observability-trace</name>
-    <description>Tracing helpers starter</description>
+    <artifactId>sdk-observability-metrics</artifactId>
+    <name>sdk-observability-metrics</name>
+    <description>Metrics starter for Micrometer integrations</description>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
     </dependencies>
 </project>

@@ -29,6 +29,8 @@
         <module>sdk-redis</module>
         <module>sdk-kafka</module>
         <module>sdk-test</module>
-        <module>sdk-observability</module>
+        <module>sdk-observability-log</module>
+        <module>sdk-observability-trace</module>
+        <module>sdk-observability-metrics</module>
     </modules>
 </project>
