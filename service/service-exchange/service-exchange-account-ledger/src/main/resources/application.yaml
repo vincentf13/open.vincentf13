@@ -1,7 +1,3 @@
 spring:
   application:
     name: account-ledger-service
-
-logging:
-  level:
-    open.vincentf13.exchange.accountledger: INFO

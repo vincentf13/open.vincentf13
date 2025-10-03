@@ -127,7 +127,6 @@
                             <configuration>
                                 <additionalProperties>
                                     <build.timestamp>${maven.build.timestamp}</build.timestamp>
-                                    <maven.build.timestamp.timezone>Asia/Taipei</maven.build.timestamp.timezone>
                                     <image.tag>${image.tag}</image.tag>
                                 </additionalProperties>
                             </configuration>

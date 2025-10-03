@@ -16,11 +16,6 @@
     <description>Positions and PnL projections</description>
 
     <dependencies>
-
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-kafka</artifactId>
-        </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-core</artifactId>

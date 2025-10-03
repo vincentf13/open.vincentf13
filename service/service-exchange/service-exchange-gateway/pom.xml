@@ -16,30 +16,9 @@
     <description>API Gateway / BFF layer</description>
 
     <dependencies>
-
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-spring-cloud-gateway</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-observability-metrics</artifactId>
-        </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-spring-mvc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-spring-security</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-test</artifactId>
         </dependency>
     </dependencies>
 

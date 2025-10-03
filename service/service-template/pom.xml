@@ -28,10 +28,6 @@
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-spring-mvc</artifactId>
         </dependency>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-test</artifactId>
-        </dependency>
     </dependencies>
 
     <build>

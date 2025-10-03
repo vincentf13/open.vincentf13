@@ -1,7 +1,3 @@
 spring:
   application:
     name: positions-service
-
-logging:
-  level:
-    open.vincentf13.exchange.positions: INFO
