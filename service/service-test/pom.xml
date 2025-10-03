@@ -18,7 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-observability-metrics</artifactId>
+            <artifactId>sdk-core-metrics</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>

@@ -11,14 +11,18 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-observability-log</artifactId>
-    <name>observability-log</name>
-    <description>Logging conventions starter</description>
+    <artifactId>sdk-core-metrics</artifactId>
+    <name>sdk-core-metrics</name>
+    <description>Metrics starter for Micrometer integrations</description>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
     </dependencies>
 </project>

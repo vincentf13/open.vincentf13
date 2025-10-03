@@ -11,14 +11,14 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-observability-trace</artifactId>
-    <name>sdk-observability-trace</name>
-    <description>Tracing helpers starter</description>
+    <artifactId>sdk-core-log</artifactId>
+    <name>sdk-core-log</name>
+    <description>Logging conventions starter</description>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter</artifactId>
         </dependency>
     </dependencies>
 </project>
