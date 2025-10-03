@@ -26,7 +26,7 @@
         <module>sdk-mysql</module>
         <module>sdk-redis</module>
         <module>sdk-kafka</module>
-        <module>test</module>
+        <module>sdk-test</module>
         <module>sdk-observability</module>
     </modules>
 </project>
