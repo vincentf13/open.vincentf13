@@ -7,10 +7,10 @@
 - Kubernetes assets live in `k8s/`; per-service manifests sit under `k8s/<service>/`, while cross-cutting resources stay at the top level (e.g., `k8s/ingress.yaml`).
 
 ## Build & Test Commands
-- Prefer the bundled Maven Daemon (`mvnd`, add it to your PATH for convenience) for faster builds; the system Maven (`mvn`) still works if you need the classic CLI.
-- Full pipeline: `mvnd clean verify` (or `mvn clean verify`) compiles, runs unit tests, and produces artifacts under `target/`.
-- Targeted build: `mvnd -pl <module> -am verify` (e.g., `mvnd -pl common-sdk/exchange/matching/rest-api -am verify`).
-- Local service run: `mvnd -pl services/<service> spring-boot:run` (defaults to port 8080 unless overridden).
+- 使用系統 Maven (`mvn`) 進行構建與測試。
+- Full pipeline: `mvn clean verify` 會編譯、執行單元測試並在 `target/` 下產出制品。
+- Targeted build: `mvn -pl <module> -am verify`（例如：`mvn -pl common-sdk/exchange/matching/rest-api -am verify`）。
+- Local service run: `mvn -pl services/<service> spring-boot:run`（預設監聽 8080，可在各服務自行覆寫）。
 
 ## Coding Style
 - Java sources are UTF-8 with 4-space indentation; use PascalCase for classes, camelCase for members, and UPPER_SNAKE_CASE for constants.
@@ -20,11 +20,11 @@
 ## Testing Expectations
 - Mirror packages under `src/test/java`; suffix test classes with `*Tests`.
 - Reserve `@SpringBootTest` for full-context cases—favor slices, mocks, or plain unit tests otherwise.
-- Cover success and failure paths; keep the suite green under `mvnd verify` (or `mvn verify`). Document any intentionally skipped scenarios in PR notes.
+- Cover success and failure paths; keep the suite green under `mvn verify`. Document any intentionally skipped scenarios in PR notes.
 
 ## Git & Review Workflow
 - Commit messages: concise, present tense (`fix ingress host mapping`); first line < 50 characters, further detail in the body if needed. Chinese summaries are acceptable.
-- Before opening a PR, confirm `mvnd clean verify` (or `mvn clean verify`) and `kubectl apply -f k8s/<service>/*.yaml` succeed.
+- Before opening a PR, confirm `mvn clean verify` and `kubectl apply -f k8s/<service>/*.yaml` succeed.
 - Link related issues, document reproduction steps for fixes, and attach screenshots or curl logs when changing HTTP behavior.
 
 ## Deployment Notes
