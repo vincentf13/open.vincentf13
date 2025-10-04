@@ -12,14 +12,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerImageName;
 
-import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
  * 容器化整合測試的共用基底：啟動並共用 Testcontainers 的 MySQL/Kafka/Redis 與對應連線屬性。
  */
 @Testcontainers                                                     // 讓 JUnit 5 管理容器生命週期
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)                     // 每個測試方法建立新測試實例（避免共享狀態）
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)                     // 每個測試方法建立新測試實例（避免共享狀態）
 public abstract class BaseIT {
 
     // 注意：static final 讓「此基底類」與其所有子類共用同一組容器（同一 JVM 內）
@@ -47,9 +46,10 @@ public abstract class BaseIT {
     @DynamicPropertySource
     public static  void registerProps(DynamicPropertyRegistry registry) {
         ensureContainersStarted();                                             // 並行啟動未運行的容器，加速整體啟動
-        String db = "app_" + UUID.randomUUID();
-        registry.add("spring.datasource.url",                            // 每個測試使用獨立 schema
-                () -> MYSQL.getJdbcUrl().replace("/test", "/" + db));
+         registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
+//        String db = "app_" + UUID.randomUUID();
+//        registry.add("spring.datasource.url",                            // 每個測試使用獨立 schema
+//                () -> MYSQL.getJdbcUrl().replace("/test", "/" + db));
         registry.add("spring.datasource.username", MYSQL::getUsername);
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.datasource.driver-class-name", MYSQL::getDriverClassName);
