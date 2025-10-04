@@ -1,6 +1,6 @@
 package open.vincentf13.common.core.test;
 
-import open.vincentf13.common.core.test.contract.AbstractIT;
+import open.vincentf13.common.core.test.contract.BaseIT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +27,7 @@ import static org.awaitility.Awaitility.await;
 
 // Kafka 容器整合測試：驗證 KafkaTemplate 能與臨時 Broker 完整收發
 @SpringBootTest(classes = KafkaIT.TestConfig.class)
-class KafkaIT extends AbstractIT {
+class KafkaIT extends BaseIT {
 
   private static final String TOPIC = "sdk-core-test.demo";
 

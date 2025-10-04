@@ -1,6 +1,6 @@
 package open.vincentf13.common.core.test;
 
-import open.vincentf13.common.core.test.contract.AbstractIT;
+import open.vincentf13.common.core.test.contract.BaseIT;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,7 @@ import static org.awaitility.Awaitility.await;
 // Redis 容器整合測試：透過動態連線工廠驗證暫存操作
 @DataRedisTest
 @Import(RedisIT.RedisTestConfiguration.class)
-class RedisIT extends AbstractIT {
+class RedisIT extends BaseIT {
 
     private static final String KEY = "sdk-core-test:demo";
 

@@ -1,6 +1,6 @@
 package open.vincentf13.common.core.test;
 
-import open.vincentf13.common.core.test.contract.AbstractIT;
+import open.vincentf13.common.core.test.contract.BaseIT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // MySQL 容器整合測試：示範臨時資料庫 schema 操作與查詢
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class MysqlIT extends AbstractIT {
+class MysqlIT extends BaseIT {
 
   @Autowired
   private JdbcTemplate jdbcTemplate;
