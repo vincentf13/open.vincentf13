@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.log;
+package open.vincentf13.common.core.log;
 
 import org.slf4j.Logger;
 
