@@ -12,7 +12,7 @@
 2. **暫存檔寫入位置**：若系統不允許 JNA 在預設 tmp 目錄建檔，可加上 `-Djna.tmpdir=<repo>/tmp` 指向專案下可寫的目錄。
 3. **ByteBuddy/Mockito 自附掛**：在 JDK 23+ 或某些受限環境，需額外設定 `-Djdk.attach.allowAttachSelf=true`，避免 Mockito 初始化失敗。
 4. **Ryuk 管理容器**：若安全性政策禁用 Ryuk，可設定 `TESTCONTAINERS_RYUK_DISABLED=true`，並自行負責容器清理。
-5. **切換外部資源**：若欲改用服務自行配置的 MySQL/Redis/Kafka，可設定 `-Dsdk.core.testcontainers.enabled=false`（或對應環境變數 `SDK_CORE_TESTCONTAINERS_ENABLED=false`）；亦可針對單一資源使用 `sdk.core.testcontainers.mysql.enabled` 等旗標細部控制。
+5. **切換外部資源**：若欲改用服務自行配置的 MySQL/Redis/Kafka，可設定 `-Dopen.vincentf13.common.core.test.testcontainer.enabled=false`（或對應環境變數 `OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_ENABLED=false`）；亦可針對單一資源使用 `open.vincentf13.common.core.test.testcontainer.mysql.enabled` 等旗標細部控制。
 
 ## 建議啟動方式
 - 單模組測試：`mvn -pl sdk-common/sdk-core-test -am test`
@@ -29,3 +29,17 @@
 ## 為服務模組複用
 - 測試模組可直接依賴 `sdk-core-test`，並繼承  `Base*TestContainer` 或匯入 `TestBoot`。
 - 若服務需要額外容器，可在專案內實作 `BaseXxxTestContainer`，並在 README 補充使用方式。
+
+### 容器切換說明
+
+`BaseMySqlTestContainer`、`BaseRedisTestContainer`、`BaseKafkaTestContainer` 都提供動態切換機制：
+
+- 預設啟用 Testcontainers 之 docker 容器。若需要連到服務自行提供的資料庫/快取/訊息中介，可在測試啟動時加入 JVM 參數或環境變數切換。
+- 全域停用：
+  - JVM：`-Dsdk.core.testcontainers.enabled=false`
+- 環境：`OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_ENABLED=false`
+- 針對單一資源：
+  - MySQL → `-Dopen.vincentf13.common.core.test.testcontainer.mysql.enabled=false`（或 `OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_MYSQL_ENABLED=false`）
+  - Redis → `-Dopen.vincentf13.common.core.test.testcontainer.redis.enabled=false`（或 `OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_REDIS_ENABLED=false`）
+  - Kafka → `-Dopen.vincentf13.common.core.test.testcontainer.kafka.enabled=false`（或 `OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_KAFKA_ENABLED=false`）
+- 當旗標為 `false`/`0`/`off`/`no` 時容器不會啟動，也不會註冊對應的 `DynamicPropertySource`。此時測試可直接沿用服務自身在 `application-*.yml` 內配置的資料源等設定。

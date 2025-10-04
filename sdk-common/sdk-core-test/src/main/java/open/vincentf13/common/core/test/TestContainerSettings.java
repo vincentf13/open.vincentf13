@@ -5,15 +5,18 @@ import java.util.Locale;
 /**
  * 控制是否啟用測試容器的組態：
  * <ul>
- *   <li>全域旗標：system property {@code sdk.core.testcontainers.enabled} 或環境變數 {@code SDK_CORE_TESTCONTAINERS_ENABLED}</li>
- *   <li>服務別旗標：system property {@code sdk.core.testcontainers.<name>.enabled}</li>
+ *   <li>全域旗標：system property {@code open.vincentf13.common.core.test.testcontainer.enabled}
+ *   或環境變數 {@code OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_ENABLED}</li>
+ *   <li>服務別旗標：system property {@code open.vincentf13.common.core.test.testcontainer.<name>.enabled}</li>
  * </ul>
  * 任一旗標設為 {@code false/0/off/no} 即視為停用；未設定則預設啟用。
  */
 final class TestContainerSettings {
 
-    private static final String GLOBAL_PROPERTY = "sdk.core.testcontainers.enabled";
-    private static final String GLOBAL_ENV = "SDK_CORE_TESTCONTAINERS_ENABLED";
+    private static final String PROPERTY_PREFIX = "open.vincentf13.common.core.test.testcontainer.";
+    private static final String ENV_PREFIX = "OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_";
+    private static final String GLOBAL_PROPERTY = PROPERTY_PREFIX + "enabled";
+    private static final String GLOBAL_ENV = ENV_PREFIX + "ENABLED";
 
     private TestContainerSettings() {
     }
@@ -40,11 +43,11 @@ final class TestContainerSettings {
     }
 
     private static String propertyKey(String name) {
-        return "sdk.core.testcontainers." + name + ".enabled";
+        return PROPERTY_PREFIX + name + ".enabled";
     }
 
     private static String envKey(String name) {
-        return "SDK_CORE_TESTCONTAINERS_" + name.toUpperCase(Locale.ROOT) + "_ENABLED";
+        return ENV_PREFIX + name.toUpperCase(Locale.ROOT) + "_ENABLED";
     }
 
     private static Boolean readFlag(String propertyKey, String envKey) {
@@ -80,4 +83,3 @@ final class TestContainerSettings {
         }
     }
 }
-
