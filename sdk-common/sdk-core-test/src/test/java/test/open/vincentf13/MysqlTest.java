@@ -1,4 +1,4 @@
-package open.vincentf13.common.core.test;
+package test.open.vincentf13;
 
 import open.vincentf13.common.core.test.contract.BaseIT;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // MySQL 容器整合測試：示範臨時資料庫 schema 操作與查詢
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class MysqlIT extends BaseIT {
+class MysqlTest extends BaseIT {
 
   @Autowired
   private JdbcTemplate jdbcTemplate;
@@ -35,4 +35,6 @@ class MysqlIT extends BaseIT {
 
     assertThat(count).isEqualTo(1);
   }
+
+
 }

@@ -1,4 +1,4 @@
-package test;
+package test.open.vincentf13;
 
 
 import open.vincentf13.common.core.test.DemoController;
@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // REST 切片測試：用 MockMvc 在精簡 WebMVC Context 中驗證 Controller 行為
 @WebMvcTest(controllers = DemoController.class)
-class DemoControlleIT {
+class DemoControlleTest {
 
     @Autowired
     MockMvc mockMvc;
