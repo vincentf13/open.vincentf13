@@ -16,6 +16,7 @@ import java.time.Duration;
 
 import static org.awaitility.Awaitility.await;
 
+// Redis 容器整合測試：透過動態連線工廠驗證暫存操作
 @Import(RedisIT.RedisTestConfiguration.class)
 class RedisIT extends AbstractIT {
 
@@ -28,6 +29,7 @@ class RedisIT extends AbstractIT {
   void writeAndReadValue() {
     await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
       try (RedisConnection connection = redisTemplate.getConnectionFactory().getConnection()) {
+        // 等待容器真正就緒，避免瞬時連線錯誤
         connection.ping();
       }
     });
@@ -42,6 +44,7 @@ class RedisIT extends AbstractIT {
 
     @Bean
     LettuceConnectionFactory lettuceConnectionFactory() {
+      // 以容器暴露的 host/port 建立專屬測試連線工廠
       RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
       configuration.setHostName(REDIS.getHost());
       configuration.setPort(REDIS.getMappedPort(6379));

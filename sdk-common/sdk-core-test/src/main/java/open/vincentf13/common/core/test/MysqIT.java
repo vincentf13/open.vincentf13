@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+// MySQL 容器整合測試：示範臨時資料庫 schema 操作與查詢
 class MysqIT extends AbstractIT {
 
   @Autowired
@@ -15,6 +16,7 @@ class MysqIT extends AbstractIT {
 
   @BeforeEach
   void createSchema() {
+    // 每次重建資料表確保測試獨立
     jdbcTemplate.execute("DROP TABLE IF EXISTS users");
     jdbcTemplate.execute(
         "CREATE TABLE users (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) NOT NULL)");

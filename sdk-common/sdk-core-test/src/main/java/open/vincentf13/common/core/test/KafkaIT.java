@@ -22,6 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+// Kafka 容器整合測試：驗證 KafkaTemplate 能與臨時 Broker 完整收發
 @Import(KafkaIT.KafkaTestConfiguration.class)
 class KafkaIT extends AbstractIT {
 
@@ -35,6 +36,7 @@ class KafkaIT extends AbstractIT {
 
   @BeforeEach
   void cleanTopicBuffer() {
+    // 測試前清除暫存訊息避免案例互相干擾
     listener.clear();
   }
 
@@ -51,6 +53,7 @@ class KafkaIT extends AbstractIT {
 
     @Bean
     InMemoryKafkaListener inMemoryKafkaListener() {
+      // 以簡易記憶體 listener 蒐集測試中的消費結果
       return new InMemoryKafkaListener();
     }
 
@@ -65,6 +68,7 @@ class KafkaIT extends AbstractIT {
 
     @KafkaListener(topics = TOPIC)
     void consume(@Header(KafkaHeaders.RECEIVED_TOPIC) String topic, String payload) {
+      // 直接緩存訊息內容讓測試可斷言 round-trip 結果
       messages.computeIfAbsent(topic, key -> new CopyOnWriteArrayList<>()).add(payload);
     }
 
