@@ -1,0 +1,77 @@
+package open.vincentf13.common.core.test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.config.TopicBuilder;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+
+@Import(KafkaIntegrationTests.KafkaTestConfiguration.class)
+class KafkaIntegrationTests extends AbstractIntegrationTest {
+
+  private static final String TOPIC = "sdk-core-test.demo";
+
+  @Autowired
+  private KafkaTemplate<String, String> kafkaTemplate;
+
+  @Autowired
+  private InMemoryKafkaListener listener;
+
+  @BeforeEach
+  void cleanTopicBuffer() {
+    listener.clear();
+  }
+
+  @Test
+  void kafkaRoundTrip() {
+    kafkaTemplate.send(TOPIC, "k1", "{\"payload\":\"v1\"}");
+
+    await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+        assertThat(listener.values(TOPIC)).contains("{\"payload\":\"v1\"}"));
+  }
+
+  @TestConfiguration
+  static class KafkaTestConfiguration {
+
+    @Bean
+    InMemoryKafkaListener inMemoryKafkaListener() {
+      return new InMemoryKafkaListener();
+    }
+
+    @Bean
+    org.apache.kafka.clients.admin.NewTopic demoTopic() {
+      return TopicBuilder.name(TOPIC).partitions(1).replicas(1).build();
+    }
+  }
+
+  static class InMemoryKafkaListener {
+    private final Map<String, List<String>> messages = new ConcurrentHashMap<>();
+
+    @KafkaListener(topics = TOPIC)
+    void consume(@Header(KafkaHeaders.RECEIVED_TOPIC) String topic, String payload) {
+      messages.computeIfAbsent(topic, key -> new CopyOnWriteArrayList<>()).add(payload);
+    }
+
+    void clear() {
+      messages.clear();
+    }
+
+    List<String> values(String topic) {
+      return messages.getOrDefault(topic, List.of());
+    }
+  }
+}
