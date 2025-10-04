@@ -4,10 +4,13 @@ import open.vincentf13.common.core.test.contract.AbstractIT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -23,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 // Kafka 容器整合測試：驗證 KafkaTemplate 能與臨時 Broker 完整收發
-@Import(KafkaIT.KafkaTestConfiguration.class)
+@SpringBootTest(classes = KafkaIT.TestConfig.class)
 class KafkaIT extends AbstractIT {
 
   private static final String TOPIC = "sdk-core-test.demo";
@@ -49,6 +52,7 @@ class KafkaIT extends AbstractIT {
   }
 
   @TestConfiguration
+  @EnableKafka
   static class KafkaTestConfiguration {
 
     @Bean
@@ -79,5 +83,10 @@ class KafkaIT extends AbstractIT {
     List<String> values(String topic) {
       return messages.getOrDefault(topic, List.of());
     }
+  }
+
+  @EnableAutoConfiguration
+  @Import(KafkaTestConfiguration.class)
+  static class TestConfig {
   }
 }

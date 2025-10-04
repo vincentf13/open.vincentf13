@@ -1,8 +1,6 @@
 package open.vincentf13.common.core.test.contract;
 
 import org.junit.jupiter.api.TestInstance;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -18,11 +16,9 @@ import org.testcontainers.utility.DockerImageName;
 import java.util.stream.Stream;
 
 /**
- * 容器化整合測試的基底類別。
- * 啟動 Spring 測試應用並連到 Testcontainers 啟動的臨時 MySQL、Kafka、Redis。
+ * 容器化整合測試的共用基底：啟動並共用 Testcontainers 的 MySQL/Kafka/Redis 與對應連線屬性。
  */
 @Testcontainers                                                      // 讓 JUnit 5 管理容器生命週期
-@SpringBootTest(classes = AbstractIT.TestApplication.class)          // 啟動 Spring Boot 測試 Context
 @ActiveProfiles("test")                                              // 使用 test Profile 組態
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)                     // 每個測試方法建立新測試實例（避免共享狀態）
 public abstract class AbstractIT {
@@ -67,8 +63,4 @@ public abstract class AbstractIT {
                 .join();
     }
 
-    // 測試用最小 Spring Boot 應用；scanBasePackages 指向業務程式碼
-    @SpringBootApplication(scanBasePackages = "open.vincentf13")
-    static class TestApplication {
-    }
 }
