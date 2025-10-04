@@ -6,17 +6,17 @@ import java.util.function.Supplier;
 
 /**
  * private static final Logger log = LoggerFactory.getLogger(OrderService.class);
- * <p>
+ *
  * [INFO]
  * info(log, "OrderCreated", "created", "orderId", 12345, "userId", 6789);
  * 輸出
  * [OrderCreated] created | orderId=12345 userId=6789
- * <p>
+ *
  * [DEBUG] 未開時，Supplier 不會執行，無輸出
  * debug(log, "CalcPrice", () -> "rule=" + heavyCompute(), "sku", "A100");
  * 輸出：
  * （無，因為 DEBUG 未開）
- * <p>
+ * 
  * [ERROR] 含例外
  * try {
  * save();
@@ -35,8 +35,15 @@ public final class FastLog {
     }
 
     // INFO
+
+    /**
+     *  info(log, "OrderCreated", "created", "orderId", 12345, "userId", 6789);
+     *
+     *  輸出
+     *  [OrderCreated] created | orderId=12345 userId=6789
+     */
     public static String info(Logger log, String event, String msg, Object... kv) {
-        if (!log.isInfoEnabled()) return;
+        if (!log.isInfoEnabled()) return "Info Not Enabled";
         String finalLog = format(event, msg, kv);
         log.info(finalLog);
         return finalLog;
@@ -44,23 +51,38 @@ public final class FastLog {
 
     // WARN
     public static String warn(Logger log, String event, String msg, Object... kv) {
-        if (!log.isWarnEnabled()) return;
+        if (!log.isWarnEnabled()) return "Warn Not Enabled";
         String finalLog = format(event, msg, kv);
         log.warn(finalLog);
         return finalLog;
     }
 
     // ERROR
+    /**
+     *   error(log, "OrderSaveFailed", "db error", e, "orderId", 12345);
+     *
+     *  輸出（含堆疊）
+     *  [OrderSaveFailed] db error | orderId=12345
+     *  java.lang.RuntimeException: save failed
+     *  at open.vincentf13.service.OrderService.save(OrderService.java:42)
+     *  at open.vincentf13.service.OrderService.demo(OrderService.java:21)
+     */
     public static String error(Logger log, String event, String msg, Throwable t, Object... kv) {
-        if (!log.isErrorEnabled()) return;
+        if (!log.isErrorEnabled()) return "Error Not Enabled";
         String finalLog = format(event, msg, kv);
-        log.error(finalLog);
+        log.error(finalLog, t);
         return finalLog;
     }
 
     // DEBUG（延遲訊息）
+    /**
+     *
+     * debug(log, "CalcPrice", () -> "rule=" + heavyCompute(), "sku", "A100");
+     * 輸出
+     * [CalcPrice] rule=xx | sku=A100
+     */
     public static String debug(Logger log, String event, Supplier<String> msg, Object... kv) {
-        if (!log.isDebugEnabled()) return;
+        if (!log.isDebugEnabled()) return "Debug Not Enabled";
         String finalLog = format(event, safeGet(msg), kv);
         log.debug(finalLog);
         return finalLog;
@@ -68,7 +90,7 @@ public final class FastLog {
 
     // TRACE（延遲訊息）
     public static String trace(Logger log, String event, Supplier<String> msg, Object... kv) {
-        if (!log.isTraceEnabled()) return;
+        if (!log.isTraceEnabled()) return "Trace Not Enabled";
         String finalLog = format(event, safeGet(msg), kv);
         log.trace(finalLog);
         return finalLog;
