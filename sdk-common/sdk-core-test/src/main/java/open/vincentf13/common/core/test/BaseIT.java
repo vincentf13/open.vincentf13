@@ -1,4 +1,4 @@
-package open.vincentf13.common.core.test.contract;
+package open.vincentf13.common.core.test;
 
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -44,9 +44,9 @@ public abstract class BaseIT {
 
     // 將容器連線資訊註冊到 Spring Environment，讓 DataSource/Kafka/Redis 指向這些臨時容器
     @DynamicPropertySource
-    public static  void registerProps(DynamicPropertyRegistry registry) {
+    public static void registerProps(DynamicPropertyRegistry registry) {
         ensureContainersStarted();                                             // 並行啟動未運行的容器，加速整體啟動
-         registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
+        registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
 //        String db = "app_" + UUID.randomUUID();
 //        registry.add("spring.datasource.url",                            // 每個測試使用獨立 schema
 //                () -> MYSQL.getJdbcUrl().replace("/test", "/" + db));
@@ -59,7 +59,7 @@ public abstract class BaseIT {
     }
 
     // 以 Startables.deepStart 並行啟動容器；若已運行則略過
-    private static  void ensureContainersStarted() {
+    private static void ensureContainersStarted() {
         Startables.deepStart(Stream.of(MYSQL
                         , REDIS
                         , KAFKA
@@ -67,4 +67,5 @@ public abstract class BaseIT {
                 ).filter(container -> !container.isRunning()))
                 .join();
     }
+
 }

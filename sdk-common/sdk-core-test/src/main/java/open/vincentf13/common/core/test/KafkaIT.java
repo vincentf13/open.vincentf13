@@ -1,6 +1,6 @@
 //package open.vincentf13.common.core.test;
 //
-//import open.vincentf13.common.core.test.contract.BaseIT;
+//import open.vincentf13.common.core.test.BaseIT;
 //import org.junit.jupiter.api.BeforeEach;
 //import org.junit.jupiter.api.Test;
 //import org.springframework.beans.factory.annotation.Autowired;
