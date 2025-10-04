@@ -4,9 +4,9 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.TopicBuilder;
@@ -27,13 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers
 @SpringBootTest(
-        classes = KafkaTest.TestBoot.class,
+        classes = {TestBoot.class, KafkaTest.KafkaTestConfig.class},
         properties = "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
 )
 public class KafkaTest {
 
     @Container
-   protected static final org.testcontainers.containers.KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1")); // 單 Broker 測試用
+    protected static final KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1")); // 單 Broker 測試用
 
     static final String TOPIC = "t-" + UUID.randomUUID();
 
@@ -43,9 +43,9 @@ public class KafkaTest {
         r.add("app.topic", () -> TOPIC);
     }
 
-    @SpringBootConfiguration
+    @TestConfiguration
     @EnableAutoConfiguration   // 讓 Spring Kafka 自動建立 KafkaTemplate/Factories
-    static class TestBoot {
+    static class KafkaTestConfig {
         @Bean
         NewTopic topic(@Value("${app.topic}") String name) {
             return TopicBuilder.name(name).partitions(1).replicas(1).build();
