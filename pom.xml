@@ -167,11 +167,25 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
                 <configuration>
-                    <parallel>all</parallel>
-                    <threadCount>15</threadCount>
+                    <failIfNoTests>false</failIfNoTests>
+                    <reuseForks>true</reuseForks>
+                    <!-- 多 JVM 需求大時再調，平時交給 JUnit 內部並行即可 -->
+                    <!-- <forkCount>1</forkCount> -->
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
