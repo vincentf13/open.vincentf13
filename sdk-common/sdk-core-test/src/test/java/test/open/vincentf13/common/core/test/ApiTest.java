@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // REST 切片測試：用 MockMvc 在精簡 WebMVC Context 中驗證 Controller 行為
 @WebMvcTest(controllers = DemoController.class)
-class DemoControlleTest {
+class ApiTest {
     @Autowired
     MockMvc mockMvc;
 

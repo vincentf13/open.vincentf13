@@ -135,6 +135,11 @@
                 <artifactId>guava</artifactId>
                 <version>33.3.0-jre</version>
             </dependency>
+            <dependency>
+                <groupId>org.mybatis.spring.boot</groupId>
+                <artifactId>mybatis-spring-boot-starter-test</artifactId>
+                <version>3.0.4</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
