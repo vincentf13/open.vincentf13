@@ -1,15 +1,15 @@
-#spring:
+spring:
+  kafka:
+    consumer:
+      group-id: sdk-core-test
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 #  datasource:
 #    driver-class-name: com.mysql.cj.jdbc.Driver
-#  kafka:
-#    consumer:
-#      group-id: sdk-core-test
-#      auto-offset-reset: earliest
-#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-#    producer:
-#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 #  data:
 #    redis:
 #      timeout: 5s
