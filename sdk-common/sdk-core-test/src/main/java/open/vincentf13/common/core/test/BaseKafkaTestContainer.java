@@ -9,6 +9,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerImageName;
 
+import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -21,6 +22,7 @@ public abstract class BaseKafkaTestContainer {
     // 注意：static final 讓「此基底類」與其所有子類共用同一組容器（同一 JVM 內）
     @Container
     protected static final KafkaContainer KAFKA = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1")); // 單 Broker 測試用
+    protected static final String TOPIC = "t-" + UUID.randomUUID();
 
 
     // 將容器連線資訊註冊到 Spring Environment，讓 DataSource/Kafka/Redis 指向這些臨時容器
@@ -28,6 +30,7 @@ public abstract class BaseKafkaTestContainer {
     public static void registerProps(DynamicPropertyRegistry registry) {
         ensureContainersStarted();                                             // 並行啟動未運行的容器，加速整體啟動
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
+        registry.add("app.topic", () -> TOPIC);
     }
 
     // 以 Startables.deepStart 並行啟動容器；若已運行則略過
