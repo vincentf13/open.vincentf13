@@ -1,4 +1,4 @@
-package open.vincentf13.common.core.code;
+package open.vincentf13.common.core.exception;
 
 public enum HttpErrorCodes implements ErrorCode {
     OK("200", "OK"),
