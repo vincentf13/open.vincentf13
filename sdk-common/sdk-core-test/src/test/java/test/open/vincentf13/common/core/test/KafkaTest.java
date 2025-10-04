@@ -1,95 +1,82 @@
 package test.open.vincentf13.common.core.test;
 
-import open.vincentf13.common.core.test.BaseKafkaTestContainer;
-import org.junit.jupiter.api.BeforeEach;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-// Kafka 容器整合測試：驗證 KafkaTemplate 能與臨時 Broker 完整收發
+@Testcontainers
 @SpringBootTest(
-  classes = KafkaTest.TestConfig.class,
-  properties = "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
+        classes = KafkaTest.TestBoot.class,
+        properties = "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
 )
-class KafkaTest extends BaseKafkaTestContainer {
+public class KafkaTest {
 
-  private static final String TOPIC = "sdk-core-test.demo";
+    @Container
+   protected static final org.testcontainers.containers.KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1")); // 單 Broker 測試用
 
-  @Autowired
-  private KafkaTemplate<String, String> kafkaTemplate;
+    static final String TOPIC = "t-" + UUID.randomUUID();
 
-  @Autowired
-  private InMemoryKafkaListener listener;
-
-  @BeforeEach
-  void cleanTopicBuffer() {
-    // 測試前清除暫存訊息避免案例互相干擾
-    listener.clear();
-  }
-
-  @Test
-  void kafkaRoundTrip() {
-    kafkaTemplate.send(TOPIC, "k1", "{\"payload\":\"v1\"}");
-
-    await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
-        assertThat(listener.values(TOPIC)).contains("{\"payload\":\"v1\"}"));
-  }
-
-  @TestConfiguration
-  @EnableKafka
-  static class KafkaTestConfiguration {
-
-    @Bean
-    InMemoryKafkaListener inMemoryKafkaListener() {
-      // 以簡易記憶體 listener 蒐集測試中的消費結果
-      return new InMemoryKafkaListener();
+    @DynamicPropertySource
+    static void props(DynamicPropertyRegistry r) {
+        r.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        r.add("app.topic", () -> TOPIC);
     }
 
-    @Bean
-    org.apache.kafka.clients.admin.NewTopic demoTopic() {
-      return TopicBuilder.name(TOPIC).partitions(1).replicas(1).build();
-    }
-  }
+    @SpringBootConfiguration
+    @EnableAutoConfiguration   // 讓 Spring Kafka 自動建立 KafkaTemplate/Factories
+    static class TestBoot {
+        @Bean
+        NewTopic topic(@Value("${app.topic}") String name) {
+            return TopicBuilder.name(name).partitions(1).replicas(1).build();
+        }
 
-  static class InMemoryKafkaListener {
-    private final Map<String, List<String>> messages = new ConcurrentHashMap<>();
-
-    @KafkaListener(topics = TOPIC)
-    void consume(@Header(KafkaHeaders.RECEIVED_TOPIC) String topic, String payload) {
-      // 直接緩存訊息內容讓測試可斷言 round-trip 結果
-      messages.computeIfAbsent(topic, key -> new CopyOnWriteArrayList<>()).add(payload);
-    }
-
-    void clear() {
-      messages.clear();
+        @Bean
+        TestListener testListener() {
+            return new TestListener();
+        }
     }
 
-    List<String> values(String topic) {
-      return messages.getOrDefault(topic, List.of());
-    }
-  }
+    static class TestListener {
+        final CountDownLatch latch = new CountDownLatch(1);
+        volatile String payload;
 
-  @EnableAutoConfiguration
-  @Import(KafkaTestConfiguration.class)
-  static class TestConfig {
-  }
+        @KafkaListener(topics = "${app.topic}")
+        void onMessage(String v) {
+            payload = v;
+            latch.countDown();
+        }
+    }
+
+    @Autowired
+    KafkaTemplate<String, String> kafkaTemplate;
+    @Autowired
+    TestListener listener;
+
+    @Test
+    void send_and_receive() throws Exception {
+        kafkaTemplate.send(TOPIC, "k1", "v1").get(5, TimeUnit.SECONDS);
+        assertTrue(listener.latch.await(5, TimeUnit.SECONDS));
+        assertEquals("v1", listener.payload);
+    }
 }
