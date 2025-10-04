@@ -12,6 +12,7 @@
 2. **暫存檔寫入位置**：若系統不允許 JNA 在預設 tmp 目錄建檔，可加上 `-Djna.tmpdir=<repo>/tmp` 指向專案下可寫的目錄。
 3. **ByteBuddy/Mockito 自附掛**：在 JDK 23+ 或某些受限環境，需額外設定 `-Djdk.attach.allowAttachSelf=true`，避免 Mockito 初始化失敗。
 4. **Ryuk 管理容器**：若安全性政策禁用 Ryuk，可設定 `TESTCONTAINERS_RYUK_DISABLED=true`，並自行負責容器清理。
+5. **切換外部資源**：若欲改用服務自行配置的 MySQL/Redis/Kafka，可設定 `-Dsdk.core.testcontainers.enabled=false`（或對應環境變數 `SDK_CORE_TESTCONTAINERS_ENABLED=false`）；亦可針對單一資源使用 `sdk.core.testcontainers.mysql.enabled` 等旗標細部控制。
 
 ## 建議啟動方式
 - 單模組測試：`mvn -pl sdk-common/sdk-core-test -am test`

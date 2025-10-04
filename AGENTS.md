@@ -21,6 +21,7 @@
 - Mirror packages under `src/test/java`; suffix test classes with `*Tests`.
 - Reserve `@SpringBootTest` for full-context cases—favor slices, mocks, or plain unit tests otherwise.
 - Cover success and failure paths; keep the suite green under `mvn verify`. Document any intentionally skipped scenarios in PR notes.
+- 需要改用服務自行配置的資料庫/Redis/Kafka 時，可透過 `-Dsdk.core.testcontainers.enabled=false`（或對應環境變數）停用共用測試容器。
 
 ## Git & Review Workflow
 - Commit messages: concise, present tense (`fix ingress host mapping`); first line < 50 characters, further detail in the body if needed. Chinese summaries are acceptable.
