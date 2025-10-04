@@ -1,9 +1,7 @@
 package open.vincentf13.common.core.test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-
-import java.time.Duration;
+import open.vincentf13.common.core.test.contract.AbstractIT;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -14,8 +12,12 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-@Import(RedisIntegrationTests.RedisTestConfiguration.class)
-class RedisIntegrationTests extends AbstractIntegrationTest {
+import java.time.Duration;
+
+import static org.awaitility.Awaitility.await;
+
+@Import(RedisIT.RedisTestConfiguration.class)
+class RedisIT extends AbstractIT {
 
   private static final String KEY = "sdk-core-test:demo";
 
@@ -32,7 +34,7 @@ class RedisIntegrationTests extends AbstractIntegrationTest {
 
     redisTemplate.delete(KEY);
     redisTemplate.opsForValue().set(KEY, "cached-value");
-    assertThat(redisTemplate.opsForValue().get(KEY)).isEqualTo("cached-value");
+    Assertions.assertThat(redisTemplate.opsForValue().get(KEY)).isEqualTo("cached-value");
   }
 
   @TestConfiguration

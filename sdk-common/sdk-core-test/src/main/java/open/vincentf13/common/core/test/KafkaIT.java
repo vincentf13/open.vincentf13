@@ -1,13 +1,6 @@
 package open.vincentf13.common.core.test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import open.vincentf13.common.core.test.contract.AbstractIT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,8 +13,17 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 
-@Import(KafkaIntegrationTests.KafkaTestConfiguration.class)
-class KafkaIntegrationTests extends AbstractIntegrationTest {
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+@Import(KafkaIT.KafkaTestConfiguration.class)
+class KafkaIT extends AbstractIT {
 
   private static final String TOPIC = "sdk-core-test.demo";
 

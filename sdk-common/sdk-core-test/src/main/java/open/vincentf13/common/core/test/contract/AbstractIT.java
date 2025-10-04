@@ -1,6 +1,5 @@
-package open.vincentf13.common.core.test;
+package open.vincentf13.common.core.test.contract;
 
-import java.util.stream.Stream;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,11 +9,13 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.containers.wait.strategy.Wait;
+
+import java.util.stream.Stream;
 
 /**
  * Base class for container-backed integration tests. Each extending test automatically boots a
@@ -22,10 +23,10 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * Testcontainers.
  */
 @Testcontainers
-@SpringBootTest(classes = AbstractIntegrationTest.TestApplication.class)
+@SpringBootTest(classes = AbstractIT.TestApplication.class)
 @ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public abstract class AbstractIntegrationTest {
+public abstract class AbstractIT {
 
   @Container
   protected static final MySQLContainer<?> MYSQL =
