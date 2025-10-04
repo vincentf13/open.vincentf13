@@ -16,7 +16,7 @@ import java.util.function.Supplier;
  * debug(log, "CalcPrice", () -> "rule=" + heavyCompute(), "sku", "A100");
  * 輸出：
  * （無，因為 DEBUG 未開）
- * 
+ *
  * [ERROR] 含例外
  * try {
  * save();
