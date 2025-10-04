@@ -2,9 +2,10 @@ package open.vincentf13.common.core.test;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,9 +20,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 // REST 切片測試：用 MockMvc 在精簡 WebMVC Context 中驗證 Controller 行為
-@WebMvcTest(RestIT.PingController.class)
-@Import(RestIT.TestConfig.class)
-class RestIT {
+@WebMvcTest(controllers = ControllerIT.PingController.class)
+@Import(ControllerIT.TestConfig.class)
+class ControllerIT {
 
     @Autowired
     private MockMvc mockMvc;
@@ -45,7 +46,12 @@ class RestIT {
         }
     }
 
-    @SpringBootConfiguration
     @EnableAutoConfiguration
-    static class TestConfig {}
+    @TestConfiguration
+    public static class TestConfig {
+        @Bean
+        PingController pingController() {
+            return new PingController();
+        }
+    }
 }

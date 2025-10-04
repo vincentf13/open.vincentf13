@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // MySQL 容器整合測試：示範臨時資料庫 schema 操作與查詢
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class MysqIT extends AbstractIT {
+class MysqlIT extends AbstractIT {
 
   @Autowired
   private JdbcTemplate jdbcTemplate;
