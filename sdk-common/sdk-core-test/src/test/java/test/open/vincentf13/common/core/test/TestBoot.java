@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 
 
+// 單一共用的 Spring Boot 測試主程式；其他測試若需額外 bean，請使用 @TestConfiguration 避免產生多個 @SpringBootConfiguration
 @SpringBootConfiguration
 @ComponentScan("open.vincentf13")  // 指定主程式路徑
 @EnableAutoConfiguration
