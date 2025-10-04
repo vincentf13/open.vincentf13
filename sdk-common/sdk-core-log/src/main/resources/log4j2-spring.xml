@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration monitorInterval="60">
+
+    <Properties>
+        <!-- 讀 Spring 屬性，帶預設值 -->
+        <Property name="LOG_PATH">${spring:logging.file.path:-./logs}</Property>
+        <Property name="LOG_LEVEL_ROOT">${spring:logging.level.root:-INFO}</Property>
+
+        <!-- 模式：含 traceId/spanId（MDC） -->
+        <Property name="LOG_PATTERN_CONSOLE">%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId:-}
+            %X{spanId:-}] - %msg%n
+        </Property>
+        <Property name="LOG_PATTERN_FILE">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId:-}
+            %X{spanId:-}] - %msg%n
+        </Property>
+    </Properties>
+
+    <!-- ========== dev ========== -->
+    <SpringProfile name="dev">
+        <Appenders>
+            <Console name="CONSOLE">
+                <PatternLayout
+                        pattern="%style{%d{HH:mm:ss.SSS}}{cyan} %highlight{%-5level} [%style{%thread}{magenta}] %style{%logger{36}}{green} - %msg%n"
+                        disableAnsi="false"/>
+            </Console>
+        </Appenders>
+
+        <!-- 可選：開發也要落地檔案時開啟 -->
+        <!--        <RollingFile name="FILE"-->
+        <!--                     fileName="${LOG_PATH}/app.log"-->
+        <!--                     filePattern="${LOG_PATH}/app-%d{yyyy-MM-dd}-%i.log.gz">-->
+        <!--            <PatternLayout pattern="${LOG_PATTERN_FILE}"/>-->
+        <!--            <Policies>-->
+        <!--                <TimeBasedTriggeringPolicy interval="1"/>-->
+        <!--                <SizeBasedTriggeringPolicy size="100 MB"/>-->
+        <!--            </Policies>-->
+        <!--            <DefaultRolloverStrategy>-->
+        <!--                <Delete basePath="${LOG_PATH}">-->
+        <!--                    <IfFileName glob="app-*.log.gz"/>-->
+        <!--                    <IfLastModified age="7d"/>-->
+        <!--                </Delete>-->
+        <!--            </DefaultRolloverStrategy>-->
+        <!--        </RollingFile>-->
+
+        <Loggers>
+            <Root level="${LOG_LEVEL_ROOT}">
+                <AppenderRef ref="CONSOLE"/>
+                <!-- 可選：開發也要落地檔案時開啟 -->
+                <!--                <AppenderRef ref="FILE"/>-->
+            </Root>
+        </Loggers>
+    </SpringProfile>
+
+    <!-- ========== prod ========== -->
+    <SpringProfile name="prod">
+        <Appenders>
+            <RollingFile name="FILE"
+                         fileName="${LOG_PATH}/app.log"
+                         filePattern="${LOG_PATH}/app-%d{yyyy-MM-dd}-%i.log.gz">
+                <PatternLayout pattern="${LOG_PATTERN_FILE}"/>
+                <Policies>
+                    <TimeBasedTriggeringPolicy interval="1"/>
+                    <SizeBasedTriggeringPolicy size="100 MB"/>
+                </Policies>
+                <DefaultRolloverStrategy>
+                    <Delete basePath="${LOG_PATH}">
+                        <IfFileName glob="app-*.log.gz"/>
+                        <IfLastModified age="30d"/>
+                    </Delete>
+                </DefaultRolloverStrategy>
+            </RollingFile>
+        </Appenders>
+
+        <Loggers>
+            <Root level="${LOG_LEVEL_ROOT}">
+                <AppenderRef ref="FILE"/>
+            </Root>
+        </Loggers>
+    </SpringProfile>
+
+</Configuration>
