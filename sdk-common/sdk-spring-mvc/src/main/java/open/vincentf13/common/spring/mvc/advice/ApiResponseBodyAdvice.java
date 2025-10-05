@@ -2,10 +2,10 @@ package open.vincentf13.common.spring.mvc.advice;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.common.spring.mvc.config.MvcProperties;
 import open.vincentf13.common.spring.mvc.response.ApiResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,18 +22,13 @@ import java.util.Collection;
 /**
  * 對 REST 回應做統一包裝，避免每支 API 重複建立標準格式。
  */
+@Slf4j
+@RequiredArgsConstructor
 @RestControllerAdvice
 public class ApiResponseBodyAdvice implements ResponseBodyAdvice<Object> {
 
-    private static final Logger log = LoggerFactory.getLogger(ApiResponseBodyAdvice.class);
-
     private final ObjectMapper objectMapper;
     private final MvcProperties properties;
-
-    public ApiResponseBodyAdvice(ObjectMapper objectMapper, MvcProperties properties) {
-        this.objectMapper = objectMapper;
-        this.properties = properties;
-    }
 
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
@@ -85,6 +80,7 @@ public class ApiResponseBodyAdvice implements ResponseBodyAdvice<Object> {
     private Object wrapString(String value, Class<? extends HttpMessageConverter<?>> converterType) {
         if (StringHttpMessageConverter.class.isAssignableFrom(converterType)) {
             try {
+                // 手動序列化避免 StringHttpMessageConverter 以純文字方式輸出，確保前端收到一致 JSON 結構。
                 return objectMapper.writeValueAsString(ApiResponse.success(value));
             } catch (JsonProcessingException ex) {
                 log.warn("Failed to wrap String response body", ex);

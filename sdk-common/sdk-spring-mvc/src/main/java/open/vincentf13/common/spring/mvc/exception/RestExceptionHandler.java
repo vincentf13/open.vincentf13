@@ -6,8 +6,7 @@ import jakarta.validation.ConstraintViolationException;
 import open.vincentf13.common.core.exception.BackendErrorCodes;
 import open.vincentf13.common.core.exception.ControllerException;
 import open.vincentf13.common.spring.mvc.response.ApiResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceAware;
 import org.springframework.context.support.MessageSourceAccessor;
@@ -39,10 +38,9 @@ import java.util.stream.Collectors;
 /**
  * Spring MVC 統一例外處理，轉換成統一的 {@link ApiResponse} 物件。
  */
+@Slf4j
 @RestControllerAdvice
 public class RestExceptionHandler extends ResponseEntityExceptionHandler implements MessageSourceAware {
-
-    private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
 
     private MessageSourceAccessor messageAccessor;
 
@@ -177,6 +175,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         meta.put("status", status.value());
         meta.put("timestamp", Instant.now().toString());
         if (request != null) {
+            // 使用 attribute 而非重新生成，確保與 RequestCorrelationFilter 一致。
             meta.put("path", request.getRequestURI());
             meta.put("method", request.getMethod());
             meta.put("traceId", request.getAttribute("traceId"));

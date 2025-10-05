@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.spring.mvc.config.MvcProperties;
 import org.slf4j.MDC;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -14,13 +15,10 @@ import java.util.UUID;
 /**
  * 建立 traceId/requestId，便於跨服務日誌追蹤。
  */
+@RequiredArgsConstructor
 public class RequestCorrelationFilter extends OncePerRequestFilter {
 
     private final MvcProperties.Request properties;
-
-    public RequestCorrelationFilter(MvcProperties.Request properties) {
-        this.properties = properties;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -56,6 +54,7 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
         if (!properties.isGenerateCorrelationIds()) {
             return "unknown";
         }
+        // 大幅降低 UUID 撞號概率，同時移除 dash 便於在 header 中傳遞。
         return UUID.randomUUID().toString().replace("-", "");
     }
 }
