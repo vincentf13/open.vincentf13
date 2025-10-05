@@ -71,6 +71,7 @@ public class MvcProperties {
         private List<String> exposedHeaders = new ArrayList<>();
         private boolean allowCredentials = true;
         private Duration maxAge = Duration.ofHours(1);
+        // 將預設 preflight 快取設為 1 小時，可透過屬性調整以符合部署策略。
     }
 
     @Getter
