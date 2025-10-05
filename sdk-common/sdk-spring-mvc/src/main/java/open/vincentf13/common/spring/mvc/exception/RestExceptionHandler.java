@@ -8,11 +8,13 @@ import open.vincentf13.common.core.exception.ControllerException;
 import open.vincentf13.common.spring.mvc.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
+import org.springframework.context.NoSuchMessageException;
 import org.springframework.context.MessageSourceAware;
 import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
@@ -52,7 +54,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers,
-                                                                  HttpStatus status,
+                                                                  HttpStatusCode status,
                                                                   WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
@@ -71,7 +73,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
     @Override
     protected ResponseEntity<Object> handleBindException(BindException ex,
                                                          HttpHeaders headers,
-                                                         HttpStatus status,
+                                                         HttpStatusCode status,
                                                          WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
@@ -90,7 +92,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
     @Override
     protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
                                                                           HttpHeaders headers,
-                                                                          HttpStatus status,
+                                                                          HttpStatusCode status,
                                                                           WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
@@ -104,7 +106,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
                                                                   HttpHeaders headers,
-                                                                  HttpStatus status,
+                                                                  HttpStatusCode status,
                                                                   WebRequest request) {
         log.debug("Unreadable request payload", ex);
         HttpServletRequest servletRequest = extractRequest(request);
@@ -119,12 +121,12 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
     @Override
     protected ResponseEntity<Object> handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException ex,
                                                                          HttpHeaders headers,
-                                                                         HttpStatus status,
+                                                                         HttpStatusCode status,
                                                                          WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.METHOD_NOT_ALLOWED);
         if (!CollectionUtils.isEmpty(ex.getSupportedHttpMethods())) {
-            meta.put("supportedMethods", ex.getSupportedHttpMethods().stream().map(Enum::name).toList());
+            meta.put("supportedMethods", ex.getSupportedHttpMethods().stream().map(org.springframework.http.HttpMethod::name).toList());
         }
         ApiResponse<Object> body = ApiResponse.failure("40500",
                 resolveMessage("error.method-not-supported", "Method not allowed"),
@@ -198,14 +200,18 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         if (messageAccessor == null) {
             return defaultMessage;
         }
-        return messageAccessor.getMessage(fieldError, defaultMessage);
+        try {
+            return messageAccessor.getMessage(fieldError, LocaleContextHolder.getLocale());
+        } catch (NoSuchMessageException ignored) {
+            return defaultMessage;
+        }
     }
 
     private String resolveMessage(String code, String defaultMessage) {
         if (messageAccessor == null) {
             return defaultMessage;
         }
-        return messageAccessor.getMessage(code, defaultMessage, LocaleContextHolder.getLocale());
+        return messageAccessor.getMessage(code, new Object[0], defaultMessage, LocaleContextHolder.getLocale());
     }
 
     private String violationMessage(ConstraintViolation<?> violation) {

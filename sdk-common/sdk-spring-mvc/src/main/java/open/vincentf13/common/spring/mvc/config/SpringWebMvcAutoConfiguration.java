@@ -103,7 +103,7 @@ public class SpringWebMvcAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public MethodValidationPostProcessor methodValidationPostProcessor(Validator validator) {
+    public MethodValidationPostProcessor methodValidationPostProcessor(jakarta.validation.Validator validator) {
         MethodValidationPostProcessor processor = new MethodValidationPostProcessor();
         processor.setValidator(validator);
         return processor;
