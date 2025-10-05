@@ -21,8 +21,18 @@
 private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
 FastLog.info(log, "OrderCreated", "created", "orderId", orderId, "userId", userId);
+// 輸出： [OrderCreated] created | orderId=12345 userId=6789
+
 FastLog.debug(log, "CalcPrice", () -> "rule=" + computeRule(), "sku", skuCode);
+// DEBUG 開啟時輸出： [CalcPrice] rule=standard | sku=A100
+// DEBUG 關閉時輸出：無（Supplier 不會執行）
+
 FastLog.error(log, "OrderSaveFailed", "db error", ex, "orderId", orderId);
+// 輸出：
+// [OrderSaveFailed] db error | orderId=12345
+// java.lang.RuntimeException: save failed
+//   at open.vincentf13.service.OrderService.save(OrderService.java:42)
+//   ...
 ```
 - **與平台整合**：由於最終仍透過原生 `Logger` 輸出，會套用本模組提供的 Pattern，MDC 中的 `traceId`、`spanId`、`requestId` 等欄位會自動帶出；關鍵欄位建議以 `kv` 形式傳入，保持輸出一致。
 
