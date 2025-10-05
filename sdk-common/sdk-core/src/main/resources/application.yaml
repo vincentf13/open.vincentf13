@@ -4,14 +4,8 @@ server:
 Spring:
   profiles:
     active: dev
-  servlet:
-    multipart:
-      max-file-size: 50MB
-      max-request-size: 100MB
   main:
     banner-mode: "off"
-  messages:
-    basename: i18n/messages
   jackson:
     time-zone: Asia/Taipei                  # 時區統一
     locale: zh_TW                           # 語系

@@ -1,2 +1,19 @@
-server:
-  port: 8080
+open:
+  vincentf13:
+    mvc:
+      request:
+        trace-id-header: X-Trace-Id
+        request-id-header: X-Request-Id
+      response:
+        wrap-enabled: true
+      cors:
+        enabled: false
+        path-pattern: /**
+        allowed-origins: ["*"]
+        allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+      i18n:
+        default-locale: en-US
+        supported-locales: [en-US, zh-TW]
+        locale-param-name: lang
+      validation:
+        fail-fast: true
