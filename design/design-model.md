@@ -12,6 +12,22 @@
 - 命名：`*Request`, `*Response`, `*DTO`；保持語意化。
 - 使用 `record` 宣告欄位，若需額外方法可在 record 內補充靜態工廠或驗證邏輯。
 - 允許使用 `@JsonProperty`、`@Schema` 等序列化／文件註解；避免注入框架專屬 Annotation（例如 JPA、MyBatis）。
+- 可於一個文件內宣告多筆recode，減少操作成本
+```java
+// File: Models.java
+package com.example.api;
+
+public class Models {
+  public static record User(String name, String email) {}
+  public static record Order(long id, String status) {}
+}
+
+```
+
+```java
+Models.User u = new Models.User("Alice", "a@example.com");
+```
+
 
 ### Domain Model
 - 儲存位置：`services/<service>/src/main/java/.../domain/`。
