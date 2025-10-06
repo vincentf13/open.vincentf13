@@ -6,20 +6,11 @@ open:
         # 當上游未帶追蹤資訊時使用的標頭名稱。
         trace-id-header: X-Trace-Id
         request-id-header: X-Request-Id
+        generate-correlation-ids: true
+        write-response-header: true
+        filter-order: -200
       response:
         # 啟用後自動把 REST 回應包成 ApiResponse 結構。
         wrap-enabled: true
-      cors:
-        # 預設關閉跨網域，應用端視 API 需求再開啟。
-        enabled: false
-        path-pattern: /**
-        allowed-origins: ["*"]
-        allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-      i18n:
-        # 預設語系與支援列表，對應 messages*.properties。
-        default-locale: en-US
-        supported-locales: [en-US, zh-TW]
-        locale-param-name: lang
-      validation:
-        # 驗證失敗時立即回傳，避免累積多筆錯誤訊息。
-        fail-fast: true
+        # 可忽略的 controller package 前綴（避免重複包裝）。
+        ignore-controller-prefixes: []

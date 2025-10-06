@@ -6,13 +6,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.validation.annotation.Validated;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * Spring MVC 基礎設定，透過 {@code open.vincentf13.mvc.*} 進行調整。
+ * 只保留框架未提供的 MVC 自訂設定（請求追蹤與回應包裝）。
  */
 @Validated
 @Getter
@@ -24,15 +22,6 @@ public class MvcProperties {
 
     @NestedConfigurationProperty
     private final Response response = new Response();
-
-    @NestedConfigurationProperty
-    private final Cors cors = new Cors();
-
-    @NestedConfigurationProperty
-    private final I18n i18n = new I18n();
-
-    @NestedConfigurationProperty
-    private final Validation validation = new Validation();
 
     @Getter
     @Setter
@@ -60,44 +49,4 @@ public class MvcProperties {
         private List<String> ignoreControllerPrefixes = new ArrayList<>();
     }
 
-    @Getter
-    @Setter
-    public static class Cors {
-        private boolean enabled = false;
-        private String pathPattern = "/**";
-        private List<String> allowedOrigins = new ArrayList<>(List.of("*"));
-        private List<String> allowedMethods = new ArrayList<>(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        private List<String> allowedHeaders = new ArrayList<>(List.of("*"));
-        private List<String> exposedHeaders = new ArrayList<>();
-        private boolean allowCredentials = true;
-        private Duration maxAge = Duration.ofHours(1);
-        // 將預設 preflight 快取設為 1 小時，可透過屬性調整以符合部署策略。
-    }
-
-    @Getter
-    @Setter
-    public static class I18n {
-        private String defaultLocale = Locale.US.toLanguageTag();
-        private List<String> supportedLocales = new ArrayList<>(List.of(Locale.US.toLanguageTag()));
-        private String localeParamName = "lang";
-        private boolean enableLocaleChangeInterceptor = true;
-        private String messageBasename = "classpath:i18n/messages";
-
-        public Locale defaultLocale() {
-            return Locale.forLanguageTag(defaultLocale);
-        }
-
-        public List<Locale> supportedLocales() {
-            return supportedLocales.stream()
-                    .map(Locale::forLanguageTag)
-                    .toList();
-        }
-
-    }
-
-    @Getter
-    @Setter
-    public static class Validation {
-        private boolean failFast = true;
-    }
 }
