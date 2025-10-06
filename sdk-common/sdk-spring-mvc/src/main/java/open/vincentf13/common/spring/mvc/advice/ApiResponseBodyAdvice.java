@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.common.core.log.FastLog;
 import open.vincentf13.common.spring.mvc.config.MvcProperties;
 import open.vincentf13.common.spring.mvc.response.ApiResponse;
 import org.springframework.core.MethodParameter;
@@ -83,7 +84,9 @@ public class ApiResponseBodyAdvice implements ResponseBodyAdvice<Object> {
                 // 手動序列化避免 StringHttpMessageConverter 以純文字方式輸出，確保前端收到一致 JSON 結構。
                 return objectMapper.writeValueAsString(ApiResponse.success(value));
             } catch (JsonProcessingException ex) {
-                log.warn("Failed to wrap String response body", ex);
+                FastLog.warn(log, "WrapStringResponseFailed", "Failed to wrap String response body",
+                        ex,
+                        "converter", converterType != null ? converterType.getName() : "unknown");
                 return value;
             }
         }

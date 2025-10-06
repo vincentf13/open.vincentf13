@@ -57,6 +57,13 @@ public final class FastLog {
         return finalLog;
     }
 
+    public static String warn(Logger log, String event, String msg, Throwable t, Object... kv) {
+        if (!log.isWarnEnabled()) return "Warn Not Enabled";
+        String finalLog = format(event, msg, kv);
+        log.warn(finalLog, t);
+        return finalLog;
+    }
+
     // ERROR
     /**
      *   error(log, "OrderSaveFailed", "db error", e, "orderId", 12345);
@@ -85,6 +92,13 @@ public final class FastLog {
         if (!log.isDebugEnabled()) return "Debug Not Enabled";
         String finalLog = format(event, safeGet(msg), kv);
         log.debug(finalLog);
+        return finalLog;
+    }
+
+    public static String debug(Logger log, String event, Supplier<String> msg, Throwable t, Object... kv) {
+        if (!log.isDebugEnabled()) return "Debug Not Enabled";
+        String finalLog = format(event, safeGet(msg), kv);
+        log.debug(finalLog, t);
         return finalLog;
     }
 

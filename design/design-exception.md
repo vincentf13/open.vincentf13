@@ -50,7 +50,7 @@ ErrorCode (interface) ---> provided to all exception constructors of BaseChecked
 try {
   repository.read("data.txt");
 } catch (NoSuchFileException ex) {
-  throw new ControllerException(BackendErrorCodes.INTERNAL, "讀取檔案失敗", ex);
+  throw new ControllerException(BackendErrorCodes.INTERNAL_ERROR, "讀取檔案失敗", ex);
 }
 ```
 輸出範例：
