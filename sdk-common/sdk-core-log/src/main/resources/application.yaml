@@ -1,5 +1,6 @@
 spring:
-  profiles: dev
+  profiles:
+    active: dev
 
 # 讓 MyBatis 走 SLF4J（印 SQL 與參數）
 mybatis:
