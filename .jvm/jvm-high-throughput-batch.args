@@ -1,24 +1,24 @@
-# JVM args — high-throughput batch processing (Parallel GC)
-# Target: maximize throughput, tolerate longer pauses, larger heap footprint.
+# JVM 參數 — 高吞吐批次作業（Parallel GC）
+# 追求最大吞吐，可容忍較長暫停，預設 6G 堆空間。
 
-# Heap sizing
+# 堆空間
 -Xms6g
 -Xmx6g
 -XX:+AlwaysPreTouch
 
-# Garbage collector: Parallel GC tuned for throughput
+# 垃圾回收器：Parallel GC
 -XX:+UseParallelGC
--XX:GCTimeRatio=9                    # spend at most ~10% time in GC
+-XX:GCTimeRatio=9                    # 設定 GC 時間占比，偏向吞吐
 
-# Logging tuned for long-running jobs
+# GC 日誌（批次作業建議保留較長歷程）
 -Xlog:gc*,safepoint:file=/var/log/app/gc-batch.log:time,level,tags:filecount=7,filesize=100M
 -XX:+PrintCommandLineFlags
 
-# Failure handling
+# OOM 應對
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
 -XX:+ExitOnOutOfMemoryError
 
-# Locale / encoding defaults
+# 地區與編碼
 -Dfile.encoding=UTF-8
 -Duser.timezone=Asia/Taipei

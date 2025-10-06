@@ -1,29 +1,29 @@
-# JVM args — memory constrained deployments (Kubernetes / small containers)
-# Target: adapt heap to cgroup limits while staying within 30–70% of available memory.
+# JVM 參數 — 記憶體受限環境（Kubernetes / 小型容器）
+# 依 cgroup 記憶體自動推算 Xms/Xmx，鎖定可用記憶體的 30%~70%。
 
-# Adaptive heap sizing — let JVM derive concrete Xms/Xmx from container limits
+# 自適應堆空間（百分比）
 -XX:InitialRAMPercentage=30.0
 -XX:MinRAMPercentage=30.0
 -XX:MaxRAMPercentage=70.0
 
-# Garbage collector tuning (G1 with looser pause SLA)
+# 垃圾回收器（G1，停頓目標較寬鬆）
 -XX:+UseG1GC
 -XX:MaxGCPauseMillis=150
 -XX:+ParallelRefProcEnabled
 -XX:+UseStringDeduplication
 
-# Optional: pre-touch pages to avoid first-request latency spikes (disable if startup cost matters)
+# 視需求預先觸發分頁，以避免首個請求延遲；若啟動成本重要可保持註解
 # -XX:+AlwaysPreTouch
 
-# Logging footprint
+# GC 日誌輸出（控制檔案大小）
 -Xlog:gc*,safepoint:file=/var/log/app/gc-small.log:time,level,tags:filecount=5,filesize=20M
 -XX:+PrintCommandLineFlags
 
-# Failure handling
+# OOM 應對
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
 -XX:+ExitOnOutOfMemoryError
 
-# Locale / encoding defaults
+# 地區與編碼
 -Dfile.encoding=UTF-8
 -Duser.timezone=Asia/Taipei

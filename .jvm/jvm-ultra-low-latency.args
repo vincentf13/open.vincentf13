@@ -1,25 +1,25 @@
-# JVM args — ultra-low latency (ZGC, P99 ≈ 10–20 ms)
-# Target: prioritize pause times over throughput for matching / trading style workloads.
+# JVM 參數 — 極低延遲場景（ZGC，P99 約 10–20ms）
+# 以停頓時間優先於吞吐量，適用撮合/交易等即時任務。
 
-# Heap sizing
+# 堆空間
 -Xms4g
 -Xmx4g
 -XX:+AlwaysPreTouch
 
-# Garbage collector: Generational ZGC
+# 垃圾回收器：分代 ZGC
 -XX:+UseZGC
 -XX:+ZGenerational
--XX:ZCollectionInterval=0          # allow continuous concurrent collections
+-XX:ZCollectionInterval=0          # 允许持續並行回收，壓低延遲
 
-# GC / safepoint logging
+# GC 與 safepoint 日誌
 -Xlog:gc*,safepoint:file=/var/log/app/gc-zgc.log:time,level,tags:filecount=7,filesize=50M
 -XX:+PrintCommandLineFlags
 
-# Failure handling
+# OOM 應對
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
 -XX:+ExitOnOutOfMemoryError
 
-# Locale / encoding defaults
+# 地區與編碼
 -Dfile.encoding=UTF-8
 -Duser.timezone=Asia/Taipei

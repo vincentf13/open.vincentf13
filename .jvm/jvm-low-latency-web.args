@@ -1,12 +1,12 @@
-# JVM args — low-latency web services (G1 GC)
-# Target: steady ~4G heap with tight pause goals for synchronous REST workloads.
+# JVM 參數 — 低延遲 Web 服務（G1 GC）
+# 貼近 4G 固定 heap，鎖定 60ms 以內的停頓時間。
 
-# Heap sizing
+# 堆空間
 -Xms4g
 -Xmx4g
 -XX:+AlwaysPreTouch
 
-# Garbage collector tuning
+# 垃圾回收器調校
 -XX:+UseG1GC
 -XX:MaxGCPauseMillis=60
 -XX:InitiatingHeapOccupancyPercent=30
@@ -15,15 +15,15 @@
 -XX:+ParallelRefProcEnabled
 -XX:+UseStringDeduplication
 
-# GC / safepoint logging
+# GC 與 safepoint 日誌
 -Xlog:gc*,safepoint:file=/var/log/app/gc.log:time,uptime,level,tags:filecount=7,filesize=50M
 -XX:+PrintCommandLineFlags
 
-# Failure handling
+# OOM 應對
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
 -XX:+ExitOnOutOfMemoryError
 
-# Locale / encoding defaults
+# 地區與編碼
 -Dfile.encoding=UTF-8
 -Duser.timezone=Asia/Taipei
