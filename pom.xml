@@ -54,11 +54,21 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-core-log</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>1.20.3</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-core-trace</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
@@ -108,6 +118,16 @@
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
                 <artifactId>sdk-service-exchange-matching-rest-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-service-exchange-matching</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-service-exchange</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
