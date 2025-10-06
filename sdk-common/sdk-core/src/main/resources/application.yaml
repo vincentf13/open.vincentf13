@@ -4,6 +4,9 @@ server:
 Spring:
   profiles:
     active: dev
+  threads:
+    virtual:
+      enabled: true
   main:
     banner-mode: "off"
   jackson:

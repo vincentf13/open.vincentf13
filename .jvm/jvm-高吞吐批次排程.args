@@ -1,0 +1,30 @@
+### ===== Memory =====
+-Xms4g
+-Xmx4g
+-XX:+AlwaysPreTouch
+
+### ===== GC =====
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=100
+-XX:+ParallelRefProcEnabled
+-XX:+UseStringDeduplication
+
+### ===== Logging =====
+-Xlog:gc*,safepoint:file=/var/log/app/gc.log:time,uptime,level,tags:filecount=7,filesize=50M
+-XX:+PrintCommandLineFlags
+
+### ===== Failure Handling =====
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
+-XX:+ExitOnOutOfMemoryError
+
+### ===== Locale/Encoding =====
+-Dfile.encoding=UTF-8
+-Duser.timezone=Asia/Taipei
+
+### 吞吐優先，不嚴格控停頓
+-XX:+UseParallelGC
+-Xms6g
+-Xmx6g
+-XX:GCTimeRatio=9                 # 提高 GC/執行 時間比，偏向吞吐
+-Xlog:gc*:file=/var/log/app/gc-batch.log:time,level,tags:filecount=7,filesize=100M

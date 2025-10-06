@@ -1,0 +1,31 @@
+### ===== Memory =====
+-Xms4g
+-Xmx4g
+-XX:+AlwaysPreTouch
+
+### ===== GC =====
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=100
+-XX:+ParallelRefProcEnabled
+-XX:+UseStringDeduplication
+
+### ===== Logging =====
+-Xlog:gc*,safepoint:file=/var/log/app/gc.log:time,uptime,level,tags:filecount=7,filesize=50M
+-XX:+PrintCommandLineFlags
+
+### ===== Failure Handling =====
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
+-XX:+ExitOnOutOfMemoryError
+
+### ===== Locale/Encoding =====
+-Dfile.encoding=UTF-8
+-Duser.timezone=Asia/Taipei
+
+### 用 ZGC 取代 G1
+-XX:+UseZGC
+-Xms4g
+-Xmx4g
+-XX:+ZGenerational          # 分代 ZGC（JDK 21+）
+-XX:ZCollectionInterval=0   # 允許持續回收以壓低延遲
+-Xlog:gc*,safepoint:file=/var/log/app/gc-zgc.log:time,level,tags:filecount=7,filesize=50M

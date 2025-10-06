@@ -1,0 +1,47 @@
+# jvm.args — 開發期推薦模板
+# 用法：
+#   java @jvm.args -jar app.jar
+# 或設定：
+#   export JDK_JAVA_OPTIONS="@/path/jvm.args"
+
+# ===== 可讀性與除錯 =====
+-ea                                          # 開啟 assertions
+-XX:+ShowCodeDetailsInExceptionMessages      # 精準 NPE 與例外訊息
+-Dfile.encoding=UTF-8                        # 明確設定編碼（JDK 18+ 已預設 UTF-8）
+
+# ===== 記憶體與 OOM 事故處置 =====
+-XX:+HeapDumpOnOutOfMemoryError              # OOM 產生 heap dump
+-XX:HeapDumpPath=./logs/oom-%p.hprof         # Dump 存放路徑
+-XX:+ExitOnOutOfMemoryError                  # OOM 直接結束進程，避免半殘狀態
+
+# ===== GC 與事件日誌（開發期建議開）=====
+# 統一日誌：GC、safepoint、類載入
+-Xlog:gc*,safepoint,class+load=info:file=./logs/jvm-%p.log:time,uptime,level,tags
+-XX:+UseStringDeduplication                # G1 下去重字串，降低堆壓力
+
+# ===== 動態 CDS（Class Data Sharing）加速啟動 =====
+-XX:SharedArchiveFile=app-cds.jsa            # 啟動時嘗試載入共享檔
+-Xshare:auto                                 # 兼容模式，不相容時自動忽略
+-XX:ArchiveClassesAtExit=app-cds.jsa         # 本次結束時寫出共享檔
+
+# ===== 熱點 JIT 行為（啟動更快，吞吐非重點時用）=====
+# -XX:TieredStopAtLevel=1                  # 僅 C1 編譯，啟動更快
+# -XX:CICompilerCount=2                    # 降低編譯執行緒，減少抖動
+
+# ===== 虛擬執行緒（Loom）相關，可選 =====
+--spring.threads.virtual.enabled=true
+# -Djdk.virtualThreadScheduler.parallelism=0  # 載體執行緒並行度，0 表示按 CPU 自動
+# -Djdk.virtualThreadScheduler.maxPoolSize=0  # 載體池上限，0 表示不限
+
+# ===== JFR（低開銷分析），需要時開啟 =====
+# -XX:StartFlightRecording=filename=./logs/jfr-%p.jfr,settings=profile,dumponexit=true
+
+# ===== 內存診斷（需要時開啟）=====
+# -XX:+UnlockDiagnosticVMOptions
+# -XX:NativeMemoryTracking=summary
+# -XX:+PrintNMTStatistics
+
+# ===== 反射相容性（舊版框架需要時開）=====
+# --add-opens=java.base/java.lang=ALL-UNNAMED
+# --add-opens=java.base/java.util=ALL-UNNAMED
+# --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
