@@ -4,7 +4,7 @@
 -XX:+AlwaysPreTouch
 
 ### ===== GC =====
--XX:+UseG1GC
+### -XX:+UseG1GC
 -XX:MaxGCPauseMillis=100
 -XX:+ParallelRefProcEnabled
 -XX:+UseStringDeduplication

@@ -5,7 +5,7 @@
 
 ### ===== GC =====
 -XX:+UseG1GC
--XX:MaxGCPauseMillis=100
+### -XX:MaxGCPauseMillis=100
 -XX:+ParallelRefProcEnabled
 -XX:+UseStringDeduplication
 

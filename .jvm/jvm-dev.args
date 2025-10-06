@@ -29,7 +29,6 @@
 # -XX:CICompilerCount=2                    # 降低編譯執行緒，減少抖動
 
 # ===== 虛擬執行緒（Loom）相關，可選 =====
---spring.threads.virtual.enabled=true
 # -Djdk.virtualThreadScheduler.parallelism=0  # 載體執行緒並行度，0 表示按 CPU 自動
 # -Djdk.virtualThreadScheduler.maxPoolSize=0  # 載體池上限，0 表示不限
 
