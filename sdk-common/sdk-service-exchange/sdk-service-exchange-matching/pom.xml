@@ -18,7 +18,7 @@
     <description>Matching service API contract and client aggregator</description>
 
     <modules>
-        <module>rest-api</module>
-        <module>rest-client</module>
+        <module>>sdk-service-exchange-matching-rest-api</module>
+        <module>sdk-service-exchange-matching-rest-client</module>
     </modules>
 </project>
