@@ -1,11 +1,11 @@
 ### ===== Memory =====
--Xms4g
--Xmx4g
+### -Xms4g
+### -Xmx4g
 -XX:+AlwaysPreTouch
 
 ### ===== GC =====
 ### -XX:+UseG1GC
--XX:MaxGCPauseMillis=100
+### -XX:MaxGCPauseMillis=100
 -XX:+ParallelRefProcEnabled
 -XX:+UseStringDeduplication
 
