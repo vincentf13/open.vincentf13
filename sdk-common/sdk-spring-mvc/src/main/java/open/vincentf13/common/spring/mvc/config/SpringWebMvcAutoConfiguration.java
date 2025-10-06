@@ -35,9 +35,6 @@ import java.util.List;
 public class SpringWebMvcAutoConfiguration {
 
     /**
-     * 註冊 MVC 請求日誌攔截器，統一輸出請求摘要與耗時。
-     */
-    /**
      * 建立 RequestLoggingInterceptor，提供統一請求摘要日誌。
      */
     @Bean
@@ -46,9 +43,6 @@ public class SpringWebMvcAutoConfiguration {
     }
 
     /**
-     * 產生 traceId/requestId，並寫入 Header 與 MDC，支援跨服務追蹤。
-     */
-    /**
      * 建立 RequestCorrelationFilter，負責補足 traceId/requestId 與同步至 MDC。
      */
     @Bean
@@ -56,9 +50,6 @@ public class SpringWebMvcAutoConfiguration {
         return new RequestCorrelationFilter(properties.getRequest());
     }
 
-    /**
-     * 控制 RequestCorrelationFilter 的註冊順序與生效範圍。
-     */
     /**
      * 將 RequestCorrelationFilter 以指定順序註冊到 Servlet Filter Chain。
      */

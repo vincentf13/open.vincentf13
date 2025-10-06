@@ -28,11 +28,14 @@ import java.util.Collection;
 @RestControllerAdvice
 public class ApiResponseBodyAdvice implements ResponseBodyAdvice<Object> {
 
+    /** ObjectMapper 供 String 包裝時進行 JSON 序列化。 */
     private final ObjectMapper objectMapper;
+    /** 自訂開關與忽略名單。 */
     private final MvcProperties properties;
 
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+        // 未開啟包裝或手動排除的 controller 直接跳過。
         if (!properties.getResponse().isWrapEnabled()) {
             return false;
         }
@@ -63,22 +66,23 @@ public class ApiResponseBodyAdvice implements ResponseBodyAdvice<Object> {
         if (returnType != null && ResponseEntity.class.isAssignableFrom(returnType.getParameterType())) {
             return body;
         }
-        if (body == null) {
+        if (body == null) { // 允許 GET 等無內容時仍回傳成功標準格式
             return ApiResponse.success();
         }
-        if (body instanceof ApiResponse<?> || body instanceof org.springframework.http.ProblemDetail) {
+        if (body instanceof ApiResponse<?> || body instanceof org.springframework.http.ProblemDetail) { // 已是標準格式或 RFC7807 結構時不再包裝
             return body;
         }
-        if (body instanceof byte[] || body instanceof Collection<?> || body.getClass().isArray()) {
+        if (body instanceof byte[] || body instanceof Collection<?> || body.getClass().isArray()) { // 直接封裝在 data 內
             return ApiResponse.success(body);
         }
-        if (body instanceof CharSequence) {
+        if (body instanceof CharSequence) { // String 需手動序列化避免被當作純文字回傳
             return wrapString(body.toString(), selectedConverterType);
         }
         return ApiResponse.success(body);
     }
 
     private Object wrapString(String value, Class<? extends HttpMessageConverter<?>> converterType) {
+        // 只對 Spring 的 StringHttpMessageConverter 進行 JSON 包裝，其餘 converter 採預設行為。
         if (StringHttpMessageConverter.class.isAssignableFrom(converterType)) {
             try {
                 // 手動序列化避免 StringHttpMessageConverter 以純文字方式輸出，確保前端收到一致 JSON 結構。

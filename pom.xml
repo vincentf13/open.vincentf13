@@ -137,11 +137,6 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-core-log</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>io.vavr</groupId>
                 <artifactId>vavr</artifactId>
                 <version>0.10.4</version>

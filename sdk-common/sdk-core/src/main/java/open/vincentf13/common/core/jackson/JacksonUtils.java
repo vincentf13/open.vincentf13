@@ -78,30 +78,6 @@ public final class JacksonUtils {
         }
     }
 
-    /**
-     * // List<String>
-     * new TypeReference<List<String>>() {}
-     * // List<User>
-     * new TypeReference<List<User>>() {}
-     * // Set<Integer>
-     * new TypeReference<Set<Integer>>() {}
-     * // Map<String, Object>
-     * new TypeReference<Map<String, Object>>() {}
-     * // List<Map<String, Object>>
-     * new TypeReference<List<Map<String, Object>>>() {}
-     * // Map<String, List<Integer>>
-     * new TypeReference<Map<String, List<Integer>>>() {}
-     * // Map<String, User>
-     * new TypeReference<Map<String, User>>() {}
-     * // List<User[]>
-     * new TypeReference<List<User[]>>() {}
-     * // User[]
-     * new TypeReference<User[]>() {}
-     * // Map<String, List<Map<String, User>>>
-     * new TypeReference<Map<String, List<Map<String, User>>>>() {}
-     * // ApiResponse<List<User>>
-     * new TypeReference<ApiResponse<List<User>>>() {}
-     */
     public <T> T fromJson(String json, TypeReference<T> type) {
         if (json == null) return null;
         try {

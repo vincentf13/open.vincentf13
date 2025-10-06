@@ -9,17 +9,6 @@ spring:
       enabled: true
   main:
     banner-mode: "off"
-  jackson:
-    time-zone: Asia/Taipei                  # 時區統一
-    locale: zh_TW                           # 語系
-    date-format: yyyy-MM-dd HH:mm:ss        # 全域日期格式
-    default-property-inclusion: non_null    # 忽略 null 欄位
-    deserialization:
-      fail-on-unknown-properties: false     # 忽略未知欄位，防止外部 API 改動導致反序列化錯誤。
-    serialization:
-      fail-on-empty-beans: false            # 不因空物件報錯
-      write-dates-as-timestamps: false      # 日期以字串而非 timestamp
-      indent-output: false                  # 生產環境建議關閉縮排
 
 management:
   endpoints:

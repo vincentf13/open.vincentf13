@@ -17,23 +17,25 @@
 ```yaml
 spring:
   messages:
-    basename: classpath:i18n/messages        # 指定多語系文件根路徑
-    fallback-to-system-locale: false         # 禁止回退系統語系，避免部署環境差異
+    basename: i18n/messages                 # 多語系檔根名，省略 classpath: 前綴
+    fallback-to-system-locale: false        # 不回退到系統語系
   web:
-    locale: zh-TW                           # 預設語系（可改為 en-US 等）
+    locale: en-US                           # 預設語系
     locale-resolver: accept_header          # 依 Accept-Language 解析
   mvc:
-    format-date: yyyy-MM-dd                 # 全域日期格式
-    format-date-time: yyyy-MM-dd HH:mm:ss   # 全域日期時間格式
-  cors:
-    mappings:
-      '/api/**':
-        allowed-origins: ['https://app.example.com']   # 允許的來源，可改為 * 或多筆網址
-        allowed-methods: ['GET', 'POST', 'PUT', 'DELETE']
-        allowed-headers: ['Authorization', 'Content-Type']
-        exposed-headers: ['X-Trace-Id']                # 回應需額外透出的自訂 header
-        allow-credentials: true
-        max-age: 3600                                  # Preflight 快取秒數
+    format:
+      date: yyyy-MM-dd                      # 全域日期格式
+      date-time: yyyy-MM-dd HH:mm:ss        # 全域日期時間格式
+      time: HH:mm:ss
+    cors:
+      mappings:
+        '/**':
+          allowed-origins: ['https://app.example.com']   # 與 allow-credentials=true 不可同時使用 '*'
+          allowed-methods: [GET, POST, PUT, DELETE]
+          allowed-headers: [Authorization, Content-Type]
+          exposed-headers: [X-Trace-Id]
+          allow-credentials: true
+          max-age: 3600                       # Preflight 快取秒數
 jakarta:
   validation:
     fail-fast: true                                    # 啟用 fail-fast 驗證策略
