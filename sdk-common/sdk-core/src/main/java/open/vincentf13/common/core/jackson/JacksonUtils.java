@@ -12,14 +12,6 @@ import java.util.Objects;
 
 /**
  * Jackson JSON 編解碼工具
- * <p>
- * 常用註解速覽：
- *
- * @JsonProperty("user_id") 指定 JSON key
- * @JsonIgnore 序列化與反序列化都忽略
- * @JsonInclude(JsonInclude.Include.NON_NULL) 空值不輸出
- * @JsonFormat(pattern="yyyy-MM-dd") 格式化時間
- * @JsonAlias({"uid","userId"}) 多欄位映射
  */
 @Component
 public final class JacksonUtils {
