@@ -37,6 +37,9 @@ public class SpringWebMvcAutoConfiguration {
     /**
      * 註冊 MVC 請求日誌攔截器，統一輸出請求摘要與耗時。
      */
+    /**
+     * 建立 RequestLoggingInterceptor，提供統一請求摘要日誌。
+     */
     @Bean
     public RequestLoggingInterceptor requestLoggingInterceptor() {
         return new RequestLoggingInterceptor();
@@ -45,6 +48,9 @@ public class SpringWebMvcAutoConfiguration {
     /**
      * 產生 traceId/requestId，並寫入 Header 與 MDC，支援跨服務追蹤。
      */
+    /**
+     * 建立 RequestCorrelationFilter，負責補足 traceId/requestId 與同步至 MDC。
+     */
     @Bean
     public RequestCorrelationFilter requestCorrelationFilter(MvcProperties properties) {
         return new RequestCorrelationFilter(properties.getRequest());
@@ -52,6 +58,9 @@ public class SpringWebMvcAutoConfiguration {
 
     /**
      * 控制 RequestCorrelationFilter 的註冊順序與生效範圍。
+     */
+    /**
+     * 將 RequestCorrelationFilter 以指定順序註冊到 Servlet Filter Chain。
      */
     @Bean
     public FilterRegistrationBean<RequestCorrelationFilter> requestCorrelationFilterRegistration(RequestCorrelationFilter filter,
@@ -62,30 +71,39 @@ public class SpringWebMvcAutoConfiguration {
         return registration;
     }
 
+    /**
+     * 提供預設的 RestExceptionHandler，避免每個服務重複實作。
+     */
     @Bean
     @ConditionalOnMissingBean
     public RestExceptionHandler restExceptionHandler() {
         return new RestExceptionHandler();
     }
 
+    /**
+     * 構建 ApiResponseBodyAdvice，統一包裝回應結果。
+     */
     @Bean
     @ConditionalOnMissingBean
     public ApiResponseBodyAdvice apiResponseBodyAdvice(ObjectMapper objectMapper, MvcProperties properties) {
         return new ApiResponseBodyAdvice(objectMapper, properties);
     }
 
+    /**
+     * 統一擴充 WebMvcConfigurer：註冊攔截器、格式化器與 MessageConverter。
+     */
     @Bean
     public WebMvcConfigurer baseWebMvcConfigurer(ObjectMapper objectMapper,
                                                  RequestLoggingInterceptor requestLoggingInterceptor,
                                                  Validator validator) {
         return new WebMvcConfigurer() {
             @Override
-            public void addInterceptors(@NonNull InterceptorRegistry registry) {
+            public void addInterceptors(@NonNull InterceptorRegistry registry) { // 註冊全域攔截器
                 registry.addInterceptor(requestLoggingInterceptor);
             }
 
             @Override
-            public void addFormatters(@NonNull FormatterRegistry registry) {
+            public void addFormatters(@NonNull FormatterRegistry registry) { // 字串 trim 等共用轉換
                 registry.addConverter(String.class, String.class, source -> {
                     if (!StringUtils.hasText(source)) {
                         return null;
@@ -95,7 +113,7 @@ public class SpringWebMvcAutoConfiguration {
             }
 
             @Override
-            public void extendMessageConverters(@NonNull List<HttpMessageConverter<?>> converters) {
+            public void extendMessageConverters(@NonNull List<HttpMessageConverter<?>> converters) { // 統一 ObjectMapper 與編碼設定
                 converters.stream()
                         .filter(MappingJackson2HttpMessageConverter.class::isInstance)
                         .map(MappingJackson2HttpMessageConverter.class::cast)
@@ -113,7 +131,7 @@ public class SpringWebMvcAutoConfiguration {
             }
 
             @Override
-            public Validator getValidator() {
+            public Validator getValidator() { // 使用外部註冊的 Validator（支援 fail-fast 等設定）
                 return validator;
             }
         };

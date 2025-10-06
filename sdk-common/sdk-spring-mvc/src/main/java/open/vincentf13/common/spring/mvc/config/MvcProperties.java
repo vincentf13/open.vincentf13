@@ -23,9 +23,16 @@ public class MvcProperties {
     @NestedConfigurationProperty
     private final Response response = new Response();
 
+    /**
+     * MVC 請求相關設定（追蹤資訊、Filter 順序）。
+     */
+
     @Getter
     @Setter
     public static class Request {
+        /**
+         * 是否在請求缺少 header 時自動生成追蹤資訊。
+         */
         /**
          * 是否在請求缺少 header 時自動生成追蹤資訊。
          */
@@ -33,9 +40,15 @@ public class MvcProperties {
         private String traceIdHeader = "X-Trace-Id";
         private String requestIdHeader = "X-Request-Id";
         private boolean writeResponseHeader = true;
+        /**
+         * Filter 註冊順序，預設值讓追蹤資訊最先寫入。
+         */
         private int filterOrder = Integer.MIN_VALUE; // highest precedence by default
     }
 
+    /**
+     * REST 回應包裝相關設定。
+     */
     @Getter
     @Setter
     public static class Response {

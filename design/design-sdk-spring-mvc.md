@@ -1,6 +1,8 @@
 # sdk-spring-mvc 模組說明
 
-`sdk-spring-mvc` 提供 REST 服務常用的 MVC 擴充元件，聚焦在請求追蹤、標準回應包裝與統一例外處理。其餘國際化、CORS、Validator 等行為改以 Spring Boot 內建的 `spring.*` 屬性調整，避免重複維護額外的組態。
+`sdk-spring-mvc` 提供 REST 服務常用的 MVC 擴充元件，
+聚焦在請求追蹤、標準回應包裝與統一例外處理。
+其餘國際化、CORS、Validator 等行為以 Spring Boot 內建的 `spring.*` 屬性調整，避免重複維護額外的組態。
 
 ## 自動配置內容
 - `SpringWebMvcAutoConfiguration` 以 `@AutoConfiguration` 方式生效，僅在 Servlet Web 應用載入；僅保留少量自訂行為，其餘沿用 Spring Boot 預設設定。
@@ -13,6 +15,28 @@
 ## 主要設定參數（`application.yaml`）
 只保留實現自訂功能所需的屬性：
 ```yaml
+spring:
+  messages:
+    basename: classpath:i18n/messages        # 指定多語系文件根路徑
+    fallback-to-system-locale: false         # 禁止回退系統語系，避免部署環境差異
+  web:
+    locale: zh-TW                           # 預設語系（可改為 en-US 等）
+    locale-resolver: accept_header          # 依 Accept-Language 解析
+  mvc:
+    format-date: yyyy-MM-dd                 # 全域日期格式
+    format-date-time: yyyy-MM-dd HH:mm:ss   # 全域日期時間格式
+  cors:
+    mappings:
+      '/api/**':
+        allowed-origins: ['https://app.example.com']   # 允許的來源，可改為 * 或多筆網址
+        allowed-methods: ['GET', 'POST', 'PUT', 'DELETE']
+        allowed-headers: ['Authorization', 'Content-Type']
+        exposed-headers: ['X-Trace-Id']                # 回應需額外透出的自訂 header
+        allow-credentials: true
+        max-age: 3600                                  # Preflight 快取秒數
+jakarta:
+  validation:
+    fail-fast: true                                    # 啟用 fail-fast 驗證策略
 open:
   vincentf13:
     mvc:
