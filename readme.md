@@ -6,6 +6,11 @@ The goal of this project is to help developers easily build their own local deve
 # 
 # 初始建置
 
+## 環境需求
+- JDK 21（建議使用 Temurin 或 Liberica LTS 版本）
+- Docker 25+ / Docker Desktop（需啟用 Kubernetes 或搭配 kind）
+- Maven 3.9.x（專案附帶 Wrapper，可直接使用 `./mvnw`）
+
 ## 安裝Docker
 1. 安裝 Docker
    linux:

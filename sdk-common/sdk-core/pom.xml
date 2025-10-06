@@ -53,5 +53,9 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+         <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-core-log</artifactId>
+         </dependency>
     </dependencies>
 </project>

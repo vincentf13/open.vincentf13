@@ -134,6 +134,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
     }
 
+    /**
+     * 處理一般參數驗證錯誤（如 @Validated method-level）並回傳欄位錯誤明細。
+     */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Object>> handleConstraintViolation(ConstraintViolationException ex,
                                                                          HttpServletRequest request) {
@@ -150,6 +153,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         return ResponseEntity.badRequest().body(body);
     }
 
+    /**
+     * 將業務層主動拋出的 ControllerException 轉為 400 響應。
+     */
     @ExceptionHandler(ControllerException.class)
     public ResponseEntity<ApiResponse<Object>> handleControllerException(ControllerException ex,
                                                                          HttpServletRequest request) {
@@ -162,6 +168,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    /**
+     * 捕捉其他未預期例外，統一回傳 500 以免洩漏實作細節。
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleUnexpectedException(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception", ex);
@@ -172,6 +181,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
+    /**
+     * 組裝統一的 meta 段落，方便客戶端除錯（狀態碼、時間戳、請求識別）。
+     */
     private Map<String, Object> baseMeta(@Nullable HttpServletRequest request, HttpStatus status) {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("status", status.value());
@@ -186,6 +198,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         return meta;
     }
 
+    /**
+     * 從不同的 WebRequest 實作安全取得 HttpServletRequest 以提取請求資訊。
+     */
     private HttpServletRequest extractRequest(WebRequest request) {
         if (request instanceof ServletWebRequest servletWebRequest) {
             return servletWebRequest.getRequest();

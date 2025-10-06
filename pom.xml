@@ -25,7 +25,8 @@
     </modules>
 
     <properties>
-        <java.version>23</java.version>
+        <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
         <spring-boot.version>3.3.4</spring-boot.version>
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
         <image.tag>local</image.tag>
@@ -116,6 +117,11 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-core-log</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.vavr</groupId>
                 <artifactId>vavr</artifactId>
                 <version>0.10.4</version>
@@ -145,6 +151,7 @@
                 <artifactId>lombok</artifactId>
                 <version>1.18.34</version>
             </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -198,6 +205,7 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.13.0</version>
                     <configuration>
+                        <release>${java.version}</release>
                         <annotationProcessorPaths>
                             <!-- Lombok 先 -->
                             <path>
