@@ -20,7 +20,7 @@ open.vincentf13/
 │   ├── sdk-infra-redis/        # Redis 客戶端與序列化策略
 │   ├── sdk-service-exchange/
 │   │   └── sdk-service-exchange-matching/
-│   │       ├── rest-api/       # 撮合服務 OpenAPI 契約與 DTO
+│   │       ├── rest-api/       # 撮合服務 OpenAPI 契約、API Interface 與 DTO
 │   │       └── rest-client/    # 依契約生成的客戶端 SDK
 │   ├── sdk-spring-cloud-gateway/ # Gateway 共用設定與過濾器
 │   ├── sdk-spring-mvc/         # Web 層配置、CORS、例外處理
@@ -47,7 +47,7 @@ open.vincentf13/
 - `sdk-core*` 系列提供共通的系統能力：核心工具、日誌、指標、追蹤與測試資源。
 - `sdk-infra-*` 聚焦基礎設施整合（MySQL、Redis、Kafka），提供一致的連線設定與封裝。
 - `sdk-spring-*` 針對 Spring 層所需的 MVC、安全、WebSocket、Gateway 擴充，輸出為 starter。
-- `sdk-service-exchange` 收錄交易所領域的契約與客戶端，目前聚焦撮合 API（後續服務可依需求擴充子模組）。
+- `sdk-service-exchange` 收錄交易所領域的契約（API Interface + DTO）與客戶端，目前聚焦撮合 API（後續服務可依需求擴充子模組）。
 - 每個子模組維護 README 與設定說明，新增共用能力時優先在此抽象並覆蓋自動測試。
 
 ### 依賴管理建議

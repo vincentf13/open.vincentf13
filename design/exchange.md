@@ -6,7 +6,7 @@ open.vincentf13/
 ├── sdk-common/
 │   └── sdk-service-exchange/
 │       └── sdk-service-exchange-matching/
-│           ├── rest-api/      # 撮合 OpenAPI 契約與 DTO
+│           ├── rest-api/      # 撮合 OpenAPI 契約、API Interface 與 DTO
 │           └── rest-client/   # 依契約生成的客戶端 SDK
 └── service/
     └── service-exchange/
@@ -26,7 +26,7 @@ open.vincentf13/
 - `service-exchange-account-ledger`：管理資產雙分錄與資金結算事件，後續會串接 MySQL 與出帳流程。
 - `service-exchange-positions`：以賬本事件為基礎更新倉位、浮動盈虧與風控指標。
 - `service-exchange-market-data`：彙整撮合輸出與外部行情，對外釋出快照、增量 feed 與 WebSocket。
-- `sdk-service-exchange-matching`：集中交易契約與自動產出的客戶端；其他服務在完成契約後會比照納入。
+- `sdk-service-exchange-matching`：集中交易契約（API Interface + DTO）與自動產出的客戶端；其他服務在完成契約後會比照納入。
 
 ### 目前進度
 - 各服務模組皆已建立 Spring Boot 腳手架並繼承 `service-exchange` 聚合 POM，預設依賴 `sdk-core`。
