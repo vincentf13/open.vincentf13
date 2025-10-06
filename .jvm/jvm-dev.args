@@ -1,47 +1,46 @@
-# jvm.args — 開發期推薦模板
-# 用法：
-#   java @jvm.args -jar app.jar
-# 或設定：
-#   export JDK_JAVA_OPTIONS="@/path/jvm.args"
+# JVM args — development profile
+# Usage:
+#   java @.jvm/jvm-dev.args -jar app.jar
+# Or export:
+#   export JDK_JAVA_OPTIONS="@${PWD}/.jvm/jvm-dev.args"
 
-# ===== 可讀性與除錯 =====
--ea                                          # 開啟 assertions
--XX:+ShowCodeDetailsInExceptionMessages      # 精準 NPE 與例外訊息
--Dfile.encoding=UTF-8                        # 明確設定編碼（JDK 18+ 已預設 UTF-8）
+# === Diagnostics & debugging ===
+-ea                                           # enable assertions
+-XX:+ShowCodeDetailsInExceptionMessages       # precise NPE / exception messages
+-Dfile.encoding=UTF-8                         # explicit charset (redundant on JDK18+, but kept)
 
-# ===== 記憶體與 OOM 事故處置 =====
--XX:+HeapDumpOnOutOfMemoryError              # OOM 產生 heap dump
--XX:HeapDumpPath=./logs/oom-%p.hprof         # Dump 存放路徑
--XX:+ExitOnOutOfMemoryError                  # OOM 直接結束進程，避免半殘狀態
+# === Memory incident handling ===
+-XX:+HeapDumpOnOutOfMemoryError               # write heap dump on OOM
+-XX:HeapDumpPath=./logs/oom-%p.hprof          # heap dump location
+-XX:+ExitOnOutOfMemoryError                   # fail fast on OOM
 
-# ===== GC 與事件日誌（開發期建議開）=====
-# 統一日誌：GC、safepoint、類載入
+# === GC / safepoint logging ===
 -Xlog:gc*,safepoint,class+load=info:file=./logs/jvm-%p.log:time,uptime,level,tags
--XX:+UseStringDeduplication                # G1 下去重字串，降低堆壓力
+-XX:+UseStringDeduplication                   # shrink retained strings under G1
 
-# ===== 動態 CDS（Class Data Sharing）加速啟動 =====
--XX:SharedArchiveFile=app-cds.jsa            # 啟動時嘗試載入共享檔
--Xshare:auto                                 # 兼容模式，不相容時自動忽略
--XX:ArchiveClassesAtExit=app-cds.jsa         # 本次結束時寫出共享檔
+# === CDS (Application Class-Data Sharing) ===
+-XX:SharedArchiveFile=app-cds.jsa             # try to load shared archive at startup
+-Xshare:auto                                  # gracefully skip CDS if incompatible
+-XX:ArchiveClassesAtExit=app-cds.jsa          # record new archive on exit
 
-# ===== 熱點 JIT 行為（啟動更快，吞吐非重點時用）=====
-# -XX:TieredStopAtLevel=1                  # 僅 C1 編譯，啟動更快
-# -XX:CICompilerCount=2                    # 降低編譯執行緒，減少抖動
+# === Optional warm-start tweaks ===
+# -XX:TieredStopAtLevel=1                     # C1-only compilation for faster warmup
+# -XX:CICompilerCount=2                       # limit compiler threads to reduce jitter
 
-# ===== 虛擬執行緒（Loom）相關，可選 =====
--Djdk.tracePinnedThreads=full
-# -Djdk.virtualThreadScheduler.parallelism=0  # 載體執行緒並行度，0 表示按 CPU 自動
-# -Djdk.virtualThreadScheduler.maxPoolSize=0  # 載體池上限，0 表示不限
+# === Project Loom helpers (optional) ===
+# -Djdk.virtualThreadScheduler.parallelism=0  # carrier threads = available processors
+# -Djdk.virtualThreadScheduler.maxPoolSize=0  # no upper bound on carrier pool
+# -Djdk.tracePinnedThreads=full               # diagnose blocking operations on virtual threads
 
-# ===== JFR（低開銷分析），需要時開啟 =====
+# === Flight Recorder (enable when troubleshooting) ===
 # -XX:StartFlightRecording=filename=./logs/jfr-%p.jfr,settings=profile,dumponexit=true
 
-# ===== 內存診斷（需要時開啟）=====
+# === Native memory diagnostics (enable on demand) ===
 # -XX:+UnlockDiagnosticVMOptions
 # -XX:NativeMemoryTracking=summary
 # -XX:+PrintNMTStatistics
 
-# ===== 反射相容性（舊版框架需要時開）=====
+# === Legacy module opens (only if older libs require deep reflection) ===
 # --add-opens=java.base/java.lang=ALL-UNNAMED
 # --add-opens=java.base/java.util=ALL-UNNAMED
 # --add-opens=java.base/sun.nio.ch=ALL-UNNAMED

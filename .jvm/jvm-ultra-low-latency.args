@@ -1,0 +1,25 @@
+# JVM args — ultra-low latency (ZGC, P99 ≈ 10–20 ms)
+# Target: prioritize pause times over throughput for matching / trading style workloads.
+
+# Heap sizing
+-Xms4g
+-Xmx4g
+-XX:+AlwaysPreTouch
+
+# Garbage collector: Generational ZGC
+-XX:+UseZGC
+-XX:+ZGenerational
+-XX:ZCollectionInterval=0          # allow continuous concurrent collections
+
+# GC / safepoint logging
+-Xlog:gc*,safepoint:file=/var/log/app/gc-zgc.log:time,level,tags:filecount=7,filesize=50M
+-XX:+PrintCommandLineFlags
+
+# Failure handling
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
+-XX:+ExitOnOutOfMemoryError
+
+# Locale / encoding defaults
+-Dfile.encoding=UTF-8
+-Duser.timezone=Asia/Taipei

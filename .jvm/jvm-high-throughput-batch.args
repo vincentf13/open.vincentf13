@@ -1,0 +1,24 @@
+# JVM args — high-throughput batch processing (Parallel GC)
+# Target: maximize throughput, tolerate longer pauses, larger heap footprint.
+
+# Heap sizing
+-Xms6g
+-Xmx6g
+-XX:+AlwaysPreTouch
+
+# Garbage collector: Parallel GC tuned for throughput
+-XX:+UseParallelGC
+-XX:GCTimeRatio=9                    # spend at most ~10% time in GC
+
+# Logging tuned for long-running jobs
+-Xlog:gc*,safepoint:file=/var/log/app/gc-batch.log:time,level,tags:filecount=7,filesize=100M
+-XX:+PrintCommandLineFlags
+
+# Failure handling
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
+-XX:+ExitOnOutOfMemoryError
+
+# Locale / encoding defaults
+-Dfile.encoding=UTF-8
+-Duser.timezone=Asia/Taipei

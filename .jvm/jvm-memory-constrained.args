@@ -1,0 +1,29 @@
+# JVM args — memory constrained deployments (Kubernetes / small containers)
+# Target: adapt heap to cgroup limits while staying within 30–70% of available memory.
+
+# Adaptive heap sizing — let JVM derive concrete Xms/Xmx from container limits
+-XX:InitialRAMPercentage=30.0
+-XX:MinRAMPercentage=30.0
+-XX:MaxRAMPercentage=70.0
+
+# Garbage collector tuning (G1 with looser pause SLA)
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=150
+-XX:+ParallelRefProcEnabled
+-XX:+UseStringDeduplication
+
+# Optional: pre-touch pages to avoid first-request latency spikes (disable if startup cost matters)
+# -XX:+AlwaysPreTouch
+
+# Logging footprint
+-Xlog:gc*,safepoint:file=/var/log/app/gc-small.log:time,level,tags:filecount=5,filesize=20M
+-XX:+PrintCommandLineFlags
+
+# Failure handling
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/app/heap/oom-%p.hprof
+-XX:+ExitOnOutOfMemoryError
+
+# Locale / encoding defaults
+-Dfile.encoding=UTF-8
+-Duser.timezone=Asia/Taipei
