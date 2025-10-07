@@ -9,11 +9,15 @@ spring:
     # 不會設定時區與 Jackson 預設輸出，如需時區請用 spring.jackson.time-zone: Asia/Taipei。Jackson 日期預設為 ISO 格式，除非你另行設定 ObjectMapper 的 Locale/DateFormat。
     locale: en-US
 
-  # 時間
   mvc:
+    # 影響表單與請求參數的解析與輸出，不影響 Jackson 的 JSON
+    # @DateTimeFormat的全域配置
     format:
+      # 將 yyyy-MM-dd 作為 LocalDate，作為 LocalDateTime 的解析與輸出樣式
       date: yyyy-MM-dd                      # 全域日期格式
+      # 將 yyyy-MM-dd HH:mm:ss 作為 LocalDateTime 的解析與輸出樣式
       date-time: yyyy-MM-dd HH:mm:ss        # 全域日期時間格式
+      # 將 HH:mm:ss 作為 LocalTime 樣式
       time: HH:mm:ss
     cors:
       mappings:
