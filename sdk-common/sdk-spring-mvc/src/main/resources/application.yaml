@@ -1,3 +1,37 @@
+server:
+  servlet:
+    session:
+      cookie:
+        name: JSESSIONID       # cookie name
+        # 僅此主機： 不要設定
+        # 設 Domain=example.com 即可套用 example.com 與其所有子網域，等於 "*.example.com"
+        # 不能設成公用後綴（如 .com、.co.uk）、不能設IP
+        # domain: example.com
+        path: /
+        http-only: true        # 前端 JS 不能讀 cookie ， 開啟後前端無法以 JS 讀取，下載檔名等需改用 Content-Disposition 等回應標頭
+        # 線上需改為 true
+        secure: false          # 只在 HTTPS 傳送。
+        # SameSite 控制 Cookie 是否在「跨站」請求中送出。Site 由「協定 + 註冊性網域」決定，子網域屬同一 site，連接埠不影響。
+        # Strict：只在同站請求送出。從其他網站點連結、表單、iframe、XHR 都不送。
+        # Lax：在同站送。跨站僅「頂層導覽的 GET」會送（點連結或在網址列輸入）。跨站的 POST、iframe、XHR、fetch 不送。
+        # None： 所有情境都送（含跨站 XHR/iframe/POST）。必須同時 Secure=true 且走 HTTPS，否則瀏覽器丟棄。
+        # 未指定時，多數瀏覽器預設 Lax。
+        same-site: Lax
+      timeout: 30m
+
+server:
+  servlet:
+    session:
+      cookie:
+        name: JSESSIONID
+        domain: example.com
+        path: /
+        http-only: true
+        secure: true
+        same-site: None    # 跨站必須搭配 HTTPS
+  # 可選：全域 session 逾時
+  # servlet.session.timeout: 30m
+
 spring:
   web:
     locale: en-US                           # Accept-Language head 未攜帶時的默認語系
