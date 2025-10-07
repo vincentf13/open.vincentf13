@@ -55,7 +55,7 @@ public class SpringWebMvcAutoConfiguration {
      */
     @Bean
     public FilterRegistrationBean<RequestCorrelationFilter> requestCorrelationFilterRegistration(RequestCorrelationFilter filter,
-                                                                                                MvcProperties properties) {
+                                                                                                 MvcProperties properties) {
         FilterRegistrationBean<RequestCorrelationFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setOrder(properties.getRequest().getFilterOrder());
         registration.addUrlPatterns("/*");

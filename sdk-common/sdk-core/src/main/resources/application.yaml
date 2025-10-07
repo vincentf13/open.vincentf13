@@ -9,6 +9,19 @@ spring:
       enabled: true
   main:
     banner-mode: "off"
+  # 國際化
+  messages:
+    basename: i18n/ValidationMessages,i18n/messages
+  # 依請求的 Accept-Language 決定語系
+  web:
+    locale: en-US                           # 預設語系
+    locale-resolver: accept_header          # 依 Accept-Language head 解析語系
+
+
+## Hibernate Validator 內部屬性
+jakarta:
+  validation:
+    fail-fast: true   # 發現第一個違規即返回 建議開啟以早失敗
 
 management:
   endpoints:

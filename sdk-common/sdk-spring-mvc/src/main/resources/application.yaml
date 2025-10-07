@@ -1,11 +1,9 @@
 spring:
-  # 多語系
-  messages:
-    basename: i18n/messages                 # 多語系檔根名，省略 classpath: 前綴
-    fallback-to-system-locale: false        # 不回退到系統語系
   web:
     locale: en-US                           # 預設語系
-    locale-resolver: accept_header          # 依 Accept-Language 解析
+    locale-resolver: accept_header          # 依 Accept-Language head 解析語系
+
+
   # 時間
   mvc:
     format:
