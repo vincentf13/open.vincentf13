@@ -1,13 +1,13 @@
 spring:
   web:
+    locale: en-US                           #  Accept-Language head 未攜帶時的默認語系
+    locale-resolver: accept_header          # 依 Accept-Language head 解析語系
+  mvc:
     # 多語系默認使用: messages_en-US.properties、ValidationMessages_en-US.properties
     # @NumberFormat(style=CURRENCY) 會輸出當地貨幣符號與分位符號
     # 以樣板引擎格式化日期數字時（Thymeleaf #dates、#numbers），月份名稱、千分位、小數點等依 en-US
     # 不會設定時區與 Jackson 預設輸出，如需時區請用 spring.jackson.time-zone: Asia/Taipei。Jackson 日期預設為 ISO 格式，除非你另行設定 ObjectMapper 的 Locale/DateFormat。
-    locale: en-US                           # 預設語系
-    locale-resolver: accept_header          # 依 Accept-Language head 解析語系
-  mvc:
-    locale:
+    locale: en-US
 
   # 時間
   mvc:
