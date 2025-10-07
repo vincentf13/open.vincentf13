@@ -1,0 +1,24 @@
+spring:
+  session:
+    store-type: redis
+    timeout: 30m
+    redis:
+      namespace: open:session
+      flush-mode: on-save
+      save-mode: on-set-attribute
+
+open:
+  vincentf13:
+    session:
+      namespace: open:session
+      max-inactive-interval: 30m
+      flush-mode: on-save
+      save-mode: on-set-attribute
+      cookie:
+        name: OPEN_SESSION
+        path: /
+        same-site: lax
+        http-only: true
+        secure: auto
+        use-base64-encoding: false
+        remember-me-request-attribute: remember-me
