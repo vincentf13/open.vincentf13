@@ -1,33 +1,31 @@
 spring:
   web:
-    locale: en-US                           #  Accept-Language head 未攜帶時的默認語系
+    locale: en-US                           # Accept-Language head 未攜帶時的默認語系
     locale-resolver: accept_header          # 依 Accept-Language head 解析語系
   mvc:
-    # 多語系默認使用: messages_en-US.properties、ValidationMessages_en-US.properties
-    # @NumberFormat(style=CURRENCY) 會輸出當地貨幣符號與分位符號
-    # 以樣板引擎格式化日期數字時（Thymeleaf #dates、#numbers），月份名稱、千分位、小數點等依 en-US
-    # 不會設定時區與 Jackson 預設輸出，如需時區請用 spring.jackson.time-zone: Asia/Taipei。Jackson 日期預設為 ISO 格式，除非你另行設定 ObjectMapper 的 Locale/DateFormat。
+                                            # 多語系默認使用: messages_en-US.properties、ValidationMessages_en-US.properties
+                                            # @NumberFormat(style=CURRENCY) 會輸出當地貨幣符號與分位符號
+                                            # 以樣板引擎格式化日期數字時（Thymeleaf #dates、#numbers），月份名稱、千分位、小數點等依 en-US
+                                            # 不會設定時區與 Jackson 預設輸出，如需時區請用 spring.jackson.time-zone: Asia/Taipei。Jackson 日期預設為 ISO 格式，除非你另行設定 ObjectMapper 的 Locale/DateFormat。
     locale: en-US
-
-  mvc:
-    # 影響表單與請求參數的解析與輸出，不影響 Jackson 的 JSON
-    # @DateTimeFormat的全域配置
+                                            # @DateTimeFormat 的全域配置，影響表單與請求參數的解析與輸出，不影響 Jackson 的 JSON
     format:
-      # 將 yyyy-MM-dd 作為 LocalDate，作為 LocalDateTime 的解析與輸出樣式
-      date: yyyy-MM-dd                      # 全域日期格式
-      # 將 yyyy-MM-dd HH:mm:ss 作為 LocalDateTime 的解析與輸出樣式
-      date-time: yyyy-MM-dd HH:mm:ss        # 全域日期時間格式
-      # 將 HH:mm:ss 作為 LocalTime 樣式
-      time: HH:mm:ss
+      date: yyyy-MM-dd                      # 將 yyyy-MM-dd 作為 LocalDate，作為 LocalDateTime 的解析與輸出樣式
+      date-time: yyyy-MM-dd HH:mm:ss        # 將 yyyy-MM-dd HH:mm:ss 作為 LocalDateTime 的解析與輸出樣式
+      time: HH:mm:ss                        # 將 HH:mm:ss 作為 LocalTime 樣式
     cors:
       mappings:
-        '/**':
-          allowed-origins: ['https://app.example.com']   # 與 allow-credentials=true 不可同時使用 '*'
-          allowed-methods: [GET, POST, PUT, DELETE]
-          allowed-headers: [Authorization, Content-Type]
-          exposed-headers: [X-Trace-Id]
-          allow-credentials: true
-          max-age: 3600                       # Preflight 快取秒數
+        '/**':                                                                                         # 套用到所有 MVC 路徑。可改成特定 API 前綴（例 /api/**）縮小範圍。
+          allowed-origin-patterns:                                                                     # 允許任何網域發起跨域請求，回覆 Access-Control-Allow-Origin:
+            - "http://127.0.0.1:*"
+            - "http://localhost:*"
+            - "http://*.local"
+            - "*"
+          allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]                                    # 允許的 HTTP 方法
+          allowed-headers: ["*"]                                                                       # 允許前端在跨域請求中攜帶的自訂請求標頭。若要全開可用 *（與 allow-credentials 不衝突）。
+          exposed-headers: [Content-Disposition, X-Trace-Id, X-Request-Id]                             # 回傳 Access-Control-Expose-Headers。允許前端 JS 讀取這些回應標頭，例如取得檔名（Content-Disposition）或追蹤 ID。 "*" 在帶憑證時無效。任何網域都讀不到非 safelisted 的回應標頭，必須改成逐一列出要暴露的標頭。
+          allow-credentials: true                                                                      # 回傳 Access-Control-Allow-Credentials: true。允許跨域時夾帶 Cookie 或憑證。同時必須回覆具體 Access-Control-Allow-Origin，不能是 *；前端需設 credentials: 'include'。
+          max-age: 3600                                                                                # 回傳 Access-Control-Max-Age: 86400。瀏覽器可快取預檢結果 86400 秒以減少 OPTIONS。實際快取時長可能受瀏覽器上限限制。
 
 open:
   vincentf13:
