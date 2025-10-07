@@ -21,9 +21,7 @@ spring:
           exposed-headers: [X-Trace-Id]
           allow-credentials: true
           max-age: 3600                       # Preflight 快取秒數
-jakarta:
-  validation:
-    fail-fast: true                                    # 啟用 fail-fast 驗證策略
+
 open:
   vincentf13:
     mvc:
