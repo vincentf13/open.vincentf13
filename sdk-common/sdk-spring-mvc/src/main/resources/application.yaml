@@ -50,6 +50,11 @@ spring:
     hidden-method:
       filter:
         enabled: true
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 50MB
 
 open:
   vincentf13:

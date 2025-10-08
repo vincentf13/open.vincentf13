@@ -158,7 +158,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
     }
 
     /**
-     * 將業務層主動拋出的 ControllerException 轉為 400 響應。
+     * 將業務層主動拋出的 ControllerException 轉為 500 響應。
      */
     @ExceptionHandler(ControllerException.class)
     public ResponseEntity<ApiResponse<Object>> handleControllerException(ControllerException ex,
@@ -167,12 +167,12 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
                 ex,
                 "code", ex.getCode(),
                 "path", request != null ? request.getRequestURI() : "unknown");
-        Map<String, Object> meta = baseMeta(request, HttpStatus.BAD_REQUEST);
+        Map<String, Object> meta = baseMeta(request, HttpStatus.INTERNAL_SERVER_ERROR);
         if (!CollectionUtils.isEmpty(ex.getMeta())) {
             meta.putAll(ex.getMeta());
         }
         ApiResponse<Object> body = ApiResponse.failure(ex.getCode(), ex.getMessage(), meta);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     /**
