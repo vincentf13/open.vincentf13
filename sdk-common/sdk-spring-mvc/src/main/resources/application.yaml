@@ -1,5 +1,15 @@
 server:
   forward-headers-strategy: framework   # 即使隔著反向代理，也能取得真實的使用者連線信息。例如 request.getServerName  & scheme & serverPort &contextPath
+  compression:
+    enabled: true           # 開啟壓縮（預設 false）
+    mime-types:             # 指定可壓縮的內容類型
+      - application/json
+      - application/xml
+      - text/html
+      - text/plain
+      - text/css
+      - application/javascript
+    min-response-size: 1024 # 壓縮門檻，超過才壓縮，單位 bytes
   servlet:
     session:
       cookie:
