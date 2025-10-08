@@ -1,10 +1,11 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: infra-mysql-pvc
+  name: infra-mysql-mysql-data-0
   labels:
     app: infra-mysql
-    # 與 StatefulSet 綁定的 PVC，要求前面建立的 PV。
+    role: primary
+    # 對應 StatefulSet 第 0 個 Pod，自動被 volumeClaimTemplates 掛載。
 spec:
   accessModes:
     - ReadWriteOnce
@@ -12,4 +13,20 @@ spec:
     requests:
       storage: 20Gi
   storageClassName: infra-mysql-local
-  volumeName: infra-mysql-pv  # 指定綁定同名 PV，避免誤綁到其他 volume。
+  volumeName: infra-mysql-pv-0
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: infra-mysql-mysql-data-1
+  labels:
+    app: infra-mysql
+    role: replica
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: infra-mysql-local
+  volumeName: infra-mysql-pv-1

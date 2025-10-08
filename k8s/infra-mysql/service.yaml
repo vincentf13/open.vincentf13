@@ -6,6 +6,7 @@ metadata:
     app: infra-mysql
     # ClusterIP 服務對外暴露 MySQL，並提供 StatefulSet DNS 解析。
 spec:
+  clusterIP: None  # 設為 headless，讓 StatefulSet Pod 取得穩定 DNS。
   selector:
     app: infra-mysql
   ports:
