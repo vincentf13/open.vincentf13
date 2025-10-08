@@ -1,6 +1,7 @@
 package open.vincentf13.common.spring.mvc.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import open.vincentf13.common.spring.mvc.interceptor.RequestLoggingInterceptor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -15,11 +16,14 @@ import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.Validator;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
+import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 
 
 @AutoConfiguration
@@ -31,17 +35,36 @@ public class WebMvcConfig {
     /**
      * - 根據回應內容計算 ETag（哈希摘要）
      * - 在回應頭新增
-     *     ETag: "3f0a1c4b"
+     * ETag: "3f0a1c4b"
      * - 若客戶端在下次請求時攜帶
-     *     If-None-Match: "3f0a1c4b"
-     *   伺服器檢測內容未改變，直接回應：
-     *     304 Not Modified
-     *   無需重傳實體內容，節省頻寬與時間。
+     * If-None-Match: "3f0a1c4b"
+     * 伺服器檢測內容未改變，直接回應：
+     * 304 Not Modified
+     * 無需重傳實體內容，節省頻寬與時間。
      */
     @Bean
     public ShallowEtagHeaderFilter shallowEtagHeaderFilter() {
         return new ShallowEtagHeaderFilter();
     }
+
+
+    /**
+     * 多語系 支持 Accept-Language 頭
+     * 傳統頁面或需要 URL 切換語系 也支持 ?lang= ，lang參數
+     */
+    @Bean
+    public LocaleResolver localeResolver() {
+        return new AcceptHeaderLocaleResolver() {
+            @Override
+            public Locale resolveLocale(HttpServletRequest req) {
+                String p = req.getParameter("lang");
+                if (p != null && !p.isBlank()) return Locale.forLanguageTag(p);
+                Locale l = super.resolveLocale(req);
+                return (l != null ? l : Locale.forLanguageTag("en-US"));
+            }
+        };
+    }
+
 
     /**
      * 統一擴充 WebMvcConfigurer：註冊攔截器、格式化器與 MessageConverter。
