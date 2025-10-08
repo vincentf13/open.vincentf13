@@ -1,4 +1,5 @@
 server:
+  forward-headers-strategy: framework   # 即使隔著反向代理，也能取得真實的使用者連線信息。例如 request.getServerName  & scheme & serverPort &contextPath
   servlet:
     session:
       cookie:
@@ -19,18 +20,6 @@ server:
         same-site: Lax
       timeout: 30m
 
-server:
-  servlet:
-    session:
-      cookie:
-        name: JSESSIONID
-        domain: example.com
-        path: /
-        http-only: true
-        secure: true
-        same-site: None    # 跨站必須搭配 HTTPS
-  # 可選：全域 session 逾時
-  # servlet.session.timeout: 30m
 
 spring:
   web:
@@ -47,6 +36,9 @@ spring:
       date: yyyy-MM-dd                      # 將 yyyy-MM-dd 作為 LocalDate，作為 LocalDateTime 的解析與輸出樣式
       date-time: yyyy-MM-dd HH:mm:ss        # 將 yyyy-MM-dd HH:mm:ss 作為 LocalDateTime 的解析與輸出樣式
       time: HH:mm:ss                        # 將 HH:mm:ss 作為 LocalTime 樣式
+    hidden-method:
+      filter:
+        enabled: true
     cors:
       mappings:
         '/**':                                                                                         # 套用到所有 MVC 路徑。可改成特定 API 前綴（例 /api/**）縮小範圍。

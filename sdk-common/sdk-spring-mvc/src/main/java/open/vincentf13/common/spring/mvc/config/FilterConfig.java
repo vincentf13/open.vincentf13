@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.web.filter.FormContentFilter;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @AutoConfiguration
@@ -14,6 +15,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class FilterConfig {
 
 
+    /**
+     * 讓 PUT、PATCH、DELETE 等非 POST 請求
+     * 且 Content-Type = application/x-www-form-urlencoded
+     * 能透過 request.getParameter() 讀取表單欄位
+     */
+    @Bean
+    FormContentFilter formContentFilter() {
+        return new FormContentFilter();
+    }
 
     /**
      * 建立 RequestCorrelationFilter，負責補足 traceId/requestId 與同步至 MDC。

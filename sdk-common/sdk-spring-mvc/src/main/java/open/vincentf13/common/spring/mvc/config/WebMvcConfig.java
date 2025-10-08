@@ -28,6 +28,7 @@ import java.util.List;
 public class WebMvcConfig {
 
 
+
     /**
      * 統一擴充 WebMvcConfigurer：註冊攔截器、格式化器與 MessageConverter。
      */
