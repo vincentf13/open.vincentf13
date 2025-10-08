@@ -1,1 +1,1 @@
-open.vincentf13.common.spring.mvc.config.SpringWebMvcAutoConfiguration
+open.vincentf13.common.spring.mvc.config.WebMvcConfig
