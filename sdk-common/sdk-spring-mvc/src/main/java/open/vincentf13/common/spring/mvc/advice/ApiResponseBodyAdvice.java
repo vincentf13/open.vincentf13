@@ -76,6 +76,7 @@ public class ApiResponseBodyAdvice implements ResponseBodyAdvice<Object> {
             return ApiResponse.success(body);
         }
         if (body instanceof CharSequence) { // String 需手動序列化避免被當作純文字回傳
+            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             return wrapString(body.toString(), selectedConverterType);
         }
         return ApiResponse.success(body);
