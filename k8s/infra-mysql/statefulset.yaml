@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: infra-mysql
+  labels:
+    app: infra-mysql
+spec:
+  selector:
+    matchLabels:
+      app: infra-mysql
+  serviceName: infra-mysql  # StatefulSet 需對應同名 Service 才能產生穩定 DNS。
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: infra-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3306
+              name: mysql
+          envFrom:
+            - secretRef:
+                name: infra-mysql-secret  # 將 root / app 帳密載入為環境變數。
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql  # MySQL 預設資料目錄，掛載 PVC 實現持久化。
+            - name: mysql-config
+              mountPath: /etc/mysql/conf.d  # 將 ConfigMap 中的 my.cnf 掛入。
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p"${MYSQL_ROOT_PASSWORD}" || exit 1
+            initialDelaySeconds: 30  # 等待資料庫啟動。
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p"${MYSQL_ROOT_PASSWORD}" || exit 1
+            initialDelaySeconds: 60  # 啟動時間較久，延後第一次探測。
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: infra-mysql-pvc
+        - name: mysql-config
+          configMap:
+            name: infra-mysql-config
+            items:
+              - key: my.cnf
+                path: custom.cnf  # MySQL 會讀取 conf.d 下的 any.cnf。

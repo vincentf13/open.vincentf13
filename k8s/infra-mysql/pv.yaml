@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: infra-mysql-pv
+  labels:
+    app: infra-mysql
+    # 使用本地 hostPath 提供單節點的持久化儲存。
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain  # 保留資料，避免刪除 PVC 時誤刪檔案。
+  storageClassName: infra-mysql-local
+  hostPath:
+    path: /var/lib/k8s/infra-mysql
+    type: DirectoryOrCreate  # 若目錄不存在自動建立。
