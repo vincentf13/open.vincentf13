@@ -14,6 +14,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.Validator;
+import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -27,7 +28,20 @@ import java.util.List;
 @EnableConfigurationProperties(MvcProperties.class)
 public class WebMvcConfig {
 
-
+    /**
+     * - 根據回應內容計算 ETag（哈希摘要）
+     * - 在回應頭新增
+     *     ETag: "3f0a1c4b"
+     * - 若客戶端在下次請求時攜帶
+     *     If-None-Match: "3f0a1c4b"
+     *   伺服器檢測內容未改變，直接回應：
+     *     304 Not Modified
+     *   無需重傳實體內容，節省頻寬與時間。
+     */
+    @Bean
+    public ShallowEtagHeaderFilter shallowEtagHeaderFilter() {
+        return new ShallowEtagHeaderFilter();
+    }
 
     /**
      * 統一擴充 WebMvcConfigurer：註冊攔截器、格式化器與 MessageConverter。

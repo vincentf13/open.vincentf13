@@ -9,7 +9,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @AutoConfiguration
 @ConditionalOnClass(WebMvcConfigurer.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-public class CorsConfig {
+public class CorsConfig implements WebMvcConfigurer  {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
