@@ -1,4 +1,4 @@
-package open.vincentf13.common.sping.session;
+package open.vincentf13.common.spring.session;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
