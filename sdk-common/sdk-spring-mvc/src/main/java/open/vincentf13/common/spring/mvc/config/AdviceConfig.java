@@ -2,7 +2,7 @@ package open.vincentf13.common.spring.mvc.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.common.spring.mvc.advice.ApiResponseBodyAdvice;
-import open.vincentf13.common.spring.mvc.exception.RestExceptionHandler;
+import open.vincentf13.common.spring.mvc.advice.RestExceptionHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
