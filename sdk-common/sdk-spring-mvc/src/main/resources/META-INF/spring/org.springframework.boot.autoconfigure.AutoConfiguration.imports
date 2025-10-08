@@ -1,1 +1,7 @@
+open.vincentf13.common.spring.mvc.config.AdviceConfig
+open.vincentf13.common.spring.mvc.config.CookieConfig
+open.vincentf13.common.spring.mvc.config.CorsConfig
+open.vincentf13.common.spring.mvc.config.FilterConfig
+open.vincentf13.common.spring.mvc.config.InterceptorConfig
+open.vincentf13.common.spring.mvc.config.MvcProperties
 open.vincentf13.common.spring.mvc.config.WebMvcConfig
