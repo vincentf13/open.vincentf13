@@ -311,7 +311,7 @@ apply_kafka_cluster() {
     kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
   done
 
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka --timeout=180s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka --timeout=300s
 }
 
 apply_infra_clusters() {
