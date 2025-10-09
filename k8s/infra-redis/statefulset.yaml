@@ -23,9 +23,11 @@ spec:
         - name: redis
           image: redis:7.2.4-alpine
           imagePullPolicy: IfNotPresent
+          # 使用 shell 包住 redis-server，方便加入 cluster announce 參數。
           command: ["/bin/sh", "-c"]
           args:
             - |
+              # 先載入 ConfigMap 內的 redis.conf，再宣告自己的對外端點。
               exec redis-server /usr/local/etc/redis/redis.conf \
                 --cluster-announce-ip ${POD_IP} \
                 --cluster-announce-port 6379 \
@@ -39,6 +41,7 @@ spec:
               protocol: TCP
           env:
             - name: POD_IP
+              # 由 Downward API 注入當前 Pod IP，供 cluster announce 使用。
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP

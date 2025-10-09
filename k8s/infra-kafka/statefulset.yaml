@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: infra-kafka
+  labels:
+    app: infra-kafka
+spec:
+  serviceName: infra-kafka-headless
+  replicas: 3  # 三節點 KRaft 叢集，可容忍單一節點關閉但仍屬開發級。
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: infra-kafka
+  template:
+    metadata:
+      labels:
+        app: infra-kafka
+    spec:
+      containers:
+        - name: kafka
+          image: bitnami/kafka:3.7.0-debian-12-r0
+          imagePullPolicy: IfNotPresent
+          # 利用自訂啟動腳本計算節點資訊並交回 Bitnami 預設 entrypoint。
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              # 根據 StatefulSet Pod 名稱推算節點序號與對外公告位址。
+              export POD_ORDINAL=${HOSTNAME##*-}
+              export KAFKA_CFG_NODE_ID=${POD_ORDINAL}
+              export KAFKA_CFG_CONTROLLER_QUORUM_VOTERS="0@infra-kafka-0.infra-kafka-headless:9093,1@infra-kafka-1.infra-kafka-headless:9093,2@infra-kafka-2.infra-kafka-headless:9093"
+              export KAFKA_CFG_ADVERTISED_LISTENERS="PLAINTEXT://${HOSTNAME}.infra-kafka-headless:9092"
+              exec /opt/bitnami/scripts/kafka/entrypoint.sh /opt/bitnami/scripts/kafka/run.sh
+          ports:
+            - name: kafka-client
+              containerPort: 9092
+              protocol: TCP
+            - name: kafka-controller
+              containerPort: 9093
+              protocol: TCP
+          env:
+            - # 定義節點同時扮演 controller 與 broker 角色。
+              name: KAFKA_CFG_PROCESS_ROLES
+              value: controller,broker
+            - # 指定控制平面 listener 名稱。
+              name: KAFKA_CFG_CONTROLLER_LISTENER_NAMES
+              value: CONTROLLER
+            - # 暴露 broker 與 controller 的實際監聽埠。
+              name: KAFKA_CFG_LISTENERS
+              value: PLAINTEXT://:9092,CONTROLLER://:9093
+            - # 將各 listener 與安全通訊協定對應；此處全部使用 PLAINTEXT。
+              name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
+              value: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+            - # 指定 broker 之間溝通使用的 listener。
+              name: KAFKA_CFG_INTER_BROKER_LISTENER_NAME
+              value: PLAINTEXT
+            - # 啟用自動建立 topic，簡化本地開發流程。
+              name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            - # offsets topic 複本數；需與節點數相符以避免警告。
+              name: KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "3"
+            - # 交易狀態日誌複本數，維持叢集一致性。
+              name: KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "3"
+            - # 交易日誌最小同步副本數，發佈交易需至少 2 副本存活。
+              name: KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "2"
+            - # 固定的 KRaft Cluster ID，僅在首次啟動時使用。
+              name: KAFKA_KRAFT_CLUSTER_ID
+              value: 4L6g3nG2RDeXh7Ya9Bc2fA
+            - # 允許 PLAINTEXT listener，避免在開發環境配置 TLS。
+              name: ALLOW_PLAINTEXT_LISTENER
+              value: "yes"
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /bitnami/kafka  # 使用 emptyDir，重啟即重置資料。
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - /opt/bitnami/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null
+            initialDelaySeconds: 10
+            periodSeconds: 15
+      volumes:
+        - name: kafka-data
+          emptyDir: {}
