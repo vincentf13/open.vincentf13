@@ -7,10 +7,11 @@ metadata:
   # Headless Service 讓 StatefulSet Pod 擁有穩定的 DNS 名稱。
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app: infra-kafka
   ports:
-    - name: kafka-client
+    - name: broker
       port: 9092
       targetPort: 9092
     - name: controller
