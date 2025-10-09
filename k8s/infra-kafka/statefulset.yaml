@@ -7,7 +7,7 @@ metadata:
 spec:
   serviceName: infra-kafka-headless
   replicas: 3  # 三節點 KRaft 叢集，可容忍單一節點關閉但仍屬開發級。
-  podManagementPolicy: OrderedReady
+  podManagementPolicy: Parallel  # 平行啟動，避免等待上一節點 ready 造成叢集卡住。
   selector:
     matchLabels:
       app: infra-kafka
