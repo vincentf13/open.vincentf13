@@ -7,6 +7,7 @@ metadata:
 spec:
   serviceName: infra-kafka-headless
   replicas: 3  # 三節點 KRaft 叢集，可容忍單一節點關閉但仍屬開發級。
+  minReadySeconds: 0
   podManagementPolicy: Parallel  # 平行啟動，讓 quorum 儘快形成避免 readiness 卡住。
   selector:
     matchLabels:
@@ -50,18 +51,23 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+          startupProbe:
+            tcpSocket: { port: 9092 }
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 20     # 最多等 ~180s 完成首次啟動
           readinessProbe:
             tcpSocket: { port: 9092 }
-            initialDelaySeconds: 60
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 5
+            initialDelaySeconds: 0   # 由 startupProbe 把關後，立即探
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 2
           livenessProbe:
             tcpSocket: { port: 9092 }
-            initialDelaySeconds: 120
-            periodSeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 5
+            initialDelaySeconds: 60  # 啟動穩定後再做存活檢查
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
       volumes:
         - name: kafka-config
           configMap:
