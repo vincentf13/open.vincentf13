@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: infra-redis
+  labels:
+    app: infra-redis
+  # 提供內部應用統一入口，免去記住各 Pod DNS。   infra-redis:6379
+spec:
+  selector:
+    app: infra-redis
+  ports:
+    - name: redis-client
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP
