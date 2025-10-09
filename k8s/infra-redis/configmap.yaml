@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infra-redis-config
+  labels:
+    app: infra-redis
+  # 叢集設定集中於此，方便之後維護或調整。
+data:
+  redis.conf: |
+    # 啟用 Redis Cluster 模式。
+    cluster-enabled yes
+    # 指定叢集拓樸資訊儲存檔案，放在 emptyDir 中即可。
+    cluster-config-file nodes.conf
+    # 叢集節點通訊超時毫秒數。
+    cluster-node-timeout 5000
+    # 關閉持久化，符合「不用持久化數據」需求。
+    save ""
+    appendonly no
+    # 允許跨 Pod 建立叢集連線。
+    protected-mode no
+    # 避免背景日誌膨脹。
+    maxmemory-policy noeviction

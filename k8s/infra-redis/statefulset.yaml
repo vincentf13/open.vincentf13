@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: infra-redis
+  labels:
+    app: infra-redis
+spec:
+  serviceName: infra-redis-headless
+  replicas: 3  # 僅部署 3 個主節點，不含從節點
+  podManagementPolicy: Parallel  # 平行啟動，加速整個叢集拉起速度。
+  selector:
+    matchLabels:
+      app: infra-redis
+  template:
+    metadata:
+      labels:
+        app: infra-redis
+      annotations:
+        # 如需監控可自行開啟 Prometheus 抓取。
+        prometheus.io/scrape: "false"
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2.4-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              exec redis-server /usr/local/etc/redis/redis.conf \
+                --cluster-announce-ip ${POD_IP} \
+                --cluster-announce-port 6379 \
+                --cluster-announce-bus-port 16379
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+            - name: redis-bus
+              containerPort: 16379
+              protocol: TCP
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: redis-config
+              mountPath: /usr/local/etc/redis
+            - name: redis-data
+              mountPath: /data  # 儲存 nodes.conf，使用 emptyDir 即可。
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - redis-cli -h 127.0.0.1 -p 6379 ping | grep -q PONG
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: redis-config
+          configMap:
+            name: infra-redis-config
+            items:
+              - key: redis.conf
+                path: redis.conf
+        - name: redis-data
+          emptyDir: {}

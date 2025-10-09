@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: infra-redis-cluster-create
+  labels:
+    app: infra-redis
+  # 只需執行一次來建立 slot 分配。
+spec:
+  template:
+    metadata:
+      labels:
+        job: infra-redis-cluster-create
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: redis-cluster-init
+          image: redis:7.2.4-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              echo "等待 3 個 Redis Pod 回應..."
+              for ordinal in 0 1 2; do
+                host="infra-redis-${ordinal}.infra-redis-headless"
+                until redis-cli -h "$host" -p 6379 ping | grep -q PONG; do
+                  echo "等待 $host";
+                  sleep 2;
+                done
+              done
+              echo "檢查叢集狀態..."
+              if redis-cli -h infra-redis-0.infra-redis-headless -p 6379 cluster info | grep -q "cluster_state:ok"; then
+                echo "叢集已存在，跳過建立。"
+                exit 0
+              fi
+              echo "開始建立叢集 (僅主節點，無副本)..."
+              yes yes | redis-cli --cluster create \
+                infra-redis-0.infra-redis-headless:6379 \
+                infra-redis-1.infra-redis-headless:6379 \
+                infra-redis-2.infra-redis-headless:6379 \
+                --cluster-replicas 0
+              echo "叢集建立完成。"
