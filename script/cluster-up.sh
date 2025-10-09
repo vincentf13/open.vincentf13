@@ -301,6 +301,8 @@ apply_redis_cluster() {
 
 apply_kafka_cluster() {
   log_step "Applying infra-kafka manifests"
+  printf 'Deleting existing StatefulSet infra-kafka (if present)\n'
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete statefulset infra-kafka --ignore-not-found
   for manifest in "${KAFKA_MANIFEST_ORDER[@]}"; do
     local file="$KAFKA_DIR/$manifest"
     if [[ ! -f "$file" ]]; then

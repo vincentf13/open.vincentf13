@@ -7,7 +7,7 @@ metadata:
 spec:
   serviceName: infra-kafka-headless
   replicas: 3  # 三節點 KRaft 叢集，可容忍單一節點關閉但仍屬開發級。
-  podManagementPolicy: OrderedReady  # 預設序列啟動，避免一次佔用過多資源。
+  podManagementPolicy: Parallel  # 平行啟動，讓 quorum 儘快形成避免 readiness 卡住。
   selector:
     matchLabels:
       app: infra-kafka
@@ -28,6 +28,7 @@ spec:
               # 根據 StatefulSet Pod 名稱推算節點序號與對外公告位址。
               export POD_ORDINAL=${HOSTNAME##*-}
               export KAFKA_CFG_NODE_ID=${POD_ORDINAL}
+              export KAFKA_CFG_BROKER_ID=${POD_ORDINAL}
               export KAFKA_CFG_CONTROLLER_QUORUM_VOTERS="0@infra-kafka-0.infra-kafka-headless:9093,1@infra-kafka-1.infra-kafka-headless:9093,2@infra-kafka-2.infra-kafka-headless:9093"
               export KAFKA_CFG_ADVERTISED_LISTENERS="PLAINTEXT://${HOSTNAME}.infra-kafka-headless:9092"
               exec /opt/bitnami/scripts/kafka/entrypoint.sh /opt/bitnami/scripts/kafka/run.sh
@@ -35,7 +36,7 @@ spec:
             - name: kafka-client
               containerPort: 9092
               protocol: TCP
-            - name: kafka-controller
+            - name: controller
               containerPort: 9093
               protocol: TCP
           env:
@@ -78,17 +79,17 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 256Mi
+              memory: 512Mi
             limits:
               cpu: 500m
-              memory: 512Mi
+              memory: 1Gi
           livenessProbe:
             exec:
               command:
                 - /bin/sh
                 - -c
                 - /opt/bitnami/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
-            initialDelaySeconds: 20
+            initialDelaySeconds: 120
             periodSeconds: 30
           readinessProbe:
             exec:
@@ -96,8 +97,8 @@ spec:
                 - /bin/sh
                 - -c
                 - /opt/bitnami/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null
-            initialDelaySeconds: 20
-            periodSeconds: 20
+            initialDelaySeconds: 60
+            periodSeconds: 15
       volumes:
         - name: kafka-data
           emptyDir: {}
