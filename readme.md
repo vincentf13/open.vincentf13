@@ -193,6 +193,14 @@ ArgoCD: https://127.0.0.1:8082/
 Promethous: http://localhost:9090/
 AlertManager: http://localhost:9093/#/alerts
 Grafana: http://localhost:3000/
+MySQL: 
+- infra-mysql-0: 127.0.0.1:3306
+- infra-mysql-0: 127.0.0.1:3307
+- (mysql -h 127.0.0.1 -P 3307
+Redis Cluster: 
+ - redis-cli -p 6380
+Kafka Broker: 
+- kafka-topics.sh --bootstrap-server localhost:19092 --list
 
 並且代碼推送至您的GitHub，自動執行CI/CD，更新你的本地K8s。
 
