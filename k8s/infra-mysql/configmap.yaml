@@ -7,6 +7,7 @@ metadata:
     # 使用 config map 管理共用設定，讓 StatefulSet 掛載成 conf.d 內自訂檔。 
 data:
   my.cnf: |
+    # 本地開發環境優先考量啟動速度與低耗資源。
     # 以 UTF-8 作為 MySQL 預設編碼，避免 emoji 等字元失真。
     character-set-server = utf8mb4
     collation-server = utf8mb4_unicode_ci
@@ -14,9 +15,13 @@ data:
     default_authentication_plugin = mysql_native_password
     # 保持較嚴格的 SQL 模式，避免隱性資料截斷。
     sql_mode = STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
-    # 限制並發連線數，若服務預期更高併發可調整。
-    max_connections = 200
-    # 交易提交後立即將 log 刷到磁碟，確保崩潰後資料一致。
-    innodb_flush_log_at_trx_commit = 1
+    # 限制併發連線數以降低本地端記憶體需求。
+    max_connections = 50
+    # 降低刷寫頻率換取本地開發的效能與磁碟壽命。
+    innodb_flush_log_at_trx_commit = 2
     # 每個資料庫對應獨立檔案，便於後續維運。
     innodb_file_per_table = 1
+    # 壓縮 buffer pool 尺寸以降低記憶體占用。
+    innodb_buffer_pool_size = 128M
+    # 將 redo log 檔縮小以減少磁碟使用量。
+    innodb_log_file_size = 64M

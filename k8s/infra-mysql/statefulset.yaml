@@ -9,7 +9,7 @@ spec:
     matchLabels:
       app: infra-mysql
   serviceName: infra-mysql  # StatefulSet 需對應同名 Service 才能產生穩定 DNS。
-  replicas: 2               # 建立 2 個 MySQL Pod 提升可用性。
+  replicas: 2               # 需要至少兩個節點以符合目前副本要求。
   template:
     metadata:
       labels:
@@ -50,11 +50,11 @@ spec:
             timeoutSeconds: 5
           resources:
             requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
               cpu: 250m
               memory: 512Mi
-            limits:
-              cpu: 500m
-              memory: 1Gi
       volumes:
         - name: mysql-config
           configMap:
@@ -72,5 +72,5 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 20Gi
+            storage: 2Gi
         storageClassName: infra-mysql-local
