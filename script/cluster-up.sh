@@ -60,6 +60,7 @@ REDIS_MANIFEST_ORDER=(
 )
 
 KAFKA_MANIFEST_ORDER=(
+  configmap.yaml
   headless-service.yaml
   service.yaml
   statefulset.yaml
