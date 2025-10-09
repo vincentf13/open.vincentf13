@@ -6,6 +6,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 K8S_DIR="$REPO_ROOT/k8s"
 PROM_DIR="$K8S_DIR/infra-prometheus"
 GRAFANA_DIR="$K8S_DIR/infra-grafana"
+MYSQL_DIR="$K8S_DIR/infra-mysql"
+REDIS_DIR="$K8S_DIR/infra-redis"
+KAFKA_DIR="$K8S_DIR/infra-kafka"
 
 # Core application manifests applied to the cluster in order.
 APPLICATION_MANIFESTS=(
@@ -38,6 +41,28 @@ GRAFANA_MANIFEST_ORDER=(
   grafana-pvc.yaml
   grafana-deployment.yaml
   grafana-service.yaml
+)
+
+MYSQL_MANIFEST_ORDER=(
+  pv.yaml
+  pvc.yaml
+  configmap.yaml
+  secret.yaml
+  service.yaml
+  statefulset.yaml
+)
+
+REDIS_MANIFEST_ORDER=(
+  configmap.yaml
+  headless-service.yaml
+  service.yaml
+  statefulset.yaml
+)
+
+KAFKA_MANIFEST_ORDER=(
+  headless-service.yaml
+  service.yaml
+  statefulset.yaml
 )
 
 PORT_FORWARD_PIDS=()
@@ -137,6 +162,9 @@ ensure_directories() {
   [[ -d "$K8S_DIR" ]] || { printf 'Missing directory: %s\n' "$K8S_DIR" >&2; exit 1; }
   [[ -d "$PROM_DIR" ]] || { printf 'Missing directory: %s\n' "$PROM_DIR" >&2; exit 1; }
   [[ -d "$GRAFANA_DIR" ]] || { printf 'Missing directory: %s\n' "$GRAFANA_DIR" >&2; exit 1; }
+  [[ -d "$MYSQL_DIR" ]] || { printf 'Missing directory: %s\n' "$MYSQL_DIR" >&2; exit 1; }
+  [[ -d "$REDIS_DIR" ]] || { printf 'Missing directory: %s\n' "$REDIS_DIR" >&2; exit 1; }
+  [[ -d "$KAFKA_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_DIR" >&2; exit 1; }
 }
 
 apply_application_manifests() {
@@ -228,6 +256,65 @@ apply_grafana_manifests() {
   printf 'Grafana admin password: %s\n' "$grafana_password"
 }
 
+apply_mysql_cluster() {
+  log_step "Applying infra-mysql manifests"
+  for manifest in "${MYSQL_MANIFEST_ORDER[@]}"; do
+    local file="$MYSQL_DIR/$manifest"
+    if [[ ! -f "$file" ]]; then
+      printf 'Missing manifest: %s\n' "$file" >&2
+      exit 1
+    fi
+    printf 'Applying %s\n' "$file"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+  done
+
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-mysql --timeout=180s
+}
+
+apply_redis_cluster() {
+  log_step "Applying infra-redis manifests"
+  for manifest in "${REDIS_MANIFEST_ORDER[@]}"; do
+    local file="$REDIS_DIR/$manifest"
+    if [[ ! -f "$file" ]]; then
+      printf 'Missing manifest: %s\n' "$file" >&2
+      exit 1
+    fi
+    printf 'Applying %s\n' "$file"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+  done
+
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-redis --timeout=180s
+
+  local job_file="$REDIS_DIR/cluster-job.yaml"
+  if [[ -f "$job_file" ]]; then
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete job infra-redis-cluster-create --ignore-not-found
+    printf 'Applying %s\n' "$job_file"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$job_file"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" wait --for=condition=complete --timeout=180s job/infra-redis-cluster-create
+  fi
+}
+
+apply_kafka_cluster() {
+  log_step "Applying infra-kafka manifests"
+  for manifest in "${KAFKA_MANIFEST_ORDER[@]}"; do
+    local file="$KAFKA_DIR/$manifest"
+    if [[ ! -f "$file" ]]; then
+      printf 'Missing manifest: %s\n' "$file" >&2
+      exit 1
+    fi
+    printf 'Applying %s\n' "$file"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+  done
+
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka --timeout=180s
+}
+
+apply_infra_clusters() {
+  apply_mysql_cluster
+  apply_redis_cluster
+  apply_kafka_cluster
+}
+
 apply_monitoring_stack() {
   apply_prometheus_manifests
   apply_grafana_manifests
@@ -289,6 +376,18 @@ main() {
       require_cmd argocd
       require_cmd base64
       ensure_directories
+
+      log_step "Applying infrastructure clusters"
+      apply_infra_clusters
+
+      local infra_ns_args=()
+      if [[ -n "$NAMESPACE" ]]; then
+        infra_ns_args=(--namespace "$NAMESPACE")
+      fi
+
+      start_port_forward "MySQL-0 3307->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-0 3307:3306
+      start_port_forward "Redis 6380->6379" "${infra_ns_args[@]}" port-forward svc/infra-redis 6380:6379
+      start_port_forward "Kafka 19092->9092" "${infra_ns_args[@]}" port-forward svc/infra-kafka 19092:9092
 
       log_step "Applying application manifests"
       apply_application_manifests

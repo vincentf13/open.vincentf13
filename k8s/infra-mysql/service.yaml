@@ -1,13 +1,47 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: infra-mysql
+  name: infra-mysql-headless
   labels:
     app: infra-mysql
+  # 提供 StatefulSet 穩定 DNS：<pod>.<service>.<ns>.svc.cluster.local。
 spec:
-  clusterIP: None  # 設為 headless，讓 StatefulSet Pod 取得穩定 DNS： <Pod名稱>.<Service名稱>.<Namespace>.svc.cluster.local
+  clusterIP: None
   selector:
     app: infra-mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: infra-mysql-0
+  labels:
+    app: infra-mysql
+  # 將流量綁定至第 0 顆節點，維持 1:1 Service 對應。
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: infra-mysql-0
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: infra-mysql-1
+  labels:
+    app: infra-mysql
+  # 將流量綁定至第 1 顆節點，維持 1:1 Service 對應。
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: infra-mysql-1
   ports:
     - name: mysql
       port: 3306

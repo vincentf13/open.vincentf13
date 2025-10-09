@@ -4,7 +4,7 @@ metadata:
   name: infra-redis
   labels:
     app: infra-redis
-  # 提供內部應用統一入口，免去記住各 Pod DNS。   infra-redis:6379
+  # 提供內部應用統一入口，免去記住各 Pod DNS。
 spec:
   selector:
     app: infra-redis

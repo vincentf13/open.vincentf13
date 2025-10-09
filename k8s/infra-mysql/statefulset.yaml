@@ -8,7 +8,7 @@ spec:
   selector:
     matchLabels:
       app: infra-mysql
-  serviceName: infra-mysql  # StatefulSet 需對應同名 Service 才能產生穩定 DNS。
+  serviceName: infra-mysql-headless  # 對應 headless Service，供 Pod 取得穩定 DNS。
   replicas: 2               # 需要至少兩個節點以符合目前副本要求。
   template:
     metadata:
