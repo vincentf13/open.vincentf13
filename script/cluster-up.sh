@@ -265,7 +265,12 @@ apply_mysql_cluster() {
       exit 1
     fi
     printf 'Applying %s\n' "$file"
-    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+    if [[ "$manifest" == "pv.yaml" ]]; then
+      # kind/docker-desktop 等本地叢集常無法提供 PV 的 OpenAPI 定義，需略過驗證。
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply --validate=false -f "$file"
+    else
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+    fi
   done
 
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-mysql --timeout=180s
