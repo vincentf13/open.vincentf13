@@ -79,6 +79,9 @@ Options:
   -c, --context NAME      kubeconfig context to target
   -n, --namespace NAME    namespace for application manifests (deployment/service/HPA/ingress)
       --only-k8s          apply only core application manifests
+      --only-mysql        apply only MySQL infrastructure
+      --only-redis        apply only Redis infrastructure
+      --only-kafka        apply only Kafka infrastructure
       --only-prometheus   apply only monitoring stack manifests (Prometheus + Grafana)
   -h, --help              show this help message
 
@@ -139,6 +142,21 @@ parse_args() {
       --only-k8s)
         [[ "$MODE" != "full" ]] && { printf 'Multiple mode flags specified.\n' >&2; exit 1; }
         MODE="k8s"
+        shift
+        ;;
+      --only-mysql)
+        [[ "$MODE" != "full" ]] && { printf 'Multiple mode flags specified.\n' >&2; exit 1; }
+        MODE="mysql"
+        shift
+        ;;
+      --only-redis)
+        [[ "$MODE" != "full" ]] && { printf 'Multiple mode flags specified.\n' >&2; exit 1; }
+        MODE="redis"
+        shift
+        ;;
+      --only-kafka)
+        [[ "$MODE" != "full" ]] && { printf 'Multiple mode flags specified.\n' >&2; exit 1; }
+        MODE="kafka"
         shift
         ;;
       --only-prometheus)
@@ -378,6 +396,55 @@ main() {
       log_step "Applying monitoring stack manifests"
       apply_monitoring_stack
       return
+      ;;
+    mysql)
+      require_cmd kubectl
+      [[ -d "$MYSQL_DIR" ]] || { printf 'Missing directory: %s\n' "$MYSQL_DIR" >&2; exit 1; }
+      log_step "Applying MySQL manifests"
+      apply_mysql_cluster
+
+      local infra_ns_args_mysql=()
+      if [[ -n "$NAMESPACE" ]]; then
+        infra_ns_args_mysql=(--namespace "$NAMESPACE")
+      fi
+
+      start_port_forward "MySQL-0 3306->3306" "${infra_ns_args_mysql[@]}" port-forward svc/infra-mysql-0 3306:3306
+      start_port_forward "MySQL-1 3307->3306" "${infra_ns_args_mysql[@]}" port-forward svc/infra-mysql-1 3307:3306
+
+      printf '\nMySQL infrastructure ready. Press Ctrl+C to stop port-forwards.\n'
+      wait
+      ;;
+    redis)
+      require_cmd kubectl
+      [[ -d "$REDIS_DIR" ]] || { printf 'Missing directory: %s\n' "$REDIS_DIR" >&2; exit 1; }
+      log_step "Applying Redis manifests"
+      apply_redis_cluster
+
+      local infra_ns_args_redis=()
+      if [[ -n "$NAMESPACE" ]]; then
+        infra_ns_args_redis=(--namespace "$NAMESPACE")
+      fi
+
+      start_port_forward "Redis 6379->6379" "${infra_ns_args_redis[@]}" port-forward svc/infra-redis 6379:6379
+
+      printf '\nRedis infrastructure ready. Press Ctrl+C to stop port-forward.\n'
+      wait
+      ;;
+    kafka)
+      require_cmd kubectl
+      [[ -d "$KAFKA_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_DIR" >&2; exit 1; }
+      log_step "Applying Kafka manifests"
+      apply_kafka_cluster
+
+      local infra_ns_args_kafka=()
+      if [[ -n "$NAMESPACE" ]]; then
+        infra_ns_args_kafka=(--namespace "$NAMESPACE")
+      fi
+
+      start_port_forward "Kafka 9092->9092" "${infra_ns_args_kafka[@]}" port-forward svc/infra-kafka 9092:9092
+
+      printf '\nKafka infrastructure ready. Press Ctrl+C to stop port-forward.\n'
+      wait
       ;;
     full)
       require_cmd kubectl
