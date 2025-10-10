@@ -194,11 +194,16 @@ Promethous: http://localhost:9090/
 AlertManager: http://localhost:9093/#/alerts
 Grafana: http://localhost:3000/
 MySQL: 
-- infra-mysql-0: 127.0.0.1:3306
-- infra-mysql-1: 127.0.0.1:3307
-- (mysql -h 127.0.0.1 -P 3307
+- infra-mysql-0: 127.0.0.1:3306  帳號/密碼 : root/root
+- infra-mysql-1: 127.0.0.1:3307 帳號/密碼 : root/root
+- mysql --protocol=TCP -h 127.0.0.1 -P3306 -uroot -proot 
 Redis Cluster: 
- - redis-cli -p 6379
+ - redis-cli -c -p 6379
+ - redis-cli -c -p 6380
+ - redis-cli -c -p 6381
+ - CLUSTER NODES
+ - CLUSTER SLOTS
+ - redis-cli -h 127.0.0.1 -p 6380 CLUSTER INFO
 Kafka Broker: 
 - kafka-topics.sh --bootstrap-server localhost:9092 --list
 

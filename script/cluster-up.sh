@@ -126,6 +126,27 @@ start_port_forward() {
   printf 'Port-forward running (pid %s).\n' "$pid"
 }
 
+port_forward_redis_nodes() {
+  local infra_ns_args=("$@")
+  local kubectl_args=("${KUBECTL_CONTEXT_ARGS[@]}" "${infra_ns_args[@]}")
+
+  local replicas
+  if ! replicas=$(kubectl "${kubectl_args[@]}" get statefulset/infra-redis -o jsonpath='{.spec.replicas}' 2>/dev/null); then
+    printf 'Unable to read infra-redis replica count; defaulting to one pod.\n'
+    replicas=1
+  fi
+
+  if [[ -z "$replicas" || ! "$replicas" =~ ^[0-9]+$ ]]; then
+    printf 'Unexpected replica count for infra-redis (%s); defaulting to one pod.\n' "$replicas"
+    replicas=1
+  fi
+
+  for ((ordinal = 0; ordinal < replicas; ordinal++)); do
+    local local_port=$((6379 + ordinal))
+    start_port_forward "Redis-${ordinal} ${local_port}->6379" "${infra_ns_args[@]}" port-forward pod/infra-redis-${ordinal} "${local_port}:6379"
+  done
+}
+
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -425,7 +446,7 @@ main() {
         infra_ns_args_redis=(--namespace "$NAMESPACE")
       fi
 
-      start_port_forward "Redis 6379->6379" "${infra_ns_args_redis[@]}" port-forward svc/infra-redis 6379:6379
+      port_forward_redis_nodes "${infra_ns_args_redis[@]}"
 
       printf '\nRedis infrastructure ready. Press Ctrl+C to stop port-forward.\n'
       wait
@@ -462,7 +483,7 @@ main() {
 
       start_port_forward "MySQL-0 3306->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-0 3306:3306
       start_port_forward "MySQL-1 3307->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-1 3307:3306
-      start_port_forward "Redis 6379->6379" "${infra_ns_args[@]}" port-forward svc/infra-redis 6379:6379
+      port_forward_redis_nodes "${infra_ns_args[@]}"
       start_port_forward "Kafka 9092->9092" "${infra_ns_args[@]}" port-forward svc/infra-kafka 9092:9092
 
       log_step "Applying application manifests"
