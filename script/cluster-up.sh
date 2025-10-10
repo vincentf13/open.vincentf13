@@ -393,9 +393,10 @@ main() {
         infra_ns_args=(--namespace "$NAMESPACE")
       fi
 
-      start_port_forward "MySQL-0 3307->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-0 3307:3306
-      start_port_forward "Redis 6380->6379" "${infra_ns_args[@]}" port-forward svc/infra-redis 6380:6379
-      start_port_forward "Kafka 19092->9092" "${infra_ns_args[@]}" port-forward svc/infra-kafka 19092:9092
+      start_port_forward "MySQL-0 3306->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-0 3306:3306
+      start_port_forward "MySQL-1 3307->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-1 3307:3306
+      start_port_forward "Redis 6379->6379" "${infra_ns_args[@]}" port-forward svc/infra-redis 6379:6379
+      start_port_forward "Kafka 9092->9092" "${infra_ns_args[@]}" port-forward svc/infra-kafka 9092:9092
 
       log_step "Applying application manifests"
       apply_application_manifests

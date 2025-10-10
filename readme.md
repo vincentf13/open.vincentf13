@@ -195,12 +195,15 @@ AlertManager: http://localhost:9093/#/alerts
 Grafana: http://localhost:3000/
 MySQL: 
 - infra-mysql-0: 127.0.0.1:3306
-- infra-mysql-0: 127.0.0.1:3307
+- infra-mysql-1: 127.0.0.1:3307
 - (mysql -h 127.0.0.1 -P 3307
 Redis Cluster: 
- - redis-cli -p 6380
+ - redis-cli -p 6379
 Kafka Broker: 
-- kafka-topics.sh --bootstrap-server localhost:19092 --list
+- kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+查所有port-forward port對應，可使用此指令：
+ps aux | grep "port-forward" 
 
 並且代碼推送至您的GitHub，自動執行CI/CD，更新你的本地K8s。
 

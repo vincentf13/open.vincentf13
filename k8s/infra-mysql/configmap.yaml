@@ -7,6 +7,7 @@ metadata:
     # 使用 config map 管理共用設定，讓 StatefulSet 掛載成 conf.d 內自訂檔。 
 data:
   my.cnf: |
+    [mysqld]
     # 本地開發環境優先考量啟動速度與低耗資源。
     # 以 UTF-8 作為 MySQL 預設編碼，避免 emoji 等字元失真。
     character-set-server = utf8mb4
@@ -25,3 +26,6 @@ data:
     innodb_buffer_pool_size = 128M
     # 將 redo log 檔縮小以減少磁碟使用量。
     innodb_log_file_size = 64M
+    
+    [client]
+    default-character-set = utf8mb4
