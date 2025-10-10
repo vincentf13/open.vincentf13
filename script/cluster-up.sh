@@ -64,6 +64,9 @@ KAFKA_MANIFEST_ORDER=(
   headless-service.yaml
   service.yaml
   statefulset.yaml
+  redpanda-console-configmap.yaml
+  redpanda-console-deployment.yaml
+  redpanda-console-service.yaml
 )
 
 PORT_FORWARD_PIDS=()
@@ -343,6 +346,8 @@ apply_kafka_cluster() {
   log_step "Applying infra-kafka manifests"
   printf 'Deleting existing StatefulSet infra-kafka (if present)\n'
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete statefulset infra-kafka --ignore-not-found
+  printf 'Deleting existing Deployment redpanda-console (if present)\n'
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete deployment redpanda-console --ignore-not-found
   for manifest in "${KAFKA_MANIFEST_ORDER[@]}"; do
     local file="$KAFKA_DIR/$manifest"
     if [[ ! -f "$file" ]]; then
@@ -354,6 +359,7 @@ apply_kafka_cluster() {
   done
 
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka --timeout=300s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/redpanda-console --timeout=180s
 }
 
 apply_infra_clusters() {
@@ -463,6 +469,7 @@ main() {
       fi
 
       start_port_forward "Kafka 9092->9092" "${infra_ns_args_kafka[@]}" port-forward svc/infra-kafka 9092:9092
+      start_port_forward "Redpanda Console 8088->8080" "${infra_ns_args_kafka[@]}" port-forward svc/redpanda-console 8088:8080
 
       printf '\nKafka infrastructure ready. Press Ctrl+C to stop port-forward.\n'
       wait
@@ -485,6 +492,7 @@ main() {
       start_port_forward "MySQL-1 3307->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-1 3307:3306
       port_forward_redis_nodes "${infra_ns_args[@]}"
       start_port_forward "Kafka 9092->9092" "${infra_ns_args[@]}" port-forward svc/infra-kafka 9092:9092
+      start_port_forward "Redpanda Console 8088->8080" "${infra_ns_args[@]}" port-forward svc/redpanda-console 8088:8080
 
       log_step "Applying application manifests"
       apply_application_manifests

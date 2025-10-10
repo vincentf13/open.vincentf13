@@ -206,6 +206,7 @@ Redis Cluster:
  - redis-cli -h 127.0.0.1 -p 6380 CLUSTER INFO
 Kafka Broker: 
 - kafka-topics.sh --bootstrap-server localhost:9092 --list
+- Kafka UI： http://localhost:8088/
 
 查所有port-forward port對應，可使用此指令：
 ps aux | grep "port-forward" 
