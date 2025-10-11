@@ -9,7 +9,7 @@
 
 ---
 
-### 2. 專案自身 `src/main/resources/application.yml`
+### 2. 專案自身 `src/main/resources/application.yml`c
 - 本地專案主要配置文件。
 - 若依賴中同樣定義了相同屬性，這裡會**覆蓋依賴內的值**。
     
