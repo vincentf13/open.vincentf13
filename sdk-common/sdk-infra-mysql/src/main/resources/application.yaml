@@ -1,11 +1,23 @@
 spring:
   datasource:
     # JDBC 連線字串，後續改由 dynamic-datasource 指向主資料源即可
-    url: jdbc:mysql://localhost:3306/app
+    url: jdbc:mysql://localhost:3306/app&characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
     # 建議改為環境變數或機敏設定中心管理
-    username: app
-    password: secret
+    username: root
+    password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20          # 池上限
+      minimum-idle: 5                # 閒置連線下限（=max 時停用回收）
+      connection-timeout: 30000      # 取連線最長等待(ms)
+      idle-timeout: 600000           # 連線閒置多久可回收(ms)，需 < maxLifetime
+      max-lifetime: 1700000          # 連線最長存活(ms)，建議略小於DB/雲端閒置回收
+      validation-timeout: 5000       # 驗證逾時(ms)
+      leak-detection-threshold: 0    # >0則偵測超時未歸還連線(ms)
+      auto-commit: true
+      read-only: false
+      pool-name: app-hikari
+
 logging:
   level:
     # MyBatis 核心
