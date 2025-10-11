@@ -6,27 +6,44 @@ spring:
     username: app
     password: secret
     driver-class-name: com.mysql.cj.jdbc.Driver
+logging:
+  level:
+    # MyBatis 核心
+    org.mybatis: warn
 
 mybatis:
   # Mapper XML 放置位置（支援多層目錄）
   mapper-locations: classpath*:mapper/**/*.xml
   # Domain/DTO 套件路徑，讓 MyBatis 自動對應別名
-  type-aliases-package: open.vincentf13.service.x,open.vincentf13.service.y
+#  type-aliases-package: open.vincentf13.service.xxx,open.vincentf13.service.yyy
   # TypeHandler 集中配置，便於共用轉換邏輯
   type-handlers-package:  open.vincentf13.common.mysql.mybatis.handler
   configuration:
     # snake_case 欄位自動轉 camelCase 屬性
     map-underscore-to-camel-case: true
-    # insert/update 自動回填 auto_increment 主鍵
-    use-generated-keys: true
-    # 避免單一慢 SQL 佔用連線的安全停等秒數
-    default-statement-timeout: 30
-    # 查詢預設 fetchSize，配合驅動減少記憶體佔用
-    default-fetch-size: 200
     # 預設關閉二級快取，改採分散式快取時再開
     cache-enabled: false
+    # 避免單一慢 SQL 佔用連線的安全停等秒數
+    default-statement-timeout: 30
+    # 參數為 null 時指定 JDBC 類型，減少某些 DB 的兼容性問題
+    jdbc-type-for-null: NULL
+    # 將本地快取範圍降到 STATEMENT，減少記憶體佔用與髒讀風險
+    local-cache-scope: STATEMENT
+    # 關閉 Aggressive Lazy Loading；若無必要，生產環境建議整體禁用 lazy loading
+    lazy-loading-enabled: false
+    aggressive-lazy-loading: false
+    # 執行器型別：REUSE 通常能重用 PreparedStatement，降低開銷
+    default-executor-type: REUSE
+    # 日誌透過 Log4j2，統一由框架控制輸出層級/目的地
+    log-impl: org.apache.ibatis.logging.log4j2.Log4j2Impl
+    # insert/update 自動回填 auto_increment 主鍵
+    use-generated-keys: true
+    # 查詢預設 fetchSize，配合驅動減少記憶體佔用
+    default-fetch-size: 200
     # 對查詢結果 null 欄位也呼叫 setter，避免忽略顯式清空
     call-setters-on-nulls: true
+
+
 
 pagehelper:
   # 指定方言以支援 MySQL 分頁語法
