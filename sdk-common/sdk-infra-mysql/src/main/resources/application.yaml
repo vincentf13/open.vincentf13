@@ -1,22 +1,106 @@
 spring:
   datasource:
-    # JDBC 連線字串，後續改由 dynamic-datasource 指向主資料源即可
-    url: jdbc:mysql://localhost:3306/app&characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
-    # 建議改為環境變數或機敏設定中心管理
-    username: root
-    password: root
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      maximum-pool-size: 20          # 池上限
-      minimum-idle: 5                # 閒置連線下限（=max 時停用回收）
-      connection-timeout: 30000      # 取連線最長等待(ms)
-      idle-timeout: 600000           # 連線閒置多久可回收(ms)，需 < maxLifetime
-      max-lifetime: 1700000          # 連線最長存活(ms)，建議略小於DB/雲端閒置回收
-      validation-timeout: 5000       # 驗證逾時(ms)
-      leak-detection-threshold: 0    # >0則偵測超時未歸還連線(ms)
-      auto-commit: true
-      read-only: false
-      pool-name: app-hikari
+    dynamic:
+      # 預設資料源群組，未標註 @DS 時會使用這組
+      primary: db0
+      # 找不到指定資料源時是否拋錯；開發期建議 false 方便 fallback
+      strict: false
+      # 僅在首次使用時才初始化連線池，減少啟動時間
+      lazy: true
+      # 讀寫分離情境下的負載策略，輪詢分配至 replicas
+      strategy: com.baomidou.dynamic.datasource.strategy.LoadBalanceDynamicDataSourceStrategy
+      datasource:
+        # === db0 群組主節點 → infra-mysql-0 ===
+        db0-master:
+          url: jdbc:mysql://infra-mysql-0.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          username: ${MYSQL_USERNAME:app_user}
+          password: ${MYSQL_PASSWORD:app_user}
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            max-lifetime: 1700000   # ~28 分鐘，低於 MySQL 預設 wait_timeout
+            idle-timeout: 600000    # 10 分鐘，避免閒置連線過多
+            maximum-pool-size: 20
+            minimum-idle: 5
+            connection-timeout: 30000
+            validation-timeout: 5000
+        # db0 群組的第一個從節點 → 指向 infra-mysql-0
+        db0-slave-0:
+          url: jdbc:mysql://infra-mysql-0.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          username: ${MYSQL_USERNAME:app_user}
+          password: ${MYSQL_PASSWORD:app_user}
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            max-lifetime: 1700000
+            idle-timeout: 600000
+            maximum-pool-size: 10
+            minimum-idle: 3
+            connection-timeout: 30000
+            validation-timeout: 5000
+        # db0 群組的第二個從節點 → 指向 infra-mysql-1
+        db0-slave-1:
+          url: jdbc:mysql://infra-mysql-1.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          username: ${MYSQL_USERNAME:app_user}
+          password: ${MYSQL_PASSWORD:app_user}
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            max-lifetime: 1700000
+            idle-timeout: 600000
+            maximum-pool-size: 10
+            minimum-idle: 3
+            connection-timeout: 30000
+            validation-timeout: 5000
+        # === db1 群組主節點 → infra-mysql-1 ===
+        db1-master:
+          url: jdbc:mysql://infra-mysql-1.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          username: ${MYSQL_USERNAME:app_user}
+          password: ${MYSQL_PASSWORD:app_user}
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            max-lifetime: 1700000
+            idle-timeout: 600000
+            maximum-pool-size: 20
+            minimum-idle: 5
+            connection-timeout: 30000
+            validation-timeout: 5000
+        # db1 群組的第一個從節點 → 指向 infra-mysql-0
+        db1-slave-0:
+          url: jdbc:mysql://infra-mysql-0.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          username: ${MYSQL_USERNAME:app_user}
+          password: ${MYSQL_PASSWORD:app_user}
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            max-lifetime: 1700000
+            idle-timeout: 600000
+            maximum-pool-size: 10
+            minimum-idle: 3
+            connection-timeout: 30000
+            validation-timeout: 5000
+        # db1 群組的第二個從節點 → 指向 infra-mysql-1
+        db1-slave-1:
+          url: jdbc:mysql://infra-mysql-1.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          username: ${MYSQL_USERNAME:app_user}
+          password: ${MYSQL_PASSWORD:app_user}
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            max-lifetime: 1700000
+            idle-timeout: 600000
+            maximum-pool-size: 10
+            minimum-idle: 3
+            connection-timeout: 30000
+            validation-timeout: 5000
+      group:
+        # db0 群組：master 為 db0-master，讀操作在兩個 replicas 間輪詢
+        db0:
+          primary: db0-master
+          replicas:
+            - db0-slave-0
+            - db0-slave-1
+        # db1 群組：master 為 db1-master，讀操作同樣輪詢兩個從節點
+        db1:
+          primary: db1-master
+          replicas:
+            - db1-slave-0
+            - db1-slave-1
 
 logging:
   level:
@@ -26,10 +110,10 @@ logging:
 mybatis:
   # Mapper XML 放置位置（支援多層目錄）
   mapper-locations: classpath*:mapper/**/*.xml
-  # Domain/DTO 套件路徑，讓 MyBatis 自動對應別名
-#  type-aliases-package: open.vincentf13.service.xxx,open.vincentf13.service.yyy
-  # TypeHandler 集中配置，便於共用轉換邏輯
-  type-handlers-package:  open.vincentf13.common.mysql.mybatis.handler
+  # Domain/DTO 套件路徑（依實際專案填寫，可多個路徑以逗號分隔）
+  type-aliases-package: com.example.app.model
+  # TypeHandler 集中配置，便於共用轉換邏輯；若無自訂可移除此行
+  # type-handlers-package: com.example.app.mybatis.handler
   configuration:
     # snake_case 欄位自動轉 camelCase 屬性
     map-underscore-to-camel-case: true
@@ -54,8 +138,6 @@ mybatis:
     default-fetch-size: 200
     # 對查詢結果 null 欄位也呼叫 setter，避免忽略顯式清空
     call-setters-on-nulls: true
-
-
 
 pagehelper:
   # 指定方言以支援 MySQL 分頁語法
