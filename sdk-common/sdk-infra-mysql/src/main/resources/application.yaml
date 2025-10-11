@@ -1,6 +1,41 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/root
-    username: root
-    password: root
+    # JDBC 連線字串，後續改由 dynamic-datasource 指向主資料源即可
+    url: jdbc:mysql://localhost:3306/app
+    # 建議改為環境變數或機敏設定中心管理
+    username: app
+    password: secret
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  # Mapper XML 放置位置（支援多層目錄）
+  mapper-locations: classpath*:mapper/**/*.xml
+  # Domain/DTO 套件路徑，讓 MyBatis 自動對應別名
+  type-aliases-package: open.vincentf13.service.x,open.vincentf13.service.y
+  # TypeHandler 集中配置，便於共用轉換邏輯
+  type-handlers-package:  open.vincentf13.common.mysql.mybatis.handler
+  configuration:
+    # snake_case 欄位自動轉 camelCase 屬性
+    map-underscore-to-camel-case: true
+    # insert/update 自動回填 auto_increment 主鍵
+    use-generated-keys: true
+    # 避免單一慢 SQL 佔用連線的安全停等秒數
+    default-statement-timeout: 30
+    # 查詢預設 fetchSize，配合驅動減少記憶體佔用
+    default-fetch-size: 200
+    # 預設關閉二級快取，改採分散式快取時再開
+    cache-enabled: false
+    # 對查詢結果 null 欄位也呼叫 setter，避免忽略顯式清空
+    call-setters-on-nulls: true
+
+pagehelper:
+  # 指定方言以支援 MySQL 分頁語法
+  helper-dialect: mysql
+  # 啟用合理化：頁碼<=0 時回第一頁、超過最大頁時回最後一頁
+  reasonable: true
+  # 允許在 Service 層直接帶 PageHelper 參數
+  support-methods-arguments: false
+  # count 語法參數最佳化，避免重複解析
+  params: count=countSql
+  # PageInfo.RowBounds 查詢時自動追加 count 查詢
+  row-bounds-with-count: true
