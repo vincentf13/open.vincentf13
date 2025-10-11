@@ -11,10 +11,10 @@ spring:
       strategy: com.baomidou.dynamic.datasource.strategy.LoadBalanceDynamicDataSourceStrategy
       datasource:
         # === db0 群組 ===
-        db0-master:
+        db0_master:
           url: jdbc:mysql://infra-mysql-0.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
-          username: ${MYSQL_USERNAME:app_user}
-          password: ${MYSQL_PASSWORD:app_user}
+          username: ${MYSQL_USERNAME:root}
+          password: ${MYSQL_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
             # 連線最大生命週期，需低於 MySQL wait_timeout，避免被伺服器強制關閉
@@ -29,10 +29,10 @@ spring:
             connection-timeout: 30000
             # 驗證連線可用性的逾時，縮短剔除壞連線的時間
             validation-timeout: 5000
-        db0-slave:
+        db0_slave:
           url: jdbc:mysql://infra-mysql-1.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
-          username: ${MYSQL_USERNAME:app_user}
-          password: ${MYSQL_PASSWORD:app_user}
+          username: ${MYSQL_USERNAME:root}
+          password: ${MYSQL_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
             max-lifetime: 1700000
@@ -42,10 +42,10 @@ spring:
             connection-timeout: 30000
             validation-timeout: 5000
         # === db1 群組 ===
-        db1-master:
+        db1_master:
           url: jdbc:mysql://infra-mysql-1.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
-          username: ${MYSQL_USERNAME:app_user}
-          password: ${MYSQL_PASSWORD:app_user}
+          username: ${MYSQL_USERNAME:root}
+          password: ${MYSQL_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
             max-lifetime: 1700000
@@ -54,10 +54,10 @@ spring:
             minimum-idle: 2
             connection-timeout: 30000
             validation-timeout: 5000
-        db1-slave:
+        db1_slave:
           url: jdbc:mysql://infra-mysql-0.infra-mysql-headless:3306/app?characterEncoding=utf8mb4&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
-          username: ${MYSQL_USERNAME:app_user}
-          password: ${MYSQL_PASSWORD:app_user}
+          username: ${MYSQL_USERNAME:root}
+          password: ${MYSQL_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
             max-lifetime: 1700000
@@ -66,17 +66,7 @@ spring:
             minimum-idle: 2
             connection-timeout: 30000
             validation-timeout: 5000
-      group:
-        # db0 群組：master 為 db0-master，讀操作轉交 replicas 同步輪詢
-        db0:
-          primary: db0-master
-          replicas:
-            - db0-slave
-        # db1 群組：master 為 db1-master
-        db1:
-          primary: db1-master
-          replicas:
-            - db1-slave
+
 
 logging:
   level:
