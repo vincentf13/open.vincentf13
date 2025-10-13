@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Supplier;
 
 /**
@@ -44,6 +46,40 @@ public class RedisStringUtils {
             }
             return val;
         }
+    }
+
+     /**
+     * 異步寫入（不阻塞呼叫端）
+     * - 可指定 TTL
+     * - 可設定失敗重試
+     * - 回傳 CompletableFuture，可自行追蹤完成或例外
+     */
+    public CompletableFuture<Boolean> setAsync(String key, String value, Duration ttl, int retry) {
+        return CompletableFuture.supplyAsync(() -> {
+            for (int i = 0; i <= retry; i++) {
+                try {
+                    stringRedisTemplate.opsForValue().set(key, value, ttl);
+                    return true;
+                } catch (Exception e) {
+                    if (i == retry) throw new RuntimeException("Redis async set failed", e);
+                    try { Thread.sleep(100L * (i + 1)); } catch (InterruptedException ignored) {}
+                }
+            }
+            return false;
+        }, ForkJoinPool.commonPool());
+    }
+
+    /**
+     * fire-and-forget 模式，不關心結果
+     */
+    public void setAsyncFireAndForget(String key, String value, Duration ttl) {
+        ForkJoinPool.commonPool().execute(() -> {
+            try {
+                stringRedisTemplate.opsForValue().set(key, value, ttl);
+            } catch (Exception ignored) {
+                // 可選擇記錄 log.warn("Redis async set failed", e)
+            }
+        });
     }
 
     private static final Map<String, Object> INTERN = new WeakHashMap<>();
