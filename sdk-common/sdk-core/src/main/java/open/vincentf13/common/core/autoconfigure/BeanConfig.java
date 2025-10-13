@@ -57,7 +57,7 @@ public class BeanConfig {
 
                 // 安全性
                 .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)                        // 用途：偵測 JSON 物件中重複欄位名稱，若出現相同 key 會拋出例外。能防止潛在的資料覆蓋或攻擊手法（例如 JSON 混淆攻擊）。
-                .enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)                   // 用途：和 STRICT_DUPLICATE_DETECTION 類似，但作用於「讀取樹狀節點 (JsonNode)」階段。若同一層節點有重複 key，拋出錯誤。 確保 readTree() 也具備防重能力。
+                .enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)                  // 用途：和 STRICT_DUPLICATE_DETECTION 類似，但作用於「讀取樹狀節點 (JsonNode)」階段。若同一層節點有重複 key，拋出錯誤。 確保 readTree() 也具備防重能力。
                 .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)                       // 反序列化完成後若 JSON 中仍有未處理的多餘內容，直接報錯。啟用後解析時會拋出例外，避免資料格式不乾淨或混入多筆 JSON。
                 .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)                   // 用途：若原始型別欄位（如 int, long, boolean）在 JSON 中為 null，則報錯。預設：關閉（Jackson 會自動轉為 0 或 false）。確保資料完整性，避免 null 轉 0 的隱性錯誤。
                 .enable(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS)                     // 用途：禁止以整數數值解析 Enum。預設：關閉（允許用 Enum ordinal 值反序列化）。防止因 Enum 順序調整導致對應錯誤。

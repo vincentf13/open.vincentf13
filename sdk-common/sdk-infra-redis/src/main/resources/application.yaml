@@ -24,8 +24,10 @@ spring:
           refresh:
             adaptive: true
             period: 30s
+  redis:
+    redisson:
+      file: classpath:redisson.yml
 
 logging:
   level:
     io.lettuce.core.protocol: INFO    # Regis 操作 log
-

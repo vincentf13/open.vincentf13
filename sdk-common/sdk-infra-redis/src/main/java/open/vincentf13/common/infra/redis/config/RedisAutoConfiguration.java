@@ -1,8 +1,10 @@
 package open.vincentf13.common.infra.redis.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import org.springframework.beans.factory.ObjectProvider;
+import open.vincentf13.common.core.jackson.JacksonUtils;
+import open.vincentf13.common.infra.redis.RedisStringUtils;
+import open.vincentf13.common.infra.redis.RedissonLockUtils;
+import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -11,6 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -20,11 +23,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @ConditionalOnBean(RedisConnectionFactory.class)
 public class RedisAutoConfiguration {
 
-    private final ObjectProvider<ObjectMapper> objectMapperProvider;
-
-    public RedisAutoConfiguration(ObjectProvider<ObjectMapper> objectMapperProvider) {
-        this.objectMapperProvider = objectMapperProvider;
-    }
 
     @Bean
     @Primary
@@ -48,17 +46,27 @@ public class RedisAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(name = "redisValueSerializer")
-    public RedisSerializer<Object> redisValueSerializer() {
-        ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(this::defaultRedisObjectMapper);
+    public RedisSerializer<Object> redisValueSerializer(ObjectMapper objectMapper) {
+
         return new GenericJackson2JsonRedisSerializer(objectMapper);
     }
 
-    private ObjectMapper defaultRedisObjectMapper() {
-        return JsonMapper.builder()
-                .findAndAddModules()
-                .build();
+
+
+    @Bean
+    @ConditionalOnBean(StringRedisTemplate.class)
+    @ConditionalOnMissingBean
+    public RedisStringUtils redisStringUtils(RedisTemplate<String, Object> redisTemplate,
+                                             StringRedisTemplate stringRedisTemplate,
+                                             JacksonUtils jacksonUtils) {
+        return new RedisStringUtils(redisTemplate, stringRedisTemplate, jacksonUtils);
     }
 
-
+    @Bean
+    @ConditionalOnBean(RedissonClient.class)
+    @ConditionalOnMissingBean
+    public RedissonLockUtils redissonLockManager(RedissonClient redissonClient) {
+        return new RedissonLockUtils(redissonClient);
+    }
 
 }
