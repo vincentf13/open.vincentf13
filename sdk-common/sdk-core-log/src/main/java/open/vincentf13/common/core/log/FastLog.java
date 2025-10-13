@@ -48,7 +48,6 @@ public final class FastLog {
         log.info(finalLog);
         return finalLog;
     }
-
     // WARN
     public static String warn(Logger log, String event, String msg, Object... kv) {
         if (!log.isWarnEnabled()) return "Warn Not Enabled";
