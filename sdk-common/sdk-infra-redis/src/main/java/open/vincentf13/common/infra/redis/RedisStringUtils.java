@@ -39,9 +39,9 @@ public class RedisStringUtils {
             T val = loader.get();
             if (val == null) {
                 // 穿透保護：空值短 TTL
-                redisTemplate.opsForValue().set(key, "", Duration.ofSeconds(Math.max(30, Math.min(ttl.toSeconds() / 10, 300))));
+                setAsyncFireAndForget(key, "", Duration.ofSeconds(Math.max(30, Math.min(ttl.toSeconds() / 10, 300))));
             } else {
-                redisTemplate.opsForValue().set(key, val, ttl.plus(randomJitter(Duration.ofSeconds(30))));
+                setAsyncFireAndForget(key, val, ttl.plus(randomJitter(Duration.ofSeconds(30))));
             }
             return val;
         }
@@ -54,7 +54,7 @@ public class RedisStringUtils {
         return CompletableFuture.supplyAsync(() -> {
             for (int i = 0; i <= retry; i++) {
                 try {
-                    stringRedisTemplate.opsForValue().set(key,  JacksonUtils.toJson(value), ttl);
+                    stringRedisTemplate.opsForValue().set(key, JacksonUtils.toJson(value), ttl);
                     return true;
                 } catch (Exception e) {
                     if (i == retry)
@@ -75,7 +75,7 @@ public class RedisStringUtils {
     public void setAsyncFireAndForget(String key, Object value, Duration ttl) {
         ForkJoinPool.commonPool().execute(() -> {
             try {
-                stringRedisTemplate.opsForValue().set(key,  JacksonUtils.toJson(value), ttl);
+                stringRedisTemplate.opsForValue().set(key, JacksonUtils.toJson(value), ttl);
             } catch (Exception ignored) {
                 // 可選擇 log.warn("Redis async set failed", e)
             }
