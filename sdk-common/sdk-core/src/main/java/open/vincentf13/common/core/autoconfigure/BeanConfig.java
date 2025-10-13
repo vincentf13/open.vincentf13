@@ -8,23 +8,26 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import open.vincentf13.common.core.jackson.JacksonUtils;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
 @AutoConfiguration
 @ConditionalOnClass(ObjectMapper.class)
-public class ObjectMapperAutoConfiguration {
+public class BeanConfig {
+
+    @Bean
+    public JacksonUtils jacksonUtils(ObjectMapper objectMapper) {
+        return new JacksonUtils(objectMapper);
+    }
+
 
     // 統一使用此配置，避免其他套件內的 ObjectMapper 影響。 例如：Spring MVC 取錯ObjectMapper，導致沒使用到此統一配置
     @Primary
     @Bean(name = "jsonMapper")
-    @ConditionalOnMissingBean(name = "jsonMapper")
     public ObjectMapper jsonMapper() {
-
-
         return JsonMapper.builder()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)     // 反序列化忽略未知欄位，防禦外部欄位變動
                 .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)              // 輸出空物件{}時，不報錯

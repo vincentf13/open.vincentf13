@@ -1,10 +1,8 @@
 package open.vincentf13.common.infra.redis;
 
-import lombok.AllArgsConstructor;
 import open.vincentf13.common.core.jackson.JacksonUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Map;
@@ -19,13 +17,18 @@ import java.util.function.Supplier;
  * - 單語句優先原子操作；多步操作提供 Lua 與 Pipeline 版本
  * - 提供 scan 全主節點遍歷（Cluster）與 cache-aside 模式
  */
-@Service
-@AllArgsConstructor
+
 public class RedisStringUtils {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
     private final JacksonUtils JacksonUtils;
+
+    public RedisStringUtils(RedisTemplate<String, Object> redisTemplate, StringRedisTemplate stringRedisTemplate, JacksonUtils jacksonUtils) {
+        this.redisTemplate = redisTemplate;
+        this.stringRedisTemplate = stringRedisTemplate;
+        JacksonUtils = jacksonUtils;
+    }
 
 
     // ===== Cache-Aside =====

@@ -1,1 +1,1 @@
-open.vincentf13.common.core.autoconfigure.ObjectMapperAutoConfiguration
+open.vincentf13.common.core.autoconfigure.BeanConfig
