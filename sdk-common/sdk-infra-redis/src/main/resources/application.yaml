@@ -30,4 +30,5 @@ spring:
 
 logging:
   level:
-    io.lettuce.core.protocol: INFO    # Regis 操作 log
+    io.lettuce.core.protocol: INFO    # Redis 操作 log
+    org.redisson: INFO # Redisson 日誌
