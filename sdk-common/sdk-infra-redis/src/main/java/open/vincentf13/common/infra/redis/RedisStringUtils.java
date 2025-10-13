@@ -1,5 +1,7 @@
 package open.vincentf13.common.infra.redis;
 
+import lombok.AllArgsConstructor;
+import open.vincentf13.common.core.jackson.JacksonUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -18,16 +20,13 @@ import java.util.function.Supplier;
  * - 提供 scan 全主節點遍歷（Cluster）與 cache-aside 模式
  */
 @Service
+@AllArgsConstructor
 public class RedisStringUtils {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
+    private final JacksonUtils JacksonUtils;
 
-    public RedisStringUtils(RedisTemplate<String, Object> redisTemplate,
-                            StringRedisTemplate stringRedisTemplate) {
-        this.redisTemplate = redisTemplate;
-        this.stringRedisTemplate = stringRedisTemplate;
-    }
 
     // ===== Cache-Aside =====
     @SuppressWarnings("unchecked")
@@ -48,21 +47,22 @@ public class RedisStringUtils {
         }
     }
 
-     /**
-     * 異步寫入（不阻塞呼叫端）
-     * - 可指定 TTL
-     * - 可設定失敗重試
-     * - 回傳 CompletableFuture，可自行追蹤完成或例外
+    /**
+     * 非阻塞寫入，有重試機制
      */
-    public CompletableFuture<Boolean> setAsync(String key, String value, Duration ttl, int retry) {
+    public CompletableFuture<Boolean> setAsync(String key, Object value, Duration ttl, int retry) {
         return CompletableFuture.supplyAsync(() -> {
             for (int i = 0; i <= retry; i++) {
                 try {
-                    stringRedisTemplate.opsForValue().set(key, value, ttl);
+                    stringRedisTemplate.opsForValue().set(key,  JacksonUtils.toJson(value), ttl);
                     return true;
                 } catch (Exception e) {
-                    if (i == retry) throw new RuntimeException("Redis async set failed", e);
-                    try { Thread.sleep(100L * (i + 1)); } catch (InterruptedException ignored) {}
+                    if (i == retry)
+                        throw new RuntimeException("Redis async set failed", e);
+                    try {
+                        Thread.sleep(100L * (i + 1));
+                    } catch (InterruptedException ignored) {
+                    }
                 }
             }
             return false;
@@ -72,12 +72,12 @@ public class RedisStringUtils {
     /**
      * fire-and-forget 模式，不關心結果
      */
-    public void setAsyncFireAndForget(String key, String value, Duration ttl) {
+    public void setAsyncFireAndForget(String key, Object value, Duration ttl) {
         ForkJoinPool.commonPool().execute(() -> {
             try {
-                stringRedisTemplate.opsForValue().set(key, value, ttl);
+                stringRedisTemplate.opsForValue().set(key,  JacksonUtils.toJson(value), ttl);
             } catch (Exception ignored) {
-                // 可選擇記錄 log.warn("Redis async set failed", e)
+                // 可選擇 log.warn("Redis async set failed", e)
             }
         });
     }
