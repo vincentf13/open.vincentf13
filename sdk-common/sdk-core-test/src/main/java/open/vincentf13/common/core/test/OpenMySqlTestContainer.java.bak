@@ -1,0 +1,119 @@
+package open.vincentf13.common.core.test;
+
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.utility.DockerImageName;
+
+import java.util.UUID;
+
+/**
+ * 靜態 MySQL Testcontainer 工具，集中管理容器啟動與屬性註冊。
+ */
+public final class OpenMySqlTestContainer {
+
+    private static final ToggleableMySqlContainer MYSQL =
+            new ToggleableMySqlContainer()
+                    .withUsername("test")
+                    .withPassword("test")
+                    .withDatabaseName("app");
+
+    private static final ThreadLocal<String> CURRENT_SCHEMA = new ThreadLocal<>();
+
+    private OpenMySqlTestContainer() {
+    }
+
+    public static void register(DynamicPropertyRegistry registry) {
+        if (!TestContainerSettings.mysqlEnabled()) {
+            return;
+        }
+        MYSQL.start();
+        String schema = "app_" + UUID.randomUUID().toString().replace('-', '_');
+        createSchema(schema);
+        CURRENT_SCHEMA.set(schema);
+        registry.add("spring.datasource.url", () -> buildJdbcUrl(schema));
+        registry.add("spring.datasource.username", MYSQL::getUsername);
+        registry.add("spring.datasource.password", MYSQL::getPassword);
+        registry.add("spring.datasource.driver-class-name", MYSQL::getDriverClassName);
+        registry.add("spring.datasource.hikari.connection-init-sql", () -> "USE " + schema);
+    }
+
+    public static MySQLContainer<?> container() {
+        return MYSQL;
+    }
+
+    public static String currentSchema() {
+        return CURRENT_SCHEMA.get();
+    }
+
+    public static void cleanupCurrentSchema() {
+        String schema = CURRENT_SCHEMA.get();
+        if (schema == null) {
+            return;
+        }
+        dropSchema(schema);
+        CURRENT_SCHEMA.remove();
+    }
+
+    private static void createSchema(String schema) {
+        MYSQL.execInContainerOrThrow("mysql", "-u" + rootUser(), "-p" + rootPassword(), "-e",
+                "CREATE DATABASE IF NOT EXISTS " + schema);
+        MYSQL.execInContainerOrThrow("mysql", "-u" + rootUser(), "-p" + rootPassword(), "-e",
+                "GRANT ALL PRIVILEGES ON " + schema + ".* TO 'test'@'%'");
+        MYSQL.execInContainerOrThrow("mysql", "-u" + rootUser(), "-p" + rootPassword(), "-e",
+                "FLUSH PRIVILEGES");
+    }
+
+    private static void dropSchema(String schema) {
+        MYSQL.execInContainerOrThrow("mysql", "-u" + rootUser(), "-p" + rootPassword(), "-e",
+                "DROP DATABASE IF EXISTS " + schema);
+    }
+
+    private static String buildJdbcUrl(String schema) {
+        return String.format("jdbc:mysql://%s:%d/%s",
+                MYSQL.getHost(),
+                MYSQL.getMappedPort(MySQLContainer.MYSQL_PORT),
+                schema);
+    }
+
+    private static String rootUser() {
+        return "root";
+    }
+
+    private static String rootPassword() {
+        return MYSQL.getPassword();
+    }
+
+    private static final class ToggleableMySqlContainer extends MySQLContainer<ToggleableMySqlContainer> {
+
+        private ToggleableMySqlContainer() {
+            super(DockerImageName.parse("mysql:8.4"));
+        }
+
+        @Override
+        public void start() {
+            if (!TestContainerSettings.mysqlEnabled() || isRunning()) {
+                return;
+            }
+            super.start();
+        }
+
+        @Override
+        public void stop() {
+            if (!TestContainerSettings.mysqlEnabled()) {
+                return;
+            }
+            super.stop();
+        }
+
+        private void execInContainerOrThrow(String... command) {
+            try {
+                var result = execInContainer(command);
+                if (result.getExitCode() != 0) {
+                    throw new IllegalStateException("Command failed: " + String.join(" ", command) + "\n" + result.getStderr());
+                }
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to execute command in MySQL container", ex);
+            }
+        }
+    }
+}

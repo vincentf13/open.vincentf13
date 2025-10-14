@@ -1,15 +1,17 @@
 package test.open.vincentf13.common.core.test;
 
 import open.vincentf13.common.core.test.OpenMySqlTestContainer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.jdbc.core.JdbcTemplate;
-import test.open.vincentf13.common.core.test.Sample.MybatisUser;
-import test.open.vincentf13.common.core.test.Sample.MybatisUserMapper;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import test.open.vincentf13.common.core.test.Sample.MybatisUser;
+import test.open.vincentf13.common.core.test.Sample.MybatisUserMapper;
 
 import javax.sql.DataSource;
 
@@ -18,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // MyBatis 切片測試：透過 Mapper 驗證 MySQL 臨時資料庫的增刪查
 @org.mybatis.spring.boot.test.autoconfigure.MybatisTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class MybatisTest {
 
     @DynamicPropertySource
@@ -55,5 +58,10 @@ class MybatisTest {
         assertThat(selected).isNotNull();
         assertThat(selected.getName()).isEqualTo("MyBatis Tester");
         assertThat(mapper.countAll()).isEqualTo(1);
+    }
+
+    @AfterEach
+    void cleanupSchema() {
+        OpenMySqlTestContainer.cleanupCurrentSchema();
     }
 }
