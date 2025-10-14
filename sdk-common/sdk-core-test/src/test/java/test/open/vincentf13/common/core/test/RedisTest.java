@@ -1,12 +1,14 @@
 package test.open.vincentf13.common.core.test;
 
-import open.vincentf13.common.core.test.BaseRedisTestContainer;
+import open.vincentf13.common.core.test.OpenRedisTestContainer;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.redis.DataRedisTest;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.Duration;
 
@@ -14,7 +16,12 @@ import static org.awaitility.Awaitility.await;
 
 // Redis 容器整合測試：透過動態連線工廠驗證暫存操作
 @DataRedisTest
-class RedisTest extends BaseRedisTestContainer {
+class RedisTest {
+
+    @DynamicPropertySource
+    static void registerRedisProperties(DynamicPropertyRegistry registry) {
+        OpenRedisTestContainer.register(registry);
+    }
 
     private static final String KEY = "sdk-core-test:demo";
 

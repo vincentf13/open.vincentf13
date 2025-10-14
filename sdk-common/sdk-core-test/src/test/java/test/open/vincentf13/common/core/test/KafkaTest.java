@@ -1,6 +1,6 @@
 package test.open.vincentf13.common.core.test;
 
-import open.vincentf13.common.core.test.BaseKafkaTestContainer;
+import open.vincentf13.common.core.test.OpenKafkaTestContainer;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +25,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         classes = {TestBoot.class, KafkaTest.KafkaTestConfig.class},
         properties = "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
 )
-public class KafkaTest extends BaseKafkaTestContainer {
+public class KafkaTest {
+
+    @DynamicPropertySource
+    static void registerKafkaProperties(DynamicPropertyRegistry registry) {
+        OpenKafkaTestContainer.register(registry);
+    }
     @Autowired
     KafkaTemplate<String, String> kafkaTemplate;
     @Autowired
@@ -31,7 +38,7 @@ public class KafkaTest extends BaseKafkaTestContainer {
 
     @Test
     void send_and_receive() throws Exception {
-        kafkaTemplate.send(TOPIC, "k1", "v1").get(5, TimeUnit.SECONDS);
+        kafkaTemplate.send(OpenKafkaTestContainer.topic(), "k1", "v1").get(5, TimeUnit.SECONDS);
         assertTrue(listener.latch.await(5, TimeUnit.SECONDS));
         assertEquals("v1", listener.payload);
     }
@@ -53,6 +60,7 @@ public class KafkaTest extends BaseKafkaTestContainer {
         NewTopic topic(@Value("${app.topic}") String name) {
             return TopicBuilder.name(name).partitions(1).replicas(1).build();
         }
+
         @Bean
         TestListener testListener() {
             return new TestListener();

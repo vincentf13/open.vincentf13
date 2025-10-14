@@ -42,7 +42,7 @@
 # 核心組件
 | 類別 / 檔案                                                                      | 位置                                                                                                                                                                                                                                                                                                                            | 功能                                                                                                    |     |
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --- |
-| `BaseMySqlTestContainer`<br>`BaseRedisTestContainer`<br>`BaseKafkaTestContainer` | src/main/java/open/vincentf13/common/core/test/BaseKafkaTestContainer.java<br>src/main/java/open/vincentf13/common/core/test/BaseMySqlTestContainer.java<br>src/main/java/open/vincentf13/common/core/test/BaseRedisTestContainer.java<br>                                                                                      | 以 `Testcontainers` 建立可切換的 MySQL /REDIS等虛擬容器，並透過 `@DynamicPropertySource` 註冊容器配置。 |     |
+| `OpenMySqlTestContainer`<br>`OpenRedisTestContainer`<br>`OpenKafkaTestContainer` | src/main/java/open/vincentf13/common/core/test/OpenKafkaTestContainer.java<br>src/main/java/open/vincentf13/common/core/test/OpenMySqlTestContainer.java<br>src/main/java/open/vincentf13/common/core/test/OpenRedisTestContainer.java<br>                                                                                      | 靜態 Testcontainers 工具：統一註冊 MySQL/Redis/Kafka 容器屬性，供測試類別透過 `@DynamicPropertySource` 呼叫。 |     |
 | `TestContainerSettings`                                                          | src/main/java/open/vincentf13/common/core/test/TestContainerSettings.java                                                                                                                                                                                                                                                       | 解析容器配置（System Property、環境變數），決定是啟動虛擬容器，或走真實依賴環境。                       |     |
 | `junit-platform.properties`                                                      | `src/main/resources/junit-platform.properties`                                                                                                                                                                                                                                                                                  | 提供 Junit 5 baseline 基礎配置                                                                          |     |
 | `TestBoot`                                                                       | test/src/test/java/test/open/vincentf13/common/core/test/TestBoot.java`                                                                                                                                                                    | 共用 `@SpringBootConfiguration`；測試若需額外 bean 建議使用 `@TestConfiguration`。 |                                                                                                         |     |
@@ -50,10 +50,8 @@
 # 併發執行測試
 
 - 虛擬容器採 `static final` 單例並懶啟動：
-	- 多個測試類繼承同一基底可共用同一容器，降低啟動時間。
-	- Testcontainers 看到 @Container 的 static 欄位時會在整個測試類別執行前啟動一次，後續方法共用同一個容器。
-	- 因此任何繼承 BaseMySqlTestContainer 的測試類別都會共用這個 MySQL 容器，不會做到「每個方法一個新容器」。
-	  如果要做到方法級別隔離，需要改為非 static 容器並使用 @TestInstance(PER_METHOD) 或在 @BeforeEach 裡自己控制生命週期。
+	- 透過 `Open*TestContainer.register(registry)` 將容器連線資訊注入 Spring，所有測試共用同一個容器實例，降低啟動時間。
+	- 若要做到方法級隔離，可改為自訂非 static 容器並在各自測試中管理生命週期。
 
 - @TestInstance(PER_METHOD) 只影響測試類別本身的生命週期，每個測試方法會拿到新的測試類別實例，但不會重新建立 static 欄位。 
 - @若全局使用 PER_CLASS，可以對單一測試類別配置 @Execution(SAME_THREAD)，避免實例變數的併發問題
@@ -88,7 +86,7 @@
 # 導入與使用流程
 1. **加入依賴**：服務模組 POM 引入 `sdk-core-test`（scope `test`）。
 2. **同步設定**：將此模組提供的 `junit-platform.properties` 與 Maven 插件設定複製至服務專案，或引用共用父 POM。
-3. **選擇基底類**：依測試依賴選擇 `BaseMySqlTestContainer`、`BaseRedisTestContainer`、`BaseKafkaTestContainer`，必要時可自訂新類。
+3. **註冊容器**：依測試依賴呼叫 `OpenMySqlTestContainer.register(...)`、`OpenRedisTestContainer.register(...)`、`OpenKafkaTestContainer.register(...)`，必要時可自訂新的容器工具。
 4. **配置容器配置**：在 CI 或特定環境設定容器容器，以切連連線到實際共享資源或使用本地容器。
 5. **撰寫測試**：
 	  - API/切片測試可搭配 `DemoController` 等樣板快速驗證 Web 行為。
@@ -105,5 +103,5 @@
 
 # 延伸建議
 - 考慮在 CI pipeline 依測試標籤（`fast`、`slow`、`e2e`）分層執行，縮短回饋時間。
-- 若服務需要額外的外部資源（如 Elasticsearch、S3 模擬器），可參考現有基底實作新的 `BaseXxxTestContainer`，並沿用 `TestContainerSettings` 的旗標模式。
+- 若服務需要額外的外部資源（如 Elasticsearch、S3 模擬器），可參考現有靜態工具實作新的 `OpenXxxTestContainer`，並沿用 `TestContainerSettings` 的旗標模式。
 - 對最終一致性流程建議引入 Awaitility，避免使用 `Thread.sleep`；與時間相關邏輯可注入 `Clock` 以便 Mock。

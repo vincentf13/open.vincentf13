@@ -1,6 +1,6 @@
 package test.open.vincentf13.common.core.test;
 
-import open.vincentf13.common.core.test.BaseMySqlTestContainer;
+import open.vincentf13.common.core.test.OpenMySqlTestContainer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +8,8 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.jdbc.core.JdbcTemplate;
 import test.open.vincentf13.common.core.test.Sample.MybatisUser;
 import test.open.vincentf13.common.core.test.Sample.MybatisUserMapper;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import javax.sql.DataSource;
 
@@ -16,7 +18,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 // MyBatis 切片測試：透過 Mapper 驗證 MySQL 臨時資料庫的增刪查
 @org.mybatis.spring.boot.test.autoconfigure.MybatisTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class MybatisTest extends BaseMySqlTestContainer {
+class MybatisTest {
+
+    @DynamicPropertySource
+    static void registerMysqlProperties(DynamicPropertyRegistry registry) {
+        OpenMySqlTestContainer.register(registry);
+    }
 
     private static final String TABLE_DDL = "CREATE TABLE mybatis_users (" +
             "id BIGINT PRIMARY KEY AUTO_INCREMENT, " +

@@ -1,20 +1,27 @@
 package test.open.vincentf13.common.core.test;
 
 
-import open.vincentf13.common.core.test.BaseMySqlTestContainer;
+import open.vincentf13.common.core.test.OpenMySqlTestContainer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 // MySQL 容器整合測試：示範臨時資料庫 schema 操作與查詢
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class MysqlTest extends BaseMySqlTestContainer {
+class MysqlTest {
+
+  @DynamicPropertySource
+  static void registerMysqlProperties(DynamicPropertyRegistry registry) {
+    OpenMySqlTestContainer.register(registry);
+  }
 
   @Autowired
   private JdbcTemplate jdbcTemplate;
@@ -36,6 +43,5 @@ class MysqlTest extends BaseMySqlTestContainer {
 
     assertThat(count).isEqualTo(1);
   }
-
 
 }
