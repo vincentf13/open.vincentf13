@@ -22,8 +22,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(
-        classes = {TestBoot.class, KafkaTest.KafkaTestConfig.class},
-        properties = "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
+        classes = KafkaTest.KafkaTestConfig.class,
+        properties = {
+                "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration",
+                "spring.main.lazy-initialization=true",
+                "spring.jmx.enabled=false"
+        },
+        webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
 public class KafkaTest {
 
