@@ -6,7 +6,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.common.core.exception.BackendErrorCodes;
 import open.vincentf13.common.core.exception.ControllerException;
-import open.vincentf13.common.core.log.FastLog;
+import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.spring.mvc.response.ApiResponse;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceAware;
@@ -110,7 +110,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
                                                                   WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         String reason = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
-        FastLog.debug(log, "HttpMessageUnreadable", () -> "Request payload unreadable",
+        OpenLog.debug(log, "HttpMessageUnreadable", () -> "Request payload unreadable",
                 ex,
                 "path", servletRequest != null ? servletRequest.getRequestURI() : "unknown",
                 "reason", reason);
@@ -163,7 +163,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
     @ExceptionHandler(ControllerException.class)
     public ResponseEntity<ApiResponse<Object>> handleControllerException(ControllerException ex,
                                                                          HttpServletRequest request) {
-        FastLog.warn(log, "ControllerException", "Controller exception",
+        OpenLog.warn(log, "ControllerException", "Controller exception",
                 ex,
                 "code", ex.getCode(),
                 "path", request != null ? request.getRequestURI() : "unknown");
@@ -180,7 +180,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleUnexpectedException(Exception ex, HttpServletRequest request) {
-        FastLog.error(log, "UnhandledException", "Unhandled exception",
+        OpenLog.error(log, "UnhandledException", "Unhandled exception",
                 ex,
                 "path", request != null ? request.getRequestURI() : "unknown");
         Map<String, Object> meta = baseMeta(request, HttpStatus.INTERNAL_SERVER_ERROR);

@@ -6,8 +6,8 @@
 - 在開發與生產環境提供差異化配置（彩色 Console、檔案輪轉），同時保留易於覆寫的 Spring 標準屬性。
 - 捆綁依賴與排除策略，統一切換至 Log4j2，減少跨模組日誌框架混用造成的衝突。
 
-# FastLog 工具類
-- **目的**：`FastLog`（`sdk-common/sdk-core-log/src/main/java/open/vincentf13/common/core/log/FastLog.java`）提供統一事件格式的輕量級記錄器，輸出形如 `[Event] message | k=v ...`，便於搜尋與關聯分析。
+# OpenLog 工具類
+- **目的**：`OpenLog`（`sdk-common/sdk-core-log/src/main/java/open/vincentf13/common/core/log/OpenLog.java`）提供統一事件格式的輕量級記錄器，輸出形如 `[Event] message | k=v ...`，便於搜尋與關聯分析。
 - **設計重點**：
 	  - 全靜態 API，外部僅需注入現有 `Logger`，無額外 Bean 或設定。
 	  - 透過 `StringBuilder` 手工串接，預設容量 64，避免建立 `Map`/`Stream` 造成的 GC 壓力。
@@ -20,14 +20,14 @@
 ```java
 private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
-FastLog.info(log, "OrderCreated", "created", "orderId", orderId, "userId", userId);
+OpenLog.info(log, "OrderCreated", "created", "orderId", orderId, "userId", userId);
 // 輸出： [OrderCreated] created | orderId=12345 userId=6789
 
-FastLog.debug(log, "CalcPrice", () -> "rule=" + computeRule(), "sku", skuCode);
+OpenLog.debug(log, "CalcPrice", () -> "rule=" + computeRule(), "sku", skuCode);
 // DEBUG 開啟時輸出： [CalcPrice] rule=standard | sku=A100
 // DEBUG 關閉時輸出：無（Supplier 不會執行）
 
-FastLog.error(log, "OrderSaveFailed", "db error", ex, "orderId", orderId);
+OpenLog.error(log, "OrderSaveFailed", "db error", ex, "orderId", orderId);
 // 輸出：
 // [OrderSaveFailed] db error | orderId=12345
 // java.lang.RuntimeException: save failed

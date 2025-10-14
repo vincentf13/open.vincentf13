@@ -53,7 +53,7 @@
 
 ## 日誌攔截器 (`RequestLoggingInterceptor`)
 - 於 `InterceptorConfig` 中建立並由 `WebMvcConfig` 的 `WebMvcConfigurer` 註冊。
-- `preHandle` 記錄起始時間；`afterCompletion` 輸出 FastLog 格式的完成或失敗資訊，包含 HTTP 方法、URI、狀態碼與耗時毫秒數。
+- `preHandle` 記錄起始時間；`afterCompletion` 輸出 OpenLog 格式的完成或失敗資訊，包含 HTTP 方法、URI、狀態碼與耗時毫秒數。
 
 ## Web MVC 組態 (`WebMvcConfig`)
 - Bean：

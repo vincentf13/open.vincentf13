@@ -3,7 +3,7 @@ package open.vincentf13.common.spring.mvc.interceptor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.common.core.log.FastLog;
+import open.vincentf13.common.core.log.OpenLog;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
@@ -26,7 +26,7 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
         long duration = startAttr instanceof Long start ? System.currentTimeMillis() - start : -1L;
         // 維持固定格式讓日誌聚合工具好做查詢。
         if (ex != null) {
-            FastLog.error(log, "MvcRequestFailed", "MVC request failed",
+            OpenLog.error(log, "MvcRequestFailed", "MVC request failed",
                     ex,
                     "method", request.getMethod(),
                     "uri", request.getRequestURI(),
@@ -34,7 +34,7 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
                     "durationMs", duration);
             return;
         }
-        FastLog.info(log, "MvcRequestCompleted", "MVC request completed",
+        OpenLog.info(log, "MvcRequestCompleted", "MVC request completed",
                 "method", request.getMethod(),
                 "uri", request.getRequestURI(),
                 "status", response.getStatus(),

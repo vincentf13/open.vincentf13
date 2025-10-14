@@ -30,8 +30,8 @@ import java.util.function.Supplier;
  * at open.vincentf13.service.OrderService.demo(OrderService.java:21)
  * ... 省略
  */
-public final class FastLog {
-    private FastLog() {
+public final class OpenLog {
+    private OpenLog() {
     }
 
     // INFO

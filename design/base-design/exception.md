@@ -39,7 +39,7 @@ ErrorCode (interface) ---> provided to all exception constructors of BaseChecked
 	- `InfraException`：拋出InfraException，以 Runtime 例外包裝外部資源失敗，避免業務層過度 try-catch；仍要提供足夠診斷資訊。
 -  生成例外之參數說明：
 	- ErrorCode：使用 ErrorCode 統一 Code與信息。
-	- String errorMessage 參數用於附加口語化描述例外場景。 可使用 FastLog 物件，寫入 log 信息後，自動返回已格式化之 log 信息注入至此。
+	- String errorMessage 參數用於附加口語化描述例外場景。 可使用 OpenLog 物件，寫入 log 信息後，自動返回已格式化之 log 信息注入至此。
 	- Map<String, Object> meta 用於附帶上下文信息，例如 user id, order id, trace id , req id。
 - 保留原始異常：使用 `new ControllerException|InfraException(..., ex)` 形式保留 root cause底層異常信息，可縮短排查時間。 
 - 透過 `addSuppressed` 掛載資源釋放等次要異常，避免主因被覆寫。
