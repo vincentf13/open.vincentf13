@@ -1,3 +1,14 @@
+logging:
+  level:
+    # Spring Kafka 關鍵
+    org.springframework.kafka: INFO
+    org.springframework.kafka.core.KafkaTemplate: DEBUG
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: DEBUG
+    org.springframework.kafka.support.serializer: DEBUG   # 反序列化排錯用
+    # Kafka 原生
+    org.apache.kafka.clients: INFO
+    org.apache.kafka.clients.consumer.internals.AbstractCoordinator: INFO
+
 spring:
   kafka:
     bootstrap-servers: localhost:9092

@@ -1,7 +1,9 @@
 package open.vincentf13.common.infra.kafka.producer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import open.vincentf13.common.core.log.FastLog;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -50,10 +52,14 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
             byte[] value = objectMapper.writeValueAsBytes(msg);
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(topic, key, value);
             addHeaders(record, headers);
-            return adaptFuture(kafkaTemplate.send(record));
+            FastLog.debug(log, "KafkaSend", () -> "送出 Kafka 訊息", "topic", topic, "key", key, "payloadType", msg.getClass().getName());
+            CompletableFuture<SendResult<String, byte[]>> sendFuture = adaptFuture(kafkaTemplate.send(record));
+            sendFuture.whenComplete((result, throwable) -> handleSendResult(result, throwable, topic, key));
+            return sendFuture;
         } catch (Exception ex) {
             CompletableFuture<SendResult<String, byte[]>> future = new CompletableFuture<>();
             future.completeExceptionally(ex);
+            FastLog.error(log, "KafkaSendFailed", "Kafka 訊息送出失敗（序列化或建構）", ex, "topic", topic, "key", key);
             return future;
         }
     }
@@ -92,9 +98,32 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
                                : objectMapper.writeValueAsBytes(headerValue);
                 record.headers().add(headerKey, bytes);
             } catch (Exception ex) {
-                log.warn("Failed to encode Kafka header, key={}", headerKey, ex);
+                FastLog.warn(log, "KafkaHeaderEncodeFailed", "Kafka header 序列化失敗", ex, "headerKey", headerKey);
             }
         });
+    }
+
+    private void handleSendResult(
+            SendResult<String, byte[]> result,
+            Throwable throwable,
+            String topic,
+            String key
+    ) {
+        if (throwable != null) {
+            FastLog.error(log, "KafkaSendError", "Kafka 訊息送出失敗", throwable, "topic", topic, "key", key);
+            return;
+        }
+        RecordMetadata metadata = result != null ? result.getRecordMetadata() : null;
+        if (metadata != null) {
+            FastLog.debug(log, "KafkaSendSuccess", () -> "Kafka 訊息送出成功",
+                    "topic", metadata.topic(),
+                    "partition", metadata.partition(),
+                    "offset", metadata.offset(),
+                    "timestamp", metadata.timestamp(),
+                    "key", key);
+        } else {
+            FastLog.debug(log, "KafkaSendSuccess", () -> "Kafka 訊息送出成功", "topic", topic, "key", key);
+        }
     }
 
     @SuppressWarnings("unchecked")
