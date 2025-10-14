@@ -20,8 +20,8 @@ public class BeanConfig {
 
     // 統一使用此配置，避免其他套件內的 ObjectMapper 影響。 例如：Spring MVC 取錯ObjectMapper，導致沒使用到此統一配置
     @Primary
-    @Bean(name = "jsonMapper")
-    public ObjectMapper jsonMapper() {
+    @Bean(name = "openObjectMapper")
+    public ObjectMapper openObjectMapper() {
         ObjectMapper mapper = JsonMapper.builder()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)     // 反序列化忽略未知欄位，防禦外部欄位變動
                 .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)              // 輸出空物件{}時，不報錯

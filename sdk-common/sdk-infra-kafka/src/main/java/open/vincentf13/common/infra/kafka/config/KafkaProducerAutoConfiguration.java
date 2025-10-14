@@ -46,7 +46,7 @@ public class KafkaProducerAutoConfiguration {
     @ConditionalOnMissingBean(KafkaProducerService.class)
     public KafkaProducerService<Object> kafkaProducerService(
             @Qualifier("kafkaByteArrayTemplate") KafkaTemplate<String, byte[]> kafkaTemplate,
-            @Qualifier("jsonMapper") ObjectMapper objectMapper,
+            @Qualifier("openObjectMapper") ObjectMapper objectMapper,
             ObjectProvider<KafkaProducerKeyResolver> keyResolverProvider,
             ObjectProvider<KafkaProducerHeaderResolver> headerResolverProvider
                                                             ) {
