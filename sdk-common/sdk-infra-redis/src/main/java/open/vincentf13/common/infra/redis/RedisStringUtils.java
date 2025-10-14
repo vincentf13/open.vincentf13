@@ -1,6 +1,6 @@
 package open.vincentf13.common.infra.redis;
 
-import open.vincentf13.common.core.jackson.JacksonUtils;
+import open.vincentf13.common.core.OpenObjectMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -22,12 +22,10 @@ public class RedisStringUtils {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
-    private final JacksonUtils JacksonUtils;
 
-    public RedisStringUtils(RedisTemplate<String, Object> redisTemplate, StringRedisTemplate stringRedisTemplate, JacksonUtils jacksonUtils) {
+    public RedisStringUtils(RedisTemplate<String, Object> redisTemplate, StringRedisTemplate stringRedisTemplate) {
         this.redisTemplate = redisTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
-        JacksonUtils = jacksonUtils;
     }
 
 
@@ -57,7 +55,7 @@ public class RedisStringUtils {
         return CompletableFuture.supplyAsync(() -> {
             for (int i = 0; i <= retry; i++) {
                 try {
-                    stringRedisTemplate.opsForValue().set(key, JacksonUtils.toJson(value), ttl);
+                    stringRedisTemplate.opsForValue().set(key, OpenObjectMapper.toJson(value), ttl);
                     return true;
                 } catch (Exception e) {
                     if (i == retry)
@@ -78,7 +76,7 @@ public class RedisStringUtils {
     public void setAsyncFireAndForget(String key, Object value, Duration ttl) {
         ForkJoinPool.commonPool().execute(() -> {
             try {
-                stringRedisTemplate.opsForValue().set(key, JacksonUtils.toJson(value), ttl);
+                stringRedisTemplate.opsForValue().set(key, OpenObjectMapper.toJson(value), ttl);
             } catch (Exception ignored) {
                 // 可選擇 log.warn("Redis async set failed", e)
             }

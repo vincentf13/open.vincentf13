@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import open.vincentf13.common.core.jackson.JacksonUtils;
+import open.vincentf13.common.core.OpenObjectMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
@@ -18,17 +18,11 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnClass(ObjectMapper.class)
 public class BeanConfig {
 
-    @Bean
-    public JacksonUtils jacksonUtils(ObjectMapper objectMapper) {
-        return new JacksonUtils(objectMapper);
-    }
-
-
     // 統一使用此配置，避免其他套件內的 ObjectMapper 影響。 例如：Spring MVC 取錯ObjectMapper，導致沒使用到此統一配置
     @Primary
     @Bean(name = "jsonMapper")
     public ObjectMapper jsonMapper() {
-        return JsonMapper.builder()
+        ObjectMapper mapper = JsonMapper.builder()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)     // 反序列化忽略未知欄位，防禦外部欄位變動
                 .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)              // 輸出空物件{}時，不報錯
                 .serializationInclusion(JsonInclude.Include.NON_NULL)                         // 略過 null，，縮小輸出
@@ -64,5 +58,8 @@ public class BeanConfig {
                 .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)                       // 用途：序列化 Map 時依 key 排序輸出，確保 JSON 鍵值順序固定。確保輸出一致性，有利於快取比較與測試快照（snapshot testing）。
                 .enable(MapperFeature.REQUIRE_SETTERS_FOR_GETTERS)                            // 用途：若某屬性只有 getter 無 setter，則反序列化報錯。避免一部分資料寫不進去仍默默忽略。
                 .build();
+
+        OpenObjectMapper.register(mapper);
+        return mapper;
     }
 }

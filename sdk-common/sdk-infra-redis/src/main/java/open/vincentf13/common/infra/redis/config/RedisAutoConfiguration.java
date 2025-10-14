@@ -1,7 +1,6 @@
 package open.vincentf13.common.infra.redis.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.common.core.jackson.JacksonUtils;
 import open.vincentf13.common.infra.redis.RedisStringUtils;
 import open.vincentf13.common.infra.redis.RedissonLockUtils;
 import org.redisson.api.RedissonClient;
@@ -57,9 +56,8 @@ public class RedisAutoConfiguration {
     @ConditionalOnBean(StringRedisTemplate.class)
     @ConditionalOnMissingBean
     public RedisStringUtils redisStringUtils(RedisTemplate<String, Object> redisTemplate,
-                                             StringRedisTemplate stringRedisTemplate,
-                                             JacksonUtils jacksonUtils) {
-        return new RedisStringUtils(redisTemplate, stringRedisTemplate, jacksonUtils);
+                                             StringRedisTemplate stringRedisTemplate) {
+        return new RedisStringUtils(redisTemplate, stringRedisTemplate);
     }
 
     @Bean
