@@ -1,4 +1,4 @@
-package open.vincentf13.common.core.validation;
+package open.vincentf13.common.core;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
@@ -27,21 +27,21 @@ import java.util.stream.Collectors;
  * }
  *
  * // 2. 驗證並回傳錯誤訊息集合
- * Set<String> errors = Validators.validate(user);
+ * Set<String> errors = OpenValidator.validate(user);
  * if (!errors.isEmpty()) {
  *     errors.forEach(System.out::println);
  * }
  *
  * // 3. 驗證並在有錯時丟出 IllegalArgumentException
- * Validators.validateOrThrow(user);
+ * OpenValidator.validateOrThrow(user);
  * }</pre>
  */
-public final class Validators {
+public final class OpenValidator {
 
     private static final ValidatorFactory FACTORY = Validation.buildDefaultValidatorFactory();
     private static final Validator VALIDATOR = FACTORY.getValidator();
 
-    private Validators() {}
+    private OpenValidator() {}
 
     /**
      * 驗證物件，回傳錯誤訊息集合。
