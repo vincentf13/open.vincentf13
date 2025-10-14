@@ -76,8 +76,9 @@ public class KafkaProducerAutoConfiguration {
             ObjectProvider<KafkaProducerKeyResolver> keyResolverProvider,
             ObjectProvider<KafkaProducerHeaderResolver> headerResolverProvider
                                                             ) {
-        Function<Object, String> keyFunction = keyResolverProvider.getIfAvailable();
+        // 允許下游模組自行註冊 key/header 解析器，覆寫預設行為。
+        Function<Object, String> defaultKey = keyResolverProvider.getIfAvailable();
         Function<Object, Map<String, Object>> headerFunction = headerResolverProvider.getIfAvailable();
-        return new KafkaProducerServiceImpl<>(kafkaTemplate, objectMapper, keyFunction, headerFunction);
+        return new KafkaProducerServiceImpl<>(kafkaTemplate, objectMapper, defaultKey, headerFunction);
     }
 }

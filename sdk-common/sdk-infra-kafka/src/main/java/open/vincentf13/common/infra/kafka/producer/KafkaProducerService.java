@@ -7,7 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import org.springframework.kafka.support.SendResult;
 
 /**
- * Generic Kafka producer abstraction that always serializes payloads to bytes.
+ * 泛型 Kafka Producer 介面：所有訊息皆序列化為 bytes 傳送。
  */
 public interface KafkaProducerService<T> {
 

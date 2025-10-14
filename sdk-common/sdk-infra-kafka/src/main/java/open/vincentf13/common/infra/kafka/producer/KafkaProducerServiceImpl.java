@@ -1,14 +1,6 @@
 package open.vincentf13.common.infra.kafka.producer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,25 +8,33 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.util.concurrent.ListenableFuture;
 
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
+/**
+ * 預設 Kafka Producer 實作：payload 轉為 bytes，並可透過客製 key/header 解析器擴充行為。
+ */
 public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaProducerServiceImpl.class);
 
     private final KafkaTemplate<String, byte[]> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final Function<Object, String> keyFunction;
-    private final Function<Object, Map<String, Object>> headerFunction;
+    private final Function<Object, String> defaultKey;
+    private final Function<Object, Map<String, Object>> defaultHeaders;
 
     public KafkaProducerServiceImpl(
             KafkaTemplate<String, byte[]> kafkaTemplate,
             ObjectMapper objectMapper,
-            Function<Object, String> keyFunction,
-            Function<Object, Map<String, Object>> headerFunction
+            Function<Object, String> defaultKey,
+            Function<Object, Map<String, Object>> defaultHeaders
     ) {
         this.kafkaTemplate = Objects.requireNonNull(kafkaTemplate, "kafkaTemplate");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
-        this.keyFunction = keyFunction;
-        this.headerFunction = headerFunction;
+        this.defaultKey = defaultKey;
+        this.defaultHeaders = defaultHeaders;
     }
 
     @Override
@@ -60,8 +60,8 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
 
     @Override
     public CompletableFuture<SendResult<String, byte[]>> send(String topic, T msg) {
-        String key = keyFunction != null ? keyFunction.apply(msg) : null;
-        Map<String, Object> headers = headerFunction != null ? headerFunction.apply(msg) : Map.of();
+        String key = defaultKey != null ? defaultKey.apply(msg) : null;
+        Map<String, Object> headers = defaultHeaders != null ? defaultHeaders.apply(msg) : Map.of();
         return send(topic, key, msg, headers);
     }
 
