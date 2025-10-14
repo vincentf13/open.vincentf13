@@ -18,24 +18,35 @@ import java.util.function.Supplier;
  * - 提供 scan 全主節點遍歷（Cluster）與 cache-aside 模式
  */
 
-public class RedisStringUtils {
+public final class OpenRedisString {
 
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final StringRedisTemplate stringRedisTemplate;
+    private static final OpenRedisString INSTANCE = new OpenRedisString();
 
-    public RedisStringUtils(RedisTemplate<String, Object> redisTemplate, StringRedisTemplate stringRedisTemplate) {
-        this.redisTemplate = redisTemplate;
-        this.stringRedisTemplate = stringRedisTemplate;
+    private static RedisTemplate<String, Object> redisTemplate;
+    private static StringRedisTemplate stringRedisTemplate;
+
+    private OpenRedisString() {
+    }
+
+    public static void register(RedisTemplate<String, Object> redisTemplate,
+                                StringRedisTemplate stringRedisTemplate) {
+        OpenRedisString.redisTemplate = redisTemplate;
+        OpenRedisString.stringRedisTemplate = stringRedisTemplate;
+    }
+
+    public static OpenRedisString getInstance() {
+        return INSTANCE;
     }
 
 
     // ===== Cache-Aside =====
     @SuppressWarnings("unchecked")
-    public <T> T getOrLoad(String key, Duration ttl, Class<T> type, Supplier<T> loader) {
-        T hit = (T) redisTemplate.opsForValue().get(key);
+    public static <T> T getOrLoad(String key, Duration ttl, Class<T> type, Supplier<T> loader) {
+        RedisTemplate<String, Object> redis = redisTemplate();
+        T hit = (T) redis.opsForValue().get(key);
         if (hit != null) return hit;
         synchronized (intern(key)) { // 簡易擊穿保護：單機級別
-            T again = (T) redisTemplate.opsForValue().get(key);
+            T again = (T) redis.opsForValue().get(key);
             if (again != null) return again;
             T val = loader.get();
             if (val == null) {
@@ -51,11 +62,12 @@ public class RedisStringUtils {
     /**
      * 非阻塞寫入，有重試機制
      */
-    public CompletableFuture<Boolean> setAsync(String key, Object value, Duration ttl, int retry) {
+    public static CompletableFuture<Boolean> setAsync(String key, Object value, Duration ttl, int retry) {
         return CompletableFuture.supplyAsync(() -> {
+            StringRedisTemplate stringRedis = stringRedisTemplate();
             for (int i = 0; i <= retry; i++) {
                 try {
-                    stringRedisTemplate.opsForValue().set(key, OpenObjectMapper.toJson(value), ttl);
+                    stringRedis.opsForValue().set(key, OpenObjectMapper.toJson(value), ttl);
                     return true;
                 } catch (Exception e) {
                     if (i == retry)
@@ -73,10 +85,11 @@ public class RedisStringUtils {
     /**
      * fire-and-forget 模式，不關心結果
      */
-    public void setAsyncFireAndForget(String key, Object value, Duration ttl) {
+    public static void setAsyncFireAndForget(String key, Object value, Duration ttl) {
+        StringRedisTemplate stringRedis = stringRedisTemplate();
         ForkJoinPool.commonPool().execute(() -> {
             try {
-                stringRedisTemplate.opsForValue().set(key, OpenObjectMapper.toJson(value), ttl);
+                stringRedis.opsForValue().set(key, OpenObjectMapper.toJson(value), ttl);
             } catch (Exception ignored) {
                 // 可選擇 log.warn("Redis async set failed", e)
             }
@@ -92,5 +105,19 @@ public class RedisStringUtils {
     private static Duration randomJitter(Duration max) {
         long ms = (long) (Math.random() * Math.max(1, max.toMillis()));
         return Duration.ofMillis(ms);
+    }
+
+    private static RedisTemplate<String, Object> redisTemplate() {
+        if (redisTemplate == null) {
+            throw new IllegalStateException("OpenRedisString not initialized");
+        }
+        return redisTemplate;
+    }
+
+    private static StringRedisTemplate stringRedisTemplate() {
+        if (stringRedisTemplate == null) {
+            throw new IllegalStateException("OpenRedisString not initialized");
+        }
+        return stringRedisTemplate;
     }
 }

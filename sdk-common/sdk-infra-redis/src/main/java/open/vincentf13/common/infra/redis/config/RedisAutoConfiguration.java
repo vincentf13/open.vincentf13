@@ -1,8 +1,8 @@
 package open.vincentf13.common.infra.redis.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.common.infra.redis.RedisStringUtils;
-import open.vincentf13.common.infra.redis.RedissonLockUtils;
+import open.vincentf13.common.infra.redis.OpenRedisString;
+import open.vincentf13.common.infra.redis.OpenRedissonLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -55,16 +55,18 @@ public class RedisAutoConfiguration {
     @Bean
     @ConditionalOnBean(StringRedisTemplate.class)
     @ConditionalOnMissingBean
-    public RedisStringUtils redisStringUtils(RedisTemplate<String, Object> redisTemplate,
-                                             StringRedisTemplate stringRedisTemplate) {
-        return new RedisStringUtils(redisTemplate, stringRedisTemplate);
+    public OpenRedisString openRedisString(RedisTemplate<String, Object> redisTemplate,
+                                           StringRedisTemplate stringRedisTemplate) {
+        OpenRedisString.register(redisTemplate, stringRedisTemplate);
+        return OpenRedisString.getInstance();
     }
 
     @Bean
     @ConditionalOnBean(RedissonClient.class)
     @ConditionalOnMissingBean
-    public RedissonLockUtils redissonLockManager(RedissonClient redissonClient) {
-        return new RedissonLockUtils(redissonClient);
+    public OpenRedissonLock openRedissonLock(RedissonClient redissonClient) {
+        OpenRedissonLock.register(redissonClient);
+        return OpenRedissonLock.getInstance();
     }
 
 }

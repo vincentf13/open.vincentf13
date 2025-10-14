@@ -11,15 +11,24 @@ import java.util.function.Supplier;
 /**
  * Distributed lock helper backed by Redisson's {@link RLock} implementation.
  */
-public class RedissonLockUtils {
+public final class OpenRedissonLock {
 
-    private final RedissonClient redissonClient;
+    private static final OpenRedissonLock INSTANCE = new OpenRedissonLock();
 
-    public RedissonLockUtils(RedissonClient redissonClient) {
-        this.redissonClient = redissonClient;
+    private static RedissonClient redissonClient;
+
+    private OpenRedissonLock() {
     }
 
-    public <T> T withLock(String key, Duration waitTime, Duration leaseTime, Supplier<T> work) {
+    public static void register(RedissonClient client) {
+        redissonClient = Objects.requireNonNull(client, "redissonClient");
+    }
+
+    public static OpenRedissonLock getInstance() {
+        return INSTANCE;
+    }
+
+    public static <T> T withLock(String key, Duration waitTime, Duration leaseTime, Supplier<T> work) {
         Objects.requireNonNull(work, "work");
         boolean locked = false;
         try {
@@ -39,9 +48,9 @@ public class RedissonLockUtils {
     }
 
 
-    public boolean tryLock(String key, Duration waitTime, Duration leaseTime) throws InterruptedException {
+    public static boolean tryLock(String key, Duration waitTime, Duration leaseTime) throws InterruptedException {
         Objects.requireNonNull(key, "key");
-        RLock lock = redissonClient.getLock(key);
+        RLock lock = client().getLock(key);
         long wait = waitTime == null ? 0 : waitTime.toMillis();
         long lease = leaseTime == null ? -1 : leaseTime.toMillis();
         if (wait <= 0) {
@@ -53,11 +62,18 @@ public class RedissonLockUtils {
         return lock.tryLock(wait, lease, TimeUnit.MILLISECONDS);
     }
 
-    public void unlock(String key) {
+    public static void unlock(String key) {
         Objects.requireNonNull(key, "key");
-        RLock lock = redissonClient.getLock(key);
+        RLock lock = client().getLock(key);
         if (lock.isHeldByCurrentThread()) {
             lock.unlock();
         }
+    }
+
+    private static RedissonClient client() {
+        if (redissonClient == null) {
+            throw new IllegalStateException("OpenRedissonLock not initialized");
+        }
+        return redissonClient;
     }
 }
