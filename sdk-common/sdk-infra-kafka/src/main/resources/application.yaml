@@ -1,0 +1,25 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    admin:
+      auto-create: true     # 預設 true，偵測到 NewTopic 就建立
+      fail-fast: true       # 若 Kafka broker 無法連線則啟動失敗
+    producer:
+      # 預設使用 byte[] 序列化，統一交由 ObjectMapper 控制 payload 編碼
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      properties:
+        # 傳輸可靠性
+        acks: all
+        enable.idempotence: true
+        # 壓縮與批次
+        compression.type: zstd
+        linger.ms: 20
+        batch.size: 131072
+        buffer.memory: 67108864
+        # 重試與順序控制
+        retries: 10
+        max.in.flight.requests.per.connection: 5
+        # 傳送逾時設定
+        request.timeout.ms: 30000
+        delivery.timeout.ms: 120000

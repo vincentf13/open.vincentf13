@@ -30,7 +30,7 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
             ObjectMapper objectMapper,
             Function<Object, String> defaultKey,
             Function<Object, Map<String, Object>> defaultHeaders
-    ) {
+                                   ) {
         this.kafkaTemplate = Objects.requireNonNull(kafkaTemplate, "kafkaTemplate");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.defaultKey = defaultKey;
@@ -43,7 +43,7 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
             String key,
             T msg,
             Map<String, Object> headers
-    ) {
+                                                             ) {
         Objects.requireNonNull(topic, "topic");
         Objects.requireNonNull(msg, "msg");
         try {
@@ -69,7 +69,7 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
     public CompletableFuture<List<SendResult<String, byte[]>>> sendBatch(
             String topic,
             Collection<? extends T> msgs
-    ) {
+                                                                        ) {
         Objects.requireNonNull(msgs, "msgs");
         List<CompletableFuture<SendResult<String, byte[]>>> futures = new ArrayList<>(msgs.size());
         for (T message : msgs) {
@@ -88,8 +88,8 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
             }
             try {
                 byte[] bytes = headerValue instanceof String value
-                        ? value.getBytes(StandardCharsets.UTF_8)
-                        : objectMapper.writeValueAsBytes(headerValue);
+                               ? value.getBytes(StandardCharsets.UTF_8)
+                               : objectMapper.writeValueAsBytes(headerValue);
                 record.headers().add(headerKey, bytes);
             } catch (Exception ex) {
                 log.warn("Failed to encode Kafka header, key={}", headerKey, ex);
@@ -110,7 +110,7 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
 
     private static <K, V> CompletableFuture<SendResult<K, V>> toCompletableFuture(
             ListenableFuture<SendResult<K, V>> listenableFuture
-    ) {
+                                                                                 ) {
         CompletableFuture<SendResult<K, V>> completableFuture = new CompletableFuture<>();
         listenableFuture.addCallback(completableFuture::complete, completableFuture::completeExceptionally);
         return completableFuture;
