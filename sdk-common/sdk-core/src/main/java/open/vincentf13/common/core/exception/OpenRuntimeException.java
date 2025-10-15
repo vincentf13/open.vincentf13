@@ -1,37 +1,37 @@
-package open.vincentf13.common.core.exception.contractor;
+package open.vincentf13.common.core.exception;
 
-import open.vincentf13.common.core.exception.ErrorCode;
+import open.vincentf13.common.core.error.OpenError;
 
 import java.util.Map;
 
-public abstract class BaseRuntimeException extends RuntimeException implements CommonException {
+public abstract class OpenRuntimeException extends RuntimeException implements OpenException {
 
     private final String code;
     private final Map<String, Object> meta;
 
 
 
-    public BaseRuntimeException(ErrorCode error, String errorMessage) {
+    public OpenRuntimeException(OpenError error, String errorMessage) {
         super(errorMessage == null ? error.message() : errorMessage);
         this.code = error.code();
         this.meta = initMeta();
     }
 
 
-    public BaseRuntimeException(ErrorCode error, String errorMessage, Throwable rootCause) {
+    public OpenRuntimeException(OpenError error, String errorMessage, Throwable rootCause) {
         super(errorMessage == null ? error.message() : errorMessage, rootCause);
         this.code = error.code();
         this.meta = initMeta();
     }
 
-    public BaseRuntimeException(ErrorCode error, String errorMessage, Map<String, Object> meta) {
+    public OpenRuntimeException(OpenError error, String errorMessage, Map<String, Object> meta) {
         super(errorMessage == null ? error.message() : errorMessage);
         this.code = error.code();
         meta.putAll(initMeta());
         this.meta = meta;
     }
 
-    public BaseRuntimeException(ErrorCode error, String errorMessage, Map<String, Object> meta, Throwable rootCause) {
+    public OpenRuntimeException(OpenError error, String errorMessage, Map<String, Object> meta, Throwable rootCause) {
         super(errorMessage == null ? error.message() : errorMessage, rootCause);
         this.code = error.code();
         meta.putAll(initMeta());

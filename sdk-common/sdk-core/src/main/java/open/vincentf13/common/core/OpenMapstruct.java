@@ -1,4 +1,4 @@
-//package open.vincentf13.common.core.mapstruct;
+//package open.vincentf13.common.core;
 //
 //import org.mapstruct.Mapper;
 //import org.mapstruct.TargetType;
@@ -8,7 +8,7 @@
 //
 //@Service
 //@Mapper(componentModel = "spring")
-//public interface CommonMapper {
+//public interface OpenMapstruct {
 //
 //    /*
 //     * Usage example:

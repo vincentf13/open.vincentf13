@@ -4,8 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.common.core.exception.BackendErrorCodes;
-import open.vincentf13.common.core.exception.ControllerException;
+import open.vincentf13.common.core.error.OpenErrorEnum;
+import open.vincentf13.common.core.exception.OpenApiException;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.spring.mvc.response.ApiResponse;
 import org.springframework.context.MessageSource;
@@ -64,9 +64,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
                         (left, right) -> right,
                         LinkedHashMap::new));
         meta.put("errors", errors);
-        ApiResponse<Object> body = ApiResponse.failure(BackendErrorCodes.REQUEST_VALIDATION_FAILED.code(),
-                resolveMessage("error.validation", BackendErrorCodes.REQUEST_VALIDATION_FAILED.message()),
-                meta);
+        ApiResponse<Object> body = ApiResponse.failure(OpenErrorEnum.REQUEST_VALIDATION_FAILED.code(),
+                                                       resolveMessage("error.validation", OpenErrorEnum.REQUEST_VALIDATION_FAILED.message()),
+                                                       meta);
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -83,9 +83,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
                         (left, right) -> right,
                         LinkedHashMap::new));
         meta.put("errors", errors);
-        ApiResponse<Object> body = ApiResponse.failure(BackendErrorCodes.REQUEST_VALIDATION_FAILED.code(),
-                resolveMessage("error.validation", BackendErrorCodes.REQUEST_VALIDATION_FAILED.message()),
-                meta);
+        ApiResponse<Object> body = ApiResponse.failure(OpenErrorEnum.REQUEST_VALIDATION_FAILED.code(),
+                                                       resolveMessage("error.validation", OpenErrorEnum.REQUEST_VALIDATION_FAILED.message()),
+                                                       meta);
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -97,9 +97,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
         meta.put("parameter", ex.getParameterName());
-        ApiResponse<Object> body = ApiResponse.failure(BackendErrorCodes.REQUEST_PARAMETER_MISSING.code(),
-                resolveMessage("error.missing-parameter", BackendErrorCodes.REQUEST_PARAMETER_MISSING.message()),
-                meta);
+        ApiResponse<Object> body = ApiResponse.failure(OpenErrorEnum.REQUEST_PARAMETER_MISSING.code(),
+                                                       resolveMessage("error.missing-parameter", OpenErrorEnum.REQUEST_PARAMETER_MISSING.message()),
+                                                       meta);
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -116,9 +116,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
                 "reason", reason);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
         meta.put("reason", reason);
-        ApiResponse<Object> body = ApiResponse.failure(BackendErrorCodes.REQUEST_PAYLOAD_UNREADABLE.code(),
-                resolveMessage("error.bad-request", BackendErrorCodes.REQUEST_PAYLOAD_UNREADABLE.message()),
-                meta);
+        ApiResponse<Object> body = ApiResponse.failure(OpenErrorEnum.REQUEST_PAYLOAD_UNREADABLE.code(),
+                                                       resolveMessage("error.bad-request", OpenErrorEnum.REQUEST_PAYLOAD_UNREADABLE.message()),
+                                                       meta);
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -132,9 +132,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
         if (!CollectionUtils.isEmpty(ex.getSupportedHttpMethods())) {
             meta.put("supportedMethods", ex.getSupportedHttpMethods().stream().map(org.springframework.http.HttpMethod::name).toList());
         }
-        ApiResponse<Object> body = ApiResponse.failure(BackendErrorCodes.HTTP_METHOD_NOT_ALLOWED.code(),
-                resolveMessage("error.method-not-supported", BackendErrorCodes.HTTP_METHOD_NOT_ALLOWED.message()),
-                meta);
+        ApiResponse<Object> body = ApiResponse.failure(OpenErrorEnum.HTTP_METHOD_NOT_ALLOWED.code(),
+                                                       resolveMessage("error.method-not-supported", OpenErrorEnum.HTTP_METHOD_NOT_ALLOWED.message()),
+                                                       meta);
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
     }
 
@@ -151,17 +151,17 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
                         (left, right) -> right,
                         LinkedHashMap::new));
         meta.put("errors", errors);
-        ApiResponse<Object> body = ApiResponse.failure(BackendErrorCodes.REQUEST_VALIDATION_FAILED.code(),
-                resolveMessage("error.validation", BackendErrorCodes.REQUEST_VALIDATION_FAILED.message()),
-                meta);
+        ApiResponse<Object> body = ApiResponse.failure(OpenErrorEnum.REQUEST_VALIDATION_FAILED.code(),
+                                                       resolveMessage("error.validation", OpenErrorEnum.REQUEST_VALIDATION_FAILED.message()),
+                                                       meta);
         return ResponseEntity.badRequest().body(body);
     }
 
     /**
      * 將業務層主動拋出的 ControllerException 轉為 500 響應。
      */
-    @ExceptionHandler(ControllerException.class)
-    public ResponseEntity<ApiResponse<Object>> handleControllerException(ControllerException ex,
+    @ExceptionHandler(OpenApiException.class)
+    public ResponseEntity<ApiResponse<Object>> handleControllerException(OpenApiException ex,
                                                                          HttpServletRequest request) {
         OpenLog.warn(log, "ControllerException", "Controller exception",
                 ex,
@@ -184,9 +184,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler impleme
                 ex,
                 "path", request != null ? request.getRequestURI() : "unknown");
         Map<String, Object> meta = baseMeta(request, HttpStatus.INTERNAL_SERVER_ERROR);
-        ApiResponse<Object> body = ApiResponse.failure(BackendErrorCodes.INTERNAL_ERROR.code(),
-                resolveMessage("error.internal", BackendErrorCodes.INTERNAL_ERROR.message()),
-                meta);
+        ApiResponse<Object> body = ApiResponse.failure(OpenErrorEnum.INTERNAL_ERROR.code(),
+                                                       resolveMessage("error.internal", OpenErrorEnum.INTERNAL_ERROR.message()),
+                                                       meta);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
