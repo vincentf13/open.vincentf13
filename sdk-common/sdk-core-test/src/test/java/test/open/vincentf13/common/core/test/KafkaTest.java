@@ -18,6 +18,14 @@ import org.springframework.test.context.DynamicPropertySource;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+
+/**
+ * Kafka 容器整合測試
+ * 使用 dokcer Kafka 容器運行 Kafka 測試
+ * 各測試方法前後 動態建立 隨機topic，各測試互相隔離，可使用平行測試，提升效能。
+ * 若配置 open.vincentf13.common.core.test.testcontainer.kafka.enabled=false
+ * 則連到真實數據庫，不啟用 kafka 容器
+ */
 @SpringBootTest(
         classes = KafkaTest.KafkaTestConfig.class,
         properties = {
