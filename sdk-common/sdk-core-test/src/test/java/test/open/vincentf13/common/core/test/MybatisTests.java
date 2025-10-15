@@ -1,9 +1,10 @@
 package test.open.vincentf13.common.core.test;
 
 import open.vincentf13.common.core.test.OpenMySqlTestContainer;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,37 +13,37 @@ import org.springframework.test.context.DynamicPropertySource;
 import test.open.vincentf13.common.core.test.Sample.MybatisUser;
 import test.open.vincentf13.common.core.test.Sample.MybatisUserMapper;
 
-import javax.sql.DataSource;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
-// MyBatis 切片測試：透過 Mapper 驗證 MySQL 臨時資料庫的增刪查
-@org.mybatis.spring.boot.test.autoconfigure.MybatisTest
+
+/**
+ * MyBatis 切片測試：透過 Mapper 驗證 MySQL 臨時資料庫的增刪查
+ * @see test.open.vincentf13.common.core.test.MysqlTest
+  */
+
+@MybatisTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class MybatisTest {
+class MybatisTests {
 
     @DynamicPropertySource
     static void registerMysqlProperties(DynamicPropertyRegistry registry) {
         OpenMySqlTestContainer.register(registry);
     }
 
-    private static final String TABLE_DDL = "CREATE TABLE mybatis_users (" +
-            "id BIGINT PRIMARY KEY AUTO_INCREMENT, " +
-            "name VARCHAR(64) NOT NULL" +
-            ")";
-
-    @Autowired
-    private DataSource dataSource;
-
     @Autowired
     private MybatisUserMapper mapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
     void resetSchema() {
         OpenMySqlTestContainer.prepareSchema();
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         jdbcTemplate.execute("DROP TABLE IF EXISTS mybatis_users");
-        jdbcTemplate.execute(TABLE_DDL);
+        jdbcTemplate.execute("CREATE TABLE mybatis_users (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT, " +
+            "name VARCHAR(64) NOT NULL" +
+            ")");
     }
 
     @Test
@@ -59,8 +60,8 @@ class MybatisTest {
         assertThat(mapper.countAll()).isEqualTo(1);
     }
 
-    @AfterEach
-    void cleanupSchema() {
-//        OpenMySqlTestContainer.cleanupCurrentSchema();
+    @AfterAll
+    static void cleanupSchema() {
+        OpenMySqlTestContainer.clearAdminConnection();
     }
 }
