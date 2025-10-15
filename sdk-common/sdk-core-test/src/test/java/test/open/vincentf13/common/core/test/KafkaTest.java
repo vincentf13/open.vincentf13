@@ -1,25 +1,23 @@
 package test.open.vincentf13.common.core.test;
 
+import open.vincentf13.common.core.test.KafkaTestSupport;
 import open.vincentf13.common.core.test.OpenKafkaTestContainer;
-import org.apache.kafka.clients.admin.NewTopic;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.config.TopicBuilder;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.KafkaMessageListenerContainer;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.concurrent.atomic.AtomicReference;
 
 @SpringBootTest(
         classes = KafkaTest.KafkaTestConfig.class,
@@ -30,51 +28,51 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         },
         webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
-@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-public class KafkaTest {
+class KafkaTest {
 
     @DynamicPropertySource
     static void registerKafkaProperties(DynamicPropertyRegistry registry) {
         OpenKafkaTestContainer.register(registry);
-        final String topicName = OpenKafkaTestContainer.newTopicName();
-        registry.add("app.topic", () -> topicName);
     }
 
-    @Value("${app.topic}")
-    private String topic;
     @Autowired
-    KafkaTemplate<String, String> kafkaTemplate;
+    private KafkaTemplate<String, String> kafkaTemplate;
+
     @Autowired
-    TestListener listener;
+    private KafkaAdmin kafkaAdmin;
+
+    @Autowired
+    private ConsumerFactory<String, String> consumerFactory;
+
+    @BeforeEach
+    void prepareTopic() {
+        KafkaTestSupport.prepareTopic(kafkaAdmin);
+    }
+
+    @AfterEach
+    void clearTopic() {
+        KafkaTestSupport.clearTopic();
+    }
 
     @Test
-    void send_and_receive() throws Exception {
-        kafkaTemplate.send(topic, "k1", "v1").get(5, TimeUnit.SECONDS);
-        assertTrue(listener.latch.await(5, TimeUnit.SECONDS));
-        assertEquals("v1", listener.payload);
-    }
+    void sendAndReceive() throws Exception {
+        AtomicReference<String> payload = new AtomicReference<>();
+        CountDownLatch latch = KafkaTestSupport.expectPayload(payload);
 
-    static class TestListener {
-        final CountDownLatch latch = new CountDownLatch(1);
-        volatile String payload;
-
-        @KafkaListener(topics = "${app.topic}")
-        void onMessage(String v) {
-            payload = v;
-            latch.countDown();
+        KafkaMessageListenerContainer<String, String> listenerContainer = KafkaTestSupport.startListener(
+                consumerFactory,
+                KafkaTestSupport.currentTopic(),
+                KafkaTestSupport.buildPayloadListener(payload, latch));
+        try {
+            kafkaTemplate.send(KafkaTestSupport.currentTopic(), "k1", "v1").get();
+            KafkaTestSupport.assertReceived(latch, payload, "v1");
+        } finally {
+            KafkaTestSupport.stopListener(listenerContainer);
         }
     }
+
     @TestConfiguration
-    @EnableAutoConfiguration   // 讓 Spring Kafka 自動建立 KafkaTemplate/Factories
+    @EnableAutoConfiguration
     static class KafkaTestConfig {
-        @Bean
-        NewTopic topic(@Value("${app.topic}") String name) {
-            return TopicBuilder.name(name).partitions(1).replicas(1).build();
-        }
-
-        @Bean
-        TestListener testListener() {
-            return new TestListener();
-        }
     }
 }
