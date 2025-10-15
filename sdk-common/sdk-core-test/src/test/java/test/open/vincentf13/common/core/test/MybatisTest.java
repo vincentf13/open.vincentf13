@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import test.open.vincentf13.common.core.test.Sample.MybatisUser;
@@ -20,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 // MyBatis 切片測試：透過 Mapper 驗證 MySQL 臨時資料庫的增刪查
 @org.mybatis.spring.boot.test.autoconfigure.MybatisTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class MybatisTest {
 
     @DynamicPropertySource
@@ -41,6 +39,7 @@ class MybatisTest {
 
     @BeforeEach
     void resetSchema() {
+        OpenMySqlTestContainer.prepareSchema(dataSource);
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         jdbcTemplate.execute("DROP TABLE IF EXISTS mybatis_users");
         jdbcTemplate.execute(TABLE_DDL);
@@ -62,6 +61,6 @@ class MybatisTest {
 
     @AfterEach
     void cleanupSchema() {
-        OpenMySqlTestContainer.cleanupCurrentSchema();
+        OpenMySqlTestContainer.cleanupCurrentSchema(dataSource);
     }
 }

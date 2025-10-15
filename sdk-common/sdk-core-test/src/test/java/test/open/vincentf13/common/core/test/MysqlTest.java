@@ -9,9 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+
+import javax.sql.DataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,9 +24,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @JdbcTest // 啟用 Spring JDBC 測試切片，只載入 DataSource / JdbcTemplate 相關 Bean
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE) // 使用自訂資料來源（Testcontainers），不要替換成內建資料庫
-// 每個測試方法後銷毀 ApplicationContext，避免快取舊 schema 設定
-// 它不會重啟 Testcontainers： OpenMySqlTestContainer 的 MYSQL 是 static 單例，所以容器還是只起一次。
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class MysqlTest {
 
     /**
@@ -41,9 +39,12 @@ class MysqlTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private DataSource dataSource;
 
     @BeforeEach
     void createSchema() {
+        OpenMySqlTestContainer.prepareSchema(dataSource);
         jdbcTemplate.execute("DROP TABLE IF EXISTS users");
         jdbcTemplate.execute(
                 "CREATE TABLE users (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) NOT NULL)");
@@ -62,7 +63,7 @@ class MysqlTest {
 
     @AfterEach
     void cleanupSchema() {
-        OpenMySqlTestContainer.cleanupCurrentSchema();
+        OpenMySqlTestContainer.cleanupCurrentSchema(dataSource);
     }
 
 }
