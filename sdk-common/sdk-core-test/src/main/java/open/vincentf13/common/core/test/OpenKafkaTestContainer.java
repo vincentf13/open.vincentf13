@@ -14,7 +14,6 @@ public final class OpenKafkaTestContainer {
 
     private static final ToggleableKafkaContainer KAFKA =
             new ToggleableKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
-    private static final String TOPIC = "t-" + UUID.randomUUID();
 
     private OpenKafkaTestContainer() {
     }
@@ -25,15 +24,14 @@ public final class OpenKafkaTestContainer {
         }
         KAFKA.start();
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
-        registry.add("app.topic", OpenKafkaTestContainer::topic);
-    }
-
-    public static String topic() {
-        return TOPIC;
     }
 
     public static KafkaContainer container() {
         return KAFKA;
+    }
+
+    public static String newTopicName() {
+        return "kafka-test-" + UUID.randomUUID();
     }
 
     private static final class ToggleableKafkaContainer extends KafkaContainer {

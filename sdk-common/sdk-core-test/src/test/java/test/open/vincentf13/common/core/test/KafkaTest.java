@@ -30,12 +30,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         },
         webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class KafkaTest {
 
     @DynamicPropertySource
     static void registerKafkaProperties(DynamicPropertyRegistry registry) {
         OpenKafkaTestContainer.register(registry);
+        final String topicName = OpenKafkaTestContainer.newTopicName();
+        registry.add("app.topic", () -> topicName);
     }
+
+    @Value("${app.topic}")
+    private String topic;
     @Autowired
     KafkaTemplate<String, String> kafkaTemplate;
     @Autowired
@@ -43,7 +49,7 @@ public class KafkaTest {
 
     @Test
     void send_and_receive() throws Exception {
-        kafkaTemplate.send(OpenKafkaTestContainer.topic(), "k1", "v1").get(5, TimeUnit.SECONDS);
+        kafkaTemplate.send(topic, "k1", "v1").get(5, TimeUnit.SECONDS);
         assertTrue(listener.latch.await(5, TimeUnit.SECONDS));
         assertEquals("v1", listener.payload);
     }
