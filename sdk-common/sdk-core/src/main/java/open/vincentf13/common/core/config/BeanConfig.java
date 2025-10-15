@@ -1,4 +1,4 @@
-package open.vincentf13.common.core.autoconfigure;
+package open.vincentf13.common.core.config;
 
 
 import com.fasterxml.jackson.annotation.JsonInclude;

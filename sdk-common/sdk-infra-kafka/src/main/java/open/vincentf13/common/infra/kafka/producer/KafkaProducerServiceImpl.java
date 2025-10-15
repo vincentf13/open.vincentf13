@@ -11,12 +11,16 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.util.concurrent.ListenableFuture;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /**
- * 預設 Kafka Producer 實作：payload 轉為 bytes，並可透過客製 key/header 解析器擴充行為。
+ * 預設 Kafka Producer 實作：payload 轉為 bytes，呼叫端可在批次送出時傳入客製 key/header 解析器。
  */
 public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
 
@@ -24,19 +28,13 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
 
     private final KafkaTemplate<String, byte[]> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final Function<Object, String> defaultKey;
-    private final Function<Object, Map<String, Object>> defaultHeaders;
 
     public KafkaProducerServiceImpl(
             KafkaTemplate<String, byte[]> kafkaTemplate,
-            ObjectMapper objectMapper,
-            Function<Object, String> defaultKey,
-            Function<Object, Map<String, Object>> defaultHeaders
+            ObjectMapper objectMapper
                                    ) {
         this.kafkaTemplate = Objects.requireNonNull(kafkaTemplate, "kafkaTemplate");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
-        this.defaultKey = defaultKey;
-        this.defaultHeaders = defaultHeaders;
     }
 
     @Override
@@ -67,20 +65,25 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
 
     @Override
     public CompletableFuture<SendResult<String, byte[]>> send(String topic, T msg) {
-        String key = defaultKey != null ? defaultKey.apply(msg) : null;
-        Map<String, Object> headers = defaultHeaders != null ? defaultHeaders.apply(msg) : Map.of();
-        return send(topic, key, msg, headers);
+        return send(topic, null, msg, Map.of());
     }
 
     @Override
     public CompletableFuture<List<SendResult<String, byte[]>>> sendBatch(
             String topic,
-            Collection<? extends T> msgs
+            Collection<? extends T> msgs,
+            Function<Object, String> keyResolver,
+            Function<Object, Map<String, Object>> headerResolver
                                                                         ) {
         Objects.requireNonNull(msgs, "msgs");
         List<CompletableFuture<SendResult<String, byte[]>>> futures = new ArrayList<>(msgs.size());
         for (T message : msgs) {
-            futures.add(send(topic, message));
+            String key = keyResolver != null ? keyResolver.apply(message) : null;
+            Map<String, Object> headers = headerResolver != null ? headerResolver.apply(message) : Map.of();
+            if (headers == null) {
+                headers = Map.of();
+            }
+            futures.add(send(topic, key, message, headers));
         }
         return sequence(futures);
     }

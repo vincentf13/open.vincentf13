@@ -33,16 +33,14 @@ class KafkaProducerServiceImplTests {
             return completableFuture;
         });
 
-        KafkaProducerServiceImpl<Map<String, Object>> service = new KafkaProducerServiceImpl<>(
-                kafkaTemplate,
-                objectMapper,
-                payload -> (String) ((Map<?, ?>) payload).get("orderId"),
-                payload -> Map.of("source", "api", "attempt", 1)
-        );
+        KafkaProducerServiceImpl<Map<String, Object>> service =
+                new KafkaProducerServiceImpl<>(kafkaTemplate, objectMapper);
 
         Map<String, Object> message = Map.of("orderId", "O-1", "userId", "U-9");
+        Map<String, Object> headers = Map.of("source", "api", "attempt", 1);
 
-        CompletableFuture<SendResult<String, byte[]>> resultFuture = service.send("orders", message);
+        CompletableFuture<SendResult<String, byte[]>> resultFuture =
+                service.send("orders", (String) message.get("orderId"), message, headers);
 
         ProducerRecord<String, byte[]> sentRecord = capturedRecord.get();
         completableFuture.complete(new SendResult<>(sentRecord, null));
@@ -67,9 +65,7 @@ class KafkaProducerServiceImplTests {
 
         KafkaProducerServiceImpl<Object> service = new KafkaProducerServiceImpl<>(
                 kafkaTemplate,
-                failingMapper,
-                null,
-                null
+                failingMapper
         );
 
         CompletableFuture<SendResult<String, byte[]>> future = service.send("topic", Map.of());
@@ -91,15 +87,16 @@ class KafkaProducerServiceImplTests {
             return future;
         });
 
-        KafkaProducerServiceImpl<Map<String, Object>> service = new KafkaProducerServiceImpl<>(
-                kafkaTemplate,
-                objectMapper,
-                null,
-                null
-        );
+        KafkaProducerServiceImpl<Map<String, Object>> service =
+                new KafkaProducerServiceImpl<>(kafkaTemplate, objectMapper);
 
         List<Map<String, Object>> payloads = List.of(Map.of("id", 1), Map.of("id", 2));
-        CompletableFuture<List<SendResult<String, byte[]>>> batchFuture = service.sendBatch("batch", payloads);
+        CompletableFuture<List<SendResult<String, byte[]>>> batchFuture = service.sendBatch(
+                "batch",
+                payloads,
+                payload -> "key-" + ((Map<?, ?>) payload).get("id"),
+                payload -> Map.of("attempt", 1)
+        );
 
         for (int i = 0; i < futures.size(); i++) {
             futures.get(i).complete(new SendResult<>(records.get(i), null));
@@ -108,5 +105,6 @@ class KafkaProducerServiceImplTests {
         List<SendResult<String, byte[]>> results = batchFuture.join();
         assertEquals(2, results.size());
         assertEquals("batch", records.getFirst().topic());
+        assertEquals("key-1", records.getFirst().key());
     }
 }
