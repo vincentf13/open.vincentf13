@@ -44,7 +44,7 @@ class MysqlTest {
 
     @BeforeEach
     void createSchema() {
-        OpenMySqlTestContainer.prepareSchema(dataSource);
+        OpenMySqlTestContainer.prepareSchema();
         jdbcTemplate.execute("DROP TABLE IF EXISTS users");
         jdbcTemplate.execute(
                 "CREATE TABLE users (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) NOT NULL)");
@@ -63,7 +63,7 @@ class MysqlTest {
 
     @AfterEach
     void cleanupSchema() {
-        OpenMySqlTestContainer.cleanupCurrentSchema(dataSource);
+        OpenMySqlTestContainer.cleanupCurrentSchema();
     }
 
 }

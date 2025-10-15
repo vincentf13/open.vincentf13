@@ -4,7 +4,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -23,6 +22,7 @@ public final class OpenMySqlTestContainer {
                     .withDatabaseName("test");
 
     private static final ThreadLocal<String> CURRENT_SCHEMA = new ThreadLocal<>();
+    private static final ThreadLocal<Connection> ADMIN_CONNECTION = new ThreadLocal<>();
 
     private OpenMySqlTestContainer() {
     }
@@ -51,28 +51,31 @@ public final class OpenMySqlTestContainer {
     /**
      * 為即將執行的測試方法建立隔離 schema，並將資料來源切換到該 schema。
      */
-    public static String prepareSchema(DataSource dataSource) {
+    public static String prepareSchema() {
         if (!TestContainerSettings.mysqlEnabled()) {
             CURRENT_SCHEMA.remove();
+            clearAdminConnection();
             return null;
         }
+        MYSQL.start();
         String schema = "test_" + UUID.randomUUID().toString().replace('-', '_');
         createSchema(schema);
         CURRENT_SCHEMA.set(schema);
-        switchSchema(schema);
+        switchSchema( schema);
         return schema;
     }
 
     /**
      * 測試方法完成後清理 schema，並恢復資料來源預設 schema。
      */
-    public static void cleanupCurrentSchema(DataSource dataSource) {
+    public static void cleanupCurrentSchema() {
         if (!TestContainerSettings.mysqlEnabled()) {
             CURRENT_SCHEMA.remove();
+            clearAdminConnection();
             return;
         }
-        switchSchema(MYSQL.getDatabaseName());
         String schema = CURRENT_SCHEMA.get();
+        switchSchema( MYSQL.getDatabaseName());
         if (schema != null) {
             dropSchema(schema);
         }
@@ -92,9 +95,7 @@ public final class OpenMySqlTestContainer {
     }
 
     private static void execute(String sql) {
-        try (Connection connection = DriverManager.getConnection(
-                MYSQL.getJdbcUrl(), rootUser(), rootPassword());
-             Statement statement = connection.createStatement()) {
+        try (Statement statement = adminConnection().createStatement()) {
             statement.execute(sql);
         } catch (SQLException ex) {
             throw new IllegalStateException("Failed to execute SQL on MySQL test container", ex);
@@ -120,6 +121,46 @@ public final class OpenMySqlTestContainer {
 
     private static String rootPassword() {
         return MYSQL.getPassword();
+    }
+
+    private static Connection adminConnection() {
+        Connection connection = ADMIN_CONNECTION.get();
+        if (connection == null || isConnectionInvalid(connection)) {
+            connection = createAdminConnection();
+            ADMIN_CONNECTION.set(connection);
+        }
+        return connection;
+    }
+
+    private static Connection createAdminConnection() {
+        try {
+            Connection connection = DriverManager.getConnection(MYSQL.getJdbcUrl(), rootUser(), rootPassword());
+            connection.setAutoCommit(true);
+            return connection;
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Failed to obtain admin connection for MySQL test container", ex);
+        }
+    }
+
+    private static boolean isConnectionInvalid(Connection connection) {
+        try {
+            return connection.isClosed() || !connection.isValid(1);
+        } catch (SQLException ex) {
+            return true;
+        }
+    }
+
+    private static void clearAdminConnection() {
+        Connection connection = ADMIN_CONNECTION.get();
+        if (connection != null) {
+            try {
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
+            } catch (SQLException ignored) {
+            }
+            ADMIN_CONNECTION.remove();
+        }
     }
 
     private static final class ToggleableMySqlContainer extends MySQLContainer<ToggleableMySqlContainer> {

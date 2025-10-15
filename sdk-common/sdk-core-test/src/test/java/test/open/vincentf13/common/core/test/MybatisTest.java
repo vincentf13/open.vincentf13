@@ -39,7 +39,7 @@ class MybatisTest {
 
     @BeforeEach
     void resetSchema() {
-        OpenMySqlTestContainer.prepareSchema(dataSource);
+        OpenMySqlTestContainer.prepareSchema();
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         jdbcTemplate.execute("DROP TABLE IF EXISTS mybatis_users");
         jdbcTemplate.execute(TABLE_DDL);
@@ -61,6 +61,6 @@ class MybatisTest {
 
     @AfterEach
     void cleanupSchema() {
-        OpenMySqlTestContainer.cleanupCurrentSchema(dataSource);
+        OpenMySqlTestContainer.cleanupCurrentSchema();
     }
 }
