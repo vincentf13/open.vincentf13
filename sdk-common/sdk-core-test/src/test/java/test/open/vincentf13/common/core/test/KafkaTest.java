@@ -1,6 +1,5 @@
 package test.open.vincentf13.common.core.test;
 
-import open.vincentf13.common.core.test.KafkaTestSupport;
 import open.vincentf13.common.core.test.OpenKafkaTestContainer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,28 +45,31 @@ class KafkaTest {
 
     @BeforeEach
     void prepareTopic() {
-        KafkaTestSupport.prepareTopic(kafkaAdmin);
+        // 為每個測試建立隔離的 topic，避免平行測試互相干擾
+        OpenKafkaTestContainer.prepareTopic(kafkaAdmin);
     }
 
     @AfterEach
     void clearTopic() {
-        KafkaTestSupport.clearTopic();
+        OpenKafkaTestContainer.clearTopic();
     }
 
     @Test
     void sendAndReceive() throws Exception {
-        AtomicReference<String> payload = new AtomicReference<>();
-        CountDownLatch latch = KafkaTestSupport.expectPayload(payload);
+        AtomicReference<String> payload = new AtomicReference<>(null);
+        CountDownLatch latch = new CountDownLatch(1);
 
-        KafkaMessageListenerContainer<String, String> listenerContainer = KafkaTestSupport.startListener(
+        KafkaMessageListenerContainer<String, String> container = OpenKafkaTestContainer.startListener(
                 consumerFactory,
-                KafkaTestSupport.currentTopic(),
-                KafkaTestSupport.buildPayloadListener(payload, latch));
+                OpenKafkaTestContainer.currentTopic(),
+                OpenKafkaTestContainer.buildPayloadListener(payload, latch));
         try {
-            kafkaTemplate.send(KafkaTestSupport.currentTopic(), "k1", "v1").get();
-            KafkaTestSupport.assertReceived(latch, payload, "v1");
+            // 送出訊息並等待 listener 收到後將 latch 倒扣
+            kafkaTemplate.send(OpenKafkaTestContainer.currentTopic(), "k1", "v1").get();
+            OpenKafkaTestContainer.assertReceived(latch, payload, "v1");
         } finally {
-            KafkaTestSupport.stopListener(listenerContainer);
+            // 測試完成後確保 listener 停止，不留背景執行緒
+            OpenKafkaTestContainer.stopListener(container);
         }
     }
 
