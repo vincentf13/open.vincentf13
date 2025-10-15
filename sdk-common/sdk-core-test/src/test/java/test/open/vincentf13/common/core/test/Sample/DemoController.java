@@ -1,4 +1,4 @@
-package open.vincentf13.common.core.test;
+package test.open.vincentf13.common.core.test.Sample;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

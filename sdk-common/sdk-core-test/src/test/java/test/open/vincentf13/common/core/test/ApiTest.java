@@ -1,7 +1,7 @@
 package test.open.vincentf13.common.core.test;
 
 
-import open.vincentf13.common.core.test.DemoController;
+import test.open.vincentf13.common.core.test.Sample.DemoController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
