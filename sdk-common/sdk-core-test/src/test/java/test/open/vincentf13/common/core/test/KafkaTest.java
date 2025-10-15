@@ -5,11 +5,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.KafkaMessageListenerContainer;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -43,16 +42,10 @@ class KafkaTest {
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
 
-    @Autowired
-    private KafkaAdmin kafkaAdmin;
-
-    @Autowired
-    private ConsumerFactory<String, String> consumerFactory;
-
     @BeforeEach
     void prepareTopic() {
         // 為每個測試建立隔離的 topic，避免平行測試互相干擾
-        OpenKafkaTestContainer.prepareTopic(kafkaAdmin);
+        OpenKafkaTestContainer.prepareTopic();
     }
 
     @AfterEach
@@ -66,7 +59,6 @@ class KafkaTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         KafkaMessageListenerContainer<String, String> container = OpenKafkaTestContainer.startListener(
-                consumerFactory,
                 OpenKafkaTestContainer.currentTopic(),
                 OpenKafkaTestContainer.buildListener(payload, latch));
         try {
@@ -82,6 +74,7 @@ class KafkaTest {
 
     @TestConfiguration
     @EnableAutoConfiguration
+    @Import(OpenKafkaTestContainer.DependencyInitializer.class)
     static class KafkaTestConfig {
     }
 }

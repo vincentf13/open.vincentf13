@@ -23,9 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 各測試方法前後 動態建立 隨機Shema，各測試互相隔離，可使用平行測試，提升效能。
  * <p>
  * 若配置 open.vincentf13.common.core.test.testcontainer.mysql.enabled=false
- * 則連到真實數據庫，不啟用 mysql 容器
+ * 則連到真實數據庫，不啟用 mysql 容器。
+ *
  * 真實數據庫配置：spring.datasource.{url,username,password}
- * 且該帳號具備 CREATE DATABASE / DROP DATABASE 權限，，才能順利建立／清除動態 schema。
+ * 且該帳號具備 CREATE DATABASE / DROP DATABASE 權限，才能順利建立／清除動態 schema。
  */
 @JdbcTest // 啟用 Spring JDBC 測試切片，只載入 DataSource / JdbcTemplate 相關 Bean
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE) // 使用自訂資料來源（Testcontainers），不要替換成內建資料庫

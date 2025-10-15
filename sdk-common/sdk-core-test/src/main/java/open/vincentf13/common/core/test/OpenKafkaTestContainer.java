@@ -1,6 +1,7 @@
 package open.vincentf13.common.core.test;
 
 import org.apache.kafka.clients.admin.NewTopic;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.listener.ContainerProperties;
@@ -26,6 +27,8 @@ public final class OpenKafkaTestContainer {
             new ToggleableKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
     private static final Duration WAIT_TIMEOUT = Duration.ofSeconds(10);
     private static final ThreadLocal<String> CURRENT_TOPIC = new ThreadLocal<>();
+    private static volatile KafkaAdmin kafkaAdmin;
+    private static volatile ConsumerFactory<?, ?> consumerFactory;
 
     private OpenKafkaTestContainer() {
     }
@@ -46,9 +49,10 @@ public final class OpenKafkaTestContainer {
     /**
      * 建立唯一 topic 並記錄於 ThreadLocal，讓同一測試執行緒能安全取得對應 topic。
      */
-    public static String prepareTopic(KafkaAdmin kafkaAdmin) {
+    public static String prepareTopic() {
+        KafkaAdmin admin = requireKafkaAdmin();
         String topic = newTopicName();
-        kafkaAdmin.createOrModifyTopics(new NewTopic(topic, 1, (short) 1));
+        admin.createOrModifyTopics(new NewTopic(topic, 1, (short) 1));
         CURRENT_TOPIC.set(topic);
         return topic;
     }
@@ -65,7 +69,6 @@ public final class OpenKafkaTestContainer {
      * 啟動簡單的 listener container，並等待分區就緒後再回傳。
      */
     public static <K, V> KafkaMessageListenerContainer<K, V> startListener(
-            ConsumerFactory<K, V> consumerFactory,
             String topic,
             MessageListener<K, V> listener) throws InterruptedException {
         ContainerProperties properties = new ContainerProperties(topic);
@@ -73,7 +76,7 @@ public final class OpenKafkaTestContainer {
         properties.setMessageListener(listener);
 
         KafkaMessageListenerContainer<K, V> container =
-                new KafkaMessageListenerContainer<>(consumerFactory, properties);
+                new KafkaMessageListenerContainer<>(resolveConsumerFactory(), properties);
         container.start();
         awaitAssignment(container, WAIT_TIMEOUT);
         return container;
@@ -88,6 +91,11 @@ public final class OpenKafkaTestContainer {
         } finally {
             awaitStop(container, WAIT_TIMEOUT);
         }
+    }
+
+    public static void configure(KafkaAdmin kafkaAdmin, ConsumerFactory<?, ?> consumerFactory) {
+        OpenKafkaTestContainer.kafkaAdmin = Objects.requireNonNull(kafkaAdmin, "kafkaAdmin");
+        OpenKafkaTestContainer.consumerFactory = Objects.requireNonNull(consumerFactory, "consumerFactory");
     }
 
 
@@ -128,6 +136,31 @@ public final class OpenKafkaTestContainer {
                 throw new IllegalStateException("Kafka listener container did not stop within timeout");
             }
             Thread.sleep(50);
+        }
+    }
+
+    private static KafkaAdmin requireKafkaAdmin() {
+        KafkaAdmin admin = kafkaAdmin;
+        if (admin == null) {
+            throw new IllegalStateException("KafkaAdmin has not been configured for OpenKafkaTestContainer");
+        }
+        return admin;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <K, V> ConsumerFactory<K, V> resolveConsumerFactory() {
+        ConsumerFactory<?, ?> factory = consumerFactory;
+        if (factory == null) {
+            throw new IllegalStateException("ConsumerFactory has not been configured for OpenKafkaTestContainer");
+        }
+        return (ConsumerFactory<K, V>) factory;
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    public static class DependencyInitializer {
+
+        public DependencyInitializer(KafkaAdmin kafkaAdmin, ConsumerFactory<?, ?> consumerFactory) {
+            OpenKafkaTestContainer.configure(kafkaAdmin, consumerFactory);
         }
     }
 
