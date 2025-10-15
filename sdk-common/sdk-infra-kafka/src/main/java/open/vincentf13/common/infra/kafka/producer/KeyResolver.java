@@ -14,7 +14,7 @@ import java.util.function.Function;
  * </pre>
  */
 @FunctionalInterface
-public interface KafkaProducerKeyResolver extends Function<Object, String> {
+public interface KeyResolver extends Function<Object, String> {
 
     @Override
     String apply(Object message);

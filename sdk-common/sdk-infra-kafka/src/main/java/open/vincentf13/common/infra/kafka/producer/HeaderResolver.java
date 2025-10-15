@@ -15,7 +15,7 @@ import java.util.function.Function;
  * </pre>
  */
 @FunctionalInterface
-public interface KafkaProducerHeaderResolver extends Function<Object, Map<String, Object>> {
+public interface HeaderResolver extends Function<Object, Map<String, Object>> {
 
     @Override
     Map<String, Object> apply(Object message);

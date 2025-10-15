@@ -33,13 +33,13 @@ class OpenKafkaProducerTests {
             return completableFuture;
         });
 
+        OpenKafkaProducer.initialize(kafkaTemplate, objectMapper);
+
         Map<String, Object> message = Map.of("orderId", "O-1", "userId", "U-9");
         Map<String, Object> headers = Map.of("source", "api", "attempt", 1);
 
         CompletableFuture<SendResult<String, byte[]>> resultFuture =
                 OpenKafkaProducer.send(
-                        kafkaTemplate,
-                        objectMapper,
                         "orders",
                         (String) message.get("orderId"),
                         message,
@@ -67,8 +67,10 @@ class OpenKafkaProducerTests {
         ObjectMapper failingMapper = Mockito.mock(ObjectMapper.class);
         Mockito.doThrow(new RuntimeException("fail")).when(failingMapper).writeValueAsBytes(Mockito.any());
 
+        OpenKafkaProducer.initialize(kafkaTemplate, failingMapper);
+
         CompletableFuture<SendResult<String, byte[]>> future =
-                OpenKafkaProducer.send(kafkaTemplate, failingMapper, "topic", Map.of());
+                OpenKafkaProducer.send("topic", Map.of());
 
         assertTrue(future.isCompletedExceptionally());
         assertThrows(RuntimeException.class, future::join);
@@ -87,10 +89,10 @@ class OpenKafkaProducerTests {
             return future;
         });
 
+        OpenKafkaProducer.initialize(kafkaTemplate, objectMapper);
+
         List<Map<String, Object>> payloads = List.of(Map.of("id", 1), Map.of("id", 2));
         CompletableFuture<List<SendResult<String, byte[]>>> batchFuture = OpenKafkaProducer.sendBatch(
-                kafkaTemplate,
-                objectMapper,
                 "batch",
                 payloads,
                 payload -> "key-" + ((Map<?, ?>) payload).get("id"),
