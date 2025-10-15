@@ -19,8 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * MySQL 容器整合測試
  * <p>
- * 使用 dokcer 容器運行 MySql 測試的範例，
+ * 使用 dokcer mysql容器運行 MySql 測試
  * 各測試方法前後 動態建立 隨機Shema，各測試互相隔離，可使用平行測試，提升效能。
+ * <p>
+ * 若配置 open.vincentf13.common.core.test.testcontainer.mysql.enabled=false
+ * 則連到真實數據庫，不啟用 mysql 容器
  */
 @JdbcTest // 啟用 Spring JDBC 測試切片，只載入 DataSource / JdbcTemplate 相關 Bean
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE) // 使用自訂資料來源（Testcontainers），不要替換成內建資料庫
@@ -40,11 +43,11 @@ class MysqlTest {
     @Autowired
     private DataSource dataSource;
 
-    
+
     @BeforeEach
     void reflashTable() {
-            // 動態建立隨機 schema
-                OpenMySqlTestContainer.prepareSchema();
+        // 動態建立隨機 schema
+        OpenMySqlTestContainer.prepareSchema();
         jdbcTemplate.execute("DROP TABLE IF EXISTS users");
         jdbcTemplate.execute(
                 "CREATE TABLE users (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) NOT NULL)");
