@@ -15,10 +15,17 @@ import org.springframework.test.context.DynamicPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// MySQL 容器整合測試：示範臨時資料庫 schema 操作與查詢
+/**
+ * MySQL 容器整合測試
+ *
+ * 使用 dokcer 容器運行 MySql 測試的範例，
+ * 各測試方法前後 動態建立 隨機Shema，各測試互相隔離，可使用平行測試，提升效能。
+ */
 @JdbcTest // 啟用 Spring JDBC 測試切片，只載入 DataSource / JdbcTemplate 相關 Bean
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE) // 使用自訂資料來源（Testcontainers），不要替換成內建資料庫
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD) // 每個測試方法後銷毀 ApplicationContext，避免快取舊 schema 設定
+// 每個測試方法後銷毀 ApplicationContext，避免快取舊 schema 設定
+// 它不會重啟 Testcontainers： OpenMySqlTestContainer 的 MYSQL 是 static 單例，所以容器還是只起一次。
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class MysqlTest {
 
     /**
