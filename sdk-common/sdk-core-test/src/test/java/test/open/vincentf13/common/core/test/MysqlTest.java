@@ -3,7 +3,7 @@ package test.open.vincentf13.common.core.test;
 
 import open.vincentf13.common.core.test.OpenMySqlTestContainer;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * MySQL 容器整合測試
- *
+ * <p>
  * 使用 dokcer 容器運行 MySql 測試的範例，
  * 各測試方法前後 動態建立 隨機Shema，各測試互相隔離，可使用平行測試，提升效能。
  */
@@ -40,14 +40,16 @@ class MysqlTest {
     @Autowired
     private DataSource dataSource;
 
-    @BeforeAll
-    void createSchema() {
-        // 動態建立隨機 schema
-        OpenMySqlTestContainer.prepareSchema();
+    
+    @BeforeEach
+    void reflashTable() {
+            // 動態建立隨機 schema
+                OpenMySqlTestContainer.prepareSchema();
         jdbcTemplate.execute("DROP TABLE IF EXISTS users");
         jdbcTemplate.execute(
                 "CREATE TABLE users (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(64) NOT NULL)");
     }
+
 
     @Test
     void insertAndFetchRecord() {
@@ -61,9 +63,7 @@ class MysqlTest {
 
 
     @AfterAll
-    void cleanupSchema() {
-        OpenMySqlTestContainer.cleanupCurrentSchema();
+    static void cleanupSchema() {
         OpenMySqlTestContainer.clearAdminConnection();
     }
-
 }

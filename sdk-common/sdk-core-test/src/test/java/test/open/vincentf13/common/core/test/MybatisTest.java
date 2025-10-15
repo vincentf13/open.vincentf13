@@ -61,6 +61,6 @@ class MybatisTest {
 
     @AfterEach
     void cleanupSchema() {
-        OpenMySqlTestContainer.cleanupCurrentSchema();
+//        OpenMySqlTestContainer.cleanupCurrentSchema();
     }
 }

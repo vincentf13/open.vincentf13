@@ -41,13 +41,7 @@ public final class OpenMySqlTestContainer {
         registry.add("spring.datasource.hikari.minimum-idle", () -> "1");
     }
 
-    public static MySQLContainer<?> container() {
-        return MYSQL;
-    }
 
-    public static String currentSchema() {
-        return CURRENT_SCHEMA.get();
-    }
 
     /**
      * 為即將執行的測試方法建立隔離 schema，並將資料來源切換到該 schema。
@@ -60,25 +54,11 @@ public final class OpenMySqlTestContainer {
         return schema;
     }
 
-    /**
-     * 測試方法完成後清理 schema，並恢復資料來源預設 schema。
-     */
-    public static void cleanupCurrentSchema() {
-        String schema = CURRENT_SCHEMA.get();
-        switchSchema( MYSQL.getDatabaseName());
-        if (schema != null) {
-            dropSchema(schema);
-        }
-        CURRENT_SCHEMA.remove();
-    }
 
     private static void createSchema(String schema) {
         execute("CREATE DATABASE IF NOT EXISTS `" + schema + "`");
     }
 
-    private static void dropSchema(String schema) {
-        execute("DROP DATABASE IF EXISTS `" + schema + "`");
-    }
 
     private static void switchSchema(String schema) {
         execute("USE " + schema);
@@ -140,7 +120,7 @@ public final class OpenMySqlTestContainer {
         }
     }
 
-    private static void clearAdminConnection() {
+    public static void clearAdminConnection() {
         Connection connection = ADMIN_CONNECTION.get();
         if (connection != null) {
             try {
