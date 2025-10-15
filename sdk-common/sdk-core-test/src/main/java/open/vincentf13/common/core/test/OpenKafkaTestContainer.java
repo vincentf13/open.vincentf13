@@ -1,6 +1,8 @@
 package open.vincentf13.common.core.test;
 
 import org.apache.kafka.clients.admin.NewTopic;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
@@ -159,8 +161,22 @@ public final class OpenKafkaTestContainer {
     @Configuration(proxyBeanMethods = false)
     public static class DependencyInitializer {
 
-        public DependencyInitializer(KafkaAdmin kafkaAdmin, ConsumerFactory<?, ?> consumerFactory) {
-            OpenKafkaTestContainer.configure(kafkaAdmin, consumerFactory);
+        private final ObjectProvider<KafkaAdmin> kafkaAdmin;
+        private final ObjectProvider<ConsumerFactory<?, ?>> consumerFactory;
+
+        public DependencyInitializer(ObjectProvider<KafkaAdmin> kafkaAdmin,
+                                     ObjectProvider<ConsumerFactory<?, ?>> consumerFactory) {
+            this.kafkaAdmin = kafkaAdmin;
+            this.consumerFactory = consumerFactory;
+        }
+
+        @PostConstruct
+        void initializeDependencies() {
+            KafkaAdmin admin = kafkaAdmin.getIfAvailable();
+            ConsumerFactory<?, ?> factory = consumerFactory.getIfAvailable();
+            if (admin != null && factory != null) {
+                OpenKafkaTestContainer.configure(admin, factory);
+            }
         }
     }
 
