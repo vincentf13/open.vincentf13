@@ -31,6 +31,7 @@ public final class OpenMySqlTestContainer {
         if (!TestContainerSettings.mysqlEnabled()) {
             return;
         }
+        // 只會在第一次需要時啟動容器。整個 JVM 的測試流程中都共用這顆容器，不會因為測試方法或類別被反覆重啟。
         MYSQL.start();
         registry.add("spring.datasource.url", () -> buildJdbcUrl(MYSQL.getDatabaseName()));
         registry.add("spring.datasource.username", MYSQL::getUsername);
@@ -52,16 +53,10 @@ public final class OpenMySqlTestContainer {
      * 為即將執行的測試方法建立隔離 schema，並將資料來源切換到該 schema。
      */
     public static String prepareSchema() {
-        if (!TestContainerSettings.mysqlEnabled()) {
-            CURRENT_SCHEMA.remove();
-            clearAdminConnection();
-            return null;
-        }
-        MYSQL.start();
         String schema = "test_" + UUID.randomUUID().toString().replace('-', '_');
         createSchema(schema);
         CURRENT_SCHEMA.set(schema);
-        switchSchema( schema);
+        switchSchema(schema);
         return schema;
     }
 
@@ -69,11 +64,6 @@ public final class OpenMySqlTestContainer {
      * 測試方法完成後清理 schema，並恢復資料來源預設 schema。
      */
     public static void cleanupCurrentSchema() {
-        if (!TestContainerSettings.mysqlEnabled()) {
-            CURRENT_SCHEMA.remove();
-            clearAdminConnection();
-            return;
-        }
         String schema = CURRENT_SCHEMA.get();
         switchSchema( MYSQL.getDatabaseName());
         if (schema != null) {

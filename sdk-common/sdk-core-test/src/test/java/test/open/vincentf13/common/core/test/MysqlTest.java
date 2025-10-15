@@ -2,8 +2,8 @@ package test.open.vincentf13.common.core.test;
 
 
 import open.vincentf13.common.core.test.OpenMySqlTestContainer;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -27,12 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MysqlTest {
 
     /**
-     * @DynamicPropertySource 標註的 static 方法會在 Spring TestContext 建立 ApplicationContext 之前被呼叫。
-     *
-     * 內部每次會隨機建立一個 Shema，隔離 MySQL，使平行測試不互相影響。
+     * @DynamicPropertySource 標註的 static 方法會在 Spring TestContext 建立 ApplicationContext 前呼叫。
      */
     @DynamicPropertySource
-    static void registerMysqlProperties(DynamicPropertyRegistry registry) { // 將動態 schema 對應的 JDBC 連線資訊注入 Spring Environment
+    static void registerMysqlProperties(DynamicPropertyRegistry registry) {
         OpenMySqlTestContainer.register(registry);
     }
 
@@ -42,8 +40,9 @@ class MysqlTest {
     @Autowired
     private DataSource dataSource;
 
-    @BeforeEach
+    @BeforeAll
     void createSchema() {
+        // 動態建立隨機 schema
         OpenMySqlTestContainer.prepareSchema();
         jdbcTemplate.execute("DROP TABLE IF EXISTS users");
         jdbcTemplate.execute(
@@ -61,9 +60,10 @@ class MysqlTest {
     }
 
 
-    @AfterEach
+    @AfterAll
     void cleanupSchema() {
         OpenMySqlTestContainer.cleanupCurrentSchema();
+        OpenMySqlTestContainer.clearAdminConnection();
     }
 
 }
