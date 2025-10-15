@@ -1,8 +1,5 @@
 package open.vincentf13.common.infra.kafka.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.common.infra.kafka.producer.KafkaProducerService;
-import open.vincentf13.common.infra.kafka.producer.KafkaProducerServiceImpl;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -37,13 +34,4 @@ public class ConfigKafkaProducer {
         return new KafkaTemplate<>(producerFactory);
     }
 
-    @Bean
-    @ConditionalOnBean(name = "kafkaByteArrayTemplate")
-    @ConditionalOnMissingBean(KafkaProducerService.class)
-    public KafkaProducerService<Object> kafkaProducerService(
-            @Qualifier("kafkaByteArrayTemplate") KafkaTemplate<String, byte[]> kafkaTemplate,
-            @Qualifier("openObjectMapper") ObjectMapper objectMapper
-                                                            ) {
-        return new KafkaProducerServiceImpl<>(kafkaTemplate, objectMapper);
-    }
 }

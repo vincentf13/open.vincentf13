@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class KafkaProducerServiceImplTests {
+class OpenKafkaProducerTests {
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -33,14 +33,18 @@ class KafkaProducerServiceImplTests {
             return completableFuture;
         });
 
-        KafkaProducerServiceImpl<Map<String, Object>> service =
-                new KafkaProducerServiceImpl<>(kafkaTemplate, objectMapper);
-
         Map<String, Object> message = Map.of("orderId", "O-1", "userId", "U-9");
         Map<String, Object> headers = Map.of("source", "api", "attempt", 1);
 
         CompletableFuture<SendResult<String, byte[]>> resultFuture =
-                service.send("orders", (String) message.get("orderId"), message, headers);
+                OpenKafkaProducer.send(
+                        kafkaTemplate,
+                        objectMapper,
+                        "orders",
+                        (String) message.get("orderId"),
+                        message,
+                        headers
+                );
 
         ProducerRecord<String, byte[]> sentRecord = capturedRecord.get();
         completableFuture.complete(new SendResult<>(sentRecord, null));
@@ -63,12 +67,8 @@ class KafkaProducerServiceImplTests {
         ObjectMapper failingMapper = Mockito.mock(ObjectMapper.class);
         Mockito.doThrow(new RuntimeException("fail")).when(failingMapper).writeValueAsBytes(Mockito.any());
 
-        KafkaProducerServiceImpl<Object> service = new KafkaProducerServiceImpl<>(
-                kafkaTemplate,
-                failingMapper
-        );
-
-        CompletableFuture<SendResult<String, byte[]>> future = service.send("topic", Map.of());
+        CompletableFuture<SendResult<String, byte[]>> future =
+                OpenKafkaProducer.send(kafkaTemplate, failingMapper, "topic", Map.of());
 
         assertTrue(future.isCompletedExceptionally());
         assertThrows(RuntimeException.class, future::join);
@@ -87,11 +87,10 @@ class KafkaProducerServiceImplTests {
             return future;
         });
 
-        KafkaProducerServiceImpl<Map<String, Object>> service =
-                new KafkaProducerServiceImpl<>(kafkaTemplate, objectMapper);
-
         List<Map<String, Object>> payloads = List.of(Map.of("id", 1), Map.of("id", 2));
-        CompletableFuture<List<SendResult<String, byte[]>>> batchFuture = service.sendBatch(
+        CompletableFuture<List<SendResult<String, byte[]>>> batchFuture = OpenKafkaProducer.sendBatch(
+                kafkaTemplate,
+                objectMapper,
                 "batch",
                 payloads,
                 payload -> "key-" + ((Map<?, ?>) payload).get("id"),

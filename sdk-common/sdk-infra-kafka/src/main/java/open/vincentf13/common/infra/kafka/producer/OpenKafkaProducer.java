@@ -20,39 +20,33 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /**
- * 預設 Kafka Producer 實作：payload 轉為 bytes，呼叫端可在批次送出時傳入客製 key/header 解析器。
+ * Kafka Producer 靜態工具：將 payload 序列化為 bytes，並提供批次送出與自訂 key/header 的彈性。
  */
-public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
+public final class OpenKafkaProducer {
 
-    private static final Logger log = LoggerFactory.getLogger(KafkaProducerServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(OpenKafkaProducer.class);
 
-    private final KafkaTemplate<String, byte[]> kafkaTemplate;
-    private final ObjectMapper objectMapper;
-
-    public KafkaProducerServiceImpl(
-            KafkaTemplate<String, byte[]> kafkaTemplate,
-            ObjectMapper objectMapper
-                                   ) {
-        this.kafkaTemplate = Objects.requireNonNull(kafkaTemplate, "kafkaTemplate");
-        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
+    private OpenKafkaProducer() {
     }
 
-    @Override
-    public CompletableFuture<SendResult<String, byte[]>> send(
+    public static <T> CompletableFuture<SendResult<String, byte[]>> send(
+            KafkaTemplate<String, byte[]> kafkaTemplate,
+            ObjectMapper objectMapper,
             String topic,
             String key,
             T msg,
             Map<String, Object> headers
-                                                             ) {
+    ) {
+        Objects.requireNonNull(kafkaTemplate, "kafkaTemplate");
+        Objects.requireNonNull(objectMapper, "objectMapper");
         Objects.requireNonNull(topic, "topic");
         Objects.requireNonNull(msg, "msg");
         try {
             byte[] value = objectMapper.writeValueAsBytes(msg);
             ProducerRecord<String, byte[]> record = new ProducerRecord<>(topic, key, value);
-            addHeaders(record, headers);
+            addHeaders(objectMapper, record, headers);
             OpenLog.debug(log, "KafkaSend", () -> "送出 Kafka 訊息", "topic", topic, "key", key, "payloadType", msg.getClass().getName());
             CompletableFuture<SendResult<String, byte[]>> sendFuture = adaptFuture(kafkaTemplate.send(record));
-            // 統一在 callback 中記錄成功/失敗日誌，避免呼叫端額外處理。
             sendFuture.whenComplete((result, throwable) -> handleSendResult(result, throwable, topic, key));
             return sendFuture;
         } catch (Exception ex) {
@@ -63,18 +57,23 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
         }
     }
 
-    @Override
-    public CompletableFuture<SendResult<String, byte[]>> send(String topic, T msg) {
-        return send(topic, null, msg, Map.of());
+    public static <T> CompletableFuture<SendResult<String, byte[]>> send(
+            KafkaTemplate<String, byte[]> kafkaTemplate,
+            ObjectMapper objectMapper,
+            String topic,
+            T msg
+    ) {
+        return send(kafkaTemplate, objectMapper, topic, null, msg, Map.of());
     }
 
-    @Override
-    public CompletableFuture<List<SendResult<String, byte[]>>> sendBatch(
+    public static <T> CompletableFuture<List<SendResult<String, byte[]>>> sendBatch(
+            KafkaTemplate<String, byte[]> kafkaTemplate,
+            ObjectMapper objectMapper,
             String topic,
             Collection<? extends T> msgs,
             Function<Object, String> keyResolver,
             Function<Object, Map<String, Object>> headerResolver
-                                                                        ) {
+    ) {
         Objects.requireNonNull(msgs, "msgs");
         List<CompletableFuture<SendResult<String, byte[]>>> futures = new ArrayList<>(msgs.size());
         for (T message : msgs) {
@@ -83,15 +82,12 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
             if (headers == null) {
                 headers = Map.of();
             }
-            futures.add(send(topic, key, message, headers));
+            futures.add(send(kafkaTemplate, objectMapper, topic, key, message, headers));
         }
         return sequence(futures);
     }
 
-    /**
-     * 將呼叫端提供的 headers 轉成 byte[] 並掛到 Kafka Record。
-     */
-    private void addHeaders(ProducerRecord<String, byte[]> record, Map<String, Object> headers) {
+    private static void addHeaders(ObjectMapper objectMapper, ProducerRecord<String, byte[]> record, Map<String, Object> headers) {
         if (headers == null || headers.isEmpty()) {
             return;
         }
@@ -110,10 +106,7 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
         });
     }
 
-    /**
-     * 監聽非同步結果：成功/失敗皆打出對應日誌。
-     */
-    private void handleSendResult(
+    private static void handleSendResult(
             SendResult<String, byte[]> result,
             Throwable throwable,
             String topic,
@@ -136,39 +129,27 @@ public class KafkaProducerServiceImpl<T> implements KafkaProducerService<T> {
         }
     }
 
-    /**
-     * 將 Spring Kafka 返回的邏輯（ListenableFuture 或 CompletableFuture）統一成 CompletableFuture。
-     */
     @SuppressWarnings("unchecked")
     private static <K, V> CompletableFuture<SendResult<K, V>> adaptFuture(Object future) {
         if (future instanceof CompletableFuture<?> completableFuture) {
             return (CompletableFuture<SendResult<K, V>>) completableFuture;
         }
         if (future instanceof ListenableFuture<?> listenableFuture) {
-            // 舊版 KafkaTemplate 仍回傳 ListenableFuture，需轉成 CompletableFuture 以統一介面。
             return toCompletableFuture((ListenableFuture<SendResult<K, V>>) listenableFuture);
         }
         throw new IllegalStateException("Unsupported KafkaTemplate future type: " + future.getClass().getName());
     }
 
-    /**
-     * 將 ListenableFuture 轉型為 CompletableFuture，方便上層串接。
-     */
     private static <K, V> CompletableFuture<SendResult<K, V>> toCompletableFuture(
             ListenableFuture<SendResult<K, V>> listenableFuture
-                                                                                 ) {
+    ) {
         CompletableFuture<SendResult<K, V>> completableFuture = new CompletableFuture<>();
-        // 完成時 -> 將結果塞進 CompletableFuture；失敗時 -> 將例外往外傳遞。
         listenableFuture.addCallback(completableFuture::complete, completableFuture::completeExceptionally);
         return completableFuture;
     }
 
-    /**
-     * 將多個 CompletableFuture 轉成單一 CompletableFuture<List<>>，在批次送出時使用。
-     */
     private static <X> CompletableFuture<List<X>> sequence(List<CompletableFuture<X>> futures) {
         CompletableFuture<?>[] array = futures.toArray(CompletableFuture[]::new);
-        // 等待所有 Future 完成後，收集結果到 List 回傳。
         return CompletableFuture.allOf(array)
                 .thenApply(ignored -> futures.stream().map(CompletableFuture::join).toList());
     }
