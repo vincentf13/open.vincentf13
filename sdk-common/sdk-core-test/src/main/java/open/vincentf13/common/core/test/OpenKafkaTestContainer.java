@@ -11,6 +11,7 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -100,11 +101,11 @@ public final class OpenKafkaTestContainer {
     public static <V> void assertReceived(CountDownLatch latch, AtomicReference<V> holder, V expected)
             throws InterruptedException {
         if (!latch.await(WAIT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
-            throw new IllegalStateException("Kafka message not received within timeout");
+            throw new IllegalStateException("Kafka payload not received within " + WAIT_TIMEOUT);
         }
         V actual = holder.get();
-        if (expected == null ? actual != null : !expected.equals(actual)) {
-            throw new IllegalStateException("Expected payload " + expected + " but got " + actual);
+        if (!Objects.equals(expected, actual)) {
+            throw new IllegalStateException("Kafka payload mismatch. expected=" + expected + ", actual=" + actual);
         }
     }
 
