@@ -64,9 +64,10 @@ class KafkaTest {
                 OpenKafkaTestContainer.currentTopic(),
                 OpenKafkaTestContainer.buildPayloadListener(payload, latch));
         try {
+            String data = "v1";
             // 送出訊息並等待 listener 收到後將 latch 倒扣
-            kafkaTemplate.send(OpenKafkaTestContainer.currentTopic(), "k1", "v1").get();
-            OpenKafkaTestContainer.assertReceived(latch, payload, "v1");
+            kafkaTemplate.send(OpenKafkaTestContainer.currentTopic(), "k1", data).get();
+            OpenKafkaTestContainer.assertReceived(latch, payload, data);
         } finally {
             // 測試完成後確保 listener 停止，不留背景執行緒
             OpenKafkaTestContainer.stopListener(container);
