@@ -22,8 +22,6 @@ import java.util.concurrent.atomic.AtomicReference;
         classes = KafkaTest.KafkaTestConfig.class,
         properties = {
                 "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration",
-                "spring.main.lazy-initialization=true",
-                "spring.jmx.enabled=false"
         },
         webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
@@ -62,7 +60,7 @@ class KafkaTest {
         KafkaMessageListenerContainer<String, String> container = OpenKafkaTestContainer.startListener(
                 consumerFactory,
                 OpenKafkaTestContainer.currentTopic(),
-                OpenKafkaTestContainer.buildPayloadListener(payload, latch));
+                OpenKafkaTestContainer.buildListener(payload, latch));
         try {
             String data = "v1";
             // 送出訊息並等待 listener 收到後將 latch 倒扣

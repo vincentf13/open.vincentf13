@@ -91,7 +91,7 @@ public final class OpenKafkaTestContainer {
     }
 
 
-    public static <V> MessageListener<String, V> buildPayloadListener(AtomicReference<V> holder, CountDownLatch latch) {
+    public static <V> MessageListener<String, V> buildListener(AtomicReference<V> holder, CountDownLatch latch) {
         return record -> {
             holder.set(record.value());
             latch.countDown();
