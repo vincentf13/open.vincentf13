@@ -1,7 +1,7 @@
 package open.vincentf13.common.infra.kafka.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.common.infra.kafka.producer.OpenKafkaProducer;
+import open.vincentf13.common.infra.kafka.OpenKafkaProducer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;

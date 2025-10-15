@@ -1,4 +1,4 @@
-package open.vincentf13.common.infra.kafka.producer;
+package open.vincentf13.common.infra.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.common.core.log.OpenLog;
