@@ -1,0 +1,10 @@
+server:
+  forward-headers-strategy: framework # TLS 終結在代理時，設定 forward headers，避免 Secure 判斷錯誤
+spring:
+  session:
+    store-type: redis
+    redis:
+      namespace: app:session             # Redis key 前綴
+      flush-mode: on-save                 # 在請求結束或顯式 save 時才實際寫入，適合大多數場景。
+      save-mode: on-set-attribute         # 只有呼叫 setAttribute、removeAttribute、替換屬性時才寫回
+      cleanup-cron: "0 */5 * * * *"       # 定期刪除 spring session建的索引
