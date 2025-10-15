@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -104,6 +105,9 @@ public final class OpenMySqlTestContainer {
 
     private static Connection createAdminConnection() {
         try {
+            if (!TestContainerSettings.mysqlEnabled()) {
+                return realDatabaseConnection();
+            }
             Connection connection = DriverManager.getConnection(MYSQL.getJdbcUrl(), rootUser(), rootPassword());
             connection.setAutoCommit(true);
             return connection;
@@ -112,12 +116,41 @@ public final class OpenMySqlTestContainer {
         }
     }
 
+    private static Connection realDatabaseConnection() throws SQLException {
+        String url = resolveConfig("spring.datasource.url");
+        if (isBlank(url)) {
+            throw new IllegalStateException("spring.datasource.url is required when MySQL testcontainer is disabled");
+        }
+        String username = resolveConfig("spring.datasource.username");
+        if (isBlank(username)) {
+            username = "root";
+        }
+        String password = resolveConfig("spring.datasource.password");
+        Connection connection = DriverManager.getConnection(url, username, password);
+        connection.setAutoCommit(true);
+        return connection;
+    }
+
     private static boolean isConnectionInvalid(Connection connection) {
         try {
             return connection.isClosed() || !connection.isValid(1);
         } catch (SQLException ex) {
             return true;
         }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private static String resolveConfig(String key) {
+        String value = System.getProperty(key);
+        if (!isBlank(value)) {
+            return value;
+        }
+        String envKey = key.toUpperCase(Locale.ROOT).replace('.', '_');
+        value = System.getenv(envKey);
+        return isBlank(value) ? null : value;
     }
 
     public static void clearAdminConnection() {
