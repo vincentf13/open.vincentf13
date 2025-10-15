@@ -9,28 +9,26 @@ public class OpenServiceException extends Exception implements OpenException {
     private final String code;
     private final Map<String, Object> meta;
 
-    public OpenServiceException(OpenError error, String errorMessage) {
-        super(OpenException.resolveMessage(error, errorMessage));
-        this.code = error.code();
-        this.meta = initMeta();
-    }
-
-    public OpenServiceException(OpenError error, String errorMessage, Throwable rootCause) {
-        super(OpenException.resolveMessage(error, errorMessage), rootCause);
-        this.code = error.code();
-        this.meta = initMeta();
-    }
-
-    public OpenServiceException(OpenError error, String errorMessage, Map<String, Object> meta) {
-        super(OpenException.resolveMessage(error, errorMessage));
-        this.code = error.code();
-        this.meta = mergeMeta(meta);
-    }
-
-    public OpenServiceException(OpenError error, String errorMessage, Map<String, Object> meta, Throwable rootCause) {
+    private OpenServiceException(OpenError error, String errorMessage, Map<String, Object> meta, Throwable rootCause) {
         super(OpenException.resolveMessage(error, errorMessage), rootCause);
         this.code = error.code();
         this.meta = mergeMeta(meta);
+    }
+
+    public static OpenServiceException of(OpenError error, String errorMessage) {
+        return new OpenServiceException(error, errorMessage, null, null);
+    }
+
+    public static OpenServiceException of(OpenError error, String errorMessage, Throwable rootCause) {
+        return new OpenServiceException(error, errorMessage, null, rootCause);
+    }
+
+    public static OpenServiceException of(OpenError error, String errorMessage, Map<String, Object> meta) {
+        return new OpenServiceException(error, errorMessage, meta, null);
+    }
+
+    public static OpenServiceException of(OpenError error, String errorMessage, Map<String, Object> meta, Throwable rootCause) {
+        return new OpenServiceException(error, errorMessage, meta, rootCause);
     }
 
     public String getCode() {
