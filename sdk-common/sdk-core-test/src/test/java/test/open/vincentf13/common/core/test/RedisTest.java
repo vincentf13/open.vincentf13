@@ -1,7 +1,6 @@
 package test.open.vincentf13.common.core.test;
 
 import open.vincentf13.common.core.test.OpenRedisTestContainer;
-import open.vincentf13.common.core.test.RedisTestSupport;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +44,7 @@ class RedisTest {
 
     @Test
     void writeAndReadValue() {
-        RedisTestSupport.awaitRedisReady(redisTemplate);
+        OpenRedisTestContainer.awaitReady(redisTemplate);
 
         redisTemplate.delete(key);
         redisTemplate.opsForValue().set(key, "cached-value");
