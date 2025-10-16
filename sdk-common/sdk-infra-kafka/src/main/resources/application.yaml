@@ -1,36 +1,54 @@
-logging:
-  level:
-    # Spring Kafka 關鍵
-    org.springframework.kafka: INFO
+logging:                                                                                           
+  level:                                                                                           
+    # Spring Kafka 關鍵                                                                            
+    org.springframework.kafka: INFO                                                                
     org.springframework.kafka.core.KafkaTemplate: DEBUG   # 會顯示每次 send() 呼叫與 topic、partition、offset，對追蹤發送很有用。
-    org.springframework.kafka.listener.KafkaMessageListenerContainer: DEBUG # 能觀察 consumer 啟動、poll loop、rebalancing 等，適合測 listener 邏輯。
-    org.springframework.kafka.support.serializer: DEBUG   # 反序列化出錯時會顯示 byte payload 與具體錯誤，開發階段很關鍵。
-    # Kafka 原生
-    org.apache.kafka.clients: INFO
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: DEBUG # 能觀察 consumer 啟動 、poll loop、rebalancing 等，適合測 listener 邏輯。
+    org.springframework.kafka.support.serializer: DEBUG   # 反序列化出錯時會顯示 byte payload 與具 體錯誤，開發階段很關鍵。
+    # Kafka 原生                                                                                   
+    org.apache.kafka.clients: INFO                                                                 
     org.apache.kafka.clients.consumer.internals.AbstractCoordinator: INFO   # 能顯示 consumer group join、rebalance、心跳等事件；
-
-spring:
-  kafka:
-    bootstrap-servers: localhost:9092
-    admin:
-      auto-create: true     # 預設 true，偵測到 NewTopic 就建立
-      fail-fast: true       # 若 Kafka broker 無法連線則啟動失敗
-    producer:
-      # 預設使用 byte[] 序列化，統一交由 ObjectMapper 控制 payload 編碼
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
-      properties:
-        # 傳輸可靠性
-        acks: all
-        enable.idempotence: true
-        # 壓縮與批次
-        compression.type: zstd
-        linger.ms: 20
-        batch.size: 131072
-        buffer.memory: 67108864
-        # 重試與順序控制
-        retries: 10
-        max.in.flight.requests.per.connection: 5
-        # 傳送逾時設定
-        request.timeout.ms: 30000
+                                                                                                   
+spring:                                                                                            
+  kafka:                                                                                           
+    bootstrap-servers: localhost:9092   # 需自訂
+    admin:                                                                                         
+      auto-create: true     # 預設 true，偵測到 NewTopic 就建立                                    
+      fail-fast: true       # 若 Kafka broker 無法連線則啟動失敗                                   
+    producer:                                                                                      
+      # 預設使用 byte[] 序列化，統一交由 ObjectMapper 控制 payload 編碼                            
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer                       
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer                  
+      properties:                                                                                  
+        # 傳輸可靠性                                                                               
+        acks: all                                                                                  
+        enable.idempotence: true                                                                   
+        # 壓縮與批次                                                                               
+        compression.type: zstd                                                                     
+        linger.ms: 20                                                                              
+        batch.size: 131072                                                                         
+        buffer.memory: 67108864                                                                    
+        # 重試與順序控制                                                                           
+        retries: 10                                                                                
+        max.in.flight.requests.per.connection: 5                                                   
+        # 傳送逾時設定                                                                             
+        request.timeout.ms: 30000                                                                  
         delivery.timeout.ms: 120000
+    consumer:
+      # 減少 rebalance 時的服務中斷。
+      partition-assignment-strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+
+      # 第一次消費時的起始位置設為 latest。
+      auto-offset-reset: latest
+      # 手動 ACK。
+      enable-auto-commit: false
+      # 一次 poll() 調用最多拉取的訊息數量。
+      max-poll-records: 50
+      # Consumer 健康檢查的最大間隔。下游服務應根據自身最長處理時間來覆蓋此值。
+      max-poll-interval-ms: 300000 # 5 分鐘
+      # 【反序列化】提供默認的反序列化器。
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        # 默認信任所有包。在生產環境中，強烈建議下游服務覆蓋此配置，縮小範圍為具體的事件包名。
+        spring.json.trusted.packages: '*'
