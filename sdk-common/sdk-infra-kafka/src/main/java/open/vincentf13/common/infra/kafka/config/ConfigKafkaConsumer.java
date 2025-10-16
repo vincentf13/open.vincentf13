@@ -17,6 +17,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.converter.BatchMessagingMessageConverter;
 import org.springframework.kafka.support.converter.ByteArrayJsonMessageConverter;
 import org.springframework.util.backoff.FixedBackOff;
 
@@ -65,12 +66,14 @@ public class ConfigKafkaConsumer {
      * @return 配置好的 ConcurrentKafkaListenerContainerFactory。
      */
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<Object, Object> kafkaListenerContainerFactory(
-            ConsumerFactory<Object, Object> consumerFactory,
-            KafkaTemplate<Object, Object> kafkaTemplate,
+    public ConcurrentKafkaListenerContainerFactory<String, byte[]>>
+
+    kafkaListenerContainerFactory(
+            ConsumerFactory<String, byte[]> consumerFactory,
+            KafkaTemplate<String, byte[]> kafkaTemplate,
             KafkaProperties kafkaProperties) {
 
-        ConcurrentKafkaListenerContainerFactory<String,byte[]> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        ConcurrentKafkaListenerContainerFactory<String, byte[]> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
 
         // 配置為批次拉取
@@ -79,13 +82,14 @@ public class ConfigKafkaConsumer {
         // 配置為手動 ACK
         factory.getContainerProperties().setAckMode(AckMode.MANUAL);
 
-        // byte[] 轉為 JSON，再自動 mapping 為解析為入參物件
-        factory.setRecordMessageConverter(new ByteArrayJsonMessageConverter());
-
+        // 批次轉換：byte[] → JSON → DTO 列表
+        factory.setBatchMessageConverter(
+                new BatchMessagingMessageConverter(new ByteArrayJsonMessageConverter())
+                                        );
         // 配置錯誤處理器 (重試 + DLQ)
         // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ
         // DLQ 的 topic 命名規則為：<原始topic>.DLT
-        BiFunction<ConsumerRecord<?, ?>, Exception, String> dlqTopicRouter = (record, ex) -> record.topic() + ".DLT";
+        BiFunction<ConsumerRecord<String, byte[]>, Exception, String> dlqTopicRouter = (record, ex) -> record.topic() + ".DLT";
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
 
         // 創建 DefaultErrorHandler，設置重試次數和間隔
@@ -104,7 +108,7 @@ public class ConfigKafkaConsumer {
 
         factory.setCommonErrorHandler(errorHandler);
 
-        OpenLog.info(log, "KafkaConsumerConfigured", () -> "自定義 Kafka Consumer 配置已加載",
+        OpenLog.info(log, "KafkaConsumerConfigured", "自定義 Kafka Consumer 配置已加載",
                      "ackMode", "MANUAL",
                      "listenerType", "BATCH",
                      "errorHandler", "DLQ with 2 retries");
