@@ -40,19 +40,25 @@ spring:
 
       # 第一次消費時的起始位置設為 latest。
       auto-offset-reset: latest
-      # 手動 ACK
       enable-auto-commit: false
       # 一次 poll() 調用最多拉取的訊息數量。
       max-poll-records: 50
       # Consumer 健康檢查的最大間隔。下游服務應根據自身最長處理時間來覆蓋此值。
       max-poll-interval-ms: 300000 # 5 分鐘
-      # 【反序列化】提供默認的反序列化器。
+      # 反序列化
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ByteArrayDeserializer
       properties:
+        # 為每個實例動態分配唯一的成員ID，以啟用靜態成員資格
+        group.instance.id: ${spring.application.name}-${random.uuid}
         session.timeout.ms: 10000
         heartbeat.interval.ms: 3000
         max.poll.interval.ms: 300000
         max.poll.records: 500
         fetch.min.bytes: 1048576
         fetch.max.wait.ms: 200
+    listener:
+      # 批次
+      type: batch
+      # 手動 ACK
+      ack-mode: manual
