@@ -17,6 +17,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.converter.ByteArrayJsonMessageConverter;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
@@ -69,7 +70,7 @@ public class ConfigKafkaConsumer {
             KafkaTemplate<Object, Object> kafkaTemplate,
             KafkaProperties kafkaProperties) {
 
-        ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        ConcurrentKafkaListenerContainerFactory<String,byte[]> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
 
         // 配置為批次拉取
@@ -77,6 +78,9 @@ public class ConfigKafkaConsumer {
 
         // 配置為手動 ACK
         factory.getContainerProperties().setAckMode(AckMode.MANUAL);
+
+        // byte[] 轉為 JSON，再自動 mapping 為解析為入參物件
+        factory.setRecordMessageConverter(new ByteArrayJsonMessageConverter());
 
         // 配置錯誤處理器 (重試 + DLQ)
         // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ

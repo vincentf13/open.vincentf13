@@ -19,7 +19,7 @@ spring:
       # 預設使用 byte[] 序列化，統一交由 ObjectMapper 控制 payload 編碼                            
       key-serializer: org.apache.kafka.common.serialization.StringSerializer                       
       value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer                  
-      properties:                                                                                  
+      properties:
         # 傳輸可靠性                                                                               
         acks: all                                                                                  
         enable.idempotence: true                                                                   
@@ -40,7 +40,7 @@ spring:
 
       # 第一次消費時的起始位置設為 latest。
       auto-offset-reset: latest
-      # 手動 ACK。
+      # 手動 ACK
       enable-auto-commit: false
       # 一次 poll() 調用最多拉取的訊息數量。
       max-poll-records: 50
@@ -48,7 +48,11 @@ spring:
       max-poll-interval-ms: 300000 # 5 分鐘
       # 【反序列化】提供默認的反序列化器。
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ByteArrayDeserializer
       properties:
-        # 默認信任所有包。在生產環境中，強烈建議下游服務覆蓋此配置，縮小範圍為具體的事件包名。
-        spring.json.trusted.packages: '*'
+        session.timeout.ms: 10000
+        heartbeat.interval.ms: 3000
+        max.poll.interval.ms: 300000
+        max.poll.records: 500
+        fetch.min.bytes: 1048576
+        fetch.max.wait.ms: 200
