@@ -3,6 +3,7 @@ package open.vincentf13.common.infra.kafka.config;
 import open.vincentf13.common.core.log.OpenLog;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -66,11 +67,11 @@ public class ConfigKafkaConsumer {
      * @return 配置好的 ConcurrentKafkaListenerContainerFactory。
      */
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, byte[]>>
+    public ConcurrentKafkaListenerContainerFactory<String, byte[]>
 
     kafkaListenerContainerFactory(
             ConsumerFactory<String, byte[]> consumerFactory,
-            KafkaTemplate<String, byte[]> kafkaTemplate,
+            KafkaTemplate<Object, Object> kafkaTemplate,
             KafkaProperties kafkaProperties) {
 
         ConcurrentKafkaListenerContainerFactory<String, byte[]> factory = new ConcurrentKafkaListenerContainerFactory<>();
@@ -89,7 +90,7 @@ public class ConfigKafkaConsumer {
         // 配置錯誤處理器 (重試 + DLQ)
         // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ
         // DLQ 的 topic 命名規則為：<原始topic>.DLT
-        BiFunction<ConsumerRecord<String, byte[]>, Exception, String> dlqTopicRouter = (record, ex) -> record.topic() + ".DLT";
+        BiFunction<ConsumerRecord<?,?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) ->new TopicPartition(record.topic() + ".DLT", record.partition());
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
 
         // 創建 DefaultErrorHandler，設置重試次數和間隔
