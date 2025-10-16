@@ -50,7 +50,7 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.ByteArrayDeserializer
       properties:
         # 為每個實例動態分配唯一的成員ID，以啟用靜態成員資格
-        group.instance.id: ${spring.application.name}-${random.uuid}
+#        group.instance.id: ${spring.application.name}-${random.uuid}
         session.timeout.ms: 10000
         heartbeat.interval.ms: 3000
         max.poll.interval.ms: 300000
