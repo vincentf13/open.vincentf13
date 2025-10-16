@@ -72,6 +72,42 @@ public final class OpenKafkaProducer {
         return send(topic, null, msg, Map.of());
     }
 
+    /**
+     * 非同步地批次發送多個訊息。
+     * <p>
+     * 這個方法允許你傳入一個物件集合，並為每個物件動態地提取 Kafka 訊息的 key 和 headers。
+     *
+     * <h3>範例用法：</h3>
+     * <pre>{@code
+     * // 假設你有一個 Order 類
+     * class Order {
+     *     String orderId;
+     *     String type;
+     *     // ... getters and setters
+     * }
+     *
+     * List<Order> orders = List.of(new Order("id1", "buy"), new Order("id2", "sell"));
+     * String topic = "order-topic";
+     *
+     * // 批次發送訊息
+     * // 1. 從 Order 物件中提取 orderId 作為 Kafka 的 key
+     * // 2. 從 Order 物件中提取 type 作為 header，並放入一個 Map
+     * CompletableFuture<List<SendResult<String, byte[]>>> future = OpenKafkaProducer.sendBatch(
+     *     topic,
+     *     orders,
+     *     order -> ((Order) order).getOrderId(),
+     *     order -> Map.of("orderType", ((Order) order).getType())
+     * );
+     *
+     * future.whenComplete((results, ex) -> {
+     *     if (ex == null) {
+     *         System.out.println("成功發送 " + results.size() + " 則訊息");
+     *     } else {
+     *         System.err.println("發送失敗: " + ex.getMessage());
+     *     }
+     * });
+     * }</pre>
+     */
     public static <T> CompletableFuture<List<SendResult<String, byte[]>>> sendBatch(
             String topic,
             Collection<? extends T> msgs,
