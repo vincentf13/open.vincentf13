@@ -6,6 +6,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -41,20 +42,19 @@ public class ConfigKafkaConsumer {
      * @return 配置好的 ConcurrentKafkaListenerContainerFactory。
      */
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, byte[]>
-
-    kafkaListenerContainerFactory(
+    public ConcurrentKafkaListenerContainerFactory<String, byte[]> kafkaListenerContainerFactory(
+            ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
             ConsumerFactory<String, byte[]> consumerFactory,
             KafkaTemplate<Object, Object> kafkaTemplate,
             KafkaProperties kafkaProperties) {
 
         ConcurrentKafkaListenerContainerFactory<String, byte[]> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory);
+        configurer.configure(factory, consumerFactory);
 
-        // 批次轉換：byte[] → JSON → DTO 列表
-        factory.setBatchMessageConverter(
-                new BatchMessagingMessageConverter(new ByteArrayJsonMessageConverter())
-                                        );
+        if (factory.isBatchListener()) {
+            // 批次轉換：byte[] → JSON → DTO 列表
+            factory.setBatchMessageConverter(new BatchMessagingMessageConverter(new ByteArrayJsonMessageConverter()));
+        }
         // 配置錯誤處理器 (重試 + DLQ)
         // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ
         // DLQ 的 topic 命名規則為：<原始topic>.DLT
@@ -77,9 +77,10 @@ public class ConfigKafkaConsumer {
 
         factory.setCommonErrorHandler(errorHandler);
 
+        String listenerType = factory.isBatchListener() ? "BATCH" : "SINGLE";
         OpenLog.info(log, "KafkaConsumerConfigured", "自定義 Kafka Consumer 配置已加載",
-                     "ackMode", "MANUAL",
-                     "listenerType", "BATCH",
+                     "ackMode", factory.getContainerProperties().getAckMode(),
+                     "listenerType", listenerType,
                      "errorHandler", "DLQ with 2 retries");
 
         return factory;

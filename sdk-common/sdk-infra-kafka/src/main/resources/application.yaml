@@ -53,8 +53,6 @@ spring:
 #        group.instance.id: ${spring.application.name}-${random.uuid}
         session.timeout.ms: 10000
         heartbeat.interval.ms: 3000
-        max.poll.interval.ms: 300000
-        max.poll.records: 500
         fetch.min.bytes: 1048576
         fetch.max.wait.ms: 200
     listener:
