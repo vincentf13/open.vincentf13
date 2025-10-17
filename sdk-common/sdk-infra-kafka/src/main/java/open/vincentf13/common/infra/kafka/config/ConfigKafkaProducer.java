@@ -1,42 +1,31 @@
 package open.vincentf13.common.infra.kafka.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import open.vincentf13.common.infra.kafka.OpenKafkaProducer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration;
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.core.ProducerFactory;
 
-import java.util.Map;
 
 @AutoConfiguration(after = KafkaAutoConfiguration.class)
 @ConditionalOnClass(KafkaTemplate.class)
 public class ConfigKafkaProducer {
 
-    @Bean(name = "kafkaByteArrayProducerFactory")
-    @ConditionalOnMissingBean(name = "kafkaByteArrayProducerFactory")
-    public ProducerFactory<String, byte[]> kafkaByteArrayProducerFactory(KafkaProperties properties) {
-        Map<String, Object> config = properties.buildProducerProperties(null);
-        return new DefaultKafkaProducerFactory<>(config);
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper objectMapper;
+
+    // 透過構造函數注入由 Spring Boot 自動配置好的 KafkaTemplate
+    public ConfigKafkaProducer(KafkaTemplate<String, Object> kafkaTemplate, @Qualifier("openObjectMapper") ObjectMapper objectMapper) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
     }
 
-    @Bean(name = "kafkaByteArrayTemplate")
-    @ConditionalOnMissingBean(name = "kafkaByteArrayTemplate")
-    @ConditionalOnBean(name = "kafkaByteArrayProducerFactory")
-    public KafkaTemplate<String, byte[]> kafkaByteArrayTemplate(
-            @Qualifier("kafkaByteArrayProducerFactory") ProducerFactory<String, byte[]> producerFactory,
-            @Qualifier("openObjectMapper") ObjectMapper objectMapper
-                                                               ) {
-        KafkaTemplate<String, byte[]> template = new KafkaTemplate<>(producerFactory);
-        OpenKafkaProducer.initialize(template, objectMapper);
-        return template;
+    @PostConstruct
+    public void initializeOpenKafkaProducer() {
+        // 使用正確的 KafkaTemplate 初始化我們的工具類
+        OpenKafkaProducer.initialize(kafkaTemplate, objectMapper);
     }
-
 }

@@ -40,19 +40,19 @@ public class ConfigKafkaConsumer {
      */
     @Bean
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    public ConcurrentKafkaListenerContainerFactory<String, byte[]> kafkaListenerContainerFactory(
-            ConsumerFactory<String,byte[]>  consumerFactory,
-            KafkaTemplate<String, byte[]> kafkaTemplate,
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            ConsumerFactory<String, Object>  consumerFactory,
+            KafkaTemplate<String, Object> kafkaTemplate,
             KafkaProperties kafkaProperties) {
 
-        ConcurrentKafkaListenerContainerFactory<String, byte[]> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
 
 
         // 配置錯誤處理器 (重試 + DLQ)
         // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ
         // DLQ 的 topic 命名規則為：<原始topic>.DLT
-        BiFunction<ConsumerRecord<?,?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) ->new TopicPartition(record.topic() + ".DLT", record.partition());
+        BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) ->new TopicPartition(record.topic() + ".DLT", record.partition());
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
 
         // 創建 DefaultErrorHandler，設置重試次數和間隔
