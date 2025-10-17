@@ -26,32 +26,30 @@ public final class OpenKafkaProducer {
 
     private static final Logger log = LoggerFactory.getLogger(OpenKafkaProducer.class);
 
-    private static volatile KafkaTemplate<String, String> kafkaTemplate;
+    private static volatile KafkaTemplate<String, Object> kafkaTemplate;
     private static volatile ObjectMapper objectMapper;
 
     private OpenKafkaProducer() {
     }
 
-    public static void initialize(KafkaTemplate<String, String> template, ObjectMapper mapper) {
+    public static void initialize(KafkaTemplate<String, Object> template, ObjectMapper mapper) {
         kafkaTemplate = Objects.requireNonNull(template, "kafkaTemplate");
         objectMapper = Objects.requireNonNull(mapper, "objectMapper");
     }
 
-    public static <T> CompletableFuture<SendResult<String, String>> send(String topic,
+    public static <T> CompletableFuture<SendResult<String, Object>> send(String topic,
                                                                          String key,
                                                                          T msg,
                                                                          Map<String, Object> headers
                                                                         ) {
         Objects.requireNonNull(topic, "topic");
         Objects.requireNonNull(msg, "msg");
-        KafkaTemplate<String, String> template = requireTemplate();
-        ObjectMapper mapper = requireMapper();
+        KafkaTemplate<String, Object> template = requireTemplate();
         try {
-            String value = mapper.writeValueAsString(msg);
-            ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, value);
+            ProducerRecord<String, Object> record = new ProducerRecord<>(topic, key, msg);
             addHeaders(record, headers);
             OpenLog.debug(log, "KafkaSend", () -> "送出 Kafka 訊息", "topic", topic, "key", key, "payloadType", msg.getClass().getName());
-            CompletableFuture<SendResult<String, String>> sendFuture = adaptFuture(
+            CompletableFuture<SendResult<String, Object>> sendFuture = adaptFuture(
                     template.send(record)
                                                                                   );
             sendFuture.whenComplete((result, throwable) ->
@@ -59,14 +57,14 @@ public final class OpenKafkaProducer {
                                    );
             return sendFuture;
         } catch (Exception ex) {
-            CompletableFuture<SendResult<String, String>> future = new CompletableFuture<>();
+            CompletableFuture<SendResult<String, Object>> future = new CompletableFuture<>();
             future.completeExceptionally(ex);
-            OpenLog.error(log, "KafkaSendFailed", "Kafka 訊息送出失敗（序列化或建構）", ex, "topic", topic, "key", key);
+            OpenLog.error(log, "KafkaSendFailed", "Kafka 訊息送出失敗", ex, "topic", topic, "key", key);
             return future;
         }
     }
 
-    public static <T> CompletableFuture<SendResult<String, String>> send(String topic,
+    public static <T> CompletableFuture<SendResult<String, Object>> send(String topic,
                                                                          T msg
                                                                         ) {
         return send(topic, null, msg, Map.of());
@@ -92,7 +90,7 @@ public final class OpenKafkaProducer {
      * // 批次發送訊息
      * // 1. 從 Order 物件中提取 orderId 作為 Kafka 的 key
      * // 2. 從 Order 物件中提取 type 作為 header，並放入一個 Map
-     * CompletableFuture<List<SendResult<String, String>>> future = OpenKafkaProducer.sendBatch(
+     * CompletableFuture<List<SendResult<String, Object>>> future = OpenKafkaProducer.sendBatch(
      *     topic,
      *     orders,
      *     order -> ((Order) order).getOrderId(),
@@ -108,14 +106,14 @@ public final class OpenKafkaProducer {
      * });
      * }</pre>
      */
-    public static <T> CompletableFuture<List<SendResult<String, String>>> sendBatch(
+    public static <T> CompletableFuture<List<SendResult<String, Object>>> sendBatch(
             String topic,
             Collection<? extends T> msgs,
             Function<Object, String> keyExtraction,
             Function<Object, Map<String, Object>> headerExtraction
                                                                                    ) {
         Objects.requireNonNull(msgs, "msgs");
-        List<CompletableFuture<SendResult<String, String>>> futures = new ArrayList<>(msgs.size());
+        List<CompletableFuture<SendResult<String, Object>>> futures = new ArrayList<>(msgs.size());
         for (T message : msgs) {
             String key = keyExtraction != null ? keyExtraction.apply(message) : null;
             Map<String, Object> headers = headerExtraction != null ? headerExtraction.apply(message) : Map.of();
@@ -129,8 +127,8 @@ public final class OpenKafkaProducer {
         return allOf(futures);
     }
 
-    private static KafkaTemplate<String, String> requireTemplate() {
-        KafkaTemplate<String, String> template = kafkaTemplate;
+    private static KafkaTemplate<String, Object> requireTemplate() {
+        KafkaTemplate<String, Object> template = kafkaTemplate;
         if (template == null) {
             throw new IllegalStateException("OpenKafkaProducer 尚未初始化 kafkaTemplate");
         }
@@ -145,7 +143,7 @@ public final class OpenKafkaProducer {
         return mapper;
     }
 
-    private static void addHeaders(ProducerRecord<String, String> record, Map<String, Object> headers) {
+    private static void addHeaders(ProducerRecord<String, Object> record, Map<String, Object> headers) {
         if (headers == null || headers.isEmpty()) {
             return;
         }
@@ -165,7 +163,7 @@ public final class OpenKafkaProducer {
     }
 
     private static void logResult(
-            SendResult<String, String> result,
+            SendResult<String, Object> result,
             Throwable throwable,
             String topic,
             String key
