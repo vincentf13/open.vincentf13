@@ -6,7 +6,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,8 +15,6 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.converter.BatchMessagingMessageConverter;
-import org.springframework.kafka.support.converter.ByteArrayJsonMessageConverter;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.function.BiFunction;
@@ -42,19 +39,16 @@ public class ConfigKafkaConsumer {
      * @return 配置好的 ConcurrentKafkaListenerContainerFactory。
      */
     @Bean
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public ConcurrentKafkaListenerContainerFactory<String, byte[]> kafkaListenerContainerFactory(
-            ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
-            ConsumerFactory<String, byte[]> consumerFactory,
-            KafkaTemplate<Object, Object> kafkaTemplate,
+            ConsumerFactory<String,byte[]>  consumerFactory,
+            KafkaTemplate<String, byte[]> kafkaTemplate,
             KafkaProperties kafkaProperties) {
 
         ConcurrentKafkaListenerContainerFactory<String, byte[]> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        configurer.configure(factory, consumerFactory);
+        factory.setConsumerFactory(consumerFactory);
 
-        if (factory.isBatchListener()) {
-            // 批次轉換：byte[] → JSON → DTO 列表
-            factory.setBatchMessageConverter(new BatchMessagingMessageConverter(new ByteArrayJsonMessageConverter()));
-        }
+
         // 配置錯誤處理器 (重試 + DLQ)
         // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ
         // DLQ 的 topic 命名規則為：<原始topic>.DLT
@@ -77,10 +71,9 @@ public class ConfigKafkaConsumer {
 
         factory.setCommonErrorHandler(errorHandler);
 
-        String listenerType = factory.isBatchListener() ? "BATCH" : "SINGLE";
         OpenLog.info(log, "KafkaConsumerConfigured", "自定義 Kafka Consumer 配置已加載",
                      "ackMode", factory.getContainerProperties().getAckMode(),
-                     "listenerType", listenerType,
+                     "listenerType", factory.isBatchListener() ? "BATCH" : "SINGLE" ,
                      "errorHandler", "DLQ with 2 retries");
 
         return factory;
