@@ -42,6 +42,7 @@ graph TD
 
     subgraph 核心服務 (在 K8S 中運行)
         GW[service-exchange-gateway]
+        AUTH[service-auth]
         MATCH[service-exchange-matching]
         MD[service-exchange-market-data]
         ACC[service-exchange-account-ledger]
@@ -53,11 +54,18 @@ graph TD
         KAFKA[Kafka/Redpanda]
         MYSQL[MySQL]
         REDIS[Redis]
-        PROM[Prometheus]
-        GRAFANA[Grafana]
+        PROM[Prometheus/Grafana]
+        ARGO[ArgoCD]
+    end
+    
+    subgraph 開發與維運
+        SDK[sdk-common]
+        CI[GitHub Actions]
     end
 
+
     A --> GW
+    GW --> AUTH
     GW --> MATCH
     GW --> MD
     GW --> ACC
@@ -69,17 +77,66 @@ graph TD
     ACC --- MYSQL
     POS --- REDIS
     RISK --- MYSQL
+    
+    核心服務 -- 使用 --> SDK
 
-    subgraph 監控
+    subgraph 監控與部署
+        CI -- builds/pushes --> DockerHub -- triggers --> ARGO
+        ARGO -- deploys --> K8S
         PROM -- 監控 --> 核心服務
-        GRAFANA -- 可視化 --> PROM
     end
 ```
 
-### 機會與潛在風險
+### 關鍵設計原則
 
-- **機會**: 項目結構非常清晰，自動化程度高 (`k8s`, `ci-cd`)，這讓我能更容易地進行修改和部署。
-- **潛在風險**: 微服務之間的依賴關係複雜，任何改動都需要考慮對上下游服務的影響。我會特別小心。
+- **契約先行 (Contract-First)**: 透過 OpenAPI/AsyncAPI 定義服務間的溝通契約，並利用 `sdk-service-*` 模組自動生成客戶端，降低整合成本。
+- **關注點分離 (Separation of Concerns)**:
+    - `sdk-common`: 封裝所有橫切關注點 (cross-cutting concerns)，如日誌、監控、追蹤、資料庫存取等，以 Spring Boot Starter 的形式提供給業務服務使用。
+    - `service`: 專注於實現業務邏輯，並遵循 `controller/service/domain/infra` 的四層架構。
+- **雲原生與自動化**:
+    - **容器化**: 所有服務都被設計為在 Docker 容器中運行。
+    - **Kubernetes 優先**: 提供完整的 Kubernetes manifests (`k8s/` 目錄) 進行部署、擴展和管理。
+    - **GitOps**: 透過 GitHub Actions (CI) 和 ArgoCD (CD) 實現從程式碼提交到部署的完整自動化流程。
+- **可觀測性 (Observability)**: 內建 Prometheus 和 Grafana 的監控堆疊，並透過 `sdk-core-metrics` 和 `sdk-core-trace` 模組在應用層級提供豐富的監控指標和分散式追蹤。
+
+## 如何建置與運行
+
+### 本地開發環境 (Kubernetes)
+
+專案的設計目標是直接在 Kubernetes 環境中運行。`readme.md` 提供了極其詳盡的步驟來建立一個本地的 `kind` 叢集。
+
+**一鍵啟動腳本**:
+在完成 `readme.md` 中的「初始建置」後，可以使用以下腳本快速啟動整個本地環境：
+
+```bash
+# 啟動所有基礎設施 (MySQL, Redis, Kafka) 和 K8s 資源
+bash ./script/cluster-up.sh
+```
+
+### 核心指令
+
+- **建置專案**: 專案使用 Maven Wrapper，可以直接在根目錄執行：
+  ```bash
+  # 清理並打包所有模組
+  ./mvnw clean package
+  ```
+
+- **運行單一服務 (不建議)**: 雖然可以獨立運行，但服務間有依賴，建議使用 `cluster-up.sh` 進行整合測試。
+  ```bash
+  # 範例：運行 service-auth
+  java -jar service/service-auth/target/service-auth-*.jar
+  ```
+
+- **壓力測試**: 專案內建了 K6 壓力測試腳本。
+  ```bash
+  k6 run ./script/k6.js
+  ```
+
+## 開發慣例
+
+- **模組化**: 新增共用功能時，應優先考慮在 `sdk-common` 中建立新的模組。
+- **分支策略**: (推斷) 可能是基於 GitFlow 或 GitHub Flow，PR 會觸發 CI 流程。
+- **測試**: `pom.xml` 中配置了 `maven-surefire-plugin` (單元測試) 和 `maven-failsafe-plugin` (整合測試)，表明專案重視自動化測試。
 
 ## 下一步行動
 
