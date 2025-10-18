@@ -230,6 +230,7 @@ ensure_directories() {
 }
 
 apply_application_manifests() {
+  local manifest
   for manifest in "${APPLICATION_MANIFESTS[@]}"; do
     local file="$K8S_DIR/$manifest"
     if [[ ! -f "$file" ]]; then
@@ -238,15 +239,30 @@ apply_application_manifests() {
     fi
   done
 
-  for manifest in "${APPLICATION_MANIFESTS[@]}"; do
-    local file="$K8S_DIR/$manifest"
-    printf 'Applying %s\n' "$file"
-    kubectl "${KUBECTL_APP_ARGS[@]}" apply -f "$file"
-  done
-
   local ingress_manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
   printf 'Ensuring ingress-nginx controller from %s\n' "$ingress_manifest"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$ingress_manifest"
+
+  local pids=()
+  for manifest in "${APPLICATION_MANIFESTS[@]}"; do
+    (
+      local file="$K8S_DIR/$manifest"
+      printf 'Applying %s\n' "$file"
+      kubectl "${KUBECTL_APP_ARGS[@]}" apply -f "$file"
+    ) &
+    pids+=($!)
+  done
+
+  local status=0
+  for pid in "${pids[@]}"; do
+    if ! wait "$pid"; then
+      status=1
+    fi
+  done
+  if [[ $status -ne 0 ]]; then
+    printf 'One or more application manifests failed to apply.\n' >&2
+    return 1
+  fi
 }
 
 setup_ingress_and_metrics() {
@@ -438,8 +454,27 @@ apply_infra_clusters() {
 }
 
 apply_monitoring_stack() {
-  apply_prometheus_manifests
-  apply_grafana_manifests
+  local prom_pid graf_pid status=0
+
+  apply_prometheus_manifests &
+  prom_pid=$!
+
+  (
+    until kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get namespace monitoring >/dev/null 2>&1; do
+      sleep 2
+    done
+    apply_grafana_manifests
+  ) &
+  graf_pid=$!
+
+  if ! wait "$prom_pid"; then
+    status=1
+  fi
+  if ! wait "$graf_pid"; then
+    status=1
+  fi
+
+  return $status
 }
 
 configure_argocd() {
