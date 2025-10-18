@@ -401,10 +401,40 @@ apply_nacos_cluster() {
 }
 
 apply_infra_clusters() {
-  apply_mysql_cluster
-  apply_redis_cluster
-  apply_kafka_cluster
-  apply_nacos_cluster
+  local funcs=(
+    apply_mysql_cluster
+    apply_redis_cluster
+    apply_kafka_cluster
+    apply_nacos_cluster
+  )
+  local names=(
+    "MySQL"
+    "Redis"
+    "Kafka"
+    "Nacos"
+  )
+
+  local pids=()
+  local idx
+  for idx in "${!funcs[@]}"; do
+    "${funcs[$idx]}" &
+    pids+=($!)
+    printf 'Started provisioning %s (pid %s)\n' "${names[$idx]}" "${pids[-1]}"
+  done
+
+  local failures=0
+  for idx in "${!pids[@]}"; do
+    if ! wait "${pids[$idx]}"; then
+      printf 'Provisioning %s failed. Check logs above for details.\n' "${names[$idx]}" >&2
+      failures=1
+    else
+      printf '%s provisioning completed.\n' "${names[$idx]}"
+    fi
+  done
+
+  if [[ $failures -ne 0 ]]; then
+    return 1
+  fi
 }
 
 apply_monitoring_stack() {
