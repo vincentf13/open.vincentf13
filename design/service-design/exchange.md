@@ -11,27 +11,21 @@ open.vincentf13/
 └── service/
     └── service-exchange/
         ├── pom.xml
-        ├── service-exchange-gateway/        # API Gateway / BFF 層
-        ├── service-exchange-risk-margin/    # 保證金與下單前風控
-        ├── service-exchange-matching/       # 撮合引擎與訂單流邏輯
-        ├── service-exchange-account-ledger/ # 賬本雙分錄與資金結算
-        ├── service-exchange-positions/      # 倉位、PnL 計算
-        └── service-exchange-market-data/    # 行情聚合與推送
+        └── service-exchange-gateway/        # API Gateway / BFF 層
 ```
 
 ### 子模組定位
-- `service-exchange-gateway`：提供對外入口與路由，後續將整合 `sdk-spring-cloud-gateway` 內的共用過濾器。
-- `service-exchange-risk-margin`：承接下單前的額度檢查、保證金計算與合規校驗。
-- `service-exchange-matching`：負責訂單簿管理、撮合邏輯與事件產生，並透過 API 契約對外公開狀態查詢。
-- `service-exchange-account-ledger`：管理資產雙分錄與資金結算事件，後續會串接 MySQL 與出帳流程。
-- `service-exchange-positions`：以賬本事件為基礎更新倉位、浮動盈虧與風控指標。
-- `service-exchange-market-data`：彙整撮合輸出與外部行情，對外釋出快照、增量 feed 與 WebSocket。
-- `sdk-service-exchange-matching`：集中交易契約（API Interface + DTO）與自動產出的客戶端；其他服務在完成契約後會比照納入。
+- `service-exchange-gateway`：提供對外入口與路由，整合 `sdk-spring-cloud-gateway` 的共用過濾器與安全設定。
+- （暫緩）`service-exchange-risk-margin`：原規劃承接下單前風控，待模組恢復後再另行建置。
+- （暫緩）`service-exchange-matching`：原規劃負責訂單簿管理與撮合邏輯。
+- （暫緩）`service-exchange-account-ledger`：原規劃管理資產雙分錄與資金結算事件。
+- （暫緩）`service-exchange-positions`：原規劃根據賬本事件維護倉位與盈虧。
+- （暫緩）`service-exchange-market-data`：原規劃彙整撮合輸出並提供行情快照。
+- `sdk-service-exchange-matching`：仍保留契約模組，作為將來恢復服務時的 API 基礎。
 
 ### 目前進度
-- 各服務模組皆已建立 Spring Boot 腳手架並繼承 `service-exchange` 聚合 POM，預設依賴 `sdk-core`。
-- `sdk-service-exchange-matching` 提供的 REST 契約為第一個落地案例，供 Gateway 與測試使用。
-- 資料存取層、事件匯流與快照邏輯仍在實作中，尚未連結實際基礎設施。
+- 目前僅保留 Gateway 模組，其餘交易子服務代碼已移除，需要時再從規劃方案復刻。
+- `sdk-service-exchange-matching` 仍提供 REST 契約，支持後續恢復撮合相關流程。
 - `funding`、`liquidation`、`wallet` 等延伸服務尚未建模，保留於後續規劃。
 
 ## 業務概述
@@ -40,13 +34,14 @@ open.vincentf13/
 - Gateway 承接使用者流量與邏輯入口，風控服務負責同步檢查，撮合與賬本服務確保資產安全與一致性。
 
 ## 核心流程（設計）
+以下為完整交易閉環的目標狀態，標示「暫緩」者目前尚未有對應模組：
 1. **下單入口**：請求進入 `service-exchange-gateway`，完成驗證、節流與路由。
-2. **風險校驗**：`service-exchange-risk-margin` 依可用資產、風控規則同步檢查，未通過即時回應。
-3. **撮合執行**：合格訂單送入 `service-exchange-matching`，以單執行緒訂單簿完成撮合並寫入 WAL（研發中）。
-4. **行情播送**：撮合事件推送至 `service-exchange-market-data`，產生快照、推播與公共 API。
-5. **賬本入賬**：`service-exchange-account-ledger` 以雙分錄落帳，輸出資產變動事件。
-6. **倉位更新**：`service-exchange-positions` 消費賬本事件，計算倉位狀態與風險指標。
-7. **其他模組**：資金費率與強平管理列入下一階段 backlog，尚未建置。
+2. **風險校驗（暫緩）**：原規劃由 `service-exchange-risk-margin` 同步檢查額度與合規。
+3. **撮合執行（暫緩）**：原規劃由 `service-exchange-matching` 進行訂單簿撮合並寫入 WAL。
+4. **行情播送（暫緩）**：原規劃由 `service-exchange-market-data` 產生快照與推播。
+5. **賬本入賬（暫緩）**：原規劃由 `service-exchange-account-ledger` 以雙分錄落帳。
+6. **倉位更新（暫緩）**：原規劃由 `service-exchange-positions` 更新倉位與風險指標。
+7. **其他模組**：資金費率與強平管理仍在 backlog。
 
 ## 資料模型與一致性策略（目標）
 - **賬本**：使用關係型資料庫維護不可變雙分錄表，以事件溯源確保追蹤性。

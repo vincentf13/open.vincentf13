@@ -44,11 +44,13 @@
 </plugin>
 ```
 
-執行指令：
+執行指令（模組恢復後使用）：
 
 ```bash
 mvn -pl services/service-exchange/service-exchange-matching -am springdoc-openapi:generate
 ```
+
+> 目前 `service-exchange-matching` 模組暫時移除，若需在暫停期間產生契約，可改用 `service-template` 建構臨時模組或直接對 `sdk-service-exchange-matching` 的 YAML 進行手動維護。
 
 生成結果放在 `target/openapi/`，建議將 YAML 檔複製或發佈到 `sdk-common/sdk-service-<domain>/<module>/<module>-rest-api/src/main/resources/openapi/` 以利版本控。
 

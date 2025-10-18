@@ -30,12 +30,7 @@ open.vincentf13/
 │   ├── pom.xml
 │   ├── service-exchange/
 │   │   ├── pom.xml
-│   │   ├── service-exchange-account-ledger/  # 賬本與資金流轉
-│   │   ├── service-exchange-gateway/         # 對外 API Gateway / BFF
-│   │   ├── service-exchange-market-data/     # 行情彙整與推送
-│   │   ├── service-exchange-matching/        # 撮合核心流程
-│   │   ├── service-exchange-positions/       # 倉位與 PnL 處理
-│   │   └── service-exchange-risk-margin/     # 風控與保證金邏輯
+│   │   └── service-exchange-gateway/         # 對外 API Gateway / BFF
 │   ├── service-template/      # 建立新服務的腳手架範例
 │   └── service-test/          # 測試服務與驗證場景
 ├── target/                    # Maven 聚合輸出
@@ -56,7 +51,7 @@ open.vincentf13/
 - 服務若需覆寫版本，優先在各自子模組的 `<dependencyManagement>` 控制，避免直接鎖定 transitive 依賴。
 
 ### `service`
-- `service-exchange` 聚合交易所核心服務，全部遵循 controller/service/domain/infra 四層分工，確保關注點分離與測試可行性。
+- `service-exchange` 目前僅保留 Gateway 模組，其餘交易子服務（auth、matching、market-data、account-ledger、positions、risk-margin）暫時移除，待後續重新引入時再恢復聚合。
 - `service-template` 提供建立新服務時的腳手架與最佳實務樣板。
 - `service-test` 收錄端到端驗證與 PoC 場景，便於開發期驗證整合流程。
 

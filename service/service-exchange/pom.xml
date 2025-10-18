@@ -20,10 +20,5 @@
 
     <modules>
         <module>service-exchange-gateway</module>
-        <module>service-exchange-risk-margin</module>
-        <module>service-exchange-matching</module>
-        <module>service-exchange-account-ledger</module>
-        <module>service-exchange-positions</module>
-        <module>service-exchange-market-data</module>
     </modules>
 </project>

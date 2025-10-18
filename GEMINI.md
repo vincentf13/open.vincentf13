@@ -42,12 +42,6 @@ graph TD
 
     subgraph 核心服務 (在 K8S 中運行)
         GW[service-exchange-gateway]
-        AUTH[service-auth]
-        MATCH[service-exchange-matching]
-        MD[service-exchange-market-data]
-        ACC[service-exchange-account-ledger]
-        POS[service-exchange-positions]
-        RISK[service-exchange-risk-margin]
     end
 
     subgraph 支撐組件 (在 K8S 中運行)
@@ -65,18 +59,7 @@ graph TD
 
 
     A --> GW
-    GW --> AUTH
-    GW --> MATCH
-    GW --> MD
-    GW --> ACC
-    GW --> POS
-    GW --> RISK
-
-    MATCH --- KAFKA
-    MD --- KAFKA
-    ACC --- MYSQL
-    POS --- REDIS
-    RISK --- MYSQL
+    %% 其他交易子服務暫時下架，等待重新引入
     
     核心服務 -- 使用 --> SDK
 
@@ -113,6 +96,8 @@ graph TD
 bash ./script/cluster-up.sh
 ```
 
+目前僅保留 `service-exchange-gateway` 作為交易域的運行模組；`service-exchange-auth`、`service-exchange-matching` 等子服務已暫時移除，待業務重新規劃後再回補。
+
 ### 核心指令
 
 - **建置專案**: 專案使用 Maven Wrapper，可以直接在根目錄執行：
@@ -123,8 +108,8 @@ bash ./script/cluster-up.sh
 
 - **運行單一服務 (不建議)**: 雖然可以獨立運行，但服務間有依賴，建議使用 `cluster-up.sh` 進行整合測試。
   ```bash
-  # 範例：運行 service-auth
-  java -jar service/service-auth/target/service-auth-*.jar
+  # 範例：運行 service-exchange-gateway
+  java -jar service/service-exchange/service-exchange-gateway/target/service-exchange-gateway-*.jar
   ```
 
 - **壓力測試**: 專案內建了 K6 壓力測試腳本。
