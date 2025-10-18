@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nacos-data-infra-nacos-0
+  labels:
+    app: infra-nacos
+    # 與 StatefulSet 自動生成的 PVC 命名一致，提前綁定本地 PV。
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: infra-nacos-local
+  volumeName: infra-nacos-pv-0

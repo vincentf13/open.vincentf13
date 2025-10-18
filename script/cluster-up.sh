@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
+if ! set -o pipefail 2>/dev/null; then
+  printf 'Warning: pipefail not supported; continuing without it.\n'
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -9,6 +12,7 @@ GRAFANA_DIR="$K8S_DIR/infra-grafana"
 MYSQL_DIR="$K8S_DIR/infra-mysql"
 REDIS_DIR="$K8S_DIR/infra-redis"
 KAFKA_DIR="$K8S_DIR/infra-kafka"
+NACOS_DIR="$K8S_DIR/infra-nacos"
 
 # Core application manifests applied to the cluster in order.
 APPLICATION_MANIFESTS=(
@@ -69,6 +73,14 @@ KAFKA_MANIFEST_ORDER=(
   redpanda-console-service.yaml
 )
 
+NACOS_MANIFEST_ORDER=(
+  pv.yaml
+  pvc.yaml
+  configmap.yaml
+  service.yaml
+  statefulset.yaml
+)
+
 PORT_FORWARD_PIDS=()
 MODE="full"
 CONTEXT=""
@@ -85,6 +97,7 @@ Options:
       --only-mysql        apply only MySQL infrastructure
       --only-redis        apply only Redis infrastructure
       --only-kafka        apply only Kafka infrastructure
+      --only-nacos        apply only Nacos infrastructure
       --only-prometheus   apply only monitoring stack manifests (Prometheus + Grafana)
   -h, --help              show this help message
 
@@ -183,6 +196,11 @@ parse_args() {
         MODE="kafka"
         shift
         ;;
+      --only-nacos)
+        [[ "$MODE" != "full" ]] && { printf 'Multiple mode flags specified.\n' >&2; exit 1; }
+        MODE="nacos"
+        shift
+        ;;
       --only-prometheus)
         [[ "$MODE" != "full" ]] && { printf 'Multiple mode flags specified.\n' >&2; exit 1; }
         MODE="prom"
@@ -208,6 +226,7 @@ ensure_directories() {
   [[ -d "$MYSQL_DIR" ]] || { printf 'Missing directory: %s\n' "$MYSQL_DIR" >&2; exit 1; }
   [[ -d "$REDIS_DIR" ]] || { printf 'Missing directory: %s\n' "$REDIS_DIR" >&2; exit 1; }
   [[ -d "$KAFKA_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_DIR" >&2; exit 1; }
+  [[ -d "$NACOS_DIR" ]] || { printf 'Missing directory: %s\n' "$NACOS_DIR" >&2; exit 1; }
 }
 
 apply_application_manifests() {
@@ -362,10 +381,30 @@ apply_kafka_cluster() {
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/redpanda-console --timeout=180s
 }
 
+apply_nacos_cluster() {
+  log_step "Applying infra-nacos manifests"
+  for manifest in "${NACOS_MANIFEST_ORDER[@]}"; do
+    local file="$NACOS_DIR/$manifest"
+    if [[ ! -f "$file" ]]; then
+      printf 'Missing manifest: %s\n' "$file" >&2
+      exit 1
+    fi
+    printf 'Applying %s\n' "$file"
+    if [[ "$manifest" == "pv.yaml" ]]; then
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply --validate=false -f "$file"
+    else
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+    fi
+  done
+
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-nacos --timeout=180s
+}
+
 apply_infra_clusters() {
   apply_mysql_cluster
   apply_redis_cluster
   apply_kafka_cluster
+  apply_nacos_cluster
 }
 
 apply_monitoring_stack() {
@@ -474,6 +513,22 @@ main() {
       printf '\nKafka infrastructure ready. Press Ctrl+C to stop port-forward.\n'
       wait
       ;;
+    nacos)
+      require_cmd kubectl
+      [[ -d "$NACOS_DIR" ]] || { printf 'Missing directory: %s\n' "$NACOS_DIR" >&2; exit 1; }
+      log_step "Applying Nacos manifests"
+      apply_nacos_cluster
+
+      local infra_ns_args_nacos=()
+      if [[ -n "$NAMESPACE" ]]; then
+        infra_ns_args_nacos=(--namespace "$NAMESPACE")
+      fi
+
+      start_port_forward "Nacos UI 8848->8848" "${infra_ns_args_nacos[@]}" port-forward svc/infra-nacos 8848:8848
+
+      printf '\nNacos infrastructure ready. Press Ctrl+C to stop port-forward.\n'
+      wait
+      ;;
     full)
       require_cmd kubectl
       require_cmd argocd
@@ -493,6 +548,7 @@ main() {
       port_forward_redis_nodes "${infra_ns_args[@]}"
       start_port_forward "Kafka 9092->9092" "${infra_ns_args[@]}" port-forward svc/infra-kafka 9092:9092
       start_port_forward "Redpanda Console 8088->8080" "${infra_ns_args[@]}" port-forward svc/redpanda-console 8088:8080
+      start_port_forward "Nacos UI 8848->8848" "${infra_ns_args[@]}" port-forward svc/infra-nacos 8848:8848
 
       log_step "Applying application manifests"
       apply_application_manifests

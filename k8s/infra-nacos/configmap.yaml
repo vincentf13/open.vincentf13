@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infra-nacos-config
+  labels:
+    app: infra-nacos
+    # 提供可覆寫的屬性給單節點 Nacos，便於本地調校。
+data:
+  custom.properties: |
+    # 開放管理端點以利觀測。
+    management.endpoints.web.exposure.include=*
+    # 停用內建權限驗證，減少本地開發設定成本。
+    nacos.core.auth.enabled=false
+    # 啟用內嵌儲存，避免依賴外部 MySQL。
+    embeddedStorage=true

@@ -193,6 +193,7 @@ ArgoCD: https://127.0.0.1:8082/
 Promethous: http://localhost:9090/
 AlertManager: http://localhost:9093/#/alerts
 Grafana: http://localhost:3000/
+nacos: http://localhost:8848/nacos
 MySQL: 
 - infra-mysql-0: 127.0.0.1:3306  帳號/密碼 : root/root
 - infra-mysql-1: 127.0.0.1:3307 帳號/密碼 : root/root

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: infra-nacos-pv-0
+  labels:
+    app: infra-nacos
+    # 單實例部署只需一顆本地 PV。
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: infra-nacos-local
+  hostPath:
+    path: /var/lib/k8s/infra-nacos-0
+    type: DirectoryOrCreate
