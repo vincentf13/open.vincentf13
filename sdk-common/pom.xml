@@ -29,6 +29,7 @@
         <module>sdk-infra-mysql</module>
         <module>sdk-infra-redis</module>
         <module>sdk-infra-kafka</module>
+        <module>sdk-infra-nacos</module>
         <module>sdk-core-test</module>
         <module>sdk-core-log</module>
         <module>sdk-core-trace</module>

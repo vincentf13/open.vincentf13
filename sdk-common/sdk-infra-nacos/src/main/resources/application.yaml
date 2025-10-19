@@ -1,0 +1,13 @@
+spring:
+  config:
+    import:
+      - optional:nacos:${spring.application.name}.yaml   # 動態取應用名稱，作為 Nacos 上的 Data ID 前綴。表示「可選」，若 Nacos 中找不到該設定檔，不會報錯（應用仍能啟動）
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${OPEN_VINCENTF13_NACOS_ADDR:infra-nacos:8848}
+      config:
+        server-addr: ${OPEN_VINCENTF13_NACOS_ADDR:infra-nacos:8848}
+        file-extension: yaml
+        import-check:
+          enabled: false

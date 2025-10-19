@@ -31,6 +31,7 @@
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
         <image.tag>local</image.tag>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
+        <spring-cloud-alibaba.version>2023.0.4.0</spring-cloud-alibaba.version>
         <mybatis-spring-boot.version>3.0.4</mybatis-spring-boot.version>
         <jackson-bom.version>2.17.3</jackson-bom.version>
     </properties>
@@ -41,6 +42,13 @@
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
                 <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -121,6 +129,11 @@
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
                 <artifactId>sdk-infra-kafka</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-infra-nacos</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
