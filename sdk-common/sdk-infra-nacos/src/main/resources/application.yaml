@@ -43,3 +43,35 @@ spring:
 #          - data-id: feature-toggle.yaml
 #            group: ${NACOS_GROUP:DEFAULT_GROUP}
 #            refresh: true
+
+
+logging:
+  level:
+    # Spring Cloud Alibaba 整合層（Spring 與 Nacos 溝通過程）
+    com.alibaba.cloud.nacos: INFO
+
+    # Nacos 原生客戶端主程式（連線、註冊、拉取配置等）
+    com.alibaba.nacos.client: INFO
+
+    # Nacos 通用模組（序列化、心跳、HTTP 請求）
+    com.alibaba.nacos.common: INFO
+
+    # 服務發現與健康監控細節（觀察註冊與心跳，可暫時升級為 DEBUG）
+    com.alibaba.nacos.client.naming: INFO
+
+    # 配置拉取與熱更新細節（觀察配置變化，可暫時升級為 DEBUG）
+    com.alibaba.nacos.client.config: INFO
+
+    # Spring Cloud RefreshContext，當配置變更觸發 @RefreshScope 時會記錄
+    org.springframework.cloud.context.refresh: INFO
+
+    # Reactor Netty：Spring WebFlux 與 Nacos HTTP 通訊底層（排查連線/逾時用）
+    reactor.netty: WARN
+
+  file:
+    # 輸出到檔案，預設在 ./logs/app.log，可用環境變數 LOG_PATH 覆蓋
+    name: ${LOG_PATH:./logs}/app.log
+
+# 疑難排查建議（僅本地或灰度環境開啟）
+# logging.level.com.alibaba.nacos.client: DEBUG    # 顯示客戶端完整連線與心跳細節
+# logging.level.reactor.netty: DEBUG              # 顯示 HTTP 請求與逾時堆疊
