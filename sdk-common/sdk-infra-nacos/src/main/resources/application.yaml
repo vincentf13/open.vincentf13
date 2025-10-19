@@ -1,13 +1,45 @@
 spring:
   config:
     import:
-      - optional:nacos:${spring.application.name}.yaml   # 動態取應用名稱，作為 Nacos 上的 Data ID 前綴。表示「可選」，若 Nacos 中找不到該設定檔，不會報錯（應用仍能啟動）
+      - optional:nacos:${spring.application.name}.yaml  # 啟動期從 Nacos 載入主配置；不存在不報錯
+
   cloud:
     nacos:
       discovery:
-        server-addr: ${OPEN_VINCENTF13_NACOS_ADDR:infra-nacos:8848}
+        server-addr: ${NACOS_ADDR:infra-nacos:8848}     # 註冊中心地址（支援覆寫環境變數）
+        namespace: ${NACOS_NS:public}                     # 以 Namespace 區分環境
+        group: ${NACOS_GROUP:DEFAULT_GROUP}             # 以 Group 區分業務域
+        service: ${spring.application.name}             # 註冊名，通常等於應用名
+        register-enabled: true                          # Gateway 可設為 false
+        ephemeral: true                                 # 臨時實例；掉線自動剔除
+        weight: 1                                       # 流量權重
+#        cluster-name: ${NACOS_CLUSTER:HZ}               # 叢集/機房名，就近路由用
+#        metadata:                                       # 版本與路由標記（灰度/藍綠）
+#          version: v1
+#          region: east
+        naming-load-cache-at-start: true                # 冷啟提速（從本地快取加載）
+        # 下列心跳參數通常用預設即可；需微調時再開
+        # heart-beat-interval: 5
+        # heart-beat-timeout: 15
+        # ip-delete-timeout: 30
+
       config:
-        server-addr: ${OPEN_VINCENTF13_NACOS_ADDR:infra-nacos:8848}
-        file-extension: yaml
+        server-addr: ${NACOS_ADDR:infra-nacos:8848}     # 配置中心地址
+        namespace: ${NACOS_NS:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml                            # 與 DataId 後綴一致
+        refresh-enabled: true                           # 開啟熱更新（@RefreshScope）
         import-check:
-          enabled: false
+          enabled: false                                # 與 spring.config.import 並用時，避免重複校驗報錯
+        # 共用與擴展配置（可選，推薦抽公共件）
+#        shared-configs:
+#          - data-id: common-db.yaml
+#            group: COMMON_GROUP
+#            refresh: true
+#          - data-id: common-redis.yaml
+#            group: COMMON_GROUP
+#            refresh: true
+#        extension-configs:
+#          - data-id: feature-toggle.yaml
+#            group: ${NACOS_GROUP:DEFAULT_GROUP}
+#            refresh: true
