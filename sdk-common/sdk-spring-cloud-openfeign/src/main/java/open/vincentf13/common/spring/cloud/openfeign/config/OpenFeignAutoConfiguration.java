@@ -4,6 +4,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import open.vincentf13.common.core.OpenConstant;
 
 @AutoConfiguration
 @ConditionalOnClass(EnableFeignClients.class)
@@ -11,5 +12,5 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @EnableFeignClients(basePackages = OpenFeignAutoConfiguration.BASE_PACKAGES)
 public class OpenFeignAutoConfiguration {
 
-    static final String[] BASE_PACKAGES = new String[] {"open.vincentf13"};
+    static final String[] BASE_PACKAGES = new String[] {OpenConstant.BASE_PACKAGE};
 }

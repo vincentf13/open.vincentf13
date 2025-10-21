@@ -7,8 +7,9 @@ import org.springframework.boot.info.BuildProperties;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import open.vincentf13.common.core.OpenConstant;
 
-@SpringBootApplication(scanBasePackages = "open.vincentf13")
+@SpringBootApplication(scanBasePackages = OpenConstant.BASE_PACKAGE)
 @RestController
 public class ServiceTestApplication {
     private final BuildProperties buildProperties;

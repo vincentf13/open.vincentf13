@@ -2,6 +2,7 @@ package open.vincentf13.common.spring.mvc.config;
 
 import lombok.Getter;
 import lombok.Setter;
+import open.vincentf13.common.core.OpenConstant;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.validation.annotation.Validated;
@@ -14,7 +15,7 @@ import java.util.List;
  */
 @Validated
 @Getter
-@ConfigurationProperties(prefix = "open.vincentf13.mvc")
+@ConfigurationProperties(prefix = OpenConstant.BASE_PACKAGE + ".mvc")
 public class MvcProperties {
 
     @NestedConfigurationProperty
