@@ -7,15 +7,17 @@ spring:
           default:
             connectTimeout: 2000
             readTimeout: 5000
-            decode404: true
             loggerLevel: BASIC
       compression:
         request:
           enabled: true
           mime-types:
+            - text/xml
             - application/json
             - text/plain
-          min-request-size: 1024
+            - text/html
+            - text/csv
+          min-request-size: 2048
         response:
           enabled: true
 

@@ -1,9 +1,12 @@
 package open.vincentf13.common.spring.cloud.openfeign;
 
+import feign.Retryer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.context.annotation.Bean;
 import open.vincentf13.common.core.OpenConstant;
 
 @AutoConfiguration
@@ -12,5 +15,9 @@ import open.vincentf13.common.core.OpenConstant;
 @EnableFeignClients(basePackages = OpenConstant.BASE_PACKAGE)
 public class OpenFeignAutoConfiguration {
 
-
+    @Bean
+    @ConditionalOnMissingBean(Retryer.class)
+    public Retryer feignRetryer() {
+        return Retryer.NEVER_RETRY;
+    }
 }
