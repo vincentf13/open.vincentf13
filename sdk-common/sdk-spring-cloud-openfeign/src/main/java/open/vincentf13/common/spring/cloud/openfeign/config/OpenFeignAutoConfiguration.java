@@ -9,8 +9,8 @@ import open.vincentf13.common.core.OpenConstant;
 @AutoConfiguration
 @ConditionalOnClass(EnableFeignClients.class)
 @ConditionalOnProperty(prefix = "spring.cloud.openfeign", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableFeignClients(basePackages = OpenFeignAutoConfiguration.BASE_PACKAGES)
+@EnableFeignClients(basePackages = OpenConstant.BASE_PACKAGE)
 public class OpenFeignAutoConfiguration {
 
-    static final String[] BASE_PACKAGES = new String[] {OpenConstant.BASE_PACKAGE};
+
 }
