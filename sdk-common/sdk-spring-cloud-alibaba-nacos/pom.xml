@@ -11,9 +11,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-infra-nacos</artifactId>
-    <name>sdk-infra-nacos</name>
-    <description>Nacos configuration and discovery defaults</description>
+    <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
+    <name>sdk-spring-cloud-alibaba-nacos</name>
+    <description>Spring Cloud Alibaba Nacos configuration and discovery defaults</description>
 
     <dependencies>
         <dependency>
