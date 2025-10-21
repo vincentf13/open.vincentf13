@@ -1,0 +1,59 @@
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED         # 統計視窗類型，可選 TIME_BASED
+        slidingWindowSize: 50                  # 統計最近 50 次呼叫
+        minimumNumberOfCalls: 10               # 低於此數量不啟用熔斷判斷
+        failureRateThreshold: 50               # 錯誤率超過 50% 開啟熔斷
+        slowCallDurationThreshold: 2s          # 超過此時間視為「慢呼叫」
+        slowCallRateThreshold: 50              # 慢呼叫比例超過 50% 也觸發熔斷
+        waitDurationInOpenState: 10s           # 熔斷後等待 10 秒再半開
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.RestClientException
+          - feign.RetryableException
+          - feign.FeignException
+        ignoreExceptions:
+#          - com.example.exception.BusinessException
+  retry:
+    configs:
+      default:
+        maxAttempts: 3                         # 最多重試 3 次
+        waitDuration: 200ms                    # 每次間隔 200ms
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+#        ignoreExceptions:
+#          - com.example.exception.BusinessException
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 50                     # 每個刷新週期最多允許 50 次呼叫
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0                     # 若超過限流不等待直接拒絕
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 3s                    # 每次呼叫最長執行 3 秒
+        cancelRunningFuture: true              # 超時後嘗試取消任務
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 100                # 允許同時最多 100 個呼叫
+        maxWaitDuration: 0                     # 無等待，直接拒絕
+
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
