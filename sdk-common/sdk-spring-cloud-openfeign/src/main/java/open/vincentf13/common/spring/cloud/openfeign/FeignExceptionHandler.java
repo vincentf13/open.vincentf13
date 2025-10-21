@@ -1,4 +1,4 @@
-package open.vincentf13.common.spring.cloud.openfeign.advice;
+package open.vincentf13.common.spring.cloud.openfeign;
 
 import feign.FeignException;
 import feign.RetryableException;
@@ -6,9 +6,6 @@ import feign.codec.DecodeException;
 import feign.codec.EncodeException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import open.vincentf13.common.core.error.OpenErrorEnum;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
@@ -26,6 +23,10 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * 全域 Feign 例外處理器，統一封裝遠端呼叫異常的 API 回應格式。
