@@ -2,8 +2,7 @@ package open.vincentf13.common.spring.cloud.openfeign.interceptor;
 
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
-import java.util.Locale;
-import java.util.Optional;
+import open.vincentf13.common.core.OpenConstant;
 import open.vincentf13.common.spring.cloud.openfeign.auth.FeignAuthorizationProvider;
 import org.slf4j.MDC;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -13,12 +12,10 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-public class DefaultFeignRequestInterceptor implements RequestInterceptor {
+import java.util.Locale;
+import java.util.Optional;
 
-    static final String TRACE_ID_HEADER = "X-Trace-Id";
-    static final String REQUEST_ID_HEADER = "X-Request-Id";
-    static final String MDC_TRACE_KEY = "traceId";
-    static final String MDC_REQUEST_KEY = "requestId";
+public class DefaultFeignRequestInterceptor implements RequestInterceptor {
 
     private final FeignAuthorizationProvider authorizationProvider;
 
@@ -43,13 +40,13 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
     }
 
     private void attachTraceHeaders(RequestTemplate template) {
-        String traceId = resolveAttribute(TRACE_ID_HEADER, MDC_TRACE_KEY);
-        if (!template.headers().containsKey(TRACE_ID_HEADER) && StringUtils.hasText(traceId)) {
-            template.header(TRACE_ID_HEADER, traceId);
+        String traceId = resolveAttribute(OpenConstant.TRACE_ID_HEADER, OpenConstant.TRACE_ID_KEY);
+        if (!template.headers().containsKey(OpenConstant.TRACE_ID_HEADER) && StringUtils.hasText(traceId)) {
+            template.header(OpenConstant.TRACE_ID_HEADER, traceId);
         }
-        String requestId = resolveAttribute(REQUEST_ID_HEADER, MDC_REQUEST_KEY);
-        if (!template.headers().containsKey(REQUEST_ID_HEADER) && StringUtils.hasText(requestId)) {
-            template.header(REQUEST_ID_HEADER, requestId);
+        String requestId = resolveAttribute(OpenConstant.REQUEST_ID_HEADER, OpenConstant.REQUEST_ID_KEY);
+        if (!template.headers().containsKey(OpenConstant.REQUEST_ID_HEADER) && StringUtils.hasText(requestId)) {
+            template.header(OpenConstant.REQUEST_ID_HEADER, requestId);
         }
     }
 

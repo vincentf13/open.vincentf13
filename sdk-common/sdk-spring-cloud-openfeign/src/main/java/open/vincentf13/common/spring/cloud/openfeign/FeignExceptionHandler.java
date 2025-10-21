@@ -6,6 +6,7 @@ import feign.codec.DecodeException;
 import feign.codec.EncodeException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.servlet.http.HttpServletRequest;
+import open.vincentf13.common.core.OpenConstant;
 import open.vincentf13.common.core.error.OpenErrorEnum;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
@@ -140,8 +141,8 @@ public class FeignExceptionHandler implements MessageSourceAware {
         if (request != null) {
             meta.put("path", request.getRequestURI());
             meta.put("method", request.getMethod());
-            meta.put("traceId", request.getAttribute("traceId"));
-            meta.put("requestId", request.getAttribute("requestId"));
+            meta.put(OpenConstant.TRACE_ID_KEY, request.getAttribute(OpenConstant.TRACE_ID_KEY));
+            meta.put(OpenConstant.REQUEST_ID_KEY, request.getAttribute(OpenConstant.REQUEST_ID_KEY));
         }
         return meta;
     }

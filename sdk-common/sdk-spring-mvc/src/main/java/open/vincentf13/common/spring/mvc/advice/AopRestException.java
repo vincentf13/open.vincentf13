@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.common.core.OpenConstant;
 import open.vincentf13.common.core.error.OpenErrorEnum;
 import open.vincentf13.common.core.exception.OpenApiException;
 import open.vincentf13.common.core.log.OpenLog;
@@ -201,8 +202,8 @@ public class AopRestException extends ResponseEntityExceptionHandler implements 
             // 使用 attribute 而非重新生成，確保與 RequestCorrelationFilter 一致。
             meta.put("path", request.getRequestURI());
             meta.put("method", request.getMethod());
-            meta.put("traceId", request.getAttribute("traceId"));
-            meta.put("requestId", request.getAttribute("requestId"));
+            meta.put(OpenConstant.TRACE_ID_KEY, request.getAttribute(OpenConstant.TRACE_ID_KEY));
+            meta.put(OpenConstant.REQUEST_ID_KEY, request.getAttribute(OpenConstant.REQUEST_ID_KEY));
         }
         return meta;
     }

@@ -1,5 +1,6 @@
 package open.vincentf13.common.core.exception;
 
+import open.vincentf13.common.core.OpenConstant;
 import open.vincentf13.common.core.error.OpenError;
 import org.slf4j.MDC;
 
@@ -14,8 +15,8 @@ public interface OpenException {
 
     default Map<String, Object> initMeta() {
         return Map.of(
-                "mdcTraceId", MDC.get("traceId"),
-                "mdcRequestId", MDC.get("requestId")
+                "mdcTraceId", MDC.get(OpenConstant.TRACE_ID_KEY),
+                "mdcRequestId", MDC.get(OpenConstant.REQUEST_ID_KEY)
         );
     }
 
