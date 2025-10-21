@@ -31,6 +31,7 @@
         <module>sdk-infra-kafka</module>
         <module>sdk-spring-cloud-alibaba-nacos</module>
         <module>sdk-spring-cloud-openfeign</module>
+        <module>sdk-library-resilience4j</module>
         <module>sdk-core-test</module>
         <module>sdk-core-log</module>
         <module>sdk-core-trace</module>
