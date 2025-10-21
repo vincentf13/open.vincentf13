@@ -7,16 +7,13 @@ spring:
           default:
             connectTimeout: 2000
             readTimeout: 5000
-            loggerLevel: BASIC
+            loggerLevel: FULL
       compression:
         request:
           enabled: true
           mime-types:
             - text/xml
             - application/json
-            - text/plain
-            - text/html
-            - text/csv
           min-request-size: 2048
         response:
           enabled: true
