@@ -31,7 +31,7 @@
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
         <image.tag>local</image.tag>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
-        <spring-cloud-alibaba.version>2023.0.4.0</spring-cloud-alibaba.version>
+        <spring-cloud-alibaba.version>2023.0.3.4</spring-cloud-alibaba.version>
         <mybatis-spring-boot.version>3.0.4</mybatis-spring-boot.version>
         <jackson-bom.version>2.17.3</jackson-bom.version>
     </properties>

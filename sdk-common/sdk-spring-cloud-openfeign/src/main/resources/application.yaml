@@ -1,0 +1,24 @@
+spring:
+  cloud:
+    openfeign:
+      enabled: true
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 5000
+            decode404: true
+            loggerLevel: BASIC
+      compression:
+        request:
+          enabled: true
+          mime-types:
+            - application/json
+            - text/plain
+          min-request-size: 1024
+        response:
+          enabled: true
+
+logging:
+  level:
+    feign: INFO
