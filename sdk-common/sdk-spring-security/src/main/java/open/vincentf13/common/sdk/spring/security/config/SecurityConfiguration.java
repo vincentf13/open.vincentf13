@@ -19,9 +19,25 @@ public class SecurityConfiguration {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
-            .formLogin(form -> form.loginPage("/login").permitAll())
-            .logout(logout -> logout.logoutSuccessUrl("/login?logout"));
+        http
+                // 授權規則
+                .authorizeHttpRequests(auth -> auth
+                                               .requestMatchers("/login", "/public/**").permitAll()
+                                               .anyRequest().authenticated()
+                                      )
+                // 表單登入
+                .formLogin(form -> form
+                                   .loginPage("/login")
+                                   .defaultSuccessUrl("/")
+                                   .permitAll()
+                          )
+                // 登出
+                .logout(logout -> logout
+                        .logoutSuccessUrl("/login?logout")
+                        .permitAll()
+                       )
+                // 關閉 CSRF（REST API 時建議關閉）
+                .csrf(csrf -> csrf.disable());
         return http.build();
     }
 }
