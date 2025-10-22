@@ -24,5 +24,9 @@
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-spring-mvc</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-core-log</artifactId>
+        </dependency>
     </dependencies>
 </project>

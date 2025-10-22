@@ -6,7 +6,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +24,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class JsonAuthenticationFailureHandler implements AuthenticationFailureHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(JsonAuthenticationFailureHandler.class);
 
     private final ObjectMapper objectMapper;
     private final MessageSourceAccessor messages;
@@ -41,6 +46,15 @@ public class JsonAuthenticationFailureHandler implements AuthenticationFailureHa
         FailureReason reason = FailureReason.from(exception);
         String localizedMessage = messages.getMessage(reason.messageKey, reason.defaultMessage);
         OpenApiResponse<Void> body = OpenApiResponse.failure(reason.code, localizedMessage);
+
+        String username = request != null ? request.getParameter("username") : null;
+        OpenLog.warn(log,
+                     "LoginFailure",
+                     "Authentication failed",
+                     exception,
+                     "username", username != null && !username.isBlank() ? username : "<unknown>",
+                     "code", reason.code,
+                     "remote", request != null ? request.getRemoteAddr() : "<unknown>");
 
         objectMapper.writeValue(response.getWriter(), body);
     }
