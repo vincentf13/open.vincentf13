@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import open.vincentf13.common.core.OpenConstant;
+
 import java.io.IOException;
 import java.util.Optional;
 
@@ -18,8 +20,6 @@ import java.util.Optional;
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
-    private static final String BEARER_PREFIX = "Bearer ";
 
     private final OpenJwtToken openJwtToken;
 
@@ -42,9 +42,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private Optional<String> resolveToken(HttpServletRequest request) {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (!StringUtils.hasText(header) || !header.startsWith(BEARER_PREFIX)) {
+        if (!StringUtils.hasText(header) || !header.startsWith(OpenConstant.BEARER_PREFIX)) {
             return Optional.empty();
         }
-        return Optional.of(header.substring(BEARER_PREFIX.length()));
+        return Optional.of(header.substring(OpenConstant.BEARER_PREFIX.length()));
     }
 }
