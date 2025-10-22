@@ -37,6 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .flatMap(openJwtToken::parse)
                 .ifPresent(SecurityContextHolder.getContext()::setAuthentication);
         }
+        // 若沒有token，最終會因為沒有 Authentication 物件而回 401
         filterChain.doFilter(request, response);
     }
 

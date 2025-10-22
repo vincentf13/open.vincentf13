@@ -68,6 +68,7 @@ public class OpenJwtToken {
     /** Decode a bearer token and recover the {@link Authentication} if the signature is valid. */
     public Optional<Authentication> parse(String tokenValue) {
         try {
+            // Nimbus 預設會驗簽並檢查 exp/nbf，所以基本的過期驗證已經在這裡完成
             Jwt jwt = jwtDecoder.decode(tokenValue);
             String subject = jwt.getSubject();
             // 權限
