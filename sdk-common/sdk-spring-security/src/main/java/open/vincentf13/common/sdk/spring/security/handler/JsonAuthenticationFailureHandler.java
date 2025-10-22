@@ -1,0 +1,81 @@
+package open.vincentf13.common.sdk.spring.security.handler;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import open.vincentf13.common.spring.mvc.OpenApiResponse;
+import org.springframework.context.MessageSource;
+import org.springframework.context.support.MessageSourceAccessor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.AccountExpiredException;
+import org.springframework.security.authentication.CredentialsExpiredException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.stereotype.Component;
+
+@Component
+public class JsonAuthenticationFailureHandler implements AuthenticationFailureHandler {
+
+    private final ObjectMapper objectMapper;
+    private final MessageSourceAccessor messages;
+
+    public JsonAuthenticationFailureHandler(ObjectMapper objectMapper, MessageSource messageSource) {
+        this.objectMapper = objectMapper;
+        this.messages = new MessageSourceAccessor(messageSource);
+    }
+
+    @Override
+    public void onAuthenticationFailure(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        AuthenticationException exception) throws IOException, ServletException {
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+        FailureReason reason = FailureReason.from(exception);
+        String localizedMessage = messages.getMessage(reason.messageKey, reason.defaultMessage);
+        OpenApiResponse<Void> body = OpenApiResponse.failure(reason.code, localizedMessage);
+
+        objectMapper.writeValue(response.getWriter(), body);
+    }
+
+    private enum FailureReason {
+        ACCOUNT_LOCKED("AUTH_ACCOUNT_LOCKED", "auth.login.failure.locked", "Account locked"),
+        ACCOUNT_DISABLED("AUTH_ACCOUNT_DISABLED", "auth.login.failure.disabled", "Account disabled or not activated"),
+        CREDENTIALS_EXPIRED("AUTH_CREDENTIALS_EXPIRED", "auth.login.failure.credentials-expired", "Password expired"),
+        ACCOUNT_EXPIRED("AUTH_ACCOUNT_EXPIRED", "auth.login.failure.account-expired", "Account expired"),
+        BAD_CREDENTIALS("AUTH_BAD_CREDENTIALS", "auth.login.failure.bad-credentials", "Invalid username or password");
+
+        private final String code;
+        private final String messageKey;
+        private final String defaultMessage;
+
+        FailureReason(String code, String messageKey, String defaultMessage) {
+            this.code = code;
+            this.messageKey = messageKey;
+            this.defaultMessage = defaultMessage;
+        }
+
+        private static FailureReason from(AuthenticationException exception) {
+            if (exception instanceof LockedException) {
+                return ACCOUNT_LOCKED;
+            }
+            if (exception instanceof DisabledException) {
+                return ACCOUNT_DISABLED;
+            }
+            if (exception instanceof CredentialsExpiredException) {
+                return CREDENTIALS_EXPIRED;
+            }
+            if (exception instanceof AccountExpiredException) {
+                return ACCOUNT_EXPIRED;
+            }
+            return BAD_CREDENTIALS;
+        }
+    }
+}
