@@ -1,12 +1,6 @@
 package open.vincentf13.common.sdk.spring.security.token;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import javax.crypto.spec.SecretKeySpec;
 import open.vincentf13.common.core.log.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,15 +8,16 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
+
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Lightweight wrapper around Nimbus JWT encoder/decoder so SDK consumers can issue and validate
@@ -73,9 +68,9 @@ public class OpenJwtToken {
             String subject = jwt.getSubject();
             // 權限
             List<String> authorities = jwt.getClaimAsStringList(AUTHORITIES_CLAIM);
-            Collection<GrantedAuthority> granted = authorities == null ? List.of() : authorities.stream()
+            List<SimpleGrantedAuthority> granted = authorities == null ? Collections.emptyList() : authorities.stream()
                     .map(SimpleGrantedAuthority::new)
-                    .toList();
+                    .collect(Collectors.toList());
             Authentication authentication = new UsernamePasswordAuthenticationToken(subject, tokenValue, granted);
             return Optional.of(authentication);
         } catch (JwtException ex) {
