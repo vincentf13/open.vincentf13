@@ -2,16 +2,22 @@ package open.vincentf13.common.sdk.spring.security.config;
 
 import open.vincentf13.common.sdk.spring.security.handler.JsonAuthenticationFailureHandler;
 import open.vincentf13.common.sdk.spring.security.handler.JsonAuthenticationSuccessHandler;
+import open.vincentf13.common.sdk.spring.security.token.JwtAuthenticationFilter;
+import open.vincentf13.common.sdk.spring.security.token.JwtProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfiguration {
 
     @Bean
@@ -22,8 +28,10 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JsonAuthenticationSuccessHandler successHandler,
-                                                   JsonAuthenticationFailureHandler failureHandler) throws Exception {
+                                                   JsonAuthenticationFailureHandler failureHandler,
+                                                   JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http.csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/login", "/public/**").permitAll()
                 .anyRequest().authenticated())
@@ -32,7 +40,8 @@ public class SecurityConfiguration {
                                    .successHandler(successHandler)
                                    .failureHandler(failureHandler)
                                    .permitAll())
-            .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll());
+            .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll())
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

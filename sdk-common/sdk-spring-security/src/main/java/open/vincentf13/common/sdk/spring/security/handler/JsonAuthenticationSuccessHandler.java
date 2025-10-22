@@ -4,20 +4,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import open.vincentf13.common.core.log.OpenLog;
+import open.vincentf13.common.sdk.spring.security.token.AuthTokenResponse;
+import open.vincentf13.common.sdk.spring.security.token.OpenJwtToken;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.MessageSourceAccessor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Component
 public class JsonAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
@@ -27,10 +31,14 @@ public class JsonAuthenticationSuccessHandler implements AuthenticationSuccessHa
 
     private final ObjectMapper objectMapper;
     private final MessageSourceAccessor messages;
+    private final OpenJwtToken openJwtToken;
 
-    public JsonAuthenticationSuccessHandler(ObjectMapper objectMapper, MessageSource messageSource) {
+    public JsonAuthenticationSuccessHandler(ObjectMapper objectMapper,
+                                            MessageSource messageSource,
+                                            OpenJwtToken openJwtToken) {
         this.objectMapper = objectMapper;
         this.messages = new MessageSourceAccessor(messageSource);
+        this.openJwtToken = openJwtToken;
     }
 
     @Override
@@ -42,7 +50,13 @@ public class JsonAuthenticationSuccessHandler implements AuthenticationSuccessHa
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
         String localizedMessage = messages.getMessage(MESSAGE_KEY, "Login successful");
-        OpenApiResponse<Void> body = OpenApiResponse.success().withMeta(Map.of("message", localizedMessage));
+
+        OpenJwtToken.TokenDetails tokenDetails = openJwtToken.generate(authentication);
+        response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tokenDetails.token());
+        AuthTokenResponse payload = new AuthTokenResponse(tokenDetails.token(), tokenDetails.issuedAt(), tokenDetails.expiresAt());
+
+        OpenApiResponse<AuthTokenResponse> body = OpenApiResponse.success(payload)
+                .withMeta(Map.of("message", localizedMessage));
 
         OpenLog.info(log,
                      "LoginSuccess",
