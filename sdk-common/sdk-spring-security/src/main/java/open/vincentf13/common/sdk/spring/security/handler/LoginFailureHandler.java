@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.slf4j.Logger;
@@ -19,18 +17,20 @@ import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
 
-@Component
-public class JsonAuthenticationFailureHandler implements AuthenticationFailureHandler {
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
-    private static final Logger log = LoggerFactory.getLogger(JsonAuthenticationFailureHandler.class);
+@Component
+public class LoginFailureHandler implements org.springframework.security.web.authentication.AuthenticationFailureHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(LoginFailureHandler.class);
 
     private final ObjectMapper objectMapper;
     private final MessageSourceAccessor messages;
 
-    public JsonAuthenticationFailureHandler(ObjectMapper objectMapper, MessageSource messageSource) {
+    public LoginFailureHandler(ObjectMapper objectMapper, MessageSource messageSource) {
         this.objectMapper = objectMapper;
         this.messages = new MessageSourceAccessor(messageSource);
     }

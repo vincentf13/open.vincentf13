@@ -1,9 +1,10 @@
-package open.vincentf13.common.sdk.spring.security.token;
+package open.vincentf13.common.sdk.spring.security.filter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import open.vincentf13.common.sdk.spring.security.token.OpenJwtToken;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;

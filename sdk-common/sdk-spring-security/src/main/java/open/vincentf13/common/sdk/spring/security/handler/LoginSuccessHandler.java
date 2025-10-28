@@ -5,7 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.common.core.log.OpenLog;
-import open.vincentf13.common.sdk.spring.security.token.AuthTokenResponse;
+import open.vincentf13.common.sdk.spring.security.token.JwtResponse;
 import open.vincentf13.common.sdk.spring.security.token.OpenJwtToken;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.slf4j.Logger;
@@ -16,7 +16,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -24,18 +23,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
-public class JsonAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
+public class LoginSuccessHandler implements org.springframework.security.web.authentication.AuthenticationSuccessHandler {
 
     private static final String MESSAGE_KEY = "auth.login.success";
-    private static final Logger log = LoggerFactory.getLogger(JsonAuthenticationSuccessHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(LoginSuccessHandler.class);
 
     private final ObjectMapper objectMapper;
     private final MessageSourceAccessor messages;
     private final OpenJwtToken openJwtToken;
 
-    public JsonAuthenticationSuccessHandler(ObjectMapper objectMapper,
-                                            MessageSource messageSource,
-                                            OpenJwtToken openJwtToken) {
+    public LoginSuccessHandler(ObjectMapper objectMapper,
+                               MessageSource messageSource,
+                               OpenJwtToken openJwtToken) {
         this.objectMapper = objectMapper;
         this.messages = new MessageSourceAccessor(messageSource);
         this.openJwtToken = openJwtToken;
@@ -53,9 +52,9 @@ public class JsonAuthenticationSuccessHandler implements AuthenticationSuccessHa
 
         OpenJwtToken.TokenDetails tokenDetails = openJwtToken.generate(authentication);
         response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tokenDetails.token());
-        AuthTokenResponse payload = new AuthTokenResponse(tokenDetails.token(), tokenDetails.issuedAt(), tokenDetails.expiresAt());
+        JwtResponse payload = new JwtResponse(tokenDetails.token(), tokenDetails.issuedAt(), tokenDetails.expiresAt());
 
-        OpenApiResponse<AuthTokenResponse> body = OpenApiResponse.success(payload)
+        OpenApiResponse<JwtResponse> body = OpenApiResponse.success(payload)
                 .withMeta(Map.of("message", localizedMessage));
 
         OpenLog.info(log,

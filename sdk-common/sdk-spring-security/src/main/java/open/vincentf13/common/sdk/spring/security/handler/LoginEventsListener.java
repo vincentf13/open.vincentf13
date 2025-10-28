@@ -7,7 +7,7 @@ import org.springframework.security.authentication.event.AuthenticationSuccessEv
 import org.springframework.stereotype.Component;
 
 @Component
-public class AuthEventsListener {
+public class LoginEventsListener {
   @EventListener
   public void onFailure(AuthenticationFailureBadCredentialsEvent e){ /* 累計失敗 */ }
   @EventListener
