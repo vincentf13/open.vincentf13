@@ -108,7 +108,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>skd-spring-security-auth-server</artifactId>
+                <artifactId>sdk-auth-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -128,7 +128,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-infra-jwt</artifactId>
+                <artifactId>sdk-auth-jwt</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

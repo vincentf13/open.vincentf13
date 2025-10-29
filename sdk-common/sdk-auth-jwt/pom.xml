@@ -11,18 +11,14 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>skd-spring-security-auth-server</artifactId>
-    <name>skd-spring-security-auth-server</name>
-    <description>Shared auth, ACL, and crypto components</description>
+    <artifactId>sdk-auth-jwt</artifactId>
+    <name>sdk-auth-jwt</name>
+    <description>Shared JWT filter, token, and session helpers</description>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-spring-mvc</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
@@ -35,10 +31,6 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-oauth2-jose</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-infra-jwt</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>

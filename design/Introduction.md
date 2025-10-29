@@ -18,14 +18,14 @@ open.vincentf13/
 │   ├── sdk-infra-kafka/        # Kafka Producer/Consumer 封裝
 │   ├── sdk-infra-mysql/        # MySQL 連線池、審計欄位與 Repository 工具
 │   ├── sdk-infra-redis/        # Redis 客戶端與序列化策略
-│   ├── sdk-infra-jwt/          # JWT Filter、Token 與 Session 共用元件
+│   ├── sdk-auth-jwt/          # JWT Filter、Token 與 Session 共用元件
 │   ├── sdk-service-exchange/
 │   │   └── sdk-service-exchange-matching/
 │   │       ├── rest-api/       # 撮合服務 OpenAPI 契約、API Interface 與 DTO
 │   │       └── rest-client/    # 依契約生成的客戶端 SDK
 │   ├── sdk-spring-cloud-gateway/ # Gateway 共用設定與過濾器
 │   ├── sdk-spring-mvc/         # Web 層配置、CORS、例外處理
-│   ├── skd-spring-security-auth-server/    # 身分驗證、ACL 與簽名工具
+│   ├── sdk-auth-server/    # 身分驗證、ACL 與簽名工具
 │   └── sdk-spring-websocket/   # WebSocket Starter 與訊息編碼
 ├── service/
 │   ├── pom.xml
