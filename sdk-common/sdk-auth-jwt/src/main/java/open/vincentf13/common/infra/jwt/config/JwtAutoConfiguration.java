@@ -6,7 +6,7 @@ import open.vincentf13.common.infra.jwt.session.JwtSessionStore;
 import open.vincentf13.common.infra.jwt.session.JwtSessionStoreInMemory;
 import open.vincentf13.common.infra.jwt.session.JwtSessionStoreRedis;
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
-import open.vincentf13.common.infra.jwt.token.OpenJwtToken;
+import open.vincentf13.common.infra.jwt.token.OpenJwt;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -35,8 +35,8 @@ public class JwtAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public OpenJwtToken openJwtToken(JwtProperties properties) {
-        return new OpenJwtToken(properties);
+    public OpenJwt openJwtToken(JwtProperties properties) {
+        return new OpenJwt(properties);
     }
 
     @Bean
@@ -62,10 +62,10 @@ public class JwtAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public JwtFilter jwtAuthenticationFilter(OpenJwtToken openJwtToken,
+    public JwtFilter jwtAuthenticationFilter(OpenJwt openJwt,
                                              ObjectProvider<JwtSessionService> sessionServiceProvider,
                                              JwtProperties properties) {
-        return new JwtFilter(openJwtToken, sessionServiceProvider, properties);
+        return new JwtFilter(openJwt, sessionServiceProvider, properties);
     }
 
     @Bean

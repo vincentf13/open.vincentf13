@@ -8,7 +8,7 @@ import open.vincentf13.common.core.OpenConstant;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.infra.jwt.session.JwtSessionService;
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
-import open.vincentf13.common.infra.jwt.token.OpenJwtToken;
+import open.vincentf13.common.infra.jwt.token.OpenJwt;
 import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,15 +27,15 @@ import java.util.Optional;
  */
 public class JwtFilter extends OncePerRequestFilter {
 
-    private final OpenJwtToken openJwtToken;
+    private final OpenJwt openJwt;
     private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final JwtProperties properties;
     private final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
-    public JwtFilter(OpenJwtToken openJwtToken,
+    public JwtFilter(OpenJwt openJwt,
                      ObjectProvider<JwtSessionService> sessionServiceProvider,
                      JwtProperties properties) {
-        this.openJwtToken = openJwtToken;
+        this.openJwt = openJwt;
         this.sessionServiceProvider = sessionServiceProvider;
         this.properties = properties;
     }
@@ -46,7 +46,7 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             resolveToken(request)
-                .flatMap(openJwtToken::parseAccessToken)
+                .flatMap(openJwt::parseAccessToken)
                 .filter(this::isAllowed)
                 .ifPresent(authentication -> SecurityContextHolder.getContext().setAuthentication(authentication));
         }

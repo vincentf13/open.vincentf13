@@ -23,9 +23,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class OpenJwtToken {
+public class OpenJwt {
 
-    private static final Logger log = LoggerFactory.getLogger(OpenJwtToken.class);
+    private static final Logger log = LoggerFactory.getLogger(OpenJwt.class);
     public static final String AUTHORITIES_CLAIM = "authorities";
     public static final String SESSION_ID_CLAIM = "sid";
     public static final String TOKEN_TYPE_CLAIM = "token_type";
@@ -34,7 +34,7 @@ public class OpenJwtToken {
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
 
-    public OpenJwtToken(JwtProperties properties) {
+    public OpenJwt(JwtProperties properties) {
         this.properties = properties;
         byte[] secret = properties.getSecret().getBytes(StandardCharsets.UTF_8);
         SecretKeySpec secretKey = new SecretKeySpec(secret, "HmacSHA256");

@@ -3,10 +3,10 @@ package open.vincentf13.common.sdk.spring.security.service;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.infra.jwt.session.JwtSession;
 import open.vincentf13.common.sdk.spring.security.store.AuthJwtSessionStore;
-import open.vincentf13.common.infra.jwt.token.OpenJwtToken.TokenDetails;
+import open.vincentf13.common.infra.jwt.token.OpenJwt.TokenDetails;
 import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
 import open.vincentf13.common.infra.jwt.token.model.RefreshTokenClaims;
-import open.vincentf13.common.sdk.spring.security.token.OpenJwtTokenGenerate;
+import open.vincentf13.common.sdk.spring.security.token.OpenJwtGenerate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -23,10 +23,10 @@ public class AuthJwtSessionService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthJwtSessionService.class);
 
-    private final OpenJwtTokenGenerate tokenGenerate;
+    private final OpenJwtGenerate tokenGenerate;
     private final AuthJwtSessionStore sessionStore;
 
-    public AuthJwtSessionService(OpenJwtTokenGenerate tokenGenerate,
+    public AuthJwtSessionService(OpenJwtGenerate tokenGenerate,
                                  AuthJwtSessionStore sessionStore) {
         this.tokenGenerate = tokenGenerate;
         this.sessionStore = sessionStore;

@@ -1,9 +1,9 @@
 package open.vincentf13.common.sdk.spring.security.token;
 
 import open.vincentf13.common.core.log.OpenLog;
-import open.vincentf13.common.infra.jwt.token.OpenJwtToken;
-import open.vincentf13.common.infra.jwt.token.OpenJwtToken.TokenDetails;
-import open.vincentf13.common.infra.jwt.token.OpenJwtToken.TokenType;
+import open.vincentf13.common.infra.jwt.token.OpenJwt;
+import open.vincentf13.common.infra.jwt.token.OpenJwt.TokenDetails;
+import open.vincentf13.common.infra.jwt.token.OpenJwt.TokenType;
 import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
 import open.vincentf13.common.infra.jwt.token.model.RefreshTokenClaims;
 import org.slf4j.Logger;
@@ -20,30 +20,30 @@ import java.time.Instant;
 import java.util.stream.Collectors;
 
 @Component
-public class OpenJwtTokenGenerate {
+public class OpenJwtGenerate {
 
-    private static final Logger log = LoggerFactory.getLogger(OpenJwtTokenGenerate.class);
-    private final OpenJwtToken openJwtToken;
+    private static final Logger log = LoggerFactory.getLogger(OpenJwtGenerate.class);
+    private final OpenJwt openJwt;
 
-    public OpenJwtTokenGenerate(OpenJwtToken openJwtToken) {
-        this.openJwtToken = openJwtToken;
+    public OpenJwtGenerate(OpenJwt openJwt) {
+        this.openJwt = openJwt;
     }
 
     public TokenDetails generateAccessToken(String sessionId, Authentication authentication) {
-        JwtEncoder encoder = openJwtToken.getJwtEncoder();
+        JwtEncoder encoder = openJwt.getJwtEncoder();
         Instant issuedAt = Instant.now();
-        Instant expiresAt = issuedAt.plusSeconds(openJwtToken.getProperties().getAccessTokenTtlSeconds());
+        Instant expiresAt = issuedAt.plusSeconds(openJwt.getProperties().getAccessTokenTtlSeconds());
         JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
-                .issuer(openJwtToken.getProperties().getIssuer())
+                .issuer(openJwt.getProperties().getIssuer())
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .subject(authentication.getName())
-                .claim(OpenJwtToken.TOKEN_TYPE_CLAIM, TokenType.ACCESS.name())
-                .claim(OpenJwtToken.AUTHORITIES_CLAIM, authentication.getAuthorities().stream()
+                .claim(OpenJwt.TOKEN_TYPE_CLAIM, TokenType.ACCESS.name())
+                .claim(OpenJwt.AUTHORITIES_CLAIM, authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()));
         if (sessionId != null) {
-            builder.claim(OpenJwtToken.SESSION_ID_CLAIM, sessionId);
+            builder.claim(OpenJwt.SESSION_ID_CLAIM, sessionId);
         }
         String tokenValue = encoder.encode(JwtEncoderParameters.from(builder.build())).getTokenValue();
         OpenLog.debug(log,
@@ -55,17 +55,17 @@ public class OpenJwtTokenGenerate {
     }
 
     public TokenDetails generateRefreshToken(String sessionId, String subject) {
-        JwtEncoder encoder = openJwtToken.getJwtEncoder();
+        JwtEncoder encoder = openJwt.getJwtEncoder();
         Instant issuedAt = Instant.now();
-        Instant expiresAt = issuedAt.plusSeconds(openJwtToken.getProperties().getRefreshTokenTtlSeconds());
+        Instant expiresAt = issuedAt.plusSeconds(openJwt.getProperties().getRefreshTokenTtlSeconds());
         JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
-                .issuer(openJwtToken.getProperties().getIssuer())
+                .issuer(openJwt.getProperties().getIssuer())
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .subject(subject)
-                .claim(OpenJwtToken.TOKEN_TYPE_CLAIM, TokenType.REFRESH.name());
+                .claim(OpenJwt.TOKEN_TYPE_CLAIM, TokenType.REFRESH.name());
         if (sessionId != null) {
-            builder.claim(OpenJwtToken.SESSION_ID_CLAIM, sessionId);
+            builder.claim(OpenJwt.SESSION_ID_CLAIM, sessionId);
         }
         String tokenValue = encoder.encode(JwtEncoderParameters.from(builder.build())).getTokenValue();
         OpenLog.debug(log,
@@ -81,11 +81,11 @@ public class OpenJwtTokenGenerate {
     }
 
     public Optional<JwtAuthenticationToken> parseAccessToken(String tokenValue) {
-        return openJwtToken.parseAccessToken(tokenValue);
+        return openJwt.parseAccessToken(tokenValue);
     }
 
     public Optional<RefreshTokenClaims> parseRefreshToken(String tokenValue) {
-        return openJwtToken.parseRefreshToken(tokenValue);
+        return openJwt.parseRefreshToken(tokenValue);
     }
 
 }
