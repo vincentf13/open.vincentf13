@@ -8,7 +8,7 @@ spring:
     virtual:
       enabled: true
   main:
-    banner-mode: "off"
+    banner-mode: off
   # 國際化
   messages:
     basename: i18n/ValidationMessages,i18n/messages

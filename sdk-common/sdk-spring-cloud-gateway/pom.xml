@@ -20,5 +20,9 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-gateway</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
+        </dependency>
     </dependencies>
 </project>

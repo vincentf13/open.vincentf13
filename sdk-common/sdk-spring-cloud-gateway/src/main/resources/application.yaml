@@ -1,5 +1,25 @@
 spring:
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 5000          # 連線超時 5s
+        response-timeout: 10s          # 回應超時 10s
       metrics:
         enabled: true
+      discovery:
+        locator:
+          enabled: true
+#      routes:
+#        - id: user-api
+#          uri: lb://user-service
+#          predicates:
+#            - Path=/api/users/**
+
+
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework.web.reactive: DEBUG
+    reactor.netty: DEBUG
