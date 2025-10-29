@@ -2,6 +2,7 @@ package open.vincentf13.common.sdk.spring.security.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.common.infra.jwt.config.JwtAuthAutoConfiguration;
+import open.vincentf13.common.infra.jwt.config.JwtSecurityConfigurer;
 import open.vincentf13.common.infra.jwt.session.JwtSessionService;
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
 import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;

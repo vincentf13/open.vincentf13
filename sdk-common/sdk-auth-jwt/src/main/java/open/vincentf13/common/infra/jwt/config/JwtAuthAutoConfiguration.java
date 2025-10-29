@@ -15,10 +15,21 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
 public class JwtAuthAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(SecurityFilterChain.class)
+    public SecurityFilterChain jwtSecurityFilterChain(HttpSecurity http,
+                                                      JwtSecurityConfigurer configurer) throws Exception {
+        http.apply(configurer);
+        return http.build();
+    }
+
 
     @Bean
     @ConditionalOnMissingBean
@@ -52,7 +63,7 @@ public class JwtAuthAutoConfiguration {
     @ConditionalOnMissingBean
     public JwtAuthenticationFilter jwtAuthenticationFilter(OpenJwtToken openJwtToken,
                                                            ObjectProvider<JwtSessionService> sessionServiceProvider,
-                                                                       JwtProperties properties) {
+                                                           JwtProperties properties) {
         return new JwtAuthenticationFilter(openJwtToken, sessionServiceProvider, properties);
     }
 
@@ -61,4 +72,5 @@ public class JwtAuthAutoConfiguration {
     public JwtSecurityConfigurer jwtSecurityConfigurer(ObjectProvider<JwtAuthenticationFilter> provider) {
         return new JwtSecurityConfigurer(provider);
     }
+
 }
