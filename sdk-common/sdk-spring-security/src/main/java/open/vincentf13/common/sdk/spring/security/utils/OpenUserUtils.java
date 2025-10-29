@@ -1,4 +1,4 @@
-package open.vincentf13.common.sdk.spring.security;
+package open.vincentf13.common.sdk.spring.security.utils;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;

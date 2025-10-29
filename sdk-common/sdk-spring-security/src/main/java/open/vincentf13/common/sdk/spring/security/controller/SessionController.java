@@ -1,11 +1,11 @@
 
 package open.vincentf13.common.sdk.spring.security.controller;
 
+import open.vincentf13.common.sdk.spring.security.error.FailureReason;
 import open.vincentf13.common.sdk.spring.security.session.JwtSessionService;
 import open.vincentf13.common.sdk.spring.security.session.JwtSessionService.IssueResult;
 import open.vincentf13.common.sdk.spring.security.token.JwtResponse;
 import open.vincentf13.common.sdk.spring.security.token.model.JwtAuthenticationToken;
-import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.MessageSourceAccessor;
@@ -32,7 +32,7 @@ public class SessionController {
 
     @PostMapping("/refresh")
     public ResponseEntity<OpenApiResponse<JwtResponse>> refresh(@RequestBody RefreshTokenPayload payload) {
-        LoginFailureHandler.FailureReason failure = LoginFailureHandler.FailureReason.REFRESH_INVALID;
+        FailureReason failure = FailureReason.REFRESH_INVALID;
         return sessionService.refresh(payload.refreshToken())
                 .map(SessionController::toResponse)
                 .orElseGet(() -> ResponseEntity.status(failure.status())
