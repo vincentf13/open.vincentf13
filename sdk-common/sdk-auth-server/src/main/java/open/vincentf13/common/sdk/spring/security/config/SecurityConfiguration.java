@@ -1,10 +1,10 @@
 package open.vincentf13.common.sdk.spring.security.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import open.vincentf13.common.infra.jwt.config.JwtAuthAutoConfiguration;
 import open.vincentf13.common.infra.jwt.filter.JwtAuthenticationFilter;
 import open.vincentf13.common.infra.jwt.session.JwtSessionService;
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
-import open.vincentf13.common.infra.jwt.token.OpenJwtToken;
 import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;
 import open.vincentf13.common.sdk.spring.security.handler.LoginSuccessHandler;
 import org.springframework.beans.factory.ObjectProvider;
@@ -13,6 +13,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -24,6 +25,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties({JwtProperties.class})
+@Import(JwtAuthAutoConfiguration.class)
 public class SecurityConfiguration {
 
     @Bean
@@ -49,18 +51,14 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(OpenJwtToken openJwtToken,
-                                                           ObjectProvider<JwtSessionService> sessionServiceProvider,
-                                                           JwtProperties properties) {
-        return new JwtAuthenticationFilter(openJwtToken, sessionServiceProvider, properties);
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    LoginSuccessHandler successHandler,
                                                    LoginFailureHandler failureHandler,
-                                                   JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+                                                   ObjectProvider<JwtAuthenticationFilter> filterProvider) throws Exception {
+        JwtAuthenticationFilter jwtAuthenticationFilter = filterProvider.getIfAvailable();
+        if (jwtAuthenticationFilter == null) {
+            throw new IllegalStateException("JwtAuthenticationFilter bean not available; ensure sdk-auth-jwt AutoConfiguration is active");
+        }
         http.csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
