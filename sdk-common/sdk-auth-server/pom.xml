@@ -17,8 +17,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-spring-security</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
@@ -31,10 +31,6 @@
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-core-log</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-oauth2-jose</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
