@@ -5,8 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.common.core.log.OpenLog;
+import open.vincentf13.common.sdk.spring.security.session.JwtSessionService;
 import open.vincentf13.common.sdk.spring.security.token.JwtResponse;
-import open.vincentf13.common.sdk.spring.security.token.OpenJwtToken;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,14 +30,14 @@ public class LoginSuccessHandler implements org.springframework.security.web.aut
 
     private final ObjectMapper objectMapper;
     private final MessageSourceAccessor messages;
-    private final OpenJwtToken openJwtToken;
+    private final JwtSessionService jwtSessionService;
 
     public LoginSuccessHandler(ObjectMapper objectMapper,
                                MessageSource messageSource,
-                               OpenJwtToken openJwtToken) {
+                               JwtSessionService jwtSessionService) {
         this.objectMapper = objectMapper;
         this.messages = new MessageSourceAccessor(messageSource);
-        this.openJwtToken = openJwtToken;
+        this.jwtSessionService = jwtSessionService;
     }
 
     @Override
@@ -50,9 +50,14 @@ public class LoginSuccessHandler implements org.springframework.security.web.aut
 
         String localizedMessage = messages.getMessage(MESSAGE_KEY, "Login successful");
 
-        OpenJwtToken.TokenDetails tokenDetails = openJwtToken.generate(authentication);
-        response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tokenDetails.token());
-        JwtResponse payload = new JwtResponse(tokenDetails.token(), tokenDetails.issuedAt(), tokenDetails.expiresAt());
+        JwtSessionService.IssueResult tokens = jwtSessionService.issue(authentication);
+        response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tokens.accessToken().token());
+        JwtResponse payload = new JwtResponse(tokens.accessToken().token(),
+                                             tokens.accessToken().issuedAt(),
+                                             tokens.accessToken().expiresAt(),
+                                             tokens.refreshToken().token(),
+                                             tokens.refreshToken().expiresAt(),
+                                             tokens.sessionId());
 
         OpenApiResponse<JwtResponse> body = OpenApiResponse.success(payload)
                 .withMeta(Map.of("message", localizedMessage));

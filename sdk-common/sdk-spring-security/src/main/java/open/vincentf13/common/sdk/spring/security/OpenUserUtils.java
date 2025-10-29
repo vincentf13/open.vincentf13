@@ -7,7 +7,7 @@ import org.springframework.security.core.userdetails.User;
 
 import java.util.List;
 
-public class OpenUserInfo {
+public class OpenUserUtils {
   public static User currentUser() {
     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
     if (auth instanceof UsernamePasswordAuthenticationToken token) {

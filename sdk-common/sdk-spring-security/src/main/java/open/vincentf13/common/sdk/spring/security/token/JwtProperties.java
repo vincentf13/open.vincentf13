@@ -21,6 +21,12 @@ public class JwtProperties {
     /** Access token lifetime in seconds. */
     private long accessTokenTtlSeconds = 3600;
 
+    /** Refresh token lifetime in seconds. */
+    private long refreshTokenTtlSeconds = 604800;
+
+    /** Redis key prefix (or general namespace) for session metadata. */
+    private String sessionStorePrefix = "open:vincentf13:security:sessions";
+
     public String getSecret() {
         return secret;
     }
@@ -43,5 +49,21 @@ public class JwtProperties {
 
     public void setAccessTokenTtlSeconds(long accessTokenTtlSeconds) {
         this.accessTokenTtlSeconds = accessTokenTtlSeconds;
+    }
+
+    public long getRefreshTokenTtlSeconds() {
+        return refreshTokenTtlSeconds;
+    }
+
+    public void setRefreshTokenTtlSeconds(long refreshTokenTtlSeconds) {
+        this.refreshTokenTtlSeconds = refreshTokenTtlSeconds;
+    }
+
+    public String getSessionStorePrefix() {
+        return sessionStorePrefix;
+    }
+
+    public void setSessionStorePrefix(String sessionStorePrefix) {
+        this.sessionStorePrefix = sessionStorePrefix;
     }
 }
