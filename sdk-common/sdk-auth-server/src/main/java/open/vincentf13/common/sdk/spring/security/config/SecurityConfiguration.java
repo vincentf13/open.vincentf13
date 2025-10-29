@@ -7,6 +7,7 @@ import open.vincentf13.common.infra.jwt.token.JwtProperties;
 import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;
 import open.vincentf13.common.sdk.spring.security.handler.LoginSuccessHandler;
 import open.vincentf13.common.sdk.spring.security.service.AuthJwtSessionService;
+import open.vincentf13.common.sdk.spring.security.store.AuthJwtSessionStoreConfiguration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.MessageSource;
@@ -23,7 +24,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties({JwtProperties.class})
-@Import(JwtAuthAutoConfiguration.class)
+@Import({AuthJwtSessionStoreConfiguration.class, JwtAuthAutoConfiguration.class})
 public class SecurityConfiguration {
 
     @Bean

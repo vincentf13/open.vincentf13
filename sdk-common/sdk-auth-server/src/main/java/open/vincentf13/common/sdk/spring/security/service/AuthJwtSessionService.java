@@ -3,7 +3,7 @@ package open.vincentf13.common.sdk.spring.security.service;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.infra.jwt.session.JwtSession;
 import open.vincentf13.common.infra.jwt.session.JwtSessionService;
-import open.vincentf13.common.infra.jwt.session.JwtSessionStore;
+import open.vincentf13.common.sdk.spring.security.store.AuthJwtSessionStore;
 import open.vincentf13.common.infra.jwt.token.OpenJwtToken.TokenDetails;
 import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
 import open.vincentf13.common.infra.jwt.token.model.RefreshTokenClaims;
@@ -25,11 +25,11 @@ public class AuthJwtSessionService {
     private static final Logger log = LoggerFactory.getLogger(AuthJwtSessionService.class);
 
     private final OpenJwtTokenGenerate tokenGenerate;
-    private final JwtSessionStore sessionStore;
+    private final AuthJwtSessionStore sessionStore;
     private final JwtSessionService sessionService;
 
     public AuthJwtSessionService(OpenJwtTokenGenerate tokenGenerate,
-                                 JwtSessionStore sessionStore,
+                                 AuthJwtSessionStore sessionStore,
                                  JwtSessionService sessionService) {
         this.tokenGenerate = tokenGenerate;
         this.sessionStore = sessionStore;
@@ -101,7 +101,13 @@ public class AuthJwtSessionService {
     }
 
     public void revoke(String sessionId, String reason) {
-        sessionService.revoke(sessionId, reason);
+        sessionStore.markRevoked(sessionId, Instant.now(), reason);
+        sessionStore.delete(sessionId);
+        OpenLog.info(log,
+                "JwtSessionRevoked",
+                "Session revoked",
+                "sessionId", sessionId,
+                "reason", reason);
     }
 
     private Authentication buildAuthentication(JwtSession session, String refreshTokenValue) {
