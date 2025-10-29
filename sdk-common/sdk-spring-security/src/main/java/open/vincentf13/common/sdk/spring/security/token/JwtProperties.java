@@ -25,7 +25,7 @@ public class JwtProperties {
     private long refreshTokenTtlSeconds = 604800;
 
     /** Redis key prefix (or general namespace) for session metadata. */
-    private String sessionStorePrefix = "open:vincentf13:security:sessions";
+    private String sessionStorePrefix = "open:sessions";
 
     public String getSecret() {
         return secret;

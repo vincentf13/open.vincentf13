@@ -37,8 +37,8 @@
             <artifactId>spring-security-oauth2-jose</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-infra-redis</artifactId>
             <optional>true</optional>
         </dependency>
     </dependencies>
