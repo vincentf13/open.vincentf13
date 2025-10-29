@@ -24,7 +24,7 @@ open.vincentf13/
 │   │       └── rest-client/    # 依契約生成的客戶端 SDK
 │   ├── sdk-spring-cloud-gateway/ # Gateway 共用設定與過濾器
 │   ├── sdk-spring-mvc/         # Web 層配置、CORS、例外處理
-│   ├── sdk-spring-security/    # 身分驗證、ACL 與簽名工具
+│   ├── skd-spring-security-auth-server/    # 身分驗證、ACL 與簽名工具
 │   └── sdk-spring-websocket/   # WebSocket Starter 與訊息編碼
 ├── service/
 │   ├── pom.xml

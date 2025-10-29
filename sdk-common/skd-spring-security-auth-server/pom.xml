@@ -11,8 +11,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-spring-security</artifactId>
-    <name>sdk-spring-security</name>
+    <artifactId>skd-spring-security-auth-server</artifactId>
+    <name>skd-spring-security-auth-server</name>
     <description>Shared auth, ACL, and crypto components</description>
 
     <dependencies>
