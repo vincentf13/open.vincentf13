@@ -2,7 +2,6 @@ package open.vincentf13.common.sdk.spring.security.service;
 
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.infra.jwt.session.JwtSession;
-import open.vincentf13.common.infra.jwt.session.JwtSessionService;
 import open.vincentf13.common.sdk.spring.security.store.AuthJwtSessionStore;
 import open.vincentf13.common.infra.jwt.token.OpenJwtToken.TokenDetails;
 import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
@@ -26,14 +25,11 @@ public class AuthJwtSessionService {
 
     private final OpenJwtTokenGenerate tokenGenerate;
     private final AuthJwtSessionStore sessionStore;
-    private final JwtSessionService sessionService;
 
     public AuthJwtSessionService(OpenJwtTokenGenerate tokenGenerate,
-                                 AuthJwtSessionStore sessionStore,
-                                 JwtSessionService sessionService) {
+                                 AuthJwtSessionStore sessionStore) {
         this.tokenGenerate = tokenGenerate;
         this.sessionStore = sessionStore;
-        this.sessionService = sessionService;
     }
 
     public IssueResult issue(Authentication authentication) {
@@ -94,10 +90,6 @@ public class AuthJwtSessionService {
                 "sessionId", sessionId,
                 "username", session.getUsername());
         return Optional.of(new IssueResult(sessionId, session.getUsername(), newAccess, newRefresh));
-    }
-
-    public boolean isActive(String sessionId) {
-        return sessionService.isActive(sessionId);
     }
 
     public void revoke(String sessionId, String reason) {
