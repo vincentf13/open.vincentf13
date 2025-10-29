@@ -24,5 +24,13 @@
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-core-log</artifactId>
+        </dependency>
+             <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-core</artifactId>
+        </dependency>
     </dependencies>
 </project>

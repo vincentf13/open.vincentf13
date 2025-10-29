@@ -217,6 +217,11 @@
                 <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
                 <version>4.3.0</version>
             </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>
