@@ -1,10 +1,7 @@
 package open.vincentf13.common.infra.jwt.session;
 
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -13,9 +10,6 @@ import java.util.Optional;
 /**
  * Redis-backed session store so multiple services/pods can enforce shared logout state.
  */
-@Component
-@ConditionalOnClass(RedisTemplate.class)
-@ConditionalOnBean(RedisTemplate.class)
 public class RedisJwtSessionStore implements JwtSessionStore {
 
     private final RedisTemplate<String, Object> redisTemplate;

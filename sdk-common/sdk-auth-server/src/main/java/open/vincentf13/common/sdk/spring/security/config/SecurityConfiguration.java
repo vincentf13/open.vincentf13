@@ -1,9 +1,15 @@
 package open.vincentf13.common.sdk.spring.security.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import open.vincentf13.common.infra.jwt.filter.JwtAuthenticationFilter;
+import open.vincentf13.common.infra.jwt.session.JwtSessionService;
+import open.vincentf13.common.infra.jwt.token.JwtProperties;
+import open.vincentf13.common.infra.jwt.token.OpenJwtToken;
 import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;
 import open.vincentf13.common.sdk.spring.security.handler.LoginSuccessHandler;
-import open.vincentf13.common.infra.jwt.filter.JwtAuthenticationFilter;
-import open.vincentf13.common.infra.jwt.token.JwtProperties;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.MessageSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +29,31 @@ public class SecurityConfiguration {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public LoginSuccessHandler loginSuccessHandler(ObjectProvider<ObjectMapper> objectMapperProvider,
+                                                   MessageSource messageSource,
+                                                   JwtSessionService sessionService) {
+        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
+        return new LoginSuccessHandler(mapper, messageSource, sessionService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public LoginFailureHandler loginFailureHandler(ObjectProvider<ObjectMapper> objectMapperProvider,
+                                                   MessageSource messageSource) {
+        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
+        return new LoginFailureHandler(mapper, messageSource);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JwtAuthenticationFilter jwtAuthenticationFilter(OpenJwtToken openJwtToken,
+                                                           ObjectProvider<JwtSessionService> sessionServiceProvider,
+                                                           JwtProperties properties) {
+        return new JwtAuthenticationFilter(openJwtToken, sessionServiceProvider, properties);
     }
 
     @Bean

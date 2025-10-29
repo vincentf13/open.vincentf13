@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -26,7 +25,6 @@ import java.util.Optional;
  * Bearer JWT filter that restores authentication from the Authorization header and (optionally)
  * validates session state through the shared session service.
  */
-@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final OpenJwtToken openJwtToken;

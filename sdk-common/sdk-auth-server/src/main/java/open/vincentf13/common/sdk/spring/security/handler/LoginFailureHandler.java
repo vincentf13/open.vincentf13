@@ -14,12 +14,10 @@ import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-@Component
 public class LoginFailureHandler implements org.springframework.security.web.authentication.AuthenticationFailureHandler {
 
     private static final Logger log = LoggerFactory.getLogger(LoginFailureHandler.class);

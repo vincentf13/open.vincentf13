@@ -1,8 +1,5 @@
 package open.vincentf13.common.infra.jwt.session;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.stereotype.Component;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -11,8 +8,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Fallback in-memory store so single-node services can try the session features without Redis.
  */
-@Component
-@ConditionalOnMissingBean(JwtSessionStore.class)
 public class InMemoryJwtSessionStore implements JwtSessionStore {
 
     private final Map<String, JwtSession> sessions = new ConcurrentHashMap<>();
