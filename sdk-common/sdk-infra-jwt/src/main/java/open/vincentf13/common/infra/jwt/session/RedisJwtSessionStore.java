@@ -1,6 +1,6 @@
-package open.vincentf13.common.sdk.spring.security.session;
+package open.vincentf13.common.infra.jwt.session;
 
-import open.vincentf13.common.sdk.spring.security.token.JwtProperties;
+import open.vincentf13.common.infra.jwt.token.JwtProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.data.redis.core.RedisTemplate;

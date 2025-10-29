@@ -24,6 +24,7 @@
         <module>sdk-spring-cloud-gateway</module>
         <module>sdk-spring-websocket</module>
         <module>sdk-service-exchange</module>
+        <module>sdk-infra-jwt</module>
         <module>skd-spring-security-auth-server</module>
         <module>sdk-spring-session</module>
         <module>sdk-infra-mysql</module>

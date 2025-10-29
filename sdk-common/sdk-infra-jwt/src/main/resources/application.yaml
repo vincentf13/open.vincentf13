@@ -2,8 +2,9 @@ open:
   vincentf13:
     security:
       jwt:
-        # HMAC 簽章密鑰，請在實際環境覆寫（至少 32 字元）
         secret: change-me-change-me-change-me-change
         issuer: open.vincentf13
         access-token-ttl-seconds: 3600
-        check-session-active: true
+        refresh-token-ttl-seconds: 604800
+        session-store-prefix: open::sessions
+        check-session-active: false

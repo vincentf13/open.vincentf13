@@ -1,4 +1,4 @@
-package open.vincentf13.common.sdk.spring.security.session;
+package open.vincentf13.common.infra.jwt.session;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -68,16 +68,16 @@ public class JwtSession {
         this.refreshTokenExpiresAt = Objects.requireNonNull(refreshTokenExpiresAt, "refreshTokenExpiresAt");
     }
 
-    public Instant getRevokedAt() {
-        return revokedAt;
-    }
-
     public List<String> getAuthorities() {
         return authorities;
     }
 
     public void setAuthorities(List<String> authorities) {
         this.authorities = authorities == null ? new ArrayList<>() : new ArrayList<>(authorities);
+    }
+
+    public Instant getRevokedAt() {
+        return revokedAt;
     }
 
     public void setRevokedAt(Instant revokedAt) {

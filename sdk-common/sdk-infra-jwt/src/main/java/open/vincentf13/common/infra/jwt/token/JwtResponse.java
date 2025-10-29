@@ -1,4 +1,4 @@
-package open.vincentf13.common.sdk.spring.security.token;
+package open.vincentf13.common.infra.jwt.token;
 
 import java.time.Instant;
 

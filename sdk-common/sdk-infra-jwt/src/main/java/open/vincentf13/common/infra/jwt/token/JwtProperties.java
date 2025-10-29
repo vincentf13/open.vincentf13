@@ -1,4 +1,4 @@
-package open.vincentf13.common.sdk.spring.security.token;
+package open.vincentf13.common.infra.jwt.token;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -10,22 +10,19 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "open.vincentf13.security.jwt")
 public class JwtProperties {
 
-    /** Shared secret used for HMAC signing (minimum 32 characters). */
     @NotBlank
     @Size(min = 32)
     private String secret = "change-me-change-me-change-me-change";
 
-    /** Issuer claim placed in generated tokens. */
     private String issuer = OpenConstant.BASE_PACKAGE;
 
-    /** Access token lifetime in seconds. */
     private long accessTokenTtlSeconds = 3600;
 
-    /** Refresh token lifetime in seconds. */
     private long refreshTokenTtlSeconds = 604800;
 
-    /** Redis key prefix (or general namespace) for session metadata. */
-    private String sessionStorePrefix = "open:sessions";
+    private String sessionStorePrefix = "open:vincentf13:security:sessions";
+
+    private boolean checkSessionActive = false;
 
     public String getSecret() {
         return secret;
@@ -65,5 +62,13 @@ public class JwtProperties {
 
     public void setSessionStorePrefix(String sessionStorePrefix) {
         this.sessionStorePrefix = sessionStorePrefix;
+    }
+
+    public boolean isCheckSessionActive() {
+        return checkSessionActive;
+    }
+
+    public void setCheckSessionActive(boolean checkSessionActive) {
+        this.checkSessionActive = checkSessionActive;
     }
 }

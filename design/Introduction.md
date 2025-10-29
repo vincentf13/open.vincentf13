@@ -18,6 +18,7 @@ open.vincentf13/
 │   ├── sdk-infra-kafka/        # Kafka Producer/Consumer 封裝
 │   ├── sdk-infra-mysql/        # MySQL 連線池、審計欄位與 Repository 工具
 │   ├── sdk-infra-redis/        # Redis 客戶端與序列化策略
+│   ├── sdk-infra-jwt/          # JWT Filter、Token 與 Session 共用元件
 │   ├── sdk-service-exchange/
 │   │   └── sdk-service-exchange-matching/
 │   │       ├── rest-api/       # 撮合服務 OpenAPI 契約、API Interface 與 DTO

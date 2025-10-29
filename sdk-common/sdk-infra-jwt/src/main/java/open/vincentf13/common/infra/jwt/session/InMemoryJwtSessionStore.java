@@ -1,4 +1,4 @@
-package open.vincentf13.common.sdk.spring.security.session;
+package open.vincentf13.common.infra.jwt.session;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;

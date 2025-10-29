@@ -2,8 +2,8 @@ package open.vincentf13.common.sdk.spring.security.config;
 
 import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;
 import open.vincentf13.common.sdk.spring.security.handler.LoginSuccessHandler;
-import open.vincentf13.common.sdk.spring.security.filter.JwtAuthenticationFilter;
-import open.vincentf13.common.sdk.spring.security.token.JwtProperties;
+import open.vincentf13.common.infra.jwt.filter.JwtAuthenticationFilter;
+import open.vincentf13.common.infra.jwt.token.JwtProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

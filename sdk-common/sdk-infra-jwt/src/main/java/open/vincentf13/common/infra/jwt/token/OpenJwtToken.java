@@ -1,9 +1,9 @@
-package open.vincentf13.common.sdk.spring.security.token;
+package open.vincentf13.common.infra.jwt.token;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import open.vincentf13.common.core.log.OpenLog;
-import open.vincentf13.common.sdk.spring.security.token.model.JwtAuthenticationToken;
-import open.vincentf13.common.sdk.spring.security.token.model.RefreshTokenClaims;
+import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
+import open.vincentf13.common.infra.jwt.token.model.RefreshTokenClaims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -28,10 +28,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Lightweight wrapper around Nimbus JWT encoder/decoder so SDK consumers can issue and validate
- * HMAC-signed access/refresh tokens without wiring the auth server module.
- */
 @Service
 public class OpenJwtToken {
 
@@ -52,7 +48,6 @@ public class OpenJwtToken {
         this.jwtDecoder = NimbusJwtDecoder.withSecretKey(secretKey).build();
     }
 
-    /** Build a signed access token tied to a specific session id and principal authorities. */
     public TokenDetails generateAccessToken(String sessionId, Authentication authentication) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plusSeconds(properties.getAccessTokenTtlSeconds());
@@ -78,10 +73,6 @@ public class OpenJwtToken {
         return new TokenDetails(tokenValue, issuedAt, expiresAt, TokenType.ACCESS, sessionId);
     }
 
-    /**
-     * Build a refresh token for the session so clients can renew access tokens without prompting
-     * for credentials again.
-     */
     public TokenDetails generateRefreshToken(String sessionId, String subject) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plusSeconds(properties.getRefreshTokenTtlSeconds());
@@ -103,13 +94,11 @@ public class OpenJwtToken {
         return new TokenDetails(tokenValue, issuedAt, expiresAt, TokenType.REFRESH, sessionId);
     }
 
-    /** Convenience wrapper keeping legacy signature for existing call sites. */
     @Deprecated(forRemoval = false)
     public TokenDetails generate(Authentication authentication) {
         return generateAccessToken(null, authentication);
     }
 
-    /** Decode an access token, returning the Authentication enriched with session id details. */
     public Optional<JwtAuthenticationToken> parseAccessToken(String tokenValue) {
         try {
             Jwt jwt = jwtDecoder.decode(tokenValue);
@@ -132,7 +121,6 @@ public class OpenJwtToken {
         }
     }
 
-    /** Parse refresh token and surface claims for the caller without creating an Authentication. */
     public Optional<RefreshTokenClaims> parseRefreshToken(String tokenValue) {
         try {
             Jwt jwt = jwtDecoder.decode(tokenValue);
@@ -152,7 +140,7 @@ public class OpenJwtToken {
     private TokenType resolveTokenType(Jwt jwt) {
         String raw = jwt.getClaimAsString(TOKEN_TYPE_CLAIM);
         if (raw == null) {
-            return TokenType.ACCESS; // 為了舊版相容性，未帶 token_type 時當作 access token
+            return TokenType.ACCESS;
         }
         try {
             return TokenType.valueOf(raw);

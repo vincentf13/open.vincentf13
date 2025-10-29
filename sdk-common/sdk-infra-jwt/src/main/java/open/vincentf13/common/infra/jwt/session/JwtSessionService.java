@@ -1,20 +1,19 @@
-package open.vincentf13.common.sdk.spring.security.session;
+package open.vincentf13.common.infra.jwt.session;
 
 import open.vincentf13.common.core.log.OpenLog;
-import open.vincentf13.common.sdk.spring.security.token.OpenJwtToken;
-import open.vincentf13.common.sdk.spring.security.token.model.JwtAuthenticationToken;
-import open.vincentf13.common.sdk.spring.security.token.model.RefreshTokenClaims;
+import open.vincentf13.common.infra.jwt.token.OpenJwtToken;
+import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
+import open.vincentf13.common.infra.jwt.token.model.RefreshTokenClaims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 /**
  * Coordinates issuing, refreshing, and revoking JWT-backed sessions across services.
@@ -95,7 +94,6 @@ public class JwtSessionService {
 
     public boolean isActive(String sessionId) {
         if (sessionId == null) {
-            // 舊版 access token 沒有 sid 時無法強制踢下線，只能視為有效
             return true;
         }
         return sessionStore.findById(sessionId)
