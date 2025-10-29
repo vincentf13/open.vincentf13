@@ -1,8 +1,8 @@
 package open.vincentf13.common.sdk.spring.security.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.common.infra.jwt.config.JwtAuthAutoConfiguration;
-import open.vincentf13.common.infra.jwt.config.JwtSecurityConfigurer;
+import open.vincentf13.common.infra.jwt.config.JwtAutoConfiguration;
+import open.vincentf13.common.infra.jwt.config.JwtConfigurer;
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
 import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;
 import open.vincentf13.common.sdk.spring.security.handler.LoginSuccessHandler;
@@ -24,7 +24,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties({JwtProperties.class})
-@Import({AuthJwtSessionStoreConfiguration.class, JwtAuthAutoConfiguration.class})
+@Import({AuthJwtSessionStoreConfiguration.class, JwtAutoConfiguration.class})
 public class SecurityConfiguration {
 
     @Bean
@@ -53,8 +53,8 @@ public class SecurityConfiguration {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    LoginSuccessHandler successHandler,
                                                    LoginFailureHandler failureHandler,
-                                                   JwtSecurityConfigurer jwtSecurityConfigurer) throws Exception {
-        http.apply(jwtSecurityConfigurer)
+                                                   JwtConfigurer jwtConfigurer) throws Exception {
+        http.apply(jwtConfigurer)
             .and()
             .formLogin(form -> form.loginPage("/login")
                                    .loginProcessingUrl("/api/login")

@@ -1,17 +1,17 @@
 package open.vincentf13.common.infra.jwt.config;
 
-import open.vincentf13.common.infra.jwt.filter.JwtAuthenticationFilter;
+import open.vincentf13.common.infra.jwt.filter.JwtFilter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityConfigurer, HttpSecurity> {
+public class JwtConfigurer extends AbstractHttpConfigurer<JwtConfigurer, HttpSecurity> {
 
-    private final ObjectProvider<JwtAuthenticationFilter> filterProvider;
+    private final ObjectProvider<JwtFilter> filterProvider;
 
-    public JwtSecurityConfigurer(ObjectProvider<JwtAuthenticationFilter> filterProvider) {
+    public JwtConfigurer(ObjectProvider<JwtFilter> filterProvider) {
         this.filterProvider = filterProvider;
     }
 
@@ -26,7 +26,7 @@ public class JwtSecurityConfigurer extends AbstractHttpConfigurer<JwtSecurityCon
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-        JwtAuthenticationFilter filter = filterProvider.getIfAvailable();
+        JwtFilter filter = filterProvider.getIfAvailable();
         if (filter == null) {
             throw new IllegalStateException("JwtAuthenticationFilter bean not available");
         }

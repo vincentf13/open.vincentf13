@@ -8,12 +8,12 @@ import java.util.Optional;
 /**
  * Redis-backed store used for read operations (issue/refresh handled by auth server).
  */
-public class RedisJwtSessionStore implements JwtSessionStore {
+public class JwtSessionStoreRedis implements JwtSessionStore {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtProperties properties;
 
-    public RedisJwtSessionStore(RedisTemplate<String, Object> redisTemplate,
+    public JwtSessionStoreRedis(RedisTemplate<String, Object> redisTemplate,
                                 JwtProperties properties) {
         this.redisTemplate = redisTemplate;
         this.properties = properties;

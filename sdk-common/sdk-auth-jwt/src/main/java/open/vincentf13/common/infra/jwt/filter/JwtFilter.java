@@ -25,16 +25,16 @@ import java.util.Optional;
  * Bearer JWT filter that restores authentication from the Authorization header and (optionally)
  * validates session state through the shared session service.
  */
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class JwtFilter extends OncePerRequestFilter {
 
     private final OpenJwtToken openJwtToken;
     private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final JwtProperties properties;
-    private final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    private final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
-    public JwtAuthenticationFilter(OpenJwtToken openJwtToken,
-                                   ObjectProvider<JwtSessionService> sessionServiceProvider,
-                                   JwtProperties properties) {
+    public JwtFilter(OpenJwtToken openJwtToken,
+                     ObjectProvider<JwtSessionService> sessionServiceProvider,
+                     JwtProperties properties) {
         this.openJwtToken = openJwtToken;
         this.sessionServiceProvider = sessionServiceProvider;
         this.properties = properties;
