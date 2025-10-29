@@ -5,9 +5,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.common.core.log.OpenLog;
-import open.vincentf13.common.infra.jwt.session.JwtSessionService;
 import open.vincentf13.common.infra.jwt.token.JwtResponse;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
+import open.vincentf13.common.sdk.spring.security.service.AuthJwtSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -28,11 +28,11 @@ public class LoginSuccessHandler implements org.springframework.security.web.aut
 
     private final ObjectMapper objectMapper;
     private final MessageSourceAccessor messages;
-    private final JwtSessionService jwtSessionService;
+    private final AuthJwtSessionService jwtSessionService;
 
     public LoginSuccessHandler(ObjectMapper objectMapper,
                                MessageSource messageSource,
-                               JwtSessionService jwtSessionService) {
+                               AuthJwtSessionService jwtSessionService) {
         this.objectMapper = objectMapper;
         this.messages = new MessageSourceAccessor(messageSource);
         this.jwtSessionService = jwtSessionService;
@@ -48,7 +48,7 @@ public class LoginSuccessHandler implements org.springframework.security.web.aut
 
         String localizedMessage = messages.getMessage(MESSAGE_KEY, "Login successful");
 
-        JwtSessionService.IssueResult tokens = jwtSessionService.issue(authentication);
+        AuthJwtSessionService.IssueResult tokens = jwtSessionService.issue(authentication);
         response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tokens.accessToken().token());
         JwtResponse payload = new JwtResponse(tokens.accessToken().token(),
                                              tokens.accessToken().issuedAt(),

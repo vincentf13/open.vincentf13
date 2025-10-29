@@ -54,9 +54,8 @@ public class JwtAuthAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public JwtSessionService jwtSessionService(OpenJwtToken jwtToken,
-                                               JwtSessionStore sessionStore) {
-        return new JwtSessionService(jwtToken, sessionStore);
+    public JwtSessionService jwtSessionService(JwtSessionStore sessionStore) {
+        return new JwtSessionService(sessionStore);
     }
 
     @Bean
@@ -71,6 +70,14 @@ public class JwtAuthAutoConfiguration {
     @ConditionalOnMissingBean
     public JwtSecurityConfigurer jwtSecurityConfigurer(ObjectProvider<JwtAuthenticationFilter> provider) {
         return new JwtSecurityConfigurer(provider);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SecurityFilterChain.class)
+    public SecurityFilterChain jwtSecurityFilterChain(HttpSecurity http,
+                                                      JwtSecurityConfigurer configurer) throws Exception {
+        http.apply(configurer);
+        return http.build();
     }
 
 }

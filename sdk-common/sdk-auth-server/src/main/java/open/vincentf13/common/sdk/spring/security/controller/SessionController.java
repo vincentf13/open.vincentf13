@@ -2,10 +2,10 @@
 package open.vincentf13.common.sdk.spring.security.controller;
 
 import open.vincentf13.common.sdk.spring.security.error.FailureReason;
-import open.vincentf13.common.infra.jwt.session.JwtSessionService;
-import open.vincentf13.common.infra.jwt.session.JwtSessionService.IssueResult;
 import open.vincentf13.common.infra.jwt.token.JwtResponse;
 import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
+import open.vincentf13.common.sdk.spring.security.service.AuthJwtSessionService;
+import open.vincentf13.common.sdk.spring.security.service.AuthJwtSessionService.IssueResult;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.MessageSourceAccessor;
@@ -21,10 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class SessionController {
 
-    private final JwtSessionService sessionService;
+    private final AuthJwtSessionService sessionService;
     private final MessageSourceAccessor messages;
 
-    public SessionController(JwtSessionService sessionService,
+    public SessionController(AuthJwtSessionService sessionService,
                             MessageSource messageSource) {
         this.sessionService = sessionService;
         this.messages = new MessageSourceAccessor(messageSource);

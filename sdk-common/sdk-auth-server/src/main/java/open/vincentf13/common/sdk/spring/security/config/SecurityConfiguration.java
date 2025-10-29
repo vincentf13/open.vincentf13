@@ -3,10 +3,10 @@ package open.vincentf13.common.sdk.spring.security.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.common.infra.jwt.config.JwtAuthAutoConfiguration;
 import open.vincentf13.common.infra.jwt.config.JwtSecurityConfigurer;
-import open.vincentf13.common.infra.jwt.session.JwtSessionService;
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
 import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;
 import open.vincentf13.common.sdk.spring.security.handler.LoginSuccessHandler;
+import open.vincentf13.common.sdk.spring.security.service.AuthJwtSessionService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.MessageSource;
@@ -35,7 +35,7 @@ public class SecurityConfiguration {
     @ConditionalOnMissingBean
     public LoginSuccessHandler loginSuccessHandler(ObjectProvider<ObjectMapper> objectMapperProvider,
                                                    MessageSource messageSource,
-                                                   JwtSessionService sessionService) {
+                                                   AuthJwtSessionService sessionService) {
         ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new LoginSuccessHandler(mapper, messageSource, sessionService);
     }
