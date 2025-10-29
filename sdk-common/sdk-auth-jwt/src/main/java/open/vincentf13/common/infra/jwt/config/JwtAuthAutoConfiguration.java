@@ -52,7 +52,13 @@ public class JwtAuthAutoConfiguration {
     @ConditionalOnMissingBean
     public JwtAuthenticationFilter jwtAuthenticationFilter(OpenJwtToken openJwtToken,
                                                            ObjectProvider<JwtSessionService> sessionServiceProvider,
-                                                           JwtProperties properties) {
+                                                                       JwtProperties properties) {
         return new JwtAuthenticationFilter(openJwtToken, sessionServiceProvider, properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JwtSecurityConfigurer jwtSecurityConfigurer(ObjectProvider<JwtAuthenticationFilter> provider) {
+        return new JwtSecurityConfigurer(provider);
     }
 }

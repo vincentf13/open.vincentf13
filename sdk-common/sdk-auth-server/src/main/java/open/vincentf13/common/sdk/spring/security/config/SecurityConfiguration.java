@@ -2,7 +2,6 @@ package open.vincentf13.common.sdk.spring.security.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.common.infra.jwt.config.JwtAuthAutoConfiguration;
-import open.vincentf13.common.infra.jwt.filter.JwtAuthenticationFilter;
 import open.vincentf13.common.infra.jwt.session.JwtSessionService;
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
 import open.vincentf13.common.sdk.spring.security.handler.LoginFailureHandler;
@@ -16,11 +15,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -54,23 +51,15 @@ public class SecurityConfiguration {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    LoginSuccessHandler successHandler,
                                                    LoginFailureHandler failureHandler,
-                                                   ObjectProvider<JwtAuthenticationFilter> filterProvider) throws Exception {
-        JwtAuthenticationFilter jwtAuthenticationFilter = filterProvider.getIfAvailable();
-        if (jwtAuthenticationFilter == null) {
-            throw new IllegalStateException("JwtAuthenticationFilter bean not available; ensure sdk-auth-jwt AutoConfiguration is active");
-        }
-        http.csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/login", "/public/**").permitAll()
-                .anyRequest().authenticated())
+                                                   JwtSecurityConfigurer jwtSecurityConfigurer) throws Exception {
+        http.apply(jwtSecurityConfigurer)
+            .and()
             .formLogin(form -> form.loginPage("/login")
                                    .loginProcessingUrl("/api/login")
                                    .successHandler(successHandler)
                                    .failureHandler(failureHandler)
                                    .permitAll())
-            .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll())
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll());
         return http.build();
     }
 }
