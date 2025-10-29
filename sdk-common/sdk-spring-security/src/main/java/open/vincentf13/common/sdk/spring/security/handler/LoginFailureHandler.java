@@ -44,8 +44,8 @@ public class LoginFailureHandler implements org.springframework.security.web.aut
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
         FailureReason reason = FailureReason.from(exception);
-        String localizedMessage = messages.getMessage(reason.messageKey, reason.defaultMessage);
-        OpenApiResponse<Void> body = OpenApiResponse.failure(reason.code, localizedMessage);
+        String localizedMessage = reason.resolveMessage(messages);
+        OpenApiResponse<Void> body = OpenApiResponse.failure(reason.code(), localizedMessage);
 
         String username = request != null ? request.getParameter("username") : null;
         OpenLog.warn(log,
@@ -53,27 +53,50 @@ public class LoginFailureHandler implements org.springframework.security.web.aut
                      "Authentication failed",
                      exception,
                      "username", username != null && !username.isBlank() ? username : "<unknown>",
-                     "code", reason.code,
+                     "code", reason.code(),
                      "remote", request != null ? request.getRemoteAddr() : "<unknown>");
 
         objectMapper.writeValue(response.getWriter(), body);
     }
 
-    private enum FailureReason {
-        ACCOUNT_LOCKED("AUTH_ACCOUNT_LOCKED", "auth.login.failure.locked", "Account locked"),
-        ACCOUNT_DISABLED("AUTH_ACCOUNT_DISABLED", "auth.login.failure.disabled", "Account disabled or not activated"),
-        CREDENTIALS_EXPIRED("AUTH_CREDENTIALS_EXPIRED", "auth.login.failure.credentials-expired", "Password expired"),
-        ACCOUNT_EXPIRED("AUTH_ACCOUNT_EXPIRED", "auth.login.failure.account-expired", "Account expired"),
-        BAD_CREDENTIALS("AUTH_BAD_CREDENTIALS", "auth.login.failure.bad-credentials", "Invalid username or password");
+    public enum FailureReason {
+        ACCOUNT_LOCKED(HttpStatus.UNAUTHORIZED, "AUTH_ACCOUNT_LOCKED", "auth.login.failure.locked", "Account locked"),
+        ACCOUNT_DISABLED(HttpStatus.UNAUTHORIZED, "AUTH_ACCOUNT_DISABLED", "auth.login.failure.disabled", "Account disabled or not activated"),
+        CREDENTIALS_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_CREDENTIALS_EXPIRED", "auth.login.failure.credentials-expired", "Password expired"),
+        ACCOUNT_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_ACCOUNT_EXPIRED", "auth.login.failure.account-expired", "Account expired"),
+        BAD_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH_BAD_CREDENTIALS", "auth.login.failure.bad-credentials", "Invalid username or password"),
+        REFRESH_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_INVALID", "auth.refresh.invalid", "Refresh token invalid");
 
+        private final HttpStatus status;
         private final String code;
         private final String messageKey;
         private final String defaultMessage;
 
-        FailureReason(String code, String messageKey, String defaultMessage) {
+        FailureReason(HttpStatus status, String code, String messageKey, String defaultMessage) {
+            this.status = status;
             this.code = code;
             this.messageKey = messageKey;
             this.defaultMessage = defaultMessage;
+        }
+
+        public HttpStatus status() {
+            return status;
+        }
+
+        public String code() {
+            return code;
+        }
+
+        public String resolveMessage(MessageSourceAccessor messages) {
+            return messages.getMessage(messageKey, defaultMessage);
+        }
+
+        public String defaultMessage() {
+            return defaultMessage;
+        }
+
+        public String messageKey() {
+            return messageKey;
         }
 
         private static FailureReason from(AuthenticationException exception) {
