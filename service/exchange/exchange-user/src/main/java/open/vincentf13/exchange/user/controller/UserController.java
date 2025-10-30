@@ -1,11 +1,12 @@
 package open.vincentf13.exchange.user.controller;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.user.dto.RegisterUserRequest;
 import open.vincentf13.exchange.user.dto.UpdateUserStatusRequest;
 import open.vincentf13.exchange.user.dto.UserResponse;
 import open.vincentf13.exchange.user.service.UserApplicationService;
-import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,18 +23,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/users")
 @Validated
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserApplicationService userService;
 
-    public UserController(UserApplicationService userService) {
-        this.userService = userService;
-    }
-
     @PostMapping
     public ResponseEntity<OpenApiResponse<UserResponse>> register(@RequestBody @Valid RegisterUserRequest request) {
-        UserResponse response = userService.register(request);
-        return ResponseEntity.ok(OpenApiResponse.success(response));
+        return ResponseEntity.ok(OpenApiResponse.success(userService.register(request)));
     }
 
     @GetMapping("/{id}")

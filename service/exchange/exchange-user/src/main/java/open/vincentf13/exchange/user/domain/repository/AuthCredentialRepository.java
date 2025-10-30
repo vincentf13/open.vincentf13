@@ -9,5 +9,5 @@ public interface AuthCredentialRepository {
 
     void insert(AuthCredential credential);
 
-    Optional<AuthCredential> findByUserIdAndType(Long userId, AuthCredentialType type);
+    Optional<AuthCredential> findByUserIdAndType(Long userId, AuthCredentialType credentialType);
 }

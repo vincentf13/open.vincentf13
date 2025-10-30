@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.user.infra.repository;
 
+import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.repository.AuthCredentialRepository;
@@ -9,13 +10,10 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
+@RequiredArgsConstructor
 public class AuthCredentialMyBatisRepository implements AuthCredentialRepository {
 
     private final AuthCredentialMapper mapper;
-
-    public AuthCredentialMyBatisRepository(AuthCredentialMapper mapper) {
-        this.mapper = mapper;
-    }
 
     @Override
     public void insert(AuthCredential credential) {
@@ -23,7 +21,7 @@ public class AuthCredentialMyBatisRepository implements AuthCredentialRepository
     }
 
     @Override
-    public Optional<AuthCredential> findByUserIdAndType(Long userId, AuthCredentialType type) {
-        return mapper.findByUserIdAndType(userId, type);
+    public Optional<AuthCredential> findByUserIdAndType(Long userId, AuthCredentialType credentialType) {
+        return Optional.ofNullable(mapper.findByUserIdAndType(userId, credentialType));
     }
 }

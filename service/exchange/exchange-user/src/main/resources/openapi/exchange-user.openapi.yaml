@@ -2,10 +2,7 @@ openapi: 3.0.3
 info:
   title: Exchange User Service API
   version: 1.0.0
-  description: >-
-    User management capabilities for the exchange platform. Provides
-    registration, lookup, listing, and status management endpoints consumed
-    via sdk-exchange clients.
+  description: API contract for the exchange user service.
 servers:
   - url: http://localhost:8080
 paths:
@@ -21,55 +18,55 @@ paths:
               $ref: '#/components/schemas/RegisterUserRequest'
       responses:
         '200':
-          description: User registered
+          description: Successful registration
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponseEnvelope'
+                $ref: '#/components/schemas/UserEnvelope'
     get:
-      summary: Query users
+      summary: List users or find by email
       operationId: listUsers
       parameters:
         - in: query
           name: email
           schema:
             type: string
-          description: Optional email to lookup a single user
+          description: When provided returns the specific user
       responses:
         '200':
-          description: User(s) found
+          description: Users returned
           content:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/UserResponseEnvelope'
-                  - $ref: '#/components/schemas/UserListResponseEnvelope'
+                  - $ref: '#/components/schemas/UserEnvelope'
+                  - $ref: '#/components/schemas/UserListEnvelope'
   /api/users/{id}:
     get:
       summary: Get user by id
       operationId: getUserById
       parameters:
         - in: path
-          required: true
           name: id
+          required: true
           schema:
             type: integer
             format: int64
       responses:
         '200':
-          description: Found
+          description: User
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponseEnvelope'
+                $ref: '#/components/schemas/UserEnvelope'
   /api/users/{id}/status:
     patch:
       summary: Update user status
       operationId: updateUserStatus
       parameters:
         - in: path
-          required: true
           name: id
+          required: true
           schema:
             type: integer
             format: int64
@@ -81,11 +78,11 @@ paths:
               $ref: '#/components/schemas/UpdateUserStatusRequest'
       responses:
         '200':
-          description: Updated
+          description: Updated user
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponseEnvelope'
+                $ref: '#/components/schemas/UserEnvelope'
 components:
   schemas:
     RegisterUserRequest:
@@ -140,14 +137,14 @@ components:
         message:
           type: string
           nullable: true
-    UserResponseEnvelope:
+    UserEnvelope:
       allOf:
         - $ref: '#/components/schemas/OpenApiResponse'
         - type: object
           properties:
             data:
               $ref: '#/components/schemas/UserResponse'
-    UserListResponseEnvelope:
+    UserListEnvelope:
       allOf:
         - $ref: '#/components/schemas/OpenApiResponse'
         - type: object

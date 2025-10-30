@@ -1,8 +1,8 @@
 package open.vincentf13.exchange.user.controller;
 
+import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.user.exception.UserAlreadyExistsException;
 import open.vincentf13.exchange.user.exception.UserNotFoundException;
-import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;

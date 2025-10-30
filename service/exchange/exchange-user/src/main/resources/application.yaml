@@ -2,7 +2,7 @@ spring:
   application:
     name: exchange-user
   datasource:
-    url: jdbc:mysql://localhost:3306/exchange_user?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/exchange_user?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
     username: exchange_user
     password: exchange_user
     driver-class-name: com.mysql.cj.jdbc.Driver

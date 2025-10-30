@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
@@ -8,29 +8,29 @@
         <id property="id" column="id" />
         <result property="externalId" column="external_id" />
         <result property="email" column="email" />
-        <result property="status" column="status" javaType="open.vincentf13.exchange.user.domain.model.UserStatus" />
+        <result property="status" column="status"
+                javaType="open.vincentf13.exchange.user.domain.model.UserStatus" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
 
-    <select id="existsByEmail" parameterType="string" resultType="boolean">
-        SELECT EXISTS(
-            SELECT 1 FROM users WHERE email = #{email}
-        )
+    <select id="existsByEmail" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})
     </select>
 
-    <insert id="insert" parameterType="open.vincentf13.exchange.user.domain.model.User" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="open.vincentf13.exchange.user.domain.model.User"
+            useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (external_id, email, status, created_at, updated_at)
         VALUES (#{externalId}, #{email}, #{status}, NOW(), NOW())
     </insert>
 
-    <select id="findById" parameterType="long" resultMap="UserResultMap">
+    <select id="findById" resultMap="UserResultMap">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         WHERE id = #{id}
     </select>
 
-    <select id="findByEmail" parameterType="string" resultMap="UserResultMap">
+    <select id="findByEmail" resultMap="UserResultMap">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         WHERE email = #{email}

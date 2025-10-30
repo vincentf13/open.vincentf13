@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.user.infra.repository;
 
+import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserStatus;
 import open.vincentf13.exchange.user.domain.repository.UserRepository;
@@ -10,13 +11,10 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
+@RequiredArgsConstructor
 public class UserMyBatisRepository implements UserRepository {
 
     private final UserMapper mapper;
-
-    public UserMyBatisRepository(UserMapper mapper) {
-        this.mapper = mapper;
-    }
 
     @Override
     public boolean existsByEmail(String email) {
@@ -30,12 +28,12 @@ public class UserMyBatisRepository implements UserRepository {
 
     @Override
     public Optional<User> findById(Long id) {
-        return mapper.findById(id);
+        return Optional.ofNullable(mapper.findById(id));
     }
 
     @Override
     public Optional<User> findByEmail(String email) {
-        return mapper.findByEmail(email);
+        return Optional.ofNullable(mapper.findByEmail(email));
     }
 
     @Override

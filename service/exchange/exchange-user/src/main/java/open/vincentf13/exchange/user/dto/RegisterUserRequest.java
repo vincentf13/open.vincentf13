@@ -13,6 +13,6 @@ public record RegisterUserRequest(
         @Size(min = 8, max = 128, message = "Password length must be between 8 and 128 characters")
         String password,
 
-        @Size(max = 64, message = "externalId max length is 64")
+        @Size(max = 64, message = "External id max length is 64")
         String externalId
 ) { }

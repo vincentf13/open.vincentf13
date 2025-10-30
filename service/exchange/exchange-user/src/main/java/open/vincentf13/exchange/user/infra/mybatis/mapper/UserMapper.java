@@ -5,7 +5,6 @@ import open.vincentf13.exchange.user.domain.model.UserStatus;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface UserMapper {
 
@@ -13,9 +12,9 @@ public interface UserMapper {
 
     void insert(User user);
 
-    Optional<User> findById(@Param("id") Long id);
+    User findById(@Param("id") Long id);
 
-    Optional<User> findByEmail(@Param("email") String email);
+    User findByEmail(@Param("email") String email);
 
     void updateStatus(@Param("id") Long id, @Param("status") UserStatus status);
 
