@@ -7,8 +7,8 @@ import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserStatus;
-import open.vincentf13.exchange.user.domain.repository.AuthCredentialRepository;
-import open.vincentf13.exchange.user.domain.repository.UserRepository;
+import open.vincentf13.exchange.user.infra.repository.AuthCredentialRepository;
+import open.vincentf13.exchange.user.infra.repository.UserRepository;
 import open.vincentf13.exchange.user.dto.RegisterUserRequest;
 import open.vincentf13.exchange.user.dto.UpdateUserStatusRequest;
 import open.vincentf13.exchange.user.dto.UserResponse;
@@ -31,7 +31,7 @@ public class UserApplicationService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public UserResponse register(RegisterUserRequest request) throws OpenServiceException {
+    public UserResponse register(RegisterUserRequest request)  {
         String normalizedEmail = request.email().toLowerCase();
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
@@ -65,7 +65,7 @@ public class UserApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public UserResponse findById(Long id) throws OpenServiceException {
+    public UserResponse findById(Long id)  {
         return userRepository.findById(id)
                 .map(UserDtoMapper::toResponse)
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
@@ -73,7 +73,7 @@ public class UserApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public UserResponse findByEmail(String email) throws OpenServiceException {
+    public UserResponse findByEmail(String email)  {
         return userRepository.findByEmail(email.toLowerCase())
                 .map(UserDtoMapper::toResponse)
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
@@ -81,7 +81,7 @@ public class UserApplicationService {
     }
 
     @Transactional
-    public UserResponse updateStatus(Long id, UpdateUserStatusRequest request) throws OpenServiceException {
+    public UserResponse updateStatus(Long id, UpdateUserStatusRequest request)  {
         userRepository.findById(id)
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. id=" + id));

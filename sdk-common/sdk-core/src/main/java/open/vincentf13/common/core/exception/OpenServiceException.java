@@ -4,7 +4,7 @@ import open.vincentf13.common.core.error.OpenError;
 
 import java.util.Map;
 
-public class OpenServiceException extends Exception implements OpenException {
+public class OpenServiceException extends RuntimeException implements OpenException {
 
     private final String code;
     private final Map<String, Object> meta;

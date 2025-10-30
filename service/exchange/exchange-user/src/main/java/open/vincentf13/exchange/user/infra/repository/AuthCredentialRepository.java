@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.domain.repository;
+package open.vincentf13.exchange.user.infra.repository;
 
 import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
