@@ -16,6 +16,13 @@ spring:
 #            - Path=/api/users/**
 
 
+open:
+  vincentf13:
+    security:
+      gateway:
+        permit-paths:
+          - /actuator/**
+
 
 logging:
   level:
@@ -23,3 +30,5 @@ logging:
     org.springframework.http.server.reactive: DEBUG
     org.springframework.web.reactive: DEBUG
     reactor.netty: DEBUG
+
+

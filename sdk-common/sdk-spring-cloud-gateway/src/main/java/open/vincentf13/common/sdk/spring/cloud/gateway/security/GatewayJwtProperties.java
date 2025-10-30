@@ -9,7 +9,7 @@ import java.util.List;
 public class GatewayJwtProperties {
 
     private boolean enabled = true;
-    private List<String> permitPaths = new ArrayList<>(List.of("/actuator/**"));
+    private List<String> permitPaths = new ArrayList<>();
 
     public boolean isEnabled() {
         return enabled;
