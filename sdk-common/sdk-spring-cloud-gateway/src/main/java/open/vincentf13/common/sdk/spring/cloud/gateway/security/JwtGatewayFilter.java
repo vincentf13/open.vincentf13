@@ -61,7 +61,9 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
         }
 
         JwtAuthenticationToken auth = authentication.get();
-        if (!isAllowed(auth)) {
+
+
+        if (!isSessionActive(auth)) {
             return unauthorized(exchange, "Session inactive");
         }
 
@@ -82,7 +84,7 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
         return permitPaths.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
-    private boolean isAllowed(JwtAuthenticationToken authentication) {
+    private boolean isSessionActive(JwtAuthenticationToken authentication) {
         if (!jwtProperties.isCheckSessionActive()) {
             return true;
         }

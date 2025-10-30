@@ -6,5 +6,5 @@ open:
         issuer: open.vincentf13
         access-token-ttl-seconds: 3600
         refresh-token-ttl-seconds: 604800
-        session-store-prefix: open::sessions
+        session-store-prefix: open:sessions
         check-session-active: false
