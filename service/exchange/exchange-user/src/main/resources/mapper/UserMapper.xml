@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.user.infra.mybatis.mapper.UserMapper">
+
+    <resultMap id="UserResultMap" type="open.vincentf13.exchange.user.domain.model.User">
+        <id property="id" column="id" />
+        <result property="externalId" column="external_id" />
+        <result property="email" column="email" />
+        <result property="status" column="status" javaType="open.vincentf13.exchange.user.domain.model.UserStatus" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="existsByEmail" parameterType="string" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM users WHERE email = #{email}
+        )
+    </select>
+
+    <insert id="insert" parameterType="open.vincentf13.exchange.user.domain.model.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (external_id, email, status, created_at, updated_at)
+        VALUES (#{externalId}, #{email}, #{status}, NOW(), NOW())
+    </insert>
+
+    <select id="findById" parameterType="long" resultMap="UserResultMap">
+        SELECT id, external_id, email, status, created_at, updated_at
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByEmail" parameterType="string" resultMap="UserResultMap">
+        SELECT id, external_id, email, status, created_at, updated_at
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE users
+        SET status = #{status}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="findAll" resultMap="UserResultMap">
+        SELECT id, external_id, email, status, created_at, updated_at
+        FROM users
+        ORDER BY id DESC
+    </select>
+
+</mapper>

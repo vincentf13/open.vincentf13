@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: exchange-user
+  datasource:
+    url: jdbc:mysql://localhost:3306/exchange_user?useSSL=false&serverTimezone=UTC
+    username: exchange_user
+    password: exchange_user
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  mybatis:
+    mapper-locations: classpath:mapper/*.xml
+    type-aliases-package: open.vincentf13.exchange.user.domain.model
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.mybatis: INFO
+    open.vincentf13.exchange.user: INFO
