@@ -109,7 +109,7 @@ bash ./script/cluster-up.sh
 - **運行單一服務 (不建議)**: 雖然可以獨立運行，但服務間有依賴，建議使用 `cluster-up.sh` 進行整合測試。
   ```bash
   # 範例：運行 service-exchange-gateway
-  java -jar service/service-exchange/service-exchange-gateway/target/service-exchange-gateway-*.jar
+  java -jar service/exchange/exchange-gateway/target/service-exchange-gateway-*.jar
   ```
 
 - **壓力測試**: 專案內建了 K6 壓力測試腳本。

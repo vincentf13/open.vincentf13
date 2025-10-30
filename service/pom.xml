@@ -18,7 +18,7 @@
     <description>Business service aggregation</description>
 
     <modules>
-        <module>service-exchange</module>
+        <module>exchange</module>
         <module>service-test</module>
         <module>service-template</module>
     </modules>

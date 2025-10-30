@@ -19,8 +19,8 @@ open.vincentf13/
 │   ├── sdk-infra-mysql/        # MySQL 連線池、審計欄位與 Repository 工具
 │   ├── sdk-infra-redis/        # Redis 客戶端與序列化策略
 │   ├── sdk-auth-jwt/          # JWT Filter、Token 與 Session 共用元件
-│   ├── sdk-service-exchange/
-│   │   └── sdk-service-exchange-matching/
+│   ├── sdk-exchange/
+│   │   └── sdk-exchange-maching/
 │   │       ├── rest-api/       # 撮合服務 OpenAPI 契約、API Interface 與 DTO
 │   │       └── rest-client/    # 依契約生成的客戶端 SDK
 │   ├── sdk-spring-cloud-gateway/ # Gateway 共用設定與過濾器
@@ -29,9 +29,9 @@ open.vincentf13/
 │   └── sdk-spring-websocket/   # WebSocket Starter 與訊息編碼
 ├── service/
 │   ├── pom.xml
-│   ├── service-exchange/
+│   ├── exchange/
 │   │   ├── pom.xml
-│   │   └── service-exchange-gateway/         # 對外 API Gateway / BFF
+│   │   └── exchange-gateway/         # 對外 API Gateway / BFF
 │   ├── service-template/      # 建立新服務的腳手架範例
 │   └── service-test/          # 測試服務與驗證場景
 ├── target/                    # Maven 聚合輸出
@@ -43,7 +43,7 @@ open.vincentf13/
 - `sdk-core*` 系列提供共通的系統能力：核心工具、日誌、指標、追蹤與測試資源。
 - `sdk-infra-*` 聚焦基礎設施整合（MySQL、Redis、Kafka），提供一致的連線設定與封裝。
 - `sdk-spring-*` 針對 Spring 層所需的 MVC、安全、WebSocket、Gateway 擴充，輸出為 starter。
-- `sdk-service-exchange` 收錄交易所領域的契約（API Interface + DTO）與客戶端，目前聚焦撮合 API（後續服務可依需求擴充子模組）。
+- `sdk-exchange` 收錄交易所領域的契約（API Interface + DTO）與客戶端，目前聚焦撮合 API（後續服務可依需求擴充子模組）。
 - 每個子模組維護 README 與設定說明，新增共用能力時優先在此抽象並覆蓋自動測試。
 
 ### 依賴管理建議
@@ -52,7 +52,7 @@ open.vincentf13/
 - 服務若需覆寫版本，優先在各自子模組的 `<dependencyManagement>` 控制，避免直接鎖定 transitive 依賴。
 
 ### `service`
-- `service-exchange` 目前僅保留 Gateway 模組，其餘交易子服務（auth、matching、market-data、account-ledger、positions、risk-margin）暫時移除，待後續重新引入時再恢復聚合。
+- `exchange` 集合目前僅保留 Gateway 模組，其餘交易子服務（auth、matching、market-data、account-ledger、positions、risk-margin）暫時移除，待後續重新引入時再恢復聚合。
 - `service-template` 提供建立新服務時的腳手架與最佳實務樣板。
 - `service-test` 收錄端到端驗證與 PoC 場景，便於開發期驗證整合流程。
 

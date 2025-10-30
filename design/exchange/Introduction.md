@@ -4,14 +4,14 @@
 ```
 open.vincentf13/
 ├── sdk-common/
-│   └── sdk-service-exchange/
-│       └── sdk-service-exchange-matching/
+│   └── sdk-exchange/
+│       └── sdk-exchange-maching/
 │           ├── rest-api/      # 撮合 OpenAPI 契約、API Interface 與 DTO
 │           └── rest-client/   # 依契約生成的客戶端 SDK
 └── service/
-    └── service-exchange/
+    └── exchange/
         ├── pom.xml
-        └── service-exchange-gateway/        # API Gateway / BFF 層
+        └── exchange-gateway/        # API Gateway / BFF 層
 ```
 
 ### 子模組定位
@@ -21,11 +21,11 @@ open.vincentf13/
 - （暫緩）`service-exchange-account-ledger`：原規劃管理資產雙分錄與資金結算事件。
 - （暫緩）`service-exchange-positions`：原規劃根據賬本事件維護倉位與盈虧。
 - （暫緩）`service-exchange-market-data`：原規劃彙整撮合輸出並提供行情快照。
-- `sdk-service-exchange-matching`：仍保留契約模組，作為將來恢復服務時的 API 基礎。
+- `sdk-exchange-maching`：仍保留契約模組，作為將來恢復服務時的 API 基礎。
 
 ### 目前進度
 - 目前僅保留 Gateway 模組，其餘交易子服務代碼已移除，需要時再從規劃方案復刻。
-- `sdk-service-exchange-matching` 仍提供 REST 契約，支持後續恢復撮合相關流程。
+- `sdk-exchange-maching` 仍提供 REST 契約，支持後續恢復撮合相關流程。
 - `funding`、`liquidation`、`wallet` 等延伸服務尚未建模，保留於後續規劃。
 
 ## 業務概述
@@ -52,7 +52,7 @@ open.vincentf13/
 ## 協定與客戶端策略
 - **外部 API**：以 OpenAPI 管理 REST 契約；行情推送以 WebSocket 為主，後續可擴充 gRPC stream。
 - **內部事件**：以 Kafka 為主要匯流，訊息 Schema 採 Protobuf/Avro 並逐版演進（目前尚在整合中）。
-- **客戶端生成**：由 `sdk-service-exchange-*` 自動產生 Feign/Web 客戶端，避免手寫 SDK 帶來維護成本。
+- **客戶端生成**：由 `sdk-exchange-*` 自動產生 Feign/Web 客戶端，避免手寫 SDK 帶來維護成本。
 
 ## 安全與合規設計（原則）
 - **資產安全**：賬本服務保留審計軌跡，錢包/HSM 整合待錢包服務完成後納入。
@@ -67,7 +67,7 @@ open.vincentf13/
 - **觀測性**：`sdk-core-log`、`sdk-core-metrics`、`sdk-core-trace` 提供日誌、指標與追蹤基線設定。
 
 ## 持續優化建議
-- 建立跨模組契約版本策略，確保 `sdk-service-exchange` 與服務實作同步演進。
+- 建立跨模組契約版本策略，確保 `sdk-exchange` 與服務實作同步演進。
 - 擴充壓測與撮合回放資料，驗證極端行情下的性能與穩定性。
 - 規劃資金費率、強平與錢包模組，並完善對應的事件流與監控。
 - 補強自動化測試（契約測試、整合測試）與 SLO/SLA 量測，以支撐上線品質。

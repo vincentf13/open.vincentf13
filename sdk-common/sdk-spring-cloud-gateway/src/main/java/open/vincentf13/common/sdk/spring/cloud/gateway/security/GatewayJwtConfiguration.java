@@ -36,5 +36,4 @@ public class GatewayJwtConfiguration {
                                                       JwtConfigurer configurer) throws Exception {
         return http.build();
     }
-
 }

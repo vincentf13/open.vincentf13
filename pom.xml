@@ -158,12 +158,12 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-service-exchange-matching</artifactId>
+                <artifactId>sdk-exchange-maching</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-service-exchange</artifactId>
+                <artifactId>sdk-exchange</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

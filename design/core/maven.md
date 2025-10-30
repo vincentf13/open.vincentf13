@@ -12,7 +12,7 @@
 - `<build><plugins>` 區塊預先放入 Surefire/Failsafe 測試流程設定，確保單元與整合測試的預設行為一致 `pom.xml:171-195`。
 
 ## SDK 聚合模組（`sdk-common/pom.xml`）
-- 聚合共享 SDK 與基礎建設模組，例如 `sdk-core`、`sdk-infra-*`、`sdk-service-exchange` 等，統一以 `open.vincentf13.common` 群組維護 `sdk-common/pom.xml:14-35`。
+- 聚合共享 SDK 與基礎建設模組，例如 `sdk-core`、`sdk-infra-*`、`sdk-exchange` 等，統一以 `open.vincentf13.common` 群組維護 `sdk-common/pom.xml:14-35`。
 - 子模組皆繼承根 POM 的版本與插件治理，僅需專注於各自的依賴與程式碼。
 
 ## Service 聚合模組（`service/pom.xml`）

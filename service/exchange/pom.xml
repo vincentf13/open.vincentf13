@@ -5,19 +5,20 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-common</artifactId>
+        <groupId>open.vincentf13</groupId>
+        <artifactId>service</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-service-exchange</artifactId>
+    <groupId>open.vincentf13.exchange</groupId>
+    <artifactId>service-exchange</artifactId>
     <packaging>pom</packaging>
 
-    <name>sdk-service-exchange</name>
-    <description>Exchange service API contracts and clients</description>
+    <name>service-exchange</name>
+    <description>Exchange service aggregation</description>
 
     <modules>
-        <module>sdk-service-exchange-matching</module>
+        <module>exchange-gateway</module>
     </modules>
 </project>
