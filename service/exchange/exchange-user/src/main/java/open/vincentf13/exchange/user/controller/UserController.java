@@ -2,6 +2,7 @@ package open.vincentf13.exchange.user.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.common.core.exception.OpenServiceException;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.user.dto.RegisterUserRequest;
 import open.vincentf13.exchange.user.dto.UpdateUserStatusRequest;
@@ -29,17 +30,20 @@ public class UserController {
     private final UserApplicationService userService;
 
     @PostMapping
-    public ResponseEntity<OpenApiResponse<UserResponse>> register(@RequestBody @Valid RegisterUserRequest request) {
+    public ResponseEntity<OpenApiResponse<UserResponse>> register(@RequestBody @Valid RegisterUserRequest request)
+            throws OpenServiceException {
         return ResponseEntity.ok(OpenApiResponse.success(userService.register(request)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<OpenApiResponse<UserResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<OpenApiResponse<UserResponse>> getById(@PathVariable Long id)
+            throws OpenServiceException {
         return ResponseEntity.ok(OpenApiResponse.success(userService.findById(id)));
     }
 
     @GetMapping
-    public ResponseEntity<OpenApiResponse<?>> find(@RequestParam(value = "email", required = false) String email) {
+    public ResponseEntity<OpenApiResponse<?>> find(@RequestParam(value = "email", required = false) String email)
+            throws OpenServiceException {
         if (email != null && !email.isBlank()) {
             return ResponseEntity.ok(OpenApiResponse.success(userService.findByEmail(email)));
         }
@@ -49,7 +53,8 @@ public class UserController {
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<OpenApiResponse<UserResponse>> updateStatus(@PathVariable Long id,
-                                                                       @RequestBody @Valid UpdateUserStatusRequest request) {
+                                                                       @RequestBody @Valid UpdateUserStatusRequest request)
+            throws OpenServiceException {
         return ResponseEntity.ok(OpenApiResponse.success(userService.updateStatus(id, request)));
     }
 }

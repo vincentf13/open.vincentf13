@@ -1,6 +1,8 @@
 package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.common.core.exception.OpenServiceException;
+import open.vincentf13.exchange.user.domain.error.UserErrorCode;
 import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.User;
@@ -10,8 +12,6 @@ import open.vincentf13.exchange.user.domain.repository.UserRepository;
 import open.vincentf13.exchange.user.dto.RegisterUserRequest;
 import open.vincentf13.exchange.user.dto.UpdateUserStatusRequest;
 import open.vincentf13.exchange.user.dto.UserResponse;
-import open.vincentf13.exchange.user.exception.UserAlreadyExistsException;
-import open.vincentf13.exchange.user.exception.UserNotFoundException;
 import open.vincentf13.exchange.user.mapper.UserDtoMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,10 +31,11 @@ public class UserApplicationService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public UserResponse register(RegisterUserRequest request) {
+    public UserResponse register(RegisterUserRequest request) throws OpenServiceException {
         String normalizedEmail = request.email().toLowerCase();
         if (userRepository.existsByEmail(normalizedEmail)) {
-            throw new UserAlreadyExistsException(normalizedEmail);
+            throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
+                    "Email already registered: " + normalizedEmail);
         }
 
         User user = User.builder()
@@ -59,30 +60,36 @@ public class UserApplicationService {
 
         return userRepository.findById(user.getId())
                 .map(UserDtoMapper::toResponse)
-                .orElseThrow(() -> new UserNotFoundException(user.getId()));
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
+                        "User not found after creation. id=" + user.getId()));
     }
 
     @Transactional(readOnly = true)
-    public UserResponse findById(Long id) {
+    public UserResponse findById(Long id) throws OpenServiceException {
         return userRepository.findById(id)
                 .map(UserDtoMapper::toResponse)
-                .orElseThrow(() -> new UserNotFoundException(id));
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
+                        "User not found. id=" + id));
     }
 
     @Transactional(readOnly = true)
-    public UserResponse findByEmail(String email) {
+    public UserResponse findByEmail(String email) throws OpenServiceException {
         return userRepository.findByEmail(email.toLowerCase())
                 .map(UserDtoMapper::toResponse)
-                .orElseThrow(() -> new UserNotFoundException(email));
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
+                        "User not found. email=" + email));
     }
 
     @Transactional
-    public UserResponse updateStatus(Long id, UpdateUserStatusRequest request) {
-        userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(id));
+    public UserResponse updateStatus(Long id, UpdateUserStatusRequest request) throws OpenServiceException {
+        userRepository.findById(id)
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
+                        "User not found. id=" + id));
         userRepository.updateStatus(id, request.status());
         return userRepository.findById(id)
                 .map(UserDtoMapper::toResponse)
-                .orElseThrow(() -> new UserNotFoundException(id));
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
+                        "User not found. id=" + id));
     }
 
     @Transactional(readOnly = true)

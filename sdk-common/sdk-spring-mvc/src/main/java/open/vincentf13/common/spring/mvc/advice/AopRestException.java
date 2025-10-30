@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.common.core.OpenConstant;
 import open.vincentf13.common.core.error.OpenErrorEnum;
 import open.vincentf13.common.core.exception.OpenApiException;
+import open.vincentf13.common.core.exception.OpenServiceException;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import org.springframework.context.MessageSource;
@@ -174,6 +175,24 @@ public class AopRestException extends ResponseEntityExceptionHandler implements 
         }
         OpenApiResponse<Object> body = OpenApiResponse.failure(ex.getCode(), ex.getMessage(), meta);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
+
+    /**
+     * 處理服務層丟出的業務例外，統一回傳 4xx 響應。
+     */
+    @ExceptionHandler(OpenServiceException.class)
+    public ResponseEntity<OpenApiResponse<Object>> handleServiceException(OpenServiceException ex,
+                                                                          HttpServletRequest request) {
+        OpenLog.warn(log, "ServiceException", "Service layer exception",
+                ex,
+                "code", ex.getCode(),
+                "path", request != null ? request.getRequestURI() : "unknown");
+        Map<String, Object> meta = baseMeta(request, HttpStatus.BAD_REQUEST);
+        if (!CollectionUtils.isEmpty(ex.getMeta())) {
+            meta.putAll(ex.getMeta());
+        }
+        OpenApiResponse<Object> body = OpenApiResponse.failure(ex.getCode(), ex.getMessage(), meta);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     /**
