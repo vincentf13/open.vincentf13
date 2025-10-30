@@ -19,12 +19,12 @@ open.vincentf13/
         ├── gateway/            # API Gateway / BFF 層
         ├── auth/               # 認證服務
         ├── user/               # 使用者主檔服務
-        ├── order/              # 委託管理（規劃）
-        ├── account-ledger/     # 雙分錄台帳（規劃）
-        ├── risk-margin/        # 風控與保證金（規劃）
-        ├── matching/           # 撮合引擎（規劃）
-        ├── positions/          # 倉位管理（規劃）
-        └── market-data/        # 行情推播（規劃）
+        ├── order/              # 委託管理
+        ├── account-ledger/     # 雙分錄台帳
+        ├── risk-margin/        # 風控與保證金
+        ├── matching/           # 撮合引擎
+        ├── positions/          # 倉位管理
+        └── market-data/        # 行情推播
 ```
 
 ## 模組職責
@@ -84,32 +84,74 @@ open.vincentf13/
 
 # 資料庫表結構（草案）
 
-| 表名                         | 用途     | 主要欄位                                                                                                                                                       | 關聯 / 備註                              |
-| -------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `users`                    | 使用者主檔  | `id (PK)`, `external_id`, `email`, `status`, `created_at`, `updated_at`                                                                                    | 由 **user** 模組維護，其他表多以 `user_id` 參照。  |
-| `user_profiles`            | 個資與偏好  | `user_id (FK users)`, `display_name`, `country`, `language`, `timezone`                                                                                    | 與 `users` 1:1 儲存顯示與通知設定。             |
-| `kyc_records`              | 身分驗證紀錄 | `id (PK)`, `user_id`, `tier`, `status`, `submitted_at`, `approved_at`, `rejected_reason`                                                                   | 支援多次申請與審核歷程。                         |
-| `auth_credentials`         | 登入憑證   | `id (PK)`, `user_id`, `credential_type`, `secret_hash`, `salt`, `status`, `expires_at`                                                                     | 密碼、API Key、FIDO 等多型態統一管理。            |
-| `auth_providers`           | 第三方登入  | `id (PK)`, `user_id`, `provider`, `provider_user_id`, `linked_at`                                                                                          | 綁定社群或外部身份。                           |
-| `refresh_tokens`           | JWT 會話 | `token_id (PK)`, `user_id`, `session_id`, `issued_at`, `expires_at`, `is_active`, `revoked_reason`                                                         | 配合 **auth** 實作權杖刷新與強制登出。             |
-| `login_audits`             | 登入審計   | `id (PK)`, `user_id`, `ip`, `user_agent`, `result`, `failure_reason`, `logged_at`                                                                          | 供風控、合規與行為分析。                         |
-| `role_assignments`         | 角色授權   | `id (PK)`, `user_id`, `role`, `scope`, `granted_by`, `granted_at`, `expires_at`                                                                            | RBAC 核心資料表。                          |
-| `notification_preferences` | 通知偏好   | `id (PK)`, `user_id`, `channel`, `is_enabled`, `updated_at`                                                                                                | Email / SMS / Push 訂閱開關。             |
-| `orders`                   | 訂單主檔   | `order_id (PK)`, `user_id`, `instrument_id`, `client_order_id`, `side`, `type`, `price`, `quantity`, `status`, `time_in_force`, `created_at`, `updated_at` | 由 **order** 模組維護，關聯撮合與帳務。            |
-| `order_events`             | 訂單事件   | `event_id (PK)`, `order_id`, `event_type`, `payload`, `occurred_at`, `actor`                                                                               | Event sourcing，支援重播與稽核。              |
-| `order_tasks`              | 指令佇列   | `task_id (PK)`, `order_id`, `task_type`, `payload`, `status`, `retry_count`, `scheduled_at`                                                                | 處理批次撤單、策略單等非即時動作。                    |
-| `trade_tickers`            | 成交紀錄   | `trade_id (PK)`, `order_id`, `counterparty_order_id`, `price`, `quantity`, `fee`, `executed_at`                                                            | 由 **matching** 輸出，供報表與程式回放。          |
-| `ledger_entries`           | 資產雙分錄  | `entry_id (PK)`, `account_id`, `asset`, `amount`, `direction`, `reference_type`, `reference_id`, `event_time`                                              | **account-ledger** 核心表，借貸必須平衡。       |
-| `ledger_balances`          | 帳戶餘額   | `id (PK)`, `account_id`, `asset`, `balance`, `available`, `reserved`, `updated_at`                                                                         | 提供即時資產查詢與風控計算。                       |
-| `positions`                | 倉位主檔   | `position_id (PK)`, `user_id`, `instrument_id`, `side`, `quantity`, `entry_price`, `mark_price`, `unrealized_pnl`, `liquidation_price`, `updated_at`       | **positions** 模組維護。                  |
-| `position_events`          | 倉位事件   | `event_id (PK)`, `position_id`, `event_type`, `delta_qty`, `delta_pnl`, `reference_id`, `occurred_at`                                                      | 追蹤倉位變動與強平歷程。                         |
-| `risk_limits`              | 風控參數   | `id (PK)`, `instrument_id`, `tier`, `initial_margin_rate`, `maintenance_margin_rate`, `max_leverage`, `updated_at`                                         | 提供 risk-margin 計算依據。                 |
-| `funding_rates`            | 資金費率   | `id (PK)`, `instrument_id`, `rate`, `effective_at`, `calculated_at`                                                                                        | 與 ledger、positions 互動產生資金費。          |
-| `liquidation_queue`        | 強平佇列   | `id (PK)`, `position_id`, `status`, `queued_at`, `processed_at`, `reason`                                                                                  | 由 risk-margin 建立，matching/ledger 消化。 |
-| `market_snapshots`         | 行情快照   | `snapshot_id (PK)`, `instrument_id`, `bid_depth`, `ask_depth`, `last_price`, `volume_24h`, `captured_at`                                                   | market-data 推送的基礎資料。                 |
-| `instrument_metadata`      | 交易商品設定 | `instrument_id (PK)`, `symbol`, `base_asset`, `quote_asset`, `status`, `tick_size`, `lot_size`, `launch_at`                                                | 共用參數表，供全域引用。                         |
+### auth 模組
 
+| 表名 | 用途 | 主要欄位 | 備註 |
+| --- | --- | --- | --- |
+| `auth_credentials` | 登入憑證資料 | `id (PK)`, `user_id`, `credential_type`, `secret_hash`, `salt`, `status`, `expires_at` | 支援密碼、API Key、FIDO 等多元憑證。 |
+| `auth_providers` | 第三方登入綁定 | `id (PK)`, `user_id`, `provider`, `provider_user_id`, `linked_at` | 儲存社群/外部身份對應。 |
+| `refresh_tokens` | JWT 會話持久化 | `token_id (PK)`, `user_id`, `session_id`, `issued_at`, `expires_at`, `is_active`, `revoked_reason` | 搭配權杖刷新、強制登出與風險登入鎖定。 |
+| `login_audits` | 登入審計記錄 | `id (PK)`, `user_id`, `ip`, `user_agent`, `result`, `failure_reason`, `logged_at` | 供風控、合規、行為分析使用。 |
 
+### user 模組
+
+| 表名                         | 用途      | 主要欄位                                                                                     | 備註                       |
+| -------------------------- | ------- | ---------------------------------------------------------------------------------------- | ------------------------ |
+| `users`                    | 使用者主檔   | `id (PK)`, `external_id`, `email`, `status`, `created_at`, `updated_at`                  | 其他資料表以 `user_id` 外鍵串聯。   |
+| `user_profiles`            | 個資與偏好   | `user_id (PK/FK users)`, `display_name`, `country`, `language`, `timezone`               | 與 `users` 1:1，儲存顯示與通知設定。 |
+| `kyc_records`              | 身分驗證紀錄  | `id (PK)`, `user_id`, `tier`, `status`, `submitted_at`, `approved_at`, `rejected_reason` | 支援多次送審與審核歷程。             |
+| `role_assignments`         | 角色/權限授權 | `id (PK)`, `user_id`, `role`, `scope`, `granted_by`, `granted_at`, `expires_at`          | RBAC 核心資料表。              |
+| `notification_preferences` | 通知訂閱設定  | `id (PK)`, `user_id`, `channel`, `is_enabled`, `updated_at`                              | 控制 Email、SMS、Push 等通路。   |
+
+### order 模組
+
+| 表名 | 用途 | 主要欄位 | 備註 |
+| --- | --- | --- | --- |
+| `orders` | 委託主檔 | `order_id (PK)`, `user_id`, `instrument_id`, `client_order_id`, `side`, `type`, `price`, `quantity`, `status`, `time_in_force`, `created_at`, `updated_at` | 委託生命週期的核心資料。 |
+| `order_events` | 委託事件溯源 | `event_id (PK)`, `order_id`, `event_type`, `payload`, `occurred_at`, `actor` | 支援重播、稽核與行為分析。 |
+| `order_tasks` | 異步指令佇列 | `task_id (PK)`, `order_id`, `task_type`, `payload`, `status`, `retry_count`, `scheduled_at` | 批次撤單、策略單等非即時動作。 |
+
+### matching 模組
+
+| 表名 | 用途 | 主要欄位 | 備註 |
+| --- | --- | --- | --- |
+| `trade_tickers` | 成交紀錄 | `trade_id (PK)`, `order_id`, `counterparty_order_id`, `price`, `quantity`, `fee`, `executed_at` | 撮合輸出，供報表與事件回放。 |
+
+### account-ledger 模組
+
+| 表名 | 用途 | 主要欄位 | 備註 |
+| --- | --- | --- | --- |
+| `ledger_entries` | 雙分錄紀錄 | `entry_id (PK)`, `account_id`, `asset`, `amount`, `direction`, `reference_type`, `reference_id`, `event_time` | 借貸必須平衡，支援審計。 |
+| `ledger_balances` | 帳戶餘額 | `id (PK)`, `account_id`, `asset`, `balance`, `available`, `reserved`, `updated_at` | 提供資產查詢與風控試算。 |
+| `funding_rates` | 資金費率 | `id (PK)`, `instrument_id`, `rate`, `effective_at`, `calculated_at` | 供費率結算與倉位估值。 |
+
+### risk-margin 模組
+
+| 表名 | 用途 | 主要欄位 | 備註 |
+| --- | --- | --- | --- |
+| `risk_limits` | 風控參數 | `id (PK)`, `instrument_id`, `tier`, `initial_margin_rate`, `maintenance_margin_rate`, `max_leverage`, `updated_at` | 下單前保證金與限額判斷依據。 |
+| `liquidation_queue` | 強平佇列 | `id (PK)`, `position_id`, `status`, `queued_at`, `processed_at`, `reason` | 追蹤強平排程與處理狀態。 |
+
+### positions 模組
+
+| 表名 | 用途 | 主要欄位 | 備註 |
+| --- | --- | --- | --- |
+| `positions` | 倉位主檔 | `position_id (PK)`, `user_id`, `instrument_id`, `side`, `quantity`, `entry_price`, `mark_price`, `unrealized_pnl`, `liquidation_price`, `updated_at` | 倉位快照與估值資料。 |
+| `position_events` | 倉位事件溯源 | `event_id (PK)`, `position_id`, `event_type`, `delta_qty`, `delta_pnl`, `reference_id`, `occurred_at` | 追蹤倉位變化與強平歷程。 |
+
+### market-data 模組
+
+| 表名 | 用途 | 主要欄位 | 備註 |
+| --- | --- | --- | --- |
+| `market_snapshots` | 行情快照 | `snapshot_id (PK)`, `instrument_id`, `bid_depth`, `ask_depth`, `last_price`, `volume_24h`, `captured_at` | 提供行情查詢與串流基礎。 |
+
+### 共用參數
+
+| 表名 | 用途 | 主要欄位 | 備註 |
+| --- | --- | --- | --- |
+| `instrument_metadata` | 交易商品設定 | `instrument_id (PK)`, `symbol`, `base_asset`, `quote_asset`, `status`, `tick_size`, `lot_size`, `launch_at` | 供所有交易模組共用的靜態資訊。 |
+
+> 後續若擴充期權、現貨或策略單，可依各模組需求延伸專屬資料表與事件流，並沿用上述設計原則。
 # 資料模型與一致性策略（目標）
 
 - **賬本**：使用關係型資料庫維護不可變雙分錄表，以事件溯源確保追蹤性。
