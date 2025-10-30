@@ -20,5 +20,7 @@
 
     <modules>
         <module>exchange-gateway</module>
+        <module>exchange-auth</module>
+        <module>exchange-user</module>
     </modules>
 </project>
