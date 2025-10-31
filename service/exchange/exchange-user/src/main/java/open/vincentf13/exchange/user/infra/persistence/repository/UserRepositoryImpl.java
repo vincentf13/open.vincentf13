@@ -13,7 +13,7 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
-public class UserMyBatisRepository implements UserRepository {
+public class UserRepositoryImpl implements UserRepository {
 
     private final UserMapper mapper;
 
