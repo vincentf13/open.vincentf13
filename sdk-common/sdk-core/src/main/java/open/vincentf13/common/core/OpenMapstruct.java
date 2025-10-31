@@ -1,23 +1,38 @@
 package open.vincentf13.common.core;
 
-import org.mapstruct.Mapper;
-import org.mapstruct.TargetType;
-import org.springframework.stereotype.Service;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Objects;
 
-@Service
-@Mapper(componentModel = "spring") // 讓 MapStruct 生成的實作類自動註冊為 Spring Bean。
-public interface OpenMapstruct {
+@Component
+@RequiredArgsConstructor
+public class OpenMapstruct {
 
-    /*
-     * Usage example:
-     * @Autowired CommonMapper mapper;
-     *
-     * UserDto dto = mapper.map(user, UserDto.class);
-     * List<UserDto> list = mapper.mapList(users, UserDto.class);
+    private final ObjectMapper objectMapper;
+
+    /**
+     * 將來源物件轉換為指定類型；來源若為 null 則回傳 null。
      */
-    <S, T> T map(S source, @TargetType Class<T> targetType);
+    public <S, T> T map(S source, Class<T> targetType) {
+        if (source == null) {
+            return null;
+        }
+        return objectMapper.convertValue(source, targetType);
+    }
 
-    <S, T> List<T> mapList(List<S> source, @TargetType Class<T> targetType);
+    /**
+     * 將來源清單轉換為指定類型清單；若來源為 null 則回傳空集合。
+     */
+    public <S, T> List<T> mapList(List<S> source, Class<T> targetType) {
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        return source.stream()
+                .map(item -> map(item, targetType))
+                .filter(Objects::nonNull)
+                .toList();
+    }
 }
