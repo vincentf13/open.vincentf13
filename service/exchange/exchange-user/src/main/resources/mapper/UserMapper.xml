@@ -8,19 +8,19 @@
         SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})
     </select>
 
-    <insert id="insert" parameterType="open.vincentf13.exchange.user.infra.persistence.po.UserPO"
+    <insert id="insert" parameterType="UserPO"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (external_id, email, status, created_at, updated_at)
         VALUES (#{externalId}, #{email}, #{status}, NOW(), NOW())
     </insert>
 
-    <select id="findById" resultType="open.vincentf13.exchange.user.infra.persistence.po.UserPO">
+    <select id="findById" resultType="UserPO">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         WHERE id = #{id}
     </select>
 
-    <select id="findByEmail" resultType="open.vincentf13.exchange.user.infra.persistence.po.UserPO">
+    <select id="findByEmail" resultType="UserPO">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         WHERE email = #{email}
@@ -32,7 +32,7 @@
         WHERE id = #{id}
     </update>
 
-    <select id="findAll" resultType="open.vincentf13.exchange.user.infra.persistence.po.UserPO">
+    <select id="findAll" resultType="UserPO">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         ORDER BY id DESC
