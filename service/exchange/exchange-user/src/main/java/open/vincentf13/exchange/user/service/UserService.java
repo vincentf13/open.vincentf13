@@ -9,9 +9,9 @@ import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.api.dto.AuthCredentialType;
-import open.vincentf13.exchange.user.api.dto.RegisterUserRequest;
-import open.vincentf13.exchange.user.api.dto.UpdateUserStatusRequest;
+import open.vincentf13.exchange.user.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.api.dto.UserResponse;
+import open.vincentf13.exchange.user.api.dto.UserUpdateStatusRequest;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,7 +31,7 @@ public class UserService {
     private final UserDomainService userDomainService;
 
     @Transactional
-    public UserResponse register(RegisterUserRequest request)  {
+    public UserResponse register(UserRegisterRequest request)  {
         String normalizedEmail = userDomainService.normalizeEmail(request.email());
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
@@ -75,7 +75,7 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse updateStatus(Long id, UpdateUserStatusRequest request)  {
+    public UserResponse updateStatus(Long id, UserUpdateStatusRequest request)  {
         userRepository.findById(id)
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. id=" + id));

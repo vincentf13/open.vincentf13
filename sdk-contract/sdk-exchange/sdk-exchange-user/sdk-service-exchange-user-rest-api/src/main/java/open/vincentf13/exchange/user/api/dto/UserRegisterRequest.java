@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record RegisterUserRequest(
+public record UserRegisterRequest(
         @Email(message = "Email format invalid")
         @NotBlank(message = "Email is required")
         String email,

@@ -15,7 +15,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterUserRequest'
+              $ref: '#/components/schemas/UserRegisterRequest'
       responses:
         '200':
           description: Successful registration
@@ -75,7 +75,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateUserStatusRequest'
+              $ref: '#/components/schemas/UserUpdateStatusRequest'
       responses:
         '200':
           description: Updated user
@@ -85,7 +85,7 @@ paths:
                 $ref: '#/components/schemas/UserEnvelope'
 components:
   schemas:
-    RegisterUserRequest:
+    UserRegisterRequest:
       type: object
       required: [email, password]
       properties:
@@ -99,7 +99,7 @@ components:
         externalId:
           type: string
           maxLength: 64
-    UpdateUserStatusRequest:
+    UserUpdateStatusRequest:
       type: object
       required: [status]
       properties:
