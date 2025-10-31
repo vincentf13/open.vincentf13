@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
-import open.vincentf13.exchange.user.domain.model.UserAggregate;
+import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserStatus;
 
 import java.util.List;
@@ -10,13 +10,13 @@ public interface UserRepository {
 
     boolean existsByEmail(String email);
 
-    void insert(UserAggregate user);
+    void insert(User user);
 
-    Optional<UserAggregate> findById(Long id);
+    Optional<User> findById(Long id);
 
-    Optional<UserAggregate> findByEmail(String email);
+    Optional<User> findByEmail(String email);
 
     void updateStatus(Long id, UserStatus status);
 
-    List<UserAggregate> findAll();
+    List<User> findAll();
 }

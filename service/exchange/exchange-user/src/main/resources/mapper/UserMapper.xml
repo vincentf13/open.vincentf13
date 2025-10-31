@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper">
 
-    <resultMap id="UserResultMap" type="open.vincentf13.exchange.user.domain.model.UserAggregate">
+    <resultMap id="UserResultMap" type="open.vincentf13.exchange.user.domain.model.User">
         <id property="id" column="id" />
         <result property="externalId" column="external_id" />
         <result property="email" column="email" />
@@ -18,7 +18,7 @@
         SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})
     </select>
 
-    <insert id="insert" parameterType="open.vincentf13.exchange.user.domain.model.UserAggregate"
+    <insert id="insert" parameterType="open.vincentf13.exchange.user.domain.model.User"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (external_id, email, status, created_at, updated_at)
         VALUES (#{externalId}, #{email}, #{status}, NOW(), NOW())

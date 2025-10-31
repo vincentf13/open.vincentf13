@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.user.domain.service;
 
-import open.vincentf13.exchange.user.domain.model.UserAggregate;
+import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserStatus;
 import org.springframework.stereotype.Component;
 
@@ -11,10 +11,10 @@ import java.util.UUID;
 @Component
 public class UserDomainService {
 
-    public UserAggregate createActiveUser(String rawEmail, String externalId) {
+    public User createActiveUser(String rawEmail, String externalId) {
         String normalizedEmail = normalizeEmail(rawEmail);
         Instant now = Instant.now();
-        return UserAggregate.builder()
+        return User.builder()
                 .email(normalizedEmail)
                 .externalId(externalId != null ? externalId : UUID.randomUUID().toString())
                 .status(UserStatus.ACTIVE)

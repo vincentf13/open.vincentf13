@@ -11,7 +11,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserAggregate {
+public class User {
     private Long id;
     private String externalId;
     private String email;

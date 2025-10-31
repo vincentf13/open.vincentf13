@@ -1,11 +1,11 @@
-package open.vincentf13.exchange.user.app;
+package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.exception.OpenServiceException;
 import open.vincentf13.exchange.user.domain.error.UserErrorCode;
 import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
-import open.vincentf13.exchange.user.domain.model.UserAggregate;
+import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.api.dto.RegisterUserRequest;
@@ -39,7 +39,7 @@ public class UserService {
                     "Email already registered: " + normalizedEmail);
         }
 
-        UserAggregate user = userDomainService.createActiveUser(request.email(), request.externalId());
+        User user = userDomainService.createActiveUser(request.email(), request.externalId());
         userRepository.insert(user);
 
         String salt = generateSalt();

@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.user.domain.model.UserAggregate;
+import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserStatus;
 import open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper;
 import org.springframework.stereotype.Repository;
@@ -21,17 +21,17 @@ public class UserMyBatisRepository implements UserRepository {
     }
 
     @Override
-    public void insert(UserAggregate user) {
+    public void insert(User user) {
         mapper.insert(user);
     }
 
     @Override
-    public Optional<UserAggregate> findById(Long id) {
+    public Optional<User> findById(Long id) {
         return Optional.ofNullable(mapper.findById(id));
     }
 
     @Override
-    public Optional<UserAggregate> findByEmail(String email) {
+    public Optional<User> findByEmail(String email) {
         return Optional.ofNullable(mapper.findByEmail(email));
     }
 
@@ -41,7 +41,7 @@ public class UserMyBatisRepository implements UserRepository {
     }
 
     @Override
-    public List<UserAggregate> findAll() {
+    public List<User> findAll() {
         return mapper.findAll();
     }
 }
