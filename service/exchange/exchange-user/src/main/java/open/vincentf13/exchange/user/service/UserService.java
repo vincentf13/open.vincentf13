@@ -53,7 +53,7 @@ public class UserService {
                 .build();
         authCredentialRepository.insert(credential);
 
-        return userRepository.findById(user.getId())
+        return userRepository.findOne(User.builder().id(user.getId()).build())
                 .map(user2 -> OpenMapstruct.map(user2, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found after creation. id=" + user.getId()));
@@ -62,7 +62,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
         Long userId = currentUserId();
-        return userRepository.findById(userId)
+        return userRepository.findOne(User.builder().id(userId).build())
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. id=" + userId));

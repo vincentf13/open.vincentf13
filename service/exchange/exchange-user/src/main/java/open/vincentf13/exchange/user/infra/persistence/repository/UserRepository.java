@@ -11,10 +11,6 @@ public interface UserRepository {
 
     void insertSelective(User user);
 
-    Optional<User> findById(Long id);
-
-    Optional<User> findByEmail(String email);
-
     void updateSelective(User user);
 
     List<User> findBy(User probe);
@@ -23,3 +19,4 @@ public interface UserRepository {
 
     void batchUpdate(List<User> users);
 }
+    Optional<User> findOne(User probe);

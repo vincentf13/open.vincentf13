@@ -28,21 +28,6 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public Optional<User> findById(Long id) {
-        UserPO probe = UserPO.builder().id(id).build();
-        return mapper.findByPO(probe).stream()
-                .findFirst()
-                .map(po -> OpenMapstruct.map(po, User.class));
-    }
-
-    @Override
-    public Optional<User> findByEmail(String email) {
-        UserPO probe = UserPO.builder().email(email).build();
-        return mapper.findByPO(probe).stream()
-                .findFirst()
-                .map(po -> OpenMapstruct.map(po, User.class));
-    }
-
     @Override
     public void updateSelective(User user) {
         mapper.updateSelective(OpenMapstruct.map(user, UserPO.class));
@@ -54,6 +39,18 @@ public class UserRepositoryImpl implements UserRepository {
         return mapper.findByPO(poProbe).stream()
                 .map(item -> OpenMapstruct.map(item, User.class))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<User> findOne(User probe) {
+        List<User> results = findBy(probe);
+        if (results.isEmpty()) {
+            return Optional.empty();
+        }
+        if (results.size() > 1) {
+            throw new IllegalStateException("Expected single user but found " + results.size());
+        }
+        return Optional.of(results.get(0));
     }
 
     @Override
