@@ -208,6 +208,11 @@
                 <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-service-exchange-user-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>

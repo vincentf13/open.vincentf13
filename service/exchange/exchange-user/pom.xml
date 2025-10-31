@@ -16,6 +16,7 @@
     <description>User service for exchange</description>
 
     <dependencies>
+
         <dependency>
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-core</artifactId>
@@ -36,6 +37,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-service-exchange-user-rest-api</artifactId>
         </dependency>
     </dependencies>
 </project>

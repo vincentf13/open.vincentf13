@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.interfaces.dto;
+package open.vincentf13.exchange.user.api.dto;
 
 import jakarta.validation.constraints.NotNull;
 import open.vincentf13.exchange.user.domain.model.UserStatus;
