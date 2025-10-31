@@ -8,6 +8,8 @@ import open.vincentf13.exchange.user.api.dto.UserResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Validated
 @RequestMapping("/api/users")
 public interface UserApi {
@@ -18,8 +20,11 @@ public interface UserApi {
     @GetMapping("/{id}")
     OpenApiResponse<UserResponse> getById(@PathVariable("id") Long id);
 
-    @GetMapping
-    OpenApiResponse<?> find(@RequestParam(value = "email", required = false) String email);
+    @GetMapping(params = "email")
+    OpenApiResponse<UserResponse> find(@RequestParam("email") String email);
+
+    @GetMapping(params = "!email")
+    OpenApiResponse<List<UserResponse>> list();
 
     @PatchMapping("/{id}/status")
     OpenApiResponse<UserResponse> updateStatus(@PathVariable("id") Long id,
