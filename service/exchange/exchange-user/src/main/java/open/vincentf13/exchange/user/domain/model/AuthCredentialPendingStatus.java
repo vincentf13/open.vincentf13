@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.user.domain.model;
 
-public enum PendingAuthCredentialStatus {
+public enum AuthCredentialPendingStatus {
     PENDING,
     COMPLETED,
     FAILED

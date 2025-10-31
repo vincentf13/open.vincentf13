@@ -13,12 +13,12 @@ import open.vincentf13.exchange.auth.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.auth.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.api.dto.UserResponse;
-import open.vincentf13.exchange.user.domain.model.PendingAuthCredential;
-import open.vincentf13.exchange.user.domain.model.PendingAuthCredentialStatus;
+import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
+import open.vincentf13.exchange.user.domain.model.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserErrorCode;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
-import open.vincentf13.exchange.user.infra.persistence.repository.PendingAuthCredentialRepository;
+import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,7 +37,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserDomainService userDomainService;
     private final ExchangeAuthClient authClient;
-    private final PendingAuthCredentialRepository pendingAuthCredentialRepository;
+    private final AuthCredentialPendingRepository authCredentialPendingRepository;
     private final TransactionTemplate transactionTemplate;
 
     public UserResponse register(UserRegisterRequest request)  {
@@ -61,19 +61,19 @@ public class UserService {
             userRepository.insertSelective(user);
 
             Instant now = Instant.now();
-            PendingAuthCredential pendingCredential = PendingAuthCredential.builder()
+            AuthCredentialPending pendingCredential = AuthCredentialPending.builder()
                     .userId(user.getId())
                     .credentialType(AuthCredentialType.PASSWORD)
                     .secretHash(preparedData.secretHash())
                     .salt(preparedData.salt())
-                    .status(PendingAuthCredentialStatus.PENDING)
+                    .status(AuthCredentialPendingStatus.PENDING)
                     .retryCount(0)
                     .nextRetryAt(null)
                     .lastError(null)
                     .createdAt(now)
                     .updatedAt(now)
                     .build();
-            pendingAuthCredentialRepository.insert(pendingCredential);
+            authCredentialPendingRepository.insert(pendingCredential);
             return new RegistrationContext(user, pendingCredential);
         });
 
@@ -82,7 +82,7 @@ public class UserService {
         }
 
         User persistedUser = context.user();
-        PendingAuthCredential pendingCredential = context.pending();
+        AuthCredentialPending pendingCredential = context.pending();
 
         AuthCredentialCreateRequest credentialRequest = new AuthCredentialCreateRequest(
                 persistedUser.getId(),
@@ -95,7 +95,7 @@ public class UserService {
         try {
             OpenApiResponse<AuthCredentialResponse> credentialResponse = authClient.create(credentialRequest);
             if (credentialResponse.isSuccess()) {
-                pendingAuthCredentialRepository.markCompleted(persistedUser.getId(), AuthCredentialType.PASSWORD, Instant.now());
+                authCredentialPendingRepository.markCompleted(persistedUser.getId(), AuthCredentialType.PASSWORD, Instant.now());
             } else {
                 handleCredentialFailure(persistedUser.getId(), credentialResponse.message());
             }
@@ -131,14 +131,14 @@ public class UserService {
     private void handleCredentialFailure(Long userId, String reason) {
         String message = Optional.ofNullable(reason).orElse("UNKNOWN_ERROR");
         log.warn("Failed to persist auth credential for user {}: {}", userId, message);
-        pendingAuthCredentialRepository.markFailure(
+        authCredentialPendingRepository.markFailure(
                 userId,
                 AuthCredentialType.PASSWORD,
                 message,
                 Instant.now().plusSeconds(60),
-                PendingAuthCredentialStatus.PENDING
+                AuthCredentialPendingStatus.PENDING
         );
     }
 
-    private record RegistrationContext(User user, PendingAuthCredential pending) { }
+    private record RegistrationContext(User user, AuthCredentialPending pending) { }
 }

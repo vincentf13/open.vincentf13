@@ -11,11 +11,11 @@
     UNIQUE KEY `uk_users_external` (`external_id`)
   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '使用者主檔';
 
-  -- pending_auth_credentials：使用者註冊時暫存 auth 雜湊與重試狀態
+  -- auth_credentials_pending：使用者註冊時暫存 auth 雜湊與重試狀態
   --  - user 服務會先呼叫 auth 的 /prepare 取得 hash/salt，再寫入此表
   --  - 首次寫入 auth 成功即標記 COMPLETED；失敗則保留為 PENDING 供排程重試
   --  - retry_count、next_retry_at、last_error 讓補償流程掌握重試節奏與失敗原因
-  CREATE TABLE pending_auth_credentials (
+  CREATE TABLE auth_credentials_pending (
       id                BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
       user_id           BIGINT UNSIGNED NOT NULL,
       credential_type   VARCHAR(32)     NOT NULL COMMENT '憑證型別（PASSWORD / API_KEY ...）',

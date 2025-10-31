@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialType;
-import open.vincentf13.exchange.user.domain.model.PendingAuthCredentialStatus;
+import open.vincentf13.exchange.user.domain.model.AuthCredentialPendingStatus;
 
 import java.time.Instant;
 
@@ -13,14 +13,14 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PendingAuthCredentialPO {
+public class AuthCredentialPendingPO {
 
     private Long id;
     private Long userId;
     private AuthCredentialType credentialType;
     private String secretHash;
     private String salt;
-    private PendingAuthCredentialStatus status;
+    private AuthCredentialPendingStatus status;
     private Integer retryCount;
     private Instant nextRetryAt;
     private String lastError;

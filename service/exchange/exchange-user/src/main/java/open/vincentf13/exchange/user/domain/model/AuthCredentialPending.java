@@ -12,14 +12,14 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PendingAuthCredential {
+public class AuthCredentialPending {
 
     private Long id;
     private Long userId;
     private AuthCredentialType credentialType;
     private String secretHash;
     private String salt;
-    private PendingAuthCredentialStatus status;
+    private AuthCredentialPendingStatus status;
     private Integer retryCount;
     private Instant nextRetryAt;
     private String lastError;
