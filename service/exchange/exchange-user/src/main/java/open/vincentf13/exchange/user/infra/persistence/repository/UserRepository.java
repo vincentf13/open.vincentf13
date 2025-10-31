@@ -1,9 +1,7 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
-import open.vincentf13.exchange.user.api.dto.UserStatus;
 import open.vincentf13.exchange.user.domain.model.User;
 
-import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository {
@@ -16,7 +14,5 @@ public interface UserRepository {
 
     Optional<User> findByEmail(String email);
 
-    void updateStatus(Long id, UserStatus status);
-
-    List<User> findAll();
+    void updateSelective(User user);
 }

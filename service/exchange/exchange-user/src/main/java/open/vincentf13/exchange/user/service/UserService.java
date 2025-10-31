@@ -71,11 +71,13 @@ public class UserService {
     @Transactional
     public UserResponse updateCurrentUser(UserUpdateStatusRequest request) {
         Long userId = currentUserId();
-        userRepository.updateStatus(userId, request.status());
-        return userRepository.findById(userId)
-                .map(user -> OpenMapstruct.map(user, UserResponse.class))
-                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
-                        "User not found. id=" + userId));
+        userRepository.updateSelective(User.builder()
+                .id(userId)
+                .status(request.status())
+                .updatedAt(Instant.now())
+                .build());
+
+        return getCurrentUser();
     }
 
     private String generateSalt() {

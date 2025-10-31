@@ -16,7 +16,7 @@ public interface UserMapper {
 
     UserPO findByEmail(@Param("email") String email);
 
-    void updateStatus(@Param("id") Long id, @Param("status") UserStatus status);
+    void updateSelective(UserPO user);
 
     List<UserPO> findAll();
 }

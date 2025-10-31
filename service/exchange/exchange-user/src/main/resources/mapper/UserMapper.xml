@@ -26,9 +26,15 @@
         WHERE email = #{email}
     </select>
 
-    <update id="updateStatus">
+    <update id="updateSelective">
         UPDATE users
-        SET status = #{status}, updated_at = NOW()
+        <set>
+            <if test="externalId != null">external_id = #{externalId},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="createdAt != null">created_at = #{createdAt},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+        </set>
         WHERE id = #{id}
     </update>
 
