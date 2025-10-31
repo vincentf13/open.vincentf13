@@ -2,7 +2,7 @@ package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.exception.OpenServiceException;
-import open.vincentf13.exchange.user.domain.error.UserErrorCode;
+import open.vincentf13.exchange.user.domain.model.UserErrorCode;
 import open.vincentf13.common.core.OpenMapstruct;
 import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialType;

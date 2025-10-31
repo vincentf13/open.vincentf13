@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.domain.error;
+package open.vincentf13.exchange.user.domain.model;
 
 import open.vincentf13.common.core.error.OpenError;
 
