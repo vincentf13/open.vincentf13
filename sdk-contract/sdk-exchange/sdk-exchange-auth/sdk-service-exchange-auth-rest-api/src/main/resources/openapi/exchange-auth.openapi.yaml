@@ -49,19 +49,16 @@ components:
   schemas:
     AuthCredentialCreateRequest:
       type: object
-      required: [userId, credentialType, secretHash, status]
+      required: [userId, credentialType, secret, status]
       properties:
         userId:
           type: integer
           format: int64
         credentialType:
           $ref: '#/components/schemas/AuthCredentialType'
-        secretHash:
+        secret:
           type: string
           maxLength: 512
-        salt:
-          type: string
-          maxLength: 128
         status:
           type: string
           maxLength: 32

@@ -18,12 +18,10 @@ import open.vincentf13.exchange.user.api.dto.UserUpdateStatusRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +30,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserDomainService userDomainService;
     private final ExchangeAuthClient authClient;
-    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public UserResponse register(UserRegisterRequest request)  {
@@ -46,13 +43,10 @@ public class UserService {
         User user = userDomainService.createActiveUser(request.email(), request.externalId());
         userRepository.insertSelective(user);
 
-        String salt = generateSalt();
-        String secretHash = hashPassword(request.password(), salt);
         AuthCredentialCreateRequest credentialRequest = new AuthCredentialCreateRequest(
                 user.getId(),
                 AuthCredentialType.PASSWORD,
-                secretHash,
-                salt,
+                request.password(),
                 "ACTIVE"
         );
         OpenApiResponse<AuthCredentialResponse> credentialResponse = authClient.create(credentialRequest);
@@ -101,11 +95,4 @@ public class UserService {
         }
     }
 
-    private String generateSalt() {
-        return UUID.randomUUID().toString();
-    }
-
-    private String hashPassword(String rawPassword, String salt) {
-        return passwordEncoder.encode(rawPassword + ':' + salt);
-    }
 }
