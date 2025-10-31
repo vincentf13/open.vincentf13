@@ -1,4 +1,4 @@
-spring:
+ spring:
   datasource:
     dynamic:
       # 預設資料源群組，未標註 @DS 時會使用這組
@@ -83,6 +83,7 @@ mybatis:
   configuration:
     # snake_case 欄位自動轉 camelCase 屬性
     map-underscore-to-camel-case: true
+    default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
     # 預設關閉二級快取，改採分散式快取時再開
     cache-enabled: false
     # 避免單一慢 SQL 佔用連線的安全停等秒數

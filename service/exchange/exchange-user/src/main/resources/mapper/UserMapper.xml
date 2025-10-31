@@ -4,16 +4,6 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper">
 
-    <resultMap id="UserResultMap" type="open.vincentf13.exchange.user.infra.persistence.po.UserPO">
-        <id property="id" column="id" />
-        <result property="externalId" column="external_id" />
-        <result property="email" column="email" />
-        <result property="status" column="status"
-                javaType="open.vincentf13.exchange.user.api.dto.UserStatus" />
-        <result property="createdAt" column="created_at" />
-        <result property="updatedAt" column="updated_at" />
-    </resultMap>
-
     <select id="existsByEmail" resultType="boolean">
         SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})
     </select>
@@ -24,13 +14,13 @@
         VALUES (#{externalId}, #{email}, #{status}, NOW(), NOW())
     </insert>
 
-    <select id="findById" resultMap="UserResultMap">
+    <select id="findById" resultType="open.vincentf13.exchange.user.infra.persistence.po.UserPO">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         WHERE id = #{id}
     </select>
 
-    <select id="findByEmail" resultMap="UserResultMap">
+    <select id="findByEmail" resultType="open.vincentf13.exchange.user.infra.persistence.po.UserPO">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         WHERE email = #{email}
@@ -42,7 +32,7 @@
         WHERE id = #{id}
     </update>
 
-    <select id="findAll" resultMap="UserResultMap">
+    <select id="findAll" resultType="open.vincentf13.exchange.user.infra.persistence.po.UserPO">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         ORDER BY id DESC
