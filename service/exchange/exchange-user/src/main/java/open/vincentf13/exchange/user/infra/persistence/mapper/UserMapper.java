@@ -11,8 +11,6 @@ public interface UserMapper {
 
     List<UserPO> findByPO(UserPO user);
 
-    List<UserPO> findByPOForUpdate(UserPO user);
-
     void updateSelective(UserPO user);
 
     void batchInsert(@Param("list") List<UserPO> users);

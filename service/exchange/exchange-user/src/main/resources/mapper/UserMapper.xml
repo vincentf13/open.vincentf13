@@ -38,21 +38,6 @@
         ORDER BY id DESC
     </select>
 
-    <select id="findByPOForUpdate" parameterType="UserPO" resultType="UserPO">
-        SELECT id, external_id, email, status, created_at, updated_at
-        FROM users
-        <where>
-            <if test="id != null">AND id = #{id}</if>
-            <if test="externalId != null">AND external_id = #{externalId}</if>
-            <if test="email != null">AND email = #{email}</if>
-            <if test="status != null">AND status = #{status}</if>
-            <if test="createdAt != null">AND created_at = #{createdAt}</if>
-            <if test="updatedAt != null">AND updated_at = #{updatedAt}</if>
-        </where>
-        ORDER BY id DESC
-        FOR UPDATE
-    </select>
-
     <update id="updateSelective">
         UPDATE users
         <set>

@@ -19,7 +19,15 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void insertSelective(User user) {
-        mapper.insertSelective(OpenMapstruct.map(user, UserPO.class));
+        UserPO po = OpenMapstruct.map(user, UserPO.class);
+        mapper.insertSelective(po);
+        user.setId(po.getId());
+        if (po.getCreatedAt() != null) {
+            user.setCreatedAt(po.getCreatedAt());
+        }
+        if (po.getUpdatedAt() != null) {
+            user.setUpdatedAt(po.getUpdatedAt());
+        }
     }
 
     @Override
@@ -45,19 +53,6 @@ public class UserRepositoryImpl implements UserRepository {
             throw new IllegalStateException("Expected single user but found " + results.size());
         }
         return Optional.of(results.get(0));
-    }
-
-    @Override
-    public Optional<User> findOneForUpdate(User probe) {
-        UserPO poProbe = OpenMapstruct.map(probe, UserPO.class);
-        List<UserPO> results = mapper.findByPOForUpdate(poProbe);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single user but found " + results.size());
-        }
-        return Optional.of(OpenMapstruct.map(results.get(0), User.class));
     }
 
     @Override

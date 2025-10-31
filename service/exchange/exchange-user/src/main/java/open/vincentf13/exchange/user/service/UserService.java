@@ -57,23 +57,12 @@ public class UserService {
         }
 
         RegistrationContext context = transactionTemplate.execute(status -> {
-            boolean emailExists = userRepository.findOneForUpdate(User.builder().email(normalizedEmail).build()).isPresent();
-            if (emailExists) {
-                throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
-                        "Email already registered: " + normalizedEmail);
-            }
-
             User user = userDomainService.createActiveUser(request.email(), request.externalId());
             userRepository.insertSelective(user);
 
-            Long userId = user.getId();
-            if (userId == null) {
-                throw new IllegalStateException("User id not generated during registration");
-            }
-
             Instant now = Instant.now();
             PendingAuthCredential pendingCredential = PendingAuthCredential.builder()
-                    .userId(userId)
+                    .userId(user.getId())
                     .credentialType(AuthCredentialType.PASSWORD)
                     .secretHash(preparedData.secretHash())
                     .salt(preparedData.salt())
