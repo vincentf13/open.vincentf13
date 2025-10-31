@@ -47,10 +47,10 @@
 執行指令（模組恢復後使用）：
 
 ```bash
-mvn -pl services/service-exchange/service-exchange-matching -am springdoc-openapi:generate
+mvn -pl service/exchange/exchange-user -am springdoc-openapi:generate
 ```
 
-> 目前 `service-exchange-matching` 模組暫時移除，若需在暫停期間產生契約，可改用 `service-template` 建構臨時模組或直接對 `sdk-service-exchange-matching` 的 YAML 進行手動維護。
+> 建議在 `service/exchange/exchange-user` 模組內維護 OpenAPI YAML，或於 `sdk-service-exchange-user-rest-api` 直接更新契約檔案以保持版本一致。
 
 生成結果放在 `target/openapi/`，建議將 YAML 檔複製或發佈到 `sdk-contract/sdk-<domain>/<module>/<module>-rest-api/src/main/resources/openapi/` 以利版本控。
 
@@ -70,7 +70,7 @@ mvn -pl services/service-exchange/service-exchange-matching -am springdoc-openap
                 <goal>generate</goal>
             </goals>
             <configuration>
-                <inputSpec>${project.basedir}/src/main/resources/openapi/sdk-service-exchange-matching.openapi.yaml</inputSpec>
+                <inputSpec>${project.basedir}/src/main/resources/openapi/sdk-service-exchange-user.openapi.yaml</inputSpec>
                 <generatorName>spring</generatorName>
                 <library>spring-boot</library>
                 <additionalProperties>
@@ -79,8 +79,8 @@ mvn -pl services/service-exchange/service-exchange-matching -am springdoc-openap
                     <skipDefaultInterface>false</skipDefaultInterface>
                     <useSpringBoot3>true</useSpringBoot3>
                 </additionalProperties>
-                <apiPackage>open.vincentf13.exchange.matching.api</apiPackage>
-                <modelPackage>open.vincentf13.exchange.matching.dto</modelPackage>
+                <apiPackage>open.vincentf13.exchange.user.api</apiPackage>
+                <modelPackage>open.vincentf13.exchange.user.dto</modelPackage>
                 <output>${project.build.directory}/generated-sources/openapi-api</output>
             </configuration>
         </execution>
@@ -88,7 +88,7 @@ mvn -pl services/service-exchange/service-exchange-matching -am springdoc-openap
 </plugin>
 ```
 
-- 生成檔案會包含 `OrderApi` 等介面，可被 Controller `implements`，也可提供 client 模組使用。
+- 生成檔案會包含 `UserApi` 等介面，可被 Controller `implements`，也可提供 client 模組使用。
 - 使用 `build-helper-maven-plugin` 將 `generated-sources/openapi-api` 納入 compile path（避免手動移入 `src/`）。
 
 ### 4. 產生客戶端 SDK
@@ -107,11 +107,11 @@ mvn -pl services/service-exchange/service-exchange-matching -am springdoc-openap
                 <goal>generate</goal>
             </goals>
             <configuration>
-                <inputSpec>${project.parent.relativePath}/sdk-service-exchange-matching-rest-api/src/main/resources/openapi/sdk-service-exchange-matching.openapi.yaml</inputSpec>
+                <inputSpec>${project.parent.relativePath}/sdk-service-exchange-user-rest-api/src/main/resources/openapi/sdk-service-exchange-user.openapi.yaml</inputSpec>
                 <generatorName>java</generatorName>
                 <library>feign</library>
-                <apiPackage>open.vincentf13.exchange.matching.client.api</apiPackage>
-                <modelPackage>open.vincentf13.exchange.matching.client.dto</modelPackage>
+                <apiPackage>open.vincentf13.exchange.user.client.api</apiPackage>
+                <modelPackage>open.vincentf13.exchange.user.client.dto</modelPackage>
                 <configOptions>
                     <dateLibrary>java8</dateLibrary>
                     <useFeignClient>true</useFeignClient>

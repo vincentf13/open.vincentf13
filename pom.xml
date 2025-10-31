@@ -147,22 +147,7 @@
                 <artifactId>sdk-infra-nacos</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-service-exchange-matching-rest-api</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-service-exchange-matching-rest-client</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-exchange-maching</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
+                                                <dependency>
                 <groupId>open.vincentf13.common</groupId>
                 <artifactId>sdk-exchange</artifactId>
                 <version>${project.version}</version>

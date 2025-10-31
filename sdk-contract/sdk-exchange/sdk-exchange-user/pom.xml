@@ -11,14 +11,14 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-exchange-maching</artifactId>
+    <artifactId>sdk-exchange-user</artifactId>
     <packaging>pom</packaging>
 
-    <name>sdk-exchange-maching</name>
-    <description>Matching service API contract and client aggregator</description>
+    <name>sdk-exchange-user</name>
+    <description>User service API contract and client aggregation</description>
 
     <modules>
-        <module>sdk-service-exchange-matching-rest-api</module>
-        <module>sdk-service-exchange-matching-rest-client</module>
+        <module>sdk-service-exchange-user-rest-api</module>
+        <module>sdk-service-exchange-user-rest-client</module>
     </modules>
 </project>

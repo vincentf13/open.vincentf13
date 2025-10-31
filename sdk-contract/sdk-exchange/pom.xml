@@ -18,6 +18,6 @@
     <description>Exchange service API contracts and clients</description>
 
     <modules>
-        <module>sdk-exchange-maching</module>
+        <module>sdk-exchange-user</module>
     </modules>
 </project>

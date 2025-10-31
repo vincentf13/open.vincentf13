@@ -28,8 +28,8 @@ open.vincentf13/
 │   └── sdk-spring-websocket/       # WebSocket Starter 與訊息編碼
 ├── sdk-contract/                   # API 契約與自動化產生客戶端
 │   └── sdk-exchange/
-│       └── sdk-exchange-maching/
-│           ├── rest-api/           # 撮合服務 OpenAPI 契約、API Interface 與 DTO
+│       └── sdk-exchange-user/
+│           ├── rest-api/           # 使用者服務 OpenAPI 契約與 DTO
 │           └── rest-client/        # 依契約生成的客戶端 SDK
 ├── service/
 │   ├── pom.xml
@@ -53,7 +53,7 @@ open.vincentf13/
 ### `sdk-contract` 說明
 
 - 集中維護各領域（目前為交易域）API 契約與自動化產生的客戶端 SDK。
-- `sdk-exchange` 聚焦撮合等交易流程，`rest-api` 提供 OpenAPI 契約，`rest-client` 透過契約生成 Feign/HTTP 客戶端。
+- `sdk-exchange` 聚焦交易領域契約，目前提供 `sdk-exchange-user` 子模組；各子模組的 `rest-api` 提供 OpenAPI 契約，`rest-client` 依契約生成 Feign/HTTP 客戶端。
 - 契約調整會對應釋出新版本，請依語義化版本規則管理 breaking change 並同步通知依賴的服務。
 
 ### 依賴管理建議
