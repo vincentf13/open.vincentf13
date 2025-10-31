@@ -23,28 +23,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthCredentialEnvelope'
-    get:
-      summary: Find credential by user id and type
-      operationId: findCredential
-      parameters:
-        - in: query
-          name: userId
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - in: query
-          name: type
-          required: true
-          schema:
-            $ref: '#/components/schemas/AuthCredentialType'
-      responses:
-        '200':
-          description: Credential found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthCredentialEnvelope'
 components:
   schemas:
     AuthCredentialCreateRequest:
