@@ -129,6 +129,16 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-service-exchange-auth-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>sdk-service-exchange-auth-rest-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
                 <artifactId>sdk-infra-redis</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -147,7 +157,7 @@
                 <artifactId>sdk-infra-nacos</artifactId>
                 <version>${project.version}</version>
             </dependency>
-                                                <dependency>
+            <dependency>
                 <groupId>open.vincentf13.common</groupId>
                 <artifactId>sdk-exchange</artifactId>
                 <version>${project.version}</version>
@@ -213,7 +223,7 @@
                 <artifactId>sdk-service-exchange-user-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
-                <dependency>
+            <dependency>
                 <groupId>open.vincentf13.common</groupId>
                 <artifactId>sdk-spring-cloud-openfeign</artifactId>
                 <version>${project.version}</version>
