@@ -21,5 +21,9 @@
             <artifactId>sdk-auth-server</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-infra-mysql</artifactId>
+        </dependency>
     </dependencies>
 </project>

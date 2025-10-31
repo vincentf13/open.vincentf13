@@ -17,7 +17,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 @FeignClient(
         contextId = "exchangeUserClient",
         name = "${exchange.user.client.name:exchange-user}",
-        url = "${exchange.user.client.url:}"
+        url = "${exchange.user.client.url:}" 
 )
 public interface ExchangeUserClient extends UserApi {
 }

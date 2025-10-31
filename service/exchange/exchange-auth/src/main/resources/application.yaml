@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: exchange-auth
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: open.vincentf13.exchange.auth.domain.model

@@ -1,7 +1,7 @@
-package open.vincentf13.exchange.user.infra.persistence.mapper;
+package open.vincentf13.exchange.auth.infra.persistence.mapper;
 
 import open.vincentf13.exchange.user.api.dto.AuthCredentialType;
-import open.vincentf13.exchange.user.domain.model.AuthCredential;
+import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import org.apache.ibatis.annotations.Param;
 
 public interface AuthCredentialMapper {

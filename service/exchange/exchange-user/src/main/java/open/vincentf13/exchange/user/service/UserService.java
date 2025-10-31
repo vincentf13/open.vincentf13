@@ -3,32 +3,25 @@ package open.vincentf13.exchange.user.service;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.OpenMapstruct;
 import open.vincentf13.common.core.exception.OpenServiceException;
-import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserErrorCode;
-import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
-import open.vincentf13.exchange.user.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.user.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.api.dto.UserResponse;
 import open.vincentf13.exchange.user.api.dto.UserUpdateStatusRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
-    private final AuthCredentialRepository authCredentialRepository;
-    private final PasswordEncoder passwordEncoder;
     private final UserDomainService userDomainService;
 
     @Transactional
@@ -42,17 +35,6 @@ public class UserService {
 
         User user = userDomainService.createActiveUser(request.email(), request.externalId());
         userRepository.insertSelective(user);
-
-        String salt = generateSalt();
-        AuthCredential credential = AuthCredential.builder()
-                .userId(user.getId())
-                .credentialType(AuthCredentialType.PASSWORD)
-                .salt(salt)
-                .secretHash(hashPassword(request.password(), salt))
-                .status("ACTIVE")
-                .createdAt(Instant.now())
-                .build();
-        authCredentialRepository.insert(credential);
 
         return userRepository.findOne(User.builder().id(user.getId()).build())
                 .map(user2 -> OpenMapstruct.map(user2, UserResponse.class))
@@ -79,14 +61,6 @@ public class UserService {
                 .build());
 
         return getCurrentUser();
-    }
-
-    private String generateSalt() {
-        return UUID.randomUUID().toString();
-    }
-
-    private String hashPassword(String rawPassword, String salt) {
-        return passwordEncoder.encode(rawPassword + ':' + salt);
     }
 
     private Long currentUserId() {

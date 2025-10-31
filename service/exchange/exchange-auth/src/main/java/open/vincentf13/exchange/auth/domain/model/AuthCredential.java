@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.domain.model;
+package open.vincentf13.exchange.auth.domain.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
