@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.app.service;
+package open.vincentf13.exchange.user.app;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.exception.OpenServiceException;
@@ -6,7 +6,6 @@ import open.vincentf13.exchange.user.domain.error.UserErrorCode;
 import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.UserAggregate;
-import open.vincentf13.exchange.user.domain.model.UserStatus;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.api.dto.RegisterUserRequest;
@@ -24,7 +23,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class UserApplicationService {
+public class UserService {
 
     private final UserRepository userRepository;
     private final AuthCredentialRepository authCredentialRepository;

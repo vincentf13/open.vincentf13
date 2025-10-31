@@ -6,14 +6,14 @@ import open.vincentf13.exchange.user.api.UserApi;
 import open.vincentf13.exchange.user.api.dto.RegisterUserRequest;
 import open.vincentf13.exchange.user.api.dto.UpdateUserStatusRequest;
 import open.vincentf13.exchange.user.api.dto.UserResponse;
-import open.vincentf13.exchange.user.app.service.UserApplicationService;
+import open.vincentf13.exchange.user.app.UserService;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
 public class UserController implements UserApi {
 
-    private final UserApplicationService userService;
+    private final UserService userService;
 
     @Override
     public OpenApiResponse<UserResponse> register(RegisterUserRequest request) {
