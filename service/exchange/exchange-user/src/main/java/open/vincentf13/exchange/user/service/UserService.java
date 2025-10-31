@@ -47,7 +47,11 @@ public class UserService {
                 new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())
         );
 
-        if (!prepareResponse.isSuccess() || prepareResponse.data() == null) {
+        AuthCredentialPrepareResponse preparedData = prepareResponse.data();
+        if (!prepareResponse.isSuccess()
+                || preparedData == null
+                || preparedData.secretHash() == null
+                || preparedData.salt() == null) {
             throw OpenServiceException.of(UserErrorCode.USER_AUTH_PREPARATION_FAILED,
                     "Failed to prepare credential secret for email " + normalizedEmail);
         }
@@ -69,8 +73,8 @@ public class UserService {
             PendingAuthCredential pendingCredential = PendingAuthCredential.builder()
                     .userId(persisted.getId())
                     .credentialType(AuthCredentialType.PASSWORD)
-                    .secretHash(prepareResponse.data().secretHash())
-                    .salt(prepareResponse.data().salt())
+                    .secretHash(preparedData.secretHash())
+                    .salt(preparedData.salt())
                     .status(PendingAuthCredentialStatus.PENDING)
                     .retryCount(0)
                     .nextRetryAt(null)
