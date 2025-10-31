@@ -1,7 +1,7 @@
 package open.vincentf13.common.spring.mvc.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.common.spring.mvc.advice.AopApiResponseBody;
+import open.vincentf13.common.spring.mvc.advice.AopResponseBody;
 import open.vincentf13.common.spring.mvc.advice.AopRestException;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -31,8 +31,8 @@ public class ConfigAop {
      */
     @Bean
     @ConditionalOnMissingBean
-    public AopApiResponseBody apiResponseBodyAdvice(ObjectMapper objectMapper, MvcProperties properties) {
-        return new AopApiResponseBody(objectMapper, properties);
+    public AopResponseBody apiResponseBodyAdvice(ObjectMapper objectMapper, MvcProperties properties) {
+        return new AopResponseBody(objectMapper, properties);
     }
 
 }

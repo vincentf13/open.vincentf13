@@ -26,7 +26,7 @@ import java.util.Collection;
 @Slf4j
 @RequiredArgsConstructor
 @RestControllerAdvice
-public class AopApiResponseBody implements ResponseBodyAdvice<Object> {
+public class AopResponseBody implements ResponseBodyAdvice<Object> {
 
     /** ObjectMapper 供 String 包裝時進行 JSON 序列化。 */
     private final ObjectMapper objectMapper;
