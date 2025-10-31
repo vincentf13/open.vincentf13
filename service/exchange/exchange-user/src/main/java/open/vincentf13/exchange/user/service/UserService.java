@@ -14,14 +14,11 @@ import open.vincentf13.exchange.user.domain.model.UserErrorCode;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.api.dto.UserResponse;
-import open.vincentf13.exchange.user.api.dto.UserUpdateStatusRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -68,18 +65,6 @@ public class UserService {
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. id=" + userId));
-    }
-
-    @Transactional
-    public UserResponse updateCurrentUser(UserUpdateStatusRequest request) {
-        Long userId = currentUserId();
-        userRepository.updateSelective(User.builder()
-                .id(userId)
-                .status(request.status())
-                .updatedAt(Instant.now())
-                .build());
-
-        return getCurrentUser();
     }
 
     private Long currentUserId() {

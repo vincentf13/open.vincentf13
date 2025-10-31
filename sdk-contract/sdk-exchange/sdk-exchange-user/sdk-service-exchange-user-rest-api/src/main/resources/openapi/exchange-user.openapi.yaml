@@ -34,22 +34,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserEnvelope'
-    patch:
-      summary: Update current user status
-      operationId: updateCurrentUser
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserUpdateStatusRequest'
-      responses:
-        '200':
-          description: Updated user information
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserEnvelope'
 components:
   schemas:
     UserRegisterRequest:
@@ -66,12 +50,6 @@ components:
         externalId:
           type: string
           maxLength: 64
-    UserUpdateStatusRequest:
-      type: object
-      required: [status]
-      properties:
-        status:
-          $ref: '#/components/schemas/UserStatus'
     UserResponse:
       type: object
       properties:
