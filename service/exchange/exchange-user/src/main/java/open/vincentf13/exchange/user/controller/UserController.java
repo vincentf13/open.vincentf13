@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.interfaces;
+package open.vincentf13.exchange.user.controller;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
