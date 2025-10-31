@@ -1,9 +1,11 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.common.core.OpenMapstruct;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserStatus;
 import open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper;
+import open.vincentf13.exchange.user.infra.persistence.po.UserPO;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -22,17 +24,19 @@ public class UserMyBatisRepository implements UserRepository {
 
     @Override
     public void insert(User user) {
-        mapper.insert(user);
+        mapper.insert(OpenMapstruct.map(user, UserPO.class));
     }
 
     @Override
     public Optional<User> findById(Long id) {
-        return Optional.ofNullable(mapper.findById(id));
+        return Optional.ofNullable(mapper.findById(id))
+                .map(po -> OpenMapstruct.map(po, User.class));
     }
 
     @Override
     public Optional<User> findByEmail(String email) {
-        return Optional.ofNullable(mapper.findByEmail(email));
+        return Optional.ofNullable(mapper.findByEmail(email))
+                .map(po -> OpenMapstruct.map(po, User.class));
     }
 
     @Override
@@ -42,6 +46,6 @@ public class UserMyBatisRepository implements UserRepository {
 
     @Override
     public List<User> findAll() {
-        return mapper.findAll();
+        return OpenMapstruct.mapList(mapper.findAll(), User.class);
     }
 }

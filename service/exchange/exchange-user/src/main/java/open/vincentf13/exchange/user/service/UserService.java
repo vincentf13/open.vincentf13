@@ -3,6 +3,7 @@ package open.vincentf13.exchange.user.service;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.exception.OpenServiceException;
 import open.vincentf13.exchange.user.domain.error.UserErrorCode;
+import open.vincentf13.common.core.OpenMapstruct;
 import open.vincentf13.exchange.user.domain.model.AuthCredential;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.User;
@@ -11,7 +12,6 @@ import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository
 import open.vincentf13.exchange.user.api.dto.RegisterUserRequest;
 import open.vincentf13.exchange.user.api.dto.UpdateUserStatusRequest;
 import open.vincentf13.exchange.user.api.dto.UserResponse;
-import open.vincentf13.common.core.OpenMapstruct;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final AuthCredentialRepository authCredentialRepository;
     private final PasswordEncoder passwordEncoder;
-    private final OpenMapstruct openMapstruct;
     private final UserDomainService userDomainService;
 
     @Transactional
@@ -54,7 +53,7 @@ public class UserService {
         authCredentialRepository.insert(credential);
 
         return userRepository.findById(user.getId())
-                .map(user2 -> openMapstruct.map(user2, UserResponse.class))
+                .map(user2 -> OpenMapstruct.map(user2, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found after creation. id=" + user.getId()));
     }
@@ -62,7 +61,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserResponse findById(Long id)  {
         return userRepository.findById(id)
-                .map(user -> openMapstruct.map(user, UserResponse.class))
+                .map(user -> OpenMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. id=" + id));
     }
@@ -70,7 +69,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserResponse findByEmail(String email)  {
         return userRepository.findByEmail(userDomainService.normalizeEmail(email))
-                .map(user -> openMapstruct.map(user, UserResponse.class))
+                .map(user -> OpenMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. email=" + email));
     }
@@ -82,14 +81,14 @@ public class UserService {
                         "User not found. id=" + id));
         userRepository.updateStatus(id, request.status());
         return userRepository.findById(id)
-                .map(user -> openMapstruct.map(user, UserResponse.class))
+                .map(user -> OpenMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. id=" + id));
     }
 
     @Transactional(readOnly = true)
     public List<UserResponse> listAll() {
-        return openMapstruct.mapList(userRepository.findAll(), UserResponse.class);
+        return OpenMapstruct.mapList(userRepository.findAll(), UserResponse.class);
     }
 
     private String generateSalt() {
