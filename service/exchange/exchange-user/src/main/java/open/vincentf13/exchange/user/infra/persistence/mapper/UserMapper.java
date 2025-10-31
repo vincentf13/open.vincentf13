@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.user.infra.persistence.mapper;
 
-import open.vincentf13.exchange.user.api.dto.UserStatus;
 import open.vincentf13.exchange.user.infra.persistence.po.UserPO;
 import org.apache.ibatis.annotations.Param;
 
@@ -10,13 +9,13 @@ public interface UserMapper {
 
     boolean existsByEmail(@Param("email") String email);
 
-    void insert(UserPO user);
+    void insertSelective(UserPO user);
 
-    UserPO findById(@Param("id") Long id);
-
-    UserPO findByEmail(@Param("email") String email);
+    List<UserPO> findByPO(UserPO user);
 
     void updateSelective(UserPO user);
 
-    List<UserPO> findAll();
+    void batchInsert(@Param("list") List<UserPO> users);
+
+    void batchUpdate(@Param("list") List<UserPO> users);
 }

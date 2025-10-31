@@ -40,7 +40,7 @@ public class UserService {
         }
 
         User user = userDomainService.createActiveUser(request.email(), request.externalId());
-        userRepository.insert(user);
+        userRepository.insertSelective(user);
 
         String salt = generateSalt();
         AuthCredential credential = AuthCredential.builder()

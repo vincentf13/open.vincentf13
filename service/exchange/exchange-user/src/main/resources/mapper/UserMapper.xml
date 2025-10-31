@@ -8,22 +8,38 @@
         SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})
     </select>
 
-    <insert id="insert" parameterType="UserPO"
+    <insert id="insertSelective" parameterType="UserPO"
             useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO users (external_id, email, status, created_at, updated_at)
-        VALUES (#{externalId}, #{email}, #{status}, NOW(), NOW())
+        INSERT INTO users
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="externalId != null">external_id,</if>
+            <if test="email != null">email,</if>
+            <if test="status != null">status,</if>
+            <if test="createdAt != null">created_at,</if>
+            <if test="updatedAt != null">updated_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="externalId != null">#{externalId},</if>
+            <if test="email != null">#{email},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+            <if test="updatedAt != null">#{updatedAt},</if>
+        </trim>
     </insert>
 
-    <select id="findById" resultType="UserPO">
+    <select id="findByPO" parameterType="UserPO" resultType="UserPO">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
-        WHERE id = #{id}
-    </select>
-
-    <select id="findByEmail" resultType="UserPO">
-        SELECT id, external_id, email, status, created_at, updated_at
-        FROM users
-        WHERE email = #{email}
+        <where>
+            <if test="id != null">AND id = #{id}</if>
+            <if test="externalId != null">AND external_id = #{externalId}</if>
+            <if test="email != null">AND email = #{email}</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="createdAt != null">AND created_at = #{createdAt}</if>
+            <if test="updatedAt != null">AND updated_at = #{updatedAt}</if>
+        </where>
+        ORDER BY id DESC
     </select>
 
     <update id="updateSelective">
@@ -38,10 +54,26 @@
         WHERE id = #{id}
     </update>
 
-    <select id="findAll" resultType="UserPO">
-        SELECT id, external_id, email, status, created_at, updated_at
-        FROM users
-        ORDER BY id DESC
-    </select>
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO users (external_id, email, status, created_at, updated_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.externalId}, #{item.email}, #{item.status}, #{item.createdAt}, #{item.updatedAt})
+        </foreach>
+    </insert>
+
+    <update id="batchUpdate" parameterType="java.util.List">
+        <foreach collection="list" item="item" separator=";">
+            UPDATE users
+            <set>
+                <if test="item.externalId != null">external_id = #{item.externalId},</if>
+                <if test="item.email != null">email = #{item.email},</if>
+                <if test="item.status != null">status = #{item.status},</if>
+                <if test="item.createdAt != null">created_at = #{item.createdAt},</if>
+                <if test="item.updatedAt != null">updated_at = #{item.updatedAt},</if>
+            </set>
+            WHERE id = #{item.id}
+        </foreach>
+    </update>
 
 </mapper>
