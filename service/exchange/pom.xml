@@ -12,10 +12,10 @@
     </parent>
 
     <groupId>open.vincentf13.exchange</groupId>
-    <artifactId>service-exchange</artifactId>
+    <artifactId>exchange</artifactId>
     <packaging>pom</packaging>
 
-    <name>service-exchange</name>
+    <name>exchange</name>
     <description>Exchange service aggregation</description>
 
     <modules>
