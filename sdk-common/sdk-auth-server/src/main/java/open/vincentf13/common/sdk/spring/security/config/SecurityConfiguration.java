@@ -55,13 +55,13 @@ public class SecurityConfiguration {
                                                    LoginFailureHandler failureHandler,
                                                    JwtConfigurer jwtConfigurer) throws Exception {
         http.apply(jwtConfigurer)
-            .and()
-            .formLogin(form -> form.loginPage("/login")
-                                   .loginProcessingUrl("/api/login")
-                                   .successHandler(successHandler)
-                                   .failureHandler(failureHandler)
-                                   .permitAll())
-            .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll());
+                .and()
+                .formLogin(form -> form.loginPage("/login")
+                        .loginProcessingUrl("/api/auth/login")
+                        .successHandler(successHandler)
+                        .failureHandler(failureHandler)
+                        .permitAll())
+                .logout(logout -> logout.disable());
         return http.build();
     }
 }
