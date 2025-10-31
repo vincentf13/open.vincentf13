@@ -57,7 +57,7 @@ public class UserService {
         }
 
         RegistrationContext context = transactionTemplate.execute(status -> {
-            boolean emailExists = userRepository.findOne(User.builder().email(normalizedEmail).build()).isPresent();
+            boolean emailExists = userRepository.findOneForUpdate(User.builder().email(normalizedEmail).build()).isPresent();
             if (emailExists) {
                 throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
                         "Email already registered: " + normalizedEmail);
@@ -66,12 +66,14 @@ public class UserService {
             User user = userDomainService.createActiveUser(request.email(), request.externalId());
             userRepository.insertSelective(user);
 
-            User persisted = userRepository.findOne(User.builder().email(normalizedEmail).build())
-                    .orElseThrow(() -> new IllegalStateException("User not persisted during registration"));
+            Long userId = user.getId();
+            if (userId == null) {
+                throw new IllegalStateException("User id not generated during registration");
+            }
 
             Instant now = Instant.now();
             PendingAuthCredential pendingCredential = PendingAuthCredential.builder()
-                    .userId(persisted.getId())
+                    .userId(userId)
                     .credentialType(AuthCredentialType.PASSWORD)
                     .secretHash(preparedData.secretHash())
                     .salt(preparedData.salt())
@@ -83,7 +85,7 @@ public class UserService {
                     .updatedAt(now)
                     .build();
             pendingAuthCredentialRepository.insert(pendingCredential);
-            return new RegistrationContext(persisted, pendingCredential);
+            return new RegistrationContext(user, pendingCredential);
         });
 
         if (context == null) {

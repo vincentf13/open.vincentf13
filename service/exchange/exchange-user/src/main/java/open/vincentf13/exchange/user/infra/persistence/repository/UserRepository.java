@@ -18,4 +18,6 @@ public interface UserRepository {
     void batchUpdate(List<User> users);
 
     Optional<User> findOne(User probe);
+
+    Optional<User> findOneForUpdate(User probe);
 }

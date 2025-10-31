@@ -48,6 +48,19 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<User> findOneForUpdate(User probe) {
+        UserPO poProbe = OpenMapstruct.map(probe, UserPO.class);
+        List<UserPO> results = mapper.findByPOForUpdate(poProbe);
+        if (results.isEmpty()) {
+            return Optional.empty();
+        }
+        if (results.size() > 1) {
+            throw new IllegalStateException("Expected single user but found " + results.size());
+        }
+        return Optional.of(OpenMapstruct.map(results.get(0), User.class));
+    }
+
+    @Override
     public void batchInsert(List<User> users) {
         if (users == null || users.isEmpty()) {
             return;
