@@ -2,7 +2,7 @@ package open.vincentf13.exchange.user.mapper;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.user.domain.model.User;
+import open.vincentf13.exchange.user.domain.User;
 import open.vincentf13.exchange.user.dto.UserResponse;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)

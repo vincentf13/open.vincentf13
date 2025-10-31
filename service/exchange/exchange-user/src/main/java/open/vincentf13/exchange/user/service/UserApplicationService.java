@@ -2,11 +2,11 @@ package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.exception.OpenServiceException;
-import open.vincentf13.exchange.user.domain.error.UserErrorCode;
-import open.vincentf13.exchange.user.domain.model.AuthCredential;
-import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
-import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.domain.model.UserStatus;
+import open.vincentf13.exchange.user.error.UserErrorCode;
+import open.vincentf13.exchange.user.domain.AuthCredential;
+import open.vincentf13.exchange.user.domain.AuthCredentialType;
+import open.vincentf13.exchange.user.domain.User;
+import open.vincentf13.exchange.user.domain.UserStatus;
 import open.vincentf13.exchange.user.infra.repository.AuthCredentialRepository;
 import open.vincentf13.exchange.user.infra.repository.UserRepository;
 import open.vincentf13.exchange.user.dto.RegisterUserRequest;

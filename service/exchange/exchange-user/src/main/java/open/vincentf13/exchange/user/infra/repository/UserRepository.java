@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.user.infra.repository;
 
-import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.domain.model.UserStatus;
+import open.vincentf13.exchange.user.domain.User;
+import open.vincentf13.exchange.user.domain.UserStatus;
 
 import java.util.List;
 import java.util.Optional;
