@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
-public class AuthCredentialMyBatisRepository implements AuthCredentialRepository {
+public class AuthCredentialRepositoryImpl implements AuthCredentialRepository {
 
     private final AuthCredentialMapper mapper;
 
