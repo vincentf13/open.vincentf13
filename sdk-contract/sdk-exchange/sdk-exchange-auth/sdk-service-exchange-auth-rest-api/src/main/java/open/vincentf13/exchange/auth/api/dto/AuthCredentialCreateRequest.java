@@ -11,9 +11,13 @@ public record AuthCredentialCreateRequest(
         @NotNull(message = "Credential type is required")
         AuthCredentialType credentialType,
 
-        @NotBlank(message = "Secret is required")
-        @Size(max = 512, message = "Secret must not exceed 512 characters")
-        String secret,
+        @NotBlank(message = "Secret hash is required")
+        @Size(max = 512, message = "Secret hash must not exceed 512 characters")
+        String secretHash,
+
+        @NotBlank(message = "Salt is required")
+        @Size(max = 128, message = "Salt must not exceed 128 characters")
+        String salt,
 
         @NotBlank(message = "Status is required")
         @Size(max = 32, message = "Status must not exceed 32 characters")

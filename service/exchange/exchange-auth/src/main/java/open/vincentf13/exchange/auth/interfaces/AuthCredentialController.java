@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.auth.api.AuthCredentialApi;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.app.service.AuthCredentialService;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,8 +17,12 @@ public class AuthCredentialController implements AuthCredentialApi {
     private final AuthCredentialService authCredentialService;
 
     @Override
+    public OpenApiResponse<AuthCredentialPrepareResponse> prepare(AuthCredentialPrepareRequest request) {
+        return OpenApiResponse.success(authCredentialService.prepare(request));
+    }
+
+    @Override
     public OpenApiResponse<AuthCredentialResponse> create(AuthCredentialCreateRequest request) {
         return OpenApiResponse.success(authCredentialService.create(request));
     }
-
 }

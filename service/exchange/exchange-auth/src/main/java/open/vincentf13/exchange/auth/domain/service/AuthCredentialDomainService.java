@@ -15,18 +15,21 @@ public class AuthCredentialDomainService {
 
     private final PasswordEncoder passwordEncoder;
 
-    public AuthCredential createCredential(Long userId,
-                                           AuthCredentialType credentialType,
-                                           String secret,
-                                           String status) {
+    public PreparedCredential prepareCredential(String secret) {
         String salt = generateSalt();
         String secretHash = hashSecret(secret, salt);
+        return new PreparedCredential(secretHash, salt);
+    }
 
+    public AuthCredential createCredential(Long userId,
+                                           AuthCredentialType credentialType,
+                                           PreparedCredential prepared,
+                                           String status) {
         return AuthCredential.builder()
                 .userId(userId)
                 .credentialType(credentialType)
-                .secretHash(secretHash)
-                .salt(salt)
+                .secretHash(prepared.secretHash())
+                .salt(prepared.salt())
                 .status(status)
                 .createdAt(Instant.now())
                 .build();
@@ -39,4 +42,6 @@ public class AuthCredentialDomainService {
     private String hashSecret(String secret, String salt) {
         return passwordEncoder.encode(secret + ':' + salt);
     }
+
+    public record PreparedCredential(String secretHash, String salt) { }
 }

@@ -23,23 +23,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthCredentialEnvelope'
+  /api/auth/credentials/prepare:
+    post:
+      summary: Prepare credential secret
+      operationId: prepareCredential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthCredentialPrepareRequest'
+      responses:
+        '200':
+          description: Prepared credential secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthCredentialPrepareEnvelope'
 components:
   schemas:
     AuthCredentialCreateRequest:
       type: object
-      required: [userId, credentialType, secret, status]
+      required: [userId, credentialType, secretHash, salt, status]
       properties:
         userId:
           type: integer
           format: int64
         credentialType:
           $ref: '#/components/schemas/AuthCredentialType'
-        secret:
+        secretHash:
           type: string
           maxLength: 512
+        salt:
+          type: string
+          maxLength: 128
         status:
           type: string
           maxLength: 32
+    AuthCredentialPrepareRequest:
+      type: object
+      required: [credentialType, secret]
+      properties:
+        credentialType:
+          $ref: '#/components/schemas/AuthCredentialType'
+        secret:
+          type: string
+          maxLength: 512
+    AuthCredentialPrepareResponse:
+      type: object
+      properties:
+        secretHash:
+          type: string
+        salt:
+          type: string
     AuthCredentialResponse:
       type: object
       properties:
@@ -84,3 +120,10 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/AuthCredentialResponse'
+    AuthCredentialPrepareEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/OpenApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AuthCredentialPrepareResponse'

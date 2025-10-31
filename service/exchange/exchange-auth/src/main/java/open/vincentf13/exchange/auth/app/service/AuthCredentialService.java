@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.OpenMapstruct;
 import open.vincentf13.common.core.exception.OpenServiceException;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.domain.model.AuthErrorCode;
@@ -19,6 +21,12 @@ public class AuthCredentialService {
     private final AuthCredentialRepository repository;
     private final AuthCredentialDomainService authCredentialDomainService;
 
+    @Transactional(readOnly = true)
+    public AuthCredentialPrepareResponse prepare(AuthCredentialPrepareRequest request) {
+        AuthCredentialDomainService.PreparedCredential prepared = authCredentialDomainService.prepareCredential(request.secret());
+        return new AuthCredentialPrepareResponse(prepared.secretHash(), prepared.salt());
+    }
+
     @Transactional
     public AuthCredentialResponse create(AuthCredentialCreateRequest request) {
         AuthCredential probe = AuthCredential.builder()
@@ -30,10 +38,13 @@ public class AuthCredentialService {
                     "Credential already exists for user " + request.userId() + " type " + request.credentialType());
         });
 
+        AuthCredentialDomainService.PreparedCredential prepared =
+                new AuthCredentialDomainService.PreparedCredential(request.secretHash(), request.salt());
+
         AuthCredential credential = authCredentialDomainService.createCredential(
                 request.userId(),
                 request.credentialType(),
-                request.secret(),
+                prepared,
                 request.status()
         );
 

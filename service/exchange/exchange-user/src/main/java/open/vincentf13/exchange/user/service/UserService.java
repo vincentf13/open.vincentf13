@@ -1,61 +1,114 @@
 package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.common.core.OpenMapstruct;
-import open.vincentf13.common.core.error.OpenErrorEnum;
 import open.vincentf13.common.core.exception.OpenServiceException;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.auth.client.ExchangeAuthClient;
-import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.domain.model.UserErrorCode;
-import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.api.dto.UserResponse;
+import open.vincentf13.exchange.user.domain.model.PendingAuthCredential;
+import open.vincentf13.exchange.user.domain.model.PendingAuthCredentialStatus;
+import open.vincentf13.exchange.user.domain.model.User;
+import open.vincentf13.exchange.user.domain.model.UserErrorCode;
+import open.vincentf13.exchange.user.domain.service.UserDomainService;
+import open.vincentf13.exchange.user.infra.persistence.repository.PendingAuthCredentialRepository;
+import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import open.vincentf13.exchange.user.domain.service.UserDomainService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.time.Instant;
+import java.util.Optional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final UserDomainService userDomainService;
     private final ExchangeAuthClient authClient;
+    private final PendingAuthCredentialRepository pendingAuthCredentialRepository;
+    private final TransactionTemplate transactionTemplate;
 
-    @Transactional
     public UserResponse register(UserRegisterRequest request)  {
-        String normalizedEmail = userDomainService.normalizeEmail(request.email());
-        boolean emailExists = userRepository.findOne(User.builder().email(normalizedEmail).build()).isPresent();
-        if (emailExists) {
-            throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
-                    "Email already registered: " + normalizedEmail);
+        final String normalizedEmail = userDomainService.normalizeEmail(request.email());
+
+        OpenApiResponse<AuthCredentialPrepareResponse> prepareResponse = authClient.prepare(
+                new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())
+        );
+
+        if (!prepareResponse.isSuccess() || prepareResponse.data() == null) {
+            throw OpenServiceException.of(UserErrorCode.USER_AUTH_PREPARATION_FAILED,
+                    "Failed to prepare credential secret for email " + normalizedEmail);
         }
 
-        User user = userDomainService.createActiveUser(request.email(), request.externalId());
-        userRepository.insertSelective(user);
+        RegistrationContext context = transactionTemplate.execute(status -> {
+            boolean emailExists = userRepository.findOne(User.builder().email(normalizedEmail).build()).isPresent();
+            if (emailExists) {
+                throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
+                        "Email already registered: " + normalizedEmail);
+            }
+
+            User user = userDomainService.createActiveUser(request.email(), request.externalId());
+            userRepository.insertSelective(user);
+
+            User persisted = userRepository.findOne(User.builder().email(normalizedEmail).build())
+                    .orElseThrow(() -> new IllegalStateException("User not persisted during registration"));
+
+            Instant now = Instant.now();
+            PendingAuthCredential pendingCredential = PendingAuthCredential.builder()
+                    .userId(persisted.getId())
+                    .credentialType(AuthCredentialType.PASSWORD)
+                    .secretHash(prepareResponse.data().secretHash())
+                    .salt(prepareResponse.data().salt())
+                    .status(PendingAuthCredentialStatus.PENDING)
+                    .retryCount(0)
+                    .nextRetryAt(null)
+                    .lastError(null)
+                    .createdAt(now)
+                    .updatedAt(now)
+                    .build();
+            pendingAuthCredentialRepository.insert(pendingCredential);
+            return new RegistrationContext(persisted, pendingCredential);
+        });
+
+        if (context == null) {
+            throw new IllegalStateException("Registration transaction returned no context");
+        }
+
+        User persistedUser = context.user();
+        PendingAuthCredential pendingCredential = context.pending();
 
         AuthCredentialCreateRequest credentialRequest = new AuthCredentialCreateRequest(
-                user.getId(),
+                persistedUser.getId(),
                 AuthCredentialType.PASSWORD,
-                request.password(),
+                pendingCredential.getSecretHash(),
+                pendingCredential.getSalt(),
                 "ACTIVE"
         );
-        OpenApiResponse<AuthCredentialResponse> credentialResponse = authClient.create(credentialRequest);
-        if (!credentialResponse.isSuccess()) {
-            throw OpenServiceException.of(OpenErrorEnum.REMOTE_SERVICE_ERROR,
-                    "Failed to create auth credential for user " + user.getId());
+
+        try {
+            OpenApiResponse<AuthCredentialResponse> credentialResponse = authClient.create(credentialRequest);
+            if (credentialResponse.isSuccess()) {
+                pendingAuthCredentialRepository.markCompleted(persistedUser.getId(), AuthCredentialType.PASSWORD, Instant.now());
+            } else {
+                handleCredentialFailure(persistedUser.getId(), credentialResponse.message());
+            }
+        } catch (Exception ex) {
+            handleCredentialFailure(persistedUser.getId(), ex.getMessage());
         }
 
-        return userRepository.findOne(User.builder().id(user.getId()).build())
-                .map(user2 -> OpenMapstruct.map(user2, UserResponse.class))
-                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
-                        "User not found after creation. id=" + user.getId()));
+        return OpenMapstruct.map(persistedUser, UserResponse.class);
     }
 
     @Transactional(readOnly = true)
@@ -80,4 +133,17 @@ public class UserService {
         }
     }
 
+    private void handleCredentialFailure(Long userId, String reason) {
+        String message = Optional.ofNullable(reason).orElse("UNKNOWN_ERROR");
+        log.warn("Failed to persist auth credential for user {}: {}", userId, message);
+        pendingAuthCredentialRepository.markFailure(
+                userId,
+                AuthCredentialType.PASSWORD,
+                message,
+                Instant.now().plusSeconds(60),
+                PendingAuthCredentialStatus.PENDING
+        );
+    }
+
+    private record RegistrationContext(User user, PendingAuthCredential pending) { }
 }
