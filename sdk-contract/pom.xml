@@ -5,19 +5,20 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-common</artifactId>
+        <groupId>open.vincentf13</groupId>
+        <artifactId>root</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-exchange</artifactId>
+    <groupId>open.vincentf13.common</groupId>
+    <artifactId>sdk-contract</artifactId>
     <packaging>pom</packaging>
 
-    <name>sdk-exchange</name>
-    <description>Exchange service API contracts and clients</description>
+    <name>sdk-contract</name>
+    <description>API contracts and generated clients aggregation</description>
 
     <modules>
-        <module>sdk-exchange-maching</module>
+        <module>sdk-exchange</module>
     </modules>
 </project>

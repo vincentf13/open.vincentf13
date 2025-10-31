@@ -21,6 +21,7 @@
 
     <modules>
         <module>sdk-common</module>
+        <module>sdk-contract</module>
         <module>service</module>
     </modules>
 

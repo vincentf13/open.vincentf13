@@ -52,7 +52,7 @@ mvn -pl services/service-exchange/service-exchange-matching -am springdoc-openap
 
 > 目前 `service-exchange-matching` 模組暫時移除，若需在暫停期間產生契約，可改用 `service-template` 建構臨時模組或直接對 `sdk-service-exchange-matching` 的 YAML 進行手動維護。
 
-生成結果放在 `target/openapi/`，建議將 YAML 檔複製或發佈到 `sdk-common/sdk-service-<domain>/<module>/<module>-rest-api/src/main/resources/openapi/` 以利版本控。
+生成結果放在 `target/openapi/`，建議將 YAML 檔複製或發佈到 `sdk-contract/sdk-<domain>/<module>/<module>-rest-api/src/main/resources/openapi/` 以利版本控。
 
 ### 3. 從 OpenAPI 產出 API Interface（可重用）
 在 `*-rest-api` 模組使用 `openapi-generator-maven-plugin`，以剛產生的 YAML 為輸入，生成純介面：

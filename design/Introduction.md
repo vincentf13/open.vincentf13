@@ -7,35 +7,38 @@ open.vincentf13/
 ├── pom.xml
 ├── AGENTS.md
 ├── LICENSE.md
-├── design/                     # 架構說明文件與模組筆記
-├── k8s/                        # Kubernetes 資產
-├── script/                     # 維運、自動化腳本
-├── sdk-common/
-│   ├── sdk-core/               # 基礎工具（錯誤處理、Json、共用 Result）
-│   ├── sdk-core-log/           # 日誌 starter 與格式規範
-│   ├── sdk-core-metrics/       # 指標收集與預設監控配置
-│   ├── sdk-core-test/          # 測試輔助、假資料與測試基座
-│   ├── sdk-core-trace/         # TraceId/SpanId 注入、追蹤設定
-│   ├── sdk-infra-kafka/        # Kafka Producer/Consumer 封裝
-│   ├── sdk-infra-mysql/        # MySQL 連線池、審計欄位與 Repository 工具
-│   ├── sdk-infra-redis/        # Redis 客戶端與序列化策略
-│   ├── sdk-auth-jwt/          # JWT Filter、Token 與 Session 共用元件
-│   ├── sdk-exchange/
-│   │   └── sdk-exchange-maching/
-│   │       ├── rest-api/       # 撮合服務 OpenAPI 契約、API Interface 與 DTO
-│   │       └── rest-client/    # 依契約生成的客戶端 SDK
-│   ├── sdk-spring-cloud-gateway/ # Gateway 共用設定與過濾器
-│   ├── sdk-spring-mvc/         # Web 層配置、CORS、例外處理
-│   ├── sdk-auth-server/        # 身分驗證、ACL 與簽名工具
-│   └── sdk-spring-websocket/   # WebSocket Starter 與訊息編碼
+├── design/                         # 架構說明文件與模組筆記
+├── k8s/                            # Kubernetes 資產
+├── script/                         # 維運、自動化腳本
+├── sdk-common/                     # 平台共用 Starter 與基礎設施封裝
+│   ├── sdk-core/                   # 基礎工具（錯誤處理、Json、共用 Result）
+│   ├── sdk-core-log/               # 日誌 starter 與格式規範
+│   ├── sdk-core-metrics/           # 指標收集與預設監控配置
+│   ├── sdk-core-test/              # 測試輔助、假資料與測試基座
+│   ├── sdk-core-trace/             # TraceId/SpanId 注入、追蹤設定
+│   ├── sdk-infra-kafka/            # Kafka Producer/Consumer 封裝
+│   ├── sdk-infra-mysql/            # MySQL 連線池、審計欄位與 Repository 工具
+│   ├── sdk-infra-redis/            # Redis 客戶端與序列化策略
+│   ├── sdk-auth-jwt/               # JWT Filter、Token 與 Session 共用元件
+│   ├── sdk-auth-server/            # 身分驗證、ACL 與簽名工具
+│   ├── sdk-spring-cloud-gateway/   # Gateway 共用設定與過濾器
+│   ├── sdk-spring-mvc/             # Web 層配置、CORS、例外處理
+│   ├── sdk-spring-security/        # 安全攔截、權限模型與授權流程
+│   ├── sdk-spring-session/         # Spring Session/Redis 會話整合
+│   └── sdk-spring-websocket/       # WebSocket Starter 與訊息編碼
+├── sdk-contract/                   # API 契約與自動化產生客戶端
+│   └── sdk-exchange/
+│       └── sdk-exchange-maching/
+│           ├── rest-api/           # 撮合服務 OpenAPI 契約、API Interface 與 DTO
+│           └── rest-client/        # 依契約生成的客戶端 SDK
 ├── service/
 │   ├── pom.xml
 │   ├── exchange/
 │   │   ├── pom.xml
-│   │   └── exchange-gateway/         # 對外 API Gateway / BFF
-│   ├── service-template/      # 建立新服務的腳手架範例
-│   └── service-test/          # 測試服務與驗證場景
-├── target/                    # Maven 聚合輸出
+│   │   └── exchange-gateway/       # 對外 API Gateway / BFF
+│   ├── service-template/           # 建立新服務的腳手架範例
+│   └── service-test/               # 測試服務與驗證場景
+├── target/                        # Maven 聚合輸出
 └── readme.md
 ```
 
@@ -45,8 +48,13 @@ open.vincentf13/
 - `sdk-core*` 系列提供共通的系統能力：核心工具、日誌、指標、追蹤與測試資源。
 - `sdk-infra-*` 聚焦基礎設施整合（MySQL、Redis、Kafka），提供一致的連線設定與封裝。
 - `sdk-spring-*` 針對 Spring 層所需的 MVC、安全、WebSocket、Gateway 擴充，輸出為 starter。
-- `sdk-exchange` 收錄交易所領域的契約（API Interface + DTO）與客戶端，目前聚焦撮合 API（後續服務可依需求擴充子模組）。
 - 每個子模組維護 README 與設定說明，新增共用能力時優先在此抽象並覆蓋自動測試。
+
+### `sdk-contract` 說明
+
+- 集中維護各領域（目前為交易域）API 契約與自動化產生的客戶端 SDK。
+- `sdk-exchange` 聚焦撮合等交易流程，`rest-api` 提供 OpenAPI 契約，`rest-client` 透過契約生成 Feign/HTTP 客戶端。
+- 契約調整會對應釋出新版本，請依語義化版本規則管理 breaking change 並同步通知依賴的服務。
 
 ### 依賴管理建議
 
