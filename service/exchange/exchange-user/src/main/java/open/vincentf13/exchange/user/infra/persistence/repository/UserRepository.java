@@ -7,8 +7,6 @@ import java.util.Optional;
 
 public interface UserRepository {
 
-    boolean existsByEmail(String email);
-
     void insertSelective(User user);
 
     void updateSelective(User user);
@@ -18,5 +16,6 @@ public interface UserRepository {
     void batchInsert(List<User> users);
 
     void batchUpdate(List<User> users);
-}
+
     Optional<User> findOne(User probe);
+}

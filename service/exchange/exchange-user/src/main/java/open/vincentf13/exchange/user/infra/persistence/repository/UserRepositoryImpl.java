@@ -18,16 +18,10 @@ public class UserRepositoryImpl implements UserRepository {
     private final UserMapper mapper;
 
     @Override
-    public boolean existsByEmail(String email) {
-        return mapper.existsByEmail(email);
-    }
-
-    @Override
     public void insertSelective(User user) {
         mapper.insertSelective(OpenMapstruct.map(user, UserPO.class));
     }
 
-    @Override
     @Override
     public void updateSelective(User user) {
         mapper.updateSelective(OpenMapstruct.map(user, UserPO.class));

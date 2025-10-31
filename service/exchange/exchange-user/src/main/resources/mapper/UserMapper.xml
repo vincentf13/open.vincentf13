@@ -4,10 +4,6 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper">
 
-    <select id="existsByEmail" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})
-    </select>
-
     <insert id="insertSelective" parameterType="UserPO"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users

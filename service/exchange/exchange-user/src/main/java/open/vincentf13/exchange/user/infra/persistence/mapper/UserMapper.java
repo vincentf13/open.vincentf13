@@ -7,8 +7,6 @@ import java.util.List;
 
 public interface UserMapper {
 
-    boolean existsByEmail(@Param("email") String email);
-
     void insertSelective(UserPO user);
 
     List<UserPO> findByPO(UserPO user);

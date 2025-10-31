@@ -34,7 +34,8 @@ public class UserService {
     @Transactional
     public UserResponse register(UserRegisterRequest request)  {
         String normalizedEmail = userDomainService.normalizeEmail(request.email());
-        if (userRepository.existsByEmail(normalizedEmail)) {
+        boolean emailExists = userRepository.findOne(User.builder().email(normalizedEmail).build()).isPresent();
+        if (emailExists) {
             throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
                     "Email already registered: " + normalizedEmail);
         }
