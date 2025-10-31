@@ -23,53 +23,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserEnvelope'
+  /api/users/me:
     get:
-      summary: List users or find by email
-      operationId: listUsers
-      parameters:
-        - in: query
-          name: email
-          schema:
-            type: string
-          description: When provided returns the specific user
+      summary: Get current user profile
+      operationId: getCurrentUser
       responses:
         '200':
-          description: Users returned
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: '#/components/schemas/UserEnvelope'
-                  - $ref: '#/components/schemas/UserListEnvelope'
-  /api/users/{id}:
-    get:
-      summary: Get user by id
-      operationId: getUserById
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: User
+          description: Current user information
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserEnvelope'
-  /api/users/{id}/status:
     patch:
-      summary: Update user status
-      operationId: updateUserStatus
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-            format: int64
+      summary: Update current user status
+      operationId: updateCurrentUser
       requestBody:
         required: true
         content:
@@ -78,7 +45,7 @@ paths:
               $ref: '#/components/schemas/UserUpdateStatusRequest'
       responses:
         '200':
-          description: Updated user
+          description: Updated user information
           content:
             application/json:
               schema:
@@ -144,12 +111,3 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/UserResponse'
-    UserListEnvelope:
-      allOf:
-        - $ref: '#/components/schemas/OpenApiResponse'
-        - type: object
-          properties:
-            data:
-              type: array
-              items:
-                $ref: '#/components/schemas/UserResponse'

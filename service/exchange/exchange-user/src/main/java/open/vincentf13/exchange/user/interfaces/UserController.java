@@ -9,8 +9,6 @@ import open.vincentf13.exchange.user.api.dto.UserUpdateStatusRequest;
 import open.vincentf13.exchange.user.service.UserService;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequiredArgsConstructor
 public class UserController implements UserApi {
@@ -23,22 +21,12 @@ public class UserController implements UserApi {
     }
 
     @Override
-    public OpenApiResponse<UserResponse> getById(Long id) {
-        return OpenApiResponse.success(userService.findById(id));
+    public OpenApiResponse<UserResponse> getMe() {
+        return OpenApiResponse.success(userService.getCurrentUser());
     }
 
     @Override
-    public OpenApiResponse<UserResponse> find(String email) {
-        return OpenApiResponse.success(userService.findByEmail(email));
-    }
-
-    @Override
-    public OpenApiResponse<List<UserResponse>> list() {
-        return OpenApiResponse.success(userService.listAll());
-    }
-
-    @Override
-    public OpenApiResponse<UserResponse> updateStatus(Long id, UserUpdateStatusRequest request) {
-        return OpenApiResponse.success(userService.updateStatus(id, request));
+    public OpenApiResponse<UserResponse> updateMe(UserUpdateStatusRequest request) {
+        return OpenApiResponse.success(userService.updateCurrentUser(request));
     }
 }

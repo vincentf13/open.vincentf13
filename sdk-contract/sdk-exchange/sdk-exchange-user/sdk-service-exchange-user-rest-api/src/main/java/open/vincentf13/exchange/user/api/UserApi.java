@@ -17,16 +17,9 @@ public interface UserApi {
     @PostMapping
     OpenApiResponse<UserResponse> register(@Valid @RequestBody UserRegisterRequest request);
 
-    @GetMapping("/{id}")
-    OpenApiResponse<UserResponse> getById(@PathVariable("id") Long id);
+    @GetMapping("/me")
+    OpenApiResponse<UserResponse> getMe();
 
-    @GetMapping(params = "email")
-    OpenApiResponse<UserResponse> find(@RequestParam("email") String email);
-
-    @GetMapping(params = "!email")
-    OpenApiResponse<List<UserResponse>> list();
-
-    @PatchMapping("/{id}/status")
-    OpenApiResponse<UserResponse> updateStatus(@PathVariable("id") Long id,
-                                               @Valid @RequestBody UserUpdateStatusRequest request);
+    @PatchMapping("/me")
+    OpenApiResponse<UserResponse> updateMe(@Valid @RequestBody UserUpdateStatusRequest request);
 }
