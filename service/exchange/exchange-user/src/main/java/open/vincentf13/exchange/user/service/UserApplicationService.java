@@ -60,7 +60,7 @@ public class UserApplicationService {
         authCredentialRepository.insert(credential);
 
         return userRepository.findById(user.getId())
-                .map(user -> openMapstruct.map(user, UserResponse.class))
+                .map(user2 -> openMapstruct.map(user2, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found after creation. id=" + user.getId()));
     }
