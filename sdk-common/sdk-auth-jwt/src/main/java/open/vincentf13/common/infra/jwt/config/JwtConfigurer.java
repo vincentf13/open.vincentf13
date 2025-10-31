@@ -19,7 +19,7 @@ public class JwtConfigurer extends AbstractHttpConfigurer<JwtConfigurer, HttpSec
     public void init(HttpSecurity http) throws Exception {
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/login", "/public/**").permitAll()
+                .requestMatchers( "/public/**").permitAll()
                 .anyRequest().authenticated())
             .csrf(AbstractHttpConfigurer::disable);
     }

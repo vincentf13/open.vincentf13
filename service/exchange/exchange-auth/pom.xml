@@ -28,5 +28,9 @@
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-service-exchange-auth-rest-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13.common</groupId>
+            <artifactId>sdk-service-exchange-user-rest-client</artifactId>
+        </dependency>
     </dependencies>
 </project>

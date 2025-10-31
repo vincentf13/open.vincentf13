@@ -34,6 +34,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserEnvelope'
+  /api/users/{id}:
+    get:
+      summary: Find user by id
+      operationId: findUserById
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+  /api/users/by-email:
+    get:
+      summary: Find user by email
+      operationId: findUserByEmail
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
 components:
   schemas:
     UserRegisterRequest:

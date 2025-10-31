@@ -43,6 +43,12 @@ public class UserService {
     public UserResponse register(UserRegisterRequest request)  {
         final String normalizedEmail = userDomainService.normalizeEmail(request.email());
 
+        boolean emailExists = userRepository.findOne(User.builder().email(normalizedEmail).build()).isPresent();
+        if (emailExists) {
+            throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
+                    "Email already registered: " + normalizedEmail);
+        }
+
         OpenApiResponse<AuthCredentialPrepareResponse> prepareResponse = authClient.prepare(
                 new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())
         );
@@ -113,6 +119,23 @@ public class UserService {
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. id=" + userId));
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getUserById(Long userId) {
+        return userRepository.findOne(User.builder().id(userId).build())
+                .map(user -> OpenMapstruct.map(user, UserResponse.class))
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
+                        "User not found. id=" + userId));
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getUserByEmail(String email) {
+        String normalizedEmail = userDomainService.normalizeEmail(email);
+        return userRepository.findOne(User.builder().email(normalizedEmail).build())
+                .map(user -> OpenMapstruct.map(user, UserResponse.class))
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
+                        "User not found. email=" + normalizedEmail));
     }
 
     private Long currentUserId() {

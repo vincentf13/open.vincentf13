@@ -17,4 +17,10 @@ public interface UserApi {
     @GetMapping("/me")
     OpenApiResponse<UserResponse> getMe();
 
+    @GetMapping("/{id}")
+    OpenApiResponse<UserResponse> findById(@PathVariable("id") Long id);
+
+    @GetMapping("/by-email")
+    OpenApiResponse<UserResponse> findByEmail(@RequestParam("email") String email);
+
 }
