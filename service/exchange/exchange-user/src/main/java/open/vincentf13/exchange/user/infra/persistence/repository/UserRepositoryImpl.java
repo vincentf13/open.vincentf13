@@ -2,8 +2,8 @@ package open.vincentf13.exchange.user.infra.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.OpenMapstruct;
+import open.vincentf13.exchange.user.api.dto.UserStatus;
 import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.domain.model.UserStatus;
 import open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper;
 import open.vincentf13.exchange.user.infra.persistence.po.UserPO;
 import org.springframework.stereotype.Repository;

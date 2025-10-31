@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.user.api.dto.AuthCredentialType;
 
 import java.time.Instant;
 

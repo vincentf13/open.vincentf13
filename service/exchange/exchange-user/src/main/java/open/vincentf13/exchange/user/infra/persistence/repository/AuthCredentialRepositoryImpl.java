@@ -1,8 +1,8 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.user.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.AuthCredential;
-import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
 import open.vincentf13.exchange.user.infra.persistence.mapper.AuthCredentialMapper;
 import org.springframework.stereotype.Repository;
 

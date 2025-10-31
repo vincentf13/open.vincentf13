@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
+import open.vincentf13.exchange.user.api.dto.UserStatus;
 import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.domain.model.UserStatus;
 
 import java.util.List;
 import java.util.Optional;

@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.user.domain.service;
 
+import open.vincentf13.exchange.user.api.dto.UserStatus;
 import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.domain.model.UserStatus;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;

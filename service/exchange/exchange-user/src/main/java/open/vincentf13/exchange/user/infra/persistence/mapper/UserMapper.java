@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.user.infra.persistence.mapper;
 
-import open.vincentf13.exchange.user.domain.model.UserStatus;
+import open.vincentf13.exchange.user.api.dto.UserStatus;
 import open.vincentf13.exchange.user.infra.persistence.po.UserPO;
 import org.apache.ibatis.annotations.Param;
 

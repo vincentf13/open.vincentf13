@@ -9,7 +9,7 @@
         <result property="externalId" column="external_id" />
         <result property="email" column="email" />
         <result property="status" column="status"
-                javaType="open.vincentf13.exchange.user.domain.model.UserStatus" />
+                javaType="open.vincentf13.exchange.user.api.dto.UserStatus" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
