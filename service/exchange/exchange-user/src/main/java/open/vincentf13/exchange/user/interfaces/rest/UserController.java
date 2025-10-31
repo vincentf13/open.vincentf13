@@ -1,12 +1,12 @@
-package open.vincentf13.exchange.user.controller;
+package open.vincentf13.exchange.user.interfaces.rest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
-import open.vincentf13.exchange.user.dto.RegisterUserRequest;
-import open.vincentf13.exchange.user.dto.UpdateUserStatusRequest;
-import open.vincentf13.exchange.user.dto.UserResponse;
-import open.vincentf13.exchange.user.service.UserApplicationService;
+import open.vincentf13.exchange.user.interfaces.dto.RegisterUserRequest;
+import open.vincentf13.exchange.user.interfaces.dto.UpdateUserStatusRequest;
+import open.vincentf13.exchange.user.interfaces.dto.UserResponse;
+import open.vincentf13.exchange.user.app.service.UserApplicationService;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 

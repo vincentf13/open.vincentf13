@@ -2,14 +2,14 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="open.vincentf13.exchange.user.infra.mybatis.mapper.UserMapper">
+<mapper namespace="open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper">
 
-    <resultMap id="UserResultMap" type="open.vincentf13.exchange.user.domain.User">
+    <resultMap id="UserResultMap" type="open.vincentf13.exchange.user.domain.model.UserAggregate">
         <id property="id" column="id" />
         <result property="externalId" column="external_id" />
         <result property="email" column="email" />
         <result property="status" column="status"
-                javaType="open.vincentf13.exchange.user.domain.UserStatus" />
+                javaType="open.vincentf13.exchange.user.domain.model.UserStatus" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
@@ -18,7 +18,7 @@
         SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email})
     </select>
 
-    <insert id="insert" parameterType="open.vincentf13.exchange.user.domain.User"
+    <insert id="insert" parameterType="open.vincentf13.exchange.user.domain.model.UserAggregate"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (external_id, email, status, created_at, updated_at)
         VALUES (#{externalId}, #{email}, #{status}, NOW(), NOW())

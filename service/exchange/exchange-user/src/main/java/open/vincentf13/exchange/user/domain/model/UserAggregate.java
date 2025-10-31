@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.domain;
+package open.vincentf13.exchange.user.domain.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +11,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class UserAggregate {
     private Long id;
     private String externalId;
     private String email;

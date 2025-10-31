@@ -1,7 +1,7 @@
-package open.vincentf13.exchange.user.infra.repository;
+package open.vincentf13.exchange.user.infra.persistence.repository;
 
-import open.vincentf13.exchange.user.domain.AuthCredential;
-import open.vincentf13.exchange.user.domain.AuthCredentialType;
+import open.vincentf13.exchange.user.domain.model.AuthCredential;
+import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
 
 import java.util.Optional;
 

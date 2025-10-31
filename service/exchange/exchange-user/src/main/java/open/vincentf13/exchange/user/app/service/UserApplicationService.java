@@ -1,25 +1,25 @@
-package open.vincentf13.exchange.user.service;
+package open.vincentf13.exchange.user.app.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.exception.OpenServiceException;
-import open.vincentf13.exchange.user.error.UserErrorCode;
-import open.vincentf13.exchange.user.domain.AuthCredential;
-import open.vincentf13.exchange.user.domain.AuthCredentialType;
-import open.vincentf13.exchange.user.domain.User;
-import open.vincentf13.exchange.user.domain.UserStatus;
-import open.vincentf13.exchange.user.infra.repository.AuthCredentialRepository;
-import open.vincentf13.exchange.user.infra.repository.UserRepository;
-import open.vincentf13.exchange.user.dto.RegisterUserRequest;
-import open.vincentf13.exchange.user.dto.UpdateUserStatusRequest;
-import open.vincentf13.exchange.user.dto.UserResponse;
+import open.vincentf13.exchange.user.domain.error.UserErrorCode;
+import open.vincentf13.exchange.user.domain.model.AuthCredential;
+import open.vincentf13.exchange.user.domain.model.AuthCredentialType;
+import open.vincentf13.exchange.user.domain.model.UserAggregate;
+import open.vincentf13.exchange.user.domain.model.UserStatus;
+import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialRepository;
+import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
+import open.vincentf13.exchange.user.interfaces.dto.RegisterUserRequest;
+import open.vincentf13.exchange.user.interfaces.dto.UpdateUserStatusRequest;
+import open.vincentf13.exchange.user.interfaces.dto.UserResponse;
 import open.vincentf13.common.core.OpenMapstruct;
+import open.vincentf13.exchange.user.domain.service.UserDomainService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -30,22 +30,17 @@ public class UserApplicationService {
     private final AuthCredentialRepository authCredentialRepository;
     private final PasswordEncoder passwordEncoder;
     private final OpenMapstruct openMapstruct;
+    private final UserDomainService userDomainService;
 
     @Transactional
     public UserResponse register(RegisterUserRequest request)  {
-        String normalizedEmail = request.email().toLowerCase();
+        String normalizedEmail = userDomainService.normalizeEmail(request.email());
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
                     "Email already registered: " + normalizedEmail);
         }
 
-        User user = User.builder()
-                .email(normalizedEmail)
-                .externalId(Optional.ofNullable(request.externalId()).orElse(UUID.randomUUID().toString()))
-                .status(UserStatus.ACTIVE)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
+        UserAggregate user = userDomainService.createActiveUser(request.email(), request.externalId());
         userRepository.insert(user);
 
         String salt = generateSalt();
@@ -75,7 +70,7 @@ public class UserApplicationService {
 
     @Transactional(readOnly = true)
     public UserResponse findByEmail(String email)  {
-        return userRepository.findByEmail(email.toLowerCase())
+        return userRepository.findByEmail(userDomainService.normalizeEmail(email))
                 .map(user -> openMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. email=" + email));

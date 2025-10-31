@@ -1,7 +1,7 @@
-package open.vincentf13.exchange.user.dto;
+package open.vincentf13.exchange.user.interfaces.dto;
 
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.user.domain.UserStatus;
+import open.vincentf13.exchange.user.domain.model.UserStatus;
 
 public record UpdateUserStatusRequest(
         @NotNull(message = "Status is required")

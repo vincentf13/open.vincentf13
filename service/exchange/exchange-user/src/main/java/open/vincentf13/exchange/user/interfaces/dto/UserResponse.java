@@ -1,6 +1,6 @@
-package open.vincentf13.exchange.user.dto;
+package open.vincentf13.exchange.user.interfaces.dto;
 
-import open.vincentf13.exchange.user.domain.UserStatus;
+import open.vincentf13.exchange.user.domain.model.UserStatus;
 
 import java.time.Instant;
 
