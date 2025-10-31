@@ -1,13 +1,21 @@
 package open.vincentf13.exchange.auth.infra.persistence.repository;
 
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
-import open.vincentf13.exchange.user.api.dto.AuthCredentialType;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface AuthCredentialRepository {
 
-    void insert(AuthCredential credential);
+    void insertSelective(AuthCredential credential);
 
-    Optional<AuthCredential> findByUserIdAndType(Long userId, AuthCredentialType credentialType);
+    void updateSelective(AuthCredential credential);
+
+    Optional<AuthCredential> findOne(AuthCredential probe);
+
+    List<AuthCredential> findBy(AuthCredential probe);
+
+    void batchInsert(List<AuthCredential> credentials);
+
+    void batchUpdate(List<AuthCredential> credentials);
 }

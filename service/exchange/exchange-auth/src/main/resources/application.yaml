@@ -4,4 +4,4 @@ spring:
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
-  type-aliases-package: open.vincentf13.exchange.auth.domain.model
+  type-aliases-package: open.vincentf13.exchange.auth.domain.model,open.vincentf13.exchange.auth.infra.persistence.po

@@ -1,13 +1,19 @@
 package open.vincentf13.exchange.auth.infra.persistence.mapper;
 
-import open.vincentf13.exchange.user.api.dto.AuthCredentialType;
-import open.vincentf13.exchange.auth.domain.model.AuthCredential;
+import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;
 import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 public interface AuthCredentialMapper {
 
-    void insert(AuthCredential credential);
+    void insertSelective(AuthCredentialPO credential);
 
-    AuthCredential findByUserIdAndType(@Param("userId") Long userId,
-                                       @Param("credentialType") AuthCredentialType credentialType);
+    List<AuthCredentialPO> findByPO(AuthCredentialPO credential);
+
+    void updateSelective(AuthCredentialPO credential);
+
+    void batchInsert(@Param("list") List<AuthCredentialPO> credentials);
+
+    void batchUpdate(@Param("list") List<AuthCredentialPO> credentials);
 }

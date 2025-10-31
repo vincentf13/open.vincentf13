@@ -6,19 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-contract</artifactId>
+        <artifactId>sdk-exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-exchange</artifactId>
+    <artifactId>sdk-exchange-auth</artifactId>
     <packaging>pom</packaging>
 
-    <name>sdk-exchange</name>
-    <description>Exchange service API contracts and clients</description>
+    <name>sdk-exchange-auth</name>
+    <description>Auth service API contract and client aggregation</description>
 
     <modules>
-        <module>sdk-exchange-user</module>
-        <module>sdk-exchange-auth</module>
+        <module>sdk-service-exchange-auth-rest-api</module>
+        <module>sdk-service-exchange-auth-rest-client</module>
     </modules>
 </project>

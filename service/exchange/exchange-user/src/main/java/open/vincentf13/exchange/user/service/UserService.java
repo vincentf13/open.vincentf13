@@ -2,7 +2,13 @@ package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.OpenMapstruct;
+import open.vincentf13.common.core.error.OpenErrorEnum;
 import open.vincentf13.common.core.exception.OpenServiceException;
+import open.vincentf13.common.spring.mvc.OpenApiResponse;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialResponse;
+import open.vincentf13.exchange.auth.api.dto.AuthCredentialType;
+import open.vincentf13.exchange.auth.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.domain.model.UserErrorCode;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
@@ -12,10 +18,12 @@ import open.vincentf13.exchange.user.api.dto.UserUpdateStatusRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +31,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserDomainService userDomainService;
+    private final ExchangeAuthClient authClient;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public UserResponse register(UserRegisterRequest request)  {
@@ -35,6 +45,21 @@ public class UserService {
 
         User user = userDomainService.createActiveUser(request.email(), request.externalId());
         userRepository.insertSelective(user);
+
+        String salt = generateSalt();
+        String secretHash = hashPassword(request.password(), salt);
+        AuthCredentialCreateRequest credentialRequest = new AuthCredentialCreateRequest(
+                user.getId(),
+                AuthCredentialType.PASSWORD,
+                secretHash,
+                salt,
+                "ACTIVE"
+        );
+        OpenApiResponse<AuthCredentialResponse> credentialResponse = authClient.create(credentialRequest);
+        if (!credentialResponse.isSuccess()) {
+            throw OpenServiceException.of(OpenErrorEnum.REMOTE_SERVICE_ERROR,
+                    "Failed to create auth credential for user " + user.getId());
+        }
 
         return userRepository.findOne(User.builder().id(user.getId()).build())
                 .map(user2 -> OpenMapstruct.map(user2, UserResponse.class))
@@ -74,5 +99,13 @@ public class UserService {
             throw OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                     "Authenticated principal is not a numeric user id: " + authentication.getName());
         }
+    }
+
+    private String generateSalt() {
+        return UUID.randomUUID().toString();
+    }
+
+    private String hashPassword(String rawPassword, String salt) {
+        return passwordEncoder.encode(rawPassword + ':' + salt);
     }
 }

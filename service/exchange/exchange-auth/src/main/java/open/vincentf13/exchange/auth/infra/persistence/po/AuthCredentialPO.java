@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.domain.model;
+package open.vincentf13.exchange.auth.infra.persistence.po;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,7 +12,8 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthCredential {
+public class AuthCredentialPO {
+
     private Long id;
     private Long userId;
     private AuthCredentialType credentialType;
