@@ -41,7 +41,7 @@ graph TD
     end
 
     subgraph 核心服務 (在 K8S 中運行)
-        GW[service-exchange-gateway]
+        GW[exchange-gateway]
     end
 
     subgraph 支撐組件 (在 K8S 中運行)
@@ -96,7 +96,7 @@ graph TD
 bash ./script/cluster-up.sh
 ```
 
-目前僅保留 `service-exchange-gateway` 作為交易域的運行模組；`service-exchange-auth`、`service-exchange-matching` 等子服務已暫時移除，待業務重新規劃後再回補。
+目前僅保留 `exchange-gateway` 作為交易域的運行模組；`service-exchange-auth`、`service-exchange-matching` 等子服務已暫時移除，待業務重新規劃後再回補。
 
 ### 核心指令
 
@@ -108,8 +108,8 @@ bash ./script/cluster-up.sh
 
 - **運行單一服務 (不建議)**: 雖然可以獨立運行，但服務間有依賴，建議使用 `cluster-up.sh` 進行整合測試。
   ```bash
-  # 範例：運行 service-exchange-gateway
-  java -jar service/exchange/exchange-gateway/target/service-exchange-gateway-*.jar
+  # 範例：運行 exchange-gateway
+  java -jar service/exchange/exchange-gateway/target/exchange-gateway-*.jar
   ```
 
 - **壓力測試**: 專案內建了 K6 壓力測試腳本。

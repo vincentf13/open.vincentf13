@@ -11,8 +11,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>service-exchange-gateway</artifactId>
-    <name>service-exchange-gateway</name>
+    <artifactId>exchange-gateway</artifactId>
+    <name>exchange-gateway</name>
     <description>API Gateway / BFF layer</description>
 
     <dependencies>
