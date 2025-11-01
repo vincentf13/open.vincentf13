@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.security;
+package open.vincentf13.common.infra.jwt.user;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.auth.security;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.common.infra.jwt.user.AuthUserDetails;
 import open.vincentf13.common.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;

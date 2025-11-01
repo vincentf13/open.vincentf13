@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.auth.security;
 
+import open.vincentf13.common.infra.jwt.user.AuthUserDetails;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
