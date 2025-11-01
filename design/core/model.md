@@ -4,7 +4,7 @@
 - **DTO（Data Transfer Object）**：對外 API 的入參與出參模型，無業務邏輯；在本專案一律使用 Java `record` 定義，以確保不可變與序列化友善。
 - **Domain Model**：承載核心業務邏輯的實體、聚合與領域服務；允許方法、校驗與狀態轉換。
 - **PO（Persistence Object）**：資料庫映射物件，與資料表欄位一一對應；只保留欄位與 JPA/MyBatis 等框架需要的標註。
-- **Value Object（VO）**：具備不可變、由值識別的領域建模組件；放置在 `sdk-common/sdk-core` 的 `open.vincentf13.sdk.core.valueobject` 套件內供各服務共用。
+- **Value Object（VO）**：具備不可變、由值識別的領域建模組件；放置在 `sdk/sdk-core` 的 `open.vincentf13.sdk.core.valueobject` 套件內供各服務共用。
 
 
 ### DTO
@@ -37,7 +37,7 @@ Models.User u = new Models.User("Alice", "a@example.com");
 - 使用 `ValueObject` 表示複雜值型別，例如 `Money`, `OrderId`；從 `sdk-core` 中引用，減少重複實作。
 
 ### Value Object
-- 放置在 `sdk-common/sdk-core/src/main/java/open/vincentf13/common/core/valueobject`。
+- 放置在 `sdk/sdk-core/src/main/java/open/vincentf13/common/core/valueobject`。
 - Value Object 應：
   - 具備不可變欄位與自我驗證（於建構子或 `of` 工廠方法中完成）。
   - 實作 `equals`/`hashCode`（建議使用 `record` 或覆寫方法）。

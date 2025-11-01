@@ -1,7 +1,7 @@
 # sdk-spring-mvc 設計說明
 
 ## 模組定位
-- 模組名稱：`sdk-common/sdk-spring-mvc`
+- 模組名稱：`sdk/sdk-spring-mvc`
 - 目標：提供 Spring MVC 與 Spring Boot Web 專案可重複使用的自動設定與共用元件，讓各服務以最少設定即可取得統一的回應格式、例外處理、日誌行為與多語系支持。
 - 引用依賴：
   - `sdk-core` 與 `sdk-core-log`：提供錯誤碼、記錄工具與基礎共用類別。

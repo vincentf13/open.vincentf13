@@ -53,7 +53,7 @@ graph TD
     end
     
     subgraph 開發與維運
-        SDK[sdk-common]
+        SDK[sdk]
         CI[GitHub Actions]
     end
 
@@ -74,7 +74,7 @@ graph TD
 
 - **契約先行 (Contract-First)**: 透過 OpenAPI/AsyncAPI 定義服務間的溝通契約，並利用 `sdk-service-*` 模組自動生成客戶端，降低整合成本。
 - **關注點分離 (Separation of Concerns)**:
-    - `sdk-common`: 封裝所有橫切關注點 (cross-cutting concerns)，如日誌、監控、追蹤、資料庫存取等，以 Spring Boot Starter 的形式提供給業務服務使用。
+    - `sdk`: 封裝所有橫切關注點 (cross-cutting concerns)，如日誌、監控、追蹤、資料庫存取等，以 Spring Boot Starter 的形式提供給業務服務使用。
     - `service`: 專注於實現業務邏輯，並遵循 `controller/service/domain/infra` 的四層架構。
 - **雲原生與自動化**:
     - **容器化**: 所有服務都被設計為在 Docker 容器中運行。
@@ -119,7 +119,7 @@ bash ./script/cluster-up.sh
 
 ## 開發慣例
 
-- **模組化**: 新增共用功能時，應優先考慮在 `sdk-common` 中建立新的模組。
+- **模組化**: 新增共用功能時，應優先考慮在 `sdk` 目錄中建立新的模組。
 - **分支策略**: (推斷) 可能是基於 GitFlow 或 GitHub Flow，PR 會觸發 CI 流程。
 - **測試**: `pom.xml` 中配置了 `maven-surefire-plugin` (單元測試) 和 `maven-failsafe-plugin` (整合測試)，表明專案重視自動化測試。
 

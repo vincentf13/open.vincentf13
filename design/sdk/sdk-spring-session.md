@@ -1,7 +1,7 @@
 # sdk-spring-session 設計說明
 
 ## 模組定位
-- 模組名稱：`sdk-common/sdk-spring-session`
+- 模組名稱：`sdk/sdk-spring-session`
 - 目的：為採用 Spring Session（Redis 儲存）的服務提供一組預設依賴、建議設定與可選自動配置，降低重複作業。
 - 依賴：
   - `spring-session-data-redis`：啟用 Spring Session 並以 Redis 作為 session repository。

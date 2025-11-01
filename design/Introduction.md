@@ -10,7 +10,7 @@ open.vincentf13/
 ├── design/                         # 架構說明文件與模組筆記
 ├── k8s/                            # Kubernetes 資產
 ├── script/                         # 維運、自動化腳本
-├── sdk-common/                     # 平台共用 Starter 與基礎設施封裝
+├── sdk/                     # 平台共用 Starter 與基礎設施封裝
 │   ├── sdk-core/                   # 基礎工具（錯誤處理、Json、共用 Result）
 │   ├── sdk-core-log/               # 日誌 starter 與格式規範
 │   ├── sdk-core-metrics/           # 指標收集與預設監控配置
@@ -42,7 +42,7 @@ open.vincentf13/
 └── readme.md
 ```
 
-### `sdk-common` 說明
+### `sdk`（原 `sdk-common`）說明
 
 - 作為平台基座，統一封裝日誌、追蹤、驗證、安全與基礎設施，避免各服務重複實作。
 - `sdk-core*` 系列提供共通的系統能力：核心工具、日誌、指標、追蹤與測試資源。

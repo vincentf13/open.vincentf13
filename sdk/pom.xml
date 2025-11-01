@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>open.vincentf13</groupId>
+        <artifactId>root</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>open.vincentf13.common</groupId>
+    <artifactId>sdk</artifactId>
+    <packaging>pom</packaging>
+
+    <name>sdk</name>
+    <description>Shared SDK aggregation</description>
+
+    <modules>
+        <module>sdk-core</module>
+        <module>sdk-spring-mvc</module>
+        <module>sdk-spring-security</module>
+        <module>sdk-spring-cloud-gateway</module>
+        <module>sdk-spring-websocket</module>
+        <module>sdk-auth-jwt</module>
+        <module>sdk-auth-api-key</module>
+        <module>sdk-auth-server</module>
+        <module>sdk-spring-session</module>
+        <module>sdk-infra-mysql</module>
+        <module>sdk-infra-redis</module>
+        <module>sdk-infra-kafka</module>
+        <module>sdk-spring-cloud-alibaba-nacos</module>
+        <module>sdk-spring-cloud-openfeign</module>
+        <module>sdk-library-resilience4j</module>
+        <module>sdk-core-test</module>
+        <module>sdk-core-log</module>
+        <module>sdk-core-trace</module>
+        <module>sdk-core-metrics</module>
+    </modules>
+</project>

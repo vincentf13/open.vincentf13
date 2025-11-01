@@ -6,18 +6,18 @@
 
 ## 根 POM（`pom.xml`）
 - 以 `spring-boot-starter-parent` 作為 parent，統一 Spring Boot 3.3.4 與相依版本 `pom.xml:7-34`。
-- 定義 `sdk-common`、`sdk-contract` 與 `service` 三大聚合模組，維持共用能力、契約與業務服務分層 `pom.xml:22-27`。
+- 定義 `sdk`、`sdk-contract` 與 `service` 三大聚合模組，維持共用能力、契約與業務服務分層 `pom.xml:22-27`。
 - 於 `<dependencyManagement>` 中集中鎖定 Spring Cloud、MyBatis、Testcontainers 與內部 SDK 模組版本，避免子模組重複宣告 `pom.xml:36-143`。
 - `<pluginManagement>` 負責 Spring Boot Maven Plugin 的統一配置（重打包、Build Info 產出），子模組只需繼承即可 `pom.xml:146-169`。
 - `<build><plugins>` 區塊預先放入 Surefire/Failsafe 測試流程設定，確保單元與整合測試的預設行為一致 `pom.xml:171-195`。
 
-## SDK 聚合模組（`sdk-common/pom.xml`）
-- 聚合共享 SDK 與基礎建設模組，例如 `sdk-core`、`sdk-infra-*`、`sdk-spring-*` 等，統一以 `open.vincentf13.common` 群組維護 `sdk-common/pom.xml:14-34`。
+## SDK 聚合模組（`sdk/pom.xml`）
+- 聚合共享 SDK 與基礎建設模組，例如 `sdk-core`、`sdk-infra-*`、`sdk-spring-*` 等，統一以 `open.vincentf13.common` 群組維護 `sdk/pom.xml:14-34`。
 - 子模組皆繼承根 POM 的版本與插件治理，僅需專注於各自的依賴與程式碼。
 
 ## 契約聚合模組（`sdk-contract/pom.xml`）
 - 收束跨服務 API 契約與產生器，目前僅包含 `exchange-sdk`，後續可依領域擴充。
-- 契約模組維持與 `sdk-common` 相同的 groupId，方便透過根 POM 的 `<dependencyManagement>` 管理版本。
+- 契約模組維持與 `sdk` 聚合模組（artifact 為 `sdk`）相同的 groupId，方便透過根 POM 的 `<dependencyManagement>` 管理版本。
 
 ## Service 聚合模組（`service/pom.xml`）
 - 聚合 `service-exchange`、`service-test`、`service-template` 等實際服務，協助業務面程式分層 `service/pom.xml:15-24`。

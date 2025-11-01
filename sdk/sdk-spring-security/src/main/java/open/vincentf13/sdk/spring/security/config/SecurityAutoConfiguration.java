@@ -1,0 +1,50 @@
+package open.vincentf13.sdk.spring.security.config;
+
+import open.vincentf13.sdk.auth.jwt.config.JwtConfigurer;
+import open.vincentf13.sdk.auth.jwt.config.JwtSecurityAutoConfiguration;
+import open.vincentf13.sdk.spring.security.auth.AnnotationBasedAuthorizationManager;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+
+@Configuration
+@ConditionalOnWebApplication
+@AutoConfigureBefore(JwtSecurityAutoConfiguration.class)
+@AutoConfigureAfter(name = "open.vincentf13.sdk.auth.apikey.config.ApiKeyAutoConfiguration")
+public class SecurityAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AnnotationBasedAuthorizationManager annotationBasedAuthorizationManager(RequestMappingHandlerMapping handlerMapping) {
+        return new AnnotationBasedAuthorizationManager(handlerMapping);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public OpenSecurityConfigurer openSecurityConfigurer(@Qualifier("apiKeyAuthenticationFilter") ObjectProvider<OncePerRequestFilter> apiKeyFilterProvider,
+                                                         AnnotationBasedAuthorizationManager authorizationManager,
+                                                         JwtConfigurer jwtConfigurer) {
+        return new OpenSecurityConfigurer(apiKeyFilterProvider, authorizationManager, jwtConfigurer);
+    }
+
+    @Bean
+    @Order(100)
+    @ConditionalOnMissingBean(SecurityFilterChain.class)
+    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http,
+                                                          OpenSecurityConfigurer openSecurityConfigurer
+                                                         ) throws Exception {
+
+        http.apply(openSecurityConfigurer);
+        return http.build();
+    }
+}

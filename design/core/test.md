@@ -92,7 +92,7 @@
 	  - API/切片測試可搭配 `DemoController` 等樣板快速驗證 Web 行為。
 	  - 與資料庫、快取、訊息相關的整合測試直接使用 Spring Data / Template。
 6. **執行**：
-	- 單模組：`mvn -pl sdk-common/sdk-core-test -am test`
+	- 單模組：`mvn -pl sdk/sdk-core-test -am test`
 	- 指定測試：`mvn -pl <service> -Dtest=YourTest test`
 
 # 疑難排解

@@ -7,7 +7,7 @@
 - 捆綁依賴與排除策略，統一切換至 Log4j2，減少跨模組日誌框架混用造成的衝突。
 
 # OpenLog 工具類
-- **目的**：`OpenLog`（`sdk-common/sdk-core-log/src/main/java/open/vincentf13/common/core/log/OpenLog.java`）提供統一事件格式的輕量級記錄器，輸出形如 `[Event] message | k=v ...`，便於搜尋與關聯分析。
+- **目的**：`OpenLog`（`sdk/sdk-core-log/src/main/java/open/vincentf13/common/core/log/OpenLog.java`）提供統一事件格式的輕量級記錄器，輸出形如 `[Event] message | k=v ...`，便於搜尋與關聯分析。
 - **設計重點**：
 	  - 全靜態 API，外部僅需注入現有 `Logger`，無額外 Bean 或設定。
 	  - 透過 `StringBuilder` 手工串接，預設容量 64，避免建立 `Map`/`Stream` 造成的 GC 壓力。
@@ -40,7 +40,7 @@ OpenLog.error(log, "OrderSaveFailed", "db error", ex, "orderId", orderId);
 # 組成概覽
 | 檔案 | 位置 | 說明 |
 | --- | --- | --- |
-| `pom.xml` | `sdk-common/sdk-core-log/pom.xml` | 排除 `spring-boot-starter-logging`，改用 `spring-boot-starter-log4j2`，作為平台的 logging starter。 |
+| `pom.xml` | `sdk/sdk-core-log/pom.xml` | 排除 `spring-boot-starter-logging`，改用 `spring-boot-starter-log4j2`，作為平台的 logging starter。 |
 | `application.yaml` | `src/main/resources/application.yaml` | 預設 `dev` profile 下的日誌等級建議，涵蓋 Web、資料層、Kafka、Redis 等重點套件。 |
 | `log4j2-spring.xml` | `src/main/resources/log4j2-spring.xml` | 預設 Log4j2 配置，依 profile 拆分 `dev`（Console）與 `prod`（RollingFile），支援 Spring 屬性注入。 |
 | `logback-spring.xml` | `src/main/resources/logback-spring.xml` | 預留 Logback 版本配置，供少數需要沿用 Logback 的應用複製或參考（預設不會生效）。 |
