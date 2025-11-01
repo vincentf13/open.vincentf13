@@ -43,17 +43,16 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
         this.gatewayJwtProperties = gatewayJwtProperties;
     }
 
-
-    // TODO 改成有帶 token 就效驗是否在線上，沒帶token就放行，由資源服務器的 @publicKey , @privateKey, jwt效驗 鑑定權限
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         if (!gatewayJwtProperties.isEnabled() || shouldBypass(exchange.getRequest().getPath().value())) {
             return chain.filter(exchange);
         }
 
+        // 有帶 token 就依照配置效驗是否在線上，沒帶token就放行，由資源服務器的 @publicKey , @privateKey, jwt效驗 鑑定權限
         Optional<String> tokenValue = resolveToken(exchange);
         if (tokenValue.isEmpty()) {
-            return unauthorized(exchange, "Missing Bearer token");
+            return chain.filter(exchange); // 無 token 放行，由後端資源服務自行判定授權
         }
 
         Optional<JwtAuthenticationToken> authentication = openJwt.parseAccessToken(tokenValue.get());
@@ -63,7 +62,6 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
         }
 
         JwtAuthenticationToken auth = authentication.get();
-
 
         if (!isSessionActive(auth)) {
             return unauthorized(exchange, "Session inactive");
