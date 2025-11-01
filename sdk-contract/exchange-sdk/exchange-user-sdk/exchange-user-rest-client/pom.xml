@@ -6,19 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-exchange-user</artifactId>
+        <artifactId>exchange-user-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-service-exchange-user-rest-client</artifactId>
-    <name>sdk-service-exchange-user-rest-client</name>
+    <artifactId>exchange-user-rest-client</artifactId>
+    <name>exchange-user-rest-client</name>
     <description>REST client abstraction for the user service</description>
 
     <dependencies>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-service-exchange-user-rest-api</artifactId>
+            <artifactId>exchange-user-rest-api</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>

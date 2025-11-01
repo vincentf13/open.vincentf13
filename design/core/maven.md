@@ -16,7 +16,7 @@
 - 子模組皆繼承根 POM 的版本與插件治理，僅需專注於各自的依賴與程式碼。
 
 ## 契約聚合模組（`sdk-contract/pom.xml`）
-- 收束跨服務 API 契約與產生器，目前僅包含 `sdk-exchange`，後續可依領域擴充。
+- 收束跨服務 API 契約與產生器，目前僅包含 `exchange-sdk`，後續可依領域擴充。
 - 契約模組維持與 `sdk-common` 相同的 groupId，方便透過根 POM 的 `<dependencyManagement>` 管理版本。
 
 ## Service 聚合模組（`service/pom.xml`）

@@ -19,6 +19,6 @@
     <description>API contracts and generated clients aggregation</description>
 
     <modules>
-        <module>sdk-exchange</module>
+        <module>exchange-sdk</module>
     </modules>
 </project>

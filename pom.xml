@@ -129,12 +129,12 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-service-exchange-auth-rest-api</artifactId>
+                <artifactId>exchange-auth-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-service-exchange-auth-rest-client</artifactId>
+                <artifactId>exchange-auth-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -159,7 +159,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-exchange</artifactId>
+                <artifactId>exchange-sdk</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -220,7 +220,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-service-exchange-user-rest-api</artifactId>
+                <artifactId>exchange-user-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -230,7 +230,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-service-exchange-user-rest-client</artifactId>
+                <artifactId>exchange-user-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

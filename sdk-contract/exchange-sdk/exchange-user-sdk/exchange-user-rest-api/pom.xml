@@ -6,14 +6,14 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>sdk-exchange-auth</artifactId>
+        <artifactId>exchange-user-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-service-exchange-auth-rest-api</artifactId>
-    <name>sdk-service-exchange-auth-rest-api</name>
-    <description>Auth service REST contracts</description>
+    <artifactId>exchange-user-rest-api</artifactId>
+    <name>exchange-user-rest-api</name>
+    <description>User service REST contracts</description>
 
     <dependencies>
         <dependency>

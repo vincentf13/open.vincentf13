@@ -11,14 +11,14 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-exchange</artifactId>
+    <artifactId>exchange-sdk</artifactId>
     <packaging>pom</packaging>
 
-    <name>sdk-exchange</name>
+    <name>exchange-sdk</name>
     <description>Exchange service API contracts and clients</description>
 
     <modules>
-        <module>sdk-exchange-user</module>
-        <module>sdk-exchange-auth</module>
+        <module>exchange-user-sdk</module>
+        <module>exchange-auth-sdk</module>
     </modules>
 </project>
