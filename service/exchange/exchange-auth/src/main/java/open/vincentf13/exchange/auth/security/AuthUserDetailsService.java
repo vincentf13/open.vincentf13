@@ -7,7 +7,7 @@ import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserStatus;
 import open.vincentf13.exchange.user.sdk.rest.client.ExchangeUserClient;
-import open.vincentf13.sdk.auth.jwt.user.OpenUser;
+import open.vincentf13.sdk.auth.jwt.user.OpenJwtUser;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -64,13 +64,13 @@ public class AuthUserDetailsService implements UserDetailsService {
         }
 
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
-        return new OpenUser(userId,
-                            user.email(),
-                            credential.getSecretHash(),
-                            credential.getSalt(),
-                            true,
-                            true,
-                            authorities);
+        return new OpenJwtUser(userId,
+                               user.email(),
+                               credential.getSecretHash(),
+                               credential.getSalt(),
+                               true,
+                               true,
+                               authorities);
     }
 
     private UserResponse getUserResponse(String email) {

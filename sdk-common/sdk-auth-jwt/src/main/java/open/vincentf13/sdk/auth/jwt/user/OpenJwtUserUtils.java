@@ -8,16 +8,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class OpenUserUtils {
+public class OpenJwtUserUtils {
 
-    public static OpenUser currentAuthUser() {
+    public static OpenJwtUser currentAuthUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication instanceof UsernamePasswordAuthenticationToken token)) {
             return null;
         }
 
         Object principal = token.getPrincipal();
-        if (principal instanceof OpenUser details) {
+        if (principal instanceof OpenJwtUser details) {
             return details;
         }
         return null;
@@ -34,7 +34,7 @@ public class OpenUserUtils {
     }
 
     public static Long currentUserId() {
-        OpenUser user = currentAuthUser();
+        OpenJwtUser user = currentAuthUser();
         return user != null ? user.getUserId() : null;
     }
 
