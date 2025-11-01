@@ -21,3 +21,9 @@ spring:
 logging:
   level:
     feign: INFO
+
+security:
+  api-key:
+    client:
+      enabled: true
+      value: default-1

@@ -4,6 +4,7 @@ import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.spring.cloud.openfeign.auth.FeignAuthorizationProvider;
+import open.vincentf13.sdk.spring.cloud.openfeign.apikey.FeignApiKeyProvider;
 import org.slf4j.MDC;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
@@ -18,16 +19,29 @@ import java.util.Optional;
 public class DefaultFeignRequestInterceptor implements RequestInterceptor {
 
     private final FeignAuthorizationProvider authorizationProvider;
+    private final FeignApiKeyProvider apiKeyProvider;
 
-    public DefaultFeignRequestInterceptor(FeignAuthorizationProvider authorizationProvider) {
+    public DefaultFeignRequestInterceptor(FeignAuthorizationProvider authorizationProvider,
+                                          FeignApiKeyProvider apiKeyProvider) {
         this.authorizationProvider = authorizationProvider;
+        this.apiKeyProvider = apiKeyProvider;
     }
 
     @Override
     public void apply(RequestTemplate template) {
         attachAuthorization(template);
+        attachApiKey(template);
         attachTraceHeaders(template);
         attachLocale(template);
+    }
+
+    private void attachApiKey(RequestTemplate template) {
+        if (template.headers().containsKey(OpenConstant.API_KEY_HEADER)) {
+            return;
+        }
+        apiKeyProvider.apiKey()
+                .filter(StringUtils::hasText)
+                .ifPresent(value -> template.header(OpenConstant.API_KEY_HEADER, value));
     }
 
     private void attachAuthorization(RequestTemplate template) {

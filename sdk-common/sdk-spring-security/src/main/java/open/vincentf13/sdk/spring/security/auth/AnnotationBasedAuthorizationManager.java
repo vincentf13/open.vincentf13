@@ -61,7 +61,7 @@ public class AnnotationBasedAuthorizationManager implements AuthorizationManager
 
         boolean granted;
         if (required.isEmpty()) {
-            granted = isAuthenticated(authenticationSupplier.get()); 
+            granted = isAuthenticated(authenticationSupplier.get());
         } else if (requireAll) {
             granted = available.containsAll(required); // requireAll=true 時需全部符合
         } else {
