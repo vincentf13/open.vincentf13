@@ -2,13 +2,11 @@ package open.vincentf13.exchange.auth.app.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.common.core.OpenMapstruct;
-import open.vincentf13.common.core.exception.OpenServiceException;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
-import open.vincentf13.exchange.auth.domain.model.AuthErrorCode;
 import open.vincentf13.exchange.auth.domain.service.AuthCredentialDomainService;
 import open.vincentf13.exchange.auth.infra.persistence.repository.AuthCredentialRepository;
 import org.springframework.stereotype.Service;
@@ -33,23 +31,22 @@ public class AuthCredentialService {
                 .userId(request.userId())
                 .credentialType(request.credentialType())
                 .build();
-        repository.findOne(probe).ifPresent(existing -> {
-            throw OpenServiceException.of(AuthErrorCode.AUTH_CREDENTIAL_ALREADY_EXISTS,
-                    "Credential already exists for user " + request.userId() + " type " + request.credentialType());
-        });
+        return repository.findOne(probe)
+                .map(existing -> OpenMapstruct.map(existing, AuthCredentialResponse.class))
+                .orElseGet(() -> {
+                    AuthCredentialDomainService.PreparedCredential prepared =
+                            new AuthCredentialDomainService.PreparedCredential(request.secretHash(), request.salt());
 
-        AuthCredentialDomainService.PreparedCredential prepared =
-                new AuthCredentialDomainService.PreparedCredential(request.secretHash(), request.salt());
+                    AuthCredential credential = authCredentialDomainService.createCredential(
+                            request.userId(),
+                            request.credentialType(),
+                            prepared,
+                            request.status()
+                    );
 
-        AuthCredential credential = authCredentialDomainService.createCredential(
-                request.userId(),
-                request.credentialType(),
-                prepared,
-                request.status()
-        );
+                    repository.insertSelective(credential);
 
-        repository.insertSelective(credential);
-
-        return OpenMapstruct.map(credential, AuthCredentialResponse.class);
+                    return OpenMapstruct.map(credential, AuthCredentialResponse.class);
+                });
     }
 }
