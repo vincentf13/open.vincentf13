@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
@@ -31,6 +32,7 @@ public class SecurityAutoConfiguration {
 
 
     @Bean
+    @Order(100)
     @ConditionalOnMissingBean(SecurityFilterChain.class)
     public SecurityFilterChain defaultSecurityFilterChain(
             HttpSecurity http,
@@ -38,14 +40,12 @@ public class SecurityAutoConfiguration {
             AnnotationBasedAuthorizationManager authorizationManager,
             org.springframework.beans.factory.ObjectProvider<ApiKeyAuthenticationFilter> apiKeyFilterProvider) throws Exception {
 
-        http
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(AbstractHttpConfigurer::disable)
-            .formLogin(AbstractHttpConfigurer::disable)
-            .httpBasic(AbstractHttpConfigurer::disable)
-            .logout(AbstractHttpConfigurer::disable)
-            .authorizeHttpRequests(auth -> auth.anyRequest().access(authorizationManager))
-            .apply(jwtConfigurer);
+        http.apply(jwtConfigurer)
+                .and()
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(auth -> auth.anyRequest().access(authorizationManager));
 
         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter = apiKeyFilterProvider.getIfAvailable();
         if (apiKeyAuthenticationFilter != null) {

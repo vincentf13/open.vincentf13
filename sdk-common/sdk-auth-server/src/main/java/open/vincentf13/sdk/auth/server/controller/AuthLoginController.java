@@ -43,6 +43,7 @@ public class AuthLoginController {
         this.messages = new MessageSourceAccessor(messageSource);
     }
 
+    @PublicAPI
     @PostMapping("/login")
     public ResponseEntity<OpenApiResponse<JwtResponse>> login(@Valid @RequestBody LoginRequest request) {
         try {
