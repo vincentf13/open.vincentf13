@@ -2,24 +2,33 @@ package open.vincentf13.common.infra.jwt.user;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
 
 import java.util.List;
 
 public class OpenUserUtils {
-  public static User currentUser() {
-    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    if (auth instanceof UsernamePasswordAuthenticationToken token) {
-      return ((User)token.getPrincipal());
-    }
-    return null; // fallback
-  }
 
-  public static List<String> getAuthorities() {
-    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    return auth.getAuthorities().stream()
-        .map(a -> a.getAuthority())
-        .toList();
-  }
+    public static AuthUserDetails currentAuthUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (!(authentication instanceof UsernamePasswordAuthenticationToken token)) {
+            return null;
+        }
+
+        Object principal = token.getPrincipal();
+        if (principal instanceof AuthUserDetails details) {
+            return details;
+        }
+        return null;
+    }
+
+    public static List<String> getAuthorities() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return List.of();
+        }
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .toList();
+    }
 }
