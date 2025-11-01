@@ -1,12 +1,14 @@
 
 package open.vincentf13.sdk.auth.server.controller;
 
-import open.vincentf13.sdk.auth.server.error.FailureReason;
 import open.vincentf13.sdk.auth.jwt.token.JwtResponse;
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
+import open.vincentf13.sdk.auth.server.error.FailureReason;
 import open.vincentf13.sdk.auth.server.service.AuthJwtSessionService;
 import open.vincentf13.sdk.auth.server.service.AuthJwtSessionService.IssueResult;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import open.vincentf13.sdk.spring.security.auth.Jwt;
+import open.vincentf13.sdk.spring.security.auth.PublicAPI;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 // 範例控制器：展示如何在 AUTH 服務提供刷新 / 登出 API。
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/")
 public class SessionController {
 
     private final AuthJwtSessionService sessionService;
@@ -31,6 +33,7 @@ public class SessionController {
     }
 
     @PostMapping("/refresh")
+    @PublicAPI
     public ResponseEntity<OpenApiResponse<JwtResponse>> refresh(@RequestBody RefreshTokenPayload payload) {
         FailureReason failure = FailureReason.REFRESH_INVALID;
         return sessionService.refresh(payload.refreshToken())
@@ -40,6 +43,7 @@ public class SessionController {
     }
 
     @PostMapping("/logout")
+    @Jwt
     public ResponseEntity<OpenApiResponse<Void>> logout(Authentication authentication) {
         if (authentication instanceof JwtAuthenticationToken jwtAuth && jwtAuth.hasSessionId()) {
             sessionService.revoke(jwtAuth.getSessionId(), "logout");
