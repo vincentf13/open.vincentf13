@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.user.domain.model;
 
-import open.vincentf13.common.core.error.OpenError;
+import open.vincentf13.sdk.core.error.OpenError;
 
 public enum UserErrorCode implements OpenError {
     USER_ALREADY_EXISTS("User-409-1001", "User already exists"),

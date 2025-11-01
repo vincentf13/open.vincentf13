@@ -21,7 +21,7 @@
 - Mirror packages under `src/test/java`; suffix test classes with `*Tests`.
 - Reserve `@SpringBootTest` for full-context cases—favor slices, mocks, or plain unit tests otherwise.
 - Cover success and failure paths; keep the suite green under `mvn verify`. Document any intentionally skipped scenarios in PR notes.
-- 需要改用服務自行配置的資料庫/Redis/Kafka 時，可透過 `-Dopen.vincentf13.common.core.test.testcontainer.enabled=false`（或環境變數 `OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_ENABLED=false`）停用共用測試容器；也可使用 `open.vincentf13.common.core.test.testcontainer.{mysql|redis|kafka}.enabled` 的旗標細部調整。
+- 需要改用服務自行配置的資料庫/Redis/Kafka 時，可透過 `-Dopen.vincentf13.sdk.core.test.testcontainer.enabled=false`（或環境變數 `OPEN_VINCENTF13_SDK_CORE_TEST_TESTCONTAINER_ENABLED=false`）停用共用測試容器；也可使用 `open.vincentf13.sdk.core.test.testcontainer.{mysql|redis|kafka}.enabled` 的旗標細部調整。
 
 ## Git & Review Workflow
 - Commit messages: concise, present tense (`fix ingress host mapping`); first line < 50 characters, further detail in the body if needed. Chinese summaries are acceptable.

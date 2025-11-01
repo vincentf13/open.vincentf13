@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.user.controller;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.common.spring.mvc.OpenApiResponse;
+import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.user.api.UserApi;
 import open.vincentf13.exchange.user.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.api.dto.UserResponse;

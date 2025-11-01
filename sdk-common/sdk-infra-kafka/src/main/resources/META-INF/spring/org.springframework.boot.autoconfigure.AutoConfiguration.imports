@@ -1,1 +1,1 @@
-open.vincentf13.common.infra.kafka.config.ConfigKafkaProducer
+open.vincentf13.sdk.infra.kafka.config.ConfigKafkaProducer

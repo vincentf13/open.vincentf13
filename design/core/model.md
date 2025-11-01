@@ -4,7 +4,7 @@
 - **DTO（Data Transfer Object）**：對外 API 的入參與出參模型，無業務邏輯；在本專案一律使用 Java `record` 定義，以確保不可變與序列化友善。
 - **Domain Model**：承載核心業務邏輯的實體、聚合與領域服務；允許方法、校驗與狀態轉換。
 - **PO（Persistence Object）**：資料庫映射物件，與資料表欄位一一對應；只保留欄位與 JPA/MyBatis 等框架需要的標註。
-- **Value Object（VO）**：具備不可變、由值識別的領域建模組件；放置在 `sdk-common/sdk-core` 的 `open.vincentf13.common.core.valueobject` 套件內供各服務共用。
+- **Value Object（VO）**：具備不可變、由值識別的領域建模組件；放置在 `sdk-common/sdk-core` 的 `open.vincentf13.sdk.core.valueobject` 套件內供各服務共用。
 
 
 ### DTO

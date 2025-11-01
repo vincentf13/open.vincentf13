@@ -1,0 +1,14 @@
+package open.vincentf13.sdk.auth.jwt.session;
+
+import java.util.Optional;
+
+/**
+ * Fallback in-memory store mainly intended for tests; data is not persisted across nodes.
+ */
+public class JwtSessionStoreInMemory implements JwtSessionStore {
+
+    @Override
+    public Optional<JwtSession> findById(String sessionId) {
+        return Optional.empty();
+    }
+}

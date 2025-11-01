@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.auth.api;
 
 import jakarta.validation.Valid;
-import open.vincentf13.common.spring.mvc.OpenApiResponse;
+import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;

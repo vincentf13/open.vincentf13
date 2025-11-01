@@ -17,11 +17,11 @@
 
 # 虛擬化容器與真實環境外部依賴之切換
 - **全域關閉  容器化測試環境** ：
-	- 關閉VM 參數：`-Dopen.vincentf13.common.core.test.testcontainer.enabled=false`
-	- 環境變數：`OPEN_VINCENTF13_COMMON_CORE_TEST_TESTCONTAINER_ENABLED=false`
+	- 關閉VM 參數：`-Dopen.vincentf13.sdk.core.test.testcontainer.enabled=false`
+	- 環境變數：`OPEN_VINCENTF13_SDK_CORE_TEST_TESTCONTAINER_ENABLED=false`
 	- 關閉後將環境所配置的真實外部依賴進行測試。
 - **個別關閉 容器化測試環境**（MySQL / Redis / Kafka）：
-	- 範例：`-Dopen.vincentf13.common.core.test.testcontainer.mysql.enabled=false`
+	- 範例：`-Dopen.vincentf13.sdk.core.test.testcontainer.mysql.enabled=false`
 	- 環境變數以 `_MYSQL_ENABLED`、`_REDIS_ENABLED`、`_KAFKA_ENABLED` 結尾。
 - 配置值接受 `false/0/no/off` 等字串；未設定則預設啟用容器。
 

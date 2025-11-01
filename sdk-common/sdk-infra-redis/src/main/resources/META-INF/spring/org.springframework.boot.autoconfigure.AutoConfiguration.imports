@@ -1,1 +1,1 @@
-open.vincentf13.common.infra.redis.config.RedisAutoConfiguration
+open.vincentf13.sdk.infra.redis.config.RedisAutoConfiguration

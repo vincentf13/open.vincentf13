@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.auth.domain.model;
 
-import open.vincentf13.common.core.error.OpenError;
+import open.vincentf13.sdk.core.error.OpenError;
 
 public enum AuthErrorCode implements OpenError {
     AUTH_CREDENTIAL_ALREADY_EXISTS("Auth-409-1001", "Credential already exists"),

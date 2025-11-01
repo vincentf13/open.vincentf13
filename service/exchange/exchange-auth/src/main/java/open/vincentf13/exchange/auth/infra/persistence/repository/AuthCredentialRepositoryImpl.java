@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.auth.infra.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.common.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.infra.persistence.mapper.AuthCredentialMapper;
 import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;

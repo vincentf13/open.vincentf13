@@ -8,7 +8,7 @@
   - `sdk-infra-redis`：沿用內部封裝的 Redis 連線與序列化設定。
 
 ## 自動設定現況
-- 主要配置類別為 `open.vincentf13.common.spring.session.ConfigCookie`，使用 `@AutoConfiguration` 與 `@ConditionalOnWebApplication(type = SERVLET)`，僅在 Servlet 環境生效。
+- 主要配置類別為 `open.vincentf13.sdk.spring.session.ConfigCookie`，使用 `@AutoConfiguration` 與 `@ConditionalOnWebApplication(type = SERVLET)`，僅在 Servlet 環境生效。
 - 類別本身尚未提供啟用中的 Bean，僅保留 `CookieSerializer` 的註解範例（可視需求開啟以控制 Max-Age、SameSite 等屬性）。
 
 ## Redis / Spring Session 建議設定

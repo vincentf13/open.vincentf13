@@ -1,1 +1,1 @@
-open.vincentf13.common.sdk.spring.cloud.gateway.security.GatewayJwtConfiguration
+open.vincentf13.sdk.spring.cloud.gateway.security.GatewayJwtConfiguration

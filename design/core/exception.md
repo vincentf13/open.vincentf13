@@ -55,7 +55,7 @@ try {
 ```
 輸出範例：
 ```
-open.vincentf13.common.core.exception.OpenApiException: [50000] 讀取檔案失敗
+open.vincentf13.sdk.core.exception.OpenApiException: [50000] 讀取檔案失敗
     at com.example.service.FileService.read(FileService.java:25)
 Caused by: java.nio.file.NoSuchFileException: data.txt
     at sun.nio.fs.UnixException.translateToIOException(UnixException.java:86)

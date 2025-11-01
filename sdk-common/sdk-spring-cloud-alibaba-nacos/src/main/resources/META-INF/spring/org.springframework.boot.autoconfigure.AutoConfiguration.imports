@@ -1,1 +1,1 @@
-open.vincentf13.common.infra.nacos.config.NacosDiscoveryClientAutoConfiguration
+open.vincentf13.sdk.spring.cloud.alibaba.nacos.config.NacosDiscoveryClientAutoConfiguration

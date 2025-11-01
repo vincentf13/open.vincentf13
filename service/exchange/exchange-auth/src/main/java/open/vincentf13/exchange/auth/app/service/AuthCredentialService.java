@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.auth.app.service;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.common.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
 import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;
