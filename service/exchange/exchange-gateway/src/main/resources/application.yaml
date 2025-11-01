@@ -1,3 +1,18 @@
 spring:
   application:
     name: exchange-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: exchange-user-route
+          uri: lb://exchange-user
+          predicates:
+            - Path=/user/**
+          filters:
+            - StripPrefix=1
+        - id: exchange-auth-route
+          uri: lb://exchange-auth
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
