@@ -50,7 +50,7 @@
 mvn -pl service/exchange/exchange-user -am springdoc-openapi:generate
 ```
 
-> 建議在 `service/exchange/exchange-user` 模組內維護 OpenAPI YAML，或於 `exchange-user-rest-api` 直接更新契約檔案以保持版本一致。
+> 建議在 `service/exchange/exchange-user` 模組內維護 OpenAPI YAML，或於 `exchange-user-sdk-rest-api` 直接更新契約檔案以保持版本一致。
 
 生成結果放在 `target/openapi/`，建議將 YAML 檔複製或發佈到 `sdk-contract/sdk-<domain>/<module>/<module>-rest-api/src/main/resources/openapi/` 以利版本控。
 
@@ -107,7 +107,7 @@ mvn -pl service/exchange/exchange-user -am springdoc-openapi:generate
                 <goal>generate</goal>
             </goals>
             <configuration>
-                <inputSpec>${project.parent.relativePath}/exchange-user-rest-api/src/main/resources/openapi/sdk-service-exchange-user.openapi.yaml</inputSpec>
+                <inputSpec>${project.parent.relativePath}/exchange-user-sdk-rest-api/src/main/resources/openapi/sdk-service-exchange-user.openapi.yaml</inputSpec>
                 <generatorName>java</generatorName>
                 <library>feign</library>
                 <apiPackage>open.vincentf13.exchange.user.client.api</apiPackage>

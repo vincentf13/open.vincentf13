@@ -18,7 +18,7 @@
     <description>User service API contract and client aggregation</description>
 
     <modules>
-        <module>exchange-user-rest-api</module>
-        <module>exchange-user-rest-client</module>
+        <module>exchange-user-sdk-rest-api</module>
+        <module>exchange-user-sdk-rest-client</module>
     </modules>
 </project>

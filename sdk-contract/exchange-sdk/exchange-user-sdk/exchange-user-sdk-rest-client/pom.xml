@@ -6,20 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>exchange-auth-sdk</artifactId>
+        <artifactId>exchange-user-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>exchange-auth-rest-client</artifactId>
-    <name>exchange-auth-rest-client</name>
-    <description>REST client abstraction for the auth service</description>
+    <artifactId>exchange-user-sdk-rest-client</artifactId>
+    <name>exchange-user-sdk-rest-client</name>
+    <description>REST client abstraction for the user service</description>
 
     <dependencies>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>exchange-auth-rest-api</artifactId>
-            <version>${project.version}</version>
+            <artifactId>exchange-user-sdk-rest-api</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>

@@ -11,8 +11,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>exchange-auth-rest-api</artifactId>
-    <name>exchange-auth-rest-api</name>
+    <artifactId>exchange-auth-sdk-rest-api</artifactId>
+    <name>exchange-auth-sdk-rest-api</name>
     <description>Auth service REST contracts</description>
 
     <dependencies>

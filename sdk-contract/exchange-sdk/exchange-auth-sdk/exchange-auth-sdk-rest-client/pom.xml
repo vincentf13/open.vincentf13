@@ -6,23 +6,24 @@
 
     <parent>
         <groupId>open.vincentf13.common</groupId>
-        <artifactId>exchange-user-sdk</artifactId>
+        <artifactId>exchange-auth-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>exchange-user-rest-api</artifactId>
-    <name>exchange-user-rest-api</name>
-    <description>User service REST contracts</description>
+    <artifactId>exchange-auth-sdk-rest-client</artifactId>
+    <name>exchange-auth-sdk-rest-client</name>
+    <description>REST client abstraction for the auth service</description>
 
     <dependencies>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-core</artifactId>
+            <artifactId>exchange-auth-sdk-rest-api</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-spring-mvc</artifactId>
+            <artifactId>sdk-spring-cloud-openfeign</artifactId>
         </dependency>
     </dependencies>
 </project>

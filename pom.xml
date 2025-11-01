@@ -129,12 +129,12 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>exchange-auth-rest-api</artifactId>
+                <artifactId>exchange-auth-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>exchange-auth-rest-client</artifactId>
+                <artifactId>exchange-auth-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -220,17 +220,17 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>exchange-user-rest-api</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13.common</groupId>
                 <artifactId>sdk-spring-cloud-openfeign</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>exchange-user-rest-client</artifactId>
+                <artifactId>exchange-user-sdk-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.common</groupId>
+                <artifactId>exchange-user-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

@@ -18,7 +18,7 @@
     <description>Auth service API contract and client aggregation</description>
 
     <modules>
-        <module>exchange-auth-rest-api</module>
-        <module>exchange-auth-rest-client</module>
+        <module>exchange-auth-sdk-rest-api</module>
+        <module>exchange-auth-sdk-rest-client</module>
     </modules>
 </project>
