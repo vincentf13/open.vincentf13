@@ -1,14 +1,14 @@
 package open.vincentf13.exchange.auth.security;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.auth.jwt.user.OpenUser;
-import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.infra.persistence.repository.AuthCredentialRepository;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserStatus;
 import open.vincentf13.exchange.user.sdk.rest.client.ExchangeUserClient;
+import open.vincentf13.sdk.auth.jwt.user.OpenUser;
+import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -36,6 +36,44 @@ public class AuthUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("Email must not be blank");
         }
 
+        UserResponse user = getUserResponse(email);
+        Long userId = user.id();
+        if (userId == null) {
+            throw new UsernameNotFoundException("User id missing for email " + email);
+        }
+        UserStatus status = user.status();
+        if (status == UserStatus.LOCKED) {
+            throw new LockedException("User is locked");
+        }
+        if (status == UserStatus.DISABLED) {
+            throw new DisabledException("User is disabled");
+        }
+
+        AuthCredential credential = authCredentialRepository.findOne(AuthCredential.builder()
+                                                                             .userId(userId)
+                                                                             .credentialType(AuthCredentialType.PASSWORD)
+                                                                             .build())
+                .orElseThrow(() -> new UsernameNotFoundException("Credential not found for user " + email));
+
+        if (!StringUtils.hasText(credential.getSecretHash()) || !StringUtils.hasText(credential.getSalt())) {
+            throw new UsernameNotFoundException("Credential incomplete for user " + email);
+        }
+
+        if (!"ACTIVE".equalsIgnoreCase(credential.getStatus())) {
+            throw new DisabledException("Credential is not active for user " + email);
+        }
+
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        return new OpenUser(userId,
+                            user.email(),
+                            credential.getSecretHash(),
+                            credential.getSalt(),
+                            true,
+                            true,
+                            authorities);
+    }
+
+    private UserResponse getUserResponse(String email) {
         OpenApiResponse<UserResponse> response;
         try {
             response = exchangeUserClient.findByEmail(email);
@@ -48,40 +86,6 @@ public class AuthUserDetailsService implements UserDetailsService {
         }
 
         UserResponse user = response.data();
-        Long userId = user.id();
-        if (userId == null) {
-            throw new UsernameNotFoundException("User id missing for email " + email);
-        }
-
-        AuthCredential credential = authCredentialRepository.findOne(AuthCredential.builder()
-                        .userId(userId)
-                        .credentialType(AuthCredentialType.PASSWORD)
-                        .build())
-                .orElseThrow(() -> new UsernameNotFoundException("Credential not found for user " + email));
-
-        if (!StringUtils.hasText(credential.getSecretHash()) || !StringUtils.hasText(credential.getSalt())) {
-            throw new UsernameNotFoundException("Credential incomplete for user " + email);
-        }
-
-        if (!"ACTIVE".equalsIgnoreCase(credential.getStatus())) {
-            throw new DisabledException("Credential is not active for user " + email);
-        }
-
-        UserStatus status = user.status();
-        if (status == UserStatus.LOCKED) {
-            throw new LockedException("User is locked");
-        }
-        if (status == UserStatus.DISABLED) {
-            throw new DisabledException("User is disabled");
-        }
-
-        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
-        return new OpenUser(userId,
-                            user.email(),
-                            credential.getSecretHash(),
-                            credential.getSalt(),
-                            true,
-                            true,
-                            authorities);
+        return user;
     }
 }

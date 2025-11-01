@@ -7,7 +7,7 @@ import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateReques
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
-import open.vincentf13.exchange.auth.app.service.AuthCredentialService;
+import open.vincentf13.exchange.auth.service.AuthCredentialService;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController

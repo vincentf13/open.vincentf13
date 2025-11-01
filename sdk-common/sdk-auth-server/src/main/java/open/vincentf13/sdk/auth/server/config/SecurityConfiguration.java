@@ -1,22 +1,17 @@
 package open.vincentf13.sdk.auth.server.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.sdk.auth.jwt.config.JwtAutoConfiguration;
 import open.vincentf13.sdk.auth.jwt.config.JwtConfigurer;
 import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
-import open.vincentf13.sdk.auth.server.handler.LoginFailureHandler;
-import open.vincentf13.sdk.auth.server.handler.LoginSuccessHandler;
-import open.vincentf13.sdk.auth.server.service.AuthJwtSessionService;
 import open.vincentf13.sdk.auth.server.store.AuthJwtSessionStoreConfiguration;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.MessageSource;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -33,35 +28,21 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
-    public LoginSuccessHandler loginSuccessHandler(ObjectProvider<ObjectMapper> objectMapperProvider,
-                                                   MessageSource messageSource,
-                                                   AuthJwtSessionService sessionService) {
-        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
-        return new LoginSuccessHandler(mapper, messageSource, sessionService);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public LoginFailureHandler loginFailureHandler(ObjectProvider<ObjectMapper> objectMapperProvider,
-                                                   MessageSource messageSource) {
-        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
-        return new LoginFailureHandler(mapper, messageSource);
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   LoginSuccessHandler successHandler,
-                                                   LoginFailureHandler failureHandler,
                                                    JwtConfigurer jwtConfigurer) throws Exception {
         http.apply(jwtConfigurer)
                 .and()
-                .formLogin(form -> form.loginPage("/login")
-                        .loginProcessingUrl("/api/auth/login")
-                        .successHandler(successHandler)
-                        .failureHandler(failureHandler)
-                        .permitAll())
-                .logout(logout -> logout.disable());
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/api/auth/login").permitAll()
+                        .anyRequest().authenticated());
         return http.build();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
     }
 }

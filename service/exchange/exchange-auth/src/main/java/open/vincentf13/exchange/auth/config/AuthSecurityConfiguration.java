@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.auth.config;
 
-import open.vincentf13.exchange.auth.security.PasswordChecker;
 import open.vincentf13.exchange.auth.security.AuthUserDetailsService;
+import open.vincentf13.exchange.auth.security.PasswordChecker;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;

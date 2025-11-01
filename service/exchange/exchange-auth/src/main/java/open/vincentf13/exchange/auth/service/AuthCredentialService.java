@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.app.service;
+package open.vincentf13.exchange.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenMapstruct;
