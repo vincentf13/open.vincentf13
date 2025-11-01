@@ -21,6 +21,7 @@ public interface AuthCredentialApi {
     OpenApiResponse<AuthCredentialPrepareResponse> prepare(@Valid @RequestBody AuthCredentialPrepareRequest request);
 
     @PostMapping
+    @PrivateAPI
     OpenApiResponse<AuthCredentialResponse> create(@Valid @RequestBody AuthCredentialCreateRequest request);
 
 }
