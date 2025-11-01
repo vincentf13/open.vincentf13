@@ -4,15 +4,18 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import open.vincentf13.sdk.auth.apikey.annotation.PrivateAPI;
 import open.vincentf13.sdk.auth.apikey.key.ApiKeyValidator;
 import open.vincentf13.sdk.core.OpenConstant;
+import open.vincentf13.sdk.spring.security.auth.AuthAttributes;
+import open.vincentf13.sdk.spring.security.auth.AuthType;
+import open.vincentf13.sdk.spring.security.auth.PrivateAPI;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.io.IOException;
+import java.util.EnumSet;
 
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
@@ -52,9 +55,23 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 response.getWriter().write("Invalid or missing API Key");
                 return;
             }
+            markAuthenticatedWithApiKey(request);
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void markAuthenticatedWithApiKey(HttpServletRequest request) {
+        Object attr = request.getAttribute(AuthAttributes.AUTH_TYPES);
+        EnumSet<AuthType> types;
+        if (attr instanceof EnumSet<?>) {
+            //noinspection unchecked
+            types = (EnumSet<AuthType>) attr;
+        } else {
+            types = EnumSet.noneOf(AuthType.class);
+        }
+        types.add(AuthType.API_KEY);
+        request.setAttribute(AuthAttributes.AUTH_TYPES, types);
     }
 
     private PrivateAPI findPrivateApiAnnotation(HandlerMethod handlerMethod) {
