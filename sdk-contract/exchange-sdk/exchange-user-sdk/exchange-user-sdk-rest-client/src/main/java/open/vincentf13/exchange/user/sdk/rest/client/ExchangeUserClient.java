@@ -1,7 +1,7 @@
-package open.vincentf13.exchange.user.client;
+package open.vincentf13.exchange.user.sdk.rest.client;
 
 
-import open.vincentf13.exchange.user.api.UserApi;
+import open.vincentf13.exchange.user.sdk.rest.api.UserApi;
 import org.springframework.cloud.openfeign.FeignClient;
 
 /**

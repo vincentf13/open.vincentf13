@@ -1,6 +1,6 @@
-package open.vincentf13.exchange.auth.client;
+package open.vincentf13.exchange.auth.sdk.rest.client;
 
-import open.vincentf13.exchange.auth.api.AuthCredentialApi;
+import open.vincentf13.exchange.auth.sdk.rest.api.AuthCredentialApi;
 import org.springframework.cloud.openfeign.FeignClient;
 
 @FeignClient(

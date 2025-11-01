@@ -1,11 +1,11 @@
-package open.vincentf13.exchange.auth.api;
+package open.vincentf13.exchange.auth.sdk.rest.api;
 
 import jakarta.validation.Valid;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialResponse;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

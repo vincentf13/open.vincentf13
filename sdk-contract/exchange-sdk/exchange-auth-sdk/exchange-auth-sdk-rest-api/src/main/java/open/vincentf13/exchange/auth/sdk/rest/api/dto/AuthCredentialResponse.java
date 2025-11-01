@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.api.dto;
+package open.vincentf13.exchange.auth.sdk.rest.api.dto;
 
 import java.time.Instant;
 

@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.user.domain.service;
 
-import open.vincentf13.exchange.user.api.dto.UserStatus;
+import open.vincentf13.exchange.user.sdk.rest.api.dto.UserStatus;
 import open.vincentf13.exchange.user.domain.model.User;
 import org.springframework.stereotype.Component;
 

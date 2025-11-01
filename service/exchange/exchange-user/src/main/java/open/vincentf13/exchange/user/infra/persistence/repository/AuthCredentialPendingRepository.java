@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialType;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPendingStatus;
 

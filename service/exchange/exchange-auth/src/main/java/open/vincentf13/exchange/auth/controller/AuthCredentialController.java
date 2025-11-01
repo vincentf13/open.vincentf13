@@ -2,11 +2,11 @@ package open.vincentf13.exchange.auth.controller;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import open.vincentf13.exchange.auth.api.AuthCredentialApi;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialResponse;
+import open.vincentf13.exchange.auth.sdk.rest.api.AuthCredentialApi;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.app.service.AuthCredentialService;
 import org.springframework.web.bind.annotation.RestController;
 

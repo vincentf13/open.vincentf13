@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.auth.domain.service;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialType;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

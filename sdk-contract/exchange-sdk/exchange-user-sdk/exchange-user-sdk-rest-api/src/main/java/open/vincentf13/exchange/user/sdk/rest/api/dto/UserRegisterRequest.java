@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.api.dto;
+package open.vincentf13.exchange.user.sdk.rest.api.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

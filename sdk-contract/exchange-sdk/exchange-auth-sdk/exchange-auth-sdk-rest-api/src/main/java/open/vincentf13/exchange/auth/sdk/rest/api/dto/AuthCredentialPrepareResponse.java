@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.api.dto;
+package open.vincentf13.exchange.auth.sdk.rest.api.dto;
 
 public record AuthCredentialPrepareResponse(
         String secretHash,

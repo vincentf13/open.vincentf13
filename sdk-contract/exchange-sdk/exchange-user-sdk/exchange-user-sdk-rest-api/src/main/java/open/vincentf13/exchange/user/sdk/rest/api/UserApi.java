@@ -1,9 +1,9 @@
-package open.vincentf13.exchange.user.api;
+package open.vincentf13.exchange.user.sdk.rest.api;
 
 import jakarta.validation.Valid;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import open.vincentf13.exchange.user.api.dto.UserRegisterRequest;
-import open.vincentf13.exchange.user.api.dto.UserResponse;
+import open.vincentf13.exchange.user.sdk.rest.api.dto.UserRegisterRequest;
+import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 

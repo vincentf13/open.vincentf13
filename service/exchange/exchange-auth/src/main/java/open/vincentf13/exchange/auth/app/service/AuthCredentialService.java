@@ -2,10 +2,10 @@ package open.vincentf13.exchange.auth.app.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenMapstruct;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialCreateRequest;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareRequest;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialPrepareResponse;
-import open.vincentf13.exchange.auth.api.dto.AuthCredentialResponse;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
+import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.domain.service.AuthCredentialDomainService;
 import open.vincentf13.exchange.auth.infra.persistence.repository.AuthCredentialRepository;

@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.api.dto;
+package open.vincentf13.exchange.auth.sdk.rest.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

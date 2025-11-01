@@ -79,8 +79,8 @@ mvn -pl service/exchange/exchange-user -am springdoc-openapi:generate
                     <skipDefaultInterface>false</skipDefaultInterface>
                     <useSpringBoot3>true</useSpringBoot3>
                 </additionalProperties>
-                <apiPackage>open.vincentf13.exchange.user.api</apiPackage>
-                <modelPackage>open.vincentf13.exchange.user.dto</modelPackage>
+                <apiPackage>open.vincentf13.exchange.user.sdk.rest.api</apiPackage>
+                <modelPackage>open.vincentf13.exchange.user.sdk.rest.api.dto</modelPackage>
                 <output>${project.build.directory}/generated-sources/openapi-api</output>
             </configuration>
         </execution>
@@ -110,8 +110,8 @@ mvn -pl service/exchange/exchange-user -am springdoc-openapi:generate
                 <inputSpec>${project.parent.relativePath}/exchange-user-sdk-rest-api/src/main/resources/openapi/sdk-service-exchange-user.openapi.yaml</inputSpec>
                 <generatorName>java</generatorName>
                 <library>feign</library>
-                <apiPackage>open.vincentf13.exchange.user.client.api</apiPackage>
-                <modelPackage>open.vincentf13.exchange.user.client.dto</modelPackage>
+                <apiPackage>open.vincentf13.exchange.user.sdk.rest.client.api</apiPackage>
+                <modelPackage>open.vincentf13.exchange.user.sdk.rest.client.dto</modelPackage>
                 <configOptions>
                     <dateLibrary>java8</dateLibrary>
                     <useFeignClient>true</useFeignClient>
