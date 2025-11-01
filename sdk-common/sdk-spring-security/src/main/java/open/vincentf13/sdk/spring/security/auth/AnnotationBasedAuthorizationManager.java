@@ -44,7 +44,7 @@ public class AnnotationBasedAuthorizationManager implements AuthorizationManager
 
         List<AuthRequirement> requirements = resolveRequirements(handlerMethod); // 蒐集方法及類別宣告的認證需求
         if (requirements.isEmpty()) {
-            return new AuthorizationDecision(false); // 沒有額外註解時，禁止存取
+              return new AuthorizationDecision(isAuthenticated(authenticationSupplier.get()));
         }
 
         // public api
@@ -61,7 +61,7 @@ public class AnnotationBasedAuthorizationManager implements AuthorizationManager
 
         boolean granted;
         if (required.isEmpty()) {
-            granted = false; // 未指定任何認證類型時視為禁止存取
+            granted = isAuthenticated(authenticationSupplier.get()); 
         } else if (requireAll) {
             granted = available.containsAll(required); // requireAll=true 時需全部符合
         } else {
