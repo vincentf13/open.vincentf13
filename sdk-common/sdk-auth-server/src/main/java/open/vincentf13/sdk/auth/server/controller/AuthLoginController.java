@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.auth.server.controller;
 
 import jakarta.validation.Valid;
+import open.vincentf13.sdk.auth.apikey.annotation.PublicAPI;
 import open.vincentf13.sdk.auth.jwt.token.JwtResponse;
 import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
 import open.vincentf13.sdk.auth.server.error.FailureReason;
