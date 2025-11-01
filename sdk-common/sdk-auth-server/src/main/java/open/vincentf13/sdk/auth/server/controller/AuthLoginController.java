@@ -47,7 +47,7 @@ public class AuthLoginController {
     public ResponseEntity<OpenApiResponse<JwtResponse>> login(@Valid @RequestBody LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+                    new UsernamePasswordAuthenticationToken(request.email(), request.password()));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             AuthJwtSessionService.IssueResult tokens = sessionService.issue(authentication);
@@ -68,7 +68,7 @@ public class AuthLoginController {
             return ResponseEntity.ok(body);
         } catch (AuthenticationException ex) {
             FailureReason reason = FailureReason.from(ex);
-            String username = request.username() != null ? request.username() : "<unknown>";
+            String username = request.email() != null ? request.email() : "<unknown>";
             OpenLog.warn(log,
                     "LoginFailure",
                     "Authentication failed",
