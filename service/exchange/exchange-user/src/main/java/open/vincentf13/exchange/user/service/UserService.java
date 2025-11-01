@@ -43,12 +43,6 @@ public class UserService {
     public UserResponse register(UserRegisterRequest request)  {
         final String normalizedEmail = userDomainService.normalizeEmail(request.email());
 
-        boolean emailExists = userRepository.findOne(User.builder().email(normalizedEmail).build()).isPresent();
-        if (emailExists) {
-            throw OpenServiceException.of(UserErrorCode.USER_ALREADY_EXISTS,
-                    "Email already registered: " + normalizedEmail);
-        }
-
         OpenApiResponse<AuthCredentialPrepareResponse> prepareResponse = authClient.prepare(
                 new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())
         );
