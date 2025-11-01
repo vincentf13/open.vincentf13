@@ -20,8 +20,7 @@ import open.vincentf13.exchange.user.domain.model.UserErrorCode;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import open.vincentf13.sdk.auth.jwt.user.OpenUserUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -108,7 +107,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
-        Long userId = currentUserId();
+        Long userId = OpenUserUtils.currentUserIdOrThrow(() ->
+                OpenServiceException.of(UserErrorCode.USER_NOT_FOUND, "No authenticated user in context"));
         return userRepository.findOne(User.builder().id(userId).build())
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
@@ -130,19 +130,6 @@ public class UserService {
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
                 .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
                         "User not found. email=" + normalizedEmail));
-    }
-
-    private Long currentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || authentication.getName() == null) {
-            throw OpenServiceException.of(UserErrorCode.USER_NOT_FOUND, "No authenticated user in context");
-        }
-        try {
-            return Long.parseLong(authentication.getName());
-        } catch (NumberFormatException ex) {
-            throw OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
-                    "Authenticated principal is not a numeric user id: " + authentication.getName());
-        }
     }
 
     private void handleCredentialFailure(Long userId, String reason) {
