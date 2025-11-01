@@ -16,4 +16,5 @@ public final class OpenConstant {
     public static final String REQUEST_ID_KEY = "requestId";
 
     public static final String BEARER_PREFIX = "Bearer ";
+    public static final String API_KEY_HEADER = "X-API-KEY";
 }

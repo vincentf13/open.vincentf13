@@ -43,6 +43,8 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
         this.gatewayJwtProperties = gatewayJwtProperties;
     }
 
+
+    // TODO 改成有帶 token 就效驗是否在線上，沒帶token就放行，由資源服務器的 @publicKey , @privateKey, jwt效驗 鑑定權限
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         if (!gatewayJwtProperties.isEnabled() || shouldBypass(exchange.getRequest().getPath().value())) {

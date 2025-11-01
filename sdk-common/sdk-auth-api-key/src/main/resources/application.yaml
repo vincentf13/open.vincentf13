@@ -1,0 +1,6 @@
+security:
+  api-key:
+    enabled: true
+    valid-keys:
+      - default-1
+      - default-2

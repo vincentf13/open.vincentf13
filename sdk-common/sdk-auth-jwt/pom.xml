@@ -16,9 +16,9 @@
     <description>Shared JWT filter, token, and session helpers</description>
 
     <dependencies>
-        <dependency>
-            <groupId>open.vincentf13.common</groupId>
-            <artifactId>sdk-spring-security</artifactId>
+      <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.common</groupId>
@@ -36,6 +36,10 @@
             <groupId>open.vincentf13.common</groupId>
             <artifactId>sdk-infra-redis</artifactId>
             <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
         </dependency>
     </dependencies>
 </project>
