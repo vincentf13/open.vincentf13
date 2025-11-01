@@ -21,7 +21,7 @@
     <modules>
         <module>sdk-core</module>
         <module>sdk-spring-mvc</module>
-        <module>sdk-spring-security</module>
+        <module>sdk-auth</module>
         <module>sdk-spring-cloud-gateway</module>
         <module>sdk-spring-websocket</module>
         <module>sdk-auth-jwt</module>

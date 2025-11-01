@@ -94,7 +94,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-spring-security</artifactId>
+                <artifactId>sdk-auth</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

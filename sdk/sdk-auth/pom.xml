@@ -11,9 +11,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>sdk-spring-security</artifactId>
-    <name>sdk-spring-security</name>
-    <description>Shared Spring Security baseline dependencies</description>
+    <artifactId>sdk-auth</artifactId>
+    <name>sdk-auth</name>
+    <description>Shared authentication and authorization baseline components</description>
 
     <dependencies>
         <dependency>

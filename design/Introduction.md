@@ -23,7 +23,7 @@ open.vincentf13/
 │   ├── sdk-auth-server/            # 身分驗證、ACL 與簽名工具
 │   ├── sdk-spring-cloud-gateway/   # Gateway 共用設定與過濾器
 │   ├── sdk-spring-mvc/             # Web 層配置、CORS、例外處理
-│   ├── sdk-spring-security/        # 安全攔截、權限模型與授權流程
+│   ├── sdk-auth/                   # 安全攔截、權限模型與授權流程
 │   ├── sdk-spring-session/         # Spring Session/Redis 會話整合
 │   └── sdk-spring-websocket/       # WebSocket Starter 與訊息編碼
 ├── sdk-contract/                   # API 契約與自動化產生客戶端
