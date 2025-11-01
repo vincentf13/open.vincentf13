@@ -25,11 +25,6 @@ public class UserController implements UserApi {
     }
 
     @Override
-    public OpenApiResponse<UserResponse> findById(Long id) {
-        return OpenApiResponse.success(userService.getUserById(id));
-    }
-
-    @Override
     public OpenApiResponse<UserResponse> findByEmail(String email) {
         return OpenApiResponse.success(userService.getUserByEmail(email));
     }

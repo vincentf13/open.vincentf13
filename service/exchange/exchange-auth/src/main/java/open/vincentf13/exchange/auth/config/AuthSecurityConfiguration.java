@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.auth.config;
 
-import open.vincentf13.exchange.auth.security.AuthCredentialAuthenticationProvider;
+import open.vincentf13.exchange.auth.security.PasswordChecker;
 import open.vincentf13.exchange.auth.security.AuthUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,9 +13,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class AuthSecurityConfiguration {
 
     @Bean
-    public AuthCredentialAuthenticationProvider authCredentialAuthenticationProvider(AuthUserDetailsService userDetailsService,
-                                                                                     PasswordEncoder passwordEncoder) {
-        AuthCredentialAuthenticationProvider provider = new AuthCredentialAuthenticationProvider(passwordEncoder);
+    public PasswordChecker authCredentialAuthenticationProvider(AuthUserDetailsService userDetailsService,
+                                                                PasswordEncoder passwordEncoder) {
+        PasswordChecker provider = new PasswordChecker(passwordEncoder);
         provider.setUserDetailsService(userDetailsService);
         provider.setHideUserNotFoundExceptions(false);
         return provider;
@@ -23,9 +23,9 @@ public class AuthSecurityConfiguration {
 
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http,
-                                                       AuthCredentialAuthenticationProvider authenticationProvider) throws Exception {
+                                                       PasswordChecker passwordChecker) throws Exception {
         AuthenticationManagerBuilder builder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        builder.authenticationProvider(authenticationProvider);
+        builder.authenticationProvider(passwordChecker);
         return builder.build();
     }
 }

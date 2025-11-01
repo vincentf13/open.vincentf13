@@ -6,9 +6,9 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-public class AuthCredentialAuthenticationProvider extends DaoAuthenticationProvider {
+public class PasswordChecker extends DaoAuthenticationProvider {
 
-    public AuthCredentialAuthenticationProvider(PasswordEncoder passwordEncoder) {
+    public PasswordChecker(PasswordEncoder passwordEncoder) {
         setPasswordEncoder(passwordEncoder);
     }
 
