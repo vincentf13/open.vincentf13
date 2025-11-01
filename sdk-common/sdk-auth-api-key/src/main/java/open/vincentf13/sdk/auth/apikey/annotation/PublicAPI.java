@@ -1,4 +1,4 @@
-package main.java.open.vincentf13.sdk.auth.apikey.annotation;
+package open.vincentf13.sdk.auth.apikey.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.spring.security.auth;
 
 import jakarta.servlet.http.HttpServletRequest;
+import open.vincentf13.sdk.auth.apikey.annotation.PublicAPI;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authorization.AuthorizationDecision;
@@ -38,7 +39,7 @@ public class AnnotationBasedAuthorizationManager implements AuthorizationManager
         }
 
         // 1. 檢查是否標註 @PublicAPI，代表不需登入即可存取
-        if (hasAnnotation(handlerMethod, main.java.open.vincentf13.sdk.auth.apikey.annotation.PublicAPI.class)) {
+        if (hasAnnotation(handlerMethod, PublicAPI.class)) {
             return new AuthorizationDecision(true);
         }
 

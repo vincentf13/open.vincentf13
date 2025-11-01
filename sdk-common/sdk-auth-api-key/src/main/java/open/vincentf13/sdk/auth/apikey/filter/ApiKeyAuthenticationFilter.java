@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import open.vincentf13.sdk.auth.apikey.annotation.PrivateAPI;
 import open.vincentf13.sdk.auth.apikey.key.ApiKeyValidator;
 import open.vincentf13.sdk.core.OpenConstant;
 import org.springframework.core.annotation.AnnotationUtils;
@@ -42,7 +43,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        main.java.open.vincentf13.sdk.auth.apikey.annotation.PrivateAPI privateApiAnnotation = findPrivateApiAnnotation(handlerMethod);
+        PrivateAPI privateApiAnnotation = findPrivateApiAnnotation(handlerMethod);
 
         if (privateApiAnnotation != null) {
             String apiKey = request.getHeader(OpenConstant.API_KEY_HEADER);
@@ -56,10 +57,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private main.java.open.vincentf13.sdk.auth.apikey.annotation.PrivateAPI findPrivateApiAnnotation(HandlerMethod handlerMethod) {
-        main.java.open.vincentf13.sdk.auth.apikey.annotation.PrivateAPI annotation = AnnotationUtils.findAnnotation(handlerMethod.getMethod(), main.java.open.vincentf13.sdk.auth.apikey.annotation.PrivateAPI.class);
+    private PrivateAPI findPrivateApiAnnotation(HandlerMethod handlerMethod) {
+        PrivateAPI annotation = AnnotationUtils.findAnnotation(handlerMethod.getMethod(), PrivateAPI.class);
         if (annotation == null) {
-            annotation = AnnotationUtils.findAnnotation(handlerMethod.getBeanType(), main.java.open.vincentf13.sdk.auth.apikey.annotation.PrivateAPI.class);
+            annotation = AnnotationUtils.findAnnotation(handlerMethod.getBeanType(), PrivateAPI.class);
         }
         return annotation;
     }

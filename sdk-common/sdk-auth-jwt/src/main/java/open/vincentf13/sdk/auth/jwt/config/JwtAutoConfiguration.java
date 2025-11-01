@@ -14,23 +14,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
 public class JwtAutoConfiguration {
 
-    @Bean
-    @Order(101)
-    @ConditionalOnMissingBean(SecurityFilterChain.class)
-    public SecurityFilterChain jwtSecurityFilterChain(HttpSecurity http,
-                                                      JwtConfigurer configurer) throws Exception {
-        http.apply(configurer);
-        return http.build();
-    }
 
 
     @Bean
