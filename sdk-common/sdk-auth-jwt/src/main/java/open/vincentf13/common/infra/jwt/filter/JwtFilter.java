@@ -4,7 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import open.vincentf13.common.core.OpenConstant;
+import open.vincentf13.common.spring.mvc.util.OpenHttpUtils;
 import open.vincentf13.common.core.log.OpenLog;
 import open.vincentf13.common.infra.jwt.session.JwtSessionService;
 import open.vincentf13.common.infra.jwt.token.JwtProperties;
@@ -13,13 +13,10 @@ import open.vincentf13.common.infra.jwt.token.model.JwtAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Optional;
 
 /**
  * Bearer JWT filter that restores authentication from the Authorization header and (optionally)
@@ -45,7 +42,7 @@ public class JwtFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            resolveToken(request)
+            OpenHttpUtils.resolveBearerToken(request)
                 .flatMap(openJwt::parseAccessToken)
                 .filter(this::isAllowed)
                 .ifPresent(authentication -> SecurityContextHolder.getContext().setAuthentication(authentication));
@@ -72,11 +69,4 @@ public class JwtFilter extends OncePerRequestFilter {
         return active;
     }
 
-    private Optional<String> resolveToken(HttpServletRequest request) {
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (!StringUtils.hasText(header) || !header.startsWith(OpenConstant.BEARER_PREFIX)) {
-            return Optional.empty();
-        }
-        return Optional.of(header.substring(OpenConstant.BEARER_PREFIX.length()));
-    }
 }
