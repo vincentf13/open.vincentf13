@@ -9,14 +9,14 @@ import java.util.List;
 
 public class OpenUserUtils {
 
-    public static AuthUserDetails currentAuthUser() {
+    public static OpenUser currentAuthUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication instanceof UsernamePasswordAuthenticationToken token)) {
             return null;
         }
 
         Object principal = token.getPrincipal();
-        if (principal instanceof AuthUserDetails details) {
+        if (principal instanceof OpenUser details) {
             return details;
         }
         return null;

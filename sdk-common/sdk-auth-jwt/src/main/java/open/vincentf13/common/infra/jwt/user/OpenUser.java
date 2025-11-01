@@ -6,7 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.Collections;
 
-public class AuthUserDetails implements UserDetails {
+public class OpenUser implements UserDetails {
 
     private final Long userId;
     private final String email;
@@ -16,13 +16,13 @@ public class AuthUserDetails implements UserDetails {
     private final boolean enabled;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public AuthUserDetails(Long userId,
-                           String email,
-                           String secretHash,
-                           String salt,
-                           boolean enabled,
-                           boolean accountNonLocked,
-                           Collection<? extends GrantedAuthority> authorities) {
+    public OpenUser(Long userId,
+                    String email,
+                    String secretHash,
+                    String salt,
+                    boolean enabled,
+                    boolean accountNonLocked,
+                    Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.email = email;
         this.secretHash = secretHash;

@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.auth.security;
 
-import open.vincentf13.common.infra.jwt.user.AuthUserDetails;
+import open.vincentf13.common.infra.jwt.user.OpenUser;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -20,14 +20,14 @@ public class PasswordChecker extends DaoAuthenticationProvider {
             throw new BadCredentialsException(messages.getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials", "Bad credentials"));
         }
 
-        if (!(userDetails instanceof AuthUserDetails authUserDetails)) {
+        if (!(userDetails instanceof OpenUser openUser)) {
             throw new BadCredentialsException("Unsupported user details type");
         }
 
         String presentedPassword = authentication.getCredentials().toString();
-        String saltedPassword = presentedPassword + ':' + authUserDetails.getSalt();
+        String saltedPassword = presentedPassword + ':' + openUser.getSalt();
 
-        if (!getPasswordEncoder().matches(saltedPassword, authUserDetails.getPassword())) {
+        if (!getPasswordEncoder().matches(saltedPassword, openUser.getPassword())) {
             throw new BadCredentialsException(messages.getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials", "Bad credentials"));
         }
     }
