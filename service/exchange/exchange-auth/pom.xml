@@ -17,19 +17,19 @@
 
     <dependencies>
         <dependency>
-            <groupId>open.vincentf13.common</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-auth-server</artifactId>
         </dependency>
         <dependency>
-            <groupId>open.vincentf13.common</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-infra-mysql</artifactId>
         </dependency>
         <dependency>
-            <groupId>open.vincentf13.common</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>exchange-auth-sdk-rest-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>open.vincentf13.common</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>exchange-user-sdk-rest-client</artifactId>
         </dependency>
     </dependencies>

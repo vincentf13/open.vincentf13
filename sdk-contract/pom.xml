@@ -11,7 +11,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>open.vincentf13.common</groupId>
+    <groupId>open.vincentf13</groupId>
     <artifactId>sdk-contract</artifactId>
     <packaging>pom</packaging>
 

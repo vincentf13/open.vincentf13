@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>open.vincentf13.common</groupId>
+        <groupId>open.vincentf13</groupId>
         <artifactId>exchange-auth-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -17,15 +17,15 @@
 
     <dependencies>
         <dependency>
-            <groupId>open.vincentf13.common</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>open.vincentf13.common</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-spring-mvc</artifactId>
         </dependency>
         <dependency>
-            <groupId>open.vincentf13.common</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-auth</artifactId>
         </dependency>
     </dependencies>

@@ -17,7 +17,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>open.vincentf13.common</groupId>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-spring-cloud-gateway</artifactId>
             <version>${project.version}</version>
         </dependency>
