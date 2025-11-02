@@ -1,23 +1,22 @@
 package open.vincentf13.sdk.spring.security.config;
 
+import open.vincentf13.sdk.auth.apikey.config.ApiKeySecurityConfigurer;
 import open.vincentf13.sdk.auth.jwt.config.JwtConfigurer;
-import open.vincentf13.sdk.auth.jwt.filter.JwtFilter;
 import open.vincentf13.sdk.spring.security.auth.AnnotationBasedAuthorizationManager;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.web.filter.OncePerRequestFilter;
 
 public class OpenSecurityConfigurer extends AbstractHttpConfigurer<OpenSecurityConfigurer, HttpSecurity> {
 
-    private final ObjectProvider<OncePerRequestFilter> apiKeyFilterProvider;
+    private final ObjectProvider<ApiKeySecurityConfigurer> apiKeySecurityConfigurerProvider;
     private final AnnotationBasedAuthorizationManager authorizationManager;
     private final JwtConfigurer jwtConfigurer;
 
-    public OpenSecurityConfigurer(ObjectProvider<OncePerRequestFilter> apiKeyFilterProvider,
+    public OpenSecurityConfigurer(ObjectProvider<ApiKeySecurityConfigurer> apiKeySecurityConfigurerProvider,
                                   AnnotationBasedAuthorizationManager authorizationManager,
                                   JwtConfigurer jwtConfigurer) {
-        this.apiKeyFilterProvider = apiKeyFilterProvider;
+        this.apiKeySecurityConfigurerProvider = apiKeySecurityConfigurerProvider;
         this.authorizationManager = authorizationManager;
         this.jwtConfigurer = jwtConfigurer;
     }
@@ -30,9 +29,9 @@ public class OpenSecurityConfigurer extends AbstractHttpConfigurer<OpenSecurityC
                 .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth.anyRequest().access(authorizationManager));
 
-        OncePerRequestFilter apiKeyAuthenticationFilter = apiKeyFilterProvider.getIfAvailable();
-        if (apiKeyAuthenticationFilter != null) {
-            http.addFilterBefore(apiKeyAuthenticationFilter, JwtFilter.class);
+        ApiKeySecurityConfigurer apiKeyConfigurer = apiKeySecurityConfigurerProvider.getIfAvailable();
+        if (apiKeyConfigurer != null) {
+            http.apply(apiKeyConfigurer);
         }
     }
 }

@@ -233,12 +233,6 @@
                 <artifactId>exchange-user-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>open.vincentf13.common</groupId>
-                <artifactId>sdk-auth-api-key</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
         </dependencies>
     </dependencyManagement>
 
