@@ -48,22 +48,7 @@ public class ConfigWebMvc {
     }
 
 
-    /**
-     * 多語系 支持 Accept-Language 頭
-     * 傳統頁面或需要 URL 切換語系 也支持 ?lang= ，lang參數
-     */
-    @Bean
-    public LocaleResolver localeResolver() {
-        return new AcceptHeaderLocaleResolver() {
-            @Override
-            public Locale resolveLocale(HttpServletRequest req) {
-                String p = req.getParameter("lang");
-                if (p != null && !p.isBlank()) return Locale.forLanguageTag(p);
-                Locale l = super.resolveLocale(req);
-                return (l != null ? l : Locale.forLanguageTag("en-US"));
-            }
-        };
-    }
+
 
 
     /**

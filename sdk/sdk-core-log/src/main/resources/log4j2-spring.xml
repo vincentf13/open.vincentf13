@@ -16,7 +16,7 @@
     </Properties>
 
     <!-- ========== dev ========== -->
-    <SpringProfile name="dev">
+    <SpringProfile name="dev,default">
         <Appenders>
             <Console name="CONSOLE">
                 <PatternLayout

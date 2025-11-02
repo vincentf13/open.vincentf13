@@ -18,10 +18,10 @@ public class ConfigFilter {
      * 且 Content-Type = application/x-www-form-urlencoded
      * 能透過 request.getParameter() 讀取表單欄位
      */
-    @Bean
-    FormContentFilter formContentFilter() {
-        return new FormContentFilter();
-    }
+//    @Bean
+//    FormContentFilter formContentFilter() {
+//        return new FormContentFilter();
+//    }
 //
 //    /**
 //     * 建立 RequestCorrelationFilter，負責補足 traceId/requestId 與同步至 MDC。
