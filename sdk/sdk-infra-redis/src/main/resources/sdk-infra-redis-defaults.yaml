@@ -17,10 +17,10 @@ spring:
         # read-from: replica-preferred
         pool:
           enabled: true
-          max-active: 64
-          max-idle: 32
-          min-idle: 8
-          max-wait: 2s
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 1s
         cluster:
           refresh:
             adaptive: true

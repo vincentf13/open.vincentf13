@@ -22,9 +22,9 @@ spring:
             # 閒置多久回收連線，建議為 max-lifetime 的一半左右
             idle-timeout: 600000    # 10 分鐘
             # 池內最大連線數，依服務併發量和 DB 能力調整
-            maximum-pool-size: 16
+            maximum-pool-size: 5
             # 保留的最小閒置連線數，兼顧冷啟動與資源利用
-            minimum-idle: 2
+            minimum-idle: 1
             # 等待連線取得的最長毫秒數，超時立即拋 SQLException
             connection-timeout: 30000
             # 驗證連線可用性的逾時，縮短剔除壞連線的時間
@@ -37,8 +37,8 @@ spring:
           hikari:
             max-lifetime: 1700000
             idle-timeout: 600000
-            maximum-pool-size: 12
-            minimum-idle: 2
+            maximum-pool-size: 4
+            minimum-idle: 1
             connection-timeout: 30000
             validation-timeout: 5000
         # === db1 群組 ===
@@ -50,8 +50,8 @@ spring:
           hikari:
             max-lifetime: 1700000
             idle-timeout: 600000
-            maximum-pool-size: 16
-            minimum-idle: 2
+            maximum-pool-size: 5
+            minimum-idle: 1
             connection-timeout: 30000
             validation-timeout: 5000
         db1_slave:
@@ -62,8 +62,8 @@ spring:
           hikari:
             max-lifetime: 1700000
             idle-timeout: 600000
-            maximum-pool-size: 12
-            minimum-idle: 2
+            maximum-pool-size: 4
+            minimum-idle: 1
             connection-timeout: 30000
             validation-timeout: 5000
 

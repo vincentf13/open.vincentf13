@@ -18,7 +18,7 @@ clusterServersConfig:
   connectTimeout: 10000              # 連線建立逾時（毫秒）
   idleConnectionTimeout: 10000       # 閒置連線關閉時間（毫秒）
   pingConnectionInterval: 0          # ping 連線心跳，0 表示關閉
-threads: 16                          # Redisson 主執行緒數（建議 = CPU 核心數）
-nettyThreads: 32                     # Netty I/O 執行緒（建議 = 核心數 * 2）
+threads: 4                          # Redisson 主執行緒數（建議 = CPU 核心數）
+nettyThreads: 8                     # Netty I/O 執行緒（建議 = 核心數 * 2）
 codec: !<org.redisson.codec.JsonJacksonCodec> {}
 lockWatchdogTimeout: 30000           # 分散式鎖看門狗自動續期時間（毫秒）

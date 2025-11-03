@@ -26,12 +26,12 @@ spring:
         enable.idempotence: true                                                                   
         # 壓縮與批次                                                                               
         compression.type: zstd                                                                     
-        linger.ms: 20                                                                              
-        batch.size: 131072                                                                         
-        buffer.memory: 67108864                                                                    
+        linger.ms: 10                                                                              
+        batch.size: 32768                                                                         
+        buffer.memory: 33554432                                                                    
         # 重試與順序控制                                                                           
         retries: 10                                                                                
-        max.in.flight.requests.per.connection: 5                                                   
+        max.in.flight.requests.per.connection: 2                                                   
         # 傳送逾時設定                                                                             
         request.timeout.ms: 30000                                                                  
         delivery.timeout.ms: 120000
@@ -43,7 +43,7 @@ spring:
       auto-offset-reset: latest
       enable-auto-commit: false
       # 一次 poll() 調用最多拉取的訊息數量。
-      max-poll-records: 50
+      max-poll-records: 20
       # Consumer 健康檢查的最大間隔。下游服務應根據自身最長處理時間來覆蓋此值。
       max-poll-interval-ms: 300000 # 5 分鐘
       # 反序列化
@@ -57,8 +57,8 @@ spring:
 #        group.instance.id: ${spring.application.name}-${random.uuid}
         session.timeout.ms: 10000
         heartbeat.interval.ms: 3000
-        fetch.min.bytes: 1048576
-        fetch.max.wait.ms: 200
+        fetch.min.bytes: 262144
+        fetch.max.wait.ms: 150
     listener:
       # 批次
       type: batch

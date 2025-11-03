@@ -1,11 +1,12 @@
 package open.vincentf13.exchange.user.controller;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.user.sdk.rest.api.UserApi;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.service.UserService;
+import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
