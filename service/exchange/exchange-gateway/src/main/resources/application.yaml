@@ -2,6 +2,10 @@ spring:
   application:
     name: exchange-gateway
   cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
     gateway:
       routes:
         - id: exchange-user-route

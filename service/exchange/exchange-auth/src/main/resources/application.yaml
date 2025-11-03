@@ -1,6 +1,11 @@
 spring:
   application:
     name: exchange-auth
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
 
 mybatis:
   type-aliases-package: open.vincentf13.exchange.user.infra.persistence.po

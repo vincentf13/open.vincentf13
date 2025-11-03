@@ -1,6 +1,11 @@
 spring:
   application:
     name: exchange-user
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
 
 management:
   endpoints:
