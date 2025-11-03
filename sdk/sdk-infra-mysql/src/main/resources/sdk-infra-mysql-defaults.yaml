@@ -12,7 +12,7 @@ spring:
       datasource:
         # === db0 群組 ===
         db0_master:
-          url: jdbc:mysql://infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306/exchange?characterEncoding=UTF-8&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          url: jdbc:mysql://infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306/${MYSQL_DATABASE:exchange}?createDatabaseIfNotExist=true&characterEncoding=UTF-8&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
           username: ${MYSQL_USERNAME:root}
           password: ${MYSQL_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
@@ -30,7 +30,7 @@ spring:
             # 驗證連線可用性的逾時，縮短剔除壞連線的時間
             validation-timeout: 5000
         db0_slave:
-          url: jdbc:mysql://infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306/exchange?characterEncoding=UTF-8&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          url: jdbc:mysql://infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306/${MYSQL_DATABASE:exchange}?createDatabaseIfNotExist=true&characterEncoding=UTF-8&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
           username: ${MYSQL_USERNAME:root}
           password: ${MYSQL_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
@@ -43,7 +43,7 @@ spring:
             validation-timeout: 5000
         # === db1 群組 ===
         db1_master:
-          url: jdbc:mysql://infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306/exchange?characterEncoding=UTF-8&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          url: jdbc:mysql://infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306/${MYSQL_DATABASE:exchange}?createDatabaseIfNotExist=true&characterEncoding=UTF-8&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
           username: ${MYSQL_USERNAME:root}
           password: ${MYSQL_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
@@ -55,7 +55,7 @@ spring:
             connection-timeout: 30000
             validation-timeout: 5000
         db1_slave:
-          url: jdbc:mysql://infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306/exchange?characterEncoding=UTF-8&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
+          url: jdbc:mysql://infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306/${MYSQL_DATABASE:exchange}?createDatabaseIfNotExist=true&characterEncoding=UTF-8&serverTimezone=UTC&connectTimeout=3000&socketTimeout=15000&tcpKeepAlive=true&rewriteBatchedStatements=true&allowMultiQueries=true&cachePrepStmts=true&prepStmtCacheSize=256&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true&cacheResultSetMetadata=true&cacheServerConfiguration=true&useLocalSessionState=true
           username: ${MYSQL_USERNAME:root}
           password: ${MYSQL_PASSWORD:root}
           driver-class-name: com.mysql.cj.jdbc.Driver
@@ -117,4 +117,3 @@ pagehelper:
   params: count=countSql
   # PageInfo.RowBounds 查詢時自動追加 count 查詢
   row-bounds-with-count: true
-
