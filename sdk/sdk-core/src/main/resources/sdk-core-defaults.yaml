@@ -31,3 +31,8 @@ management:
   endpoint:
     health:
       show-details: always                 # 開發可設 always
+
+logging:
+  level:
+    root: INFO
+

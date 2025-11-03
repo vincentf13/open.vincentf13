@@ -60,8 +60,8 @@
             <artifactId>lombok</artifactId>
         </dependency>
         <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>sdk-core-log</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>

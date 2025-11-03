@@ -71,11 +71,6 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>open.vincentf13</groupId>
-                <artifactId>sdk-core-log</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>1.20.3</version>
