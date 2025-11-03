@@ -11,7 +11,7 @@ logging:
                                                                                                    
 spring:                                                                                            
   kafka:                                                                                           
-    bootstrap-servers: localhost:9092   # 需自訂
+    bootstrap-servers: infra-kafka.default.svc.cluster.local:9092   # 需自訂
     admin:                                                                                         
       auto-create: true     # 預設 true，偵測到 NewTopic 就建立                                    
       fail-fast: true       # 若 Kafka broker 無法連線則啟動失敗                                   

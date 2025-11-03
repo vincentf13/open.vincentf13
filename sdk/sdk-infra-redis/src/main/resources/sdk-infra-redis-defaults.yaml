@@ -2,15 +2,15 @@ spring:
   data:
     redis:
       client-type: lettuce
-      # host: localhost
+      # host: infra-redis.default.svc.cluster.local
       # password: ${REDIS_PASS}
       ssl: false
       timeout: 3s
       cluster:
         nodes:
-          - localhost:6379
-          - localhost:6380
-          - localhost:6381
+          - infra-redis-0.infra-redis-headless.default.svc.cluster.local:6379
+          - infra-redis-1.infra-redis-headless.default.svc.cluster.local:6379
+          - infra-redis-2.infra-redis-headless.default.svc.cluster.local:6379
         max-redirects: 8
       lettuce:
         # read-from: replica-preferred

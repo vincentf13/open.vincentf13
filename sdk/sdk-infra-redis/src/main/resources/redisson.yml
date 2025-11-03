@@ -1,9 +1,9 @@
 clusterServersConfig:
   # 啟用 Redis Cluster 模式，需指定所有節點位址（主從都可列）
   nodeAddresses:
-    - redis://localhost:6379
-    - redis://localhost:6380
-    - redis://localhost:6381
+    - redis://infra-redis-0.infra-redis-headless.default.svc.cluster.local:6379
+    - redis://infra-redis-1.infra-redis-headless.default.svc.cluster.local:6379
+    - redis://infra-redis-2.infra-redis-headless.default.svc.cluster.local:6379
   scanInterval: 2000                 # slot 重新掃描間隔（毫秒）
  #  password: your_password            # 若無密碼可刪除此行
   readMode: MASTER                    # 一致性讀取可改為 MASTER
