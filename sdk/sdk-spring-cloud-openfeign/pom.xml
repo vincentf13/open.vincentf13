@@ -17,6 +17,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+        <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>sdk-core</artifactId>
         </dependency>

@@ -11,7 +11,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @Validated
-@RequestMapping("/api/user")
 public interface UserApi {
 
     @PostMapping

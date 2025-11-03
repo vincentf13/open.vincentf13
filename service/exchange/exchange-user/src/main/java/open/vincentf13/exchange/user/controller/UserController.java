@@ -9,6 +9,7 @@ import open.vincentf13.exchange.user.service.UserService;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/user")
 @RequiredArgsConstructor
 public class UserController implements UserApi {
 

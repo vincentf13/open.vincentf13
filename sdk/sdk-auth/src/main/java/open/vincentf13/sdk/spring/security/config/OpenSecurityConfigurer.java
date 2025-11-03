@@ -22,12 +22,13 @@ public class OpenSecurityConfigurer extends AbstractHttpConfigurer<OpenSecurityC
     }
 
     @Override
-    public void configure(HttpSecurity http) throws Exception {
-        http.apply(jwtConfigurer).and()
-                .formLogin(AbstractHttpConfigurer::disable)
+    public void init(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth.anyRequest().access(authorizationManager));
+        http.formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .logout(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth.anyRequest().access(authorizationManager));
+                .logout(AbstractHttpConfigurer::disable);
+
+        http.apply(jwtConfigurer);
 
         ApiKeySecurityConfigurer apiKeyConfigurer = apiKeySecurityConfigurerProvider.getIfAvailable();
         if (apiKeyConfigurer != null) {

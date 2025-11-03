@@ -6,6 +6,7 @@ import open.vincentf13.sdk.auth.jwt.config.JwtConfigurer;
 import open.vincentf13.sdk.auth.jwt.config.JwtSecurityAutoConfiguration;
 import open.vincentf13.sdk.spring.security.auth.AnnotationBasedAuthorizationManager;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -25,8 +26,9 @@ public class SecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AnnotationBasedAuthorizationManager annotationBasedAuthorizationManager(RequestMappingHandlerMapping handlerMapping) {
-        return new AnnotationBasedAuthorizationManager(handlerMapping);
+    public AnnotationBasedAuthorizationManager annotationBasedAuthorizationManager(
+            @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping requestMappingHandlerMapping) {
+        return new AnnotationBasedAuthorizationManager(requestMappingHandlerMapping);
     }
 
     @Bean
