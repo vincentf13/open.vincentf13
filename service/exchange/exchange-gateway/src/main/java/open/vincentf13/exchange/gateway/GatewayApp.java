@@ -5,9 +5,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import open.vincentf13.sdk.core.OpenConstant;
 
 @SpringBootApplication(scanBasePackages = OpenConstant.BASE_PACKAGE)
-public class GatewayApplication {
+public class GatewayApp {
 
     public static void main(String[] args) {
-        SpringApplication.run(GatewayApplication.class, args);
+        SpringApplication.run(GatewayApp.class, args);
     }
 }

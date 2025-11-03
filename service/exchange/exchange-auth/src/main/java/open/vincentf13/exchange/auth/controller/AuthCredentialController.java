@@ -8,9 +8,11 @@ import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareReque
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.service.AuthCredentialService;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/auth-credential")
 @RequiredArgsConstructor
 public class AuthCredentialController implements AuthCredentialApi {
 
