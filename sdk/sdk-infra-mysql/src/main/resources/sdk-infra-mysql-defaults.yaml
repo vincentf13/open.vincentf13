@@ -117,3 +117,9 @@ pagehelper:
   params: count=countSql
   # PageInfo.RowBounds 查詢時自動追加 count 查詢
   row-bounds-with-count: true
+
+open:
+  vincentf13:
+    mybatis:
+      mapper-sql-logging:
+        enabled: true
