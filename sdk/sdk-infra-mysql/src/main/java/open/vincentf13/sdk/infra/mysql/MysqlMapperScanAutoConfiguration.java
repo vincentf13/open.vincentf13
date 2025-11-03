@@ -9,6 +9,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
  */
 @AutoConfiguration
 @ConditionalOnClass(MapperScan.class)
-@MapperScan(basePackages = "open.vincentf13")
+@MapperScan(basePackages = "${open.vincentf13.mybatis.mapper-base-packages:open.vincentf13.exchange}")
 public class MysqlMapperScanAutoConfiguration {
 }

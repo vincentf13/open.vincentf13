@@ -6,6 +6,7 @@ import open.vincentf13.sdk.auth.apikey.key.ApiKeyValidator;
 import open.vincentf13.sdk.auth.apikey.key.PropertiesApiKeyValidator;
 import open.vincentf13.sdk.auth.jwt.filter.JwtFilter;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -29,7 +30,7 @@ public class ApiKeyAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnBean(ApiKeyValidator.class)
     public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(ApiKeyValidator apiKeyValidator,
-                                                                 RequestMappingHandlerMapping handlerMapping) {
+                                                                 @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping) {
         return new ApiKeyAuthenticationFilter(apiKeyValidator, handlerMapping);
     }
 
