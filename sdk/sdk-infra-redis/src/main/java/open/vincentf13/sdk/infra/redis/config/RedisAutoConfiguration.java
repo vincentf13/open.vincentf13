@@ -25,8 +25,8 @@ public class RedisAutoConfiguration {
 
     @Bean
     @Primary
-    @ConditionalOnMissingBean(name = "redisTemplate")
-    public RedisTemplate<String, Object> redisTemplate(
+    @ConditionalOnMissingBean(name = "stringObjectRedisTemplate")
+    public RedisTemplate<String, Object> stringObjectRedisTemplate(
             RedisConnectionFactory redisConnectionFactory,
             RedisSerializer<Object> redisValueSerializer
     ) {
@@ -53,7 +53,7 @@ public class RedisAutoConfiguration {
 
 
     @Bean
-    @ConditionalOnBean(StringRedisTemplate.class)
+    @ConditionalOnBean({RedisTemplate.class, StringRedisTemplate.class})
     @ConditionalOnMissingBean
     public OpenRedisString openRedisString(RedisTemplate<String, Object> redisTemplate,
                                            StringRedisTemplate stringRedisTemplate) {

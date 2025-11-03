@@ -35,6 +35,12 @@
         <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>sdk-auth-jwt</artifactId>
+            <exclusions>
+                <exclusion>
+                    <artifactId>spring-boot-starter-web</artifactId>
+                    <groupId>org.springframework.boot</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
                 <dependency>
             <groupId>open.vincentf13</groupId>

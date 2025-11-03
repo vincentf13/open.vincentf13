@@ -481,7 +481,7 @@ configure_argocd() {
   log_step "Logging into Argo CD"
   local argo_password
   argo_password=$(kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 --decode)
-  argocd login localhost:8080 \
+  argocd login localhost:8888 \
     --username admin \
     --password "$argo_password" \
     --insecure --grpc-web
@@ -621,7 +621,7 @@ main() {
       setup_ingress_and_metrics
 
       start_port_forward "Ingress controller 8081->80" --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
-      start_port_forward "Argo CD API 8080->443" -n argocd port-forward svc/argocd-server 8080:443
+      start_port_forward "Argo CD API 8888->443" -n argocd port-forward svc/argocd-server 8888:443
 
       configure_argocd
 

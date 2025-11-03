@@ -11,6 +11,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,15 +30,6 @@ public class JwtAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnClass(RedisTemplate.class)
-    @ConditionalOnBean(RedisTemplate.class)
-    @ConditionalOnMissingBean
-    public JwtSessionStore redisJwtSessionStore(RedisTemplate<String, Object> redisTemplate,
-                                                JwtProperties properties) {
-        return new JwtSessionStoreRedis(redisTemplate, properties);
-    }
-
-    @Bean
     @ConditionalOnMissingBean(JwtSessionStore.class)
     public JwtSessionStore inMemoryJwtSessionStore() {
         return new JwtSessionStoreInMemory();
@@ -49,17 +41,36 @@ public class JwtAutoConfiguration {
         return new JwtSessionService(sessionStore);
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public JwtFilter jwtAuthenticationFilter(OpenJwt openJwt,
-                                             ObjectProvider<JwtSessionService> sessionServiceProvider,
-                                             JwtProperties properties) {
-        return new JwtFilter(openJwt, sessionServiceProvider, properties);
+    @Configuration
+    @ConditionalOnClass(RedisTemplate.class)
+    @ConditionalOnBean(RedisTemplate.class)
+    static class RedisJwtConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(name = "redisJwtSessionStore")
+        public JwtSessionStore redisJwtSessionStore(RedisTemplate<String, Object> redisTemplate,
+                                                    JwtProperties properties) {
+            return new JwtSessionStoreRedis(redisTemplate, properties);
+        }
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public JwtConfigurer jwtSecurityConfigurer(ObjectProvider<JwtFilter> provider) {
-        return new JwtConfigurer(provider);
+    @Configuration
+    @ConditionalOnClass(name = "jakarta.servlet.Filter")
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+    static class ServletJwtConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        public JwtFilter jwtAuthenticationFilter(OpenJwt openJwt,
+                                                 ObjectProvider<JwtSessionService> sessionServiceProvider,
+                                                 JwtProperties properties) {
+            return new JwtFilter(openJwt, sessionServiceProvider, properties);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public JwtConfigurer jwtSecurityConfigurer(ObjectProvider<JwtFilter> provider) {
+            return new JwtConfigurer(provider);
+        }
     }
 }

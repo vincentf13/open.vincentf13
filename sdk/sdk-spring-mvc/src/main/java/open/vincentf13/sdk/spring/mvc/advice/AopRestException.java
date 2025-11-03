@@ -10,14 +10,13 @@ import open.vincentf13.sdk.core.exception.OpenApiException;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceAware;
 import org.springframework.context.NoSuchMessageException;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.context.support.MessageSourceAccessor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
@@ -29,10 +28,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -44,7 +41,8 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @RestControllerAdvice
-public class AopRestException extends ResponseEntityExceptionHandler implements MessageSourceAware {
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+public class AopRestException implements MessageSourceAware {
 
     private MessageSourceAccessor messageAccessor;
 
@@ -53,11 +51,9 @@ public class AopRestException extends ResponseEntityExceptionHandler implements 
         this.messageAccessor = new MessageSourceAccessor(messageSource);
     }
 
-    @Override
-    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
-                                                                  HttpHeaders headers,
-                                                                  HttpStatusCode status,
-                                                                  WebRequest request) {
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+                                                               WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
         Map<String, String> errors = ex.getBindingResult().getFieldErrors().stream()
@@ -72,11 +68,9 @@ public class AopRestException extends ResponseEntityExceptionHandler implements 
         return ResponseEntity.badRequest().body(body);
     }
 
-    @Override
-    protected ResponseEntity<Object> handleBindException(BindException ex,
-                                                         HttpHeaders headers,
-                                                         HttpStatusCode status,
-                                                         WebRequest request) {
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<Object> handleBindException(BindException ex,
+                                                      WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
         Map<String, String> errors = ex.getBindingResult().getFieldErrors().stream()
@@ -91,11 +85,9 @@ public class AopRestException extends ResponseEntityExceptionHandler implements 
         return ResponseEntity.badRequest().body(body);
     }
 
-    @Override
-    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
-                                                                          HttpHeaders headers,
-                                                                          HttpStatusCode status,
-                                                                          WebRequest request) {
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+                                                                       WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
         meta.put("parameter", ex.getParameterName());
@@ -105,11 +97,9 @@ public class AopRestException extends ResponseEntityExceptionHandler implements 
         return ResponseEntity.badRequest().body(body);
     }
 
-    @Override
-    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
-                                                                  HttpHeaders headers,
-                                                                  HttpStatusCode status,
-                                                                  WebRequest request) {
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
+                                                               WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         String reason = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         OpenLog.debug(log, "HttpMessageUnreadable", () -> "Request payload unreadable",
@@ -124,11 +114,9 @@ public class AopRestException extends ResponseEntityExceptionHandler implements 
         return ResponseEntity.badRequest().body(body);
     }
 
-    @Override
-    protected ResponseEntity<Object> handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException ex,
-                                                                         HttpHeaders headers,
-                                                                         HttpStatusCode status,
-                                                                         WebRequest request) {
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Object> handleHttpRequestMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+                                                                      WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.METHOD_NOT_ALLOWED);
         if (!CollectionUtils.isEmpty(ex.getSupportedHttpMethods())) {
@@ -234,7 +222,7 @@ public class AopRestException extends ResponseEntityExceptionHandler implements 
         if (request instanceof ServletWebRequest servletWebRequest) {
             return servletWebRequest.getRequest();
         }
-        if (request instanceof NativeWebRequest nativeWebRequest) {
+        if (request instanceof org.springframework.web.context.request.NativeWebRequest nativeWebRequest) {
             return nativeWebRequest.getNativeRequest(HttpServletRequest.class);
         }
         return null;

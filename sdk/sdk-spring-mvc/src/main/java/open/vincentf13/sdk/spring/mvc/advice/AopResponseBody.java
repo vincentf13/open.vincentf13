@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.config.MvcProperties;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,8 @@ import java.util.Collection;
  */
 @Slf4j
 @RestControllerAdvice
+@ConditionalOnClass(ResponseBodyAdvice.class)
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class AopResponseBody implements ResponseBodyAdvice<Object> {
 
     /** ObjectMapper 供 String 包裝時進行 JSON 序列化。 */

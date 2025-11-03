@@ -92,12 +92,12 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 
 #### 開啟ArgoCD連線
 
-kubectl -n argocd port-forward svc/argocd-server 8080:443
+kubectl -n argod port-forward svc/argocd-server 8888:443
 
 #### 登入ArgoCLI
 
 ```
-argocd login localhost:8080 \
+argocd login localhost:8888 \
 --username admin \
 --password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
 --insecure --grpc-web

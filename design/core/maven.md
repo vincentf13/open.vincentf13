@@ -5,7 +5,7 @@
 # 多模組 POM 架構
 
 ## 根 POM（`pom.xml`）
-- 以 `spring-boot-starter-parent` 作為 parent，統一 Spring Boot 3.3.4 與相依版本 `pom.xml:7-34`。
+- 以 `spring-boot-starter-parent` 作為 parent，統一 Spring Boot 3.4.1 與相依版本 `pom.xml:7-34`。
 - 定義 `sdk`、`sdk-contract` 與 `service` 三大聚合模組，維持共用能力、契約與業務服務分層 `pom.xml:22-27`。
 - 於 `<dependencyManagement>` 中集中鎖定 Spring Cloud、MyBatis、Testcontainers 與內部 SDK 模組版本，避免子模組重複宣告 `pom.xml:36-143`。
 - `<pluginManagement>` 負責 Spring Boot Maven Plugin 的統一配置（重打包、Build Info 產出），子模組只需繼承即可 `pom.xml:146-169`。
