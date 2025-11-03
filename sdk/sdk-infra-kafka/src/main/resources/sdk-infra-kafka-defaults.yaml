@@ -64,3 +64,4 @@ spring:
       type: batch
       # 手動 ACK
       ack-mode: manual
+

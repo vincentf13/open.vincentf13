@@ -4,7 +4,8 @@ spring:
       client-type: lettuce
       # host: infra-redis.default.svc.cluster.local
       # password: ${REDIS_PASS}
-      ssl: false
+      ssl:
+        enabled: false
       timeout: 3s
       cluster:
         nodes:
@@ -32,3 +33,4 @@ logging:
   level:
     io.lettuce.core.protocol: INFO    # Redis 操作 log
     org.redisson: INFO # Redisson 日誌
+

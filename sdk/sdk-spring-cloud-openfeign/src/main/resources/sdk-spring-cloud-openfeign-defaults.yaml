@@ -27,3 +27,4 @@ security:
     client:
       enabled: true
       value: default-1
+

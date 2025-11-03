@@ -1,4 +1,5 @@
 clusterServersConfig:
+  checkSlotsCoverage: false
   # 啟用 Redis Cluster 模式，需指定所有節點位址（主從都可列）
   nodeAddresses:
     - redis://infra-redis-0.infra-redis-headless.default.svc.cluster.local:6379
@@ -20,5 +21,4 @@ clusterServersConfig:
 threads: 16                          # Redisson 主執行緒數（建議 = CPU 核心數）
 nettyThreads: 32                     # Netty I/O 執行緒（建議 = 核心數 * 2）
 codec: !<org.redisson.codec.JsonJacksonCodec> {}
-clientName: app-redisson
 lockWatchdogTimeout: 30000           # 分散式鎖看門狗自動續期時間（毫秒）

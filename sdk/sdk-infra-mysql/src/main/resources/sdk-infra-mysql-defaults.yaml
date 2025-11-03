@@ -1,4 +1,4 @@
- spring:
+spring:
   datasource:
     dynamic:
       # 預設資料源群組，未標註 @DS 時會使用這組
@@ -117,3 +117,4 @@ pagehelper:
   params: count=countSql
   # PageInfo.RowBounds 查詢時自動追加 count 查詢
   row-bounds-with-count: true
+
