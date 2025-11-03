@@ -2,7 +2,6 @@ package open.vincentf13.sdk.spring.mvc.advice;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.config.MvcProperties;
@@ -24,7 +23,6 @@ import java.util.Collection;
  * 對 REST 回應做統一包裝，避免每支 API 重複建立標準格式。
  */
 @Slf4j
-@RequiredArgsConstructor
 @RestControllerAdvice
 public class AopResponseBody implements ResponseBodyAdvice<Object> {
 
@@ -32,6 +30,11 @@ public class AopResponseBody implements ResponseBodyAdvice<Object> {
     private final ObjectMapper objectMapper;
     /** 自訂開關與忽略名單。 */
     private final MvcProperties properties;
+
+    public AopResponseBody(ObjectMapper objectMapper, MvcProperties properties) {
+        this.objectMapper = objectMapper;
+        this.properties = properties;
+    }
 
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {

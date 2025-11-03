@@ -3,7 +3,6 @@ package open.vincentf13.sdk.infra.kafka.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import open.vincentf13.sdk.infra.kafka.OpenKafkaProducer;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration;
@@ -18,7 +17,7 @@ public class ConfigKafkaProducer {
     private final ObjectMapper objectMapper;
 
     // 透過構造函數注入由 Spring Boot 自動配置好的 KafkaTemplate
-    public ConfigKafkaProducer(KafkaTemplate<String, Object> kafkaTemplate, @Qualifier("openObjectMapper") ObjectMapper objectMapper) {
+    public ConfigKafkaProducer(KafkaTemplate<String, Object> kafkaTemplate, ObjectMapper objectMapper) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
     }
