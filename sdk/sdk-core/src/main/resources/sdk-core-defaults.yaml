@@ -22,7 +22,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus   # 只開放必要端點
+        include: "*"   # 只開放必要端點
     health:
       show-details: always                 # 開發可設 always
   metrics:

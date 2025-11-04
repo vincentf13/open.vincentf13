@@ -12,6 +12,7 @@ import open.vincentf13.sdk.spring.security.auth.PrivateAPI;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.HandlerExecutionChain;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.io.IOException;
@@ -36,6 +37,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             // Note: This might not work perfectly with WebFlux, but is fine for MVC.
             // A more robust solution might involve inspecting the request attributes set by the dispatcher servlet.
             Object handler = handlerMapping.getHandler(request);
+            if (handler instanceof HandlerExecutionChain executionChain) {
+                handler = executionChain.getHandler();
+            }
             if (!(handler instanceof HandlerMethod)) {
                 filterChain.doFilter(request, response);
                 return;
