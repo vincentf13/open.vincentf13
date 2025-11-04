@@ -20,11 +20,10 @@ spring:
 
 logging:
   level:
-    feign: INFO
+    feign.Logger: DEBUG
 
 security:
   api-key:
     client:
       enabled: true
       value: default-1
-

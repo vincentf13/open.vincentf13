@@ -1,5 +1,6 @@
 package open.vincentf13.sdk.spring.cloud.openfeign;
 
+import feign.Logger;
 import feign.RequestInterceptor;
 import feign.Retryer;
 import open.vincentf13.sdk.core.OpenConstant;
@@ -7,7 +8,7 @@ import open.vincentf13.sdk.spring.cloud.openfeign.apikey.FeignApiKeyProperties;
 import open.vincentf13.sdk.spring.cloud.openfeign.apikey.FeignApiKeyProvider;
 import open.vincentf13.sdk.spring.cloud.openfeign.apikey.PropertiesFeignApiKeyProvider;
 import open.vincentf13.sdk.spring.cloud.openfeign.auth.FeignAuthorizationProvider;
-import open.vincentf13.sdk.spring.cloud.openfeign.auth.NoOpFeignAuthorizationProvider;
+import open.vincentf13.sdk.spring.cloud.openfeign.auth.RequestHeaderFeignAuthorizationProvider;
 import open.vincentf13.sdk.spring.cloud.openfeign.interceptor.DefaultFeignRequestInterceptor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -33,7 +34,13 @@ public class OpenFeignAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(FeignAuthorizationProvider.class)
     public FeignAuthorizationProvider feignAuthorizationProvider() {
-        return new NoOpFeignAuthorizationProvider();
+        return new RequestHeaderFeignAuthorizationProvider();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(Logger.Level.class)
+    public Logger.Level feignLoggerLevel() {
+        return Logger.Level.FULL;
     }
 
     @Bean
