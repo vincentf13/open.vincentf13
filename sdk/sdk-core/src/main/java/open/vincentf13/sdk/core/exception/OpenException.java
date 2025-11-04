@@ -14,10 +14,16 @@ public interface OpenException {
     }
 
     default Map<String, Object> initMeta() {
-        return Map.of(
-                "mdcTraceId", MDC.get(OpenConstant.TRACE_ID_KEY),
-                "mdcRequestId", MDC.get(OpenConstant.REQUEST_ID_KEY)
-        );
+        Map<String, Object> meta = new HashMap<>();
+        String traceId = MDC.get(OpenConstant.TRACE_ID_KEY);
+        if (traceId != null) {
+            meta.put("mdcTraceId", traceId);
+        }
+        String requestId = MDC.get(OpenConstant.REQUEST_ID_KEY);
+        if (requestId != null) {
+            meta.put("mdcRequestId", requestId);
+        }
+        return meta;
     }
 
     default Map<String, Object> mergeMeta(Map<String, Object> additionalMeta) {
