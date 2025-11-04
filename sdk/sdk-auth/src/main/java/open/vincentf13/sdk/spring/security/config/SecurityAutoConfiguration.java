@@ -50,4 +50,3 @@ public class SecurityAutoConfiguration {
         return http.build();
     }
 }
-
