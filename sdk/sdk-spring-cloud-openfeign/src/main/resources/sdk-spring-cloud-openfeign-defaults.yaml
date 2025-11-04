@@ -20,7 +20,7 @@ spring:
 
 logging:
   level:
-    feign.Logger: DEBUG
+    feign.http: DEBUG
 
 security:
   api-key:
