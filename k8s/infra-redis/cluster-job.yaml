@@ -29,14 +29,7 @@ spec:
                   sleep 2;
                 done
               done
-              echo "檢查叢集狀態..."
-              cluster_info="$(redis-cli -h infra-redis-0.infra-redis-headless -p 6379 cluster info 2>/dev/null || true)"
-              if printf '%s' "$cluster_info" | grep -q "cluster_state:ok"; then
-                echo "叢集已存在，跳過建立。"
-                exit 0
-              fi
-
-              echo "叢集尚未就緒，嘗試重置既有節點狀態..."
+              echo "重置既有叢集狀態 (cluster reset hard)..."
               for ordinal in 0 1 2; do
                 host="infra-redis-${ordinal}.infra-redis-headless"
                 if redis-cli -h "$host" -p 6379 cluster reset hard >/dev/null 2>&1; then
@@ -48,16 +41,11 @@ spec:
               done
               sleep 2
 
-              cluster_info="$(redis-cli -h infra-redis-0.infra-redis-headless -p 6379 cluster info 2>/dev/null || true)"
-              if printf '%s' "$cluster_info" | grep -q "cluster_state:ok"; then
-                echo "叢集已存在，跳過建立。"
-                exit 0
-              fi
-
               echo "開始建立叢集 (僅主節點，無副本)..."
-              yes yes | redis-cli --cluster create \
+              redis-cli --cluster create \
                 infra-redis-0.infra-redis-headless:6379 \
                 infra-redis-1.infra-redis-headless:6379 \
                 infra-redis-2.infra-redis-headless:6379 \
-                --cluster-replicas 0
+                --cluster-replicas 0 \
+                --cluster-yes
               echo "叢集建立完成。"
