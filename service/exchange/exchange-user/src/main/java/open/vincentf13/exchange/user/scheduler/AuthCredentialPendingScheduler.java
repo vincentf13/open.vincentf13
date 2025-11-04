@@ -13,7 +13,7 @@ public class AuthCredentialPendingScheduler {
 
     private final AuthCredentialPendingRetryService retryService;
 
-    @Scheduled(fixedDelayString = "${exchange.user.auth.retry.fixedDelay:60000}")
+    @Scheduled(fixedDelayString = "${exchange.user.auth.retry.fixedDelay:600000}")
     public void retryPendingCredentials() {
         try {
             retryService.processPendingCredentials();

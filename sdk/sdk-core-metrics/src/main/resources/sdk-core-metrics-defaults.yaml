@@ -1,5 +1,8 @@
 management:
-  endpoints.web.exposure.include: health,info,metrics,prometheus
+  endpoints:
+    web:
+      exposure:
+        include: "*"
   metrics:
     tags:
       app: ${spring.application.name}

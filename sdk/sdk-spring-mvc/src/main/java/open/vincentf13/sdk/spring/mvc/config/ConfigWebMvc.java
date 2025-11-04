@@ -1,8 +1,6 @@
 package open.vincentf13.sdk.spring.mvc.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletRequest;
-import open.vincentf13.sdk.spring.mvc.interceptor.InterceptorRequestLogging;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -16,14 +14,10 @@ import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.Validator;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
-import org.springframework.web.servlet.LocaleResolver;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
 
 
 @AutoConfiguration
@@ -52,18 +46,12 @@ public class ConfigWebMvc {
 
 
     /**
-     * 統一擴充 WebMvcConfigurer：註冊攔截器、格式化器與 MessageConverter。
+     * 統一擴充 WebMvcConfigurer：提供格式化器與 MessageConverter 設定。
      */
     @Bean
     public WebMvcConfigurer baseWebMvcConfigurer(ObjectMapper objectMapper,
-                                                 InterceptorRequestLogging interceptorRequestLogging,
                                                  Validator validator) {
         return new WebMvcConfigurer() {
-            @Override
-            public void addInterceptors(@NonNull InterceptorRegistry registry) { // 註冊全域攔截器
-                registry.addInterceptor(interceptorRequestLogging);
-            }
-
             @Override
             public void addFormatters(@NonNull FormatterRegistry registry) { // 字串 trim 等共用轉換
                 registry.addConverter(String.class, String.class, source -> {

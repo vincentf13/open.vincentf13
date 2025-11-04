@@ -71,3 +71,7 @@ open:
       response:
         wrap-enabled: true
         ignore-controller-prefixes: []
+logging:
+  level:
+    open.vincentf13.sdk.spring.mvc.logging: DEBUG
+
