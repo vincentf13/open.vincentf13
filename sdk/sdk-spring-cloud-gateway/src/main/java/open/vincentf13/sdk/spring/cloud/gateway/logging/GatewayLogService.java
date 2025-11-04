@@ -27,8 +27,12 @@ public class GatewayLogService {
         URI forwardUrl = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
         ServiceInstance serviceInstance = resolveServiceInstance(exchange);
 
-        exchange.getAttributes().put(ATTR_INITIAL_FORWARD_URL, forwardUrl);
-        exchange.getAttributes().put(ATTR_INITIAL_SERVICE_INSTANCE, serviceInstance);
+        if (forwardUrl != null) {
+            exchange.getAttributes().put(ATTR_INITIAL_FORWARD_URL, forwardUrl);
+        }
+        if (serviceInstance != null) {
+            exchange.getAttributes().put(ATTR_INITIAL_SERVICE_INSTANCE, serviceInstance);
+        }
 
         ServerHttpRequest request = exchange.getRequest();
         String routeId = resolveRouteId(route);
