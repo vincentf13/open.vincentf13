@@ -41,10 +41,7 @@ public record OpenApiResponse<T>(
     }
 
     private static Map<String, Object> normalize(Map<String, Object> source) {
-        if (source == null || source.isEmpty()) {
-            return null;
-        }
-        return Map.copyOf(source);
+        return copyWithoutNull(source);
     }
 
     private static Map<String, Object> merge(Map<String, Object> current, Map<String, Object> incoming) {
@@ -52,16 +49,32 @@ public record OpenApiResponse<T>(
             return null;
         }
         if (current == null || current.isEmpty()) {
-            return normalize(incoming);
+            return copyWithoutNull(incoming);
         }
         if (incoming == null || incoming.isEmpty()) {
-            return Map.copyOf(current);
+            return copyWithoutNull(current);
         }
         var merged = new java.util.LinkedHashMap<String, Object>(current.size() + incoming.size());
         // 採用 LinkedHashMap 保留原有 meta 項目順序，避免前端序列化後字段跳動。
         merged.putAll(current);
         merged.putAll(incoming);
-        return Map.copyOf(merged);
+        return copyWithoutNull(merged);
+    }
+
+    private static Map<String, Object> copyWithoutNull(Map<String, Object> source) {
+        if (source == null || source.isEmpty()) {
+            return null;
+        }
+        var cleaned = new java.util.LinkedHashMap<String, Object>(source.size());
+        source.forEach((key, value) -> {
+            if (key != null && value != null) {
+                cleaned.put(key, value);
+            }
+        });
+        if (cleaned.isEmpty()) {
+            return null;
+        }
+        return Map.copyOf(cleaned);
     }
 
     public boolean isSuccess() {
