@@ -32,5 +32,9 @@
             <groupId>open.vincentf13</groupId>
             <artifactId>exchange-user-sdk-rest-client</artifactId>
         </dependency>
+              <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
+        </dependency>
     </dependencies>
 </project>
