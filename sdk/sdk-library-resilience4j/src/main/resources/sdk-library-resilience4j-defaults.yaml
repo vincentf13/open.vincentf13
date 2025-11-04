@@ -47,13 +47,3 @@ resilience4j:
         maxConcurrentCalls: 100                # 允許同時最多 100 個呼叫
         maxWaitDuration: 0                     # 無等待，直接拒絕
 
-
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health, metrics, prometheus
-  metrics:
-    tags:
-      application: ${spring.application.name}

@@ -23,7 +23,9 @@ public class OpenSecurityConfigurer extends AbstractHttpConfigurer<OpenSecurityC
 
     @Override
     public void init(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(auth -> auth.anyRequest().access(authorizationManager));
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/actuator/**").permitAll()
+                .anyRequest().access(authorizationManager));
         http.formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable);
