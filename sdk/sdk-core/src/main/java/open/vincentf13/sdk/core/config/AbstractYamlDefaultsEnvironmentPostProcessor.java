@@ -64,8 +64,25 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements En
     }
 
     protected boolean hasUserValue(ConfigurableEnvironment environment, String name) {
-        String value = environment.getProperty(name);
-        return StringUtils.hasText(value);
+        for (PropertySource<?> propertySource : environment.getPropertySources()) {
+            if (propertySource == null) {
+                continue;
+            }
+            if (getPropertySourceName().equals(propertySource.getName())) {
+                continue;
+            }
+            if (propertySource.containsProperty(name)) {
+                Object candidate = propertySource.getProperty(name);
+                if (candidate instanceof String stringValue) {
+                    if (StringUtils.hasText(stringValue)) {
+                        return true;
+                    }
+                } else if (candidate != null) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     protected Resource resolveResource() {

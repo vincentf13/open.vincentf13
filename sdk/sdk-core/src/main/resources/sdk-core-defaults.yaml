@@ -24,10 +24,16 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"   # 只開放必要端點
+        include: "*"          # 暴露所有 Actuator HTTP 端點
   endpoint:
+    env:
+      show-values: ALWAYS     # env 端點顯示實際值（預設 when_authorized）
+    configprops:
+      show-values: ALWAYS     # configprops 端點也顯示實際值
     health:
-      show-details: always     # 開發可設 always
+      show-details: ALWAYS    # health 端點顯示細節
+    metrics:
+      enabled: true
   jmx:
     exposure:
       include: "*"   # 若要經由 JMX 看

@@ -4,6 +4,8 @@
 @userPassword = P@ssw0rd!
 @externalId = demo-user
 
+GET {{gatewayHost}}/user/actuator/env
+
 ###
 # @name registerUser
 POST {{gatewayHost}}/user/api/user

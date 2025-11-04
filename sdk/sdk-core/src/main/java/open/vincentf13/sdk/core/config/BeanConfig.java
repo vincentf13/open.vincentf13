@@ -72,6 +72,6 @@ public class BeanConfig {
         mapper.enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES);            // 用途：若原始型別欄位（如 int, long, boolean）在 JSON 中為 null，則報錯。預設：關閉（Jackson 會自動轉為 0 或 false）。確保資料完整性，避免 null 轉 0 的隱性錯誤。
         mapper.enable(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS);              // 用途：禁止以整數數值解析 Enum。預設：關閉（允許用 Enum ordinal 值反序列化）。防止因 Enum 順序調整導致對應錯誤。
         mapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);                // 用途：序列化 Map 時依 key 排序輸出，確保 JSON 鍵值順序固定。確保輸出一致性，有利於快取比較與測試快照（snapshot testing）。
-        mapper.enable(MapperFeature.REQUIRE_SETTERS_FOR_GETTERS);                     // 用途：若某屬性只有 getter 無 setter，則反序列化報錯。避免一部分資料寫不進去仍默默忽略。
+        // 需保留對僅有 getter 的類別（例如 Spring Boot Actuator DTO、Java record）序列化能力，因此不要開啟 REQUIRE_SETTERS_FOR_GETTERS。
     }
 }
