@@ -1,0 +1,46 @@
+@namespace = exchange
+@gatewayHost = http://exchange-gateway.exchange
+@userEmail = user-{{$uuid}}@example.com
+@userPassword = P@ssw0rd!
+@externalId = demo-user
+
+###
+# @name registerUser
+POST {{gatewayHost}}/user/api/user
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}",
+  "externalId": "{{externalId}}"
+}
+
+> {%
+client.test("registerUser: HTTP 200", () => client.assert(response.status === 200));
+client.test("registerUser: OpenApi success", () => client.assert(response.body?.code === "0", "Unexpected response code: " + response.body?.code));
+client.global.set("registeredUserId", response.body?.data?.id);
+client.global.set("userEmail", request.variables.get("userEmail"));
+%}
+
+###
+# @name login
+POST {{gatewayHost}}/auth/api/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "{{$global.userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+> {%
+client.test("login: HTTP 200", () => client.assert(response.status === 200));
+client.test("login: token issued", () => {
+    client.assert(response.body?.code === "0", "Unexpected response code: " + response.body?.code);
+    client.assert(response.body?.data?.accessToken, "accessToken missing in response body");
+    client.assert(response.body?.data?.refreshToken, "refreshToken missing in response body");
+});
+client.global.set("accessToken", response.body?.data?.accessToken);
+client.global.set("refreshToken", response.body?.data?.refreshToken);
+%}
