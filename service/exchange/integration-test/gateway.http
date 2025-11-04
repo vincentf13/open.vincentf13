@@ -1,5 +1,5 @@
 @namespace = exchange
-@gatewayHost = http://exchange-gateway.exchange
+@gatewayHost = http://localhost:12345
 @userEmail = user-{{$uuid}}@example.com
 @userPassword = P@ssw0rd!
 @externalId = demo-user

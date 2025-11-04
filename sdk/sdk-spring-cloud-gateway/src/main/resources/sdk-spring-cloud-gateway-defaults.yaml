@@ -1,3 +1,5 @@
+server:
+  port: 12345
 spring:
   cloud:
     gateway:
@@ -26,10 +28,11 @@ open:
 
 logging:
   level:
-    org.springframework.cloud.gateway: DEBUG
-    org.springframework.http.server.reactive: DEBUG
-    org.springframework.web.reactive: DEBUG
-    reactor.netty: DEBUG
+    open.vincentf13.sdk.spring.cloud.gateway.filter: DEBUG
+#    org.springframework.cloud.gateway: DEBUG
+#    org.springframework.http.server.reactive: DEBUG
+#    org.springframework.web.reactive: DEBUG
+#    reactor.netty: DEBUG
 
 
 
