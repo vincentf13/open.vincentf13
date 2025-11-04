@@ -183,6 +183,19 @@ ensure_directories() {
   [[ -d "$NACOS_DIR" ]] || { printf 'Missing directory: %s\n' "$NACOS_DIR" >&2; exit 1; }
 }
 
+
+ensure_ingress_controller() {
+  local manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
+  if kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n ingress-nginx get deployment ingress-nginx-controller >/dev/null 2>&1; then
+    printf 'Ingress controller already present; skipping install.\n'
+  else
+    printf 'Installing ingress-nginx controller from %s\n' "$manifest"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$manifest"
+  fi
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" --namespace ingress-nginx \
+    wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
+}
+
 apply_application_manifests() {
   local manifest
   for manifest in "${APPLICATION_MANIFESTS[@]}"; do
@@ -193,9 +206,7 @@ apply_application_manifests() {
     fi
   done
 
-  local ingress_manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
-  printf 'Ensuring ingress-nginx controller from %s\n' "$ingress_manifest"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$ingress_manifest"
+  ensure_ingress_controller
 
   local pids=()
   for manifest in "${APPLICATION_MANIFESTS[@]}"; do
@@ -220,13 +231,10 @@ apply_application_manifests() {
 }
 
 setup_ingress_and_metrics() {
-  local ingress_manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
   local metrics_manifest="https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
 
   log_step "Ensuring ingress controller"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$ingress_manifest"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" --namespace ingress-nginx \
-    wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
+  ensure_ingress_controller
 
   log_step "Ensuring metrics-server"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$metrics_manifest"
@@ -407,6 +415,18 @@ apply_infra_clusters() {
   fi
 }
 
+
+ensure_argocd() {
+  if kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get namespace argocd >/dev/null 2>&1; then
+    printf 'Argo CD namespace already exists; skipping install.\n'
+  else
+    printf 'Installing Argo CD into namespace argocd\n'
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" create namespace argocd
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  fi
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=180s
+}
+
 apply_monitoring_stack() {
   local prom_pid graf_pid status=0
 
@@ -538,6 +558,7 @@ main() {
 
       setup_ingress_and_metrics
 
+      ensure_argocd
       configure_argocd
 
       log_step "Applying monitoring stack"

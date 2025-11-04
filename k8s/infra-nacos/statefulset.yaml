@@ -34,11 +34,11 @@ spec:
             - name: NACOS_AUTH_ENABLE
               value: "false"
             - name: JVM_XMS
-              value: 256m
-            - name: JVM_XMX
               value: 512m
+            - name: JVM_XMX
+              value: 1g
             - name: JVM_XMN
-              value: 128m
+              value: 256m
             - name: PREFER_HOST_MODE
               value: hostname
           volumeMounts:
@@ -69,11 +69,11 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              cpu: 100m
-              memory: 512Mi
-            limits:
               cpu: 250m
               memory: 1Gi
+            limits:
+              cpu: 750m
+              memory: 2Gi
       volumes:
         - name: nacos-config
           configMap:
