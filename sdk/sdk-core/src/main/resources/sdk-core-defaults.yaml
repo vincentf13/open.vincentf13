@@ -4,6 +4,8 @@ server:
 spring:
   profiles:
     active: dev
+  jmx:
+    enabled: true
   threads:
     virtual:
       enabled: true
@@ -23,8 +25,12 @@ management:
     web:
       exposure:
         include: "*"   # 只開放必要端點
+  endpoint:
     health:
-      show-details: always                 # 開發可設 always
+      show-details: always     # 開發可設 always
+  jmx:
+    exposure:
+      include: "*"   # 若要經由 JMX 看
   metrics:
     tags:
       app: ${spring.application.name}

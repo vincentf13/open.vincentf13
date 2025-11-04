@@ -7,12 +7,6 @@ spring:
         import-check:
           enabled: false
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-
 #logging:
 #  level:
 #    open.vincentf13.exchange.user: INFO
