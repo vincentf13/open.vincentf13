@@ -13,9 +13,7 @@ open.vincentf13/
 ├── sdk/                     # 平台共用 Starter 與基礎設施封裝
 │   ├── sdk-core/                   # 基礎工具（錯誤處理、Json、共用 Result）
 │   ├── sdk-core-log/               # 日誌 starter 與格式規範
-│   ├── sdk-core-metrics/           # 指標收集與預設監控配置
 │   ├── sdk-core-test/              # 測試輔助、假資料與測試基座
-│   ├── sdk-core-trace/             # TraceId/SpanId 注入、追蹤設定
 │   ├── sdk-infra-kafka/            # Kafka Producer/Consumer 封裝
 │   ├── sdk-infra-mysql/            # MySQL 連線池、審計欄位與 Repository 工具
 │   ├── sdk-infra-redis/            # Redis 客戶端與序列化策略
@@ -45,7 +43,7 @@ open.vincentf13/
 ### `sdk`（原 `sdk-common`）說明
 
 - 作為平台基座，統一封裝日誌、追蹤、驗證、安全與基礎設施，避免各服務重複實作。
-- `sdk-core*` 系列提供共通的系統能力：核心工具、日誌、指標、追蹤與測試資源。
+- `sdk-core*` 系列提供共通的系統能力：核心工具、日誌、整合的指標預設與測試資源。
 - `sdk-infra-*` 聚焦基礎設施整合（MySQL、Redis、Kafka），提供一致的連線設定與封裝。
 - `sdk-spring-*` 針對 Spring 層所需的 MVC、安全、WebSocket、Gateway 擴充，輸出為 starter。
 - 每個子模組維護 README 與設定說明，新增共用能力時優先在此抽象並覆蓋自動測試。

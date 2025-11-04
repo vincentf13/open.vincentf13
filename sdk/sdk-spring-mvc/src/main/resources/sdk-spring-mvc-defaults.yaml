@@ -15,7 +15,6 @@ server:
     session:
       cookie:
         name: JSESSIONID       # cookie name ，不用 Spring Session 時才會生效
-
         # 設 Domain=example.com 即可套用 example.com 與其所有子網域，等於 "*.example.com"
         # 不能設成公用後綴（如 .com、.co.uk）、不能設IP
         # 僅此主機： 不要設定
@@ -24,7 +23,6 @@ server:
         http-only: true        # 前端 JS 不能讀 cookie ， 開啟後前端無法以 JS 讀取，下載檔名等需改用 Content-Disposition 等回應標頭
         # 線上需改為 true
         secure: false          # 只在 HTTPS 傳送。
-
         # 配置項：
         # SameSite 控制 Cookie 是否在「跨站」請求中送出。Site 由「協定 + 註冊性網域」決定，子網域屬同一 site，連接埠不影響。
         # Strict：只在同站請求送出。從其他網站點連結、表單、iframe、XHR 都不送。
@@ -37,15 +35,13 @@ server:
 
 spring:
   web:
+    # 多語系默認使用: messages_en-US.properties、ValidationMessages_en-US.properties
+    # @NumberFormat(style=CURRENCY) 會輸出當地貨幣符號與分位符號
+    # 以樣板引擎格式化日期數字時（Thymeleaf #dates、#numbers），月份名稱、千分位、小數點等依 en-US
+    # 不會設定時區與 Jackson 預設輸出，如需時區請用 spring.jackson.time-zone: Asia/Taipei。Jackson 日期預設為 ISO 格式，除非你另行設定 ObjectMapper 的 Locale/DateFormat。
     locale: en-US                           # Accept-Language head 未攜帶時默認語系
     locale-resolver: accept_header          # 依 Accept-Language head 解析語系
-  mvc:
-                                            # 多語系默認使用: messages_en-US.properties、ValidationMessages_en-US.properties
-                                            # @NumberFormat(style=CURRENCY) 會輸出當地貨幣符號與分位符號
-                                            # 以樣板引擎格式化日期數字時（Thymeleaf #dates、#numbers），月份名稱、千分位、小數點等依 en-US
-                                            # 不會設定時區與 Jackson 預設輸出，如需時區請用 spring.jackson.time-zone: Asia/Taipei。Jackson 日期預設為 ISO 格式，除非你另行設定 ObjectMapper 的 Locale/DateFormat。
-    locale: en-US
-                                            # @DateTimeFormat 的全域配置，影響表單與請求參數的解析與輸出，不影響 Jackson 的 JSON
+     # @DateTimeFormat 的全域配置，影響表單與請求參數的解析與輸出，不影響 Jackson 的 JSON
     format:
       date: yyyy-MM-dd                      # 將 yyyy-MM-dd 作為 LocalDate，作為 LocalDateTime 的解析與輸出樣式
       date-time: yyyy-MM-dd HH:mm:ss        # 將 yyyy-MM-dd HH:mm:ss 作為 LocalDateTime 的解析與輸出樣式

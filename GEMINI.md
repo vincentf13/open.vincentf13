@@ -80,7 +80,7 @@ graph TD
     - **容器化**: 所有服務都被設計為在 Docker 容器中運行。
     - **Kubernetes 優先**: 提供完整的 Kubernetes manifests (`k8s/` 目錄) 進行部署、擴展和管理。
     - **GitOps**: 透過 GitHub Actions (CI) 和 ArgoCD (CD) 實現從程式碼提交到部署的完整自動化流程。
-- **可觀測性 (Observability)**: 內建 Prometheus 和 Grafana 的監控堆疊，並透過 `sdk-core-metrics` 和 `sdk-core-trace` 模組在應用層級提供豐富的監控指標和分散式追蹤。
+- **可觀測性 (Observability)**: 內建 Prometheus 和 Grafana 的監控堆疊，並由整合進 `sdk-core` 的預設配置提供應用層級指標；追蹤功能將在後續版本擴充。
 
 ## 如何建置與運行
 

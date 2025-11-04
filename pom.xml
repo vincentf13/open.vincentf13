@@ -79,11 +79,6 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>sdk-core-trace</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
                 <artifactId>sdk-spring-mvc</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -100,11 +95,6 @@
             <dependency>
                 <groupId>open.vincentf13</groupId>
                 <artifactId>sdk-spring-websocket</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
-                <artifactId>sdk-core-metrics</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
