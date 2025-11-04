@@ -81,7 +81,6 @@ NACOS_MANIFEST_ORDER=(
   statefulset.yaml
 )
 
-PORT_FORWARD_PIDS=()
 MODE="full"
 CONTEXT=""
 NAMESPACE=""
@@ -102,18 +101,9 @@ Options:
   -h, --help              show this help message
 
 Without flags the script provisions the full stack (application, ingress controller,
-metrics-server patch, Argo CD setup, monitoring stack, and port forwards).
+metrics-server patch, Argo CD setup, and monitoring stack).
 USAGE
 }
-
-cleanup() {
-  if [[ ${#PORT_FORWARD_PIDS[@]} -gt 0 ]]; then
-    printf '\nStopping port-forwards...\n'
-    # shellcheck disable=SC2046
-    kill ${PORT_FORWARD_PIDS[@]} 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
 
 require_cmd() {
   local cmd=$1
@@ -125,42 +115,6 @@ require_cmd() {
 
 log_step() {
   printf '\n==> %s\n' "$1"
-}
-
-start_port_forward() {
-  local description=$1
-  shift
-  log_step "Port-forward: $description"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" "$@" &
-  local pid=$!
-  PORT_FORWARD_PIDS+=("$pid")
-  sleep 2
-  if ! kill -0 "$pid" 2>/dev/null; then
-    printf 'Failed to keep port-forward running: %s\n' "$description" >&2
-    exit 1
-  fi
-  printf 'Port-forward running (pid %s).\n' "$pid"
-}
-
-port_forward_redis_nodes() {
-  local infra_ns_args=("$@")
-  local kubectl_args=("${KUBECTL_CONTEXT_ARGS[@]}" "${infra_ns_args[@]}")
-
-  local replicas
-  if ! replicas=$(kubectl "${kubectl_args[@]}" get statefulset/infra-redis -o jsonpath='{.spec.replicas}' 2>/dev/null); then
-    printf 'Unable to read infra-redis replica count; defaulting to one pod.\n'
-    replicas=1
-  fi
-
-  if [[ -z "$replicas" || ! "$replicas" =~ ^[0-9]+$ ]]; then
-    printf 'Unexpected replica count for infra-redis (%s); defaulting to one pod.\n' "$replicas"
-    replicas=1
-  fi
-
-  for ((ordinal = 0; ordinal < replicas; ordinal++)); do
-    local local_port=$((6379 + ordinal))
-    start_port_forward "Redis-${ordinal} ${local_port}->6379" "${infra_ns_args[@]}" port-forward pod/infra-redis-${ordinal} "${local_port}:6379"
-  done
 }
 
 parse_args() {
@@ -481,7 +435,8 @@ configure_argocd() {
   log_step "Logging into Argo CD"
   local argo_password
   argo_password=$(kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 --decode)
-  argocd login localhost:8888 \
+  local argocd_endpoint="argocd-server.argocd.svc.cluster.local:443"
+  argocd login "$argocd_endpoint" \
     --username admin \
     --password "$argo_password" \
     --insecure --grpc-web
@@ -533,66 +488,41 @@ main() {
       [[ -d "$MYSQL_DIR" ]] || { printf 'Missing directory: %s\n' "$MYSQL_DIR" >&2; exit 1; }
       log_step "Applying MySQL manifests"
       apply_mysql_cluster
-
-      local infra_ns_args_mysql=()
-      if [[ -n "$NAMESPACE" ]]; then
-        infra_ns_args_mysql=(--namespace "$NAMESPACE")
-      fi
-
-      start_port_forward "MySQL-0 3306->3306" "${infra_ns_args_mysql[@]}" port-forward svc/infra-mysql-0 3306:3306
-      start_port_forward "MySQL-1 3307->3306" "${infra_ns_args_mysql[@]}" port-forward svc/infra-mysql-1 3307:3306
-
-      printf '\nMySQL infrastructure ready. Press Ctrl+C to stop port-forwards.\n'
-      wait
+      printf '\nMySQL infrastructure ready. Connect via:\n'
+      printf '  mysql -h infra-mysql-0.infra-mysql-headless.default.svc.cluster.local -P 3306 -u root\n'
+      printf '  mysql -h infra-mysql-1.infra-mysql-headless.default.svc.cluster.local -P 3306 -u root\n'
+      printf '\n'
       ;;
     redis)
       require_cmd kubectl
       [[ -d "$REDIS_DIR" ]] || { printf 'Missing directory: %s\n' "$REDIS_DIR" >&2; exit 1; }
       log_step "Applying Redis manifests"
       apply_redis_cluster
-
-      local infra_ns_args_redis=()
-      if [[ -n "$NAMESPACE" ]]; then
-        infra_ns_args_redis=(--namespace "$NAMESPACE")
-      fi
-
-      port_forward_redis_nodes "${infra_ns_args_redis[@]}"
-
-      printf '\nRedis infrastructure ready. Press Ctrl+C to stop port-forward.\n'
-      wait
+      printf '\nRedis infrastructure ready. Cluster endpoints:\n'
+      printf '  redis://infra-redis.default.svc.cluster.local:6379\n'
+      printf '  redis://infra-redis-0.infra-redis-headless.default.svc.cluster.local:6379\n'
+      printf '  redis://infra-redis-1.infra-redis-headless.default.svc.cluster.local:6379\n'
+      printf '  redis://infra-redis-2.infra-redis-headless.default.svc.cluster.local:6379\n'
+      printf '\n'
       ;;
     kafka)
       require_cmd kubectl
       [[ -d "$KAFKA_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_DIR" >&2; exit 1; }
       log_step "Applying Kafka manifests"
       apply_kafka_cluster
-
-      local infra_ns_args_kafka=()
-      if [[ -n "$NAMESPACE" ]]; then
-        infra_ns_args_kafka=(--namespace "$NAMESPACE")
-      fi
-
-      start_port_forward "Kafka 9092->9092" "${infra_ns_args_kafka[@]}" port-forward svc/infra-kafka 9092:9092
-      start_port_forward "Redpanda Console 8088->8080" "${infra_ns_args_kafka[@]}" port-forward svc/redpanda-console 8088:8080
-
-      printf '\nKafka infrastructure ready. Press Ctrl+C to stop port-forward.\n'
-      wait
+      printf '\nKafka infrastructure ready. Client endpoints:\n'
+      printf '  PLAINTEXT://infra-kafka.default.svc.cluster.local:9092\n'
+      printf '  Redpanda Console: http://redpanda-console.default.svc.cluster.local:8080\n'
+      printf '\n'
       ;;
     nacos)
       require_cmd kubectl
       [[ -d "$NACOS_DIR" ]] || { printf 'Missing directory: %s\n' "$NACOS_DIR" >&2; exit 1; }
       log_step "Applying Nacos manifests"
       apply_nacos_cluster
-
-      local infra_ns_args_nacos=()
-      if [[ -n "$NAMESPACE" ]]; then
-        infra_ns_args_nacos=(--namespace "$NAMESPACE")
-      fi
-
-      start_port_forward "Nacos UI 8848->8848" "${infra_ns_args_nacos[@]}" port-forward svc/infra-nacos 8848:8848
-
-      printf '\nNacos infrastructure ready. Press Ctrl+C to stop port-forward.\n'
-      wait
+      printf '\nNacos infrastructure ready. Access via:\n'
+      printf '  http://infra-nacos.default.svc.cluster.local:8848\n'
+      printf '\n'
       ;;
     full)
       require_cmd kubectl
@@ -603,40 +533,29 @@ main() {
       log_step "Applying infrastructure clusters"
       apply_infra_clusters
 
-      local infra_ns_args=()
-      if [[ -n "$NAMESPACE" ]]; then
-        infra_ns_args=(--namespace "$NAMESPACE")
-      fi
-
-      start_port_forward "MySQL-0 3306->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-0 3306:3306
-      start_port_forward "MySQL-1 3307->3306" "${infra_ns_args[@]}" port-forward svc/infra-mysql-1 3307:3306
-      port_forward_redis_nodes "${infra_ns_args[@]}"
-      start_port_forward "Kafka 9092->9092" "${infra_ns_args[@]}" port-forward svc/infra-kafka 9092:9092
-      start_port_forward "Redpanda Console 8088->8080" "${infra_ns_args[@]}" port-forward svc/redpanda-console 8088:8080
-      start_port_forward "Nacos UI 8848->8848" "${infra_ns_args[@]}" port-forward svc/infra-nacos 8848:8848
-
       log_step "Applying application manifests"
       apply_application_manifests
 
       setup_ingress_and_metrics
 
-      start_port_forward "Ingress controller 8081->80" --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
-      start_port_forward "Argo CD API 8888->443" -n argocd port-forward svc/argocd-server 8888:443
-
       configure_argocd
-
-      start_port_forward "Argo CD UI (secondary) 8082->443" -n argocd port-forward svc/argocd-server 8082:443
 
       log_step "Applying monitoring stack"
       apply_monitoring_stack
       kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pods -n monitoring
 
-      start_port_forward "Prometheus UI 9090->9090" -n monitoring port-forward svc/prometheus 9090:9090
-      start_port_forward "Alertmanager UI 9093->9093" -n monitoring port-forward svc/alertmanager 9093:9093
-      start_port_forward "Grafana UI 3000->80" -n monitoring port-forward svc/grafana 3000:3000
-
-      printf '\nAll port-forwards are active. Press Ctrl+C to stop them when finished.\n'
-      wait
+      printf '\nCluster endpoints are ready. Access services using in-cluster DNS:\n'
+      printf '  MySQL primary: infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306\n'
+      printf '  MySQL secondary: infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306\n'
+      printf '  Redis cluster: infra-redis.default.svc.cluster.local:6379\n'
+      printf '  Kafka broker: infra-kafka.default.svc.cluster.local:9092\n'
+      printf '  Redpanda Console: http://redpanda-console.default.svc.cluster.local:8080\n'
+      printf '  Nacos console: http://infra-nacos.default.svc.cluster.local:8848\n'
+      printf '  Argo CD API/UI: https://argocd-server.argocd.svc.cluster.local\n'
+      printf '  Prometheus: http://prometheus.monitoring.svc.cluster.local:9090\n'
+      printf '  Alertmanager: http://alertmanager.monitoring.svc.cluster.local:9093\n'
+      printf '  Grafana: http://grafana.monitoring.svc.cluster.local:3000\n'
+      printf '\n'
       ;;
     *)
       printf 'Unknown execution mode: %s\n' "$MODE" >&2

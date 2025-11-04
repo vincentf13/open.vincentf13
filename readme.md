@@ -47,11 +47,11 @@ The goal of this project is to help developers easily build their own local deve
 4. 執行k8s腳本:
    bash ./script/cluster-up.sh --only-k8s
 5. 驗證  
-   Ingress port 轉發 : 
-   kubectl --namespace ingress-nginx port-forward deploy/ingress-nginx-controller 8081:80
-    
-   測試 curl http://127.0.0.1:8081
-   應可正確訪問到服務接口。
+   使用 Kubernetes 內網域名測試 Ingress：
+   ```bash
+   curl http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/service-test/
+   ```
+   若已配置 Telepresence（或其他方式讓本機解析 cluster.local），上列指令可直接在開發機上執行；回應為服務頁面即表示路由正常。
 
 
 ## 安裝 metric sever : 
@@ -92,15 +92,15 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 
 #### 開啟ArgoCD連線
 
-kubectl -n argod port-forward svc/argocd-server 8888:443
+Argo CD 伺服器對內暴露為 `https://argocd-server.argocd.svc.cluster.local`（443）。請先透過 Telepresence 或其他機制，讓本機得以解析 `*.svc.cluster.local`。
 
 #### 登入ArgoCLI
 
 ```
-argocd login localhost:8888 \
---username admin \
---password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
---insecure --grpc-web
+argocd login argocd-server.argocd.svc.cluster.local:443 \
+  --username admin \
+  --password "$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)" \
+  --insecure --grpc-web
 ```
 
 #### 監聽 Git Repo
@@ -115,9 +115,8 @@ argocd app create gitops \
 #### 驗證
 argocd app list --grpc-web
 
-#### 開啟argo Web
-kubectl -n argocd port-forward svc/argocd-server 8082:443
-訪問: https://127.0.0.1:8082/
+#### 開啟 Argo Web
+瀏覽 `https://argocd-server.argocd.svc.cluster.local`
 帳號: admin
 密碼: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 密碼尾端要去掉 %
@@ -146,13 +145,13 @@ helm upgrade --install mon prometheus-community/kube-prometheus-stack \
 
 4. 訪問 Prometheus 
   - 若已修改 k8s/infra-prometheus/prometheus-ingress.yaml:13 的 host 為實際網域並配置 DNS→Ingress Controller，直接走 https://<你的網域>；未設 TLS 憑證可在 tls 區塊加入 secretName。  
-  - 無外網時可執行 kubectl port-forward -n monitoring svc/prometheus 9090:9090，瀏覽器開 http://localhost:9090；
-  - Alertmanager 亦可用 kubectl port-forward -n monitoring svc/alertmanager 9093:9093，瀏覽器開 http://localhost:9093；  
+  - 在叢集內或透過 Telepresence，可直接開啟 `http://prometheus.monitoring.svc.cluster.local:9090`；
+  - Alertmanager 入口為 `http://alertmanager.monitoring.svc.cluster.local:9093`；  
   - 登入 Prometheus UI 後，Status → Targets 應看到 Kubernetes job 狀態；  
   
 4. 測試告警                                                                                                                                                      
   - 在 Prometheus UI 的 Alerts 分頁確認告警 firing，
-    再到 Alertmanager (http://localhost:9093/#/alerts 經 port-forward) 查看分派情況；
+    再到 Alertmanager (`http://alertmanager.monitoring.svc.cluster.local:9093/#/alerts`) 查看分派情況；
     若要演練通知，可在 k8s/infra-prometheus/alertmanager-configmap.yaml:21 加入真實接收器（例如 Slack webhook）後重新套用。                                                                                      
 5. 後續建議 
     想長期保留資料可將 prometheus-deployment.yaml:56 的 emptyDir 換成 PVC；告警規則可再拆多個 ConfigMap
@@ -173,12 +172,7 @@ kubectl apply -f k8s/infra-grafana/
 kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d
 ```
 
-3. 本地測試可透過 port-forward:
-```
-kubectl -n monitoring port-forward svc/grafana 3000:3000
-```
-
-4. 造訪 http://localhost:3000 ，使用步驟 2 的密碼登入，Grafana 會自動載入 Prometheus Datasource；若需長期保存 Dashboard，請將 `grafana-deployment.yaml` 的 `emptyDir` 改成 PVC。
+3. 驗證 UI：使用 Telepresence 或在叢集內瀏覽 `http://grafana.monitoring.svc.cluster.local:3000`，以步驟 2 取得的密碼登入；Grafana 會自動載入 Prometheus Datasource。若需長期保存 Dashboard，請將 `grafana-deployment.yaml` 的 `emptyDir` 改成 PVC。
 
 
 # 一鍵啟動腳本
@@ -187,30 +181,21 @@ kubectl -n monitoring port-forward svc/grafana 3000:3000
 初始建置完成後，後續即可一鍵執行此腳本，一鍵啟動本地所有基礎設施。
 bash ./script/cluster-up.sh
 
-腳本執行後，可直接訪問以下服務:
-K8S Ingress入口 :http://127.0.0.1:8081/
-ArgoCD: https://127.0.0.1:8082/
-Promethous: http://localhost:9090/
-AlertManager: http://localhost:9093/#/alerts
-Grafana: http://localhost:3000/
-nacos: http://localhost:8848/nacos
-MySQL: 
-- infra-mysql-0: 127.0.0.1:3306  帳號/密碼 : root/root
-- infra-mysql-1: 127.0.0.1:3307 帳號/密碼 : root/root
-- mysql --protocol=TCP -h 127.0.0.1 -P3306 -uroot -proot 
-Redis Cluster: 
- - redis-cli -c -p 6379
- - redis-cli -c -p 6380
- - redis-cli -c -p 6381
- - CLUSTER NODES
- - CLUSTER SLOTS
- - redis-cli -h 127.0.0.1 -p 6380 CLUSTER INFO
-Kafka Broker: 
-- kafka-topics.sh --bootstrap-server localhost:9092 --list
-- Kafka UI： http://localhost:8088/
-
-查所有port-forward port對應，可使用此指令：
-ps aux | grep "port-forward" 
+腳本執行後，可透過 Kubernetes DNS 直接訪問以下服務（請先確保本機能解析 `*.svc.cluster.local`，例如使用 Telepresence）：
+- Ingress 控制器：`http://ingress-nginx-controller.ingress-nginx.svc.cluster.local`
+- Argo CD：`https://argocd-server.argocd.svc.cluster.local`
+- Prometheus：`http://prometheus.monitoring.svc.cluster.local:9090`
+- Alertmanager：`http://alertmanager.monitoring.svc.cluster.local:9093`
+- Grafana：`http://grafana.monitoring.svc.cluster.local:3000`
+- Nacos：`http://infra-nacos.default.svc.cluster.local:8848`
+- MySQL：
+  - `infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306`（帳號/密碼 `root/root`）
+  - `infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306`（帳號/密碼 `root/root`）
+- Redis Cluster：
+  - `redis-cli -h infra-redis.default.svc.cluster.local -p 6379`
+  - 或使用 Pod DNS：`infra-redis-{0..2}.infra-redis-headless.default.svc.cluster.local`
+- Kafka Broker：`kafka-topics.sh --bootstrap-server infra-kafka.default.svc.cluster.local:9092 --list`
+- Redpanda Console：`http://redpanda-console.default.svc.cluster.local:8080`
 
 並且代碼推送至您的GitHub，自動執行CI/CD，更新你的本地K8s。
 
