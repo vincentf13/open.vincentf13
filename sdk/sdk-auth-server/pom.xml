@@ -26,10 +26,6 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>sdk-auth-jwt</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-infra-redis</artifactId>
         </dependency>
     </dependencies>

@@ -8,6 +8,7 @@
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
             <if test="externalId != null">external_id,</if>
             <if test="email != null">email,</if>
             <if test="status != null">status,</if>
@@ -16,6 +17,7 @@
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
             <if test="externalId != null">#{externalId},</if>
             <if test="email != null">#{email},</if>
             <if test="status != null">#{status},</if>
@@ -51,10 +53,10 @@
     </update>
 
     <insert id="batchInsert" parameterType="java.util.List">
-        INSERT INTO users (external_id, email, status, created_at, updated_at)
+        INSERT INTO users (id, external_id, email, status, created_at, updated_at)
         VALUES
         <foreach collection="list" item="item" separator=",">
-            (#{item.externalId}, #{item.email}, #{item.status}, #{item.createdAt}, #{item.updatedAt})
+            (#{item.id}, #{item.externalId}, #{item.email}, #{item.status}, #{item.createdAt}, #{item.updatedAt})
         </foreach>
     </insert>
 

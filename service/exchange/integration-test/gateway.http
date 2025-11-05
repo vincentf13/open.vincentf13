@@ -2,7 +2,7 @@
 @gatewayHost = http://localhost:12345
 @userEmail = user-{{$uuid}}@example.com
 @userPassword = P@ssw0rd!
-@externalId = demo-user
+@externalId = demo-user{{$uuid}}
 
 ###
 # @name registerUser

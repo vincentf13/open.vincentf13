@@ -3,12 +3,10 @@ package open.vincentf13.sdk.spring.security.config;
 import open.vincentf13.sdk.auth.apikey.config.ApiKeyAutoConfiguration;
 import open.vincentf13.sdk.auth.apikey.config.ApiKeySecurityConfigurer;
 import open.vincentf13.sdk.auth.jwt.config.JwtConfigurer;
-import open.vincentf13.sdk.auth.jwt.config.JwtSecurityAutoConfiguration;
 import open.vincentf13.sdk.spring.security.auth.AnnotationBasedAuthorizationManager;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
-import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +18,6 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 @Configuration
 @ConditionalOnWebApplication
-@AutoConfigureBefore(JwtSecurityAutoConfiguration.class)
 @AutoConfigureAfter(ApiKeyAutoConfiguration.class)
 public class SecurityAutoConfiguration {
 
