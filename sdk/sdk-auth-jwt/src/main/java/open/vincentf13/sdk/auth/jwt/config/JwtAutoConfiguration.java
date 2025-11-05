@@ -1,5 +1,10 @@
 package open.vincentf13.sdk.auth.jwt.config;
 
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.OctetSequenceKey;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.SecurityContext;
 import open.vincentf13.sdk.auth.jwt.filter.JwtFilter;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
@@ -16,6 +21,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
@@ -25,8 +37,24 @@ public class JwtAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public OpenJwt openJwtToken(JwtProperties properties) {
-        return new OpenJwt(properties);
+    public OpenJwt openJwtToken(JwtProperties properties, ObjectProvider<JwtEncoder> encoderProvider,
+                                ObjectProvider<JwtDecoder> decoderProvider) {
+        return new OpenJwt(properties, encoderProvider, decoderProvider);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JwtEncoder jwtEncoder(JwtProperties properties) {
+        SecretKey secretKey = new SecretKeySpec(properties.getSecret().getBytes(), "HMACSHA256");
+        JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(new JWKSet(new OctetSequenceKey.Builder(secretKey).build()));
+        return new NimbusJwtEncoder(jwkSource);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JwtDecoder jwtDecoder(JwtProperties properties) {
+        SecretKey secretKey = new SecretKeySpec(properties.getSecret().getBytes(), "HMACSHA256");
+        return NimbusJwtDecoder.withSecretKey(secretKey).build();
     }
 
     @Bean

@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
@@ -33,6 +35,7 @@ public class OpenJwtGenerate {
         JwtEncoder encoder = openJwt.getJwtEncoder();
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plusSeconds(openJwt.getProperties().getAccessTokenTtlSeconds());
+        // @formatter:off
         JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
                 .issuer(openJwt.getProperties().getIssuer())
                 .issuedAt(issuedAt)
@@ -42,10 +45,12 @@ public class OpenJwtGenerate {
                 .claim(OpenJwt.AUTHORITIES_CLAIM, authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()));
+        // @formatter:on
         if (sessionId != null) {
             builder.claim(OpenJwt.SESSION_ID_CLAIM, sessionId);
         }
-        String tokenValue = encoder.encode(JwtEncoderParameters.from(builder.build())).getTokenValue();
+        JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
+        String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
         OpenLog.debug(log,
                 "JwtAccessIssued",
                 () -> "Access token issued",
@@ -58,16 +63,19 @@ public class OpenJwtGenerate {
         JwtEncoder encoder = openJwt.getJwtEncoder();
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plusSeconds(openJwt.getProperties().getRefreshTokenTtlSeconds());
+        // @formatter:off
         JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
                 .issuer(openJwt.getProperties().getIssuer())
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .subject(subject)
                 .claim(OpenJwt.TOKEN_TYPE_CLAIM, TokenType.REFRESH.name());
+        // @formatter:on
         if (sessionId != null) {
             builder.claim(OpenJwt.SESSION_ID_CLAIM, sessionId);
         }
-        String tokenValue = encoder.encode(JwtEncoderParameters.from(builder.build())).getTokenValue();
+        JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
+        String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
         OpenLog.debug(log,
                 "JwtRefreshIssued",
                 () -> "Refresh token issued",

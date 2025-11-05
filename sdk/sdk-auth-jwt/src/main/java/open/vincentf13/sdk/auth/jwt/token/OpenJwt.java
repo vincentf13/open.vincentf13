@@ -34,12 +34,11 @@ public class OpenJwt {
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
 
-    public OpenJwt(JwtProperties properties) {
+    public OpenJwt(JwtProperties properties, ObjectProvider<JwtEncoder> encoderProvider,
+                   ObjectProvider<JwtDecoder> decoderProvider) {
         this.properties = properties;
-        byte[] secret = properties.getSecret().getBytes(StandardCharsets.UTF_8);
-        SecretKeySpec secretKey = new SecretKeySpec(secret, "HmacSHA256");
-        this.jwtEncoder = new NimbusJwtEncoder(new ImmutableSecret<>(secretKey));
-        this.jwtDecoder = NimbusJwtDecoder.withSecretKey(secretKey).build();
+        this.jwtEncoder = encoderProvider.getIfAvailable();
+        this.jwtDecoder = decoderProvider.getIfAvailable();
     }
 
     public Optional<JwtAuthenticationToken> parseAccessToken(String tokenValue) {
