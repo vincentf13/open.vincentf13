@@ -191,6 +191,7 @@ ensure_docker_images() {
     "apache/kafka:3.7.0"
     "docker.redpanda.com/redpandadata/console:latest"
     "nacos/nacos-server:v2.3.2"
+    "registry.k8s.io/ingress-nginx/controller:v1.14.0@sha256:e4127065d0317bd11dc64c4dd38dcf7fb1c3d72e468110b4086e636dbaac943d"
   )
 
   for image in "${images[@]}"; do
@@ -210,14 +211,9 @@ ensure_docker_images() {
 
 ensure_ingress_controller() {
   local manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
-  if kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n ingress-nginx get deployment ingress-nginx-controller >/dev/null 2>&1; then
-    printf 'Ingress controller already present; skipping install.\n'
-  else
-    printf 'Installing ingress-nginx controller from %s\n' "$manifest"
-    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$manifest"
-  fi
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$manifest"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" --namespace ingress-nginx \
-    wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
+    wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=300s
 }
 
 apply_application_manifests() {
