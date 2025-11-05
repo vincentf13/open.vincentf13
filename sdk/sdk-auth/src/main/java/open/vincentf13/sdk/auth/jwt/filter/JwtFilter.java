@@ -9,7 +9,7 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
-import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
+import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -50,7 +50,7 @@ public class JwtFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean isAllowed(JwtAuthenticationToken authentication) {
+    private boolean isAllowed(JwtParseInfo authentication) {
         if (!properties.isCheckSessionActive()) {
             return true;
         }

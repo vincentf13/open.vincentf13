@@ -19,7 +19,7 @@ public enum FailureReason {
     CREDENTIALS_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_CREDENTIALS_EXPIRED", "auth.login.failure.credentials-expired", "Password expired"),
     ACCOUNT_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_ACCOUNT_EXPIRED", "auth.login.failure.account-expired", "Account expired"),
     BAD_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH_BAD_CREDENTIALS", "auth.login.failure.bad-credentials", "Invalid username or password"),
-    REFRESH_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_INVALID", "auth.refresh.invalid", "Refresh token invalid");
+    REFRESH_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_REFRESH_INVALID", "auth.refresh.invalid", "Refresh jwtToken invalid");
 
     private final HttpStatus status;
     private final String code;

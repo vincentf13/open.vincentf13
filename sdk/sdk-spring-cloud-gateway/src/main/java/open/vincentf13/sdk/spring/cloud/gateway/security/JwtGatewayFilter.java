@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
-import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
+import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -49,19 +49,19 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        // 有帶 token 就依照配置效驗是否在線上，沒帶token就放行，由資源服務器的 @publicKey , @privateKey, jwt效驗 鑑定權限
+        // 有帶 jwtToken 就依照配置效驗是否在線上，沒帶token就放行，由資源服務器的 @publicKey , @privateKey, jwt效驗 鑑定權限
         Optional<String> tokenValue = resolveToken(exchange);
         if (tokenValue.isEmpty()) {
-            return chain.filter(exchange); // 無 token 放行，由後端資源服務自行判定授權
+            return chain.filter(exchange); // 無 jwtToken 放行，由後端資源服務自行判定授權
         }
 
-        Optional<JwtAuthenticationToken> authentication = openJwtService.parseAccessToken(tokenValue.get());
+        Optional<JwtParseInfo> authentication = openJwtService.parseAccessToken(tokenValue.get());
         if (authentication.isEmpty()) {
-            OpenLog.warn(log, "GatewayJwtInvalid", "JWT access token validation failed", "token", "redacted");
-            return unauthorized(exchange, "Invalid access token");
+            OpenLog.warn(log, "GatewayJwtInvalid", "JWT access jwtToken validation failed", "jwtToken", "redacted");
+            return unauthorized(exchange, "Invalid access jwtToken");
         }
 
-        JwtAuthenticationToken auth = authentication.get();
+        JwtParseInfo auth = authentication.get();
 
         if (!isSessionActive(auth)) {
             return unauthorized(exchange, "Session inactive");
@@ -84,7 +84,7 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
         return permitPaths.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
-    private boolean isSessionActive(JwtAuthenticationToken authentication) {
+    private boolean isSessionActive(JwtParseInfo authentication) {
         if (!jwtProperties.isCheckSessionActive()) {
             return true;
         }

@@ -1,8 +1,8 @@
 package open.vincentf13.sdk.auth.jwt;
 
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
-import open.vincentf13.sdk.auth.jwt.token.model.RefreshTokenClaims;
+import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
+import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +46,7 @@ public class OpenJwtService {
         this.jwtDecoder = decoderProvider.getIfAvailable();
     }
 
-    public TokenDetails generateAccessToken(String sessionId, Authentication authentication) {
+    public GenerateTokenInfo generateAccessToken(String sessionId, Authentication authentication) {
         JwtEncoder encoder = requireEncoder();
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plusSeconds(properties.getAccessTokenTtlSeconds());
@@ -82,15 +82,15 @@ public class OpenJwtService {
         String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
         OpenLog.debug(log,
                 "JwtAccessIssued",
-                () -> "Access token issued",
+                () -> "Access jwtToken issued",
                 "subject", authentication.getName(),
                 "userId", userId,
                 "email", email,
                 "sessionId", sessionId == null ? "<legacy>" : sessionId);
-        return new TokenDetails(tokenValue, issuedAt, expiresAt, TokenType.ACCESS, sessionId);
+        return new GenerateTokenInfo(tokenValue, issuedAt, expiresAt, TokenType.ACCESS, sessionId);
     }
 
-    public TokenDetails generateRefreshToken(String sessionId, String subject) {
+    public GenerateTokenInfo generateRefreshToken(String sessionId, String subject) {
         JwtEncoder encoder = requireEncoder();
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plusSeconds(properties.getRefreshTokenTtlSeconds());
@@ -109,18 +109,18 @@ public class OpenJwtService {
         String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
         OpenLog.debug(log,
                 "JwtRefreshIssued",
-                () -> "Refresh token issued",
+                () -> "Refresh jwtToken issued",
                 "subject", subject,
                 "sessionId", sessionId == null ? "<legacy>" : sessionId);
-        return new TokenDetails(tokenValue, issuedAt, expiresAt, TokenType.REFRESH, sessionId);
+        return new GenerateTokenInfo(tokenValue, issuedAt, expiresAt, TokenType.REFRESH, sessionId);
     }
 
-    public Optional<JwtAuthenticationToken> parseAccessToken(String tokenValue) {
+    public Optional<JwtParseInfo> parseAccessToken(String tokenValue) {
         try {
             Jwt jwt = jwtDecoder.decode(tokenValue);
             TokenType tokenType = resolveTokenType(jwt);
             if (tokenType != TokenType.ACCESS) {
-                OpenLog.warn(log, "JwtInvalidType", "Token is not an access token", "expected", TokenType.ACCESS, "actual", tokenType);
+                OpenLog.warn(log, "JwtInvalidType", "Token is not an access jwtToken", "expected", TokenType.ACCESS, "actual", tokenType);
                 return Optional.empty();
             }
 
@@ -135,7 +135,7 @@ public class OpenJwtService {
 
             // Construct OpenJwtUser from JWT claims
             OpenJwtLoginUser user = new OpenJwtLoginUser(userId, email, granted);
-            JwtAuthenticationToken authentication = new JwtAuthenticationToken(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
+            JwtParseInfo authentication = new JwtParseInfo(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
             return Optional.of(authentication);
         } catch (JwtException ex) {
             OpenLog.warn(log, "JwtInvalid", "JWT validation failed", ex, "reason", ex.getMessage());
@@ -143,16 +143,16 @@ public class OpenJwtService {
         }
     }
 
-    public Optional<RefreshTokenClaims> parseRefreshToken(String tokenValue) {
+    public Optional<RefreshTokenParseInfo> parseRefreshToken(String tokenValue) {
         try {
             Jwt jwt = jwtDecoder.decode(tokenValue);
             TokenType tokenType = resolveTokenType(jwt);
             if (tokenType != TokenType.REFRESH) {
-                OpenLog.warn(log, "JwtInvalidType", "Token is not a refresh token", "expected", TokenType.REFRESH, "actual", tokenType);
+                OpenLog.warn(log, "JwtInvalidType", "Token is not a refresh jwtToken", "expected", TokenType.REFRESH, "actual", tokenType);
                 return Optional.empty();
             }
             String sessionId = jwt.getClaimAsString(SESSION_ID_CLAIM);
-            return Optional.of(new RefreshTokenClaims(jwt.getTokenValue(), jwt.getSubject(), sessionId, jwt.getIssuedAt(), jwt.getExpiresAt()));
+            return Optional.of(new RefreshTokenParseInfo(jwt.getTokenValue(), jwt.getSubject(), sessionId, jwt.getIssuedAt(), jwt.getExpiresAt()));
         } catch (JwtException ex) {
             OpenLog.warn(log, "JwtInvalid", "JWT validation failed", ex, "reason", ex.getMessage());
             return Optional.empty();
@@ -167,14 +167,14 @@ public class OpenJwtService {
         try {
             return TokenType.valueOf(raw);
         } catch (IllegalArgumentException ex) {
-            OpenLog.warn(log, "JwtUnknownType", "Unknown token type", ex, "value", raw, "tokenId", jwt.getId() == null ? UUID.randomUUID() : jwt.getId());
+            OpenLog.warn(log, "JwtUnknownType", "Unknown jwtToken type", ex, "value", raw, "tokenId", jwt.getId() == null ? UUID.randomUUID() : jwt.getId());
             return TokenType.ACCESS;
         }
     }
 
     private JwtEncoder requireEncoder() {
         if (jwtEncoder == null) {
-            throw new IllegalStateException("JwtEncoder is not available for token generation");
+            throw new IllegalStateException("JwtEncoder is not available for jwtToken generation");
         }
         return jwtEncoder;
     }
@@ -192,5 +192,5 @@ public class OpenJwtService {
         REFRESH
     }
 
-    public record TokenDetails(String token, Instant issuedAt, Instant expiresAt, TokenType tokenType, String sessionId) { }
+    public record GenerateTokenInfo(String token, Instant issuedAt, Instant expiresAt, TokenType tokenType, String sessionId) { }
 }

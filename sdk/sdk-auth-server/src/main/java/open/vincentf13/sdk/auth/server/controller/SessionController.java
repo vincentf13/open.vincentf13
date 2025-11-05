@@ -1,8 +1,8 @@
 
 package open.vincentf13.sdk.auth.server.controller;
 
-import open.vincentf13.sdk.auth.jwt.token.JwtResponse;
-import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
+import open.vincentf13.sdk.auth.jwt.model.JwtTokenPair;
+import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.server.error.FailureReason;
 import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
 import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService.IssueResult;
@@ -34,30 +34,30 @@ public class SessionController {
 
     @PostMapping("/refresh")
     @PublicAPI
-    public ResponseEntity<OpenApiResponse<JwtResponse>> refresh(@RequestBody RefreshTokenPayload payload) {
+    public ResponseEntity<OpenApiResponse<JwtTokenPair>> refresh(@RequestBody RefreshTokenPayload payload) {
         FailureReason failure = FailureReason.REFRESH_INVALID;
         return sessionService.refresh(payload.refreshToken())
                 .map(SessionController::toResponse)
                 .orElseGet(() -> ResponseEntity.status(failure.status())
-                        .body(OpenApiResponse.<JwtResponse>failure(failure.code(), failure.resolveMessage(messages))));
+                        .body(OpenApiResponse.<JwtTokenPair>failure(failure.code(), failure.resolveMessage(messages))));
     }
 
     @PostMapping("/logout")
     @Jwt
     public ResponseEntity<OpenApiResponse<Void>> logout(Authentication authentication) {
-        if (authentication instanceof JwtAuthenticationToken jwtAuth && jwtAuth.hasSessionId()) {
+        if (authentication instanceof JwtParseInfo jwtAuth && jwtAuth.hasSessionId()) {
             sessionService.revoke(jwtAuth.getSessionId(), "logout");
         }
         return ResponseEntity.ok(OpenApiResponse.success(null));
     }
 
-    private static ResponseEntity<OpenApiResponse<JwtResponse>> toResponse(IssueResult result) {
-        JwtResponse payload = new JwtResponse(result.accessToken().token(),
-                                              result.accessToken().issuedAt(),
-                                              result.accessToken().expiresAt(),
-                                              result.refreshToken().token(),
-                                              result.refreshToken().expiresAt(),
-                                              result.sessionId());
+    private static ResponseEntity<OpenApiResponse<JwtTokenPair>> toResponse(IssueResult result) {
+        JwtTokenPair payload = new JwtTokenPair(result.accessToken().token(),
+                                                result.accessToken().issuedAt(),
+                                                result.accessToken().expiresAt(),
+                                                result.refreshToken().token(),
+                                                result.refreshToken().expiresAt(),
+                                                result.sessionId());
         return ResponseEntity.ok(OpenApiResponse.success(payload));
     }
 

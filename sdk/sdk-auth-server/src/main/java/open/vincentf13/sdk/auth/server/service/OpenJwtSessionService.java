@@ -4,9 +4,9 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSession;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
-import open.vincentf13.sdk.auth.jwt.OpenJwtService.TokenDetails;
-import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
-import open.vincentf13.sdk.auth.jwt.token.model.RefreshTokenClaims;
+import open.vincentf13.sdk.auth.jwt.OpenJwtService.GenerateTokenInfo;
+import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
+import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -34,8 +34,8 @@ public class OpenJwtSessionService {
 
     public IssueResult issue(Authentication authentication) {
         String sessionId = UUID.randomUUID().toString();
-        TokenDetails accessToken = openJwtService.generateAccessToken(sessionId, authentication);
-        TokenDetails refreshToken = openJwtService.generateRefreshToken(sessionId, authentication.getName());
+        GenerateTokenInfo accessToken = openJwtService.generateAccessToken(sessionId, authentication);
+        GenerateTokenInfo refreshToken = openJwtService.generateRefreshToken(sessionId, authentication.getName());
         List<String> authorities = authentication.getAuthorities().stream()
                 .map(granted -> granted.getAuthority())
                 .toList();
@@ -50,14 +50,14 @@ public class OpenJwtSessionService {
     }
 
     public Optional<IssueResult> refresh(String refreshTokenValue) {
-        Optional<RefreshTokenClaims> refreshToken = openJwtService.parseRefreshToken(refreshTokenValue);
+        Optional<RefreshTokenParseInfo> refreshToken = openJwtService.parseRefreshToken(refreshTokenValue);
         if (refreshToken.isEmpty()) {
             return Optional.empty();
         }
-        RefreshTokenClaims claims = refreshToken.get();
+        RefreshTokenParseInfo claims = refreshToken.get();
         String sessionId = claims.sessionId();
         if (sessionId == null) {
-            OpenLog.warn(log, "RefreshMissingSession", "Refresh token does not carry a session id", "subject", claims.subject());
+            OpenLog.warn(log, "RefreshMissingSession", "Refresh jwtToken does not carry a session id", "subject", claims.subject());
             return Optional.empty();
         }
         Optional<JwtSession> sessionOpt = sessionStore.findById(sessionId);
@@ -70,7 +70,7 @@ public class OpenJwtSessionService {
         if (!session.getUsername().equals(claims.subject())) {
             OpenLog.warn(log,
                     "RefreshSubjectMismatch",
-                    "Refresh token subject mismatch",
+                    "Refresh jwtToken subject mismatch",
                     "sessionId", sessionId,
                     "tokenSubject", claims.subject(),
                     "storedUsername", session.getUsername());
@@ -80,8 +80,8 @@ public class OpenJwtSessionService {
             OpenLog.info(log, "RefreshSessionInactive", "Session already expired or revoked", "sessionId", sessionId);
             return Optional.empty();
         }
-        TokenDetails newAccess = openJwtService.generateAccessToken(sessionId, buildAuthentication(session, refreshTokenValue));
-        TokenDetails newRefresh = openJwtService.generateRefreshToken(sessionId, session.getUsername());
+        GenerateTokenInfo newAccess = openJwtService.generateAccessToken(sessionId, buildAuthentication(session, refreshTokenValue));
+        GenerateTokenInfo newRefresh = openJwtService.generateRefreshToken(sessionId, session.getUsername());
         session.setRefreshTokenExpiresAt(newRefresh.expiresAt());
         sessionStore.save(session);
         OpenLog.info(log,
@@ -103,7 +103,7 @@ public class OpenJwtSessionService {
     }
 
     private Authentication buildAuthentication(JwtSession session, String refreshTokenValue) {
-        return new JwtAuthenticationToken(
+        return new JwtParseInfo(
                 session.getUsername(),
                 refreshTokenValue,
                 session.getAuthorities().stream()
@@ -116,6 +116,6 @@ public class OpenJwtSessionService {
 
     public record IssueResult(String sessionId,
                               String username,
-                              TokenDetails accessToken,
-                              TokenDetails refreshToken) { }
+                              GenerateTokenInfo accessToken,
+                              GenerateTokenInfo refreshToken) { }
 }
