@@ -1,5 +1,6 @@
 package open.vincentf13.sdk.auth.server.token;
 
+import open.vincentf13.sdk.auth.jwt.user.OpenJwtUser;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.token.OpenJwt;
 import open.vincentf13.sdk.auth.jwt.token.OpenJwt.TokenDetails;
@@ -35,6 +36,15 @@ public class OpenJwtGenerate {
         JwtEncoder encoder = openJwt.getJwtEncoder();
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plusSeconds(openJwt.getProperties().getAccessTokenTtlSeconds());
+
+        // Extract user information from principal
+        Long userId = null;
+        String email = null;
+        if (authentication.getPrincipal() instanceof OpenJwtUser user) {
+            userId = user.getUserId();
+            email = user.getUsername(); // getUsername returns email
+        }
+
         // @formatter:off
         JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
                 .issuer(openJwt.getProperties().getIssuer())
@@ -46,6 +56,15 @@ public class OpenJwtGenerate {
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toList()));
         // @formatter:on
+
+        // Add user information claims
+        if (userId != null) {
+            builder.claim(OpenJwt.USER_ID_CLAIM, userId);
+        }
+        if (email != null) {
+            builder.claim(OpenJwt.EMAIL_CLAIM, email);
+        }
+
         if (sessionId != null) {
             builder.claim(OpenJwt.SESSION_ID_CLAIM, sessionId);
         }
@@ -55,6 +74,8 @@ public class OpenJwtGenerate {
                 "JwtAccessIssued",
                 () -> "Access token issued",
                 "subject", authentication.getName(),
+                "userId", userId,
+                "email", email,
                 "sessionId", sessionId == null ? "<legacy>" : sessionId);
         return new TokenDetails(tokenValue, issuedAt, expiresAt, TokenType.ACCESS, sessionId);
     }

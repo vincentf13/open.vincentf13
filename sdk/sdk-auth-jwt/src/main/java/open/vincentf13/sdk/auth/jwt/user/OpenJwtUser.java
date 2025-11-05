@@ -32,6 +32,21 @@ public class OpenJwtUser implements UserDetails {
         this.authorities = authorities == null ? Collections.emptyList() : authorities;
     }
 
+    /**
+     * Constructor for JWT-based authentication (no password credentials needed)
+     */
+    public OpenJwtUser(Long userId,
+                       String email,
+                       Collection<? extends GrantedAuthority> authorities) {
+        this.userId = userId;
+        this.email = email;
+        this.secretHash = "";
+        this.salt = "";
+        this.enabled = true;
+        this.accountNonLocked = true;
+        this.authorities = authorities == null ? Collections.emptyList() : authorities;
+    }
+
     public Long getUserId() {
         return userId;
     }

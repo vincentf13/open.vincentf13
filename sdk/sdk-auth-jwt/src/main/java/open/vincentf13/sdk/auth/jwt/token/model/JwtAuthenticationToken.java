@@ -15,7 +15,7 @@ public class JwtAuthenticationToken extends UsernamePasswordAuthenticationToken 
     private final Instant issuedAt;
     private final Instant expiresAt;
 
-    public JwtAuthenticationToken(String principal,
+    public JwtAuthenticationToken(Object principal,
                                   String tokenValue,
                                   Collection<? extends GrantedAuthority> authorities,
                                   String sessionId,

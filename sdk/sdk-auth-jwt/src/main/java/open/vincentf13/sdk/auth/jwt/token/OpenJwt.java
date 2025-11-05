@@ -2,6 +2,7 @@ package open.vincentf13.sdk.auth.jwt.token;
 
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
 import open.vincentf13.sdk.auth.jwt.token.model.RefreshTokenClaims;
+import open.vincentf13.sdk.auth.jwt.user.OpenJwtUser;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,8 @@ public class OpenJwt {
     public static final String AUTHORITIES_CLAIM = "authorities";
     public static final String SESSION_ID_CLAIM = "sid";
     public static final String TOKEN_TYPE_CLAIM = "token_type";
+    public static final String USER_ID_CLAIM = "uid";
+    public static final String EMAIL_CLAIM = "email";
 
     private final JwtProperties properties;
     private final JwtEncoder jwtEncoder;
@@ -45,13 +48,19 @@ public class OpenJwt {
                 OpenLog.warn(log, "JwtInvalidType", "Token is not an access token", "expected", TokenType.ACCESS, "actual", tokenType);
                 return Optional.empty();
             }
-            String subject = jwt.getSubject();
+
+            // Extract user information from JWT claims
+            Long userId = jwt.getClaim(USER_ID_CLAIM);
+            String email = jwt.getClaimAsString(EMAIL_CLAIM);
             List<String> authorities = jwt.getClaimAsStringList(AUTHORITIES_CLAIM);
             List<SimpleGrantedAuthority> granted = authorities == null ? Collections.emptyList() : authorities.stream()
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
             String sessionId = jwt.getClaimAsString(SESSION_ID_CLAIM);
-            JwtAuthenticationToken authentication = new JwtAuthenticationToken(subject, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
+
+            // Construct OpenJwtUser from JWT claims
+            OpenJwtUser user = new OpenJwtUser(userId, email, granted);
+            JwtAuthenticationToken authentication = new JwtAuthenticationToken(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
             return Optional.of(authentication);
         } catch (JwtException ex) {
             OpenLog.warn(log, "JwtInvalid", "JWT validation failed", ex, "reason", ex.getMessage());

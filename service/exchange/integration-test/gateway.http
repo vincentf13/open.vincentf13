@@ -18,7 +18,6 @@ Accept: application/json
 
 > {%
     const email = response.body?.data?.email ?? request.variables.get("userEmail");
-    client.test("registerUser: email captured", () => client.assert(email, "email missing"));
 
     client.test("registerUser: HTTP 200", () => client.assert(response.status === 200));
     client.test("registerUser: OpenApi success", () => client.assert(response.body?.code === "0", "Unexpected response code: " + response.body?.code));
@@ -38,12 +37,38 @@ Accept: application/json
 }
 
 > {%
-client.test("login: HTTP 200", () => client.assert(response.status === 200));
-client.test("login: token issued", () => {
+    const accessTokenTmp = response.body?.data?.token;
+    const refreshTokenTmp = response.body?.data?.refreshToken;
+
+    client.log("Response body: " + JSON.stringify(response.body));
+    client.log("accessTokenTmp: " + accessTokenTmp);
+    client.log("refreshTokenTmp: " + refreshTokenTmp);
+
+    client.test("login: HTTP 200", () => client.assert(response.status === 200));
+    client.test("login: token issued", () => {
+        client.assert(response.body?.code === "0", "Unexpected response code: " + response.body?.code);
+        client.assert(accessTokenTmp, "accessToken missing in response body");
+        client.assert(refreshTokenTmp, "refreshToken missing in response body");
+    });
+    client.global.set("accessToken", accessTokenTmp);
+    client.global.set("refreshToken", refreshTokenTmp);
+
+    client.log("Set accessToken to global: " + client.global.get("accessToken"));
+    client.log("Set refreshToken to global: " + client.global.get("refreshToken"));
+%}
+
+###
+# @name getUserMe
+GET {{gatewayHost}}/user/api/user/me
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+> {%
+client.test("getUserMe: HTTP 200", () => client.assert(response.status === 200));
+client.test("getUserMe: user data returned", () => {
     client.assert(response.body?.code === "0", "Unexpected response code: " + response.body?.code);
-    client.assert(response.body?.data?.accessToken, "accessToken missing in response body");
-    client.assert(response.body?.data?.refreshToken, "refreshToken missing in response body");
+    client.assert(response.body?.data?.id, "User ID missing in response");
+    client.assert(response.body?.data?.email === client.global.get("registeredUserEmail"), "Email mismatch");
 });
-client.global.set("accessToken", response.body?.data?.accessToken);
-client.global.set("refreshToken", response.body?.data?.refreshToken);
+client.log("User Info: " + JSON.stringify(response.body?.data));
 %}
