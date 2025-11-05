@@ -25,11 +25,11 @@ spec:
               containerPort: 8080
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 50m               # 最小 CPU 保證（節省資源）
+              memory: 128Mi          # 最小記憶體保證
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 500m              # 最大可用 CPU
+              memory: 512Mi          # 最大可用記憶體
           readinessProbe:
             tcpSocket:
               port: http

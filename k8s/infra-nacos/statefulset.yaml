@@ -34,11 +34,11 @@ spec:
             - name: NACOS_AUTH_ENABLE
               value: "false"
             - name: JVM_XMS
-              value: 512m
+              value: 256m            # 降低初始堆記憶體（節省資源）
             - name: JVM_XMX
-              value: 1g
+              value: 512m            # 降低最大堆記憶體
             - name: JVM_XMN
-              value: 256m
+              value: 128m            # 降低年輕代記憶體
             - name: PREFER_HOST_MODE
               value: hostname
           volumeMounts:
@@ -69,11 +69,11 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              cpu: 250m
-              memory: 1Gi
+              cpu: 100m              # 最小 CPU 保證（節省資源）
+              memory: 512Mi          # 最小記憶體保證（配合 JVM Xmx）
             limits:
-              cpu: 750m
-              memory: 2Gi
+              cpu: 1000m             # 最大可用 CPU（需要時可達 1 core）
+              memory: 1Gi            # 最大可用記憶體
       volumes:
         - name: nacos-config
           configMap:

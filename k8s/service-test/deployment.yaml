@@ -5,7 +5,7 @@ metadata:
   labels:
     app: service-test
 spec:
-  replicas: 2
+  replicas: 1  # 最小化初始資源佔用，HPA 會根據負載自動擴展
   selector:
     matchLabels:
       app: service-test
@@ -28,4 +28,24 @@ spec:
               protocol: TCP
           resources:
             requests:
-              cpu: "100m"           # 自動擴容的必要條件，需配置
+              cpu: "50m"            # 最小 CPU 保證（節省資源）
+              memory: "128Mi"       # 最小記憶體保證
+            limits:
+              cpu: "1000m"          # 最大可用 CPU（需要時可達 1 core）
+              memory: "512Mi"       # 最大可用記憶體
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
