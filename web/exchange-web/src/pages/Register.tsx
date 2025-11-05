@@ -62,7 +62,7 @@ export default function Register() {
             name="password"
             rules={[
               { required: true, message: '請輸入密碼' },
-              { min: 6, message: '密碼至少 6 位' }
+              { min: 8, message: '密碼至少 8 位' }
             ]}
           >
             <Input.Password

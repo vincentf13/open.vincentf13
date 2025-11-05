@@ -1,6 +1,5 @@
 open.vincentf13.sdk.spring.mvc.config.ConfigAop
 open.vincentf13.sdk.spring.mvc.config.ConfigCookie
-open.vincentf13.sdk.spring.mvc.config.ConfigCors
 open.vincentf13.sdk.spring.mvc.config.ConfigFilter
 open.vincentf13.sdk.spring.mvc.config.ConfigInterceptor
 open.vincentf13.sdk.spring.mvc.config.ConfigWebMvc
