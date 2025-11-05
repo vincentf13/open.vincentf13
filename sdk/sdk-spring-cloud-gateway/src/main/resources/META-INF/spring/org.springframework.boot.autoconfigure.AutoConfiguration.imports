@@ -1,2 +1,2 @@
-open.vincentf13.sdk.spring.cloud.gateway.security.GatewayJwtConfiguration
-open.vincentf13.sdk.spring.cloud.gateway.config.ConfigCors
+open.vincentf13.sdk.spring.cloud.gateway.config.JwtConfig
+open.vincentf13.sdk.spring.cloud.gateway.config.CorsConfig

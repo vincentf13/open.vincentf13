@@ -1,11 +1,11 @@
-package open.vincentf13.sdk.spring.cloud.gateway.security;
+package open.vincentf13.sdk.spring.cloud.gateway.filter;
 
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
-import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
+import open.vincentf13.sdk.spring.cloud.gateway.config.JwtProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -23,29 +23,29 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.Optional;
 
-class JwtGatewayFilter implements GlobalFilter, Ordered {
+public class JwtFilter implements GlobalFilter, Ordered {
 
-    private static final Logger log = LoggerFactory.getLogger(JwtGatewayFilter.class);
+    private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
     private final OpenJwtService openJwtService;
-    private final JwtProperties jwtProperties;
+    private final open.vincentf13.sdk.auth.jwt.config.JwtProperties jwtProperties;
     private final ObjectProvider<JwtSessionService> sessionServiceProvider;
-    private final GatewayJwtProperties gatewayJwtProperties;
+    private final JwtProperties jwtProperties;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    JwtGatewayFilter(OpenJwtService openJwtService,
-                     JwtProperties jwtProperties,
-                     ObjectProvider<JwtSessionService> sessionServiceProvider,
-                     GatewayJwtProperties gatewayJwtProperties) {
+    JwtFilter(OpenJwtService openJwtService,
+              open.vincentf13.sdk.auth.jwt.config.JwtProperties jwtProperties,
+              ObjectProvider<JwtSessionService> sessionServiceProvider,
+              JwtProperties gatewayJwtProperties) {
         this.openJwtService = openJwtService;
         this.jwtProperties = jwtProperties;
         this.sessionServiceProvider = sessionServiceProvider;
-        this.gatewayJwtProperties = gatewayJwtProperties;
+        this.jwtProperties = gatewayJwtProperties;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        if (!gatewayJwtProperties.isEnabled() || shouldBypass(exchange.getRequest().getPath().value())) {
+        if (!jwtProperties.isEnabled() || shouldBypass(exchange.getRequest().getPath().value())) {
             return chain.filter(exchange);
         }
 
@@ -77,7 +77,7 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
     }
 
     private boolean shouldBypass(String path) {
-        List<String> permitPaths = gatewayJwtProperties.getPermitPaths();
+        List<String> permitPaths = jwtProperties.getPermitPaths();
         if (permitPaths == null || permitPaths.isEmpty()) {
             return false;
         }

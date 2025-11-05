@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.cloud.gateway.security;
+package open.vincentf13.sdk.spring.cloud.gateway.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @ConfigurationProperties(prefix = "open.vincentf13.security.gateway")
-public class GatewayJwtProperties {
+public class JwtProperties {
 
     private boolean enabled = true;
     private List<String> permitPaths = new ArrayList<>();

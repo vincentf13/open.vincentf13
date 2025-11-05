@@ -1,8 +1,8 @@
-package open.vincentf13.sdk.spring.cloud.gateway.security;
+package open.vincentf13.sdk.spring.cloud.gateway.config;
 
-import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
-import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
+import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
+import open.vincentf13.sdk.spring.cloud.gateway.filter.JwtFilter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -12,17 +12,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties(GatewayJwtProperties.class)
+@EnableConfigurationProperties(JwtProperties.class)
 @ConditionalOnProperty(prefix = "open.vincentf13.security.gateway", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnBean(OpenJwtService.class)
-public class GatewayJwtConfiguration {
+public class JwtConfig {
 
     @Bean
     @ConditionalOnMissingBean
-    public JwtGatewayFilter jwtGatewayFilter(OpenJwtService openJwtService,
-                                             JwtProperties jwtProperties,
-                                             ObjectProvider<JwtSessionService> sessionServiceProvider,
-                                             GatewayJwtProperties properties) {
-        return new JwtGatewayFilter(openJwtService, jwtProperties, sessionServiceProvider, properties);
+    public JwtFilter jwtGatewayFilter(OpenJwtService openJwtService,
+                                      open.vincentf13.sdk.auth.jwt.config.JwtProperties jwtProperties,
+                                      ObjectProvider<JwtSessionService> sessionServiceProvider,
+                                      JwtProperties properties) {
+        return new JwtFilter(openJwtService, jwtProperties, sessionServiceProvider, properties);
     }
 }

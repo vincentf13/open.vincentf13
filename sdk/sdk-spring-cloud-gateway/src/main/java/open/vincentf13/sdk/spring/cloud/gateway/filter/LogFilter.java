@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.spring.cloud.gateway.filter;
 
-import open.vincentf13.sdk.spring.cloud.gateway.logging.GatewayLogService;
+import open.vincentf13.sdk.spring.cloud.gateway.service.LogService;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -9,11 +9,11 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 @Component
-public class LoggingFilter implements GlobalFilter, Ordered {
+public class LogFilter implements GlobalFilter, Ordered {
 
-    private final GatewayLogService logService;
+    private final LogService logService;
 
-    public LoggingFilter(GatewayLogService logService) {
+    public LogFilter(LogService logService) {
         this.logService = logService;
     }
 

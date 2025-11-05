@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.cloud.gateway.security;
+package open.vincentf13.sdk.spring.cloud.gateway.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -11,7 +11,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 @Configuration
 @ConditionalOnClass({ServerHttpSecurity.class, SecurityWebFilterChain.class})
 @ConditionalOnProperty(prefix = "open.vincentf13.security.gateway", name = "enabled", havingValue = "true", matchIfMissing = true)
-public class GatewaySecurityConfiguration {
+public class SecurityConfig {
 
     @Bean
     @ConditionalOnMissingBean(SecurityWebFilterChain.class)

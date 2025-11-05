@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.cloud.gateway.logging;
+package open.vincentf13.sdk.spring.cloud.gateway.service;
 
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.slf4j.Logger;
@@ -16,11 +16,11 @@ import java.net.URI;
 import java.util.List;
 
 @Component
-public class GatewayLogService {
+public class LogService {
 
-    private static final Logger log = LoggerFactory.getLogger(GatewayLogService.class);
-    private static final String ATTR_INITIAL_FORWARD_URL = GatewayLogService.class.getName() + ".initialForwardUrl";
-    private static final String ATTR_INITIAL_SERVICE_INSTANCE = GatewayLogService.class.getName() + ".initialServiceInstance";
+    private static final Logger log = LoggerFactory.getLogger(LogService.class);
+    private static final String ATTR_INITIAL_FORWARD_URL = LogService.class.getName() + ".initialForwardUrl";
+    private static final String ATTR_INITIAL_SERVICE_INSTANCE = LogService.class.getName() + ".initialServiceInstance";
 
     public void logRequest(ServerWebExchange exchange) {
         Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);

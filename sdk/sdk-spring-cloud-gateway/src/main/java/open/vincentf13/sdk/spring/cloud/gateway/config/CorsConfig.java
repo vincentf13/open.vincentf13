@@ -13,7 +13,7 @@ import java.util.Collections;
 
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)
-public class ConfigCors {
+public class CorsConfig {
 
     @Bean
     public CorsWebFilter corsWebFilter() {
@@ -32,3 +32,4 @@ public class ConfigCors {
         return new CorsWebFilter(source);
     }
 }
+So, so, so, so, so, so, so, so, so, so.
