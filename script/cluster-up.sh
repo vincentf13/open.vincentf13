@@ -226,8 +226,6 @@ apply_application_manifests() {
     fi
   done
 
-  ensure_ingress_controller
-
   local pids=()
   for manifest in "${APPLICATION_MANIFESTS[@]}"; do
     (
@@ -472,26 +470,115 @@ apply_monitoring_stack() {
 }
 
 configure_argocd() {
-  log_step "Logging into Argo CD"
-  local argo_password
-  argo_password=$(kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 --decode)
-  local argocd_endpoint="argocd-server.argocd.svc.cluster.local:443"
-  argocd login "$argocd_endpoint" \
-    --username admin \
-    --password "$argo_password" \
-    --insecure --grpc-web
+  log_step "Configuring Argo CD"
 
-  log_step "Configuring Argo CD application"
-  if argocd app get gitops --grpc-web >/dev/null 2>&1; then
-    printf 'Argo CD application "gitops" already exists; skipping create.\n'
-  else
-    argocd app create gitops \
-      --repo https://github.com/vincentf13/GitOps.git \
-      --path k8s \
-      --dest-server https://kubernetes.default.svc \
-      --dest-namespace default \
-      --sync-policy automated --grpc-web
-  fi
+  # Port forward in the background to make the server accessible.
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd port-forward svc/argocd-server 8080:443 &
+  local pf_pid=$!
+
+  # Use a subshell to ensure the trap cleans up the port-forward process correctly.
+  (
+    trap 'printf "Stopping Argo CD port-forward..."; kill $pf_pid; printf "Done.\n"' EXIT
+    
+    # Give port-forward a moment to establish connection.
+    sleep 5
+
+    log_step "Logging into Argo CD"
+    local argo_password
+    # Retry getting the secret, as it may take a moment to be created.
+    for i in {1..12}; do
+      argo_password=$(kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 --decode)
+      if [[ -n "$argo_password" ]]; then
+        break
+      fi
+      printf 'Waiting for argocd-initial-admin-secret...\n'
+      sleep 10
+    done
+
+    if [[ -z "$argo_password" ]]; then
+      printf 'Failed to get Argo CD admin password after multiple retries.\n' >&2
+      return 1
+    fi
+
+    # Retry logging in, as the server might not be ready immediately.
+    local login_success=false
+    for i in {1..12}; do
+      if argocd login localhost:8080 \
+        --username admin \
+        --password "$argo_password" \
+        --insecure --grpc-web; then
+        login_success=true
+        break
+      fi
+      printf 'Waiting for Argo CD server to be ready for login...\n'
+      sleep 10
+    done
+
+    if [[ "$login_success" = false ]]; then
+        printf "Failed to log into Argo CD after multiple retries.\n" >&2
+        return 1
+    fi
+
+    log_step "Configuring Argo CD application"
+    if argocd app get gitops --grpc-web >/dev/null 2>&1; then
+      printf 'Argo CD application "gitops" already exists; skipping create.\n'
+    else
+      argocd app create gitops \
+        --repo https://github.com/vincentf13/GitOps.git \
+        --path k8s \
+        --dest-server https://kubernetes.default.svc \
+        --dest-namespace default \
+        --sync-policy automated --grpc-web
+    fi
+  )
+  # Capture the exit code from the subshell to determine success or failure.
+  local exit_code=$?
+  return $exit_code
+}
+
+apply_foundational_services() {
+  local pids=()
+  local names=()
+
+  (
+    log_step "Applying infrastructure clusters"
+    apply_infra_clusters
+  ) &
+  pids+=($!)
+  names+=("Infrastructure")
+
+  (
+    log_step "Setting up ingress and metrics"
+    setup_ingress_and_metrics
+  ) &
+  pids+=($!)
+  names+=("Ingress and Metrics")
+
+  (
+    ensure_argocd
+  ) &
+  pids+=($!)
+  names+=("ArgoCD")
+
+  (
+    log_step "Applying monitoring stack"
+    apply_monitoring_stack
+  ) &
+  pids+=($!)
+  names+=("Monitoring")
+
+  local failures=0
+  local idx
+  for idx in "${!pids[@]}"; do
+    if ! wait "${pids[$idx]}"; then
+      printf 'Foundational service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
+      failures=1
+    else
+      printf 'Foundational service "%s" completed.\n' "${names[$idx]}"
+    fi
+  done
+
+  return $failures
 }
 
 main() {
@@ -571,22 +658,51 @@ main() {
       require_cmd docker
       ensure_directories
 
+      log_step "Ensuring Docker images"
       ensure_docker_images
 
-      log_step "Applying infrastructure clusters"
-      apply_infra_clusters
+      log_step "Applying foundational services in parallel"
+      if ! apply_foundational_services; then
+        printf '\nFailed to apply foundational services. Aborting.\n' >&2
+        exit 1
+      fi
 
-      log_step "Applying application manifests"
-      apply_application_manifests
+      log_step "Applying dependent services"
+      local pids=()
+      local names=()
 
-      setup_ingress_and_metrics
+      (
+        log_step "Applying application manifests"
+        apply_application_manifests
+      ) &
+      pids+=($!)
+      names+=("Application Manifests")
 
-      ensure_argocd
-      configure_argocd
+      (
+        log_step "Configuring ArgoCD"
+        configure_argocd
+      ) &
+      pids+=($!)
+      names+=("ArgoCD Configuration")
 
-      log_step "Applying monitoring stack"
-      apply_monitoring_stack
-      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pods -n monitoring
+      local failures=0
+      local idx
+      for idx in "${!pids[@]}"; do
+        if ! wait "${pids[$idx]}"; then
+          printf 'Dependent service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
+          failures=1
+        else
+          printf 'Dependent service "%s" completed.\n' "${names[$idx]}"
+        fi
+      done
+
+      if [[ $failures -ne 0 ]]; then
+        printf '\nOne or more dependent services failed to apply.\n' >&2
+        exit 1
+      fi
+
+      log_step "Final verification"
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pods
 
       printf '\nCluster endpoints are ready. Access services using in-cluster DNS:\n'
       printf '  MySQL primary: infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306\n'
