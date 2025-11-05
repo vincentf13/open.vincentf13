@@ -1,6 +1,7 @@
-package open.vincentf13.sdk.auth.jwt.config;
+package open.vincentf13.sdk.auth.config;
 
-import open.vincentf13.sdk.auth.jwt.filter.JwtFilter;
+import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
+import open.vincentf13.sdk.auth.jwt.JwtFilter;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import org.springframework.beans.factory.ObjectProvider;
@@ -13,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConditionalOnClass(name = "jakarta.servlet.Filter")
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-public class ServletJwtConfiguration {
+public class JwtConfig {
 
     @Bean
     @ConditionalOnMissingBean

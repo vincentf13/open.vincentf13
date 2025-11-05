@@ -1,6 +1,5 @@
 package open.vincentf13.sdk.auth.config;
 
-import open.vincentf13.sdk.auth.jwt.config.JwtPreConfig;
 import open.vincentf13.sdk.auth.auth.AnnotationBasedAuthorizationManager;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;

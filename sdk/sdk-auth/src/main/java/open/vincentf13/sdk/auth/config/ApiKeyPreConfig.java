@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.auth.config;
 
 import open.vincentf13.sdk.auth.apikey.ApiKeyFilter;
-import open.vincentf13.sdk.auth.jwt.filter.JwtFilter;
+import open.vincentf13.sdk.auth.jwt.JwtFilter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;

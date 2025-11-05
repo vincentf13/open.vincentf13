@@ -4,7 +4,7 @@ import open.vincentf13.sdk.auth.apikey.ApiKeyFilter;
 import open.vincentf13.sdk.auth.apikey.ApiKeyProperties;
 import open.vincentf13.sdk.auth.apikey.ApiKeyValidator;
 import open.vincentf13.sdk.auth.apikey.ApiKeyValidatorImpl;
-import open.vincentf13.sdk.auth.jwt.filter.JwtFilter;
+import open.vincentf13.sdk.auth.jwt.JwtFilter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
