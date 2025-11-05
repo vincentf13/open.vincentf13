@@ -5,7 +5,7 @@ import open.vincentf13.sdk.auth.auth.PublicAPI;
 import open.vincentf13.sdk.auth.jwt.token.JwtResponse;
 import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
 import open.vincentf13.sdk.auth.server.error.FailureReason;
-import open.vincentf13.sdk.auth.server.service.AuthJwtSessionService;
+import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.slf4j.Logger;
@@ -33,11 +33,11 @@ public class AuthLoginController {
     private static final String LOGIN_SUCCESS_KEY = "auth.login.success";
 
     private final AuthenticationManager authenticationManager;
-    private final AuthJwtSessionService sessionService;
+    private final OpenJwtSessionService sessionService;
     private final MessageSourceAccessor messages;
 
     public AuthLoginController(AuthenticationManager authenticationManager,
-                               AuthJwtSessionService sessionService,
+                               OpenJwtSessionService sessionService,
                                MessageSource messageSource) {
         this.authenticationManager = authenticationManager;
         this.sessionService = sessionService;
@@ -52,7 +52,7 @@ public class AuthLoginController {
                     new UsernamePasswordAuthenticationToken(request.email(), request.password()));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            AuthJwtSessionService.IssueResult tokens = sessionService.issue(authentication);
+            OpenJwtSessionService.IssueResult tokens = sessionService.issue(authentication);
             JwtResponse payload = new JwtResponse(tokens.accessToken().token(),
                     tokens.accessToken().issuedAt(),
                     tokens.accessToken().expiresAt(),

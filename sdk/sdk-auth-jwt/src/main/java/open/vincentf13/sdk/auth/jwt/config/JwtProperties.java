@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth.jwt.token;
+package open.vincentf13.sdk.auth.jwt.config;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

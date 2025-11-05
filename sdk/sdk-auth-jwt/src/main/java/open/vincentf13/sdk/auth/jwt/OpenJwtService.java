@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.auth.jwt;
 
-import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
+import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
 import open.vincentf13.sdk.auth.jwt.token.model.RefreshTokenClaims;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -26,9 +26,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class OpenJwt {
+public class OpenJwtService {
 
-    private static final Logger log = LoggerFactory.getLogger(OpenJwt.class);
+    private static final Logger log = LoggerFactory.getLogger(OpenJwtService.class);
     public static final String AUTHORITIES_CLAIM = "authorities";
     public static final String SESSION_ID_CLAIM = "sid";
     public static final String TOKEN_TYPE_CLAIM = "token_type";
@@ -39,8 +39,8 @@ public class OpenJwt {
     private final JwtEncoder jwtEncoder;
     private final JwtDecoder jwtDecoder;
 
-    public OpenJwt(JwtProperties properties, ObjectProvider<JwtEncoder> encoderProvider,
-                   ObjectProvider<JwtDecoder> decoderProvider) {
+    public OpenJwtService(JwtProperties properties, ObjectProvider<JwtEncoder> encoderProvider,
+                          ObjectProvider<JwtDecoder> decoderProvider) {
         this.properties = properties;
         this.jwtEncoder = encoderProvider.getIfAvailable();
         this.jwtDecoder = decoderProvider.getIfAvailable();
@@ -113,10 +113,6 @@ public class OpenJwt {
                 "subject", subject,
                 "sessionId", sessionId == null ? "<legacy>" : sessionId);
         return new TokenDetails(tokenValue, issuedAt, expiresAt, TokenType.REFRESH, sessionId);
-    }
-
-    public TokenDetails generate(Authentication authentication) {
-        return generateAccessToken(null, authentication);
     }
 
     public Optional<JwtAuthenticationToken> parseAccessToken(String tokenValue) {

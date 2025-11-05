@@ -3,8 +3,8 @@ package open.vincentf13.sdk.auth.server.service;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSession;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
-import open.vincentf13.sdk.auth.jwt.OpenJwt;
-import open.vincentf13.sdk.auth.jwt.OpenJwt.TokenDetails;
+import open.vincentf13.sdk.auth.jwt.OpenJwtService;
+import open.vincentf13.sdk.auth.jwt.OpenJwtService.TokenDetails;
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
 import open.vincentf13.sdk.auth.jwt.token.model.RefreshTokenClaims;
 import org.slf4j.Logger;
@@ -19,23 +19,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class AuthJwtSessionService {
+public class OpenJwtSessionService {
 
-    private static final Logger log = LoggerFactory.getLogger(AuthJwtSessionService.class);
+    private static final Logger log = LoggerFactory.getLogger(OpenJwtSessionService.class);
 
-    private final OpenJwt openJwt;
+    private final OpenJwtService openJwtService;
     private final JwtSessionStore sessionStore;
 
-    public AuthJwtSessionService(OpenJwt openJwt,
+    public OpenJwtSessionService(OpenJwtService openJwtService,
                                  JwtSessionStore sessionStore) {
-        this.openJwt = openJwt;
+        this.openJwtService = openJwtService;
         this.sessionStore = sessionStore;
     }
 
     public IssueResult issue(Authentication authentication) {
         String sessionId = UUID.randomUUID().toString();
-        TokenDetails accessToken = openJwt.generateAccessToken(sessionId, authentication);
-        TokenDetails refreshToken = openJwt.generateRefreshToken(sessionId, authentication.getName());
+        TokenDetails accessToken = openJwtService.generateAccessToken(sessionId, authentication);
+        TokenDetails refreshToken = openJwtService.generateRefreshToken(sessionId, authentication.getName());
         List<String> authorities = authentication.getAuthorities().stream()
                 .map(granted -> granted.getAuthority())
                 .toList();
@@ -50,7 +50,7 @@ public class AuthJwtSessionService {
     }
 
     public Optional<IssueResult> refresh(String refreshTokenValue) {
-        Optional<RefreshTokenClaims> refreshToken = openJwt.parseRefreshToken(refreshTokenValue);
+        Optional<RefreshTokenClaims> refreshToken = openJwtService.parseRefreshToken(refreshTokenValue);
         if (refreshToken.isEmpty()) {
             return Optional.empty();
         }
@@ -80,8 +80,8 @@ public class AuthJwtSessionService {
             OpenLog.info(log, "RefreshSessionInactive", "Session already expired or revoked", "sessionId", sessionId);
             return Optional.empty();
         }
-        TokenDetails newAccess = openJwt.generateAccessToken(sessionId, buildAuthentication(session, refreshTokenValue));
-        TokenDetails newRefresh = openJwt.generateRefreshToken(sessionId, session.getUsername());
+        TokenDetails newAccess = openJwtService.generateAccessToken(sessionId, buildAuthentication(session, refreshTokenValue));
+        TokenDetails newRefresh = openJwtService.generateRefreshToken(sessionId, session.getUsername());
         session.setRefreshTokenExpiresAt(newRefresh.expiresAt());
         sessionStore.save(session);
         OpenLog.info(log,

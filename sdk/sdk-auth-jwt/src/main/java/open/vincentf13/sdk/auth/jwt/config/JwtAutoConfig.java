@@ -9,8 +9,7 @@ import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStoreInMemory;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStoreRedis;
-import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.OpenJwt;
+import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -35,9 +34,9 @@ public class JwtAutoConfig {
 
     @Bean
     @ConditionalOnMissingBean
-    public OpenJwt openJwtToken(JwtProperties properties, ObjectProvider<JwtEncoder> encoderProvider,
-                                ObjectProvider<JwtDecoder> decoderProvider) {
-        return new OpenJwt(properties, encoderProvider, decoderProvider);
+    public OpenJwtService openJwtToken(JwtProperties properties, ObjectProvider<JwtEncoder> encoderProvider,
+                                       ObjectProvider<JwtDecoder> decoderProvider) {
+        return new OpenJwtService(properties, encoderProvider, decoderProvider);
     }
 
     @Bean

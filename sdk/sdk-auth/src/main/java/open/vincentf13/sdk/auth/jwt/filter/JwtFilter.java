@@ -7,8 +7,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.sdk.spring.mvc.util.OpenHttpUtils;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
-import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.OpenJwt;
+import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
+import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,15 +24,15 @@ import java.io.IOException;
  */
 public class JwtFilter extends OncePerRequestFilter {
 
-    private final OpenJwt openJwt;
+    private final OpenJwtService openJwtService;
     private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final JwtProperties properties;
     private final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
-    public JwtFilter(OpenJwt openJwt,
+    public JwtFilter(OpenJwtService openJwtService,
                      ObjectProvider<JwtSessionService> sessionServiceProvider,
                      JwtProperties properties) {
-        this.openJwt = openJwt;
+        this.openJwtService = openJwtService;
         this.sessionServiceProvider = sessionServiceProvider;
         this.properties = properties;
     }
@@ -43,7 +43,7 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             OpenHttpUtils.resolveBearerToken(request)
-                .flatMap(openJwt::parseAccessToken)
+                .flatMap(openJwtService::parseAccessToken)
                 .filter(this::isAllowed)
                 .ifPresent(authentication -> SecurityContextHolder.getContext().setAuthentication(authentication));
         }

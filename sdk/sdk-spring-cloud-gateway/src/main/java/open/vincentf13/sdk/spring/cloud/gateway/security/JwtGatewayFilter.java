@@ -3,8 +3,8 @@ package open.vincentf13.sdk.spring.cloud.gateway.security;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
-import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.OpenJwt;
+import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
+import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,17 +27,17 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(JwtGatewayFilter.class);
 
-    private final OpenJwt openJwt;
+    private final OpenJwtService openJwtService;
     private final JwtProperties jwtProperties;
     private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final GatewayJwtProperties gatewayJwtProperties;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    JwtGatewayFilter(OpenJwt openJwt,
+    JwtGatewayFilter(OpenJwtService openJwtService,
                      JwtProperties jwtProperties,
                      ObjectProvider<JwtSessionService> sessionServiceProvider,
                      GatewayJwtProperties gatewayJwtProperties) {
-        this.openJwt = openJwt;
+        this.openJwtService = openJwtService;
         this.jwtProperties = jwtProperties;
         this.sessionServiceProvider = sessionServiceProvider;
         this.gatewayJwtProperties = gatewayJwtProperties;
@@ -55,7 +55,7 @@ class JwtGatewayFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange); // 無 token 放行，由後端資源服務自行判定授權
         }
 
-        Optional<JwtAuthenticationToken> authentication = openJwt.parseAccessToken(tokenValue.get());
+        Optional<JwtAuthenticationToken> authentication = openJwtService.parseAccessToken(tokenValue.get());
         if (authentication.isEmpty()) {
             OpenLog.warn(log, "GatewayJwtInvalid", "JWT access token validation failed", "token", "redacted");
             return unauthorized(exchange, "Invalid access token");
