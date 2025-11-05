@@ -1,22 +1,26 @@
 package open.vincentf13.sdk.auth.config;
 
+import open.vincentf13.sdk.auth.apikey.ApiKeyFilter;
 import open.vincentf13.sdk.auth.auth.AnnotationBasedAuthorizationManager;
+import open.vincentf13.sdk.auth.jwt.JwtFilter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 public class AuthPreConfig extends AbstractHttpConfigurer<AuthPreConfig, HttpSecurity> {
 
-    private final ObjectProvider<ApiKeyPreConfig> apiKeySecurityConfigurerProvider;
+    private final ObjectProvider<ApiKeyFilter> apiKeyFilterProvider;
+    private final ObjectProvider<JwtFilter> jwtFilterProvider;
     private final AnnotationBasedAuthorizationManager authorizationManager;
-    private final JwtPreConfig jwtPreConfig;
 
-    public AuthPreConfig(ObjectProvider<ApiKeyPreConfig> apiKeySecurityConfigurerProvider,
-                         AnnotationBasedAuthorizationManager authorizationManager,
-                         JwtPreConfig jwtPreConfig) {
-        this.apiKeySecurityConfigurerProvider = apiKeySecurityConfigurerProvider;
+    public AuthPreConfig(ObjectProvider<ApiKeyFilter> apiKeyFilterProvider,
+                         ObjectProvider<JwtFilter> jwtFilterProvider,
+                         AnnotationBasedAuthorizationManager authorizationManager) {
+        this.apiKeyFilterProvider = apiKeyFilterProvider;
+        this.jwtFilterProvider = jwtFilterProvider;
         this.authorizationManager = authorizationManager;
-        this.jwtPreConfig = jwtPreConfig;
     }
 
     @Override
@@ -28,11 +32,23 @@ public class AuthPreConfig extends AbstractHttpConfigurer<AuthPreConfig, HttpSec
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable);
 
-        http.apply(jwtPreConfig);
+        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable);
+    }
 
-        ApiKeyPreConfig apiKeyConfigurer = apiKeySecurityConfigurerProvider.getIfAvailable();
-        if (apiKeyConfigurer != null) {
-            http.apply(apiKeyConfigurer);
+    @Override
+    public void configure(HttpSecurity http) throws Exception {
+        JwtFilter jwtFilter = jwtFilterProvider.getIfAvailable();
+        if (jwtFilter == null) {
+            throw new IllegalStateException("JwtAuthenticationFilter bean not available");
         }
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        ApiKeyFilter apiKeyFilter = apiKeyFilterProvider.getIfAvailable();
+        if (apiKeyFilter == null) {
+            return;
+        }
+
+        http.addFilterBefore(apiKeyFilter, jwtFilter.getClass());
     }
 }

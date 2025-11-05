@@ -1,6 +1,8 @@
 package open.vincentf13.sdk.auth.config;
 
+import open.vincentf13.sdk.auth.apikey.ApiKeyFilter;
 import open.vincentf13.sdk.auth.auth.AnnotationBasedAuthorizationManager;
+import open.vincentf13.sdk.auth.jwt.JwtFilter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -27,10 +29,10 @@ public class AuthConfig {
 
     @Bean
     @ConditionalOnMissingBean
-    public AuthPreConfig openSecurityConfigurer(ObjectProvider<ApiKeyPreConfig> apiKeySecurityConfigurerProvider,
-                                                AnnotationBasedAuthorizationManager authorizationManager,
-                                                JwtPreConfig jwtPreConfig) {
-        return new AuthPreConfig(apiKeySecurityConfigurerProvider, authorizationManager, jwtPreConfig);
+    public AuthPreConfig openSecurityConfigurer(ObjectProvider<ApiKeyFilter> apiKeyFilterProvider,
+                                                ObjectProvider<JwtFilter> jwtFilterProvider,
+                                                AnnotationBasedAuthorizationManager authorizationManager) {
+        return new AuthPreConfig(apiKeyFilterProvider, jwtFilterProvider, authorizationManager);
     }
 
     @Bean

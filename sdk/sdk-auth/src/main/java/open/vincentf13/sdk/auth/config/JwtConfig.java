@@ -1,8 +1,8 @@
 package open.vincentf13.sdk.auth.config;
 
-import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.JwtFilter;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
+import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -22,11 +22,5 @@ public class JwtConfig {
                                              ObjectProvider<JwtSessionService> sessionServiceProvider,
                                              JwtProperties properties) {
         return new JwtFilter(openJwtService, sessionServiceProvider, properties);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public JwtPreConfig jwtSecurityConfigurer(ObjectProvider<JwtFilter> provider) {
-        return new JwtPreConfig(provider);
     }
 }
