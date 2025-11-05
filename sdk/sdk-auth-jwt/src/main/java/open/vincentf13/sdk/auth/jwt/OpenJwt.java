@@ -1,8 +1,8 @@
-package open.vincentf13.sdk.auth.jwt.token;
+package open.vincentf13.sdk.auth.jwt;
 
+import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
 import open.vincentf13.sdk.auth.jwt.token.model.RefreshTokenClaims;
-import open.vincentf13.sdk.auth.jwt.user.OpenJwtUser;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +53,7 @@ public class OpenJwt {
 
         Long userId = null;
         String email = null;
-        if (authentication.getPrincipal() instanceof OpenJwtUser user) {
+        if (authentication.getPrincipal() instanceof OpenJwtLoginUser user) {
             userId = user.getUserId();
             email = user.getUsername();
         }
@@ -138,7 +138,7 @@ public class OpenJwt {
             String sessionId = jwt.getClaimAsString(SESSION_ID_CLAIM);
 
             // Construct OpenJwtUser from JWT claims
-            OpenJwtUser user = new OpenJwtUser(userId, email, granted);
+            OpenJwtLoginUser user = new OpenJwtLoginUser(userId, email, granted);
             JwtAuthenticationToken authentication = new JwtAuthenticationToken(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
             return Optional.of(authentication);
         } catch (JwtException ex) {

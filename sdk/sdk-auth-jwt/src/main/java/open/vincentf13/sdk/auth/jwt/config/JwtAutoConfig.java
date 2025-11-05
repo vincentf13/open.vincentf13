@@ -10,7 +10,7 @@ import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStoreInMemory;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStoreRedis;
 import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.token.OpenJwt;
+import open.vincentf13.sdk.auth.jwt.OpenJwt;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

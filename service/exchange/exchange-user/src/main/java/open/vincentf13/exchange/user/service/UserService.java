@@ -20,7 +20,7 @@ import open.vincentf13.exchange.user.domain.model.UserErrorCode;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
-import open.vincentf13.sdk.auth.jwt.user.OpenJwtUserUtils;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -107,7 +107,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
-        Long userId = OpenJwtUserUtils.currentUserIdOrThrow(() ->
+        Long userId = OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
                 OpenServiceException.of(UserErrorCode.USER_NOT_FOUND, "No authenticated user in context"));
         return userRepository.findOne(User.builder().id(userId).build())
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))

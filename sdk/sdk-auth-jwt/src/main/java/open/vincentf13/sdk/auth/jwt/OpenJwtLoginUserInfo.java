@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth.jwt.user;
+package open.vincentf13.sdk.auth.jwt;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -8,16 +8,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class OpenJwtUserUtils {
+public class OpenJwtLoginUserInfo {
 
-    public static OpenJwtUser currentAuthUser() {
+    public static OpenJwtLoginUser currentAuthUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication instanceof UsernamePasswordAuthenticationToken token)) {
             return null;
         }
 
         Object principal = token.getPrincipal();
-        if (principal instanceof OpenJwtUser details) {
+        if (principal instanceof OpenJwtLoginUser details) {
             return details;
         }
         return null;
@@ -34,7 +34,7 @@ public class OpenJwtUserUtils {
     }
 
     public static Long currentUserId() {
-        OpenJwtUser user = currentAuthUser();
+        OpenJwtLoginUser user = currentAuthUser();
         return user != null ? user.getUserId() : null;
     }
 

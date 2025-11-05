@@ -4,7 +4,7 @@ import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.token.OpenJwt;
+import open.vincentf13.sdk.auth.jwt.OpenJwt;
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
