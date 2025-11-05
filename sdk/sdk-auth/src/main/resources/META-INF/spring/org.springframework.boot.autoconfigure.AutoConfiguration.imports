@@ -1,2 +1,2 @@
-open.vincentf13.sdk.auth.apikey.config.ApiKeyAutoConfiguration
-open.vincentf13.sdk.spring.security.config.SecurityAutoConfiguration
+open.vincentf13.sdk.auth.config.ApiKeyAutoConfig
+open.vincentf13.sdk.auth.config.AuthConfig

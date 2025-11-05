@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.security.auth;
+package open.vincentf13.sdk.auth.auth;
 
 public final class AuthAttributes {
     private AuthAttributes() {}

@@ -4,9 +4,9 @@ import jakarta.validation.Valid;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import open.vincentf13.sdk.spring.security.auth.Jwt;
-import open.vincentf13.sdk.spring.security.auth.PrivateAPI;
-import open.vincentf13.sdk.spring.security.auth.PublicAPI;
+import open.vincentf13.sdk.auth.auth.Jwt;
+import open.vincentf13.sdk.auth.auth.PrivateAPI;
+import open.vincentf13.sdk.auth.auth.PublicAPI;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 

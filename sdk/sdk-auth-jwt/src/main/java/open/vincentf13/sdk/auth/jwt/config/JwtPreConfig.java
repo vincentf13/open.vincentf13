@@ -7,11 +7,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-public class JwtConfigurer extends AbstractHttpConfigurer<JwtConfigurer, HttpSecurity> {
+public class JwtPreConfig extends AbstractHttpConfigurer<JwtPreConfig, HttpSecurity> {
 
     private final ObjectProvider<JwtFilter> filterProvider;
 
-    public JwtConfigurer(ObjectProvider<JwtFilter> filterProvider) {
+    public JwtPreConfig(ObjectProvider<JwtFilter> filterProvider) {
         this.filterProvider = filterProvider;
     }
 

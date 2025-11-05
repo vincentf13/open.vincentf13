@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth.apikey.key;
+package open.vincentf13.sdk.auth.apikey;
 
 /**
  * Interface for validating API keys.

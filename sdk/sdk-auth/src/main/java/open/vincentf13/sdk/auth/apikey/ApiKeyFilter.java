@@ -1,14 +1,13 @@
-package open.vincentf13.sdk.auth.apikey.filter;
+package open.vincentf13.sdk.auth.apikey;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import open.vincentf13.sdk.auth.apikey.key.ApiKeyValidator;
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.spring.security.auth.AuthAttributes;
-import open.vincentf13.sdk.spring.security.auth.AuthType;
-import open.vincentf13.sdk.spring.security.auth.PrivateAPI;
+import open.vincentf13.sdk.auth.auth.AuthAttributes;
+import open.vincentf13.sdk.auth.auth.AuthType;
+import open.vincentf13.sdk.auth.auth.PrivateAPI;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.method.HandlerMethod;
@@ -18,12 +17,12 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import java.io.IOException;
 import java.util.EnumSet;
 
-public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
+public class ApiKeyFilter extends OncePerRequestFilter {
 
     private final ApiKeyValidator apiKeyValidator;
     private final RequestMappingHandlerMapping handlerMapping;
 
-    public ApiKeyAuthenticationFilter(ApiKeyValidator apiKeyValidator, RequestMappingHandlerMapping handlerMapping) {
+    public ApiKeyFilter(ApiKeyValidator apiKeyValidator, RequestMappingHandlerMapping handlerMapping) {
         this.apiKeyValidator = apiKeyValidator;
         this.handlerMapping = handlerMapping;
     }

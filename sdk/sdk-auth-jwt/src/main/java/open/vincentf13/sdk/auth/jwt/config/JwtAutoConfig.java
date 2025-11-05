@@ -31,7 +31,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
-public class JwtAutoConfiguration {
+public class JwtAutoConfig {
 
 
 
@@ -97,8 +97,8 @@ public class JwtAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
-        public JwtConfigurer jwtSecurityConfigurer(ObjectProvider<JwtFilter> provider) {
-            return new JwtConfigurer(provider);
+        public JwtPreConfig jwtSecurityConfigurer(ObjectProvider<JwtFilter> provider) {
+            return new JwtPreConfig(provider);
         }
     }
 }

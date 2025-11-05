@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.security.auth;
+package open.vincentf13.sdk.auth.auth;
 
 import jakarta.servlet.http.HttpServletRequest;
 import open.vincentf13.sdk.auth.jwt.token.model.JwtAuthenticationToken;

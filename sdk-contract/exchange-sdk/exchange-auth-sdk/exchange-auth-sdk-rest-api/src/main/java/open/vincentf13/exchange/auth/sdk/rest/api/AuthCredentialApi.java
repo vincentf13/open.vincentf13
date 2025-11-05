@@ -6,11 +6,10 @@ import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareReque
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import open.vincentf13.sdk.spring.security.auth.PrivateAPI;
+import open.vincentf13.sdk.auth.auth.PrivateAPI;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 @Validated
 public interface AuthCredentialApi {

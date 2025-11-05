@@ -1,9 +1,7 @@
-package open.vincentf13.sdk.spring.security.config;
+package open.vincentf13.sdk.auth.config;
 
-import open.vincentf13.sdk.auth.apikey.config.ApiKeyAutoConfiguration;
-import open.vincentf13.sdk.auth.apikey.config.ApiKeySecurityConfigurer;
-import open.vincentf13.sdk.auth.jwt.config.JwtConfigurer;
-import open.vincentf13.sdk.spring.security.auth.AnnotationBasedAuthorizationManager;
+import open.vincentf13.sdk.auth.jwt.config.JwtPreConfig;
+import open.vincentf13.sdk.auth.auth.AnnotationBasedAuthorizationManager;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -18,8 +16,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 @Configuration
 @ConditionalOnWebApplication
-@AutoConfigureAfter(ApiKeyAutoConfiguration.class)
-public class SecurityAutoConfiguration {
+@AutoConfigureAfter(ApiKeyAutoConfig.class)
+public class AuthConfig {
 
     @Bean
     @ConditionalOnMissingBean
@@ -30,20 +28,20 @@ public class SecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public OpenSecurityConfigurer openSecurityConfigurer(ObjectProvider<ApiKeySecurityConfigurer> apiKeySecurityConfigurerProvider,
-                                                         AnnotationBasedAuthorizationManager authorizationManager,
-                                                         JwtConfigurer jwtConfigurer) {
-        return new OpenSecurityConfigurer(apiKeySecurityConfigurerProvider, authorizationManager, jwtConfigurer);
+    public AuthPreConfig openSecurityConfigurer(ObjectProvider<ApiKeyPreConfig> apiKeySecurityConfigurerProvider,
+                                                AnnotationBasedAuthorizationManager authorizationManager,
+                                                JwtPreConfig jwtPreConfig) {
+        return new AuthPreConfig(apiKeySecurityConfigurerProvider, authorizationManager, jwtPreConfig);
     }
 
     @Bean
     @Order(100)
     @ConditionalOnMissingBean(SecurityFilterChain.class)
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http,
-                                                          OpenSecurityConfigurer openSecurityConfigurer
+                                                          AuthPreConfig authPreConfig
                                                          ) throws Exception {
 
-        http.apply(openSecurityConfigurer);
+        http.apply(authPreConfig);
         return http.build();
     }
 }

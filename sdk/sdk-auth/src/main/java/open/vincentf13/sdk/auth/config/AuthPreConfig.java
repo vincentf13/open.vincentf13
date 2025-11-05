@@ -1,24 +1,23 @@
-package open.vincentf13.sdk.spring.security.config;
+package open.vincentf13.sdk.auth.config;
 
-import open.vincentf13.sdk.auth.apikey.config.ApiKeySecurityConfigurer;
-import open.vincentf13.sdk.auth.jwt.config.JwtConfigurer;
-import open.vincentf13.sdk.spring.security.auth.AnnotationBasedAuthorizationManager;
+import open.vincentf13.sdk.auth.jwt.config.JwtPreConfig;
+import open.vincentf13.sdk.auth.auth.AnnotationBasedAuthorizationManager;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
-public class OpenSecurityConfigurer extends AbstractHttpConfigurer<OpenSecurityConfigurer, HttpSecurity> {
+public class AuthPreConfig extends AbstractHttpConfigurer<AuthPreConfig, HttpSecurity> {
 
-    private final ObjectProvider<ApiKeySecurityConfigurer> apiKeySecurityConfigurerProvider;
+    private final ObjectProvider<ApiKeyPreConfig> apiKeySecurityConfigurerProvider;
     private final AnnotationBasedAuthorizationManager authorizationManager;
-    private final JwtConfigurer jwtConfigurer;
+    private final JwtPreConfig jwtPreConfig;
 
-    public OpenSecurityConfigurer(ObjectProvider<ApiKeySecurityConfigurer> apiKeySecurityConfigurerProvider,
-                                  AnnotationBasedAuthorizationManager authorizationManager,
-                                  JwtConfigurer jwtConfigurer) {
+    public AuthPreConfig(ObjectProvider<ApiKeyPreConfig> apiKeySecurityConfigurerProvider,
+                         AnnotationBasedAuthorizationManager authorizationManager,
+                         JwtPreConfig jwtPreConfig) {
         this.apiKeySecurityConfigurerProvider = apiKeySecurityConfigurerProvider;
         this.authorizationManager = authorizationManager;
-        this.jwtConfigurer = jwtConfigurer;
+        this.jwtPreConfig = jwtPreConfig;
     }
 
     @Override
@@ -30,9 +29,9 @@ public class OpenSecurityConfigurer extends AbstractHttpConfigurer<OpenSecurityC
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable);
 
-        http.apply(jwtConfigurer);
+        http.apply(jwtPreConfig);
 
-        ApiKeySecurityConfigurer apiKeyConfigurer = apiKeySecurityConfigurerProvider.getIfAvailable();
+        ApiKeyPreConfig apiKeyConfigurer = apiKeySecurityConfigurerProvider.getIfAvailable();
         if (apiKeyConfigurer != null) {
             http.apply(apiKeyConfigurer);
         }
