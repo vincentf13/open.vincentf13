@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
+import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.exchange.user.domain.model.User;
@@ -16,12 +17,13 @@ import java.util.stream.Collectors;
 public class UserRepositoryImpl implements UserRepository {
 
     private final UserMapper mapper;
+    private final DefaultIdGenerator idGenerator;
 
     @Override
     public void insertSelective(User user) {
+        user.setId(idGenerator.newLong());
         UserPO po = OpenMapstruct.map(user, UserPO.class);
         mapper.insertSelective(po);
-        user.setId(po.getId());
         if (po.getCreatedAt() != null) {
             user.setCreatedAt(po.getCreatedAt());
         }
@@ -60,6 +62,7 @@ public class UserRepositoryImpl implements UserRepository {
         if (users == null || users.isEmpty()) {
             return;
         }
+        users.forEach(user -> user.setId(idGenerator.newLong()));
         mapper.batchInsert(users.stream()
                 .map(user -> OpenMapstruct.map(user, UserPO.class))
                 .collect(Collectors.toList()));

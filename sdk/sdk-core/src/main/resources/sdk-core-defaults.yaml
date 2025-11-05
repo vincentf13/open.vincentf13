@@ -54,3 +54,8 @@ logging:
   level:
     root: INFO
 
+open:
+  vincentf13:
+    id-generator:
+      snowflake:
+        worker-id: ${SNOWFLAKE_WORKER_ID:0}
