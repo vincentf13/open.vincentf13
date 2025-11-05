@@ -183,6 +183,30 @@ ensure_directories() {
   [[ -d "$NACOS_DIR" ]] || { printf 'Missing directory: %s\n' "$NACOS_DIR" >&2; exit 1; }
 }
 
+ensure_docker_images() {
+  log_step "Checking for required Docker images"
+  local images=(
+    "mysql:8.0"
+    "redis:7.2.4-alpine"
+    "apache/kafka:3.7.0"
+    "docker.redpanda.com/redpandadata/console:latest"
+    "nacos/nacos-server:v2.3.2"
+  )
+
+  for image in "${images[@]}"; do
+    if ! docker image inspect "$image" >/dev/null 2>&1; then
+      printf 'Image "%s" not found locally, pulling...\n' "$image"
+      if ! docker pull "$image"; then
+        printf 'Failed to pull image "%s". Please check your network and Docker setup.\n' "$image" >&2
+        return 1
+      fi
+    else
+      printf 'Image "%s" already exists locally.\n' "$image"
+    fi
+  done
+}
+
+
 
 ensure_ingress_controller() {
   local manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
@@ -548,7 +572,10 @@ main() {
       require_cmd kubectl
       require_cmd argocd
       require_cmd base64
+      require_cmd docker
       ensure_directories
+
+      ensure_docker_images
 
       log_step "Applying infrastructure clusters"
       apply_infra_clusters
