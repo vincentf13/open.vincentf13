@@ -44,7 +44,8 @@ public class AuthCredentialService {
                             request.status()
                     );
 
-                    repository.insertSelective(credential);
+                    Long credentialId = repository.insertSelective(credential);
+                    credential.setId(credentialId);
 
                     return OpenMapstruct.map(credential, AuthCredentialResponse.class);
                 });

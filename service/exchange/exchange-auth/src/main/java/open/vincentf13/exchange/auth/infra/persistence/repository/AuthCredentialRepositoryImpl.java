@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.auth.infra.persistence.repository;
 
+import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
@@ -16,10 +17,19 @@ import java.util.stream.Collectors;
 public class AuthCredentialRepositoryImpl implements AuthCredentialRepository {
 
     private final AuthCredentialMapper mapper;
+    private final DefaultIdGenerator idGenerator;
 
     @Override
-    public void insertSelective(AuthCredential credential) {
-        mapper.insertSelective(OpenMapstruct.map(credential, AuthCredentialPO.class));
+    public Long insertSelective(AuthCredential credential) {
+        if (credential.getId() == null) {
+            credential.setId(idGenerator.newLong());
+        }
+        AuthCredentialPO po = OpenMapstruct.map(credential, AuthCredentialPO.class);
+        mapper.insertSelective(po);
+        if (po.getCreatedAt() != null) {
+            credential.setCreatedAt(po.getCreatedAt());
+        }
+        return credential.getId();
     }
 
     @Override
@@ -52,6 +62,9 @@ public class AuthCredentialRepositoryImpl implements AuthCredentialRepository {
         if (credentials == null || credentials.isEmpty()) {
             return;
         }
+        credentials.stream()
+                .filter(credential -> credential.getId() == null)
+                .forEach(credential -> credential.setId(idGenerator.newLong()));
         mapper.batchInsert(credentials.stream()
                 .map(credential -> OpenMapstruct.map(credential, AuthCredentialPO.class))
                 .collect(Collectors.toList()));

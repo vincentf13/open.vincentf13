@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface AuthCredentialRepository {
 
-    void insertSelective(AuthCredential credential);
+    Long insertSelective(AuthCredential credential);
 
     void updateSelective(AuthCredential credential);
 
