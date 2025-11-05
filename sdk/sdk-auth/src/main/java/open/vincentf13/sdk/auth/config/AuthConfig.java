@@ -12,7 +12,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 @Configuration
@@ -28,21 +31,35 @@ public class AuthConfig {
     }
 
     @Bean
-    @ConditionalOnMissingBean
-    public AuthPreConfig openSecurityConfigurer(ObjectProvider<ApiKeyFilter> apiKeyFilterProvider,
-                                                ObjectProvider<JwtFilter> jwtFilterProvider,
-                                                AnnotationBasedAuthorizationManager authorizationManager) {
-        return new AuthPreConfig(apiKeyFilterProvider, jwtFilterProvider, authorizationManager);
-    }
-
-    @Bean
     @Order(100)
     @ConditionalOnMissingBean(SecurityFilterChain.class)
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http,
-                                                          AuthPreConfig authPreConfig
+                                                          ObjectProvider<ApiKeyFilter> apiKeyFilterProvider,
+                                                          ObjectProvider<JwtFilter> jwtFilterProvider,
+                                                          AnnotationBasedAuthorizationManager authorizationManager
                                                          ) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/actuator/**").permitAll()
+                .anyRequest().access(authorizationManager));
 
-        http.apply(authPreConfig);
+        http.formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable);
+
+        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable);
+
+        JwtFilter jwtFilter = jwtFilterProvider.getIfAvailable();
+        if (jwtFilter == null) {
+            throw new IllegalStateException("JwtAuthenticationFilter bean not available");
+        }
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        ApiKeyFilter apiKeyFilter = apiKeyFilterProvider.getIfAvailable();
+        if (apiKeyFilter != null) {
+            http.addFilterBefore(apiKeyFilter, jwtFilter.getClass());
+        }
+
         return http.build();
     }
 }
