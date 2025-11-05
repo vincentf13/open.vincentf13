@@ -7,10 +7,16 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwtException;
 
 import java.time.Instant;
@@ -38,6 +44,79 @@ public class OpenJwt {
         this.properties = properties;
         this.jwtEncoder = encoderProvider.getIfAvailable();
         this.jwtDecoder = decoderProvider.getIfAvailable();
+    }
+
+    public TokenDetails generateAccessToken(String sessionId, Authentication authentication) {
+        JwtEncoder encoder = requireEncoder();
+        Instant issuedAt = Instant.now();
+        Instant expiresAt = issuedAt.plusSeconds(properties.getAccessTokenTtlSeconds());
+
+        Long userId = null;
+        String email = null;
+        if (authentication.getPrincipal() instanceof OpenJwtUser user) {
+            userId = user.getUserId();
+            email = user.getUsername();
+        }
+
+        JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
+                .issuer(properties.getIssuer())
+                .issuedAt(issuedAt)
+                .expiresAt(expiresAt)
+                .subject(authentication.getName())
+                .claim(TOKEN_TYPE_CLAIM, TokenType.ACCESS.name())
+                .claim(AUTHORITIES_CLAIM, authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toList()));
+
+        if (userId != null) {
+            builder.claim(USER_ID_CLAIM, userId);
+        }
+        if (email != null) {
+            builder.claim(EMAIL_CLAIM, email);
+        }
+        if (sessionId != null) {
+            builder.claim(SESSION_ID_CLAIM, sessionId);
+        }
+
+        JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
+        String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
+        OpenLog.debug(log,
+                "JwtAccessIssued",
+                () -> "Access token issued",
+                "subject", authentication.getName(),
+                "userId", userId,
+                "email", email,
+                "sessionId", sessionId == null ? "<legacy>" : sessionId);
+        return new TokenDetails(tokenValue, issuedAt, expiresAt, TokenType.ACCESS, sessionId);
+    }
+
+    public TokenDetails generateRefreshToken(String sessionId, String subject) {
+        JwtEncoder encoder = requireEncoder();
+        Instant issuedAt = Instant.now();
+        Instant expiresAt = issuedAt.plusSeconds(properties.getRefreshTokenTtlSeconds());
+
+        JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
+                .issuer(properties.getIssuer())
+                .issuedAt(issuedAt)
+                .expiresAt(expiresAt)
+                .subject(subject)
+                .claim(TOKEN_TYPE_CLAIM, TokenType.REFRESH.name());
+        if (sessionId != null) {
+            builder.claim(SESSION_ID_CLAIM, sessionId);
+        }
+
+        JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
+        String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
+        OpenLog.debug(log,
+                "JwtRefreshIssued",
+                () -> "Refresh token issued",
+                "subject", subject,
+                "sessionId", sessionId == null ? "<legacy>" : sessionId);
+        return new TokenDetails(tokenValue, issuedAt, expiresAt, TokenType.REFRESH, sessionId);
+    }
+
+    public TokenDetails generate(Authentication authentication) {
+        return generateAccessToken(null, authentication);
     }
 
     public Optional<JwtAuthenticationToken> parseAccessToken(String tokenValue) {
@@ -95,6 +174,13 @@ public class OpenJwt {
             OpenLog.warn(log, "JwtUnknownType", "Unknown token type", ex, "value", raw, "tokenId", jwt.getId() == null ? UUID.randomUUID() : jwt.getId());
             return TokenType.ACCESS;
         }
+    }
+
+    private JwtEncoder requireEncoder() {
+        if (jwtEncoder == null) {
+            throw new IllegalStateException("JwtEncoder is not available for token generation");
+        }
+        return jwtEncoder;
     }
 
     public JwtEncoder getJwtEncoder() {

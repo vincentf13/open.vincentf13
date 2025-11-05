@@ -1,14 +1,21 @@
 package open.vincentf13.sdk.auth.jwt.session;
 
 import open.vincentf13.sdk.auth.jwt.token.JwtProperties;
+import open.vincentf13.sdk.core.log.OpenLog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 
 /**
- * Redis-backed store used for read operations (issue/refresh handled by auth server).
+ * Redis-backed session store supporting read and write operations.
  */
 public class JwtSessionStoreRedis implements JwtSessionStore {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtSessionStoreRedis.class);
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtProperties properties;
@@ -20,12 +27,41 @@ public class JwtSessionStoreRedis implements JwtSessionStore {
     }
 
     @Override
+    public void save(JwtSession session) {
+        String key = buildKey(session.getId());
+        Duration ttl = Duration.between(Instant.now(), session.getRefreshTokenExpiresAt());
+        if (ttl.isNegative() || ttl.isZero()) {
+            redisTemplate.delete(key);
+            return;
+        }
+        redisTemplate.opsForValue().set(key, session, ttl);
+    }
+
+    @Override
     public Optional<JwtSession> findById(String sessionId) {
         Object value = redisTemplate.opsForValue().get(buildKey(sessionId));
         if (value instanceof JwtSession jwtSession) {
             return Optional.of(jwtSession);
         }
         return Optional.empty();
+    }
+
+    @Override
+    public void delete(String sessionId) {
+        redisTemplate.delete(buildKey(sessionId));
+    }
+
+    @Override
+    public void markRevoked(String sessionId, Instant revokedAt, String reason) {
+        findById(sessionId).ifPresent(session -> {
+            session.markRevoked(revokedAt, reason);
+            save(session);
+            OpenLog.info(log,
+                    "RedisSessionRevoked",
+                    "Session revoked in redis",
+                    "sessionId", sessionId,
+                    "reason", reason);
+        });
     }
 
     private String buildKey(String sessionId) {
