@@ -1,10 +1,10 @@
 package open.vincentf13.sdk.spring.cloud.gateway.filter;
 
-import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
+import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
+import open.vincentf13.sdk.core.OpenConstant;
+import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.gateway.config.JwtProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,17 +28,14 @@ public class JwtFilter implements GlobalFilter, Ordered {
     private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
     private final OpenJwtService openJwtService;
-    private final open.vincentf13.sdk.auth.jwt.config.JwtProperties jwtProperties;
-    private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final JwtProperties jwtProperties;
+    private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     JwtFilter(OpenJwtService openJwtService,
-              open.vincentf13.sdk.auth.jwt.config.JwtProperties jwtProperties,
               ObjectProvider<JwtSessionService> sessionServiceProvider,
               JwtProperties gatewayJwtProperties) {
         this.openJwtService = openJwtService;
-        this.jwtProperties = jwtProperties;
         this.sessionServiceProvider = sessionServiceProvider;
         this.jwtProperties = gatewayJwtProperties;
     }
@@ -85,9 +82,6 @@ public class JwtFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isSessionActive(JwtParseInfo authentication) {
-        if (!jwtProperties.isCheckSessionActive()) {
-            return true;
-        }
         JwtSessionService sessionService = sessionServiceProvider.getIfAvailable();
         if (sessionService == null) {
             return true;
