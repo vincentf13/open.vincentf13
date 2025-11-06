@@ -68,9 +68,9 @@ logging:
     # Reactor Netty：Spring WebFlux 與 Nacos HTTP 通訊底層（排查連線/逾時用）
     reactor.netty: WARN
 
-  file:
+#  file:
     # 輸出到檔案，預設在 ./logs/app.log，可用環境變數 LOG_PATH 覆蓋
-    name: ${LOG_PATH:./logs}/app.log
+#    name: ${LOG_PATH:./logs}/app.log
 
 # 疑難排查建議（僅本地或灰度環境開啟）
 # logging.level.com.alibaba.nacos.client: DEBUG    # 顯示客戶端完整連線與心跳細節
