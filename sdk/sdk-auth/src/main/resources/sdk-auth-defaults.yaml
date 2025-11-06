@@ -1,4 +1,6 @@
 security:
+  permit-paths:
+    - /actuator/**
   api-key:
     enabled: true
     valid-keys:

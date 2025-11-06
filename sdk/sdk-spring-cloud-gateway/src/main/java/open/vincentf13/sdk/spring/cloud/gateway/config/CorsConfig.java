@@ -32,4 +32,3 @@ public class CorsConfig {
         return new CorsWebFilter(source);
     }
 }
-So, so, so, so, so, so, so, so, so, so.

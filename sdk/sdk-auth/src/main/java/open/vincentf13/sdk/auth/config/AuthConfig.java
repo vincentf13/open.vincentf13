@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -18,9 +19,12 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import java.util.List;
+
 @Configuration
 @ConditionalOnWebApplication
 @AutoConfigureAfter(ApiKeyAutoConfig.class)
+@EnableConfigurationProperties(SecurityPermitProperties.class)
 public class AuthConfig {
 
     @Bean
@@ -36,11 +40,16 @@ public class AuthConfig {
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http,
                                                           ObjectProvider<ApiKeyFilter> apiKeyFilterProvider,
                                                           ObjectProvider<JwtFilter> jwtFilterProvider,
-                                                          AnnotationBasedAuthorizationManager authorizationManager
+                                                          AnnotationBasedAuthorizationManager authorizationManager,
+                                                          SecurityPermitProperties securityPermitProperties
                                                          ) throws Exception {
-        http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/**").permitAll()
-                .anyRequest().access(authorizationManager));
+        http.authorizeHttpRequests(auth -> {
+            List<String> permitPaths = securityPermitProperties.getPermitPaths();
+            if (!permitPaths.isEmpty()) {
+                auth.requestMatchers(permitPaths.toArray(new String[0])).permitAll();
+            }
+            auth.anyRequest().access(authorizationManager);
+        });
 
         http.formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
