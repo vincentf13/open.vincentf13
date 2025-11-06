@@ -31,7 +31,6 @@ import javax.crypto.spec.SecretKeySpec;
 public class JwtAutoConfig {
 
 
-
     @Bean
     @ConditionalOnMissingBean
     public OpenJwtService openJwtToken(JwtProperties properties, ObjectProvider<JwtEncoder> encoderProvider,
@@ -55,15 +54,15 @@ public class JwtAutoConfig {
     }
 
     @Bean
-    @ConditionalOnMissingBean(JwtSessionStore.class)
-    public JwtSessionStore inMemoryJwtSessionStore() {
-        return new JwtSessionStoreInMemory();
-    }
-
-    @Bean
     @ConditionalOnMissingBean
     public JwtSessionService jwtSessionService(JwtSessionStore sessionStore) {
         return new JwtSessionService(sessionStore);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(JwtSessionStore.class)
+    public JwtSessionStore inMemoryJwtSessionStore() {
+        return new JwtSessionStoreInMemory();
     }
 
     @Configuration
@@ -72,7 +71,6 @@ public class JwtAutoConfig {
     static class RedisJwtConfiguration {
 
         @Bean
-        @ConditionalOnMissingBean(name = "redisJwtSessionStore")
         public JwtSessionStore redisJwtSessionStore(RedisTemplate<String, Object> redisTemplate,
                                                     JwtProperties properties) {
             return new JwtSessionStoreRedis(redisTemplate, properties);

@@ -37,7 +37,7 @@ Accept: application/json
 }
 
 > {%
-    const accessTokenTmp = response.body?.data?.token;
+    const accessTokenTmp = response.body?.data?.jwtToken;
     const refreshTokenTmp = response.body?.data?.refreshToken;
 
     client.log("Response body: " + JSON.stringify(response.body));
