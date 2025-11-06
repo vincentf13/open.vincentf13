@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.auth.jwt.session;
 
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,10 +41,18 @@ public class JwtSessionStoreRedis implements JwtSessionStore {
     @Override
     public Optional<JwtSession> findById(String sessionId) {
         Object value = redisTemplate.opsForValue().get(buildKey(sessionId));
-        if (value instanceof JwtSession jwtSession) {
-            return Optional.of(jwtSession);
+        if (value == null) {
+            return Optional.empty();
         }
-        return Optional.empty();
+
+        JwtSession session = null;
+
+        if (value instanceof JwtSession j) {
+            session = j;
+        } else {
+            session = OpenObjectMapper.convert(value, JwtSession.class);
+        }
+        return Optional.ofNullable(session);
     }
 
     @Override
@@ -57,10 +66,10 @@ public class JwtSessionStoreRedis implements JwtSessionStore {
             session.markRevoked(revokedAt, reason);
             save(session);
             OpenLog.info(log,
-                    "RedisSessionRevoked",
-                    "Session revoked in redis",
-                    "sessionId", sessionId,
-                    "reason", reason);
+                         "RedisSessionRevoked",
+                         "Session revoked in redis",
+                         "sessionId", sessionId,
+                         "reason", reason);
         });
     }
 
