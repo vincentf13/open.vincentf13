@@ -20,9 +20,8 @@ public class JwtConfig {
     @Bean
     @ConditionalOnMissingBean
     public JwtFilter jwtGatewayFilter(OpenJwtService openJwtService,
-                                      open.vincentf13.sdk.auth.jwt.config.JwtProperties jwtProperties,
                                       ObjectProvider<JwtSessionService> sessionServiceProvider,
                                       JwtProperties properties) {
-        return new JwtFilter(openJwtService, jwtProperties, sessionServiceProvider, properties);
+        return new JwtFilter(openJwtService, sessionServiceProvider, properties);
     }
 }

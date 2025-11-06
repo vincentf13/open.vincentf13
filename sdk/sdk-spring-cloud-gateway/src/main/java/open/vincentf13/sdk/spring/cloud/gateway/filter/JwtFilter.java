@@ -32,7 +32,7 @@ public class JwtFilter implements GlobalFilter, Ordered {
     private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    JwtFilter(OpenJwtService openJwtService,
+    public JwtFilter(OpenJwtService openJwtService,
               ObjectProvider<JwtSessionService> sessionServiceProvider,
               JwtProperties gatewayJwtProperties) {
         this.openJwtService = openJwtService;
