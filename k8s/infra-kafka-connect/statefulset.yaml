@@ -15,6 +15,35 @@ spec:
       labels:
         app: infra-kafka-connect
     spec:
+      initContainers:
+        - name: install-debezium-mysql
+          image: curlimages/curl:8.9.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          env:
+            - name: DEBEZIUM_MYSQL_VERSION
+              value: "2.6.0.Final"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              download_url="https://repo1.maven.org/maven2/io/debezium/debezium-connector-mysql/${DEBEZIUM_MYSQL_VERSION}/debezium-connector-mysql-${DEBEZIUM_MYSQL_VERSION}-plugin.tar.gz"
+              dest="/opt/kafka/plugins/debezium-connector-mysql-${DEBEZIUM_MYSQL_VERSION}"
+              if [ -d "$dest" ]; then
+                echo "Debezium MySQL connector already present at $dest"
+              else
+                echo "Downloading Debezium MySQL connector ${DEBEZIUM_MYSQL_VERSION}"
+                tmpfile="/tmp/debezium-mysql-${DEBEZIUM_MYSQL_VERSION}.tar.gz"
+                curl -fsSL "$download_url" -o "$tmpfile"
+                mkdir -p /opt/kafka/plugins
+                tar -xzf "$tmpfile" -C /opt/kafka/plugins
+                rm -f "$tmpfile"
+              fi
+          volumeMounts:
+            - name: connect-plugins
+              mountPath: /opt/kafka/plugins
       containers:
         - name: kafka-connect
           image: confluentinc/cp-kafka-connect:7.5.0
@@ -39,14 +68,14 @@ spec:
             httpGet:
               path: /connectors
               port: rest
-            initialDelaySeconds: 30
+            initialDelaySeconds: 90
             periodSeconds: 15
             timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /connectors
               port: rest
-            initialDelaySeconds: 90
+            initialDelaySeconds: 150
             periodSeconds: 30
             timeoutSeconds: 5
           resources:

@@ -1,0 +1,21 @@
+POST http://infra-kafka-connect.default.svc.cluster.local:8083/connectors
+Content-Type: application/json
+
+{ "name": "mysql-cdc",
+  "config": {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "database.hostname": "infra-mysql-0.infra-mysql-headless.default.svc.cluster.local",
+    "database.port": "3306",
+    "database.user": "root",
+    "database.password": "root",
+    "database.server.id": "5401",
+    "topic.prefix": "infra-mysql-0",
+    "database.include.list": "exchange",
+    "table.include.list": "exchange.orders",
+    "snapshot.mode": "initial"}
+}
+
+###
+
+GET http://infra-kafka-connect.default.svc.cluster.local:8083/connectors
+Content-Type: application/json
