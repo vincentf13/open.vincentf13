@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infra-kafka-connect-config
+  labels:
+    app: infra-kafka-connect
+    component: connect
+  annotations:
+    description: Kafka Connect distributed worker base config
+    maintainer: infra-team
+  
+data:
+  connect-distributed.properties: |
+    bootstrap.servers=infra-kafka:9092
+    group.id=infra-kafka-connect-cluster
+    config.storage.topic=infra.connect.config
+    offset.storage.topic=infra.connect.offsets
+    status.storage.topic=infra.connect.status
+    config.storage.replication.factor=1
+    offset.storage.replication.factor=1
+    status.storage.replication.factor=1
+    key.converter=org.apache.kafka.connect.json.JsonConverter
+    value.converter=org.apache.kafka.connect.json.JsonConverter
+    key.converter.schemas.enable=false
+    value.converter.schemas.enable=false
+    internal.key.converter=org.apache.kafka.connect.json.JsonConverter
+    internal.value.converter=org.apache.kafka.connect.json.JsonConverter
+    internal.key.converter.schemas.enable=false
+    internal.value.converter.schemas.enable=false
+    plugin.path=/opt/kafka/plugins
+    rest.advertised.host.name=0.0.0.0
+    offset.flush.interval.ms=10000
+    consumer.max.poll.interval.ms=300000
+    producer.linger.ms=100
+    producer.acks=all

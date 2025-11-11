@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: infra-kafka-connect
+  labels:
+    app: infra-kafka-connect
+spec:
+  serviceName: infra-kafka-connect
+  replicas: 1
+  selector:
+    matchLabels:
+      app: infra-kafka-connect
+  template:
+    metadata:
+      labels:
+        app: infra-kafka-connect
+    spec:
+      containers:
+        - name: kafka-connect
+          image: confluentinc/cp-kafka-connect:7.5.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+              name: rest
+          env:
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xms512m -Xmx512m"
+            - name: CONNECT_LOG4J_LOGGERS
+              value: "org.apache.kafka.connect.runtime.rest=WARN"
+          volumeMounts:
+            - name: connect-config
+              mountPath: /etc/kafka-connect
+            - name: connect-data
+              mountPath: /var/lib/kafka-connect
+            - name: connect-plugins
+              mountPath: /opt/kafka/plugins
+          readinessProbe:
+            httpGet:
+              path: /connectors
+              port: rest
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /connectors
+              port: rest
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          command:
+            - /bin/bash
+            - -lc
+            - exec /usr/bin/connect-distributed /etc/kafka-connect/connect-distributed.properties
+      volumes:
+        - name: connect-config
+          configMap:
+            name: infra-kafka-connect-config
+            items:
+              - key: connect-distributed.properties
+                path: connect-distributed.properties
+        - name: connect-plugins
+          persistentVolumeClaim:
+            claimName: kafka-connect-plugins
+  volumeClaimTemplates:
+    - metadata:
+        name: connect-data
+        labels:
+          app: infra-kafka-connect
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+        storageClassName: infra-mysql-local
