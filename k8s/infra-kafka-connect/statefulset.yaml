@@ -29,7 +29,8 @@ spec:
               value: "org.apache.kafka.connect.runtime.rest=WARN"
           volumeMounts:
             - name: connect-config
-              mountPath: /etc/kafka-connect
+              mountPath: /etc/kafka-connect/connect-distributed.properties
+              subPath: connect-distributed.properties
             - name: connect-data
               mountPath: /var/lib/kafka-connect
             - name: connect-plugins
