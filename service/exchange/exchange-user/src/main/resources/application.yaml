@@ -16,6 +16,8 @@ mybatis:
 
 open:
   vincentf13:
+    id-generator:
+      snowflake:
+        worker-id: 2
     mybatis:
       mapper-base-packages: open.vincentf13.exchange.user.infra.persistence.mapper
-

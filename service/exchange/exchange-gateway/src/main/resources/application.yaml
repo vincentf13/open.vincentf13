@@ -20,3 +20,9 @@ spring:
             - Path=/auth/**
           filters:
             - StripPrefix=1
+
+open:
+  vincentf13:
+    id-generator:
+      snowflake:
+        worker-id: 3
