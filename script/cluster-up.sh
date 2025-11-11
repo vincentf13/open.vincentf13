@@ -12,6 +12,7 @@ GRAFANA_DIR="$K8S_DIR/infra-grafana"
 MYSQL_DIR="$K8S_DIR/infra-mysql"
 REDIS_DIR="$K8S_DIR/infra-redis"
 KAFKA_DIR="$K8S_DIR/infra-kafka"
+KAFKA_CONNECT_DIR="$K8S_DIR/infra-kafka-connect"
 NACOS_DIR="$K8S_DIR/infra-nacos"
 
 # Core application manifests applied to the cluster in order.
@@ -73,6 +74,13 @@ KAFKA_MANIFEST_ORDER=(
   redpanda-console-service.yaml
 )
 
+KAFKA_CONNECT_MANIFEST_ORDER=(
+  pvc-plugins.yaml
+  configmap.yaml
+  service.yaml
+  statefulset.yaml
+)
+
 NACOS_MANIFEST_ORDER=(
   pv.yaml
   pvc.yaml
@@ -96,6 +104,7 @@ Options:
       --only-mysql        apply only MySQL infrastructure
       --only-redis        apply only Redis infrastructure
       --only-kafka        apply only Kafka infrastructure
+      --only-kafka-connect apply only Kafka Connect infrastructure
       --only-nacos        apply only Nacos infrastructure
       --only-prometheus   apply only monitoring stack manifests (Prometheus + Grafana)
   -h, --help              show this help message
@@ -150,6 +159,11 @@ parse_args() {
         MODE="kafka"
         shift
         ;;
+      --only-kafka-connect)
+        [[ "$MODE" != "full" ]] && { printf 'Multiple mode flags specified.\n' >&2; exit 1; }
+        MODE="kafka-connect"
+        shift
+        ;;
       --only-nacos)
         [[ "$MODE" != "full" ]] && { printf 'Multiple mode flags specified.\n' >&2; exit 1; }
         MODE="nacos"
@@ -180,6 +194,7 @@ ensure_directories() {
   [[ -d "$MYSQL_DIR" ]] || { printf 'Missing directory: %s\n' "$MYSQL_DIR" >&2; exit 1; }
   [[ -d "$REDIS_DIR" ]] || { printf 'Missing directory: %s\n' "$REDIS_DIR" >&2; exit 1; }
   [[ -d "$KAFKA_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_DIR" >&2; exit 1; }
+  [[ -d "$KAFKA_CONNECT_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_CONNECT_DIR" >&2; exit 1; }
   [[ -d "$NACOS_DIR" ]] || { printf 'Missing directory: %s\n' "$NACOS_DIR" >&2; exit 1; }
 }
 
@@ -190,6 +205,7 @@ ensure_docker_images() {
     "redis:7.2.4-alpine"
     "apache/kafka:3.7.0"
     "docker.redpanda.com/redpandadata/console:latest"
+    "confluentinc/cp-kafka-connect:7.5.0"
     "nacos/nacos-server:v2.3.2"
     "registry.k8s.io/ingress-nginx/controller:v1.14.0@sha256:e4127065d0317bd11dc64c4dd38dcf7fb1c3d72e468110b4086e636dbaac943d"
   )
@@ -377,6 +393,21 @@ apply_kafka_cluster() {
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/redpanda-console --timeout=180s
 }
 
+apply_kafka_connect() {
+  log_step "Applying infra-kafka-connect manifests"
+  for manifest in "${KAFKA_CONNECT_MANIFEST_ORDER[@]}"; do
+    local file="$KAFKA_CONNECT_DIR/$manifest"
+    if [[ ! -f "$file" ]]; then
+      printf 'Missing manifest: %s\n' "$file" >&2
+      exit 1
+    fi
+    printf 'Applying %s\n' "$file"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+  done
+
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka-connect --timeout=180s
+}
+
 apply_nacos_cluster() {
   log_step "Applying infra-nacos manifests"
   for manifest in "${NACOS_MANIFEST_ORDER[@]}"; do
@@ -401,12 +432,14 @@ apply_infra_clusters() {
     apply_mysql_cluster
     apply_redis_cluster
     apply_kafka_cluster
+    apply_kafka_connect
     apply_nacos_cluster
   )
   local names=(
     "MySQL"
     "Redis"
     "Kafka"
+    "Kafka Connect"
     "Nacos"
   )
 
@@ -642,6 +675,15 @@ main() {
       printf '  Redpanda Console: http://redpanda-console.default.svc.cluster.local:8080\n'
       printf '\n'
       ;;
+    kafka-connect)
+      require_cmd kubectl
+      [[ -d "$KAFKA_CONNECT_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_CONNECT_DIR" >&2; exit 1; }
+      log_step "Applying Kafka Connect manifests"
+      apply_kafka_connect
+      printf '\nKafka Connect ready. REST endpoint:\n'
+      printf '  http://infra-kafka-connect.default.svc.cluster.local:8083\n'
+      printf '\n'
+      ;;
     nacos)
       require_cmd kubectl
       [[ -d "$NACOS_DIR" ]] || { printf 'Missing directory: %s\n' "$NACOS_DIR" >&2; exit 1; }
@@ -709,6 +751,7 @@ main() {
       printf '  MySQL secondary: infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306\n'
       printf '  Redis cluster: infra-redis.default.svc.cluster.local:6379\n'
       printf '  Kafka broker: infra-kafka.default.svc.cluster.local:9092\n'
+      printf '  Kafka Connect REST: http://infra-kafka-connect.default.svc.cluster.local:8083\n'
       printf '  Redpanda Console: http://redpanda-console.default.svc.cluster.local:8080\n'
       printf '  Nacos console: http://infra-nacos.default.svc.cluster.local:8848\n'
       printf '  Argo CD API/UI: https://argocd-server.argocd.svc.cluster.local\n'
