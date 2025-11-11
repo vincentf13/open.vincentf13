@@ -12,8 +12,35 @@ Content-Type: application/json
     "topic.prefix": "infra-mysql-0",
     "database.include.list": "exchange",
     "table.include.list": "exchange.orders",
-    "snapshot.mode": "initial"}
+    "snapshot.mode": "initial",
+
+    "schema.history.internal.kafka.bootstrap.servers": "infra-kafka.default.svc.cluster.locala:9092",
+    "schema.history.internal.kafka.topic": "cdc.infra-mysql-0",
+    "schema.history.internal.kafka.replication.factor": "3"
+  }
 }
+
+###
+
+PUT http://infra-kafka-connect.default.svc.cluster.local:8083/connectors/mysql-cdc/config
+Content-Type: application/json
+
+ {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "database.hostname": "infra-mysql-0.infra-mysql-headless.default.svc.cluster.local",
+    "database.port": "3306",
+    "database.user": "root",
+    "database.password": "root",
+    "database.server.id": "5401",
+    "topic.prefix": "infra-mysql-0",
+    "database.include.list": "exchange",
+    "table.include.list": "exchange.orders",
+    "snapshot.mode": "initial",
+    "schema.history.internal.kafka.bootstrap.servers": "infra-kafka.default.svc.cluster.local:9092",
+    "schema.history.internal.kafka.topic": "cdc.infra-mysql-0",
+    "schema.history.internal.kafka.replication.factor": "3"
+}
+
 
 ###
 
