@@ -75,6 +75,8 @@ KAFKA_MANIFEST_ORDER=(
 )
 
 KAFKA_CONNECT_MANIFEST_ORDER=(
+  storageclass.yaml
+  pv.yaml
   pvc-plugins.yaml
   configmap.yaml
   service.yaml
@@ -395,6 +397,8 @@ apply_kafka_cluster() {
 
 apply_kafka_connect() {
   log_step "Applying infra-kafka-connect manifests"
+  printf 'Deleting existing StatefulSet infra-kafka-connect (if present)\n'
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete statefulset infra-kafka-connect --ignore-not-found
   for manifest in "${KAFKA_CONNECT_MANIFEST_ORDER[@]}"; do
     local file="$KAFKA_CONNECT_DIR/$manifest"
     if [[ ! -f "$file" ]]; then
@@ -402,7 +406,11 @@ apply_kafka_connect() {
       exit 1
     fi
     printf 'Applying %s\n' "$file"
-    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+    if [[ "$manifest" == "pv.yaml" ]]; then
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply --validate=false -f "$file"
+    else
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
+    fi
   done
 
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka-connect --timeout=180s
