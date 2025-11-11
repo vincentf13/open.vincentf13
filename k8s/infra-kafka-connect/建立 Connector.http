@@ -11,12 +11,26 @@ Content-Type: application/json
     "database.server.id": "5401",
     "topic.prefix": "infra-mysql-0",
     "database.include.list": "exchange",
-    "table.include.list": "exchange.orders",
-    "snapshot.mode": "initial",
+    "table.include.list": "exchange.outbox",
+    "snapshot.mode": "schema_only",
 
     "schema.history.internal.kafka.bootstrap.servers": "infra-kafka.default.svc.cluster.locala:9092",
     "schema.history.internal.kafka.topic": "cdc.infra-mysql-0",
-    "schema.history.internal.kafka.replication.factor": "3"
+    "schema.history.internal.kafka.replication.factor": "3",
+
+     "tombstones.on.delete": "false",
+
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+
+    "transforms.outbox.route.by.field": "aggregate_type",
+
+    "transforms.outbox.table.field.event.id": "event_id",
+    "transforms.outbox.table.field.event.key": "aggregate_id",
+    "transforms.outbox.table.field.event.type": "event_type",
+    "transforms.outbox.table.field.payload": "payload",
+
+    "transforms.outbox.table.fields.additional.placement": "headers:header:all"
   }
 }
 
