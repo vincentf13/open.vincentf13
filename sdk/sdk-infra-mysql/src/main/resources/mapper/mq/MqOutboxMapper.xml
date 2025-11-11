@@ -40,6 +40,21 @@
         </trim>
     </insert>
 
+      <insert id="insertWithAutoSeq" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO">
+        INSERT INTO mq_outbox (event_id, aggregate_type, aggregate_id, event_type, payload, headers, seq, created_at)
+        SELECT
+            #{eventId},
+            #{aggregateType},
+            #{aggregateId},
+            #{eventType},
+            #{payload},
+            #{headers},
+            COALESCE(MAX(seq), 0) + 1,
+            #{createdAt}
+        FROM mq_outbox
+        FOR UPDATE
+    </insert>
+
     <select id="findByPO" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO" resultMap="MqOutboxResultMap">
         SELECT event_id, aggregate_type, aggregate_id, event_type, payload, headers, seq, created_at
         FROM mq_outbox
