@@ -2,7 +2,9 @@ POST http://infra-kafka-connect.default.svc.cluster.local:8083/connectors
 Content-Type: application/json
 
 { "name": "mysql-cdc",
-  "config": {
+  "config":
+
+ {
     "connector.class": "io.debezium.connector.mysql.MySqlConnector",
     "database.hostname": "infra-mysql-0.infra-mysql-headless.default.svc.cluster.local",
     "database.port": "3306",
@@ -11,27 +13,28 @@ Content-Type: application/json
     "database.server.id": "5401",
     "topic.prefix": "infra-mysql-0",
     "database.include.list": "exchange",
-    "table.include.list": "exchange.outbox",
-    "snapshot.mode": "schema_only",
+    "table.include.list": "exchange.mq_outbox",
+    "snapshot.mode": "initial",
 
-    "schema.history.internal.kafka.bootstrap.servers": "infra-kafka.default.svc.cluster.locala:9092",
+    "schema.history.internal.kafka.bootstrap.servers": "infra-kafka.default.svc.cluster.local:9092",
     "schema.history.internal.kafka.topic": "cdc.infra-mysql-0",
     "schema.history.internal.kafka.replication.factor": "3",
 
      "tombstones.on.delete": "false",
 
-    "transforms": "outbox",
-    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms": "mq_outbox",
+    "transforms.mq_outbox.type": "io.debezium.transforms.outbox.EventRouter",
 
-    "transforms.outbox.route.by.field": "aggregate_type",
+    "transforms.mq_outbox.route.by.field": "aggregate_type",
 
-    "transforms.outbox.table.field.event.id": "event_id",
-    "transforms.outbox.table.field.event.key": "aggregate_id",
-    "transforms.outbox.table.field.event.type": "event_type",
-    "transforms.outbox.table.field.payload": "payload",
+    "transforms.mq_outbox.table.field.event.id": "event_id",
+    "transforms.mq_outbox.table.field.event.key": "aggregate_id",
+    "transforms.mq_outbox.table.field.event.type": "event_type",
+    "transforms.mq_outbox.table.field.payload": "payload",
 
-    "transforms.outbox.table.fields.additional.placement": "headers:header:all"
+    "transforms.mq_outbox.table.fields.additional.placement": "headers:header:all"
   }
+
 }
 
 ###
@@ -48,12 +51,27 @@ Content-Type: application/json
     "database.server.id": "5401",
     "topic.prefix": "infra-mysql-0",
     "database.include.list": "exchange",
-    "table.include.list": "exchange.orders",
+    "table.include.list": "exchange.mq_outbox",
     "snapshot.mode": "initial",
+
     "schema.history.internal.kafka.bootstrap.servers": "infra-kafka.default.svc.cluster.local:9092",
     "schema.history.internal.kafka.topic": "cdc.infra-mysql-0",
-    "schema.history.internal.kafka.replication.factor": "3"
-}
+    "schema.history.internal.kafka.replication.factor": "3",
+
+     "tombstones.on.delete": "false",
+
+    "transforms": "mq_outbox",
+    "transforms.mq_outbox.type": "io.debezium.transforms.outbox.EventRouter",
+
+    "transforms.mq_outbox.route.by.field": "aggregate_type",
+
+    "transforms.mq_outbox.table.field.event.id": "event_id",
+    "transforms.mq_outbox.table.field.event.key": "aggregate_id",
+    "transforms.mq_outbox.table.field.event.type": "event_type",
+    "transforms.mq_outbox.table.field.payload": "payload",
+
+    "transforms.mq_outbox.table.fields.additional.placement": "headers:header:all"
+  }
 
 
 ###
