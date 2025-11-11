@@ -79,5 +79,5 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 5Gi
-        storageClassName: infra-mysql-local
+            storage: 2Gi
+        storageClassName: infra-kafka-connect-local

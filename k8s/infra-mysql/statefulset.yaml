@@ -1,6 +1,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  # <pod-name> = <statefulset-name>-<ordinal>
   name: infra-mysql
   labels:
     app: infra-mysql
@@ -74,6 +75,9 @@ spec:
             items:
               - key: my.cnf
                 path: custom.cnf  # MySQL 會讀取 conf.d 下的 any.cnf。
+
+  # StatefulSet 綁定 PVC 的規則是 依 VolumeClaimTemplates + Pod 名稱（ordinal）自動產生並綁定。
+  #不靠 label，不靠 selector。
   volumeClaimTemplates:
     - metadata:
         name: mysql-data

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: infra-kafka-connect-plugins-pv
+  labels:
+    app: infra-kafka-connect
+    role: plugins
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: infra-kafka-connect-local
+  hostPath:
+    path: /var/lib/k8s/infra-kafka-connect/plugins
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: infra-kafka-connect-data-pv-0
+  labels:
+    app: infra-kafka-connect
+    role: data
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: infra-kafka-connect-local
+  hostPath:
+    path: /var/lib/k8s/infra-kafka-connect/data-0
+    type: DirectoryOrCreate
