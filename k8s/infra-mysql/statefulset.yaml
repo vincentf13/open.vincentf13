@@ -22,9 +22,21 @@ spec:
           ports:
             - containerPort: 3306
               name: mysql
+          env:
+            - name: SERVER_ID_BASE
+              value: "101"  # 與 StatefulSet ordinal 相加，確保每個 Pod server_id 唯一。
           envFrom:
             - secretRef:
                 name: infra-mysql-secret  # 將 root / app 帳密載入為環境變數。
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - |
+              ordinal=${HOSTNAME##*-}
+              server_id=$((SERVER_ID_BASE + ordinal))
+              echo "Launching mysqld with server_id=${server_id}"
+              exec docker-entrypoint.sh mysqld --server-id=${server_id}
           volumeMounts:
             - name: mysql-data
               mountPath: /var/lib/mysql  # MySQL 預設資料目錄，掛載 PVC 實現持久化。

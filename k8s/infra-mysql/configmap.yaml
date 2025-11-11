@@ -26,6 +26,9 @@ data:
     innodb_buffer_pool_size = 128M
     # 將 redo log 檔縮小以減少磁碟使用量。
     innodb_log_file_size = 64M
+    # 啟用 binlog，為複寫/Point-in-time recovery 做準備；server_id 將於容器啟動時依 Pod ordinal 動態注入。
+    log_bin = mysql-bin
+    binlog_format = ROW
     
     [client]
     default-character-set = utf8mb4
