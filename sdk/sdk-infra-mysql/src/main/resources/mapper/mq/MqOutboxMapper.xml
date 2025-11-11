@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxMapper">
+
+    <resultMap id="MqOutboxResultMap" type="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO">
+        <id property="eventId" column="event_id"/>
+        <result property="aggregateType" column="aggregate_type"/>
+        <result property="aggregateId" column="aggregate_id"/>
+        <result property="eventType" column="event_type"/>
+        <result property="payload" column="payload"/>
+        <result property="headers" column="headers"/>
+        <result property="seq" column="seq"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insertSelective" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO">
+        INSERT INTO mq_outbox
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="eventId != null">event_id,</if>
+            <if test="aggregateType != null">aggregate_type,</if>
+            <if test="aggregateId != null">aggregate_id,</if>
+            <if test="eventType != null">event_type,</if>
+            <if test="payload != null">payload,</if>
+            <if test="headers != null">headers,</if>
+            <if test="seq != null">seq,</if>
+            <if test="createdAt != null">created_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="eventId != null">#{eventId},</if>
+            <if test="aggregateType != null">#{aggregateType},</if>
+            <if test="aggregateId != null">#{aggregateId},</if>
+            <if test="eventType != null">#{eventType},</if>
+            <if test="payload != null">#{payload},</if>
+            <if test="headers != null">#{headers},</if>
+            <if test="seq != null">#{seq},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+        </trim>
+    </insert>
+
+    <select id="findByPO" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO" resultMap="MqOutboxResultMap">
+        SELECT event_id, aggregate_type, aggregate_id, event_type, payload, headers, seq, created_at
+        FROM mq_outbox
+        <where>
+            <if test="eventId != null">AND event_id = #{eventId}</if>
+            <if test="aggregateType != null">AND aggregate_type = #{aggregateType}</if>
+            <if test="aggregateId != null">AND aggregate_id = #{aggregateId}</if>
+            <if test="eventType != null">AND event_type = #{eventType}</if>
+            <if test="seq != null">AND seq = #{seq}</if>
+            <if test="createdAt != null">AND created_at = #{createdAt}</if>
+        </where>
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateSelective" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO">
+        UPDATE mq_outbox
+        <set>
+            <if test="aggregateType != null">aggregate_type = #{aggregateType},</if>
+            <if test="aggregateId != null">aggregate_id = #{aggregateId},</if>
+            <if test="eventType != null">event_type = #{eventType},</if>
+            <if test="payload != null">payload = #{payload},</if>
+            <if test="headers != null">headers = #{headers},</if>
+            <if test="seq != null">seq = #{seq},</if>
+            <if test="createdAt != null">created_at = #{createdAt},</if>
+        </set>
+        WHERE event_id = #{eventId}
+    </update>
+
+    <delete id="deleteByEventId" parameterType="string">
+        DELETE FROM mq_outbox WHERE event_id = #{eventId}
+    </delete>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO mq_outbox (event_id, aggregate_type, aggregate_id, event_type, payload, headers, seq, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.eventId}, #{item.aggregateType}, #{item.aggregateId}, #{item.eventType},
+             #{item.payload}, #{item.headers}, #{item.seq}, #{item.createdAt})
+        </foreach>
+    </insert>
+
+    <update id="batchUpdate" parameterType="java.util.List">
+        <foreach collection="list" item="item" separator=";">
+            UPDATE mq_outbox
+            <set>
+                <if test="item.aggregateType != null">aggregate_type = #{item.aggregateType},</if>
+                <if test="item.aggregateId != null">aggregate_id = #{item.aggregateId},</if>
+                <if test="item.eventType != null">event_type = #{item.eventType},</if>
+                <if test="item.payload != null">payload = #{item.payload},</if>
+                <if test="item.headers != null">headers = #{item.headers},</if>
+                <if test="item.seq != null">seq = #{item.seq},</if>
+                <if test="item.createdAt != null">created_at = #{item.createdAt},</if>
+            </set>
+            WHERE event_id = #{item.eventId}
+        </foreach>
+    </update>
+</mapper>

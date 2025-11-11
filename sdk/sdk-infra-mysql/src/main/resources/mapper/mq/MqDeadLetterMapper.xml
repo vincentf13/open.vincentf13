@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterMapper">
+
+    <resultMap id="MqDeadLetterResultMap" type="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterPO">
+        <id property="id" column="id"/>
+        <result property="source" column="source"/>
+        <result property="seq" column="seq"/>
+        <result property="outboxId" column="outbox_id"/>
+        <result property="payload" column="payload"/>
+        <result property="error" column="error"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insertSelective" parameterType="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterPO">
+        INSERT INTO mq_dead_letters
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="source != null">source,</if>
+            <if test="seq != null">seq,</if>
+            <if test="outboxId != null">outbox_id,</if>
+            <if test="payload != null">payload,</if>
+            <if test="error != null">error,</if>
+            <if test="createdAt != null">created_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="source != null">#{source},</if>
+            <if test="seq != null">#{seq},</if>
+            <if test="outboxId != null">#{outboxId},</if>
+            <if test="payload != null">#{payload},</if>
+            <if test="error != null">#{error},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+        </trim>
+    </insert>
+
+    <select id="findByPO" parameterType="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterPO" resultMap="MqDeadLetterResultMap">
+        SELECT id, source, seq, outbox_id, payload, error, created_at
+        FROM mq_dead_letters
+        <where>
+            <if test="id != null">AND id = #{id}</if>
+            <if test="source != null">AND source = #{source}</if>
+            <if test="seq != null">AND seq = #{seq}</if>
+            <if test="outboxId != null">AND outbox_id = #{outboxId}</if>
+            <if test="createdAt != null">AND created_at = #{createdAt}</if>
+        </where>
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateSelective" parameterType="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterPO">
+        UPDATE mq_dead_letters
+        <set>
+            <if test="source != null">source = #{source},</if>
+            <if test="seq != null">seq = #{seq},</if>
+            <if test="outboxId != null">outbox_id = #{outboxId},</if>
+            <if test="payload != null">payload = #{payload},</if>
+            <if test="error != null">error = #{error},</if>
+            <if test="createdAt != null">created_at = #{createdAt},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO mq_dead_letters (id, source, seq, outbox_id, payload, error, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.source}, #{item.seq}, #{item.outboxId}, #{item.payload}, #{item.error}, #{item.createdAt})
+        </foreach>
+    </insert>
+
+    <update id="batchUpdate" parameterType="java.util.List">
+        <foreach collection="list" item="item" separator=";">
+            UPDATE mq_dead_letters
+            <set>
+                <if test="item.source != null">source = #{item.source},</if>
+                <if test="item.seq != null">seq = #{item.seq},</if>
+                <if test="item.outboxId != null">outbox_id = #{item.outboxId},</if>
+                <if test="item.payload != null">payload = #{item.payload},</if>
+                <if test="item.error != null">error = #{item.error},</if>
+                <if test="item.createdAt != null">created_at = #{item.createdAt},</if>
+            </set>
+            WHERE id = #{item.id}
+        </foreach>
+    </update>
+</mapper>
