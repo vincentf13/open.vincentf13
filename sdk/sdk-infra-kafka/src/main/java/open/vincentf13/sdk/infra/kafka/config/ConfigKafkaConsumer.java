@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
+import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -41,12 +42,14 @@ public class ConfigKafkaConsumer {
     @Bean
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
             ConsumerFactory<String, Object>  consumerFactory,
             KafkaTemplate<String, Object> kafkaTemplate,
             KafkaProperties kafkaProperties) {
 
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory);
+        // 套用 spring.kafka.listener.* 與 spring.kafka.consumer.* 配置
+        configurer.configure(factory, consumerFactory);
 
 
         // 配置錯誤處理器 (重試 + DLQ)
