@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.infra.messaging.topic;
+package open.vincentf13.exchange.order.mq.topic;
 
 public interface OrderTopics {
     String ORDER_SUBMITTED = "order.submitted";
