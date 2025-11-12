@@ -26,51 +26,54 @@
         <result property="updatedAt" column="updated_at" />
     </resultMap>
 
-    <insert id="insert" parameterType="open.vincentf13.exchange.order.infra.persistence.po.OrderPO">
-        INSERT INTO orders (
-            order_id,
-            user_id,
-            instrument_id,
-            client_order_id,
-            side,
-            type,
-            status,
-            time_in_force,
-            price,
-            stop_price,
-            quantity,
-            filled_quantity,
-            remaining_quantity,
-            avg_fill_price,
-            fee,
-            source,
-            version,
-            created_at,
-            updated_at
-        ) VALUES (
-            #{id},
-            #{userId},
-            #{instrumentId},
-            #{clientOrderId},
-            #{side},
-            #{type},
-            #{status},
-            #{timeInForce},
-            #{price},
-            #{stopPrice},
-            #{quantity},
-            #{filledQuantity},
-            #{remainingQuantity},
-            #{avgFillPrice},
-            #{fee},
-            #{source},
-            #{version},
-            #{createdAt},
-            #{updatedAt}
-        )
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.order.infra.persistence.po.OrderPO">
+        INSERT INTO orders
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">order_id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="instrumentId != null">instrument_id,</if>
+            <if test="clientOrderId != null">client_order_id,</if>
+            <if test="side != null">side,</if>
+            <if test="type != null">type,</if>
+            <if test="status != null">status,</if>
+            <if test="timeInForce != null">time_in_force,</if>
+            <if test="price != null">price,</if>
+            <if test="stopPrice != null">stop_price,</if>
+            <if test="quantity != null">quantity,</if>
+            <if test="filledQuantity != null">filled_quantity,</if>
+            <if test="remainingQuantity != null">remaining_quantity,</if>
+            <if test="avgFillPrice != null">avg_fill_price,</if>
+            <if test="fee != null">fee,</if>
+            <if test="source != null">source,</if>
+            <if test="version != null">version,</if>
+            <if test="createdAt != null">created_at,</if>
+            <if test="updatedAt != null">updated_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="instrumentId != null">#{instrumentId},</if>
+            <if test="clientOrderId != null">#{clientOrderId},</if>
+            <if test="side != null">#{side},</if>
+            <if test="type != null">#{type},</if>
+            <if test="status != null">#{status},</if>
+            <if test="timeInForce != null">#{timeInForce},</if>
+            <if test="price != null">#{price},</if>
+            <if test="stopPrice != null">#{stopPrice},</if>
+            <if test="quantity != null">#{quantity},</if>
+            <if test="filledQuantity != null">#{filledQuantity},</if>
+            <if test="remainingQuantity != null">#{remainingQuantity},</if>
+            <if test="avgFillPrice != null">#{avgFillPrice},</if>
+            <if test="fee != null">#{fee},</if>
+            <if test="source != null">#{source},</if>
+            <if test="version != null">#{version},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+            <if test="updatedAt != null">#{updatedAt},</if>
+        </trim>
     </insert>
 
-    <select id="findById" parameterType="long" resultMap="OrderResultMap">
+    <select id="findBy" parameterType="open.vincentf13.exchange.order.infra.persistence.po.OrderPO" resultMap="OrderResultMap">
         SELECT
             order_id,
             user_id,
@@ -92,44 +95,38 @@
             created_at,
             updated_at
         FROM orders
-        WHERE order_id = #{orderId}
+        <where>
+            <if test="id != null">AND order_id = #{id}</if>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+            <if test="clientOrderId != null">AND client_order_id = #{clientOrderId}</if>
+            <if test="side != null">AND side = #{side}</if>
+            <if test="type != null">AND type = #{type}</if>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
         LIMIT 1
     </select>
 
-    <select id="findByUserAndClientOrderId" resultMap="OrderResultMap">
-        SELECT
-            order_id,
-            user_id,
-            instrument_id,
-            client_order_id,
-            side,
-            type,
-            status,
-            time_in_force,
-            price,
-            stop_price,
-            quantity,
-            filled_quantity,
-            remaining_quantity,
-            avg_fill_price,
-            fee,
-            source,
-            version,
-            created_at,
-            updated_at
-        FROM orders
-        WHERE user_id = #{userId}
-          AND client_order_id = #{clientOrderId}
-        LIMIT 1
-    </select>
-
-    <update id="updateStatus">
+    <update id="updateSelective" parameterType="open.vincentf13.exchange.order.infra.persistence.po.OrderPO">
         UPDATE orders
-        SET status = #{status},
-            updated_at = #{updatedAt},
-            version = version + 1
-        WHERE order_id = #{orderId}
-          AND user_id = #{userId}
-          AND version = #{expectedVersion}
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="timeInForce != null">time_in_force = #{timeInForce},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="stopPrice != null">stop_price = #{stopPrice},</if>
+            <if test="quantity != null">quantity = #{quantity},</if>
+            <if test="filledQuantity != null">filled_quantity = #{filledQuantity},</if>
+            <if test="remainingQuantity != null">remaining_quantity = #{remainingQuantity},</if>
+            <if test="avgFillPrice != null">avg_fill_price = #{avgFillPrice},</if>
+            <if test="fee != null">fee = #{fee},</if>
+            <if test="source != null">source = #{source},</if>
+            <if test="version != null">version = #{version},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+        </set>
+        <where>
+            <if test="id != null">AND order_id = #{id}</if>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="expectedVersion != null">AND version = #{expectedVersion}</if>
+        </where>
     </update>
 </mapper>

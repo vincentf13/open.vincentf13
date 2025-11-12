@@ -24,7 +24,7 @@ public class OrderRepositoryImpl implements OrderRepository {
     public void insert(Order order) {
         order.setId(idGenerator.newLong());
         OrderPO po = OpenMapstruct.map(order, OrderPO.class);
-        mapper.insert(po);
+        mapper.insertSelective(po);
         if (po.getCreatedAt() != null) {
             order.setCreatedAt(po.getCreatedAt());
         }
@@ -38,7 +38,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         if (orderId == null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(mapper.findById(orderId))
+        OrderPO probe = OrderPO.builder().id(orderId).build();
+        return Optional.ofNullable(mapper.findBy(probe))
                 .map(po -> OpenMapstruct.map(po, Order.class));
     }
 
@@ -47,13 +48,25 @@ public class OrderRepositoryImpl implements OrderRepository {
         if (userId == null || !StringUtils.hasText(clientOrderId)) {
             return Optional.empty();
         }
-        return Optional.ofNullable(mapper.findByUserAndClientOrderId(userId, clientOrderId))
+        OrderPO probe = OrderPO.builder()
+                .userId(userId)
+                .clientOrderId(clientOrderId)
+                .build();
+        return Optional.ofNullable(mapper.findBy(probe))
                 .map(po -> OpenMapstruct.map(po, Order.class));
     }
 
     @Override
     public boolean updateStatus(Long orderId, Long userId, OrderStatus status,
                                 Instant updatedAt, int expectedVersion) {
-        return mapper.updateStatus(orderId, userId, status, updatedAt, expectedVersion) > 0;
+        OrderPO record = OrderPO.builder()
+                .id(orderId)
+                .userId(userId)
+                .status(status)
+                .updatedAt(updatedAt)
+                .version(expectedVersion + 1)
+                .expectedVersion(expectedVersion)
+                .build();
+        return mapper.updateSelective(record) > 0;
     }
 }

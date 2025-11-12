@@ -34,6 +34,7 @@ public class OrderPO {
     private BigDecimal fee;
     private String source;
     private Integer version;
+    private Integer expectedVersion;
     private Instant createdAt;
     private Instant updatedAt;
 }

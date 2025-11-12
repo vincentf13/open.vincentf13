@@ -7,7 +7,7 @@ import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.domain.model.OrderEventType;
 import open.vincentf13.exchange.order.messaging.OrderCancelRequestedEvent;
 import open.vincentf13.exchange.order.messaging.OrderSubmittedEvent;
-import open.vincentf13.sdk.infra.kafka.OpenKafkaProducer;
+import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -20,6 +20,7 @@ import java.util.Map;
 public class OrderEventPublisher {
 
     private final OrderEventTopicsProperties topics;
+    private final MqOutboxRepository outboxRepository;
 
     public void publishOrderSubmitted(Order order) {
         String topic = topics.getOrderSubmitted();
@@ -42,12 +43,10 @@ public class OrderEventPublisher {
                 order.getSource(),
                 order.getCreatedAt()
         );
-        OpenKafkaProducer.send(topic, String.valueOf(order.getId()), payload,
-                Map.of("eventType", OrderEventType.ORDER_SUBMITTED.name()))
-                .exceptionally(ex -> {
-                    log.error("Failed to publish OrderSubmitted for order {}", order.getId(), ex);
-                    return null;
-                });
+        outboxRepository.append(topic,
+                order.getId(),
+                payload,
+                Map.of("eventType", OrderEventType.ORDER_SUBMITTED.name()));
     }
 
     public void publishOrderCancelRequested(Order order, Instant requestedAt, String reason) {
@@ -62,11 +61,9 @@ public class OrderEventPublisher {
                 requestedAt,
                 reason
         );
-        OpenKafkaProducer.send(topic, String.valueOf(order.getId()), payload,
-                Map.of("eventType", OrderEventType.ORDER_CANCEL_REQUESTED.name()))
-                .exceptionally(ex -> {
-                    log.error("Failed to publish OrderCancelRequested for order {}", order.getId(), ex);
-                    return null;
-                });
+        outboxRepository.append(topic,
+                order.getId(),
+                payload,
+                Map.of("eventType", OrderEventType.ORDER_CANCEL_REQUESTED.name()));
     }
 }
