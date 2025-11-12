@@ -3,8 +3,6 @@ package open.vincentf13.exchange.auth.service;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.domain.service.AuthCredentialDomainService;
@@ -14,16 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class AuthCredentialService {
+public class AuthCredentialCommandService {
 
     private final AuthCredentialRepository repository;
     private final AuthCredentialDomainService authCredentialDomainService;
-
-    @Transactional(readOnly = true)
-    public AuthCredentialPrepareResponse prepare(AuthCredentialPrepareRequest request) {
-        AuthCredentialDomainService.PreparedCredential prepared = authCredentialDomainService.prepareCredential(request.secret());
-        return new AuthCredentialPrepareResponse(prepared.secretHash(), prepared.salt());
-    }
 
     @Transactional
     public AuthCredentialResponse create(AuthCredentialCreateRequest request) {

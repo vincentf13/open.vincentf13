@@ -23,7 +23,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderApplicationService {
+public class OrderCommandService {
 
     private static final String USER_CANCEL_REASON = "USER_REQUEST";
 
