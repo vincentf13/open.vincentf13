@@ -7,6 +7,7 @@ import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.domain.model.OrderEventType;
 import open.vincentf13.exchange.order.infra.messaging.event.OrderCancelRequestedEvent;
 import open.vincentf13.exchange.order.infra.messaging.event.OrderSubmittedEvent;
+import open.vincentf13.exchange.order.infra.messaging.mapper.OrderEventMessageMapper;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -21,6 +22,7 @@ public class OrderEventPublisher {
 
     private final OrderEventTopicsProperties topics;
     private final MqOutboxRepository outboxRepository;
+    private final OrderEventMessageMapper mapper;
 
     public void publishOrderSubmitted(Order order) {
         String topic = topics.getOrderSubmitted();
@@ -28,21 +30,7 @@ public class OrderEventPublisher {
             log.warn("Order submitted topic is not configured; skipping publish for order {}", order.getId());
             return;
         }
-        OrderSubmittedEvent payload = new OrderSubmittedEvent(
-                order.getId(),
-                order.getUserId(),
-                order.getInstrumentId(),
-                order.getSide(),
-                order.getType(),
-                order.getStatus(),
-                order.getTimeInForce(),
-                order.getPrice(),
-                order.getStopPrice(),
-                order.getQuantity(),
-                order.getClientOrderId(),
-                order.getSource(),
-                order.getCreatedAt()
-        );
+        OrderSubmittedEvent payload = mapper.toOrderSubmittedEvent(order);
         outboxRepository.append(topic,
                 order.getId(),
                 payload,
@@ -55,12 +43,7 @@ public class OrderEventPublisher {
             log.warn("Order cancel topic is not configured; skipping publish for order {}", order.getId());
             return;
         }
-        OrderCancelRequestedEvent payload = new OrderCancelRequestedEvent(
-                order.getId(),
-                order.getUserId(),
-                requestedAt,
-                reason
-        );
+        OrderCancelRequestedEvent payload = mapper.toOrderCancelRequestedEvent(order, requestedAt, reason);
         outboxRepository.append(topic,
                 order.getId(),
                 payload,
