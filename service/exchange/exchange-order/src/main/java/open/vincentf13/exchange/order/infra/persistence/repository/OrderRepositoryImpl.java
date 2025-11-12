@@ -22,7 +22,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
     @Override
     public void insert(Order order) {
-        order.setId(idGenerator.newLong());
+        order.setOrderId(idGenerator.newLong());
         OrderPO po = OpenMapstruct.map(order, OrderPO.class);
         mapper.insertSelective(po);
         if (po.getCreatedAt() != null) {
@@ -38,7 +38,7 @@ public class OrderRepositoryImpl implements OrderRepository {
         if (orderId == null) {
             return Optional.empty();
         }
-        OrderPO probe = OrderPO.builder().id(orderId).build();
+        OrderPO probe = OrderPO.builder().orderId(orderId).build();
         return Optional.ofNullable(mapper.findBy(probe))
                 .map(po -> OpenMapstruct.map(po, Order.class));
     }
@@ -60,7 +60,7 @@ public class OrderRepositoryImpl implements OrderRepository {
     public boolean updateStatus(Long orderId, Long userId, OrderStatus status,
                                 Instant updatedAt, int expectedVersion) {
         OrderPO record = OrderPO.builder()
-                .id(orderId)
+                .orderId(orderId)
                 .userId(userId)
                 .status(status)
                 .updatedAt(updatedAt)

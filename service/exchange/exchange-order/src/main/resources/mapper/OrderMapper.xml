@@ -5,7 +5,7 @@
 <mapper namespace="open.vincentf13.exchange.order.infra.persistence.mapper.OrderMapper">
 
     <resultMap id="OrderResultMap" type="open.vincentf13.exchange.order.infra.persistence.po.OrderPO">
-        <id property="id" column="order_id" />
+        <id property="orderId" column="order_id" />
         <result property="userId" column="user_id" />
         <result property="instrumentId" column="instrument_id" />
         <result property="clientOrderId" column="client_order_id" />
@@ -29,7 +29,7 @@
     <insert id="insertSelective" parameterType="open.vincentf13.exchange.order.infra.persistence.po.OrderPO">
         INSERT INTO orders
         <trim prefix="(" suffix=")" suffixOverrides=",">
-            <if test="id != null">order_id,</if>
+            <if test="orderId != null">order_id,</if>
             <if test="userId != null">user_id,</if>
             <if test="instrumentId != null">instrument_id,</if>
             <if test="clientOrderId != null">client_order_id,</if>
@@ -51,7 +51,7 @@
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
-            <if test="id != null">#{id},</if>
+            <if test="orderId != null">#{orderId},</if>
             <if test="userId != null">#{userId},</if>
             <if test="instrumentId != null">#{instrumentId},</if>
             <if test="clientOrderId != null">#{clientOrderId},</if>
@@ -96,7 +96,7 @@
             updated_at
         FROM orders
         <where>
-            <if test="id != null">AND order_id = #{id}</if>
+            <if test="orderId != null">AND order_id = #{orderId}</if>
             <if test="userId != null">AND user_id = #{userId}</if>
             <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
             <if test="clientOrderId != null">AND client_order_id = #{clientOrderId}</if>
@@ -124,7 +124,7 @@
             <if test="updatedAt != null">updated_at = #{updatedAt},</if>
         </set>
         <where>
-            <if test="id != null">AND order_id = #{id}</if>
+            <if test="orderId != null">AND order_id = #{orderId}</if>
             <if test="userId != null">AND user_id = #{userId}</if>
             <if test="expectedVersion != null">AND version = #{expectedVersion}</if>
         </where>

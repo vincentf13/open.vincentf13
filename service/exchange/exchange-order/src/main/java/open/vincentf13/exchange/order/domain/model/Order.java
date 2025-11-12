@@ -18,7 +18,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class Order {
 
-    private Long id;
+    private Long orderId;
     private Long userId;
     private Long instrumentId;
     private String clientOrderId;
