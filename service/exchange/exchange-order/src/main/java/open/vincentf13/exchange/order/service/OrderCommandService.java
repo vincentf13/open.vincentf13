@@ -43,7 +43,7 @@ public class OrderCommandService {
             Order order = orderDomainService.createNewOrder(userId, request);
             PositionIntentType intentType = determineIntent(userId, request);
 
-            transactionTemplate.execute(status -> {
+            transactionTemplate.executeWithoutResult(status -> {
                 orderRepository.insert(order);
                 if (intentType != null && intentType.requiresPositionReservation()) {
                     orderEventPublisher.publishPositionReserveRequested(order, intentType);
