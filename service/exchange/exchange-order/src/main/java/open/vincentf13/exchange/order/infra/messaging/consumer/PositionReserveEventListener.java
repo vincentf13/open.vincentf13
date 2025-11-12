@@ -12,6 +12,7 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -32,28 +33,32 @@ public class PositionReserveEventListener {
             topics = PositionTopics.POSITION_RESERVED,
             groupId = "${exchange.order.position.consumer-group:exchange-order-position}"
     )
-    public void onPositionReserved(@Payload PositionReservedEvent event) {
+    public void onPositionReserved(@Payload PositionReservedEvent event, Acknowledgment acknowledgment) {
         if (event == null) {
+            acknowledgment.acknowledge();
             return;
         }
         transactionTemplate.executeWithoutResult(status -> {
             orderRepository.findById(event.orderId())
                     .ifPresent(order -> handleReservationSuccess(order, event));
         });
+        acknowledgment.acknowledge();
     }
 
     @KafkaListener(
             topics = PositionTopics.POSITION_RESERVE_REJECTED,
             groupId = "${exchange.order.position.consumer-group:exchange-order-position}"
     )
-    public void onPositionReserveRejected(@Payload PositionReserveRejectedEvent event) {
+    public void onPositionReserveRejected(@Payload PositionReserveRejectedEvent event, Acknowledgment acknowledgment) {
         if (event == null) {
+            acknowledgment.acknowledge();
             return;
         }
         transactionTemplate.executeWithoutResult(status -> {
             orderRepository.findById(event.orderId())
                     .ifPresent(order -> handleReservationFailure(order, event.reason()));
         });
+        acknowledgment.acknowledge();
     }
 
     private void handleReservationSuccess(Order order, PositionReservedEvent event) {

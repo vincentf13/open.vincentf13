@@ -1,15 +1,4 @@
-logging:                                                                                           
-  level:                                                                                           
-    # Spring Kafka 關鍵                                                                            
-    org.springframework.kafka: INFO                                                                
-    org.springframework.kafka.core.KafkaTemplate: DEBUG   # 會顯示每次 send() 呼叫與 topic、partition、offset，對追蹤發送很有用。
-    org.springframework.kafka.listener.KafkaMessageListenerContainer: DEBUG # 能觀察 consumer 啟動 、poll loop、rebalancing 等，適合測 listener 邏輯。
-    org.springframework.kafka.support.serializer: DEBUG   # 反序列化出錯時會顯示 byte payload 與具 體錯誤，開發階段很關鍵。
-    # Kafka 原生                                                                                   
-    org.apache.kafka.clients: INFO                                                                 
-    org.apache.kafka.clients.consumer.internals.AbstractCoordinator: INFO   # 能顯示 consumer group join、rebalance、心跳等事件；
-                                                                                                   
-spring:                                                                                            
+spring:
   kafka:                                                                                           
     bootstrap-servers: infra-kafka.default.svc.cluster.local:9092   # 需自訂
     admin:                                                                                         
@@ -50,6 +39,7 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
+        # 自動反序列化
         spring.json.use.type.headers: true
         # 信任所有包（*）僅建議在開發環境使用，生產環境應指定具體的包路徑
         spring.json.trusted.packages: '*'
@@ -65,3 +55,13 @@ spring:
       # 手動 ACK
       ack-mode: manual
 
+logging:
+  level:
+    # Spring Kafka 關鍵
+    org.springframework.kafka: INFO
+    org.springframework.kafka.core.KafkaTemplate: DEBUG   # 會顯示每次 send() 呼叫與 topic、partition、offset，對追蹤發送很有用。
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: DEBUG # 能觀察 consumer 啟動 、poll loop、rebalancing 等，適合測 listener 邏輯。
+    org.springframework.kafka.support.serializer: DEBUG   # 反序列化出錯時會顯示 byte payload 與具 體錯誤，開發階段很關鍵。
+    # Kafka 原生
+    org.apache.kafka.clients: INFO
+    org.apache.kafka.clients.consumer.internals.AbstractCoordinator: INFO   # 能顯示 consumer group join、rebalance、心跳等事件；
