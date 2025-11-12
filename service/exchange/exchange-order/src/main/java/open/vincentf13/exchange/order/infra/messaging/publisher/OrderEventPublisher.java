@@ -6,6 +6,9 @@ import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.mq.event.OrderCancelRequestedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
@@ -37,6 +40,22 @@ public class OrderEventPublisher {
         outboxRepository.append(OrderTopics.ORDER_CANCEL_REQUESTED,
                 order.getOrderId(),
                 payload,
+                null);
+    }
+
+    public void publishPositionReserveRequested(Order order, PositionIntentType intentType) {
+        PositionReserveRequestedEvent event = new PositionReserveRequestedEvent(
+                order.getOrderId(),
+                order.getUserId(),
+                order.getInstrumentId(),
+                order.getSide(),
+                intentType,
+                order.getQuantity(),
+                Instant.now()
+        );
+        outboxRepository.append(PositionTopics.POSITION_RESERVE_REQUESTED,
+                order.getOrderId(),
+                event,
                 null);
     }
 }

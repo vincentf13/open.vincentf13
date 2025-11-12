@@ -10,6 +10,10 @@ import open.vincentf13.exchange.order.infra.persistence.repository.OrderReposito
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderResponse;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
+import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
@@ -30,6 +34,7 @@ public class OrderCommandService {
     private final OrderDomainService orderDomainService;
     private final OrderRepository orderRepository;
     private final OrderEventPublisher orderEventPublisher;
+    private final ExchangePositionClient exchangePositionClient;
     private final TransactionTemplate transactionTemplate;
 
     public OrderResponse createOrder(OrderCreateRequest request) {
@@ -45,7 +50,12 @@ public class OrderCommandService {
                 throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT, "Order creation returned null result");
             }
 
-            orderEventPublisher.publishOrderSubmitted(order);
+            PositionIntentType intentType = determineIntent(userId, request);
+            if (intentType != null && intentType.requiresPositionReservation()) {
+                orderEventPublisher.publishPositionReserveRequested(order, intentType);
+            } else {
+                orderEventPublisher.publishOrderSubmitted(order);
+            }
             return OpenMapstruct.map(order, OrderResponse.class);
         } catch (DuplicateKeyException ex) {
             log.info("Duplicate order insert for user {} clientOrderId {}", userId, request.clientOrderId());
@@ -90,6 +100,18 @@ public class OrderCommandService {
         if (!userId.equals(order.getUserId())) {
             throw OpenServiceException.of(OrderErrorCode.ORDER_NOT_OWNED,
                     "Order does not belong to current user. orderId=" + order.getOrderId());
+        }
+    }
+
+    private PositionIntentType determineIntent(Long userId, OrderCreateRequest request) {
+        try {
+            PositionIntentResponse response = exchangePositionClient.determineIntent(
+                    new PositionIntentRequest(userId, request.instrumentId(), request.side(), request.quantity())
+            ).data();
+            return response != null ? response.intentType() : PositionIntentType.INCREASE;
+        } catch (Exception ex) {
+            log.warn("Fallback to INCREASE intent for user {} instrument {} due to {}", userId, request.instrumentId(), ex.getMessage());
+            return PositionIntentType.INCREASE;
         }
     }
 

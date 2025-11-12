@@ -233,6 +233,21 @@
                 <artifactId>exchange-order-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-position-sdk-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-position-sdk-rest-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-position-sdk-mq</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

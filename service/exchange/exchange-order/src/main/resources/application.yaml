@@ -22,3 +22,5 @@ open:
         topics:
           order-submitted: order.submitted
           order-cancel-requested: order.cancel-requested
+      position:
+        consumer-group: exchange-order-position

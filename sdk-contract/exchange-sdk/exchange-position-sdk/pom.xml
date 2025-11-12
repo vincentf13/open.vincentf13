@@ -6,23 +6,20 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>service</artifactId>
+        <artifactId>exchange-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>open.vincentf13.exchange</groupId>
-    <artifactId>exchange</artifactId>
+    <artifactId>exchange-position-sdk</artifactId>
     <packaging>pom</packaging>
 
-    <name>exchange</name>
-    <description>Exchange service aggregation</description>
+    <name>exchange-position-sdk</name>
+    <description>Positions service contracts</description>
 
     <modules>
-        <module>exchange-gateway</module>
-        <module>exchange-auth</module>
-        <module>exchange-user</module>
-        <module>exchange-order</module>
-        <module>exchange-position</module>
+        <module>exchange-position-sdk-rest-api</module>
+        <module>exchange-position-sdk-rest-client</module>
+        <module>exchange-position-sdk-mq</module>
     </modules>
 </project>

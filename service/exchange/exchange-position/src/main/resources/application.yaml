@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: exchange-position
+exchange:
+  position:
+    reserve:
+      consumer-group: exchange-position-reserve
