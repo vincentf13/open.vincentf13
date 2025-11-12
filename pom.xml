@@ -248,6 +248,21 @@
                 <artifactId>exchange-position-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-risk-margin-sdk-mq</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-account-ledger-sdk-mq</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-matching-sdk-mq</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
