@@ -12,9 +12,9 @@ import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderResponse;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -34,24 +34,26 @@ public class OrderApplicationService {
 
     public OrderResponse createOrder(OrderCreateRequest request) {
         Long userId = currentUserId();
-        OrderCreationResult result = transactionTemplate.execute(status -> {
-            Optional<Order> duplicated = findExistingOrder(userId, request.clientOrderId());
-            if (duplicated.isPresent()) {
-                log.info("Idempotent hit for user {} clientOrderId {}", userId, request.clientOrderId());
-                return OrderCreationResult.existing(duplicated.get());
-            }
-            Order order = orderDomainService.createNewOrder(userId, request);
-            orderRepository.insert(order);
-            return OrderCreationResult.created(order);
-        });
+        try {
+            Order order = transactionTemplate.execute(status -> {
+                Order entity = orderDomainService.createNewOrder(userId, request);
+                orderRepository.insert(entity);
+                return entity;
+            });
 
-        if (result == null) {
-            throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT, "Order creation returned null result");
+            if (order == null) {
+                throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT, "Order creation returned null result");
+            }
+
+            orderEventPublisher.publishOrderSubmitted(order);
+            return orderAssembler.toResponse(order);
+        } catch (DuplicateKeyException ex) {
+            log.info("Duplicate order insert for user {} clientOrderId {}", userId, request.clientOrderId());
+            return orderRepository.findByUserIdAndClientOrderId(userId, request.clientOrderId())
+                    .map(orderAssembler::toResponse)
+                    .orElseThrow(() -> OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                            "Duplicate order detected but existing record not found"));
         }
-        if (result.created()) {
-            orderEventPublisher.publishOrderSubmitted(result.order());
-        }
-        return orderAssembler.toResponse(result.order());
     }
 
     public void requestCancel(Long orderId) {
@@ -79,13 +81,6 @@ public class OrderApplicationService {
         orderEventPublisher.publishOrderCancelRequested(result.order(), result.requestedAt(), USER_CANCEL_REASON);
     }
 
-    private Optional<Order> findExistingOrder(Long userId, String clientOrderId) {
-        if (!StringUtils.hasText(clientOrderId)) {
-            return Optional.empty();
-        }
-        return orderRepository.findByUserIdAndClientOrderId(userId, clientOrderId.trim());
-    }
-
     private Long currentUserId() {
         return OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
                 OpenServiceException.of(OrderErrorCode.ORDER_NOT_FOUND, "No authenticated user context"));
@@ -95,16 +90,6 @@ public class OrderApplicationService {
         if (!userId.equals(order.getUserId())) {
             throw OpenServiceException.of(OrderErrorCode.ORDER_NOT_OWNED,
                     "Order does not belong to current user. id=" + order.getId());
-        }
-    }
-
-    private record OrderCreationResult(Order order, boolean created) {
-        static OrderCreationResult created(Order order) {
-            return new OrderCreationResult(order, true);
-        }
-
-        static OrderCreationResult existing(Order order) {
-            return new OrderCreationResult(order, false);
         }
     }
 
