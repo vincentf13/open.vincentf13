@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.messaging;
+package open.vincentf13.exchange.order.infra.messaging.event;
 
 import java.time.Instant;
 

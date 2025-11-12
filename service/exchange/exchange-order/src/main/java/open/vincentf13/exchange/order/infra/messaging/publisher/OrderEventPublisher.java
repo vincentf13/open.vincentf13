@@ -1,12 +1,12 @@
-package open.vincentf13.exchange.order.service;
+package open.vincentf13.exchange.order.infra.messaging.publisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.config.OrderEventTopicsProperties;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.domain.model.OrderEventType;
-import open.vincentf13.exchange.order.messaging.OrderCancelRequestedEvent;
-import open.vincentf13.exchange.order.messaging.OrderSubmittedEvent;
+import open.vincentf13.exchange.order.infra.messaging.event.OrderCancelRequestedEvent;
+import open.vincentf13.exchange.order.infra.messaging.event.OrderSubmittedEvent;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;

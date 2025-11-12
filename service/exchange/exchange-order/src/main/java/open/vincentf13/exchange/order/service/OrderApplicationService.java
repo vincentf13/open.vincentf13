@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.domain.model.OrderErrorCode;
 import open.vincentf13.exchange.order.domain.service.OrderDomainService;
+import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderResponse;
@@ -27,7 +28,6 @@ public class OrderApplicationService {
 
     private final OrderDomainService orderDomainService;
     private final OrderRepository orderRepository;
-    private final OrderEventService orderEventService;
     private final OrderEventPublisher orderEventPublisher;
     private final OrderAssembler orderAssembler;
     private final TransactionTemplate transactionTemplate;
@@ -42,8 +42,6 @@ public class OrderApplicationService {
             }
             Order order = orderDomainService.createNewOrder(userId, request);
             orderRepository.insert(order);
-            orderEventService.recordOrderCreated(order);
-            orderEventService.recordOrderSubmitted(order);
             return OrderCreationResult.created(order);
         });
 
@@ -73,7 +71,6 @@ public class OrderApplicationService {
             }
             order.markStatus(OrderStatus.CANCEL_REQUESTED, now);
             order.incrementVersion();
-            orderEventService.recordOrderCancelRequested(order, now, USER_CANCEL_REASON);
             return new CancelResult(order, now);
         });
         if (result == null) {
