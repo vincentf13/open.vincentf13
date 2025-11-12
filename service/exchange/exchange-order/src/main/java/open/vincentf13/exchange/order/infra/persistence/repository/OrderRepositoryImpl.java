@@ -69,4 +69,21 @@ public class OrderRepositoryImpl implements OrderRepository {
                 .build();
         return mapper.updateSelective(record) > 0;
     }
+
+    @Override
+    public boolean updateAfterTrade(Order order, Instant updatedAt, int expectedVersion) {
+        OrderPO record = OrderPO.builder()
+                .orderId(order.getOrderId())
+                .userId(order.getUserId())
+                .status(order.getStatus())
+                .filledQuantity(order.getFilledQuantity())
+                .remainingQuantity(order.getRemainingQuantity())
+                .avgFillPrice(order.getAvgFillPrice())
+                .fee(order.getFee())
+                .updatedAt(updatedAt)
+                .version(expectedVersion + 1)
+                .expectedVersion(expectedVersion)
+                .build();
+        return mapper.updateSelective(record) > 0;
+    }
 }

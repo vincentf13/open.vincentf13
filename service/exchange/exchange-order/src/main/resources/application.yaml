@@ -25,3 +25,5 @@ open:
           consumer-group: exchange-order-ledger
         risk:
           consumer-group: exchange-order-risk
+        matching:
+          consumer-group: exchange-order-matching

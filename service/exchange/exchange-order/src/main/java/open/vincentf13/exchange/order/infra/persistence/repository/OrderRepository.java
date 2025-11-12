@@ -15,4 +15,6 @@ public interface OrderRepository {
     Optional<Order> findByUserIdAndClientOrderId(Long userId, String clientOrderId);
 
     boolean updateStatus(Long orderId, Long userId, OrderStatus status, Instant updatedAt, int expectedVersion);
+
+    boolean updateAfterTrade(Order order, Instant updatedAt, int expectedVersion);
 }
