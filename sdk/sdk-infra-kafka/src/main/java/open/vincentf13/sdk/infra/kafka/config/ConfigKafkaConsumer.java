@@ -55,7 +55,8 @@ public class ConfigKafkaConsumer {
         BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) ->new TopicPartition(record.topic() + ".DLT", record.partition());
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
 
-        // 創建 DefaultErrorHandler，設置重試次數和間隔
+        // 設置重試次數和間隔
+        // listener 方法裡未捕捉的 runtime / checked exception 都會重試
         // 此處配置為重試 2 次，每次間隔 1 秒。之後再發送到 DLQ。
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2));
 
