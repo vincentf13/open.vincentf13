@@ -41,13 +41,13 @@ public class ConfigKafkaConsumer {
      */
     @Bean
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+    public ConcurrentKafkaListenerContainerFactory<Object, Object> kafkaListenerContainerFactory(
             ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
-            ConsumerFactory<String, Object>  consumerFactory,
+            ConsumerFactory<Object, Object>  consumerFactory,
             KafkaTemplate<String, Object> kafkaTemplate,
             KafkaProperties kafkaProperties) {
 
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         // 套用 spring.kafka.listener.* 與 spring.kafka.consumer.* 配置
         configurer.configure(factory, consumerFactory);
 
