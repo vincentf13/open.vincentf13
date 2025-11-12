@@ -44,12 +44,13 @@ public class OrderCommandService {
             PositionIntentType intentType = determineIntent(userId, request);
 
             transactionTemplate.executeWithoutResult(status -> {
-                orderRepository.insert(order);
                 if (intentType != null && intentType.requiresPositionReservation()) {
                     orderEventPublisher.publishPositionReserveRequested(order, intentType);
                 } else {
+                    markSubmitted(order);
                     orderEventPublisher.publishOrderSubmitted(order);
                 }
+                  orderRepository.insert(order);
             });
 
             return OpenMapstruct.map(order, OrderResponse.class);
@@ -117,4 +118,10 @@ public class OrderCommandService {
     }
 
     private record CancelResult(Order order, Instant requestedAt) { }
+
+    private void markSubmitted(Order order) {
+        Instant now = Instant.now();
+        order.markStatus(OrderStatus.SUBMITTED, now);
+        order.incrementVersion();
+    }
 }

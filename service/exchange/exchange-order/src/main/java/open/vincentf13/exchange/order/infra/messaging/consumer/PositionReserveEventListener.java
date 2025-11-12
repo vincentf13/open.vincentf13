@@ -63,14 +63,14 @@ public class PositionReserveEventListener {
 
     private void handleReservationSuccess(Order order, PositionReservedEvent event) {
         Instant now = Instant.now();
-        boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.ACCEPTED, now,
+        boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.SUBMITTED, now,
                 Optional.ofNullable(order.getVersion()).orElse(0));
         if (!updated) {
             OpenLog.warn(log, "OrderStatusConflict", "Failed to update order status on position reserve", null,
                     "orderId", order.getOrderId());
             return;
         }
-        order.markStatus(OrderStatus.ACCEPTED, now);
+        order.markStatus(OrderStatus.SUBMITTED, now);
         order.incrementVersion();
         orderEventPublisher.publishOrderSubmitted(order);
         OpenLog.info(log, "OrderPositionReserved", "Position reserved for order", "orderId", order.getOrderId());
