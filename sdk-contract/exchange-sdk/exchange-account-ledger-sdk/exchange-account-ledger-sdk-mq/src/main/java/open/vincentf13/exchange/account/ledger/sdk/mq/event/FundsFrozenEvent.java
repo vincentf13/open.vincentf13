@@ -1,10 +1,7 @@
-package open.vincentf13.exchange.order.infra.messaging.event;
+package open.vincentf13.exchange.account.ledger.sdk.mq.event;
 
 import java.math.BigDecimal;
 
-/**
- * Emitted by ledger when funds for an order are successfully frozen.
- */
 public record FundsFrozenEvent(
         Long orderId,
         Long userId,

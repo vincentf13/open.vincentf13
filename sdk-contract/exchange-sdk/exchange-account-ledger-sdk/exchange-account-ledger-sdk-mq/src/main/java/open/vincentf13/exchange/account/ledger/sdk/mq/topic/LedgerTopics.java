@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.infra.messaging.topic;
+package open.vincentf13.exchange.account.ledger.sdk.mq.topic;
 
 public interface LedgerTopics {
     String FUNDS_FROZEN = "ledger.funds-frozen";

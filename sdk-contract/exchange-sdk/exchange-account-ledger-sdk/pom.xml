@@ -6,24 +6,18 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>sdk-contract</artifactId>
+        <artifactId>exchange-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>exchange-sdk</artifactId>
+    <artifactId>exchange-account-ledger-sdk</artifactId>
     <packaging>pom</packaging>
 
-    <name>exchange-sdk</name>
-    <description>Exchange service API contracts and clients</description>
+    <name>exchange-account-ledger-sdk</name>
+    <description>Account-ledger service contracts</description>
 
     <modules>
-        <module>exchange-user-sdk</module>
-        <module>exchange-auth-sdk</module>
-        <module>exchange-order-sdk</module>
-        <module>exchange-position-sdk</module>
-        <module>exchange-account-ledger-sdk</module>
-        <module>exchange-risk-margin-sdk</module>
-        <module>exchange-matching-sdk</module>
+        <module>exchange-account-ledger-sdk-mq</module>
     </modules>
 </project>

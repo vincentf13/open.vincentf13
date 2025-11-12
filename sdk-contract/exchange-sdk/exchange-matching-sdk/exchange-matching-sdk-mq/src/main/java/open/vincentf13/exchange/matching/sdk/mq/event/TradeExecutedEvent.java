@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.infra.messaging.event;
+package open.vincentf13.exchange.matching.sdk.mq.event;
 
 import java.math.BigDecimal;
 import java.time.Instant;
