@@ -19,5 +19,9 @@ open:
       mapper-base-packages: open.vincentf13.exchange.order.infra.persistence.mapper
     exchange:
       order:
-      position:
-        consumer-group: exchange-order-position
+        position:
+          consumer-group: exchange-order-position
+        ledger:
+          consumer-group: exchange-order-ledger
+        risk:
+          consumer-group: exchange-order-risk
