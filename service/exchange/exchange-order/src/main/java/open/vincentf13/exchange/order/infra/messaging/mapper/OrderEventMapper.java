@@ -12,9 +12,9 @@ import java.time.Instant;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface OrderEventMapper {
 
-    @Mapping(source = "id", target = "orderId")
+    @Mapping(source = "order.id", target = "orderId")
     OrderSubmittedEvent toOrderSubmittedEvent(Order order);
 
-    @Mapping(source = "id", target = "orderId")
+    @Mapping(source = "order.id", target = "orderId")
     OrderCancelRequestedEvent toOrderCancelRequestedEvent(Order order, Instant requestedAt, String reason);
 }

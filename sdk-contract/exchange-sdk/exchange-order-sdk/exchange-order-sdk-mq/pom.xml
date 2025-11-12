@@ -19,7 +19,6 @@
         <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>exchange-order-sdk-rest-api</artifactId>
-            <version>${project.version}</version>
         </dependency>
     </dependencies>
 </project>
