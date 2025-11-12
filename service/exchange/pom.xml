@@ -22,5 +22,6 @@
         <module>exchange-gateway</module>
         <module>exchange-auth</module>
         <module>exchange-user</module>
+        <module>exchange-order</module>
     </modules>
 </project>

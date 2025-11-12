@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: exchange-order
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+
+mybatis:
+  type-aliases-package: open.vincentf13.exchange.order.infra.persistence.po
+
+open:
+  vincentf13:
+    id-generator:
+      snowflake:
+        worker-id: 3
+    mybatis:
+      mapper-base-packages: open.vincentf13.exchange.order.infra.persistence.mapper
+    exchange:
+      order:
+        topics:
+          order-submitted: order.submitted
+          order-cancel-requested: order.cancel-requested

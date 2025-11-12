@@ -6,20 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>sdk-contract</artifactId>
+        <artifactId>exchange-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>exchange-sdk</artifactId>
+    <artifactId>exchange-order-sdk</artifactId>
     <packaging>pom</packaging>
 
-    <name>exchange-sdk</name>
-    <description>Exchange service API contracts and clients</description>
+    <name>exchange-order-sdk</name>
+    <description>Order service API contract and client aggregation</description>
 
     <modules>
-        <module>exchange-user-sdk</module>
-        <module>exchange-auth-sdk</module>
-        <module>exchange-order-sdk</module>
+        <module>exchange-order-sdk-rest-api</module>
+        <module>exchange-order-sdk-rest-client</module>
     </modules>
 </project>
