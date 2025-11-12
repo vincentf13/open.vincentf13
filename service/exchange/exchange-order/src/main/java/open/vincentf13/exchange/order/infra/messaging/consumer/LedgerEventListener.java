@@ -66,12 +66,13 @@ public class LedgerEventListener {
         Instant now = Instant.now();
         int currentVersion = Optional.ofNullable(order.getVersion()).orElse(0);
         boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.ACCEPTED,
-                now, currentVersion);
+                now, currentVersion, now, null);
         if (!updated) {
             log.warn("Optimistic lock conflict while marking order accepted. orderId={}", order.getOrderId());
             return;
         }
         order.markStatus(OrderStatus.ACCEPTED, now);
+        order.setSubmittedAt(now);
         order.incrementVersion();
         orderEventPublisher.publishOrderCreated(order, event.asset(), event.frozenAmount());
         log.info("Order marked ACCEPTED after funds frozen. orderId={} asset={} amount={}",

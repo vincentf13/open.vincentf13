@@ -14,7 +14,12 @@ public interface OrderRepository {
 
     Optional<Order> findByUserIdAndClientOrderId(Long userId, String clientOrderId);
 
-    boolean updateStatus(Long orderId, Long userId, OrderStatus status, Instant updatedAt, int expectedVersion);
+    default boolean updateStatus(Long orderId, Long userId, OrderStatus status, Instant updatedAt, int expectedVersion) {
+        return updateStatus(orderId, userId, status, updatedAt, expectedVersion, null, null);
+    }
+
+    boolean updateStatus(Long orderId, Long userId, OrderStatus status, Instant updatedAt,
+                         int expectedVersion, Instant submittedAt, Instant filledAt);
 
     boolean updateAfterTrade(Order order, Instant updatedAt, int expectedVersion);
 }

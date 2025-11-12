@@ -37,4 +37,6 @@ public class OrderPO {
     private Integer expectedVersion;
     private Instant createdAt;
     private Instant updatedAt;
+    private Instant submittedAt;
+    private Instant filledAt;
 }

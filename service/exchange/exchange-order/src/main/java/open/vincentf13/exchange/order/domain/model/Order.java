@@ -38,6 +38,8 @@ public class Order {
     private Integer version;
     private Instant createdAt;
     private Instant updatedAt;
+    private Instant submittedAt;
+    private Instant filledAt;
 
     public void markStatus(OrderStatus newStatus, Instant updatedAt) {
         this.status = newStatus;
@@ -75,6 +77,9 @@ public class Order {
         this.fee = updatedFee;
         this.updatedAt = now;
         this.status = remaining.signum() == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL_FILLED;
+        if (this.status == OrderStatus.FILLED && this.filledAt == null) {
+            this.filledAt = now;
+        }
     }
 
     private static BigDecimal normalize(BigDecimal value) {

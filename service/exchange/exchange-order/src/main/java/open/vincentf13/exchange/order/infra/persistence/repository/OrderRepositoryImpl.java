@@ -58,12 +58,14 @@ public class OrderRepositoryImpl implements OrderRepository {
 
     @Override
     public boolean updateStatus(Long orderId, Long userId, OrderStatus status,
-                                Instant updatedAt, int expectedVersion) {
+                                Instant updatedAt, int expectedVersion, Instant submittedAt, Instant filledAt) {
         OrderPO record = OrderPO.builder()
                 .orderId(orderId)
                 .userId(userId)
                 .status(status)
                 .updatedAt(updatedAt)
+                .submittedAt(submittedAt)
+                .filledAt(filledAt)
                 .version(expectedVersion + 1)
                 .expectedVersion(expectedVersion)
                 .build();
@@ -80,6 +82,7 @@ public class OrderRepositoryImpl implements OrderRepository {
                 .remainingQuantity(order.getRemainingQuantity())
                 .avgFillPrice(order.getAvgFillPrice())
                 .fee(order.getFee())
+                .filledAt(order.getFilledAt())
                 .updatedAt(updatedAt)
                 .version(expectedVersion + 1)
                 .expectedVersion(expectedVersion)

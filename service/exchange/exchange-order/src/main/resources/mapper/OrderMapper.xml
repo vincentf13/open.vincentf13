@@ -24,6 +24,8 @@
         <result property="version" column="version" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
+        <result property="submittedAt" column="submitted_at" />
+        <result property="filledAt" column="filled_at" />
     </resultMap>
 
     <insert id="insertSelective" parameterType="open.vincentf13.exchange.order.infra.persistence.po.OrderPO">
@@ -48,6 +50,8 @@
             <if test="version != null">version,</if>
             <if test="createdAt != null">created_at,</if>
             <if test="updatedAt != null">updated_at,</if>
+            <if test="submittedAt != null">submitted_at,</if>
+            <if test="filledAt != null">filled_at,</if>
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -70,6 +74,8 @@
             <if test="version != null">#{version},</if>
             <if test="createdAt != null">#{createdAt},</if>
             <if test="updatedAt != null">#{updatedAt},</if>
+            <if test="submittedAt != null">#{submittedAt},</if>
+            <if test="filledAt != null">#{filledAt},</if>
         </trim>
     </insert>
 
@@ -93,7 +99,9 @@
             source,
             version,
             created_at,
-            updated_at
+            updated_at,
+            submitted_at,
+            filled_at
         FROM orders
         <where>
             <if test="orderId != null">AND order_id = #{orderId}</if>
@@ -122,6 +130,8 @@
             <if test="source != null">source = #{source},</if>
             <if test="version != null">version = #{version},</if>
             <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+            <if test="submittedAt != null">submitted_at = #{submittedAt},</if>
+            <if test="filledAt != null">filled_at = #{filledAt},</if>
         </set>
         <where>
             <if test="orderId != null">AND order_id = #{orderId}</if>
