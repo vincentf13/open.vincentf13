@@ -60,6 +60,7 @@ public class ConfigKafkaConsumer {
 
         // 設置重試次數和間隔
         // listener 方法裡未捕捉的 runtime / checked exception 都會重試
+        // 重試耗盡後 DeadLetterPublishingRecoverer 把原訊息送到 <topic>.DLT，Recoverer 成功回傳後 DefaultErrorHandler 才告知容器「這筆已處理完成」，容器再提交原 Topic 的 offset。
         // 此處配置為重試 2 次，每次間隔 1 秒。之後再發送到 DLQ。
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2));
 

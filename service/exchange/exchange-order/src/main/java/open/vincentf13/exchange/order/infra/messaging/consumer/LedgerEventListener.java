@@ -34,21 +34,19 @@ public class LedgerEventListener {
             groupId = "${open.vincentf13.exchange.order.ledger.consumer-group:exchange-order-ledger}"
     )
     public void onFundsFrozen(@Payload FundsFrozenEvent event, Acknowledgment acknowledgment) {
-        try {
-            if (event == null || event.orderId() == null) {
+        if (event == null || event.orderId() == null) {
+            acknowledgment.acknowledge();
+            return;
+        }
+        transactionTemplate.executeWithoutResult(status -> {
+            Optional<Order> optional = orderRepository.findById(event.orderId());
+            if (optional.isEmpty()) {
+                log.warn("Skip funds frozen event, order not found. orderId={}", event.orderId());
                 return;
             }
-            transactionTemplate.executeWithoutResult(status -> {
-                Optional<Order> optional = orderRepository.findById(event.orderId());
-                if (optional.isEmpty()) {
-                    log.warn("Skip funds frozen event, order not found. orderId={}", event.orderId());
-                    return;
-                }
-                handleFundsFrozen(optional.get(), event);
-            });
-        } finally {
-            acknowledgment.acknowledge();
-        }
+            handleFundsFrozen(optional.get(), event);
+        });
+        acknowledgment.acknowledge();
     }
 
     @KafkaListener(
@@ -56,14 +54,12 @@ public class LedgerEventListener {
             groupId = "${open.vincentf13.exchange.order.ledger.consumer-group:exchange-order-ledger}"
     )
     public void onFundsFreezeFailed(@Payload FundsFreezeFailedEvent event, Acknowledgment acknowledgment) {
-        try {
-            if (event == null || event.orderId() == null) {
-                return;
-            }
-            orderFailureHandler.markFailed(event.orderId(), "LEDGER_REJECT", event.reason());
-        } finally {
+        if (event == null || event.orderId() == null) {
             acknowledgment.acknowledge();
+            return;
         }
+        orderFailureHandler.markFailed(event.orderId(), "LEDGER_REJECT", event.reason());
+        acknowledgment.acknowledge();
     }
 
     private void handleFundsFrozen(Order order, FundsFrozenEvent event) {

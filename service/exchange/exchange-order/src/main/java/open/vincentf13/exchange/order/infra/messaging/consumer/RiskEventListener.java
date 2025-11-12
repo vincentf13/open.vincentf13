@@ -20,13 +20,11 @@ public class RiskEventListener {
             groupId = "${open.vincentf13.exchange.order.risk.consumer-group:exchange-order-risk}"
     )
     public void onMarginPreCheckFailed(@Payload MarginPreCheckFailedEvent event, Acknowledgment acknowledgment) {
-        try {
-            if (event == null || event.orderId() == null) {
-                return;
-            }
-            orderFailureHandler.markFailed(event.orderId(), "RISK_REJECT", event.reason());
-        } finally {
+        if (event == null || event.orderId() == null) {
             acknowledgment.acknowledge();
+            return;
         }
+        orderFailureHandler.markFailed(event.orderId(), "RISK_REJECT", event.reason());
+        acknowledgment.acknowledge();
     }
 }

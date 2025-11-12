@@ -30,18 +30,16 @@ public class TradeExecutedEventListener {
             groupId = "${open.vincentf13.exchange.order.matching.consumer-group:exchange-order-matching}"
     )
     public void onTradeExecuted(@Payload TradeExecutedEvent event, Acknowledgment acknowledgment) {
-        try {
-            if (!isValid(event)) {
-                return;
-            }
-            transactionTemplate.executeWithoutResult(status ->
-                    orderRepository.findById(event.orderId())
-                            .ifPresentOrElse(order -> handleTrade(order, event),
-                                    () -> log.warn("Skip TradeExecuted, order not found. orderId={} tradeId={}",
-                                            event.orderId(), event.tradeId())));
-        } finally {
+        if (!isValid(event)) {
             acknowledgment.acknowledge();
+            return;
         }
+        transactionTemplate.executeWithoutResult(status ->
+                orderRepository.findById(event.orderId())
+                        .ifPresentOrElse(order -> handleTrade(order, event),
+                                () -> log.warn("Skip TradeExecuted, order not found. orderId={} tradeId={}",
+                                        event.orderId(), event.tradeId())));
+        acknowledgment.acknowledge();
     }
 
     private boolean isValid(TradeExecutedEvent event) {
