@@ -4,10 +4,9 @@ import java.math.BigDecimal;
 
 public record PositionIntentResponse(
         PositionIntentType intentType,
-        BigDecimal existingQuantity,
-        boolean requiresPositionReservation
+        BigDecimal existingQuantity
 ) {
     public static PositionIntentResponse of(PositionIntentType type, BigDecimal quantity) {
-        return new PositionIntentResponse(type, quantity, type != null && type.requiresPositionReservation());
+        return new PositionIntentResponse(type, quantity);
     }
 }

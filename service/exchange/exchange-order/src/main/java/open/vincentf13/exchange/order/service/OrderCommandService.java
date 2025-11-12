@@ -40,22 +40,18 @@ public class OrderCommandService {
     public OrderResponse createOrder(OrderCreateRequest request) {
         Long userId = currentUserId();
         try {
-            Order order = transactionTemplate.execute(status -> {
-                Order entity = orderDomainService.createNewOrder(userId, request);
-                orderRepository.insert(entity);
-                return entity;
+            Order order = orderDomainService.createNewOrder(userId, request);
+            PositionIntentType intentType = determineIntent(userId, request);
+
+            transactionTemplate.execute(status -> {
+                orderRepository.insert(order);
+                if (intentType != null && intentType.requiresPositionReservation()) {
+                    orderEventPublisher.publishPositionReserveRequested(order, intentType);
+                } else {
+                    orderEventPublisher.publishOrderSubmitted(order);
+                }
             });
 
-            if (order == null) {
-                throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT, "Order creation returned null result");
-            }
-
-            PositionIntentType intentType = determineIntent(userId, request);
-            if (intentType != null && intentType.requiresPositionReservation()) {
-                orderEventPublisher.publishPositionReserveRequested(order, intentType);
-            } else {
-                orderEventPublisher.publishOrderSubmitted(order);
-            }
             return OpenMapstruct.map(order, OrderResponse.class);
         } catch (DuplicateKeyException ex) {
             log.info("Duplicate order insert for user {} clientOrderId {}", userId, request.clientOrderId());
@@ -108,10 +104,15 @@ public class OrderCommandService {
             PositionIntentResponse response = exchangePositionClient.determineIntent(
                     new PositionIntentRequest(userId, request.instrumentId(), request.side(), request.quantity())
             ).data();
-            return response != null ? response.intentType() : PositionIntentType.INCREASE;
+            if (response == null) {
+                log.warn("Position intent response is null for user {} instrument {}", userId, request.instrumentId());
+                throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                        "Unable to determine position intent due to null response");
+            }
+            return response.intentType();
         } catch (Exception ex) {
             log.warn("Fallback to INCREASE intent for user {} instrument {} due to {}", userId, request.instrumentId(), ex.getMessage());
-            return PositionIntentType.INCREASE;
+            throw ex;
         }
     }
 
