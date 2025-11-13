@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.order.infra.persistence.mapper.OrderEventMapper">
+
+    <resultMap id="OrderEventResultMap" type="open.vincentf13.exchange.order.infra.persistence.po.OrderEventPO">
+        <id property="eventId" column="event_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="instrumentId" column="instrument_id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="eventType" column="event_type"/>
+        <result property="sequenceNumber" column="sequence_number"/>
+        <result property="payload" column="payload"/>
+        <result property="referenceId" column="reference_id"/>
+        <result property="referenceType" column="reference_type"/>
+        <result property="actor" column="actor"/>
+        <result property="occurredAt" column="occurred_at"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="open.vincentf13.exchange.order.infra.persistence.po.OrderEventPO">
+        INSERT INTO order_events (
+            event_id,
+            user_id,
+            instrument_id,
+            order_id,
+            event_type,
+            sequence_number,
+            payload,
+            reference_type,
+            reference_id,
+            actor,
+            occurred_at,
+            created_at
+        ) VALUES (
+            #{eventId},
+            #{userId},
+            #{instrumentId},
+            #{orderId},
+            #{eventType},
+            #{sequenceNumber},
+            #{payload},
+            #{referenceType},
+            #{referenceId},
+            #{actor},
+            #{occurredAt},
+            #{createdAt}
+        )
+    </insert>
+
+    <select id="findByOrderId" parameterType="long" resultMap="OrderEventResultMap">
+        SELECT
+            event_id,
+            user_id,
+            instrument_id,
+            order_id,
+            event_type,
+            sequence_number,
+            payload,
+            reference_type,
+            reference_id,
+            actor,
+            occurred_at,
+            created_at
+        FROM order_events
+        WHERE order_id = #{orderId}
+        ORDER BY sequence_number ASC
+    </select>
+
+    <select id="nextSequence" parameterType="long" resultType="long">
+        SELECT COALESCE(MAX(sequence_number), 0) + 1
+        FROM order_events
+        WHERE order_id = #{orderId}
+        FOR UPDATE
+    </select>
+
+    <select id="countByReference" resultType="int">
+        SELECT COUNT(1)
+        FROM order_events
+        WHERE order_id = #{orderId}
+          <if test="referenceType != null">AND reference_type = #{referenceType}</if>
+          <if test="referenceType == null">AND reference_type IS NULL</if>
+          <if test="referenceId != null">AND reference_id = #{referenceId}</if>
+          <if test="referenceId == null">AND reference_id IS NULL</if>
+    </select>
+
+</mapper>
