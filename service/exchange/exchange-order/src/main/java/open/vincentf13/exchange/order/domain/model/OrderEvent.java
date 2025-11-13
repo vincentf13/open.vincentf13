@@ -12,7 +12,7 @@ public class OrderEvent {
     Long userId;
     Long instrumentId;
     Long orderId;
-    OrderEventType eventType;
+    String eventType;
     Long sequenceNumber;
     String payload;
     Long referenceId;

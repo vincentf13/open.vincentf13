@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.order.domain.model.OrderEventType;
 
 import java.time.Instant;
 
@@ -17,7 +16,7 @@ public class OrderEventPO {
     private Long userId;
     private Long instrumentId;
     private Long orderId;
-    private OrderEventType eventType;
+    private String eventType;
     private Long sequenceNumber;
     private String payload;
     private Long referenceId;
