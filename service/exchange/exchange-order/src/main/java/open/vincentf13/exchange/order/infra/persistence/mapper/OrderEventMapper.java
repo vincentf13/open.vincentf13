@@ -10,10 +10,4 @@ public interface OrderEventMapper {
     void insert(OrderEventPO event);
 
     List<OrderEventPO> findByOrderId(@Param("orderId") Long orderId);
-
-    Long nextSequence(@Param("orderId") Long orderId);
-
-    Integer countByReference(@Param("orderId") Long orderId,
-                             @Param("referenceType") String referenceType,
-                             @Param("referenceId") Long referenceId);
 }

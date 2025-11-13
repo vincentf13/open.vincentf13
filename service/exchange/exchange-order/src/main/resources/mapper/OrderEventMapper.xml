@@ -26,7 +26,7 @@
             instrument_id,
             order_id,
             event_type,
-            sequence_number,
+            (SELECT COALESCE(MAX(sequence_number), 0) + 1 FROM order_events WHERE order_id = #{orderId} FOR UPDATE) AS sequence_number,
             payload,
             reference_type,
             reference_id,
@@ -66,23 +66,6 @@
         FROM order_events
         WHERE order_id = #{orderId}
         ORDER BY sequence_number ASC
-    </select>
-
-    <select id="nextSequence" parameterType="long" resultType="long">
-        SELECT COALESCE(MAX(sequence_number), 0) + 1
-        FROM order_events
-        WHERE order_id = #{orderId}
-        FOR UPDATE
-    </select>
-
-    <select id="countByReference" resultType="int">
-        SELECT COUNT(1)
-        FROM order_events
-        WHERE order_id = #{orderId}
-          <if test="referenceType != null">AND reference_type = #{referenceType}</if>
-          <if test="referenceType == null">AND reference_type IS NULL</if>
-          <if test="referenceId != null">AND reference_id = #{referenceId}</if>
-          <if test="referenceId == null">AND reference_id IS NULL</if>
     </select>
 
 </mapper>

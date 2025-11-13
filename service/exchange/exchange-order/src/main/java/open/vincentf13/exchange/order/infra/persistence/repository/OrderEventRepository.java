@@ -10,7 +10,4 @@ public interface OrderEventRepository {
 
     List<OrderEvent> findByOrderId(Long orderId);
 
-    long nextSequence(Long orderId);
-
-    boolean existsByReference(Long orderId, String referenceType, Long referenceId);
 }
