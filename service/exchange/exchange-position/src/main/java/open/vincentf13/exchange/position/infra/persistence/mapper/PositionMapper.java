@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 
 public interface PositionMapper {
 
-    PositionPO findActive(@Param("userId") Long userId, @Param("instrumentId") Long instrumentId);
+    PositionPO findBy(PositionPO condition);
 
     int reserveForClose(@Param("userId") Long userId,
                         @Param("instrumentId") Long instrumentId,

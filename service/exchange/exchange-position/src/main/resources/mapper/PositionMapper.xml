@@ -52,13 +52,17 @@
         closed_at
     </sql>
 
-    <select id="findActive" resultMap="PositionResultMap">
+    <select id="findBy" parameterType="open.vincentf13.exchange.position.infra.persistence.po.PositionPO" resultMap="PositionResultMap">
         SELECT
         <include refid="BaseColumns" />
         FROM positions
-        WHERE user_id = #{userId}
-          AND instrument_id = #{instrumentId}
-          AND status = 'ACTIVE'
+        <where>
+            <if test="positionId != null">AND position_id = #{positionId}</if>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+            <if test="side != null">AND side = #{side}</if>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
         ORDER BY updated_at DESC
         LIMIT 1
     </select>

@@ -22,7 +22,12 @@ public class PositionRepositoryImpl implements PositionRepository {
         if (userId == null || instrumentId == null) {
             return Optional.empty();
         }
-        PositionPO po = mapper.findActive(userId, instrumentId);
+        PositionPO condition = PositionPO.builder()
+                .userId(userId)
+                .instrumentId(instrumentId)
+                .status("ACTIVE")
+                .build();
+        PositionPO po = mapper.findBy(condition);
         return Optional.ofNullable(OpenMapstruct.map(po, Position.class));
     }
 
