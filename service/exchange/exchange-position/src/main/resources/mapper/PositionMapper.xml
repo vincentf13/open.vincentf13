@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper">
+
+    <resultMap id="PositionResultMap" type="open.vincentf13.exchange.position.infra.persistence.po.PositionPO">
+        <id property="positionId" column="position_id" />
+        <result property="userId" column="user_id" />
+        <result property="instrumentId" column="instrument_id" />
+        <result property="leverage" column="leverage" />
+        <result property="margin" column="margin" />
+        <result property="side" column="side" />
+        <result property="entryPrice" column="entry_price" />
+        <result property="quantity" column="quantity" />
+        <result property="closingReservedQuantity" column="closing_reserved_quantity" />
+        <result property="markPrice" column="mark_price" />
+        <result property="marginRatio" column="margin_ratio" />
+        <result property="unrealizedPnl" column="unrealized_pnl" />
+        <result property="realizedPnl" column="realized_pnl" />
+        <result property="liquidationPrice" column="liquidation_price" />
+        <result property="bankruptcyPrice" column="bankruptcy_price" />
+        <result property="status" column="status" />
+        <result property="lastTradeId" column="last_trade_id" />
+        <result property="version" column="version" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+        <result property="closedAt" column="closed_at" />
+    </resultMap>
+
+    <sql id="BaseColumns">
+        position_id,
+        user_id,
+        instrument_id,
+        leverage,
+        margin,
+        side,
+        entry_price,
+        quantity,
+        closing_reserved_quantity,
+        mark_price,
+        margin_ratio,
+        unrealized_pnl,
+        realized_pnl,
+        liquidation_price,
+        bankruptcy_price,
+        status,
+        last_trade_id,
+        version,
+        created_at,
+        updated_at,
+        closed_at
+    </sql>
+
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.position.infra.persistence.po.PositionPO">
+        INSERT INTO positions
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="positionId != null">position_id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="instrumentId != null">instrument_id,</if>
+            <if test="leverage != null">leverage,</if>
+            <if test="margin != null">margin,</if>
+            <if test="side != null">side,</if>
+            <if test="entryPrice != null">entry_price,</if>
+            <if test="quantity != null">quantity,</if>
+            <if test="closingReservedQuantity != null">closing_reserved_quantity,</if>
+            <if test="markPrice != null">mark_price,</if>
+            <if test="marginRatio != null">margin_ratio,</if>
+            <if test="unrealizedPnl != null">unrealized_pnl,</if>
+            <if test="realizedPnl != null">realized_pnl,</if>
+            <if test="liquidationPrice != null">liquidation_price,</if>
+            <if test="bankruptcyPrice != null">bankruptcy_price,</if>
+            <if test="status != null">status,</if>
+            <if test="lastTradeId != null">last_trade_id,</if>
+            <if test="version != null">version,</if>
+            <if test="createdAt != null">created_at,</if>
+            <if test="updatedAt != null">updated_at,</if>
+            <if test="closedAt != null">closed_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="positionId != null">#{positionId},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="instrumentId != null">#{instrumentId},</if>
+            <if test="leverage != null">#{leverage},</if>
+            <if test="margin != null">#{margin},</if>
+            <if test="side != null">#{side},</if>
+            <if test="entryPrice != null">#{entryPrice},</if>
+            <if test="quantity != null">#{quantity},</if>
+            <if test="closingReservedQuantity != null">#{closingReservedQuantity},</if>
+            <if test="markPrice != null">#{markPrice},</if>
+            <if test="marginRatio != null">#{marginRatio},</if>
+            <if test="unrealizedPnl != null">#{unrealizedPnl},</if>
+            <if test="realizedPnl != null">#{realizedPnl},</if>
+            <if test="liquidationPrice != null">#{liquidationPrice},</if>
+            <if test="bankruptcyPrice != null">#{bankruptcyPrice},</if>
+            <if test="status != null">#{status},</if>
+            <if test="lastTradeId != null">#{lastTradeId},</if>
+            <if test="version != null">#{version},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+            <if test="updatedAt != null">#{updatedAt},</if>
+            <if test="closedAt != null">#{closedAt},</if>
+        </trim>
+    </insert>
+
+    <update id="updateSelective" parameterType="open.vincentf13.exchange.position.infra.persistence.po.PositionPO">
+        UPDATE positions
+        <set>
+            <if test="leverage != null">leverage = #{leverage},</if>
+            <if test="margin != null">margin = #{margin},</if>
+            <if test="side != null">side = #{side},</if>
+            <if test="entryPrice != null">entry_price = #{entryPrice},</if>
+            <if test="quantity != null">quantity = #{quantity},</if>
+            <if test="closingReservedQuantity != null">closing_reserved_quantity = #{closingReservedQuantity},</if>
+            <if test="markPrice != null">mark_price = #{markPrice},</if>
+            <if test="marginRatio != null">margin_ratio = #{marginRatio},</if>
+            <if test="unrealizedPnl != null">unrealized_pnl = #{unrealizedPnl},</if>
+            <if test="realizedPnl != null">realized_pnl = #{realizedPnl},</if>
+            <if test="liquidationPrice != null">liquidation_price = #{liquidationPrice},</if>
+            <if test="bankruptcyPrice != null">bankruptcy_price = #{bankruptcyPrice},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="lastTradeId != null">last_trade_id = #{lastTradeId},</if>
+            <if test="version != null">version = #{version},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+            <if test="closedAt != null">closed_at = #{closedAt},</if>
+        </set>
+        <where>
+            <if test="positionId != null">AND position_id = #{positionId}</if>
+            <if test="expectedVersion != null">AND version = #{expectedVersion}</if>
+        </where>
+    </update>
+
+    <select id="findActive" resultMap="PositionResultMap">
+        SELECT
+        <include refid="BaseColumns" />
+        FROM positions
+        WHERE user_id = #{userId}
+          AND instrument_id = #{instrumentId}
+          AND status = 'ACTIVE'
+        ORDER BY updated_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="findByUser" resultMap="PositionResultMap">
+        SELECT
+        <include refid="BaseColumns" />
+        FROM positions
+        WHERE user_id = #{userId}
+          AND status = 'ACTIVE'
+        ORDER BY updated_at DESC
+    </select>
+
+    <update id="reserveForClose">
+        UPDATE positions
+        SET closing_reserved_quantity = closing_reserved_quantity + #{quantity},
+            version = version + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+          AND instrument_id = #{instrumentId}
+          AND side = #{side}
+          AND status = 'ACTIVE'
+          AND (quantity - closing_reserved_quantity) >= #{quantity}
+    </update>
+
+    <update id="releaseReserve">
+        UPDATE positions
+        SET closing_reserved_quantity = GREATEST(closing_reserved_quantity - #{quantity}, 0),
+            version = version + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+          AND instrument_id = #{instrumentId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <insert id="upsertDemo" parameterType="open.vincentf13.exchange.position.infra.persistence.po.PositionPO">
+        INSERT INTO positions (
+            position_id,
+            user_id,
+            instrument_id,
+            side,
+            leverage,
+            margin,
+            entry_price,
+            quantity,
+            closing_reserved_quantity,
+            mark_price,
+            margin_ratio,
+            unrealized_pnl,
+            realized_pnl,
+            liquidation_price,
+            bankruptcy_price,
+            status,
+            last_trade_id,
+            version,
+            created_at,
+            updated_at,
+            closed_at
+        ) VALUES (
+            #{positionId},
+            #{userId},
+            #{instrumentId},
+            #{side},
+            #{leverage},
+            #{margin},
+            #{entryPrice},
+            #{quantity},
+            #{closingReservedQuantity},
+            #{markPrice},
+            #{marginRatio},
+            #{unrealizedPnl},
+            #{realizedPnl},
+            #{liquidationPrice},
+            #{bankruptcyPrice},
+            #{status},
+            #{lastTradeId},
+            #{version},
+            #{createdAt},
+            #{updatedAt},
+            #{closedAt}
+        )
+        ON DUPLICATE KEY UPDATE
+            side = VALUES(side),
+            leverage = VALUES(leverage),
+            margin = VALUES(margin),
+            entry_price = VALUES(entry_price),
+            quantity = VALUES(quantity),
+            closing_reserved_quantity = VALUES(closing_reserved_quantity),
+            mark_price = VALUES(mark_price),
+            margin_ratio = VALUES(margin_ratio),
+            unrealized_pnl = VALUES(unrealized_pnl),
+            realized_pnl = VALUES(realized_pnl),
+            liquidation_price = VALUES(liquidation_price),
+            bankruptcy_price = VALUES(bankruptcy_price),
+            status = VALUES(status),
+            last_trade_id = VALUES(last_trade_id),
+            updated_at = VALUES(updated_at),
+            version = VALUES(version),
+            closed_at = VALUES(closed_at)
+    </insert>
+</mapper>

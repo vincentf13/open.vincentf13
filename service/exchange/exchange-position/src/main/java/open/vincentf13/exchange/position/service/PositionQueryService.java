@@ -2,7 +2,7 @@ package open.vincentf13.exchange.position.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.domain.model.Position;
-import open.vincentf13.exchange.position.infra.repository.PositionRepository;
+import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;

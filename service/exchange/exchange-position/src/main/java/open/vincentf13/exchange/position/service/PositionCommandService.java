@@ -3,7 +3,7 @@ package open.vincentf13.exchange.position.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
-import open.vincentf13.exchange.position.infra.repository.PositionRepository;
+import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
