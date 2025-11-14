@@ -24,5 +24,6 @@
         <module>exchange-user</module>
         <module>exchange-order</module>
         <module>exchange-position</module>
+        <module>exchange-risk</module>
     </modules>
 </project>

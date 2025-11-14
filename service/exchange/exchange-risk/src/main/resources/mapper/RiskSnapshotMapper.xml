@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.risk.infra.persistence.mapper.RiskSnapshotMapper">
+
+    <resultMap id="RiskSnapshotResultMap" type="open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO">
+        <id property="snapshotId" column="id" />
+        <result property="userId" column="user_id" />
+        <result property="accountId" column="account_id" />
+        <result property="instrumentId" column="instrument_id" />
+        <result property="positionId" column="position_id" />
+        <result property="maintenanceMarginRate" column="maintenance_margin_rate" />
+        <result property="notionalValue" column="notional_value" />
+        <result property="usedMargin" column="used_margin" />
+        <result property="equity" column="equity" />
+        <result property="marginRatio" column="margin_ratio" />
+        <result property="liquidationPrice" column="liquidation_price" />
+        <result property="status" column="status" />
+        <result property="riskVersion" column="risk_version" />
+        <result property="snapshotSource" column="snapshot_source" />
+        <result property="snapshotAt" column="snapshot_at" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findByUserAndInstrument" resultMap="RiskSnapshotResultMap">
+        SELECT
+            id,
+            user_id,
+            account_id,
+            instrument_id,
+            position_id,
+            maintenance_margin_rate,
+            notional_value,
+            used_margin,
+            equity,
+            margin_ratio,
+            liquidation_price,
+            status,
+            risk_version,
+            snapshot_source,
+            snapshot_at,
+            created_at,
+            updated_at
+        FROM risk_snapshots
+        WHERE user_id = #{userId}
+          AND instrument_id = #{instrumentId}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO">
+        INSERT INTO risk_snapshots (
+            id,
+            user_id,
+            account_id,
+            instrument_id,
+            position_id,
+            maintenance_margin_rate,
+            notional_value,
+            used_margin,
+            equity,
+            margin_ratio,
+            liquidation_price,
+            status,
+            risk_version,
+            snapshot_source,
+            snapshot_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{snapshotId},
+            #{userId},
+            #{accountId},
+            #{instrumentId},
+            #{positionId},
+            #{maintenanceMarginRate},
+            #{notionalValue},
+            #{usedMargin},
+            #{equity},
+            #{marginRatio},
+            #{liquidationPrice},
+            #{status},
+            #{riskVersion},
+            #{snapshotSource},
+            #{snapshotAt},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="update" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO">
+        UPDATE risk_snapshots
+        <set>
+            account_id = #{accountId},
+            position_id = #{positionId},
+            maintenance_margin_rate = #{maintenanceMarginRate},
+            notional_value = #{notionalValue},
+            used_margin = #{usedMargin},
+            equity = #{equity},
+            margin_ratio = #{marginRatio},
+            liquidation_price = #{liquidationPrice},
+            status = #{status},
+            risk_version = #{riskVersion},
+            snapshot_source = #{snapshotSource},
+            snapshot_at = #{snapshotAt},
+            updated_at = #{updatedAt}
+        </set>
+        WHERE id = #{snapshotId}
+    </update>
+</mapper>

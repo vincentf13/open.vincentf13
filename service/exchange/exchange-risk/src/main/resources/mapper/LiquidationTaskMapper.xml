@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.risk.infra.persistence.mapper.LiquidationTaskMapper">
+
+    <resultMap id="LiquidationTaskResultMap" type="open.vincentf13.exchange.risk.infra.persistence.po.LiquidationTaskPO">
+        <id property="taskId" column="id" />
+        <result property="positionId" column="position_id" />
+        <result property="userId" column="user_id" />
+        <result property="instrumentId" column="instrument_id" />
+        <result property="status" column="status" />
+        <result property="priority" column="priority" />
+        <result property="queuedAt" column="queued_at" />
+        <result property="reason" column="reason" />
+        <result property="startedAt" column="started_at" />
+        <result property="processedAt" column="processed_at" />
+        <result property="liquidationPrice" column="liquidation_price" />
+        <result property="liquidationPnl" column="liquidation_pnl" />
+        <result property="errorMessage" column="error_message" />
+        <result property="retryCount" column="retry_count" />
+        <result property="maxRetries" column="max_retries" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <insert id="insert" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.LiquidationTaskPO">
+        INSERT INTO liquidation_queue (
+            id,
+            position_id,
+            user_id,
+            instrument_id,
+            status,
+            priority,
+            queued_at,
+            reason,
+            started_at,
+            processed_at,
+            liquidation_price,
+            liquidation_pnl,
+            error_message,
+            retry_count,
+            max_retries,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{taskId},
+            #{positionId},
+            #{userId},
+            #{instrumentId},
+            #{status},
+            #{priority},
+            #{queuedAt},
+            #{reason},
+            #{startedAt},
+            #{processedAt},
+            #{liquidationPrice},
+            #{liquidationPnl},
+            #{errorMessage},
+            #{retryCount},
+            #{maxRetries},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <select id="findById" resultMap="LiquidationTaskResultMap">
+        SELECT *
+        FROM liquidation_queue
+        WHERE id = #{taskId}
+        LIMIT 1
+    </select>
+
+    <select id="findPending" resultMap="LiquidationTaskResultMap">
+        SELECT *
+        FROM liquidation_queue
+        WHERE status = 'PENDING'
+        ORDER BY priority ASC, queued_at ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="markProcessing">
+        UPDATE liquidation_queue
+        SET status = 'PROCESSING',
+            started_at = #{startedAt},
+            updated_at = #{startedAt}
+        WHERE id = #{taskId}
+          AND status = 'PENDING'
+    </update>
+
+    <update id="markCompleted">
+        UPDATE liquidation_queue
+        SET status = 'COMPLETED',
+            processed_at = #{processedAt},
+            liquidation_price = #{liquidationPrice},
+            liquidation_pnl = #{liquidationPnl},
+            updated_at = #{processedAt}
+        WHERE id = #{taskId}
+          AND status IN ('PROCESSING', 'PENDING')
+    </update>
+
+    <update id="markFailed">
+        UPDATE liquidation_queue
+        SET status = 'FAILED',
+            error_message = #{errorMessage},
+            retry_count = #{retryCount},
+            processed_at = #{processedAt},
+            updated_at = #{processedAt}
+        WHERE id = #{taskId}
+    </update>
+</mapper>
