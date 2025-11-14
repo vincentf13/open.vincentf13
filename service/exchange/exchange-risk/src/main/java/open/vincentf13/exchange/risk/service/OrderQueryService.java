@@ -40,15 +40,20 @@ public class OrderQueryService {
             return;
         }
         FailureReason failureReason = evaluate(event);
+
         if (failureReason != null) {
             publishFailure(event, failureReason);
             return;
+        } else {
+            // 成功事件
         }
         log.info("Risk pre-check passed. orderId={} userId={} instrumentId={} quantity={} price={}",
-                event.orderId(), event.userId(), event.instrumentId(), event.quantity(), event.price());
+                 event.orderId(), event.userId(), event.instrumentId(), event.quantity(), event.price());
     }
 
     private FailureReason evaluate(OrderSubmittedEvent event) {
+
+       // 取得風控基準
         RiskLimit riskLimit = riskLimitRepository.findEffective(event.instrumentId(), null, Instant.now())
                 .orElse(null);
         if (riskLimit == null) {
@@ -59,28 +64,41 @@ public class OrderQueryService {
         if (snapshot == null) {
             return FailureReason.SNAPSHOT_NOT_FOUND;
         }
-        BigDecimal quantity = Optional.ofNullable(event.quantity()).orElse(BigDecimal.ZERO);
-        if (quantity.signum() <= 0) {
-            return FailureReason.INVALID_QUANTITY;
-        }
+        // 如快照時間落後 `OrderSubmitted` 事件時間，則即時呼叫 `position` 取得最新倉位
+
+        // 鎖定 snapshot
+
+        // 驗證槓桿
+        BigDecimal leverage = new BigDecimal(Optional.ofNullable(riskLimit.getMaxLeverage()).orElse(1));
+
+        // 計算委託名義價值
         BigDecimal orderPrice = resolvePrice(event);
         if (orderPrice == null || orderPrice.signum() <= 0) {
             return FailureReason.MARK_PRICE_UNAVAILABLE;
         }
+        BigDecimal quantity = Optional.ofNullable(event.quantity()).orElse(BigDecimal.ZERO);
+        if (quantity.signum() <= 0) {
+            return FailureReason.INVALID_QUANTITY;
+        }
         BigDecimal orderNotional = orderPrice.multiply(quantity, DIVISION_CONTEXT);
-        BigDecimal leverage = new BigDecimal(Optional.ofNullable(riskLimit.getMaxLeverage()).orElse(1));
+        // 試算預扣保證金
         BigDecimal requiredMarginByLeverage = orderNotional.divide(leverage, DIVISION_CONTEXT);
         BigDecimal initialMarginRate = Optional.ofNullable(riskLimit.getInitialMarginRate()).orElse(BigDecimal.ZERO);
         BigDecimal requiredMarginByRate = orderNotional.multiply(initialMarginRate, DIVISION_CONTEXT);
         BigDecimal requiredMargin = requiredMarginByLeverage.max(requiredMarginByRate);
 
+
+        // 取得 `equity`
         BigDecimal equity = Optional.ofNullable(snapshot.getEquity()).orElse(BigDecimal.ZERO);
+
+        // 保證金餘額效驗
         BigDecimal usedMargin = Optional.ofNullable(snapshot.getUsedMargin()).orElse(BigDecimal.ZERO);
         BigDecimal availableMargin = equity.subtract(usedMargin, DIVISION_CONTEXT);
         if (availableMargin.compareTo(requiredMargin) < 0) {
             return FailureReason.INSUFFICIENT_MARGIN;
         }
 
+        // 計算下單後指標
         BigDecimal existingNotional = Optional.ofNullable(snapshot.getNotionalValue()).orElse(BigDecimal.ZERO);
         BigDecimal simulatedNotional = existingNotional.add(orderNotional, DIVISION_CONTEXT);
         if (simulatedNotional.signum() == 0) {
@@ -93,13 +111,17 @@ public class OrderQueryService {
         if (simulatedMarginRatio.compareTo(threshold) < 0) {
             return FailureReason.MARGIN_RATIO_TOO_LOW;
         }
+
         return null;
     }
 
     private BigDecimal resolvePrice(OrderSubmittedEvent event) {
+        // 限價單
         if (event.price() != null && event.price().signum() > 0) {
             return event.price();
         }
+
+        // 市價單
         return markPriceCache.get(event.instrumentId())
                 .map(MarkPriceSnapshot::getMarkPrice)
                 .orElse(null);
