@@ -4,11 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.domain.model.OrderErrorCode;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderTimeInForce;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderType;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.OpenBigDecimal;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -38,9 +38,9 @@ public class OrderDomainService {
         }
         validateRequest(request);
         Instant now = Instant.now();
-        BigDecimal normalizedQty = normalizeDecimal(request.quantity());
-        BigDecimal normalizedPrice = normalizeDecimal(request.price());
-        BigDecimal normalizedStopPrice = normalizeDecimal(request.stopPrice());
+        BigDecimal normalizedQty = OpenBigDecimal.normalizeDecimal(request.quantity());
+        BigDecimal normalizedPrice = OpenBigDecimal.normalizeDecimal(request.price());
+        BigDecimal normalizedStopPrice = OpenBigDecimal.normalizeDecimal(request.stopPrice());
         OrderTimeInForce timeInForce = request.timeInForce() != null
                 ? request.timeInForce()
                 : OrderTimeInForce.GTC;
@@ -88,13 +88,13 @@ public class OrderDomainService {
         if (requiresStopPrice(request.type()) && request.stopPrice() == null) {
             throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "stopPrice is required for type " + request.type());
         }
-        if (request.quantity() == null || isNonPositive(request.quantity())) {
+        if (request.quantity() == null || OpenBigDecimal.isNonPositive(request.quantity())) {
             throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "quantity must be positive");
         }
-        if (request.price() != null && isNonPositive(request.price())) {
+        if (request.price() != null && OpenBigDecimal.isNonPositive(request.price())) {
             throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "price must be positive");
         }
-        if (request.stopPrice() != null && isNonPositive(request.stopPrice())) {
+        if (request.stopPrice() != null && OpenBigDecimal.isNonPositive(request.stopPrice())) {
             throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "stopPrice must be positive");
         }
     }
@@ -105,14 +105,6 @@ public class OrderDomainService {
 
     private boolean requiresStopPrice(OrderType type) {
         return type == OrderType.STOP_LIMIT || type == OrderType.STOP_MARKET;
-    }
-
-    private boolean isNonPositive(BigDecimal value) {
-        return value == null || value.signum() <= 0;
-    }
-
-    private BigDecimal normalizeDecimal(BigDecimal value) {
-        return value == null ? null : value.stripTrailingZeros();
     }
 
     private String trimToNull(String value) {
