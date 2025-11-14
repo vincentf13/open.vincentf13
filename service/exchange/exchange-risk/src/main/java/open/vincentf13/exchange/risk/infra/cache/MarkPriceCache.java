@@ -1,53 +1,49 @@
 package open.vincentf13.exchange.risk.infra.cache;
 
-import lombok.RequiredArgsConstructor;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.Getter;
 import open.vincentf13.exchange.risk.domain.model.MarkPriceSnapshot;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-@RequiredArgsConstructor
 public class MarkPriceCache {
 
+    private final Cache<Long, MarkPriceSnapshot> cache;
+
+    @Getter
     private final MarkPriceCacheProperties properties;
-    private final Map<Long, CachedEntry> cache = new ConcurrentHashMap<>();
+
+    public MarkPriceCache(MarkPriceCacheProperties properties) {
+        this.properties = properties;
+        this.cache = buildCache(properties);
+    }
 
     public void put(MarkPriceSnapshot snapshot) {
         if (snapshot == null || snapshot.getInstrumentId() == null) {
             return;
         }
-        cache.put(snapshot.getInstrumentId(), new CachedEntry(snapshot, Instant.now()));
+        cache.put(snapshot.getInstrumentId(), snapshot);
     }
 
     public Optional<MarkPriceSnapshot> get(Long instrumentId) {
         if (instrumentId == null) {
             return Optional.empty();
         }
-        CachedEntry entry = cache.get(instrumentId);
-        if (entry == null) {
-            return Optional.empty();
-        }
-        if (isExpired(entry)) {
-            cache.remove(instrumentId, entry);
-            return Optional.empty();
-        }
-        return Optional.of(entry.snapshot);
+        return Optional.ofNullable(cache.getIfPresent(instrumentId));
     }
 
-    private boolean isExpired(CachedEntry entry) {
+    private Cache<Long, MarkPriceSnapshot> buildCache(MarkPriceCacheProperties properties) {
+        Caffeine<Object, Object> builder = Caffeine.newBuilder();
         Duration ttl = properties.getTtl();
-        if (ttl == null || ttl.isNegative() || ttl.isZero()) {
-            return false;
+        if (ttl != null && !ttl.isZero() && !ttl.isNegative()) {
+            builder.expireAfterWrite(ttl);
         }
-        Instant expiresAt = entry.cachedAt.plus(ttl);
-        return Instant.now().isAfter(expiresAt);
-    }
-
-    private record CachedEntry(MarkPriceSnapshot snapshot, Instant cachedAt) {
+        long maximumSize = Math.max(1L, properties.getMaximumSize());
+        builder.maximumSize(maximumSize);
+        return builder.build();
     }
 }

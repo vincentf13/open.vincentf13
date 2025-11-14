@@ -15,4 +15,9 @@ public class MarkPriceCacheProperties {
      * TTL for cached mark price snapshots. Defaults to 5 seconds which is aligned with mark price refresh cadence.
      */
     private Duration ttl = Duration.ofSeconds(5);
+
+    /**
+     * Maximum cache entries; defaults to 2048 instruments.
+     */
+    private long maximumSize = 2048L;
 }
