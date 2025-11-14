@@ -54,13 +54,18 @@ public class PositionRepositoryInMemory implements PositionRepository {
     }
 
     @Override
-    public boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity) {
-        if (userId == null || instrumentId == null || quantity == null) {
+    public boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, OrderSide orderSide) {
+        if (userId == null || instrumentId == null || quantity == null || orderSide == null) {
             return false;
         }
         PositionKey key = PositionKey.of(userId, instrumentId);
         final boolean[] success = {false};
+
+        // 原子性
         storage.computeIfPresent(key, (k, position) -> {
+            if (position.getSide() == null || position.getSide() != orderSide) {
+                return position;
+            }
             BigDecimal available = position.availableToClose();
             if (available.compareTo(quantity) < 0) {
                 return position;

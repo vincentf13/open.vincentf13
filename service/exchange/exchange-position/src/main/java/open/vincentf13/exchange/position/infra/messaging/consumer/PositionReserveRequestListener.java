@@ -44,7 +44,8 @@ public class PositionReserveRequestListener {
         PositionReserveResult result = positionCommandService.reserveForClose(
                 event.userId(),
                 event.instrumentId(),
-                event.quantity()
+                event.quantity(),
+                event.orderSide()
         );
         if (result.success()) {
             PositionReservedEvent reservedEvent = new PositionReservedEvent(

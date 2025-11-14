@@ -15,7 +15,7 @@ public interface PositionRepository {
 
     Position save(Position position);
 
-    boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity);
+    boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, OrderSide orderSide);
 
     void releaseReserve(Long userId, Long instrumentId, BigDecimal quantity);
 

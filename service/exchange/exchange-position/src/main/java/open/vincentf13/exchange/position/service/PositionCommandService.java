@@ -2,14 +2,12 @@ package open.vincentf13.exchange.position.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.exchange.position.domain.model.Position;
+import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.position.infra.repository.PositionRepository;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -18,19 +16,22 @@ public class PositionCommandService {
 
     private final PositionRepository positionRepository;
 
-    public PositionReserveResult reserveForClose(Long userId, Long instrumentId, BigDecimal quantity) {
-        Optional<Position> positionOpt = positionRepository.findActive(userId, instrumentId);
-        if (positionOpt.isEmpty()) {
+    public PositionReserveResult reserveForClose(
+            Long userId,
+            Long instrumentId,
+            BigDecimal quantity,
+            OrderSide orderSide
+    ) {
+        if (userId == null || instrumentId == null) {
             return PositionReserveResult.rejected("POSITION_NOT_FOUND");
         }
-        Position position = positionOpt.get();
         if (quantity == null || quantity.signum() <= 0) {
             return PositionReserveResult.rejected("INVALID_QUANTITY");
         }
-        if (position.availableToClose().compareTo(quantity) < 0) {
-            return PositionReserveResult.rejected("INSUFFICIENT_POSITION");
+        if (orderSide == null) {
+            return PositionReserveResult.rejected("ORDER_SIDE_REQUIRED");
         }
-        boolean success = positionRepository.reserveForClose(userId, instrumentId, quantity);
+        boolean success = positionRepository.reserveForClose(userId, instrumentId, quantity, orderSide);
         if (!success) {
             return PositionReserveResult.rejected("RESERVE_FAILED");
         }
