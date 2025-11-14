@@ -24,7 +24,7 @@
         <result property="updatedAt" column="updated_at" />
     </resultMap>
 
-    <insert id="insert" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.LiquidationTaskPO">
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.LiquidationTaskPO">
         INSERT INTO liquidation_queue (
             id,
             position_id,

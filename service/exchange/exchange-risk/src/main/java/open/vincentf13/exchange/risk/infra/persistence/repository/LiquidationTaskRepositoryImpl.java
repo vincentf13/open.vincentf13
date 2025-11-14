@@ -31,7 +31,7 @@ public class LiquidationTaskRepositoryImpl implements LiquidationTaskRepository 
         po.setQueuedAt(po.getQueuedAt() == null ? now : po.getQueuedAt());
         po.setUpdatedAt(now);
         po.setCreatedAt(po.getCreatedAt() == null ? now : po.getCreatedAt());
-        mapper.insert(po);
+        mapper.insertSelective(po);
         return OpenMapstruct.map(po, LiquidationTask.class);
     }
 

@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface LiquidationTaskMapper {
 
-    int insert(LiquidationTaskPO task);
+    int insertSelective(LiquidationTaskPO task);
 
     LiquidationTaskPO findById(@Param("taskId") Long taskId);
 

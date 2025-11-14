@@ -41,9 +41,9 @@ public class RiskLimitRepositoryImpl implements RiskLimitRepository {
         if (po.getRiskLimitId() == null) {
             po.setRiskLimitId(idGenerator.newLong());
             po.setCreatedAt(now);
-            mapper.insert(po);
+            mapper.insertSelective(po);
         } else {
-            mapper.update(po);
+            mapper.updateSelective(po);
         }
         return OpenMapstruct.map(po, RiskLimit.class);
     }

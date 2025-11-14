@@ -24,7 +24,7 @@
         <result property="updatedAt" column="updated_at" />
     </resultMap>
 
-    <select id="findByUserAndInstrument" resultMap="RiskSnapshotResultMap">
+    <select id="findBy" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO" resultMap="RiskSnapshotResultMap">
         SELECT
             id,
             user_id,
@@ -44,67 +44,75 @@
             created_at,
             updated_at
         FROM risk_snapshots
-        WHERE user_id = #{userId}
-          AND instrument_id = #{instrumentId}
+        <where>
+            <if test="snapshotId != null">AND id = #{snapshotId}</if>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+            <if test="positionId != null">AND position_id = #{positionId}</if>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
         LIMIT 1
     </select>
 
-    <insert id="insert" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO">
-        INSERT INTO risk_snapshots (
-            id,
-            user_id,
-            account_id,
-            instrument_id,
-            position_id,
-            maintenance_margin_rate,
-            notional_value,
-            used_margin,
-            equity,
-            margin_ratio,
-            liquidation_price,
-            status,
-            risk_version,
-            snapshot_source,
-            snapshot_at,
-            created_at,
-            updated_at
-        ) VALUES (
-            #{snapshotId},
-            #{userId},
-            #{accountId},
-            #{instrumentId},
-            #{positionId},
-            #{maintenanceMarginRate},
-            #{notionalValue},
-            #{usedMargin},
-            #{equity},
-            #{marginRatio},
-            #{liquidationPrice},
-            #{status},
-            #{riskVersion},
-            #{snapshotSource},
-            #{snapshotAt},
-            #{createdAt},
-            #{updatedAt}
-        )
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO">
+        INSERT INTO risk_snapshots
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="snapshotId != null">id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="accountId != null">account_id,</if>
+            <if test="instrumentId != null">instrument_id,</if>
+            <if test="positionId != null">position_id,</if>
+            <if test="maintenanceMarginRate != null">maintenance_margin_rate,</if>
+            <if test="notionalValue != null">notional_value,</if>
+            <if test="usedMargin != null">used_margin,</if>
+            <if test="equity != null">equity,</if>
+            <if test="marginRatio != null">margin_ratio,</if>
+            <if test="liquidationPrice != null">liquidation_price,</if>
+            <if test="status != null">status,</if>
+            <if test="riskVersion != null">risk_version,</if>
+            <if test="snapshotSource != null">snapshot_source,</if>
+            <if test="snapshotAt != null">snapshot_at,</if>
+            <if test="createdAt != null">created_at,</if>
+            <if test="updatedAt != null">updated_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="snapshotId != null">#{snapshotId},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="accountId != null">#{accountId},</if>
+            <if test="instrumentId != null">#{instrumentId},</if>
+            <if test="positionId != null">#{positionId},</if>
+            <if test="maintenanceMarginRate != null">#{maintenanceMarginRate},</if>
+            <if test="notionalValue != null">#{notionalValue},</if>
+            <if test="usedMargin != null">#{usedMargin},</if>
+            <if test="equity != null">#{equity},</if>
+            <if test="marginRatio != null">#{marginRatio},</if>
+            <if test="liquidationPrice != null">#{liquidationPrice},</if>
+            <if test="status != null">#{status},</if>
+            <if test="riskVersion != null">#{riskVersion},</if>
+            <if test="snapshotSource != null">#{snapshotSource},</if>
+            <if test="snapshotAt != null">#{snapshotAt},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+            <if test="updatedAt != null">#{updatedAt},</if>
+        </trim>
     </insert>
 
-    <update id="update" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO">
+    <update id="updateSelective" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO">
         UPDATE risk_snapshots
         <set>
-            account_id = #{accountId},
-            position_id = #{positionId},
-            maintenance_margin_rate = #{maintenanceMarginRate},
-            notional_value = #{notionalValue},
-            used_margin = #{usedMargin},
-            equity = #{equity},
-            margin_ratio = #{marginRatio},
-            liquidation_price = #{liquidationPrice},
-            status = #{status},
-            risk_version = #{riskVersion},
-            snapshot_source = #{snapshotSource},
-            snapshot_at = #{snapshotAt},
-            updated_at = #{updatedAt}
+            <if test="accountId != null">account_id = #{accountId},</if>
+            <if test="positionId != null">position_id = #{positionId},</if>
+            <if test="maintenanceMarginRate != null">maintenance_margin_rate = #{maintenanceMarginRate},</if>
+            <if test="notionalValue != null">notional_value = #{notionalValue},</if>
+            <if test="usedMargin != null">used_margin = #{usedMargin},</if>
+            <if test="equity != null">equity = #{equity},</if>
+            <if test="marginRatio != null">margin_ratio = #{marginRatio},</if>
+            <if test="liquidationPrice != null">liquidation_price = #{liquidationPrice},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="riskVersion != null">risk_version = #{riskVersion},</if>
+            <if test="snapshotSource != null">snapshot_source = #{snapshotSource},</if>
+            <if test="snapshotAt != null">snapshot_at = #{snapshotAt},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
         </set>
         WHERE id = #{snapshotId}
     </update>

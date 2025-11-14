@@ -16,6 +16,7 @@
 - Java sources are UTF-8 with 4-space indentation; use PascalCase for classes, camelCase for members, and UPPER_SNAKE_CASE for constants.
 - Prefer constructor injection, isolate config in dedicated classes, and remove transient debug output (`System.out.printf`, etc.) before committing.
 - Name components by responsibility (e.g., `UserController`, `OrderService`).
+- MyBatis Mapper 需優先使用 `insertSelective` / `updateSelective` / `findBy(PO)` / `batchInsert` / `batchUpdate` 模板，盡量共用這些 conventions 避免重工。
 
 ## Testing Expectations
 - Mirror packages under `src/test/java`; suffix test classes with `*Tests`.

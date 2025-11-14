@@ -20,7 +20,14 @@ public class RiskSnapshotRepositoryImpl implements RiskSnapshotRepository {
 
     @Override
     public Optional<RiskSnapshot> findByUserAndInstrument(Long userId, Long instrumentId) {
-        RiskSnapshotPO po = mapper.findByUserAndInstrument(userId, instrumentId);
+        if (userId == null || instrumentId == null) {
+            return Optional.empty();
+        }
+        RiskSnapshotPO condition = RiskSnapshotPO.builder()
+                .userId(userId)
+                .instrumentId(instrumentId)
+                .build();
+        RiskSnapshotPO po = mapper.findBy(condition);
         return Optional.ofNullable(OpenMapstruct.map(po, RiskSnapshot.class));
     }
 
@@ -35,9 +42,9 @@ public class RiskSnapshotRepositoryImpl implements RiskSnapshotRepository {
         if (po.getSnapshotId() == null) {
             po.setSnapshotId(idGenerator.newLong());
             po.setCreatedAt(now);
-            mapper.insert(po);
+            mapper.insertSelective(po);
         } else {
-            mapper.update(po);
+            mapper.updateSelective(po);
         }
         return OpenMapstruct.map(po, RiskSnapshot.class);
     }

@@ -8,6 +8,8 @@ import java.util.List;
 
 public interface RiskLimitMapper {
 
+    RiskLimitPO findBy(RiskLimitPO condition);
+
     RiskLimitPO findEffective(@Param("instrumentId") Long instrumentId,
                               @Param("tier") Integer tier,
                               @Param("asOf") Instant asOf);
@@ -15,7 +17,7 @@ public interface RiskLimitMapper {
     List<RiskLimitPO> findActiveByInstrument(@Param("instrumentId") Long instrumentId,
                                              @Param("asOf") Instant asOf);
 
-    int insert(RiskLimitPO record);
+    int insertSelective(RiskLimitPO record);
 
-    int update(RiskLimitPO record);
+    int updateSelective(RiskLimitPO record);
 }

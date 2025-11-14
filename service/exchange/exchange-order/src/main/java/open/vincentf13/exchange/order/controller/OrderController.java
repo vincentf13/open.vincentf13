@@ -21,5 +21,4 @@ public class OrderController implements OrderApi {
         return OpenApiResponse.success(orderCommandService.createOrder(request));
     }
 
-    @Override
 }
