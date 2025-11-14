@@ -9,10 +9,6 @@ import java.util.List;
 
 public interface PositionMapper {
 
-    void insertSelective(PositionPO position);
-
-    int updateSelective(PositionPO position);
-
     PositionPO findActive(@Param("userId") Long userId, @Param("instrumentId") Long instrumentId);
 
     List<PositionPO> findByUser(@Param("userId") Long userId);
@@ -21,10 +17,4 @@ public interface PositionMapper {
                         @Param("instrumentId") Long instrumentId,
                         @Param("quantity") BigDecimal quantity,
                         @Param("side") OrderSide side);
-
-    int releaseReserve(@Param("userId") Long userId,
-                       @Param("instrumentId") Long instrumentId,
-                       @Param("quantity") BigDecimal quantity);
-
-    int upsertDemo(PositionPO position);
 }

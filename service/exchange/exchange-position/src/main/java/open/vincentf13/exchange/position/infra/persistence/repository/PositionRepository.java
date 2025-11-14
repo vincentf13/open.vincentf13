@@ -13,11 +13,5 @@ public interface PositionRepository {
 
     List<Position> findByUser(Long userId);
 
-    Position save(Position position);
-
     boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, OrderSide orderSide);
-
-    void releaseReserve(Long userId, Long instrumentId, BigDecimal quantity);
-
-    Position upsertDemoPosition(Long userId, Long instrumentId, OrderSide side, BigDecimal quantity);
 }
