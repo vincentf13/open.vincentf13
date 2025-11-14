@@ -17,6 +17,7 @@
 - Prefer constructor injection, isolate config in dedicated classes, and remove transient debug output (`System.out.printf`, etc.) before committing.
 - Name components by responsibility (e.g., `UserController`, `OrderService`).
 - MyBatis Mapper 需優先使用 `insertSelective` / `updateSelective` / `findBy(PO)` / `batchInsert` / `batchUpdate` 模板，盡量共用這些 conventions 避免重工。
+- 開發 exchange 模組時，目錄／類別分層、命名與責任切分必須遵照 `design/exchange/整體設計.md` 的規範（例如 domain/infra/service/controller、聚合邊界等），任何新服務或重構都需先比對設計文件再實作。
 
 ## Testing Expectations
 - Mirror packages under `src/test/java`; suffix test classes with `*Tests`.

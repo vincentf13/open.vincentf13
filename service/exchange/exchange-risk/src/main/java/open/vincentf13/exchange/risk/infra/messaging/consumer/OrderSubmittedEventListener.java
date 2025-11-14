@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
-import open.vincentf13.exchange.risk.application.OrderPreCheckService;
+import open.vincentf13.exchange.risk.service.OrderQueryService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -15,22 +15,14 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class OrderSubmittedEventListener {
 
-    private final OrderPreCheckService orderPreCheckService;
+    private final OrderQueryService orderQueryService;
 
     @KafkaListener(
             topics = OrderTopics.ORDER_SUBMITTED,
             groupId = "${exchange.risk.precheck.consumer-group:exchange-risk-precheck}"
     )
     public void onOrderSubmitted(@Payload OrderSubmittedEvent event, Acknowledgment acknowledgment) {
-        boolean processed = false;
-        try {
-            processed = orderPreCheckService.handle(event);
-        } catch (Exception ex) {
-            log.error("Failed to process OrderSubmitted event. orderId={} reason={}",
-                    event != null ? event.orderId() : null, ex.getMessage(), ex);
-        }
-        if (processed) {
-            acknowledgment.acknowledge();
-        }
+        orderQueryService.preCheck(event);
+        acknowledgment.acknowledge();
     }
 }

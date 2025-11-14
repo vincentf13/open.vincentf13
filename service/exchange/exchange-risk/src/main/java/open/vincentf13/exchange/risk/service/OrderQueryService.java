@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.risk.application;
+package open.vincentf13.exchange.risk.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +24,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderPreCheckService {
+public class OrderQueryService {
 
     private static final MathContext DIVISION_CONTEXT = new MathContext(18, RoundingMode.HALF_UP);
 
@@ -34,19 +34,18 @@ public class OrderPreCheckService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RiskPreCheckProperties preCheckProperties;
 
-    public boolean handle(OrderSubmittedEvent event) {
+    public void preCheck(OrderSubmittedEvent event) {
         if (!isEventValid(event)) {
             log.warn("Skip OrderSubmitted due to invalid payload: {}", event);
-            return true;
+            return;
         }
         FailureReason failureReason = evaluate(event);
         if (failureReason != null) {
             publishFailure(event, failureReason);
-            return true;
+            return;
         }
         log.info("Risk pre-check passed. orderId={} userId={} instrumentId={} quantity={} price={}",
                 event.orderId(), event.userId(), event.instrumentId(), event.quantity(), event.price());
-        return true;
     }
 
     private FailureReason evaluate(OrderSubmittedEvent event) {
