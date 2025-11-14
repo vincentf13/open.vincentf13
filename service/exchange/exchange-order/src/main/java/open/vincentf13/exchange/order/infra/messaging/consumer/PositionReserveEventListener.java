@@ -10,7 +10,6 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEve
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -38,10 +37,7 @@ public class PositionReserveEventListener {
             acknowledgment.acknowledge();
             return;
         }
-        transactionTemplate.executeWithoutResult(status -> {
-            orderRepository.findById(event.orderId())
-                    .ifPresent(order -> handleReservationSuccess(order, event));
-        });
+        transactionTemplate.executeWithoutResult(status -> handleReservationSuccess(event));
         acknowledgment.acknowledge();
     }
 
@@ -61,17 +57,31 @@ public class PositionReserveEventListener {
         acknowledgment.acknowledge();
     }
 
-    private void handleReservationSuccess(Order order, PositionReservedEvent event) {
+    private void handleReservationSuccess(PositionReservedEvent event) {
         Instant now = Instant.now();
-        boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.SUBMITTED, now,
-                Optional.ofNullable(order.getVersion()).orElse(0));
+        boolean updated = orderRepository.updateStatusByCurrentStatus(
+                event.orderId(),
+                event.userId(),
+                OrderStatus.PENDING,
+                OrderStatus.SUBMITTED,
+                now,
+                now,
+                null
+        );
         if (!updated) {
             OpenLog.warn(log, "OrderStatusConflict", "Failed to update order status on position reserve", null,
-                    "orderId", order.getOrderId());
+                    "orderId", event.orderId());
             return;
         }
+        Optional<Order> optionalOrder = orderRepository.findById(event.orderId());
+        if (optionalOrder.isEmpty()) {
+            OpenLog.warn(log, "OrderNotFoundAfterReserve", "Order updated but not found for event publish", null,
+                    "orderId", event.orderId());
+            return;
+        }
+        Order order = optionalOrder.get();
         order.markStatus(OrderStatus.SUBMITTED, now);
-        order.incrementVersion();
+        order.setSubmittedAt(now);
         orderEventPublisher.publishOrderSubmitted(order);
         OpenLog.info(log, "OrderPositionReserved", "Position reserved for order", "orderId", order.getOrderId());
     }

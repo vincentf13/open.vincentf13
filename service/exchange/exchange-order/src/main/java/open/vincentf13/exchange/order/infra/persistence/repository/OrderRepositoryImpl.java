@@ -73,6 +73,17 @@ public class OrderRepositoryImpl implements OrderRepository {
     }
 
     @Override
+    public boolean updateStatusByCurrentStatus(Long orderId,
+                                               Long userId,
+                                               OrderStatus currentStatus,
+                                               OrderStatus targetStatus,
+                                               Instant updatedAt,
+                                               Instant submittedAt,
+                                               Instant filledAt) {
+        return mapper.updateStatusByCurrentStatus(orderId, userId, currentStatus, targetStatus, updatedAt, submittedAt, filledAt) > 0;
+    }
+
+    @Override
     public boolean updateAfterTrade(Order order, Instant updatedAt, int expectedVersion) {
         OrderPO record = OrderPO.builder()
                 .orderId(order.getOrderId())

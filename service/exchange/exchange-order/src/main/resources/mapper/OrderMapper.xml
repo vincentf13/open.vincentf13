@@ -139,4 +139,18 @@
             <if test="expectedVersion != null">AND version = #{expectedVersion}</if>
         </where>
     </update>
+
+    <update id="updateStatusByCurrentStatus">
+        UPDATE orders
+        <set>
+            status = #{targetStatus},
+            updated_at = #{updatedAt},
+            version = version + 1
+            <if test="submittedAt != null">, submitted_at = #{submittedAt}</if>
+            <if test="filledAt != null">, filled_at = #{filledAt}</if>
+        </set>
+        WHERE order_id = #{orderId}
+          AND user_id = #{userId}
+          <if test="currentStatus != null">AND status = #{currentStatus}</if>
+    </update>
 </mapper>

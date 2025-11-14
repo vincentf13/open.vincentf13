@@ -21,5 +21,13 @@ public interface OrderRepository {
     boolean updateStatus(Long orderId, Long userId, OrderStatus status, Instant updatedAt,
                          int expectedVersion, Instant submittedAt, Instant filledAt);
 
+    boolean updateStatusByCurrentStatus(Long orderId,
+                                        Long userId,
+                                        OrderStatus currentStatus,
+                                        OrderStatus targetStatus,
+                                        Instant updatedAt,
+                                        Instant submittedAt,
+                                        Instant filledAt);
+
     boolean updateAfterTrade(Order order, Instant updatedAt, int expectedVersion);
 }
