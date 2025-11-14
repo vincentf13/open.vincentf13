@@ -50,10 +50,7 @@ public class PositionReserveEventListener {
             acknowledgment.acknowledge();
             return;
         }
-        transactionTemplate.executeWithoutResult(status -> {
-            orderRepository.findById(event.orderId())
-                    .ifPresent(order -> handleReservationFailure(order, event.reason()));
-        });
+        transactionTemplate.executeWithoutResult(status -> handleReservationFailure(event));
         acknowledgment.acknowledge();
     }
 
@@ -86,19 +83,33 @@ public class PositionReserveEventListener {
         OpenLog.info(log, "OrderPositionReserved", "Position reserved for order", "orderId", order.getOrderId());
     }
 
-    private void handleReservationFailure(Order order, String reason) {
+    private void handleReservationFailure(PositionReserveRejectedEvent event) {
         Instant now = Instant.now();
-        boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.FAILED, now,
-                Optional.ofNullable(order.getVersion()).orElse(0));
+        boolean updated = orderRepository.updateStatusByCurrentStatus(
+                event.orderId(),
+                event.userId(),
+                OrderStatus.PENDING,
+                OrderStatus.FAILED,
+                now,
+                null,
+                null
+        );
         if (!updated) {
             OpenLog.warn(log, "OrderStatusConflict", "Failed to mark order failed on position reserve rejection", null,
-                    "orderId", order.getOrderId());
+                    "orderId", event.orderId());
             return;
         }
-        order.markStatus(OrderStatus.FAILED, now);
-        order.incrementVersion();
-        OpenLog.warn(log, "OrderPositionReserveRejected", "Position reserve rejected", null,
-                "orderId", order.getOrderId(),
-                "reason", reason);
+        Optional<Order> optionalOrder = orderRepository.findById(event.orderId());
+        if (optionalOrder.isPresent()) {
+            Order order = optionalOrder.get();
+            order.markStatus(OrderStatus.FAILED, now);
+            OpenLog.warn(log, "OrderPositionReserveRejected", "Position reserve rejected", null,
+                    "orderId", order.getOrderId(),
+                    "reason", event.reason());
+            return;
+        }
+        OpenLog.warn(log, "OrderNotFoundAfterReserveReject", "Order updated but not found for reject log", null,
+                "orderId", event.orderId(),
+                "reason", event.reason());
     }
 }
