@@ -14,6 +14,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 
@@ -24,6 +25,7 @@ public class PositionReserveRequestListener {
 
     private final PositionCommandService positionCommandService;
     private final PositionEventPublisher positionEventPublisher;
+    private final TransactionTemplate transactionTemplate;
 
     @KafkaListener(
             topics = OrderTopics.POSITION_RESERVE_REQUESTED,
@@ -34,6 +36,11 @@ public class PositionReserveRequestListener {
             acknowledgment.acknowledge();
             return;
         }
+        transactionTemplate.executeWithoutResult(status -> handleReserveRequestInTransaction(event));
+        acknowledgment.acknowledge();
+    }
+
+    private void handleReserveRequestInTransaction(PositionReserveRequestedEvent event) {
         PositionReserveResult result = positionCommandService.reserveForClose(
                 event.userId(),
                 event.instrumentId(),
@@ -50,20 +57,19 @@ public class PositionReserveRequestListener {
             );
             positionEventPublisher.publishReserved(reservedEvent);
             OpenLog.info(log, "PositionReserved", "Position reserved", "orderId", event.orderId());
-        } else {
-            PositionReserveRejectedEvent rejectedEvent = new PositionReserveRejectedEvent(
-                    event.orderId(),
-                    event.userId(),
-                    event.instrumentId(),
-                    event.intentType(),
-                    result.reason(),
-                    Instant.now()
-            );
-            positionEventPublisher.publishRejected(rejectedEvent);
-            OpenLog.warn(log, "PositionReserveRejected", "Position reserve rejected", null,
-                    "orderId", event.orderId(),
-                    "reason", result.reason());
+            return;
         }
-        acknowledgment.acknowledge();
+        PositionReserveRejectedEvent rejectedEvent = new PositionReserveRejectedEvent(
+                event.orderId(),
+                event.userId(),
+                event.instrumentId(),
+                event.intentType(),
+                result.reason(),
+                Instant.now()
+        );
+        positionEventPublisher.publishRejected(rejectedEvent);
+        OpenLog.warn(log, "PositionReserveRejected", "Position reserve rejected", null,
+                "orderId", event.orderId(),
+                "reason", result.reason());
     }
 }
