@@ -17,6 +17,7 @@ import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.spring.mvc.client.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -101,20 +102,18 @@ public class OrderCommandService {
     }
 
     private PositionIntentType determineIntent(Long userId, OrderCreateRequest request) {
-        try {
-            PositionIntentResponse response = exchangePositionClient.determineIntent(
-                    new PositionIntentRequest(userId, request.instrumentId(), request.side(), request.quantity())
-            ).data();
-            if (response == null) {
-                log.warn("Position intent response is null for user {} instrument {}", userId, request.instrumentId());
-                throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
-                        "Unable to determine position intent due to null response");
-            }
-            return response.intentType();
-        } catch (Exception ex) {
-            log.warn("Fallback to INCREASE intent for user {} instrument {} due to {}", userId, request.instrumentId(), ex.getMessage());
-            throw ex;
+        PositionIntentResponse response = OpenApiClientInvoker.unwrap(
+                () -> exchangePositionClient.determineIntent(
+                        new PositionIntentRequest(userId, request.instrumentId(), request.side(), request.quantity())),
+                ctx -> OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                        "Unable to determine position intent. " + ctx.describe())
+        );
+        PositionIntentType intentType = response.intentType();
+        if (intentType == null) {
+            throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                    "Position intent type is null for instrument=" + request.instrumentId());
         }
+        return intentType;
     }
 
     private record CancelResult(Order order, Instant requestedAt) { }

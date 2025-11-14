@@ -32,3 +32,8 @@
 - Apply manifests in order: deployment → service → HPA → ingress (e.g., `kubectl apply -f k8s/service-test/deployment.yaml`, then service, HPA, and finally `k8s/ingress.yaml`).
 - Keep image tags in `k8s/<service>/deployment.yaml` aligned with published artifacts; update matching service/HPA manifests and ingress when ports or names change.
 - For live rollouts, `kubectl set image deploy/<service> <container>=<image>:<tag>` and monitor with `kubectl rollout status deploy/<service>`.
+
+## Agent Overrides
+- 以後處理本專案時，不需要執行任何 Maven 指令。
+- 以後不再編寫或更新測試程式碼。
+- 回覆最終總結時請一律使用中文。
