@@ -3,7 +3,6 @@ package open.vincentf13.exchange.order.infra.messaging.publisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
-import open.vincentf13.exchange.order.mq.event.OrderCancelRequestedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
@@ -26,19 +25,6 @@ public class OrderEventPublisher {
     public void publishOrderSubmitted(Order order) {
         OrderSubmittedEvent payload = OpenMapstruct.map(order, OrderSubmittedEvent.class);
         outboxRepository.append(OrderTopics.ORDER_SUBMITTED,
-                order.getOrderId(),
-                payload,
-                null);
-    }
-
-    public void publishOrderCancelRequested(Order order, Instant requestedAt, String reason) {
-        OrderCancelRequestedEvent payload = new OrderCancelRequestedEvent(
-                order.getOrderId(),
-                order.getUserId(),
-                requestedAt,
-                reason
-        );
-        outboxRepository.append(OrderTopics.ORDER_CANCEL_REQUESTED,
                 order.getOrderId(),
                 payload,
                 null);

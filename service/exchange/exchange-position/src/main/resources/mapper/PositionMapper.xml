@@ -63,15 +63,6 @@
         LIMIT 1
     </select>
 
-    <select id="findByUser" resultMap="PositionResultMap">
-        SELECT
-        <include refid="BaseColumns" />
-        FROM positions
-        WHERE user_id = #{userId}
-          AND status = 'ACTIVE'
-        ORDER BY updated_at DESC
-    </select>
-
     <update id="reserveForClose">
         UPDATE positions
         SET closing_reserved_quantity = closing_reserved_quantity + #{quantity},

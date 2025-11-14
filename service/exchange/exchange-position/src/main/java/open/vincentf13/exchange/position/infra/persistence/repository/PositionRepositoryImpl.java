@@ -9,7 +9,6 @@ import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -25,14 +24,6 @@ public class PositionRepositoryImpl implements PositionRepository {
         }
         PositionPO po = mapper.findActive(userId, instrumentId);
         return Optional.ofNullable(OpenMapstruct.map(po, Position.class));
-    }
-
-    @Override
-    public List<Position> findByUser(Long userId) {
-        if (userId == null) {
-            return List.of();
-        }
-        return OpenMapstruct.mapList(mapper.findByUser(userId), Position.class);
     }
 
     @Override

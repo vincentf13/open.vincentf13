@@ -14,8 +14,8 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
-import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
+import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import open.vincentf13.sdk.spring.mvc.client.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
@@ -23,14 +23,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class OrderCommandService {
-
-    private static final String USER_CANCEL_REASON = "USER_REQUEST";
 
     private final OrderDomainService orderDomainService;
     private final OrderRepository orderRepository;
@@ -51,7 +48,7 @@ public class OrderCommandService {
                     markSubmitted(order);
                     orderEventPublisher.publishOrderSubmitted(order);
                 }
-                  orderRepository.insert(order);
+                orderRepository.insert(order);
             });
 
             return OpenMapstruct.map(order, OrderResponse.class);
@@ -64,41 +61,9 @@ public class OrderCommandService {
         }
     }
 
-    public void requestCancel(Long orderId) {
-        Long userId = currentUserId();
-        CancelResult result = transactionTemplate.execute(status -> {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> OpenServiceException.of(OrderErrorCode.ORDER_NOT_FOUND,
-                            "Order not found. orderId=" + orderId));
-            ensureOwner(userId, order);
-            orderDomainService.ensureCancelable(order);
-            Instant now = Instant.now();
-            boolean updated = orderRepository.updateStatus(order.getOrderId(), userId, OrderStatus.CANCEL_REQUESTED, now,
-                    Optional.ofNullable(order.getVersion()).orElse(0));
-            if (!updated) {
-                throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
-                        "Failed to mark cancel, concurrent modification detected");
-            }
-            order.markStatus(OrderStatus.CANCEL_REQUESTED, now);
-            order.incrementVersion();
-            return new CancelResult(order, now);
-        });
-        if (result == null) {
-            throw OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT, "Cancel transaction returned null result");
-        }
-        orderEventPublisher.publishOrderCancelRequested(result.order(), result.requestedAt(), USER_CANCEL_REASON);
-    }
-
     private Long currentUserId() {
         return OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
                 OpenServiceException.of(OrderErrorCode.ORDER_NOT_FOUND, "No authenticated user context"));
-    }
-
-    private void ensureOwner(Long userId, Order order) {
-        if (!userId.equals(order.getUserId())) {
-            throw OpenServiceException.of(OrderErrorCode.ORDER_NOT_OWNED,
-                    "Order does not belong to current user. orderId=" + order.getOrderId());
-        }
     }
 
     private PositionIntentType determineIntent(Long userId, OrderCreateRequest request) {
@@ -113,8 +78,6 @@ public class OrderCommandService {
         }
         return intentType;
     }
-
-    private record CancelResult(Order order, Instant requestedAt) { }
 
     private void markSubmitted(Order order) {
         Instant now = Instant.now();
