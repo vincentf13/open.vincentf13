@@ -15,11 +15,11 @@ public final class OpenApiClientInvoker {
     private OpenApiClientInvoker() {
     }
 
-    public static <T> T unwrap(Supplier<OpenApiResponse<T>> call) {
-        return unwrap(call, DEFAULT_EXCEPTION_FACTORY);
+    public static <T> T call(Supplier<OpenApiResponse<T>> call) {
+        return call(call, DEFAULT_EXCEPTION_FACTORY);
     }
 
-    public static <T> T unwrap(Supplier<OpenApiResponse<T>> call,
+    public static <T> T call(Supplier<OpenApiResponse<T>> call,
                                Function<ErrorMsg, RuntimeException> exceptionFactory) {
         Objects.requireNonNull(call, "call");
         Objects.requireNonNull(exceptionFactory, "exceptionFactory");

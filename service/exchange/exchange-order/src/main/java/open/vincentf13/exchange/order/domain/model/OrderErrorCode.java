@@ -8,7 +8,7 @@ public enum OrderErrorCode implements OpenError {
     ORDER_NOT_OWNED("Order-403-1001", "Order does not belong to current user"),
     ORDER_STATUS_NOT_CANCELABLE("Order-409-1002", "Order status does not allow cancel"),
     ORDER_VALIDATION_FAILED("Order-400-1001", "Order validation failed"),
-    ORDER_STATE_CONFLICT("Order-409-1003", "Order state update conflict");
+    ORDER_STATE_CONFLICT("Order-409-1003", "Order state conflict");
 
     private final String code;
     private final String message;
