@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,10 +34,19 @@ public class Position {
         return available.max(BigDecimal.ZERO);
     }
 
-    public boolean isOpposite(OrderSide orderSide) {
+    public boolean isSameSide(OrderSide orderSide) {
         if (side == null || orderSide == null) {
-            return false;
+            return true;
         }
-        return side != orderSide;
+        return side == orderSide;
+    }
+
+    public PositionIntentType evaluateIntent(OrderSide orderSide, BigDecimal requestedQuantity) {
+        BigDecimal requested = requestedQuantity == null ? BigDecimal.ZERO : requestedQuantity;
+        if (isSameSide(orderSide)) {
+            return PositionIntentType.INCREASE;
+        }
+        BigDecimal current = quantity == null ? BigDecimal.ZERO : quantity;
+        return current.compareTo(requested) > 0 ? PositionIntentType.REDUCE : PositionIntentType.CLOSE;
     }
 }
