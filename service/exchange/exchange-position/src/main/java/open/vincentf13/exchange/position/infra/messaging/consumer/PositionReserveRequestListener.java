@@ -1,7 +1,8 @@
-package open.vincentf13.exchange.position.messaging;
+package open.vincentf13.exchange.position.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;

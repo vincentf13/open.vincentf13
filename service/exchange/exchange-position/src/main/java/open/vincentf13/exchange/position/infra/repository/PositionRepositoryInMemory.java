@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Repository
-public class InMemoryPositionRepository implements PositionRepository {
+public class PositionRepositoryInMemory implements PositionRepository {
 
     private final Map<PositionKey, Position> storage = new ConcurrentHashMap<>();
     private final AtomicLong idGenerator = new AtomicLong(1000L);

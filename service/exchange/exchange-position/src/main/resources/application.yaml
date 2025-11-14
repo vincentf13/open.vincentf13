@@ -1,6 +1,23 @@
 spring:
   application:
     name: exchange-position
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+
+mybatis:
+  type-aliases-package: open.vincentf13.exchange.position.infra.persistence.po
+
+open:
+  vincentf13:
+    id-generator:
+      snowflake:
+        worker-id: 4
+    mybatis:
+      mapper-base-packages: open.vincentf13.exchange.position.infra.persistence.mapper
+
 exchange:
   position:
     reserve:
