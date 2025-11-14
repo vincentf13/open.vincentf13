@@ -46,5 +46,4 @@ public class PositionRepositoryImpl implements PositionRepository {
         return mapper.reserveForClose(userId, instrumentId, quantity, orderSide) > 0;
     }
 
-    @Override
 }
