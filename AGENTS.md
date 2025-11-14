@@ -37,3 +37,4 @@
 - 以後處理本專案時，不需要執行任何 Maven 指令。
 - 以後不再編寫或更新測試程式碼。
 - 回覆最終總結時請一律使用中文。
+- Kafka 消費邏輯（例如 PositionReserveRequestListener）僅在成功處理後手動 ack，若發生異常需讓 Kafka 重送或進 DLQ，禁止在 finally 中強制 ack。

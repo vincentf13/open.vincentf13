@@ -11,6 +11,7 @@ import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveResult;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
@@ -28,8 +29,9 @@ public class PositionReserveRequestListener {
             topics = OrderTopics.POSITION_RESERVE_REQUESTED,
             groupId = "${exchange.position.reserve.consumer-group:exchange-position-reserve}"
     )
-    public void handleReserveRequest(@Payload PositionReserveRequestedEvent event) {
+    public void handleReserveRequest(@Payload PositionReserveRequestedEvent event, Acknowledgment acknowledgment) {
         if (event == null) {
+            acknowledgment.acknowledge();
             return;
         }
         PositionReserveResult result = positionCommandService.reserveForClose(
@@ -62,5 +64,6 @@ public class PositionReserveRequestListener {
                     "orderId", event.orderId(),
                     "reason", result.reason());
         }
+        acknowledgment.acknowledge();
     }
 }
