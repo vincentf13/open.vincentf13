@@ -2,11 +2,11 @@ package open.vincentf13.exchange.position.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
-import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveResult;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -25,7 +25,7 @@ public class PositionReserveRequestListener {
     private final PositionEventPublisher positionEventPublisher;
 
     @KafkaListener(
-            topics = PositionTopics.POSITION_RESERVE_REQUESTED,
+            topics = OrderTopics.POSITION_RESERVE_REQUESTED,
             groupId = "${exchange.position.reserve.consumer-group:exchange-position-reserve}"
     )
     public void handleReserveRequest(@Payload PositionReserveRequestedEvent event) {

@@ -4,4 +4,5 @@ public interface OrderTopics {
     String ORDER_SUBMITTED = "order.submitted";
     String ORDER_CANCEL_REQUESTED = "order.cancel-requested";
     String ORDER_CREATED = "order.created";
+    String POSITION_RESERVE_REQUESTED = "order.position-reserve-requested";
 }

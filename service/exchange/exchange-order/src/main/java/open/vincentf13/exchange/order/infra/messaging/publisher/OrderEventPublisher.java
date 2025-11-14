@@ -8,7 +8,6 @@ import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
-import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
@@ -55,7 +54,7 @@ public class OrderEventPublisher {
                 order.getQuantity(),
                 Instant.now()
         );
-        outboxRepository.append(PositionTopics.POSITION_RESERVE_REQUESTED,
+        outboxRepository.append(OrderTopics.POSITION_RESERVE_REQUESTED,
                 order.getOrderId(),
                 event,
                 null);
