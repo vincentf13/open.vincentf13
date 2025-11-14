@@ -23,3 +23,5 @@ exchange:
   risk:
     mark-price-cache:
       ttl: 5s
+    precheck:
+      maintenance-buffer: 0.001
