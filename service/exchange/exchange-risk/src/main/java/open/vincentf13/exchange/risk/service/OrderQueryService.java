@@ -4,10 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
 import open.vincentf13.exchange.risk.config.RiskPreCheckProperties;
-import open.vincentf13.exchange.risk.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
 import open.vincentf13.exchange.risk.domain.model.RiskSnapshot;
-import open.vincentf13.exchange.risk.infra.cache.MarkPriceCache;
 import open.vincentf13.exchange.risk.infra.persistence.repository.RiskLimitRepository;
 import open.vincentf13.exchange.risk.infra.persistence.repository.RiskSnapshotRepository;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckFailedEvent;
@@ -30,7 +28,6 @@ public class OrderQueryService {
 
     private final RiskSnapshotRepository riskSnapshotRepository;
     private final RiskLimitRepository riskLimitRepository;
-    private final MarkPriceCache markPriceCache;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final RiskPreCheckProperties preCheckProperties;
 
@@ -122,9 +119,8 @@ public class OrderQueryService {
         }
 
         // 市價單
-        return markPriceCache.get(event.instrumentId())
-                .map(MarkPriceSnapshot::getMarkPrice)
-                .orElse(null);
+        // 市價單暫時無同步行情來源，回傳 null 以觸發 MARK_PRICE_UNAVAILABLE，後續可串接 market-data REST/API。
+        return null;
     }
 
     private boolean isEventValid(OrderSubmittedEvent event) {

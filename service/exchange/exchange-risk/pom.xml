@@ -51,10 +51,6 @@
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-        </dependency>
-        <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>exchange-order-sdk-mq</artifactId>
         </dependency>
