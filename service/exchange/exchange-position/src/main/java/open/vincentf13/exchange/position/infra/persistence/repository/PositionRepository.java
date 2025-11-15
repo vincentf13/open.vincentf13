@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.position.infra.persistence.repository;
 
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.position.domain.model.Position;
+import open.vincentf13.exchange.position.domain.model.PositionSide;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -14,7 +14,7 @@ public interface PositionRepository {
 
     Position createDefault(Long userId, Long instrumentId);
 
-    boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, OrderSide orderSide);
+    boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, PositionSide side);
 
     boolean updateLeverage(Long positionId, Integer leverage);
 }

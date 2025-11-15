@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
 
 import java.math.BigDecimal;
@@ -21,7 +20,7 @@ public class Position {
     private Long instrumentId;
     private Integer leverage;
     private BigDecimal margin;
-    private OrderSide side;
+    private PositionSide side;
     private BigDecimal entryPrice;
     private BigDecimal quantity;
     private BigDecimal closingReservedQuantity;
@@ -47,16 +46,16 @@ public class Position {
         return available.max(BigDecimal.ZERO);
     }
 
-    public boolean isSameSide(OrderSide orderSide) {
-        if (side == null || orderSide == null) {
+    public boolean isSameSide(PositionSide otherSide) {
+        if (side == null || otherSide == null) {
             return true;
         }
-        return side == orderSide;
+        return side == otherSide;
     }
 
-    public PositionIntentType evaluateIntent(OrderSide orderSide, BigDecimal requestedQuantity) {
+    public PositionIntentType evaluateIntent(PositionSide requestSide, BigDecimal requestedQuantity) {
         BigDecimal requested = requestedQuantity == null ? BigDecimal.ZERO : requestedQuantity;
-        if (isSameSide(orderSide)) {
+        if (isSameSide(requestSide)) {
             return PositionIntentType.INCREASE;
         }
         BigDecimal current = quantity == null ? BigDecimal.ZERO : quantity;

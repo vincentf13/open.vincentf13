@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.position.infra.persistence.mapper;
 
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
+import open.vincentf13.exchange.position.domain.model.PositionSide;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
@@ -15,7 +15,7 @@ public interface PositionMapper {
     int reserveForClose(@Param("userId") Long userId,
                         @Param("instrumentId") Long instrumentId,
                         @Param("quantity") BigDecimal quantity,
-                        @Param("side") OrderSide side);
+                        @Param("side") PositionSide side);
 
     int updateLeverage(@Param("positionId") Long positionId,
                        @Param("leverage") Integer leverage);

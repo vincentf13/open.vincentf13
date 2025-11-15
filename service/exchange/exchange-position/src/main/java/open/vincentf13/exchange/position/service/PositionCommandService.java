@@ -2,9 +2,9 @@ package open.vincentf13.exchange.position.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.model.PositionErrorCode;
+import open.vincentf13.exchange.position.domain.model.PositionSide;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
@@ -43,7 +43,11 @@ public class PositionCommandService {
         if (orderSide == null) {
             return PositionReserveResult.rejected("ORDER_SIDE_REQUIRED");
         }
-        boolean success = positionRepository.reserveForClose(userId, instrumentId, quantity, orderSide);
+        PositionSide side = PositionSide.fromOrderSide(orderSide);
+        if (side == null) {
+            return PositionReserveResult.rejected("INVALID_ORDER_SIDE");
+        }
+        boolean success = positionRepository.reserveForClose(userId, instrumentId, quantity, side);
         if (!success) {
             return PositionReserveResult.rejected("RESERVE_FAILED");
         }
@@ -102,7 +106,7 @@ public class PositionCommandService {
                 position.getInstrumentId(),
                 position.getUserId(),
                 targetLeverage,
-                position.getSide(),
+                position.getSide() == null ? null : position.getSide().toOrderSide(),
                 position.getQuantity(),
                 position.getMargin(),
                 position.getMarkPrice()

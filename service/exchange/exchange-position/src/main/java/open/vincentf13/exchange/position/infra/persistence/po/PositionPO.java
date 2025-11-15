@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
+import open.vincentf13.exchange.position.domain.model.PositionSide;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -20,7 +20,7 @@ public class PositionPO {
     private Long instrumentId;
     private Integer leverage;
     private BigDecimal margin;
-    private OrderSide side;
+    private PositionSide side;
     private BigDecimal entryPrice;
     private BigDecimal quantity;
     private BigDecimal closingReservedQuantity;

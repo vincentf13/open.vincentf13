@@ -2,8 +2,8 @@ package open.vincentf13.exchange.position.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.position.domain.model.Position;
+import open.vincentf13.exchange.position.domain.model.PositionSide;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.sdk.core.OpenMapstruct;
@@ -57,7 +57,7 @@ public class PositionRepositoryImpl implements PositionRepository {
                 .instrumentId(instrumentId)
                 .leverage(1)
                 .margin(BigDecimal.ZERO)
-                .side(OrderSide.LONG)
+                .side(PositionSide.LONG)
                 .entryPrice(BigDecimal.ZERO)
                 .quantity(BigDecimal.ZERO)
                 .closingReservedQuantity(BigDecimal.ZERO)
@@ -82,14 +82,14 @@ public class PositionRepositoryImpl implements PositionRepository {
     }
 
     @Override
-    public boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, OrderSide orderSide) {
-        if (userId == null || instrumentId == null || quantity == null || orderSide == null) {
+    public boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, PositionSide side) {
+        if (userId == null || instrumentId == null || quantity == null || side == null) {
             return false;
         }
         if (quantity.signum() <= 0) {
             return false;
         }
-        return mapper.reserveForClose(userId, instrumentId, quantity, orderSide) > 0;
+        return mapper.reserveForClose(userId, instrumentId, quantity, side) > 0;
     }
 
     @Override
