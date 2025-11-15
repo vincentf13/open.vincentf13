@@ -32,6 +32,18 @@ public class PositionRepositoryImpl implements PositionRepository {
     }
 
     @Override
+    public Optional<Position> findById(Long positionId) {
+        if (positionId == null) {
+            return Optional.empty();
+        }
+        PositionPO condition = PositionPO.builder()
+                .positionId(positionId)
+                .build();
+        PositionPO po = mapper.findBy(condition);
+        return Optional.ofNullable(OpenMapstruct.map(po, Position.class));
+    }
+
+    @Override
     public boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, OrderSide orderSide) {
         if (userId == null || instrumentId == null || quantity == null || orderSide == null) {
             return false;
@@ -40,6 +52,14 @@ public class PositionRepositoryImpl implements PositionRepository {
             return false;
         }
         return mapper.reserveForClose(userId, instrumentId, quantity, orderSide) > 0;
+    }
+
+    @Override
+    public boolean updateLeverage(Long positionId, Integer leverage) {
+        if (positionId == null || leverage == null) {
+            return false;
+        }
+        return mapper.updateLeverage(positionId, leverage) > 0;
     }
 
 }

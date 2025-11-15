@@ -14,4 +14,7 @@ public interface PositionMapper {
                         @Param("instrumentId") Long instrumentId,
                         @Param("quantity") BigDecimal quantity,
                         @Param("side") OrderSide side);
+
+    int updateLeverage(@Param("positionId") Long positionId,
+                       @Param("leverage") Integer leverage);
 }

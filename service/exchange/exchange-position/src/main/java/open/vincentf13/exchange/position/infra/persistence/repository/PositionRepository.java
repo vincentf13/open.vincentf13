@@ -10,5 +10,9 @@ public interface PositionRepository {
 
     Optional<Position> findActive(Long userId, Long instrumentId);
 
+    Optional<Position> findById(Long positionId);
+
     boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, OrderSide orderSide);
+
+    boolean updateLeverage(Long positionId, Integer leverage);
 }

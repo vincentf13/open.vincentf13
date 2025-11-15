@@ -3,11 +3,22 @@ package open.vincentf13.exchange.position.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
+import open.vincentf13.exchange.position.domain.model.Position;
+import open.vincentf13.exchange.position.domain.model.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
+import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
+import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
+import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
+import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.spring.mvc.util.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -15,6 +26,7 @@ import java.time.Instant;
 public class PositionCommandService {
 
     private final PositionRepository positionRepository;
+    private final ExchangeRiskMarginClient riskMarginClient;
 
     public PositionReserveResult reserveForClose(
             Long userId,
@@ -36,6 +48,91 @@ public class PositionCommandService {
             return PositionReserveResult.rejected("RESERVE_FAILED");
         }
         return PositionReserveResult.accepted(quantity);
+    }
+
+    public PositionLeverageResponse adjustLeverage(Long positionId, PositionLeverageRequest request) {
+        validateLeverageRequest(positionId, request);
+        Position position = positionRepository.findById(positionId)
+                .filter(value -> "ACTIVE".equalsIgnoreCase(value.getStatus()))
+                .orElseThrow(() -> OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
+                        "Active position not found"));
+
+        Integer targetLeverage = request.targetLeverage();
+        if (targetLeverage.equals(position.getLeverage())) {
+            log.info("Leverage unchanged for positionId={}", positionId);
+            return new PositionLeverageResponse(position.getLeverage(), Instant.now());
+        }
+
+        LeveragePrecheckRequest precheckRequest = buildPrecheckRequest(position, targetLeverage);
+        LeveragePrecheckResponse precheckResponse = OpenApiClientInvoker.unwrap(
+                () -> riskMarginClient.precheckLeverage(precheckRequest),
+                "risk.precheck.leverage");
+        if (!precheckResponse.allow()) {
+            throw OpenServiceException.of(PositionErrorCode.LEVERAGE_PRECHECK_FAILED,
+                    "Leverage pre-check rejected", buildPrecheckMeta(positionId, targetLeverage, precheckResponse));
+        }
+
+        boolean updated = positionRepository.updateLeverage(positionId, targetLeverage);
+        if (!updated) {
+            throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
+                    "Failed to update leverage due to concurrent modification");
+        }
+        log.info("Position leverage updated. positionId={} userId={} leverage={} -> {}", positionId,
+                position.getUserId(), position.getLeverage(), targetLeverage);
+        return new PositionLeverageResponse(targetLeverage, Instant.now());
+    }
+
+    private void validateLeverageRequest(Long positionId, PositionLeverageRequest request) {
+        if (positionId == null) {
+            throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND, "positionId is required");
+        }
+        if (request == null || request.targetLeverage() == null) {
+            throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "targetLeverage is required");
+        }
+        if (request.targetLeverage() <= 0) {
+            throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "targetLeverage must be positive");
+        }
+    }
+
+    private LeveragePrecheckRequest buildPrecheckRequest(Position position, Integer targetLeverage) {
+        BigDecimal margin = position.getMargin();
+        BigDecimal equity = resolveEquity(position);
+        return new LeveragePrecheckRequest(
+                position.getPositionId(),
+                position.getInstrumentId(),
+                position.getUserId(),
+                targetLeverage,
+                position.getSide(),
+                position.getQuantity(),
+                equity,
+                margin,
+                position.getMarkPrice()
+        );
+    }
+
+    private BigDecimal resolveEquity(Position position) {
+        BigDecimal margin = defaultZero(position.getMargin());
+        BigDecimal realized = defaultZero(position.getRealizedPnl());
+        BigDecimal unrealized = defaultZero(position.getUnrealizedPnl());
+        return margin.add(realized).add(unrealized);
+    }
+
+    private BigDecimal defaultZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private Map<String, Object> buildPrecheckMeta(Long positionId,
+                                                  Integer targetLeverage,
+                                                  LeveragePrecheckResponse response) {
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("positionId", positionId);
+        meta.put("targetLeverage", targetLeverage);
+        if (response != null) {
+            meta.put("suggestedLeverage", response.suggestedLeverage());
+            meta.put("deficit", response.deficit());
+            meta.put("reason", response.reason());
+        }
+        return meta;
     }
 
     public record PositionReserveResult(boolean success, BigDecimal reservedQuantity, String reason, Instant processedAt) {

@@ -79,5 +79,14 @@
           AND (quantity - closing_reserved_quantity) >= #{quantity}
     </update>
 
+    <update id="updateLeverage">
+        UPDATE positions
+        SET leverage = #{leverage},
+            version = version + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE position_id = #{positionId}
+          AND status = 'ACTIVE'
+    </update>
+
     <!-- write operations will be reintroduced once position creation logic is wired -->
 </mapper>
