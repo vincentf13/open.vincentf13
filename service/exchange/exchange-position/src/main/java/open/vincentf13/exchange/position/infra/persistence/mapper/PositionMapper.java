@@ -10,6 +10,8 @@ public interface PositionMapper {
 
     PositionPO findBy(PositionPO condition);
 
+    int insertDefault(PositionPO po);
+
     int reserveForClose(@Param("userId") Long userId,
                         @Param("instrumentId") Long instrumentId,
                         @Param("quantity") BigDecimal quantity,

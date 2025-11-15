@@ -76,8 +76,48 @@
           AND instrument_id = #{instrumentId}
           AND side = #{side}
           AND status = 'ACTIVE'
-          AND (quantity - closing_reserved_quantity) >= #{quantity}
+        AND (quantity - closing_reserved_quantity) >= #{quantity}
     </update>
+
+    <insert id="insertDefault" parameterType="open.vincentf13.exchange.position.infra.persistence.po.PositionPO">
+        INSERT INTO positions (
+            position_id,
+            user_id,
+            instrument_id,
+            leverage,
+            margin,
+            side,
+            entry_price,
+            quantity,
+            closing_reserved_quantity,
+            mark_price,
+            margin_ratio,
+            unrealized_pnl,
+            realized_pnl,
+            status,
+            version,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{positionId},
+            #{userId},
+            #{instrumentId},
+            #{leverage},
+            #{margin},
+            #{side},
+            #{entryPrice},
+            #{quantity},
+            #{closingReservedQuantity},
+            #{markPrice},
+            #{marginRatio},
+            #{unrealizedPnl},
+            #{realizedPnl},
+            #{status},
+            0,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
 
     <update id="updateLeverage">
         UPDATE positions
