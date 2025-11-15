@@ -50,15 +50,15 @@ public class PositionCommandService {
         return PositionReserveResult.accepted(quantity);
     }
 
-    public PositionLeverageResponse adjustLeverage(Long instrumentId, PositionLeverageRequest request) {
+    public PositionLeverageResponse adjustLeverage(Long userId, Long instrumentId, PositionLeverageRequest request) {
         validateLeverageRequest(instrumentId, request);
-        Position position = positionRepository.findActive(request.userId(), instrumentId)
+        Position position = positionRepository.findActive(userId, instrumentId)
                 .orElseThrow(() -> OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
                         "Active position not found"));
 
         Integer targetLeverage = request.targetLeverage();
         if (targetLeverage.equals(position.getLeverage())) {
-            log.info("Leverage unchanged for userId={} instrumentId={}", request.userId(), instrumentId);
+            log.info("Leverage unchanged for userId={} instrumentId={}", userId, instrumentId);
             return new PositionLeverageResponse(position.getLeverage(), Instant.now());
         }
 
@@ -87,9 +87,6 @@ public class PositionCommandService {
         }
         if (request == null || request.targetLeverage() == null) {
             throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "targetLeverage is required");
-        }
-        if (request.userId() == null) {
-            throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "userId is required");
         }
         if (request.targetLeverage() <= 0) {
             throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "targetLeverage must be positive");
