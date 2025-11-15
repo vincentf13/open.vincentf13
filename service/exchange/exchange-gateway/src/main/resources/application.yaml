@@ -20,6 +20,12 @@ spring:
             - Path=/auth/**
           filters:
             - StripPrefix=1
+        - id: exchange-position-route
+          uri: lb://exchange-position
+          predicates:
+            - Path=/position/**
+          filters:
+            - StripPrefix=1
 
 open:
   vincentf13:

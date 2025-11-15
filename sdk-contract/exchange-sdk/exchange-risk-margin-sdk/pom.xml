@@ -19,5 +19,7 @@
 
     <modules>
         <module>exchange-risk-margin-sdk-mq</module>
+        <module>exchange-risk-margin-sdk-rest-api</module>
+        <module>exchange-risk-margin-sdk-rest-client</module>
     </modules>
 </project>
