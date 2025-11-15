@@ -24,7 +24,7 @@ public class PositionController implements PositionApi {
     }
 
     @Override
-    public OpenApiResponse<PositionLeverageResponse> adjustLeverage(Long positionId, PositionLeverageRequest request) {
-        return OpenApiResponse.success(positionCommandService.adjustLeverage(positionId, request));
+    public OpenApiResponse<PositionLeverageResponse> adjustLeverage(Long instrumentId, PositionLeverageRequest request) {
+        return OpenApiResponse.success(positionCommandService.adjustLeverage(instrumentId, request));
     }
 }

@@ -50,16 +50,15 @@ public class PositionCommandService {
         return PositionReserveResult.accepted(quantity);
     }
 
-    public PositionLeverageResponse adjustLeverage(Long positionId, PositionLeverageRequest request) {
-        validateLeverageRequest(positionId, request);
-        Position position = positionRepository.findById(positionId)
-                .filter(value -> "ACTIVE".equalsIgnoreCase(value.getStatus()))
+    public PositionLeverageResponse adjustLeverage(Long instrumentId, PositionLeverageRequest request) {
+        validateLeverageRequest(instrumentId, request);
+        Position position = positionRepository.findActive(request.userId(), instrumentId)
                 .orElseThrow(() -> OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
                         "Active position not found"));
 
         Integer targetLeverage = request.targetLeverage();
         if (targetLeverage.equals(position.getLeverage())) {
-            log.info("Leverage unchanged for positionId={}", positionId);
+            log.info("Leverage unchanged for userId={} instrumentId={}", request.userId(), instrumentId);
             return new PositionLeverageResponse(position.getLeverage(), Instant.now());
         }
 
@@ -69,25 +68,28 @@ public class PositionCommandService {
                 "risk.precheck.leverage");
         if (!precheckResponse.allow()) {
             throw OpenServiceException.of(PositionErrorCode.LEVERAGE_PRECHECK_FAILED,
-                    "Leverage pre-check rejected", buildPrecheckMeta(positionId, targetLeverage, precheckResponse));
+                    "Leverage pre-check rejected", buildPrecheckMeta(position.getPositionId(), instrumentId, targetLeverage, precheckResponse));
         }
 
-        boolean updated = positionRepository.updateLeverage(positionId, targetLeverage);
+        boolean updated = positionRepository.updateLeverage(position.getPositionId(), targetLeverage);
         if (!updated) {
             throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
                     "Failed to update leverage due to concurrent modification");
         }
-        log.info("Position leverage updated. positionId={} userId={} leverage={} -> {}", positionId,
-                position.getUserId(), position.getLeverage(), targetLeverage);
+        log.info("Position leverage updated. positionId={} userId={} instrumentId={} leverage={} -> {}",
+                position.getPositionId(), position.getUserId(), instrumentId, position.getLeverage(), targetLeverage);
         return new PositionLeverageResponse(targetLeverage, Instant.now());
     }
 
-    private void validateLeverageRequest(Long positionId, PositionLeverageRequest request) {
-        if (positionId == null) {
-            throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND, "positionId is required");
+    private void validateLeverageRequest(Long instrumentId, PositionLeverageRequest request) {
+        if (instrumentId == null) {
+            throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND, "instrumentId is required");
         }
         if (request == null || request.targetLeverage() == null) {
             throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "targetLeverage is required");
+        }
+        if (request.userId() == null) {
+            throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "userId is required");
         }
         if (request.targetLeverage() <= 0) {
             throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "targetLeverage must be positive");
@@ -122,10 +124,12 @@ public class PositionCommandService {
     }
 
     private Map<String, Object> buildPrecheckMeta(Long positionId,
+                                                  Long instrumentId,
                                                   Integer targetLeverage,
                                                   LeveragePrecheckResponse response) {
         Map<String, Object> meta = new HashMap<>();
         meta.put("positionId", positionId);
+        meta.put("instrumentId", instrumentId);
         meta.put("targetLeverage", targetLeverage);
         if (response != null) {
             meta.put("suggestedLeverage", response.suggestedLeverage());

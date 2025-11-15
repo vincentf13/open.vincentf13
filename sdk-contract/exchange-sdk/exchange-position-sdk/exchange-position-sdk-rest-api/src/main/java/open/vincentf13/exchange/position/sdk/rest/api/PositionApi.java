@@ -19,7 +19,7 @@ public interface PositionApi {
     @PostMapping("/intent")
     OpenApiResponse<PositionIntentResponse> determineIntent(@Valid @RequestBody PositionIntentRequest request);
 
-    @PostMapping("/{positionId}/leverage")
-    OpenApiResponse<PositionLeverageResponse> adjustLeverage(@PathVariable("positionId") Long positionId,
+    @PostMapping("/{instrumentId}/leverage")
+    OpenApiResponse<PositionLeverageResponse> adjustLeverage(@PathVariable("instrumentId") Long instrumentId,
                                                             @Valid @RequestBody PositionLeverageRequest request);
 }
