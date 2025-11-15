@@ -2,10 +2,9 @@ package open.vincentf13.exchange.risk.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.exchange.risk.config.RiskPreCheckProperties;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
-import open.vincentf13.exchange.risk.domain.model.RiskSnapshot;
 import open.vincentf13.exchange.risk.infra.persistence.repository.RiskLimitRepository;
-import open.vincentf13.exchange.risk.infra.persistence.repository.RiskSnapshotRepository;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import org.springframework.stereotype.Service;
@@ -24,7 +23,7 @@ public class LeveragePrecheckService {
     private static final MathContext DIVISION_CONTEXT = new MathContext(18, RoundingMode.HALF_UP);
 
     private final RiskLimitRepository riskLimitRepository;
-    private final RiskSnapshotRepository riskSnapshotRepository;
+    private final RiskPreCheckProperties preCheckProperties;
 
     public LeveragePrecheckResponse precheck(LeveragePrecheckRequest request) {
         validate(request);
@@ -43,30 +42,20 @@ public class LeveragePrecheckService {
             return new LeveragePrecheckResponse(false, null, maxLeverage, "EXCEEDS_MAX_LEVERAGE");
         }
 
-        RiskSnapshot snapshot = riskSnapshotRepository.findByUserAndInstrument(request.userId(), request.instrumentId())
-                .orElse(null);
-
-        BigDecimal equity = firstNonNull(request.equity(), snapshot == null ? null : snapshot.getEquity());
-        BigDecimal usedMargin = firstNonNull(request.usedMargin(), snapshot == null ? null : snapshot.getUsedMargin());
-        BigDecimal notional = resolveNotional(request, snapshot);
-
+        BigDecimal notional = computeNotional(request.quantity(), request.markPrice());
         if (notional == null || notional.signum() <= 0) {
             return new LeveragePrecheckResponse(true, BigDecimal.ZERO, request.targetLeverage(), null);
         }
-        if (equity == null || usedMargin == null) {
-            log.info("Leverage pre-check bypassed margin validation due to missing equity data. positionId={}"
-                    , request.positionId());
-            return new LeveragePrecheckResponse(true, BigDecimal.ZERO, request.targetLeverage(), null);
-        }
 
-        BigDecimal requiredMargin = notional.divide(BigDecimal.valueOf(request.targetLeverage()), DIVISION_CONTEXT);
-        BigDecimal availableMargin = equity.subtract(usedMargin, DIVISION_CONTEXT);
-        if (availableMargin.compareTo(requiredMargin) < 0) {
-            BigDecimal deficit = requiredMargin.subtract(availableMargin, DIVISION_CONTEXT).max(BigDecimal.ZERO);
-            Integer suggestion = suggestLeverage(notional, availableMargin, maxLeverage);
-            log.info("Leverage pre-check rejected due to insufficient margin. positionId={} deficit={} suggestion={}"
-                    , request.positionId(), deficit, suggestion);
-            return new LeveragePrecheckResponse(false, deficit, suggestion, "INSUFFICIENT_MARGIN");
+        BigDecimal requiredMargin = calculateRequiredMargin(notional, request.targetLeverage(), riskLimit);
+        BigDecimal marginRatio = requiredMargin.divide(notional, DIVISION_CONTEXT);
+        BigDecimal threshold = resolveThreshold(riskLimit);
+        if (marginRatio.compareTo(threshold) < 0) {
+            Integer suggestion = suggestLeverage(threshold, maxLeverage);
+            BigDecimal deficit = threshold.subtract(marginRatio, DIVISION_CONTEXT).max(BigDecimal.ZERO);
+            log.info("Leverage pre-check rejected: margin ratio too low. positionId={} ratio={} threshold={} suggestion={}"
+                    , request.positionId(), marginRatio, threshold, suggestion);
+            return new LeveragePrecheckResponse(false, deficit, suggestion, "MARGIN_RATIO_TOO_LOW");
         }
         return new LeveragePrecheckResponse(true, BigDecimal.ZERO, request.targetLeverage(), null);
     }
@@ -89,14 +78,6 @@ public class LeveragePrecheckService {
         }
     }
 
-    private BigDecimal resolveNotional(LeveragePrecheckRequest request, RiskSnapshot snapshot) {
-        BigDecimal notional = computeNotional(request.quantity(), request.markPrice());
-        if ((notional == null || notional.signum() == 0) && snapshot != null) {
-            notional = snapshot.getNotionalValue();
-        }
-        return notional;
-    }
-
     private BigDecimal computeNotional(BigDecimal quantity, BigDecimal markPrice) {
         if (quantity == null || markPrice == null) {
             return null;
@@ -109,16 +90,25 @@ public class LeveragePrecheckService {
         return absPrice.multiply(absQuantity, DIVISION_CONTEXT);
     }
 
-    private BigDecimal firstNonNull(BigDecimal preferred, BigDecimal fallback) {
-        return preferred != null ? preferred : fallback;
+    private BigDecimal calculateRequiredMargin(BigDecimal notional, Integer targetLeverage, RiskLimit riskLimit) {
+        BigDecimal leverageBased = notional.divide(BigDecimal.valueOf(targetLeverage), DIVISION_CONTEXT);
+        BigDecimal initialRate = Optional.ofNullable(riskLimit.getInitialMarginRate()).orElse(BigDecimal.ZERO);
+        BigDecimal rateBased = notional.multiply(initialRate, DIVISION_CONTEXT);
+        return leverageBased.max(rateBased);
     }
 
-    private Integer suggestLeverage(BigDecimal notional, BigDecimal availableMargin, Integer maxLeverage) {
-        if (notional == null || availableMargin == null || availableMargin.signum() <= 0) {
+    private BigDecimal resolveThreshold(RiskLimit riskLimit) {
+        BigDecimal maintenance = Optional.ofNullable(riskLimit.getMaintenanceMarginRate()).orElse(BigDecimal.ZERO);
+        BigDecimal buffer = Optional.ofNullable(preCheckProperties.getMaintenanceBuffer()).orElse(BigDecimal.ZERO);
+        return maintenance.add(buffer, DIVISION_CONTEXT);
+    }
+
+    private Integer suggestLeverage(BigDecimal threshold, Integer maxLeverage) {
+        if (threshold == null || threshold.signum() <= 0) {
             return maxLeverage;
         }
-        BigDecimal ratio = notional.divide(availableMargin, DIVISION_CONTEXT);
-        int suggested = ratio.setScale(0, RoundingMode.DOWN).intValue();
+        BigDecimal allowed = BigDecimal.ONE.divide(threshold, DIVISION_CONTEXT);
+        int suggested = allowed.setScale(0, RoundingMode.FLOOR).intValue();
         suggested = Math.max(1, suggested);
         if (maxLeverage != null) {
             suggested = Math.min(suggested, maxLeverage);

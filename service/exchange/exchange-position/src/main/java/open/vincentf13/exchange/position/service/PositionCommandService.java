@@ -97,8 +97,6 @@ public class PositionCommandService {
     }
 
     private LeveragePrecheckRequest buildPrecheckRequest(Position position, Integer targetLeverage) {
-        BigDecimal margin = position.getMargin();
-        BigDecimal equity = resolveEquity(position);
         return new LeveragePrecheckRequest(
                 position.getPositionId(),
                 position.getInstrumentId(),
@@ -106,21 +104,9 @@ public class PositionCommandService {
                 targetLeverage,
                 position.getSide(),
                 position.getQuantity(),
-                equity,
-                margin,
+                position.getMargin(),
                 position.getMarkPrice()
         );
-    }
-
-    private BigDecimal resolveEquity(Position position) {
-        BigDecimal margin = defaultZero(position.getMargin());
-        BigDecimal realized = defaultZero(position.getRealizedPnl());
-        BigDecimal unrealized = defaultZero(position.getUnrealizedPnl());
-        return margin.add(realized).add(unrealized);
-    }
-
-    private BigDecimal defaultZero(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
     }
 
     private Map<String, Object> buildPrecheckMeta(Long positionId,

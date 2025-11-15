@@ -11,7 +11,6 @@ public record LeveragePrecheckRequest(
         Integer targetLeverage,
         OrderSide side,
         BigDecimal quantity,
-        BigDecimal equity,
-        BigDecimal usedMargin,
+        BigDecimal margin,
         BigDecimal markPrice
 ) {}
