@@ -7,6 +7,7 @@ import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEvent
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveResult;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -45,7 +46,7 @@ public class PositionReserveRequestListener {
                 event.userId(),
                 event.instrumentId(),
                 event.quantity(),
-                event.orderSide()
+                toPositionSide(event.orderSide())
         );
         if (result.success()) {
             PositionReservedEvent reservedEvent = new PositionReservedEvent(
@@ -72,5 +73,14 @@ public class PositionReserveRequestListener {
         OpenLog.warn(log, "PositionReserveRejected", "Position reserve rejected", null,
                 "orderId", event.orderId(),
                 "reason", result.reason());
+    }
+
+    private PositionSide toPositionSide(open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide orderSide) {
+        if (orderSide == null) {
+            return null;
+        }
+        return orderSide == open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide.BUY
+                ? PositionSide.LONG
+                : PositionSide.SHORT;
     }
 }

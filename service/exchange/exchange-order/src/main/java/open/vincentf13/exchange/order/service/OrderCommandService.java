@@ -8,11 +8,13 @@ import open.vincentf13.exchange.order.domain.service.OrderDomainService;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
+import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderResponse;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.OpenMapstruct;
@@ -68,7 +70,7 @@ public class OrderCommandService {
 
     private PositionIntentType determineIntent(Long userId, OrderCreateRequest request) {
         PositionIntentResponse response = OpenApiClientInvoker.call(
-                () -> exchangePositionClient.determineIntent(new PositionIntentRequest(userId, request.instrumentId(), request.side(), request.quantity())),
+                () -> exchangePositionClient.determineIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity())),
                 errorMsg -> OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT, "Unable to determine position intent. " + errorMsg.describe())
         );
         PositionIntentType intentType = response.intentType();
@@ -77,6 +79,15 @@ public class OrderCommandService {
                     "Position intent type is null for instrument=" + request.instrumentId());
         }
         return intentType;
+    }
+
+    private PositionSide toPositionSide(OrderSide orderSide) {
+        if (orderSide == null) {
+            return null;
+        }
+        return orderSide == open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide.BUY
+                ? PositionSide.LONG
+                : PositionSide.SHORT;
     }
 
     private void markSubmitted(Order order) {

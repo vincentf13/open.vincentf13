@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.risk.margin.sdk.rest.api;
 
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 
 import java.math.BigDecimal;
 
@@ -9,7 +9,7 @@ public record LeveragePrecheckRequest(
         Long instrumentId,
         Long userId,
         Integer targetLeverage,
-        OrderSide side,
+        PositionSide side,
         BigDecimal quantity,
         BigDecimal margin,
         BigDecimal markPrice

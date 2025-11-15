@@ -1,11 +1,11 @@
 package open.vincentf13.exchange.position.service;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.position.domain.model.PositionSide;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -23,7 +23,7 @@ public class PositionQueryService {
                 .map(position -> position.getQuantity())
                 .orElse(BigDecimal.ZERO);
         PositionIntentType intentType = activePosition
-                .map(position -> position.evaluateIntent(PositionSide.fromOrderSide(request.orderSide()), request.quantity()))
+                .map(position -> position.evaluateIntent(request.side(), request.quantity()))
                 .orElse(PositionIntentType.INCREASE);
         return PositionIntentResponse.of(intentType, existing);
     }
@@ -38,8 +38,8 @@ public class PositionQueryService {
         if (request.instrumentId() == null) {
             throw new IllegalArgumentException("instrumentId is required");
         }
-        if (request.orderSide() == null) {
-            throw new IllegalArgumentException("orderSide is required");
+        if (request.side() == null) {
+            throw new IllegalArgumentException("side is required");
         }
         if (request.quantity() == null) {
             throw new IllegalArgumentException("quantity is required");

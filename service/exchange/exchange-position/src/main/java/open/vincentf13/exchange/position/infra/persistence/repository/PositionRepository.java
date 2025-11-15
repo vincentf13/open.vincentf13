@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.position.infra.persistence.repository;
 
 import open.vincentf13.exchange.position.domain.model.Position;
-import open.vincentf13.exchange.position.domain.model.PositionSide;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 
 import java.math.BigDecimal;
 import java.util.Optional;

@@ -3,7 +3,7 @@ package open.vincentf13.exchange.position.infra.persistence.repository;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.domain.model.Position;
-import open.vincentf13.exchange.position.domain.model.PositionSide;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.sdk.core.OpenMapstruct;

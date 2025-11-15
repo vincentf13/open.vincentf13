@@ -4,10 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.model.PositionErrorCode;
-import open.vincentf13.exchange.position.domain.model.PositionSide;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
@@ -32,7 +32,7 @@ public class PositionCommandService {
             Long userId,
             Long instrumentId,
             BigDecimal quantity,
-            OrderSide orderSide
+            PositionSide side
     ) {
         if (userId == null || instrumentId == null) {
             return PositionReserveResult.rejected("POSITION_NOT_FOUND");
@@ -40,12 +40,8 @@ public class PositionCommandService {
         if (quantity == null || quantity.signum() <= 0) {
             return PositionReserveResult.rejected("INVALID_QUANTITY");
         }
-        if (orderSide == null) {
-            return PositionReserveResult.rejected("ORDER_SIDE_REQUIRED");
-        }
-        PositionSide side = PositionSide.fromOrderSide(orderSide);
         if (side == null) {
-            return PositionReserveResult.rejected("INVALID_ORDER_SIDE");
+            return PositionReserveResult.rejected("ORDER_SIDE_REQUIRED");
         }
         boolean success = positionRepository.reserveForClose(userId, instrumentId, quantity, side);
         if (!success) {
@@ -106,7 +102,7 @@ public class PositionCommandService {
                 position.getInstrumentId(),
                 position.getUserId(),
                 targetLeverage,
-                position.getSide() == null ? null : position.getSide().toOrderSide(),
+                position.getSide(),
                 position.getQuantity(),
                 position.getMargin(),
                 position.getMarkPrice()
