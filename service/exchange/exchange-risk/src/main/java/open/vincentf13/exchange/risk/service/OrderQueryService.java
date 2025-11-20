@@ -41,9 +41,10 @@ public class OrderQueryService {
         if (failureReason != null) {
             publishFailure(event, failureReason);
             return;
-        } else {
-            // 成功事件
         }
+
+        // 成功事件
+
         log.info("Risk pre-check passed. orderId={} userId={} instrumentId={} quantity={} price={}",
                  event.orderId(), event.userId(), event.instrumentId(), event.quantity(), event.price());
     }
