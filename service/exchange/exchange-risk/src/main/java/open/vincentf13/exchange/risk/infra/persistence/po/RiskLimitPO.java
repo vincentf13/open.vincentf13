@@ -25,8 +25,6 @@ public class RiskLimitPO {
     private BigDecimal maxPositionValue;
     private BigDecimal maxOrderValue;
     private Boolean active;
-    private Instant effectiveFrom;
-    private Instant effectiveTo;
     private Instant createdAt;
     private Instant updatedAt;
 }

@@ -16,8 +16,6 @@
         <result property="maxPositionValue" column="max_position_value" />
         <result property="maxOrderValue" column="max_order_value" />
         <result property="active" column="is_active" />
-        <result property="effectiveFrom" column="effective_from" />
-        <result property="effectiveTo" column="effective_to" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
@@ -38,20 +36,8 @@
         FROM risk_limits
         WHERE instrument_id = #{instrumentId}
           AND is_active = 1
-          AND effective_from <= #{asOf}
-          AND (effective_to IS NULL OR effective_to >= #{asOf})
-        ORDER BY effective_from DESC
+        ORDER BY updated_at DESC
         LIMIT 1
-    </select>
-
-    <select id="findActiveByInstrument" resultMap="RiskLimitResultMap">
-        SELECT *
-        FROM risk_limits
-        WHERE instrument_id = #{instrumentId}
-          AND is_active = 1
-          AND effective_from <= #{asOf}
-          AND (effective_to IS NULL OR effective_to >= #{asOf})
-        ORDER BY effective_from DESC
     </select>
 
     <insert id="insertSelective" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO">
@@ -68,8 +54,6 @@
             <if test="maxPositionValue != null">max_position_value,</if>
             <if test="maxOrderValue != null">max_order_value,</if>
             <if test="active != null">is_active,</if>
-            <if test="effectiveFrom != null">effective_from,</if>
-            <if test="effectiveTo != null">effective_to,</if>
             <if test="createdAt != null">created_at,</if>
             <if test="updatedAt != null">updated_at,</if>
         </trim>
@@ -86,8 +70,6 @@
             <if test="maxPositionValue != null">#{maxPositionValue},</if>
             <if test="maxOrderValue != null">#{maxOrderValue},</if>
             <if test="active != null">#{active},</if>
-            <if test="effectiveFrom != null">#{effectiveFrom},</if>
-            <if test="effectiveTo != null">#{effectiveTo},</if>
             <if test="createdAt != null">#{createdAt},</if>
             <if test="updatedAt != null">#{updatedAt},</if>
         </trim>
@@ -106,8 +88,6 @@
             <if test="maxPositionValue != null">max_position_value = #{maxPositionValue},</if>
             <if test="maxOrderValue != null">max_order_value = #{maxOrderValue},</if>
             <if test="active != null">is_active = #{active},</if>
-            <if test="effectiveFrom != null">effective_from = #{effectiveFrom},</if>
-            <if test="effectiveTo != null">effective_to = #{effectiveTo},</if>
             <if test="updatedAt != null">updated_at = #{updatedAt},</if>
         </set>
         WHERE id = #{riskLimitId}

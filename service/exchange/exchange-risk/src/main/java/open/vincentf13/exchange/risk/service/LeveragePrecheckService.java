@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.util.Optional;
 
 @Service
@@ -29,8 +28,7 @@ public class LeveragePrecheckService {
     // ref: 槓桿調整預檢：`POST /api/risk/precheck/leverage`
     public LeveragePrecheckResponse precheck(LeveragePrecheckRequest request) {
         validate(request);
-        Instant now = Instant.now();
-        RiskLimit riskLimit = riskLimitRepository.findEffective(request.instrumentId(), now)
+        RiskLimit riskLimit = riskLimitRepository.findEffective(request.instrumentId())
                 .orElse(null);
         if (riskLimit == null) {
             log.warn("Leverage pre-check failed: risk limit missing. instrumentId={} positionId={}",

@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.util.Optional;
 
 @Service
@@ -52,7 +51,7 @@ public class OrderQueryService {
     private FailureReason evaluate(OrderSubmittedEvent event) {
 
        // 取得風控基準
-        RiskLimit riskLimit = riskLimitRepository.findEffective(event.instrumentId(), Instant.now())
+        RiskLimit riskLimit = riskLimitRepository.findEffective(event.instrumentId())
                 .orElse(null);
         if (riskLimit == null) {
             return FailureReason.RISK_LIMIT_NOT_FOUND;

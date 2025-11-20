@@ -8,8 +8,6 @@ import open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -20,14 +18,9 @@ public class RiskLimitRepositoryImpl implements RiskLimitRepository {
     private final DefaultIdGenerator idGenerator;
 
     @Override
-    public Optional<RiskLimit> findEffective(Long instrumentId, Instant asOf) {
-        RiskLimitPO po = mapper.findEffective(instrumentId, asOf);
+    public Optional<RiskLimit> findEffective(Long instrumentId) {
+        RiskLimitPO po = mapper.findEffective(instrumentId);
         return Optional.ofNullable(OpenMapstruct.map(po, RiskLimit.class));
-    }
-
-    @Override
-    public List<RiskLimit> findActiveByInstrument(Long instrumentId, Instant asOf) {
-        return OpenMapstruct.mapList(mapper.findActiveByInstrument(instrumentId, asOf), RiskLimit.class);
     }
 
     @Override
