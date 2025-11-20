@@ -128,6 +128,7 @@ public class OrderQueryService {
         if (event == null) {
             return false;
         }
+        // 市價單不用價格，所以不檢查
         return event.orderId() != null
                 && event.userId() != null
                 && event.instrumentId() != null
