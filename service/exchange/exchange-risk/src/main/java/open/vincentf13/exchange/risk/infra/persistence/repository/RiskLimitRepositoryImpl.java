@@ -20,8 +20,8 @@ public class RiskLimitRepositoryImpl implements RiskLimitRepository {
     private final DefaultIdGenerator idGenerator;
 
     @Override
-    public Optional<RiskLimit> findEffective(Long instrumentId, Integer tier, Instant asOf) {
-        RiskLimitPO po = mapper.findEffective(instrumentId, tier, asOf);
+    public Optional<RiskLimit> findEffective(Long instrumentId, Instant asOf) {
+        RiskLimitPO po = mapper.findEffective(instrumentId, asOf);
         return Optional.ofNullable(OpenMapstruct.map(po, RiskLimit.class));
     }
 

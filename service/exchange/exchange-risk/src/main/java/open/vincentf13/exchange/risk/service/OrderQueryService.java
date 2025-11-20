@@ -52,7 +52,7 @@ public class OrderQueryService {
     private FailureReason evaluate(OrderSubmittedEvent event) {
 
        // 取得風控基準
-        RiskLimit riskLimit = riskLimitRepository.findEffective(event.instrumentId(), null, Instant.now())
+        RiskLimit riskLimit = riskLimitRepository.findEffective(event.instrumentId(), Instant.now())
                 .orElse(null);
         if (riskLimit == null) {
             return FailureReason.RISK_LIMIT_NOT_FOUND;

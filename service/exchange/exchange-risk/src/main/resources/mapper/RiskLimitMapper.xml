@@ -7,7 +7,6 @@
     <resultMap id="RiskLimitResultMap" type="open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO">
         <id property="riskLimitId" column="id" />
         <result property="instrumentId" column="instrument_id" />
-        <result property="tier" column="tier" />
         <result property="initialMarginRate" column="initial_margin_rate" />
         <result property="maxLeverage" column="max_leverage" />
         <result property="maintenanceMarginRate" column="maintenance_margin_rate" />
@@ -29,7 +28,6 @@
         <where>
             <if test="riskLimitId != null">AND id = #{riskLimitId}</if>
             <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
-            <if test="tier != null">AND tier = #{tier}</if>
             <if test="active != null">AND is_active = #{active}</if>
         </where>
         LIMIT 1
@@ -39,11 +37,10 @@
         SELECT *
         FROM risk_limits
         WHERE instrument_id = #{instrumentId}
-          AND (#{tier} IS NULL OR tier = #{tier})
           AND is_active = 1
           AND effective_from <= #{asOf}
           AND (effective_to IS NULL OR effective_to >= #{asOf})
-        ORDER BY tier ASC
+        ORDER BY effective_from DESC
         LIMIT 1
     </select>
 
@@ -54,7 +51,7 @@
           AND is_active = 1
           AND effective_from <= #{asOf}
           AND (effective_to IS NULL OR effective_to >= #{asOf})
-        ORDER BY tier ASC
+        ORDER BY effective_from DESC
     </select>
 
     <insert id="insertSelective" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO">
@@ -62,7 +59,6 @@
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="riskLimitId != null">id,</if>
             <if test="instrumentId != null">instrument_id,</if>
-            <if test="tier != null">tier,</if>
             <if test="initialMarginRate != null">initial_margin_rate,</if>
             <if test="maxLeverage != null">max_leverage,</if>
             <if test="maintenanceMarginRate != null">maintenance_margin_rate,</if>
@@ -81,7 +77,6 @@
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="riskLimitId != null">#{riskLimitId},</if>
             <if test="instrumentId != null">#{instrumentId},</if>
-            <if test="tier != null">#{tier},</if>
             <if test="initialMarginRate != null">#{initialMarginRate},</if>
             <if test="maxLeverage != null">#{maxLeverage},</if>
             <if test="maintenanceMarginRate != null">#{maintenanceMarginRate},</if>
@@ -102,7 +97,6 @@
         UPDATE risk_limits
         <set>
             <if test="instrumentId != null">instrument_id = #{instrumentId},</if>
-            <if test="tier != null">tier = #{tier},</if>
             <if test="initialMarginRate != null">initial_margin_rate = #{initialMarginRate},</if>
             <if test="maxLeverage != null">max_leverage = #{maxLeverage},</if>
             <if test="maintenanceMarginRate != null">maintenance_margin_rate = #{maintenanceMarginRate},</if>

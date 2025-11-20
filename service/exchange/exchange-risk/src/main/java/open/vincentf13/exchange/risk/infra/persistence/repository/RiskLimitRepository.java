@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface RiskLimitRepository {
 
-    Optional<RiskLimit> findEffective(Long instrumentId, Integer tier, Instant asOf);
+    Optional<RiskLimit> findEffective(Long instrumentId, Instant asOf);
 
     List<RiskLimit> findActiveByInstrument(Long instrumentId, Instant asOf);
 

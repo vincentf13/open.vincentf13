@@ -30,7 +30,7 @@ public class LeveragePrecheckService {
     public LeveragePrecheckResponse precheck(LeveragePrecheckRequest request) {
         validate(request);
         Instant now = Instant.now();
-        RiskLimit riskLimit = riskLimitRepository.findEffective(request.instrumentId(), null, now)
+        RiskLimit riskLimit = riskLimitRepository.findEffective(request.instrumentId(), now)
                 .orElse(null);
         if (riskLimit == null) {
             log.warn("Leverage pre-check failed: risk limit missing. instrumentId={} positionId={}",

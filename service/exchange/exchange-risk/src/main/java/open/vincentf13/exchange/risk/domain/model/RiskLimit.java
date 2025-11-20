@@ -16,7 +16,6 @@ public class RiskLimit {
 
     private Long riskLimitId;
     private Long instrumentId;
-    private Integer tier;
     private BigDecimal initialMarginRate;
     private Integer maxLeverage;
     private BigDecimal maintenanceMarginRate;

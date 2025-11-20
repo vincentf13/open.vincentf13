@@ -11,7 +11,6 @@ public interface RiskLimitMapper {
     RiskLimitPO findBy(RiskLimitPO condition);
 
     RiskLimitPO findEffective(@Param("instrumentId") Long instrumentId,
-                              @Param("tier") Integer tier,
                               @Param("asOf") Instant asOf);
 
     List<RiskLimitPO> findActiveByInstrument(@Param("instrumentId") Long instrumentId,
