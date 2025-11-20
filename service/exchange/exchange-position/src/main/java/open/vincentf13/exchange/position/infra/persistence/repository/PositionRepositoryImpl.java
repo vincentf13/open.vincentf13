@@ -55,7 +55,7 @@ public class PositionRepositoryImpl implements PositionRepository {
                 .positionId(idGenerator.newLong())
                 .userId(userId)
                 .instrumentId(instrumentId)
-                .leverage(1)
+                .leverage(40)
                 .margin(BigDecimal.ZERO)
                 .side(PositionSide.LONG)
                 .entryPrice(BigDecimal.ZERO)
