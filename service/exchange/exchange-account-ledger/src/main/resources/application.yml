@@ -1,21 +1,19 @@
 spring:
   application:
     name: exchange-account-ledger
-  datasource:
-    url: ${ACCOUNT_LEDGER_DB_URL:jdbc:mysql://localhost:3306/account_ledger}
-    username: ${ACCOUNT_LEDGER_DB_USER:ledger}
-    password: ${ACCOUNT_LEDGER_DB_PASSWORD:ledger}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  jackson:
-    serialization:
-      WRITE_DATES_AS_TIMESTAMPS: false
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
 
 mybatis:
-  mapper-locations: classpath:/mapper/*.xml
-  configuration:
-    map-underscore-to-camel-case: true
+  type-aliases-package: open.vincentf13.exchange.account.ledger.infra.persistence.po
 
-logging:
-  level:
-    open.vincentf13.exchange.account.ledger: INFO
-    org.mybatis: INFO
+open:
+  vincentf13:
+    id-generator:
+      snowflake:
+        worker-id: 7
+    mybatis:
+      mapper-base-packages: open.vincentf13.exchange.account.ledger.infra.persistence.mapper
