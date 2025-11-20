@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.account.ledger.infra.persistence.mapper.PlatformBalanceMapper">
+
+    <resultMap id="PlatformBalanceResultMap" type="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO">
+        <id property="id" column="id" />
+        <result property="accountId" column="account_id" />
+        <result property="accountCode" column="account_code" />
+        <result property="asset" column="asset" />
+        <result property="balance" column="balance" />
+        <result property="reserved" column="reserved" />
+        <result property="version" column="version" />
+        <result property="lastEntryId" column="last_entry_id" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findBy" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO"
+            resultMap="PlatformBalanceResultMap">
+        SELECT * FROM platform_balances
+        <where>
+            <if test="id != null">AND id = #{id}</if>
+            <if test="accountId != null">AND account_id = #{accountId}</if>
+            <if test="accountCode != null">AND account_code = #{accountCode}</if>
+            <if test="asset != null">AND asset = #{asset}</if>
+        </where>
+        ORDER BY updated_at DESC
+    </select>
+
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO">
+        INSERT INTO platform_balances
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="accountId != null">account_id,</if>
+            <if test="accountCode != null">account_code,</if>
+            <if test="asset != null">asset,</if>
+            <if test="balance != null">balance,</if>
+            <if test="reserved != null">reserved,</if>
+            <if test="version != null">version,</if>
+            <if test="lastEntryId != null">last_entry_id,</if>
+            <if test="createdAt != null">created_at,</if>
+            <if test="updatedAt != null">updated_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="accountId != null">#{accountId},</if>
+            <if test="accountCode != null">#{accountCode},</if>
+            <if test="asset != null">#{asset},</if>
+            <if test="balance != null">#{balance},</if>
+            <if test="reserved != null">#{reserved},</if>
+            <if test="version != null">#{version},</if>
+            <if test="lastEntryId != null">#{lastEntryId},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+            <if test="updatedAt != null">#{updatedAt},</if>
+        </trim>
+    </insert>
+
+    <update id="updateSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO">
+        UPDATE platform_balances
+        <set>
+            <if test="accountCode != null">account_code = #{accountCode},</if>
+            <if test="asset != null">asset = #{asset},</if>
+            <if test="balance != null">balance = #{balance},</if>
+            <if test="reserved != null">reserved = #{reserved},</if>
+            <if test="version != null">version = #{version},</if>
+            <if test="lastEntryId != null">last_entry_id = #{lastEntryId},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+</mapper>

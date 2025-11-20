@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.account.ledger.infra.persistence.mapper.PlatformAccountMapper">
+
+    <resultMap id="PlatformAccountResultMap" type="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAccountPO">
+        <id property="accountId" column="account_id" />
+        <result property="accountCode" column="account_code" />
+        <result property="category" column="category" />
+        <result property="name" column="name" />
+        <result property="status" column="status" />
+        <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <select id="findBy" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAccountPO"
+            resultMap="PlatformAccountResultMap">
+        SELECT * FROM platform_accounts
+        <where>
+            <if test="accountId != null">AND account_id = #{accountId}</if>
+            <if test="accountCode != null">AND account_code = #{accountCode}</if>
+            <if test="category != null">AND category = #{category}</if>
+            <if test="name != null">AND name = #{name}</if>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+        ORDER BY account_code ASC
+    </select>
+
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAccountPO">
+        INSERT INTO platform_accounts
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="accountId != null">account_id,</if>
+            <if test="accountCode != null">account_code,</if>
+            <if test="category != null">category,</if>
+            <if test="name != null">name,</if>
+            <if test="status != null">status,</if>
+            <if test="createdAt != null">created_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="accountId != null">#{accountId},</if>
+            <if test="accountCode != null">#{accountCode},</if>
+            <if test="category != null">#{category},</if>
+            <if test="name != null">#{name},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+        </trim>
+    </insert>
+
+    <update id="updateSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAccountPO">
+        UPDATE platform_accounts
+        <set>
+            <if test="accountCode != null">account_code = #{accountCode},</if>
+            <if test="category != null">category = #{category},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE account_id = #{accountId}
+    </update>
+</mapper>

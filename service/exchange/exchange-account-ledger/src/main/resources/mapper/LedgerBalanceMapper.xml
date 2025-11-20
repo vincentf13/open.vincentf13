@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerBalanceMapper">
+
+    <resultMap id="LedgerBalanceResultMap" type="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO">
+        <id property="id" column="id" />
+        <result property="accountId" column="account_id" />
+        <result property="userId" column="user_id" />
+        <result property="accountType" column="account_type" />
+        <result property="instrumentId" column="instrument_id" />
+        <result property="asset" column="asset" />
+        <result property="balance" column="balance" />
+        <result property="available" column="available" />
+        <result property="reserved" column="reserved" />
+        <result property="totalDeposited" column="total_deposited" />
+        <result property="totalWithdrawn" column="total_withdrawn" />
+        <result property="totalPnl" column="total_pnl" />
+        <result property="version" column="version" />
+        <result property="lastEntryId" column="last_entry_id" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findBy" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO"
+            resultMap="LedgerBalanceResultMap">
+        SELECT * FROM ledger_balances
+        <where>
+            <if test="id != null">AND id = #{id}</if>
+            <if test="accountId != null">AND account_id = #{accountId}</if>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="accountType != null">AND account_type = #{accountType}</if>
+            <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+            <if test="asset != null">AND asset = #{asset}</if>
+        </where>
+        ORDER BY updated_at DESC
+    </select>
+
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO">
+        INSERT INTO ledger_balances
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="accountId != null">account_id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="accountType != null">account_type,</if>
+            <if test="instrumentId != null">instrument_id,</if>
+            <if test="asset != null">asset,</if>
+            <if test="balance != null">balance,</if>
+            <if test="available != null">available,</if>
+            <if test="reserved != null">reserved,</if>
+            <if test="totalDeposited != null">total_deposited,</if>
+            <if test="totalWithdrawn != null">total_withdrawn,</if>
+            <if test="totalPnl != null">total_pnl,</if>
+            <if test="version != null">version,</if>
+            <if test="lastEntryId != null">last_entry_id,</if>
+            <if test="createdAt != null">created_at,</if>
+            <if test="updatedAt != null">updated_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="accountId != null">#{accountId},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="accountType != null">#{accountType},</if>
+            <if test="instrumentId != null">#{instrumentId},</if>
+            <if test="asset != null">#{asset},</if>
+            <if test="balance != null">#{balance},</if>
+            <if test="available != null">#{available},</if>
+            <if test="reserved != null">#{reserved},</if>
+            <if test="totalDeposited != null">#{totalDeposited},</if>
+            <if test="totalWithdrawn != null">#{totalWithdrawn},</if>
+            <if test="totalPnl != null">#{totalPnl},</if>
+            <if test="version != null">#{version},</if>
+            <if test="lastEntryId != null">#{lastEntryId},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+            <if test="updatedAt != null">#{updatedAt},</if>
+        </trim>
+    </insert>
+
+    <update id="updateSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO">
+        UPDATE ledger_balances
+        <set>
+            <if test="accountId != null">account_id = #{accountId},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="accountType != null">account_type = #{accountType},</if>
+            <if test="instrumentId != null">instrument_id = #{instrumentId},</if>
+            <if test="asset != null">asset = #{asset},</if>
+            <if test="balance != null">balance = #{balance},</if>
+            <if test="available != null">available = #{available},</if>
+            <if test="reserved != null">reserved = #{reserved},</if>
+            <if test="totalDeposited != null">total_deposited = #{totalDeposited},</if>
+            <if test="totalWithdrawn != null">total_withdrawn = #{totalWithdrawn},</if>
+            <if test="totalPnl != null">total_pnl = #{totalPnl},</if>
+            <if test="version != null">version = #{version},</if>
+            <if test="lastEntryId != null">last_entry_id = #{lastEntryId},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+</mapper>
