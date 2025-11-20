@@ -14,11 +14,11 @@ public final class OpenApiClientInvoker {
     private OpenApiClientInvoker() {
     }
 
-    public static <T> T unwrap(Supplier<OpenApiResponse<T>> call, String operation) {
-        return unwrap(call, operation, DEFAULT_EXCEPTION_FACTORY);
+    public static <T> T invoke(Supplier<OpenApiResponse<T>> call, String operation) {
+        return invoke(call, operation, DEFAULT_EXCEPTION_FACTORY);
     }
 
-    public static <T> T unwrap(Supplier<OpenApiResponse<T>> call,
+    public static <T> T invoke(Supplier<OpenApiResponse<T>> call,
                                String operation,
                                Function<ClientErrorContext, RuntimeException> exceptionFactory) {
         Objects.requireNonNull(call, "call");
@@ -45,7 +45,7 @@ public final class OpenApiClientInvoker {
                                   String operation,
                                   Function<ClientErrorContext, RuntimeException> exceptionFactory) {
         Objects.requireNonNull(mapper, "mapper");
-        T data = unwrap(call, operation, exceptionFactory);
+        T data = invoke(call, operation, exceptionFactory);
         return mapper.apply(data);
     }
 

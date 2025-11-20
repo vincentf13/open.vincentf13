@@ -66,7 +66,7 @@ public class PositionCommandService {
         }
 
         LeveragePrecheckRequest precheckRequest = buildPrecheckRequest(position, targetLeverage);
-        LeveragePrecheckResponse precheckResponse = OpenApiClientInvoker.unwrap(
+        LeveragePrecheckResponse precheckResponse = OpenApiClientInvoker.invoke(
                 () -> riskMarginClient.precheckLeverage(precheckRequest),
                 "risk.precheck.leverage");
         if (!precheckResponse.allow()) {
@@ -102,7 +102,6 @@ public class PositionCommandService {
                 position.getInstrumentId(),
                 position.getUserId(),
                 targetLeverage,
-                position.getSide(),
                 position.getQuantity(),
                 position.getMargin(),
                 position.getMarkPrice()

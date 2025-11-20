@@ -25,6 +25,8 @@ public class LeveragePrecheckService {
     private final RiskLimitRepository riskLimitRepository;
     private final RiskPreCheckProperties preCheckProperties;
 
+
+    // ref: 槓桿調整預檢：`POST /api/risk/precheck/leverage`
     public LeveragePrecheckResponse precheck(LeveragePrecheckRequest request) {
         validate(request);
         Instant now = Instant.now();
