@@ -32,7 +32,6 @@ public class Position {
     private BigDecimal liquidationPrice;
     private BigDecimal bankruptcyPrice;
     private String status;
-    private Long lastTradeId;
     private Integer version;
     private Instant createdAt;
     private Instant updatedAt;
