@@ -53,11 +53,8 @@ public class PositionCommandService {
     public PositionLeverageResponse adjustLeverage(Long userId, Long instrumentId, PositionLeverageRequest request) {
         validateLeverageRequest(instrumentId, request);
         Position position = positionRepository.findActive(userId, instrumentId)
-                .orElseGet(() -> positionRepository.createDefault(userId, instrumentId));
-        if (position == null) {
-            throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
-                    "Failed to initialize position for leverage adjustment");
-        }
+                .orElseThrow(() -> OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
+                        "Active position required before adjusting leverage"));
 
         Integer targetLeverage = request.targetLeverage();
         if (targetLeverage.equals(position.getLeverage())) {
