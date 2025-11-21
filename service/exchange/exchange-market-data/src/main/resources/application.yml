@@ -17,3 +17,7 @@ open:
         worker-id: 8
     mybatis:
       mapper-base-packages: open.vincentf13.exchange.marketdata.infra.persistence.mapper
+    exchange:
+      marketdata:
+        orderbook:
+          consumer-group: exchange-market-data-orderbook
