@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.marketdata.domain.service;
+package open.vincentf13.exchange.marketdata.infra.cache;
 
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.marketdata.domain.model.MarkPriceSnapshot;

@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.marketdata.domain.service;
+package open.vincentf13.exchange.marketdata.infra.cache;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -98,11 +98,6 @@ public class KlineAggregationService {
         return activeBuckets.compute(key, (k, current) -> {
             if (current != null && bucketStart.equals(current.getBucketStart())) {
                 return current;
-            }
-            // 寫入成交數據時，自動關閉過期 未 close 的桶
-            if (current != null && !Boolean.TRUE.equals(current.getClosed())) {
-                current.setClosed(Boolean.TRUE);
-                klineBucketRepository.save(current);
             }
             Optional<KlineBucket> persisted = klineBucketRepository.findByStart(instrumentId, period.getValue(), bucketStart);
             return persisted.orElseGet(() -> createNewBucket(instrumentId, period, bucketStart, bucketEnd));

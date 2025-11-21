@@ -2,7 +2,7 @@ package open.vincentf13.exchange.marketdata.scheduler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.exchange.marketdata.domain.service.KlineAggregationService;
+import open.vincentf13.exchange.marketdata.infra.cache.KlineAggregationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
