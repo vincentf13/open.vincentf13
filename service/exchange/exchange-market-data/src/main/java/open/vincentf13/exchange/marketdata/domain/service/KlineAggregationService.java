@@ -56,11 +56,39 @@ public class KlineAggregationService {
             if (bucket == null || bucket.getBucketEnd() == null) {
                 continue;
             }
-            if (now.isAfter(bucket.getBucketEnd()) && !Boolean.TRUE.equals(bucket.getClosed())) {
-                bucket.setClosed(Boolean.TRUE);
-                klineBucketRepository.save(bucket);
+            if (!now.isAfter(bucket.getBucketEnd())) {
+                continue;
             }
+            finalizeBucket(entry.getKey(), bucket);
         }
+    }
+
+    private void finalizeBucket(KlineKey key, KlineBucket bucket) {
+        KlinePeriod period = KlinePeriod.fromValue(key.period());
+        boolean emptyBucket = bucket.getTradeCount() == null || bucket.getTradeCount() == 0;
+        if (emptyBucket) {
+            BigDecimal prevClose = findPreviousClose(bucket, period);
+            bucket.setOpenPrice(prevClose);
+            bucket.setHighPrice(prevClose);
+            bucket.setLowPrice(prevClose);
+            bucket.setClosePrice(prevClose);
+            bucket.setVolume(BigDecimal.ZERO);
+            bucket.setTurnover(BigDecimal.ZERO);
+            bucket.setTradeCount(0);
+            bucket.setTakerBuyVolume(BigDecimal.ZERO);
+            bucket.setTakerBuyTurnover(BigDecimal.ZERO);
+        }
+        bucket.setClosed(Boolean.TRUE);
+        bucket.setUpdatedAt(Instant.now());
+        klineBucketRepository.save(bucket);
+    }
+
+    private BigDecimal findPreviousClose(KlineBucket bucket, KlinePeriod period) {
+        Instant prevStart = bucket.getBucketStart().minus(period.getDuration());
+        return klineBucketRepository.findByStart(bucket.getInstrumentId(), period.getValue(), prevStart)
+                .map(KlineBucket::getClosePrice)
+                .filter(Objects::nonNull)
+                .orElse(BigDecimal.ZERO);
     }
 
     private KlineBucket getOrLoadBucket(Long instrumentId, KlinePeriod period, Instant bucketStart) {
@@ -71,6 +99,7 @@ public class KlineAggregationService {
             if (current != null && bucketStart.equals(current.getBucketStart())) {
                 return current;
             }
+            // 寫入成交數據時，自動關閉過期 未 close 的桶
             if (current != null && !Boolean.TRUE.equals(current.getClosed())) {
                 current.setClosed(Boolean.TRUE);
                 klineBucketRepository.save(current);
