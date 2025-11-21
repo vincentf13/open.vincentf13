@@ -48,6 +48,9 @@ public class TickerStatsCacheService {
             cache.put(instrumentId, current);
             return;
         }
+        // TODO 目前沒有任何 24 小時的滑動窗口或過期機制。所以這套統計並非真正的「最近 24 小時」資料，而是從服務啟動後一路累加，
+        //  若要符合 24h 定義，需要額外資料結構（如環形緩衝、時間桶、定期扣除過期成交）或改用資料庫/分析系統重新計算。
+        //  現狀下只能視為簡易的累積統計，供快速顯示，不具嚴格時間窗語意。
 
         current.setLastPrice(price);
         current.setVolume24h(current.getVolume24h().add(quantity));
