@@ -20,11 +20,6 @@ public class MarketSnapshot {
     private Long snapshotId;
     private Long instrumentId;
 
-    private BigDecimal bestBidPrice;
-    private BigDecimal bestAskPrice;
-    private String bidDepth;
-    private String askDepth;
-
     private BigDecimal lastPrice;
     private BigDecimal volume24h;
     private BigDecimal turnover24h;
@@ -33,14 +28,6 @@ public class MarketSnapshot {
     private BigDecimal open24h;
     private BigDecimal priceChange24h;
     private BigDecimal priceChangePct;
-
-    private BigDecimal markPrice;
-    private BigDecimal indexPrice;
-    private BigDecimal fundingRate;
-    private BigDecimal openInterest;
-
-    private Instant nextFundingTime;
-    private Integer tradesCount24h;
     private Instant capturedAt;
     private Instant createdAt;
 }
