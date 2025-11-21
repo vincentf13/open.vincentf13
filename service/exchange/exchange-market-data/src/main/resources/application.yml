@@ -21,3 +21,5 @@ open:
       marketdata:
         orderbook:
           consumer-group: exchange-market-data-orderbook
+        trade:
+          consumer-group: exchange-market-data-trade
