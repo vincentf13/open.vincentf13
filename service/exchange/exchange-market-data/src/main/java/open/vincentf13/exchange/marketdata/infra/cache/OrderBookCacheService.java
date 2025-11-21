@@ -60,6 +60,18 @@ public class OrderBookCacheService {
     }
 
     public OrderBookSnapshot get(Long instrumentId) {
-        return cache.get(instrumentId);
+        if (instrumentId == null) {
+            return null;
+        }
+        return cache.computeIfAbsent(instrumentId, this::createDefaultSnapshot);
+    }
+
+    private OrderBookSnapshot createDefaultSnapshot(Long instrumentId) {
+        return OrderBookSnapshot.builder()
+                .instrumentId(instrumentId)
+                .bids(List.of())
+                .asks(List.of())
+                .updatedAt(Instant.now())
+                .build();
     }
 }

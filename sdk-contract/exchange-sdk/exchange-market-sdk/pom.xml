@@ -16,9 +16,9 @@
 
     <name>exchange-market-sdk</name>
     <description>Market data service API contract aggregation</description>
-
     <modules>
         <module>exchange-market-sdk-mq</module>
         <module>exchange-market-sdk-rest-api</module>
     </modules>
+
 </project>
