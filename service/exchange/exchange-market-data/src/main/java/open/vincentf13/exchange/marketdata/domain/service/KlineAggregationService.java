@@ -32,20 +32,6 @@ public class KlineAggregationService {
     private final KlineBucketRepository klineBucketRepository;
     private final Map<KlineKey, KlineBucket> activeBuckets = new ConcurrentHashMap<>();
 
-    /**
-     * 初始化指定 instrument 在主要週期的 bucket，供啟動時填充。
-     */
-    public void initializeInstrument(Long instrumentId) {
-        if (instrumentId == null) {
-            return;
-        }
-        Instant now = Instant.now();
-        for (KlinePeriod period : SUPPORTED_PERIODS) {
-            Instant bucketStart = alignBucketStart(now, period.getDuration());
-            getOrLoadBucket(instrumentId, period, bucketStart);
-        }
-    }
-
     public void recordTrade(Long instrumentId,
                              BigDecimal price,
                              BigDecimal quantity,
