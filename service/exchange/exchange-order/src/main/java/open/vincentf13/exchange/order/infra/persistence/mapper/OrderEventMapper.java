@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.order.infra.persistence.mapper;
 
 import open.vincentf13.exchange.order.infra.persistence.po.OrderEventPO;
-import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -9,5 +8,5 @@ public interface OrderEventMapper {
 
     void insert(OrderEventPO event);
 
-    List<OrderEventPO> findByOrderId(@Param("orderId") Long orderId);
+    List<OrderEventPO> findBy(OrderEventPO condition);
 }

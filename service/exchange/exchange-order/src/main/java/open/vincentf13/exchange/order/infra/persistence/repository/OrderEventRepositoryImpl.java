@@ -9,6 +9,7 @@ import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 @Repository
@@ -27,7 +28,13 @@ public class OrderEventRepositoryImpl implements OrderEventRepository {
 
     @Override
     public List<OrderEvent> findByOrderId(Long orderId) {
-        return mapper.findByOrderId(orderId).stream()
+        if (orderId == null) {
+            return Collections.emptyList();
+        }
+        OrderEventPO condition = OrderEventPO.builder()
+                .orderId(orderId)
+                .build();
+        return mapper.findBy(condition).stream()
                 .map(po -> OpenMapstruct.map(po, OrderEvent.class))
                 .toList();
     }

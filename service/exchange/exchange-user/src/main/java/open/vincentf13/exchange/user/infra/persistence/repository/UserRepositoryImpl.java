@@ -40,7 +40,7 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public List<User> findBy(User probe) {
         UserPO poProbe = OpenMapstruct.map(probe, UserPO.class);
-        return mapper.findByPO(poProbe).stream()
+        return mapper.findBy(poProbe).stream()
                 .map(item -> OpenMapstruct.map(item, User.class))
                 .collect(Collectors.toList());
     }

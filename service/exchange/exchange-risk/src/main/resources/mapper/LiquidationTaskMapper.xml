@@ -64,10 +64,29 @@
         )
     </insert>
 
-    <select id="findById" resultMap="LiquidationTaskResultMap">
+    <select id="findBy" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.LiquidationTaskPO"
+            resultMap="LiquidationTaskResultMap">
         SELECT *
         FROM liquidation_queue
-        WHERE id = #{taskId}
+        <where>
+            <if test="taskId != null">AND id = #{taskId}</if>
+            <if test="positionId != null">AND position_id = #{positionId}</if>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="priority != null">AND priority = #{priority}</if>
+            <if test="queuedAt != null">AND queued_at = #{queuedAt}</if>
+            <if test="reason != null">AND reason = #{reason}</if>
+            <if test="startedAt != null">AND started_at = #{startedAt}</if>
+            <if test="processedAt != null">AND processed_at = #{processedAt}</if>
+            <if test="liquidationPrice != null">AND liquidation_price = #{liquidationPrice}</if>
+            <if test="liquidationPnl != null">AND liquidation_pnl = #{liquidationPnl}</if>
+            <if test="errorMessage != null">AND error_message = #{errorMessage}</if>
+            <if test="retryCount != null">AND retry_count = #{retryCount}</if>
+            <if test="maxRetries != null">AND max_retries = #{maxRetries}</if>
+            <if test="createdAt != null">AND created_at = #{createdAt}</if>
+            <if test="updatedAt != null">AND updated_at = #{updatedAt}</if>
+        </where>
         LIMIT 1
     </select>
 

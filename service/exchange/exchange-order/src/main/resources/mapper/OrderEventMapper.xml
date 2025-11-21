@@ -49,7 +49,8 @@
         )
     </insert>
 
-    <select id="findByOrderId" parameterType="long" resultMap="OrderEventResultMap">
+    <select id="findBy" parameterType="open.vincentf13.exchange.order.infra.persistence.po.OrderEventPO"
+            resultMap="OrderEventResultMap">
         SELECT
             event_id,
             user_id,
@@ -64,7 +65,19 @@
             occurred_at,
             created_at
         FROM order_events
-        WHERE order_id = #{orderId}
+        <where>
+            <if test="eventId != null">AND event_id = #{eventId}</if>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+            <if test="orderId != null">AND order_id = #{orderId}</if>
+            <if test="eventType != null">AND event_type = #{eventType}</if>
+            <if test="sequenceNumber != null">AND sequence_number = #{sequenceNumber}</if>
+            <if test="referenceType != null">AND reference_type = #{referenceType}</if>
+            <if test="referenceId != null">AND reference_id = #{referenceId}</if>
+            <if test="actor != null">AND actor = #{actor}</if>
+            <if test="occurredAt != null">AND occurred_at = #{occurredAt}</if>
+            <if test="createdAt != null">AND created_at = #{createdAt}</if>
+        </where>
         ORDER BY sequence_number ASC
     </select>
 

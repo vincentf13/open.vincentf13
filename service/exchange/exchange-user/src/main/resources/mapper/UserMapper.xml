@@ -26,7 +26,7 @@
         </trim>
     </insert>
 
-    <select id="findByPO" parameterType="UserPO" resultType="UserPO">
+    <select id="findBy" parameterType="UserPO" resultType="UserPO">
         SELECT id, external_id, email, status, created_at, updated_at
         FROM users
         <where>

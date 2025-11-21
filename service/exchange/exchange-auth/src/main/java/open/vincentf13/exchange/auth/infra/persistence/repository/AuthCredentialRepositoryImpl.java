@@ -52,7 +52,7 @@ public class AuthCredentialRepositoryImpl implements AuthCredentialRepository {
     @Override
     public List<AuthCredential> findBy(AuthCredential probe) {
         AuthCredentialPO poProbe = OpenMapstruct.map(probe, AuthCredentialPO.class);
-        return mapper.findByPO(poProbe).stream()
+        return mapper.findBy(poProbe).stream()
                 .map(item -> OpenMapstruct.map(item, AuthCredential.class))
                 .collect(Collectors.toList());
     }

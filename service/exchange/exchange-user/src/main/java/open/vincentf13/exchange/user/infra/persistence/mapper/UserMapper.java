@@ -9,7 +9,7 @@ public interface UserMapper {
 
     void insertSelective(UserPO user);
 
-    List<UserPO> findByPO(UserPO user);
+    List<UserPO> findBy(UserPO user);
 
     void updateSelective(UserPO user);
 

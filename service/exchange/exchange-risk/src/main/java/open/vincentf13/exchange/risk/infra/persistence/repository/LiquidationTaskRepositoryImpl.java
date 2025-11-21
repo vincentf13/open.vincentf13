@@ -37,7 +37,12 @@ public class LiquidationTaskRepositoryImpl implements LiquidationTaskRepository 
 
     @Override
     public Optional<LiquidationTask> findById(Long taskId) {
-        LiquidationTaskPO po = mapper.findById(taskId);
+        if (taskId == null) {
+            return Optional.empty();
+        }
+        LiquidationTaskPO condition = new LiquidationTaskPO();
+        condition.setTaskId(taskId);
+        LiquidationTaskPO po = mapper.findBy(condition);
         return Optional.ofNullable(OpenMapstruct.map(po, LiquidationTask.class));
     }
 

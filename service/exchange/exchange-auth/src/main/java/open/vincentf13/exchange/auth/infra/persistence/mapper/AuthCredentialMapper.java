@@ -9,7 +9,7 @@ public interface AuthCredentialMapper {
 
     void insertSelective(AuthCredentialPO credential);
 
-    List<AuthCredentialPO> findByPO(AuthCredentialPO credential);
+    List<AuthCredentialPO> findBy(AuthCredentialPO credential);
 
     void updateSelective(AuthCredentialPO credential);
 

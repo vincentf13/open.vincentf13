@@ -8,7 +8,7 @@ public interface MqDeadLetterMapper {
 
     void insertSelective(MqDeadLetterPO record);
 
-    List<MqDeadLetterPO> findByPO(MqDeadLetterPO criteria);
+    List<MqDeadLetterPO> findBy(MqDeadLetterPO criteria);
 
     void updateSelective(MqDeadLetterPO record);
 

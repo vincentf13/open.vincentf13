@@ -10,7 +10,7 @@ public interface MqOutboxMapper {
 
     void insertWithAutoSeq(MqOutboxPO record);
 
-    List<MqOutboxPO> findByPO(MqOutboxPO criteria);
+    List<MqOutboxPO> findBy(MqOutboxPO criteria);
 
     void updateSelective(MqOutboxPO record);
 

@@ -8,7 +8,7 @@ public interface MqConsumerOffsetMapper {
 
     void insertSelective(MqConsumerOffsetPO record);
 
-    List<MqConsumerOffsetPO> findByPO(MqConsumerOffsetPO criteria);
+    List<MqConsumerOffsetPO> findBy(MqConsumerOffsetPO criteria);
 
     void updateSelective(MqConsumerOffsetPO record);
 

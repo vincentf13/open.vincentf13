@@ -37,7 +37,7 @@
         </trim>
     </insert>
 
-    <select id="findByPO" parameterType="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterPO" resultMap="MqDeadLetterResultMap">
+    <select id="findBy" parameterType="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterPO" resultMap="MqDeadLetterResultMap">
         SELECT id, source, seq, outbox_id, payload, error, created_at
         FROM mq_dead_letters
         <where>
