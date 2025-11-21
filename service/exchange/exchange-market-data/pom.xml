@@ -24,5 +24,9 @@
             <groupId>open.vincentf13</groupId>
             <artifactId>sdk-infra-mysql</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-market-sdk-mq</artifactId>
+        </dependency>
     </dependencies>
 </project>

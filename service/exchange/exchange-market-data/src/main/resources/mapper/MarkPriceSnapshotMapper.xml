@@ -3,4 +3,56 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.marketdata.infra.persistence.mapper.MarkPriceSnapshotMapper">
+
+    <resultMap id="MarkPriceSnapshotResultMap" type="open.vincentf13.exchange.marketdata.infra.persistence.po.MarkPriceSnapshotPO">
+        <id property="snapshotId" column="snapshot_id" />
+        <result property="instrumentId" column="instrument_id" />
+        <result property="markPrice" column="mark_price" />
+        <result property="tradeId" column="trade_id" />
+        <result property="tradeExecutedAt" column="trade_executed_at" />
+        <result property="calculatedAt" column="calculated_at" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.marketdata.infra.persistence.po.MarkPriceSnapshotPO">
+        INSERT INTO mark_price_snapshots
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="snapshotId != null">snapshot_id,</if>
+            <if test="instrumentId != null">instrument_id,</if>
+            <if test="markPrice != null">mark_price,</if>
+            <if test="tradeId != null">trade_id,</if>
+            <if test="tradeExecutedAt != null">trade_executed_at,</if>
+            <if test="calculatedAt != null">calculated_at,</if>
+            <if test="createdAt != null">created_at,</if>
+            <if test="updatedAt != null">updated_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="snapshotId != null">#{snapshotId},</if>
+            <if test="instrumentId != null">#{instrumentId},</if>
+            <if test="markPrice != null">#{markPrice},</if>
+            <if test="tradeId != null">#{tradeId},</if>
+            <if test="tradeExecutedAt != null">#{tradeExecutedAt},</if>
+            <if test="calculatedAt != null">#{calculatedAt},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+            <if test="updatedAt != null">#{updatedAt},</if>
+        </trim>
+    </insert>
+
+    <select id="findLatest" resultMap="MarkPriceSnapshotResultMap">
+        SELECT
+            snapshot_id,
+            instrument_id,
+            mark_price,
+            trade_id,
+            trade_executed_at,
+            calculated_at,
+            created_at,
+            updated_at
+        FROM mark_price_snapshots
+        WHERE instrument_id = #{instrumentId}
+        ORDER BY calculated_at DESC
+        LIMIT 1
+    </select>
 </mapper>

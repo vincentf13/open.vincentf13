@@ -4,4 +4,8 @@ import open.vincentf13.exchange.marketdata.infra.persistence.po.MarkPriceSnapsho
 import org.apache.ibatis.annotations.Param;
 
 public interface MarkPriceSnapshotMapper {
+
+    void insertSelective(MarkPriceSnapshotPO record);
+
+    MarkPriceSnapshotPO findLatest(@Param("instrumentId") Long instrumentId);
 }

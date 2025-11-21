@@ -25,5 +25,6 @@
         <module>exchange-account-ledger-sdk</module>
         <module>exchange-risk-margin-sdk</module>
         <module>exchange-matching-sdk</module>
+        <module>exchange-market-sdk</module>
     </modules>
 </project>

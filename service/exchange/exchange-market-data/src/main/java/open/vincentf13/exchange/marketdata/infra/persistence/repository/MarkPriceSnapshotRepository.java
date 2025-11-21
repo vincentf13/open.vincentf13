@@ -5,4 +5,8 @@ import open.vincentf13.exchange.marketdata.domain.model.MarkPriceSnapshot;
 import java.util.Optional;
 
 public interface MarkPriceSnapshotRepository {
+
+    MarkPriceSnapshot save(MarkPriceSnapshot snapshot);
+
+    Optional<MarkPriceSnapshot> findLatest(Long instrumentId);
 }

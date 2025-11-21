@@ -14,8 +14,17 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TickerStatsCacheService {
 
     private final Map<Long, TickerStats> cache = new ConcurrentHashMap<>();
+    private final MarkPriceCacheService markPriceCacheService;
 
-    public void recordTrade(Long instrumentId, BigDecimal price, BigDecimal quantity, Instant executedAt) {
+    public TickerStatsCacheService(MarkPriceCacheService markPriceCacheService) {
+        this.markPriceCacheService = markPriceCacheService;
+    }
+
+    public void recordTrade(Long instrumentId,
+                            Long tradeId,
+                            BigDecimal price,
+                            BigDecimal quantity,
+                            Instant executedAt) {
         if (instrumentId == null || price == null || quantity == null) {
             return;
         }
@@ -52,6 +61,8 @@ public class TickerStatsCacheService {
         }
         current.setUpdatedAt(executedAt);
         cache.put(instrumentId, current);
+
+        markPriceCacheService.record(instrumentId, tradeId, price, executedAt);
     }
 
     public TickerStats get(Long instrumentId) {
