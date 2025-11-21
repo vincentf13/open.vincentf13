@@ -20,11 +20,4 @@ public class OrderBookResponse {
     BigDecimal bestAsk;
     BigDecimal midPrice;
     Instant updatedAt;
-
-    @Value
-    @Builder
-    public static class OrderBookLevel {
-        BigDecimal price;
-        BigDecimal quantity;
-    }
 }

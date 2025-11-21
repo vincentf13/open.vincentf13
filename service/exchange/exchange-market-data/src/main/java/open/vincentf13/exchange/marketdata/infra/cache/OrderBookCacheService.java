@@ -1,8 +1,8 @@
 package open.vincentf13.exchange.marketdata.infra.cache;
 
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 import open.vincentf13.exchange.marketdata.domain.model.OrderBookSnapshot;
-import open.vincentf13.exchange.marketdata.domain.model.OrderBookSnapshot.OrderBookLevel;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;

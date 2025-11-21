@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -23,12 +24,4 @@ public class OrderBookSnapshot {
     private BigDecimal midPrice;
     private Instant updatedAt;
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class OrderBookLevel {
-        private BigDecimal price;
-        private BigDecimal quantity;
-    }
 }

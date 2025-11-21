@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.marketdata.service;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookResponse;
 import open.vincentf13.exchange.marketdata.domain.model.OrderBookSnapshot;
 import open.vincentf13.exchange.marketdata.infra.cache.OrderBookCacheService;
@@ -38,15 +39,10 @@ public class OrderBookQueryService {
                 .build();
     }
 
-    private List<OrderBookResponse.OrderBookLevel> mapLevels(List<OrderBookSnapshot.OrderBookLevel> levels) {
-        if (levels == null) {
+    private List<OrderBookLevel> mapLevels(List<OrderBookLevel> levels) {
+        if (levels == null || levels.isEmpty()) {
             return List.of();
         }
-        return levels.stream()
-                .map(level -> OrderBookResponse.OrderBookLevel.builder()
-                        .price(level.getPrice())
-                        .quantity(level.getQuantity())
-                        .build())
-                .toList();
+        return List.copyOf(levels);
     }
 }

@@ -2,7 +2,7 @@ package open.vincentf13.exchange.marketdata.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.exchange.marketdata.domain.model.OrderBookSnapshot.OrderBookLevel;
+import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 import open.vincentf13.exchange.marketdata.infra.cache.OrderBookCacheService;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
