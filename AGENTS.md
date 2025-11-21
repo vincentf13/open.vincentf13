@@ -43,3 +43,4 @@
 - 以後不再編寫或更新測試程式碼。
 - 回覆最終總結時請一律使用中文。
 - Kafka 消費邏輯（例如 PositionReserveRequestListener）僅在成功處理後手動 ack，若發生異常需讓 Kafka 重送或進 DLQ，禁止在 finally 中強制 ack。
+- 所有 Domain ↔ DTO ↔ PO 之間的物件轉換一律透過 `open.vincentf13.sdk.core.OpenMapstruct`，禁止手寫 builder/constructor 直接複製欄位（包含行情查詢、標記價等服務）。

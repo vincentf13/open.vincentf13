@@ -3,9 +3,11 @@ package open.vincentf13.exchange.marketdata.controller;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.MarketApi;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.KlineResponse;
+import open.vincentf13.exchange.market.sdk.rest.api.dto.MarkPriceResponse;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookResponse;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.TickerResponse;
 import open.vincentf13.exchange.marketdata.service.KlineQueryService;
+import open.vincentf13.exchange.marketdata.service.MarkPriceQueryService;
 import open.vincentf13.exchange.marketdata.service.OrderBookQueryService;
 import open.vincentf13.exchange.marketdata.service.TickerQueryService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
@@ -24,6 +26,7 @@ public class MarketController implements MarketApi {
     private final TickerQueryService tickerQueryService;
     private final OrderBookQueryService orderBookQueryService;
     private final KlineQueryService klineQueryService;
+    private final MarkPriceQueryService markPriceQueryService;
 
     @Override
     public OpenApiResponse<TickerResponse> getTicker(@PathVariable("instrumentId") Long instrumentId) {
@@ -44,5 +47,15 @@ public class MarketController implements MarketApi {
                                                           @RequestParam("period") String period,
                                                           @RequestParam(value = "limit", required = false) Integer limit) {
         return OpenApiResponse.success(klineQueryService.getKlines(instrumentId, period, limit));
+    }
+
+    @Override
+    public OpenApiResponse<MarkPriceResponse> getMarkPrice(@PathVariable("instrumentId") Long instrumentId) {
+        return markPriceQueryService.getMarkPrice(instrumentId)
+                .map(OpenApiResponse::success)
+                .orElseGet(() -> OpenApiResponse.success(MarkPriceResponse.builder()
+                        .instrumentId(instrumentId)
+                        .markPrice(null)
+                        .build()));
     }
 }
