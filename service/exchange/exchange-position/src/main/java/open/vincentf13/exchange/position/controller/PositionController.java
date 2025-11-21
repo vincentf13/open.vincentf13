@@ -10,9 +10,11 @@ import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionQueryService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/positions")
 @RequiredArgsConstructor
 public class PositionController implements PositionApi {
 

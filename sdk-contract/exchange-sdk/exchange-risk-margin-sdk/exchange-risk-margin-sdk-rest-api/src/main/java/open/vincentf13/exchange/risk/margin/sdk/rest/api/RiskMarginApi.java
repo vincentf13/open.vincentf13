@@ -5,10 +5,8 @@ import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 @Validated
-@RequestMapping("/api/risk")
 public interface RiskMarginApi {
 
     @PostMapping("/precheck/leverage")

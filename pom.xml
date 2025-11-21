@@ -278,6 +278,11 @@
                 <artifactId>exchange-market-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-market-sdk-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

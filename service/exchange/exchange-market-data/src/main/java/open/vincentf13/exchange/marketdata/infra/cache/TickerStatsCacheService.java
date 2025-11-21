@@ -73,6 +73,25 @@ public class TickerStatsCacheService {
     }
 
     public TickerStats get(Long instrumentId) {
-        return cache.get(instrumentId);
+        if (instrumentId == null) {
+            return null;
+        }
+        return cache.computeIfAbsent(instrumentId, this::createDefault);
+    }
+
+    private TickerStats createDefault(Long instrumentId) {
+        Instant now = Instant.now();
+        return TickerStats.builder()
+                .instrumentId(instrumentId)
+                .lastPrice(BigDecimal.ZERO)
+                .volume24h(BigDecimal.ZERO)
+                .turnover24h(BigDecimal.ZERO)
+                .high24h(BigDecimal.ZERO)
+                .low24h(BigDecimal.ZERO)
+                .open24h(BigDecimal.ZERO)
+                .priceChange24h(BigDecimal.ZERO)
+                .priceChangePct(BigDecimal.ZERO)
+                .updatedAt(now)
+                .build();
     }
 }

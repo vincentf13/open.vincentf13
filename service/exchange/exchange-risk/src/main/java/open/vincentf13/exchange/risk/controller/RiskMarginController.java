@@ -6,9 +6,11 @@ import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRespons
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.RiskMarginApi;
 import open.vincentf13.exchange.risk.service.LeveragePrecheckService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/risk")
 @RequiredArgsConstructor
 public class RiskMarginController implements RiskMarginApi {
 

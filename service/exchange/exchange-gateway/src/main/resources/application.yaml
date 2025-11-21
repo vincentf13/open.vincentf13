@@ -26,6 +26,12 @@ spring:
             - Path=/position/**
           filters:
             - StripPrefix=1
+        - id: exchange-market-route
+          uri: lb://exchange-market-data
+          predicates:
+            - Path=/market/**
+          filters:
+            - StripPrefix=1
 
 open:
   vincentf13:

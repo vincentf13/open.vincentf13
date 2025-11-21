@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>open.vincentf13</groupId>
+        <artifactId>exchange-market-sdk</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>exchange-market-sdk-rest-api</artifactId>
+    <name>exchange-market-sdk-rest-api</name>
+    <description>Market data REST API contracts</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-spring-mvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-auth</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>

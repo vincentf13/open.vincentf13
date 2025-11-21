@@ -22,15 +22,23 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-spring-mvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-infra-mysql</artifactId>
         </dependency>
-             <dependency>
+        <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>sdk-infra-kafka</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>exchange-market-sdk-mq</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-market-sdk-rest-api</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
