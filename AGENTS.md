@@ -17,6 +17,7 @@
 - Prefer constructor injection, isolate config in dedicated classes, and remove transient debug output (`System.out.printf`, etc.) before committing.
 - Name components by responsibility (e.g., `UserController`, `OrderService`).
 - MyBatis Mapper 需優先使用 `insertSelective` / `updateSelective` / `findBy(PO)` / `batchInsert` / `batchUpdate` 模板，盡量共用這些 conventions 避免重工。
+- 針對查詢語句，只要情境允許，一律實作為單一 `findBy(PO)` 入口，由呼叫端透過 PO 組條件，避免額外客製查詢方法。
 - 開發 exchange 模組時，目錄／類別分層、命名與責任切分必須遵照 `design/exchange/整體設計.md` 的規範（例如 domain/infra/service/controller、聚合邊界等），任何新服務或重構都需先比對設計文件再實作。
 - 文件與程式的 API 命名需一致：即使為內部呼叫，統一以 `/api/...` 為前綴；Endpoint 表的 `授權` 欄內部介面填 `private`，`服務調用` 僅記錄「呼叫了哪個服務與接口」，不要描述回傳內容；`補償機制` 用來標註調用失敗時會在哪段程式碼重試或補償。
 
