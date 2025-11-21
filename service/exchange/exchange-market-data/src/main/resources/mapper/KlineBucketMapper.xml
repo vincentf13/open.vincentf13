@@ -142,4 +142,83 @@
         ORDER BY bucket_start DESC
         LIMIT 1
     </select>
+
+    <select id="findRecentBuckets" resultMap="KlineBucketResultMap">
+        SELECT
+            bucket_id,
+            instrument_id,
+            period,
+            bucket_start,
+            bucket_end,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            volume,
+            turnover,
+            trade_count,
+            taker_buy_volume,
+            taker_buy_turnover,
+            is_closed,
+            created_at,
+            updated_at
+        FROM kline_buckets
+        WHERE instrument_id = #{instrumentId}
+          AND period = #{period}
+        ORDER BY bucket_start DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findBucketsBetween" resultMap="KlineBucketResultMap">
+        SELECT
+            bucket_id,
+            instrument_id,
+            period,
+            bucket_start,
+            bucket_end,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            volume,
+            turnover,
+            trade_count,
+            taker_buy_volume,
+            taker_buy_turnover,
+            is_closed,
+            created_at,
+            updated_at
+        FROM kline_buckets
+        WHERE instrument_id = #{instrumentId}
+          AND period = #{period}
+          AND bucket_start BETWEEN #{start} AND #{end}
+        ORDER BY bucket_start ASC
+    </select>
+
+    <select id="findLatestBefore" resultMap="KlineBucketResultMap">
+        SELECT
+            bucket_id,
+            instrument_id,
+            period,
+            bucket_start,
+            bucket_end,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            volume,
+            turnover,
+            trade_count,
+            taker_buy_volume,
+            taker_buy_turnover,
+            is_closed,
+            created_at,
+            updated_at
+        FROM kline_buckets
+        WHERE instrument_id = #{instrumentId}
+          AND period = #{period}
+          AND bucket_start < #{start}
+        ORDER BY bucket_start DESC
+        LIMIT 1
+    </select>
 </mapper>

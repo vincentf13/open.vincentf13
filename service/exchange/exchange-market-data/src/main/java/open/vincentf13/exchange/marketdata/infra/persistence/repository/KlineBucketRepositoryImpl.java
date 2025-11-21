@@ -9,6 +9,7 @@ import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -60,5 +61,42 @@ public class KlineBucketRepositoryImpl implements KlineBucketRepository {
             mapper.updateById(record);
         }
         return OpenMapstruct.map(record, KlineBucket.class);
+    }
+
+    @Override
+    public List<KlineBucket> findRecent(Long instrumentId, String period, int limit) {
+        if (instrumentId == null || period == null || limit <= 0) {
+            return List.of();
+        }
+        List<KlineBucketPO> records = mapper.findRecentBuckets(instrumentId, period, limit);
+        if (records == null || records.isEmpty()) {
+            return List.of();
+        }
+        return records.stream()
+                .map(po -> OpenMapstruct.map(po, KlineBucket.class))
+                .toList();
+    }
+
+    @Override
+    public List<KlineBucket> findBetween(Long instrumentId, String period, Instant start, Instant end) {
+        if (instrumentId == null || period == null || start == null || end == null) {
+            return List.of();
+        }
+        List<KlineBucketPO> records = mapper.findBucketsBetween(instrumentId, period, start, end);
+        if (records == null || records.isEmpty()) {
+            return List.of();
+        }
+        return records.stream()
+                .map(po -> OpenMapstruct.map(po, KlineBucket.class))
+                .toList();
+    }
+
+    @Override
+    public Optional<KlineBucket> findLatestBefore(Long instrumentId, String period, Instant start) {
+        if (instrumentId == null || period == null || start == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(mapper.findLatestBefore(instrumentId, period, start))
+                .map(po -> OpenMapstruct.map(po, KlineBucket.class));
     }
 }
