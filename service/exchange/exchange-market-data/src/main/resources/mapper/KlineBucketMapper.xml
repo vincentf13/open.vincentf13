@@ -3,4 +3,143 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.marketdata.infra.persistence.mapper.KlineBucketMapper">
+
+    <resultMap id="KlineBucketResultMap" type="open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO">
+        <id property="bucketId" column="bucket_id" />
+        <result property="instrumentId" column="instrument_id" />
+        <result property="period" column="period" />
+        <result property="bucketStart" column="bucket_start" />
+        <result property="bucketEnd" column="bucket_end" />
+        <result property="openPrice" column="open_price" />
+        <result property="highPrice" column="high_price" />
+        <result property="lowPrice" column="low_price" />
+        <result property="closePrice" column="close_price" />
+        <result property="volume" column="volume" />
+        <result property="turnover" column="turnover" />
+        <result property="tradeCount" column="trade_count" />
+        <result property="takerBuyVolume" column="taker_buy_volume" />
+        <result property="takerBuyTurnover" column="taker_buy_turnover" />
+        <result property="closed" column="is_closed" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <insert id="insertSelective" parameterType="open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO">
+        INSERT INTO kline_buckets
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="bucketId != null">bucket_id,</if>
+            <if test="instrumentId != null">instrument_id,</if>
+            <if test="period != null">period,</if>
+            <if test="bucketStart != null">bucket_start,</if>
+            <if test="bucketEnd != null">bucket_end,</if>
+            <if test="openPrice != null">open_price,</if>
+            <if test="highPrice != null">high_price,</if>
+            <if test="lowPrice != null">low_price,</if>
+            <if test="closePrice != null">close_price,</if>
+            <if test="volume != null">volume,</if>
+            <if test="turnover != null">turnover,</if>
+            <if test="tradeCount != null">trade_count,</if>
+            <if test="takerBuyVolume != null">taker_buy_volume,</if>
+            <if test="takerBuyTurnover != null">taker_buy_turnover,</if>
+            <if test="closed != null">is_closed,</if>
+            <if test="createdAt != null">created_at,</if>
+            <if test="updatedAt != null">updated_at,</if>
+        </trim>
+        VALUES
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="bucketId != null">#{bucketId},</if>
+            <if test="instrumentId != null">#{instrumentId},</if>
+            <if test="period != null">#{period},</if>
+            <if test="bucketStart != null">#{bucketStart},</if>
+            <if test="bucketEnd != null">#{bucketEnd},</if>
+            <if test="openPrice != null">#{openPrice},</if>
+            <if test="highPrice != null">#{highPrice},</if>
+            <if test="lowPrice != null">#{lowPrice},</if>
+            <if test="closePrice != null">#{closePrice},</if>
+            <if test="volume != null">#{volume},</if>
+            <if test="turnover != null">#{turnover},</if>
+            <if test="tradeCount != null">#{tradeCount},</if>
+            <if test="takerBuyVolume != null">#{takerBuyVolume},</if>
+            <if test="takerBuyTurnover != null">#{takerBuyTurnover},</if>
+            <if test="closed != null">#{closed},</if>
+            <if test="createdAt != null">#{createdAt},</if>
+            <if test="updatedAt != null">#{updatedAt},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO">
+        UPDATE kline_buckets
+        <set>
+            <if test="instrumentId != null">instrument_id = #{instrumentId},</if>
+            <if test="period != null">period = #{period},</if>
+            <if test="bucketStart != null">bucket_start = #{bucketStart},</if>
+            <if test="bucketEnd != null">bucket_end = #{bucketEnd},</if>
+            <if test="openPrice != null">open_price = #{openPrice},</if>
+            <if test="highPrice != null">high_price = #{highPrice},</if>
+            <if test="lowPrice != null">low_price = #{lowPrice},</if>
+            <if test="closePrice != null">close_price = #{closePrice},</if>
+            <if test="volume != null">volume = #{volume},</if>
+            <if test="turnover != null">turnover = #{turnover},</if>
+            <if test="tradeCount != null">trade_count = #{tradeCount},</if>
+            <if test="takerBuyVolume != null">taker_buy_volume = #{takerBuyVolume},</if>
+            <if test="takerBuyTurnover != null">taker_buy_turnover = #{takerBuyTurnover},</if>
+            <if test="closed != null">is_closed = #{closed},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+        </set>
+        WHERE bucket_id = #{bucketId}
+    </update>
+
+    <select id="findByInstrumentPeriodAndStart" resultMap="KlineBucketResultMap">
+        SELECT
+            bucket_id,
+            instrument_id,
+            period,
+            bucket_start,
+            bucket_end,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            volume,
+            turnover,
+            trade_count,
+            taker_buy_volume,
+            taker_buy_turnover,
+            is_closed,
+            created_at,
+            updated_at
+        FROM kline_buckets
+        WHERE instrument_id = #{instrumentId}
+          AND period = #{period}
+          AND bucket_start = #{bucketStart}
+        LIMIT 1
+    </select>
+
+    <select id="findActiveBucket" resultMap="KlineBucketResultMap">
+        SELECT
+            bucket_id,
+            instrument_id,
+            period,
+            bucket_start,
+            bucket_end,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            volume,
+            turnover,
+            trade_count,
+            taker_buy_volume,
+            taker_buy_turnover,
+            is_closed,
+            created_at,
+            updated_at
+        FROM kline_buckets
+        WHERE instrument_id = #{instrumentId}
+          AND period = #{period}
+          AND bucket_start <= #{targetTime}
+          AND bucket_end > #{targetTime}
+        ORDER BY bucket_start DESC
+        LIMIT 1
+    </select>
 </mapper>

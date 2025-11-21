@@ -15,9 +15,12 @@ public class TickerStatsCacheService {
 
     private final Map<Long, TickerStats> cache = new ConcurrentHashMap<>();
     private final MarkPriceCacheService markPriceCacheService;
+    private final KlineAggregationService klineAggregationService;
 
-    public TickerStatsCacheService(MarkPriceCacheService markPriceCacheService) {
+    public TickerStatsCacheService(MarkPriceCacheService markPriceCacheService,
+                                   KlineAggregationService klineAggregationService) {
         this.markPriceCacheService = markPriceCacheService;
+        this.klineAggregationService = klineAggregationService;
     }
 
     public void recordTrade(Long instrumentId,
@@ -63,6 +66,7 @@ public class TickerStatsCacheService {
         cache.put(instrumentId, current);
 
         markPriceCacheService.record(instrumentId, tradeId, price, executedAt);
+        klineAggregationService.recordTrade(instrumentId, price, quantity, executedAt, null);
     }
 
     public TickerStats get(Long instrumentId) {

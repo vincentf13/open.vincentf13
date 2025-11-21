@@ -1,0 +1,191 @@
+package open.vincentf13.exchange.marketdata.domain.service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
+import open.vincentf13.exchange.marketdata.domain.model.KlinePeriod;
+import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class KlineAggregationService {
+
+    private static final Set<KlinePeriod> SUPPORTED_PERIODS = EnumSet.of(
+            KlinePeriod.ONE_MINUTE,
+            KlinePeriod.FIVE_MINUTES,
+            KlinePeriod.ONE_HOUR,
+            KlinePeriod.ONE_DAY
+    );
+
+    private final KlineBucketRepository klineBucketRepository;
+    private final Map<KlineKey, KlineBucket> activeBuckets = new ConcurrentHashMap<>();
+
+    /**
+     * 初始化指定 instrument 在主要週期的 bucket，供啟動時填充。
+     */
+    public void initializeInstrument(Long instrumentId) {
+        if (instrumentId == null) {
+            return;
+        }
+        Instant now = Instant.now();
+        for (KlinePeriod period : SUPPORTED_PERIODS) {
+            Instant bucketStart = alignBucketStart(now, period.getDuration());
+            getOrLoadBucket(instrumentId, period, bucketStart);
+        }
+    }
+
+    public void recordTrade(Long instrumentId,
+                             BigDecimal price,
+                             BigDecimal quantity,
+                             Instant executedAt,
+                             Boolean takerIsBuyer) {
+        if (instrumentId == null || price == null || quantity == null || executedAt == null) {
+            return;
+        }
+        for (KlinePeriod period : SUPPORTED_PERIODS) {
+            Instant bucketStart = alignBucketStart(executedAt, period.getDuration());
+            KlineBucket bucket = getOrLoadBucket(instrumentId, period, bucketStart);
+            applyTrade(bucket, price, quantity, executedAt, takerIsBuyer);
+        }
+    }
+
+    public void closeExpiredBuckets(Instant now) {
+        if (now == null) {
+            now = Instant.now();
+        }
+        for (Map.Entry<KlineKey, KlineBucket> entry : activeBuckets.entrySet()) {
+            KlineBucket bucket = entry.getValue();
+            if (bucket == null || bucket.getBucketEnd() == null) {
+                continue;
+            }
+            if (now.isAfter(bucket.getBucketEnd()) && !Boolean.TRUE.equals(bucket.getClosed())) {
+                bucket.setClosed(Boolean.TRUE);
+                klineBucketRepository.save(bucket);
+            }
+        }
+    }
+
+    private KlineBucket getOrLoadBucket(Long instrumentId, KlinePeriod period, Instant bucketStart) {
+        Instant bucketEnd = bucketStart.plus(period.getDuration());
+        KlineKey key = new KlineKey(instrumentId, period.getValue());
+        // 對指定 key 進行一次「讀取目前值 → 根據邏輯產生新值 → 寫回 Map」的整體操作
+        return activeBuckets.compute(key, (k, current) -> {
+            if (current != null && bucketStart.equals(current.getBucketStart())) {
+                return current;
+            }
+            if (current != null && !Boolean.TRUE.equals(current.getClosed())) {
+                current.setClosed(Boolean.TRUE);
+                klineBucketRepository.save(current);
+            }
+            Optional<KlineBucket> persisted = klineBucketRepository.findByStart(instrumentId, period.getValue(), bucketStart);
+            return persisted.orElseGet(() -> createNewBucket(instrumentId, period, bucketStart, bucketEnd));
+        });
+    }
+
+    private KlineBucket createNewBucket(Long instrumentId, KlinePeriod period, Instant bucketStart, Instant bucketEnd) {
+        KlineBucket bucket = KlineBucket.builder()
+                .instrumentId(instrumentId)
+                .period(period.getValue())
+                .bucketStart(bucketStart)
+                .bucketEnd(bucketEnd)
+                .openPrice(BigDecimal.ZERO)
+                .highPrice(BigDecimal.ZERO)
+                .lowPrice(BigDecimal.ZERO)
+                .closePrice(BigDecimal.ZERO)
+                .volume(BigDecimal.ZERO)
+                .turnover(BigDecimal.ZERO)
+                .tradeCount(0)
+                .takerBuyVolume(BigDecimal.ZERO)
+                .takerBuyTurnover(BigDecimal.ZERO)
+                .closed(Boolean.FALSE)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+        return klineBucketRepository.save(bucket);
+    }
+
+    private void applyTrade(KlineBucket bucket,
+                            BigDecimal price,
+                            BigDecimal quantity,
+                            Instant executedAt,
+                            Boolean takerIsBuyer) {
+        if (bucket.getOpenPrice() == null || bucket.getOpenPrice().compareTo(BigDecimal.ZERO) == 0) {
+            bucket.setOpenPrice(price);
+            bucket.setHighPrice(price);
+            bucket.setLowPrice(price);
+        }
+        bucket.setClosePrice(price);
+        bucket.setHighPrice(max(bucket.getHighPrice(), price));
+        bucket.setLowPrice(min(bucket.getLowPrice(), price));
+        bucket.setVolume(safeAdd(bucket.getVolume(), quantity));
+        bucket.setTurnover(safeAdd(bucket.getTurnover(), price.multiply(quantity)));
+        bucket.setTradeCount(safeInt(bucket.getTradeCount()) + 1);
+        if (Boolean.TRUE.equals(takerIsBuyer)) {
+            bucket.setTakerBuyVolume(safeAdd(bucket.getTakerBuyVolume(), quantity));
+            bucket.setTakerBuyTurnover(safeAdd(bucket.getTakerBuyTurnover(), price.multiply(quantity)));
+        }
+        bucket.setClosed(Boolean.FALSE);
+        bucket.setUpdatedAt(executedAt);
+        klineBucketRepository.save(bucket);
+    }
+
+    private BigDecimal max(BigDecimal left, BigDecimal right) {
+        if (left == null) {
+            return right;
+        }
+        return left.max(right);
+    }
+
+    private BigDecimal min(BigDecimal left, BigDecimal right) {
+        if (left == null) {
+            return right;
+        }
+        return left.min(right);
+    }
+
+    private BigDecimal safeAdd(BigDecimal base, BigDecimal delta) {
+        BigDecimal left = base == null ? BigDecimal.ZERO : base;
+        BigDecimal right = delta == null ? BigDecimal.ZERO : delta;
+        return left.add(right);
+    }
+
+    private int safeInt(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private Instant alignBucketStart(Instant source, Duration duration) {
+        long seconds = duration.getSeconds();
+        long bucketStartEpoch = (source.getEpochSecond() / seconds) * seconds;
+        return Instant.ofEpochSecond(bucketStartEpoch);
+    }
+
+    private record KlineKey(Long instrumentId, String period) {
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof KlineKey other)) {
+                return false;
+            }
+            return Objects.equals(instrumentId, other.instrumentId) && Objects.equals(period, other.period);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(instrumentId, period);
+        }
+    }
+}
