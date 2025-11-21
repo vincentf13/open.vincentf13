@@ -37,11 +37,31 @@ public class MarkPriceCacheService {
         if (snapshot != null) {
             return Optional.of(snapshot);
         }
-        return repository.findLatest(instrumentId)
-                .map(latest -> {
-                    cache.put(instrumentId, latest);
-                    return latest;
+        Optional<MarkPriceSnapshot> latest = repository.findLatest(instrumentId)
+                .map(found -> {
+                    cache.put(instrumentId, found);
+                    return found;
                 });
+        if (latest.isPresent()) {
+            return latest;
+        }
+        MarkPriceSnapshot defaultSnapshot = createDefaultSnapshot(instrumentId);
+        MarkPriceSnapshot persisted = repository.save(defaultSnapshot);
+        cache.put(instrumentId, persisted);
+        return Optional.of(persisted);
+    }
+
+    private MarkPriceSnapshot createDefaultSnapshot(Long instrumentId) {
+        Instant now = Instant.now();
+        return MarkPriceSnapshot.builder()
+                .instrumentId(instrumentId)
+                .markPrice(BigDecimal.ZERO)
+                .tradeId(0L)
+                .tradeExecutedAt(now)
+                .calculatedAt(now)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
     }
 
     public void record(Long instrumentId, Long tradeId, BigDecimal markPrice, Instant tradeExecutedAt) {
@@ -67,12 +87,12 @@ public class MarkPriceCacheService {
 
         cache.put(instrumentId, current);
 
-        if (!priceChanged && !intervalExceeded) {
+        if (!(priceChanged || intervalExceeded)) {
             return;
         }
 
         MarkPriceSnapshot persisted = repository.save(current);
-//        cache.put(instrumentId, persisted);
+        cache.put(instrumentId, persisted);
         eventPublisher.publishMarkPriceUpdated(persisted);
         log.debug("Mark price updated for instrument {} with trade {}", instrumentId, tradeId);
     }
