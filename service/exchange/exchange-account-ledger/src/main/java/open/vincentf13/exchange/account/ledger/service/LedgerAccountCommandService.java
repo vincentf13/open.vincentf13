@@ -51,15 +51,8 @@ public class LedgerAccountCommandService {
                 request.asset().toUpperCase(Locale.ROOT)
         );
 
-        int currentVersion = safeVersion(balance);
         BigDecimal amount = request.amount();
-        balance.setBalance(balance.getBalance().add(amount));
-        balance.setAvailable(balance.getAvailable().add(amount));
-        balance.setTotalDeposited(balance.getTotalDeposited().add(amount));
-        balance.setVersion(currentVersion + 1);
-        if (!ledgerBalanceRepository.updateWithVersion(balance, currentVersion)) {
-            throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + request.userId());
-        }
+        balance = retryUpdateForDeposit(balance, amount, request.userId(), request.asset());
 
         LedgerEntry entry = buildLedgerEntry(balance, amount, request.creditedAt(),
                 request.channel(), request.metadata(), ENTRY_TYPE_DEPOSIT, ENTRY_DIRECTION_CREDIT);
@@ -96,14 +89,7 @@ public class LedgerAccountCommandService {
             throw new IllegalArgumentException("Insufficient available balance");
         }
 
-        int currentVersion = safeVersion(balance);
-        balance.setAvailable(balance.getAvailable().subtract(totalOut));
-        balance.setBalance(balance.getBalance().subtract(totalOut));
-        balance.setTotalWithdrawn(balance.getTotalWithdrawn().add(request.amount()));
-        balance.setVersion(currentVersion + 1);
-        if (!ledgerBalanceRepository.updateWithVersion(balance, currentVersion)) {
-            throw new OptimisticLockingFailureException("Failed to update ledger balance for withdrawal");
-        }
+        balance = retryUpdateForWithdrawal(balance, totalOut, request.amount(), request.userId(), request.asset());
 
         LedgerEntry entry = buildLedgerEntry(balance, totalOut, request.requestedAt(),
                 request.destination(), request.metadata(), ENTRY_TYPE_WITHDRAWAL, ENTRY_DIRECTION_DEBIT);
@@ -176,6 +162,44 @@ public class LedgerAccountCommandService {
         if (request.fee() != null && request.fee().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("fee cannot be negative");
         }
+    }
+
+    private LedgerBalance retryUpdateForDeposit(LedgerBalance balance, BigDecimal amount, Long userId, String asset) {
+        int retries = 0;
+        while (retries < 3) {
+            int currentVersion = safeVersion(balance);
+            balance.setBalance(balance.getBalance().add(amount));
+            balance.setAvailable(balance.getAvailable().add(amount));
+            balance.setTotalDeposited(balance.getTotalDeposited().add(amount));
+            balance.setVersion(currentVersion + 1);
+            if (ledgerBalanceRepository.updateWithVersion(balance, currentVersion)) {
+                return balance;
+            }
+            retries++;
+            balance = reloadBalance(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+    }
+
+    private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance, BigDecimal totalOut, BigDecimal amount, Long userId, String asset) {
+        int retries = 0;
+        while (retries < 3) {
+            int currentVersion = safeVersion(balance);
+            balance.setAvailable(balance.getAvailable().subtract(totalOut));
+            balance.setBalance(balance.getBalance().subtract(totalOut));
+            balance.setTotalWithdrawn(balance.getTotalWithdrawn().add(amount));
+            balance.setVersion(currentVersion + 1);
+            if (ledgerBalanceRepository.updateWithVersion(balance, currentVersion)) {
+                return balance;
+            }
+            retries++;
+            balance = reloadBalance(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+    }
+
+    private LedgerBalance reloadBalance(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
+        return getOrDefault(userId, accountType, instrumentId, asset);
     }
 
     private LedgerBalance getOrDefault(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
