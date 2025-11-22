@@ -44,7 +44,7 @@ public class LedgerBalanceCommandService {
                 updatedBalance.getAvailable(),
                 userEntry.getCreatedAt(),
                 updatedBalance.getUserId(),
-                updatedBalance.getAsset().code(),
+                updatedBalance.getAsset(),
                 request.amount(),
                 request.txId()
         );
@@ -95,7 +95,7 @@ public class LedgerBalanceCommandService {
                 balance.getAvailable(),
                 entry.getEventTime(),
                 balance.getUserId(),
-                balance.getAsset().code(),
+                balance.getAsset(),
                 request.amount(),
                 fee,
                 request.externalRef()

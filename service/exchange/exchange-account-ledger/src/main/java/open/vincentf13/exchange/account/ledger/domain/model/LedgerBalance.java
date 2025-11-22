@@ -57,4 +57,11 @@ public class LedgerBalance {
     public static AssetSymbol normalizeAsset(String asset) {
         return AssetSymbol.fromValue(asset);
     }
+
+    public static AssetSymbol normalizeAsset(AssetSymbol asset) {
+        if (asset == null) {
+            throw new IllegalArgumentException("asset is required");
+        }
+        return asset;
+    }
 }

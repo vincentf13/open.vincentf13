@@ -1,13 +1,16 @@
 package open.vincentf13.exchange.account.ledger.sdk.rest.api.dto;
 
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
 public record LedgerBalanceItem(
         Long accountId,
-        String accountType,
+        AccountType accountType,
         Long instrumentId,
-        String asset,
+        AssetSymbol asset,
         BigDecimal balance,
         BigDecimal available,
         BigDecimal reserved,

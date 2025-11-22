@@ -35,6 +35,9 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
             balance.setUpdatedAt(balance.getCreatedAt());
         }
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
+        if (balance.getAccountType() != null && po.getAccountType() == null) {
+            po.setAccountType(balance.getAccountType().value());
+        }
         if (balance.getAsset() != null && po.getAsset() == null) {
             po.setAsset(balance.getAsset().code());
         }
@@ -52,6 +55,9 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
     public boolean updateWithVersion(LedgerBalance balance, Integer expectedVersion) {
         balance.setUpdatedAt(Instant.now());
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
+        if (balance.getAccountType() != null && po.getAccountType() == null) {
+            po.setAccountType(balance.getAccountType().value());
+        }
         if (balance.getAsset() != null && po.getAsset() == null) {
             po.setAsset(balance.getAsset().code());
         }
@@ -61,6 +67,9 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
     @Override
     public List<LedgerBalance> findBy(LedgerBalance condition) {
         LedgerBalancePO probe = OpenMapstruct.map(condition, LedgerBalancePO.class);
+        if (condition.getAccountType() != null && probe.getAccountType() == null) {
+            probe.setAccountType(condition.getAccountType().value());
+        }
         if (condition.getAsset() != null && probe.getAsset() == null) {
             probe.setAsset(condition.getAsset().code());
         }
