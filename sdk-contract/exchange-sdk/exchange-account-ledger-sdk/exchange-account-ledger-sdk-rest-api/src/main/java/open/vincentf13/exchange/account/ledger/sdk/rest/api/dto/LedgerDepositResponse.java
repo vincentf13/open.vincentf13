@@ -6,7 +6,6 @@ import java.time.Instant;
 public record LedgerDepositResponse(
         Long depositId,
         Long entryId,
-        String status,
         BigDecimal balanceAfter,
         Instant creditedAt,
         Long userId,

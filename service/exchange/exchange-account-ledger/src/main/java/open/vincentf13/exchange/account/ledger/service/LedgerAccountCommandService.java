@@ -45,7 +45,7 @@ public class LedgerAccountCommandService {
         );
         LedgerBalance balanceUpdated = retryUpdateForDeposit(balance, amount, request.userId(), normalizedAsset);
 
-        PlatformAccount platformAccount = getOrCreateUserDepositAccount();
+        PlatformAccount platformAccount = getOrCreatePlatformUserDepositAccount();
         PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, amount, normalizedAsset);
 
@@ -68,7 +68,7 @@ public class LedgerAccountCommandService {
                 .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
                 .referenceId(request.txId())
                 .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .description("用戶充值")
+                .description("User deposit")
                 .eventTime(eventTime)
                 .createdAt(createdAt)
                 .build();
@@ -95,9 +95,8 @@ public class LedgerAccountCommandService {
         return new LedgerDepositResponse(
                 userEntry.getEntryId(),
                 userEntry.getEntryId(),
-                "CONFIRMED",
                 balanceUpdated.getAvailable(),
-                userEntry.getEventTime(),
+                userEntry.getCreatedAt(),
                 balanceUpdated.getUserId(),
                 balanceUpdated.getAsset(),
                 amount,
@@ -210,7 +209,7 @@ public class LedgerAccountCommandService {
 
 
 
-    private PlatformAccount getOrCreateUserDepositAccount() {
+    private PlatformAccount getOrCreatePlatformUserDepositAccount() {
         PlatformAccount probe = PlatformAccount.builder()
                 .accountCode(PlatformAccount.ACCOUNT_CODE_USER_DEPOSIT)
                 .build();
