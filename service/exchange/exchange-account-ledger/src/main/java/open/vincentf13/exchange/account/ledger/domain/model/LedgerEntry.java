@@ -26,7 +26,7 @@ public class LedgerEntry {
     private Direction direction;
     private Long counterpartyEntryId;
     private BigDecimal balanceAfter;
-    private String referenceType;
+    private ReferenceType referenceType;
     private String referenceId;
     private EntryType entryType;
     private String description;
@@ -101,7 +101,7 @@ public class LedgerEntry {
                 .amount(amount)
                 .direction(Direction.DEBIT)
                 .balanceAfter(balanceAfter)
-                .referenceType(EntryType.WITHDRAWAL.code())
+                .referenceType(EntryType.WITHDRAWAL.referenceType())
                 .referenceId(referenceId)
                 .entryType(EntryType.WITHDRAWAL)
                 .description(description)
@@ -133,7 +133,7 @@ public class LedgerEntry {
                 .direction(Direction.CREDIT)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
-                .referenceType(EntryType.DEPOSIT.code())
+                .referenceType(EntryType.DEPOSIT.referenceType())
                 .referenceId(referenceId)
                 .entryType(EntryType.DEPOSIT)
                 .description(description)

@@ -16,6 +16,9 @@ public class LedgerEntryRepositoryImpl implements LedgerEntryRepository {
     @Override
     public void insert(LedgerEntry entry) {
         LedgerEntryPO po = OpenMapstruct.map(entry, LedgerEntryPO.class);
+        if (entry.getReferenceType() != null && po.getReferenceType() == null) {
+            po.setReferenceType(entry.getReferenceType().code());
+        }
         mapper.insert(po);
     }
 }
