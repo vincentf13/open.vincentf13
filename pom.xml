@@ -149,6 +149,11 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-account-ledger-sdk-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
                 <artifactId>sdk-core-test</artifactId>
                 <version>${project.version}</version>
                 <scope>test</scope>

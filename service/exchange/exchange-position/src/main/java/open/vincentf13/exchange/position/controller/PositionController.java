@@ -27,7 +27,8 @@ public class PositionController implements PositionApi {
     }
 
     @Override
-    public OpenApiResponse<PositionLeverageResponse> adjustLeverage(Long instrumentId, PositionLeverageRequest request) {
+    public OpenApiResponse<PositionLeverageResponse> adjustLeverage(Long instrumentId,
+                                                                    PositionLeverageRequest request) {
         Long userId = OpenJwtLoginUserInfo.currentUserIdOrThrow(() -> new IllegalStateException("UserId missing"));
         return OpenApiResponse.success(positionCommandService.adjustLeverage(userId, instrumentId, request));
     }

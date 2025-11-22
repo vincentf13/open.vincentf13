@@ -18,6 +18,7 @@
     <description>Account-ledger service contracts</description>
 
     <modules>
+        <module>exchange-account-ledger-sdk-rest-api</module>
         <module>exchange-account-ledger-sdk-mq</module>
     </modules>
 </project>

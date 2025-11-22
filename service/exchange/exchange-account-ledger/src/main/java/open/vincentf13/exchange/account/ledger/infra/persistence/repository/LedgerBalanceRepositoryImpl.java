@@ -1,7 +1,74 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
+import com.github.yitter.idgen.DefaultIdGenerator;
+import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
+import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerBalanceMapper;
+import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
+import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 @Repository
+@RequiredArgsConstructor
 public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
+
+    private final LedgerBalanceMapper mapper;
+    private final DefaultIdGenerator idGenerator;
+
+    @Override
+    public LedgerBalance insert(LedgerBalance balance) {
+        if (balance.getId() == null) {
+            balance.setId(idGenerator.newLong());
+        }
+        if (balance.getAccountId() == null) {
+            balance.setAccountId(idGenerator.newLong());
+        }
+        if (balance.getCreatedAt() == null) {
+            balance.setCreatedAt(Instant.now());
+        }
+        if (balance.getUpdatedAt() == null) {
+            balance.setUpdatedAt(balance.getCreatedAt());
+        }
+        LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
+        mapper.insertSelective(po);
+        if (po.getCreatedAt() != null) {
+            balance.setCreatedAt(po.getCreatedAt());
+        }
+        if (po.getUpdatedAt() != null) {
+            balance.setUpdatedAt(po.getUpdatedAt());
+        }
+        return balance;
+    }
+
+    @Override
+    public boolean updateWithVersion(LedgerBalance balance, Integer expectedVersion) {
+        balance.setUpdatedAt(Instant.now());
+        LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
+        return mapper.updateByIdAndVersion(po, expectedVersion) > 0;
+    }
+
+    @Override
+    public List<LedgerBalance> findBy(LedgerBalance condition) {
+        LedgerBalancePO probe = OpenMapstruct.map(condition, LedgerBalancePO.class);
+        return mapper.findBy(probe).stream()
+                .map(item -> OpenMapstruct.map(item, LedgerBalance.class))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<LedgerBalance> findOne(LedgerBalance condition) {
+        List<LedgerBalance> results = findBy(condition);
+        if (results.isEmpty()) {
+            return Optional.empty();
+        }
+        if (results.size() > 1) {
+            throw new IllegalStateException("Expected single ledger balance but found " + results.size());
+        }
+        return Optional.of(results.get(0));
+    }
 }

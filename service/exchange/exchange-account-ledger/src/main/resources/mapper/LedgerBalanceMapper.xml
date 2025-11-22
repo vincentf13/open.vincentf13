@@ -76,24 +76,27 @@
         </trim>
     </insert>
 
-    <update id="updateSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO">
+    <update id="updateByIdAndVersion">
         UPDATE ledger_balances
         <set>
-            <if test="accountId != null">account_id = #{accountId},</if>
-            <if test="userId != null">user_id = #{userId},</if>
-            <if test="accountType != null">account_type = #{accountType},</if>
-            <if test="instrumentId != null">instrument_id = #{instrumentId},</if>
-            <if test="asset != null">asset = #{asset},</if>
-            <if test="balance != null">balance = #{balance},</if>
-            <if test="available != null">available = #{available},</if>
-            <if test="reserved != null">reserved = #{reserved},</if>
-            <if test="totalDeposited != null">total_deposited = #{totalDeposited},</if>
-            <if test="totalWithdrawn != null">total_withdrawn = #{totalWithdrawn},</if>
-            <if test="totalPnl != null">total_pnl = #{totalPnl},</if>
-            <if test="version != null">version = #{version},</if>
-            <if test="lastEntryId != null">last_entry_id = #{lastEntryId},</if>
-            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+            <if test="record.accountId != null">account_id = #{record.accountId},</if>
+            <if test="record.userId != null">user_id = #{record.userId},</if>
+            <if test="record.accountType != null">account_type = #{record.accountType},</if>
+            <if test="record.instrumentId != null">instrument_id = #{record.instrumentId},</if>
+            <if test="record.asset != null">asset = #{record.asset},</if>
+            <if test="record.balance != null">balance = #{record.balance},</if>
+            <if test="record.available != null">available = #{record.available},</if>
+            <if test="record.reserved != null">reserved = #{record.reserved},</if>
+            <if test="record.totalDeposited != null">total_deposited = #{record.totalDeposited},</if>
+            <if test="record.totalWithdrawn != null">total_withdrawn = #{record.totalWithdrawn},</if>
+            <if test="record.totalPnl != null">total_pnl = #{record.totalPnl},</if>
+            <if test="record.version != null">version = #{record.version},</if>
+            <if test="record.lastEntryId != null">last_entry_id = #{record.lastEntryId},</if>
+            <if test="record.updatedAt != null">updated_at = #{record.updatedAt},</if>
         </set>
-        WHERE id = #{id}
+        WHERE id = #{record.id}
+        <if test="expectedVersion != null">
+            AND version = #{expectedVersion}
+        </if>
     </update>
 </mapper>

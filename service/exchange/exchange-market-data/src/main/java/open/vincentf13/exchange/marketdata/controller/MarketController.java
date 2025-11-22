@@ -11,9 +11,7 @@ import open.vincentf13.exchange.marketdata.service.MarkPriceQueryService;
 import open.vincentf13.exchange.marketdata.service.OrderBookQueryService;
 import open.vincentf13.exchange.marketdata.service.TickerQueryService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,12 +27,12 @@ public class MarketController implements MarketApi {
     private final MarkPriceQueryService markPriceQueryService;
 
     @Override
-    public OpenApiResponse<TickerResponse> getTicker(@PathVariable("instrumentId") Long instrumentId) {
+    public OpenApiResponse<TickerResponse> getTicker(Long instrumentId) {
         return OpenApiResponse.success(tickerQueryService.getTicker(instrumentId));
     }
 
     @Override
-    public OpenApiResponse<OrderBookResponse> getOrderBook(@PathVariable("instrumentId") Long instrumentId) {
+    public OpenApiResponse<OrderBookResponse> getOrderBook(Long instrumentId) {
         return orderBookQueryService.getOrderBook(instrumentId)
                 .map(OpenApiResponse::success)
                 .orElseGet(() -> OpenApiResponse.success(OrderBookResponse.builder()
@@ -43,14 +41,14 @@ public class MarketController implements MarketApi {
     }
 
     @Override
-    public OpenApiResponse<List<KlineResponse>> getKlines(@RequestParam("instrumentId") Long instrumentId,
-                                                          @RequestParam("period") String period,
-                                                          @RequestParam(value = "limit", required = false) Integer limit) {
+    public OpenApiResponse<List<KlineResponse>> getKlines(Long instrumentId,
+                                                          String period,
+                                                          Integer limit) {
         return OpenApiResponse.success(klineQueryService.getKlines(instrumentId, period, limit));
     }
 
     @Override
-    public OpenApiResponse<MarkPriceResponse> getMarkPrice(@PathVariable("instrumentId") Long instrumentId) {
+    public OpenApiResponse<MarkPriceResponse> getMarkPrice(Long instrumentId) {
         return markPriceQueryService.getMarkPrice(instrumentId)
                 .map(OpenApiResponse::success)
                 .orElseGet(() -> OpenApiResponse.success(MarkPriceResponse.builder()
