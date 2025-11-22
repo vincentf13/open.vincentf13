@@ -18,7 +18,6 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -148,6 +147,27 @@ public class LedgerTransactionDomainService {
         throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
     }
 
+    private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance,
+                                                   BigDecimal totalOut,
+                                                   BigDecimal amount,
+                                                   Long userId,
+                                                   AssetSymbol asset) {
+        int retries = 0;
+        while (retries < 3) {
+            int currentVersion = safeVersion(balance);
+            balance.setAvailable(balance.getAvailable().subtract(totalOut));
+            balance.setBalance(balance.getBalance().subtract(totalOut));
+            balance.setTotalWithdrawn(balance.getTotalWithdrawn().add(amount));
+            balance.setVersion(currentVersion + 1);
+            if (ledgerBalanceRepository.updateWithVersion(balance, currentVersion)) {
+                return balance;
+            }
+            retries++;
+            balance = reloadLedgerBalance(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+    }
+
     private LedgerBalance reloadLedgerBalance(Long userId,
                                               AccountType accountType,
                                               Long instrumentId,
@@ -174,7 +194,7 @@ public class LedgerTransactionDomainService {
         PlatformAccount account = PlatformAccount.createUserDepositAccount();
         try {
             return platformAccountRepository.insert(account);
-        } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
+        } catch (DataIntegrityViolationException ex) {
             return platformAccountRepository.findOne(PlatformAccount.builder()
                             .accountCode(PlatformAccountCode.USER_DEPOSIT)
                             .build())
@@ -195,7 +215,7 @@ public class LedgerTransactionDomainService {
         PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);
         try {
             return platformBalanceRepository.insert(newBalance);
-        } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
+        } catch (DataIntegrityViolationException ex) {
             return platformBalanceRepository.findOne(PlatformBalance.builder()
                             .accountId(platformAccount.getAccountId())
                             .accountCode(platformAccount.getAccountCode())

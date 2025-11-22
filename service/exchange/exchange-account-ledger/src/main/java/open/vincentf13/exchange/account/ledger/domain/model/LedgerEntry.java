@@ -4,11 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.enums.AssetSymbol;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.enums.Direction;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.enums.EntryType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.enums.OwnerType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.enums.ReferenceType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
