@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.account.ledger.domain.model;
+package open.vincentf13.exchange.account.ledger.application.command;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
