@@ -14,7 +14,6 @@ import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 @Service
@@ -31,7 +30,7 @@ public class LedgerAccountQueryService {
         if (!StringUtils.hasText(asset)) {
             throw new IllegalArgumentException("asset is required");
         }
-        String normalizedAsset = asset.toUpperCase(Locale.ROOT);
+        String normalizedAsset = LedgerBalance.normalizeAsset(asset);
         List<LedgerBalance> balances = ledgerBalanceRepository.findBy(LedgerBalance.builder()
                 .userId(userId)
                 .accountType(LedgerBalanceAccountType.SPOT_MAIN)

@@ -3,14 +3,10 @@ package open.vincentf13.exchange.account.ledger.service;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.*;
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -18,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +27,7 @@ public class LedgerAccountCommandService {
     public LedgerDepositResponse deposit(LedgerDepositRequest request) {
         OpenValidator.validateOrThrow(request);
 
-        String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
+        String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance balance = getOrCreate(
                 request.userId(),
                 LedgerBalanceAccountType.SPOT_MAIN,
@@ -80,7 +75,7 @@ public class LedgerAccountCommandService {
     public LedgerWithdrawalResponse withdraw(LedgerWithdrawalRequest request) {
         OpenValidator.validateOrThrow(request);
 
-        String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
+        String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance balance = getOrCreate(
                 request.userId(),
                 LedgerBalanceAccountType.SPOT_MAIN,

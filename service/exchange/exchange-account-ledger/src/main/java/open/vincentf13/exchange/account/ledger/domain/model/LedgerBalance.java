@@ -8,6 +8,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAcc
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Locale;
 
 @Data
 @Builder
@@ -41,7 +42,7 @@ public class LedgerBalance {
                 .userId(userId)
                 .accountType(accountType)
                 .instrumentId(instrumentId)
-                .asset(asset)
+                .asset(normalizeAsset(asset))
                 .balance(BigDecimal.ZERO)
                 .available(BigDecimal.ZERO)
                 .reserved(BigDecimal.ZERO)
@@ -52,5 +53,11 @@ public class LedgerBalance {
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
+    }
+    public static String normalizeAsset(String asset) {
+        if (asset == null) {
+            throw new IllegalArgumentException("asset is required");
+        }
+        return asset.toUpperCase(Locale.ROOT);
     }
 }
