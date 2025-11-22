@@ -4,7 +4,6 @@ import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalanceAccountType;
-import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalanceSnapshot;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerDepositCommand;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerDepositRecord;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
@@ -12,7 +11,6 @@ import open.vincentf13.exchange.account.ledger.domain.model.LedgerWithdrawalComm
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerWithdrawalRecord;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
@@ -25,14 +23,11 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
-public class LedgerAccountApplicationService {
+public class LedgerAccountCommandService {
 
     private static final String OWNER_TYPE_USER = "USER";
     private static final String ENTRY_DIRECTION_CREDIT = "CREDIT";
@@ -43,33 +38,6 @@ public class LedgerAccountApplicationService {
     private final LedgerBalanceRepository ledgerBalanceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final DefaultIdGenerator idGenerator;
-
-    @Transactional(readOnly = true)
-    public LedgerBalanceResponse getBalances(Long userId, String asset) {
-        if (userId == null) {
-            throw new IllegalArgumentException("userId is required");
-        }
-        if (!StringUtils.hasText(asset)) {
-            throw new IllegalArgumentException("asset is required");
-        }
-        String normalizedAsset = normalizeAsset(asset);
-        List<LedgerBalance> balances = ledgerBalanceRepository.findBy(LedgerBalance.builder()
-                .userId(userId)
-                .accountType(LedgerBalanceAccountType.SPOT_MAIN)
-                .asset(normalizedAsset)
-                .build());
-        Instant snapshotAt = balances.stream()
-                .map(LedgerBalance::getUpdatedAt)
-                .filter(Objects::nonNull)
-                .max(Instant::compareTo)
-                .orElseGet(Instant::now);
-        LedgerBalanceSnapshot snapshot = LedgerBalanceSnapshot.builder()
-                .userId(userId)
-                .snapshotAt(snapshotAt)
-                .balances(balances)
-                .build();
-        return OpenMapstruct.map(snapshot, LedgerBalanceResponse.class);
-    }
 
     @Transactional
     public LedgerDepositResponse deposit(LedgerDepositRequest request) {

@@ -59,3 +59,4 @@ public Account getOrCreate(long userId, String asset) {
 
 呼叫端要在拿到實體後用版本欄位做樂觀鎖更新，確保快照與帳戶建立流程具備冪等與競態保護。
 - Controller 實作 REST 介面時不得重複宣告 Spring MVC 綁定或 Bean Validation 註解，所有 `@RequestParam` / `@PathVariable` / `@RequestBody` / `@Valid` / `@NotBlank` 等註解一律集中在對應的 *interface* 上；提交前需檢查所有服務的 REST 介面皆符合此規則。
+- 所有服務模組都必須依設計文件實作 CQRS：查詢邏輯集中在 `*QueryService`，寫入/更新集中在 `*CommandService`，Controller 需分別注入 Query/Command 服務；新增功能時亦要遵守這個拆分慣例，禁止將查詢與命令混在同一服務類別。
