@@ -11,7 +11,6 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositReq
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
-import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -53,7 +52,7 @@ public class LedgerAccountCommandService {
                 .userId(balance.getUserId())
                 .asset(balance.getAsset())
                 .amount(amount)
-                .direction(LedgerEntry.ENTRY_DIRECTION_CREDIT)
+                .direction(LedgerEntry.DIRECTION_CREDIT)
                 .balanceAfter(balance.getAvailable())
                 .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
                 .referenceId(entryId)
@@ -80,11 +79,11 @@ public class LedgerAccountCommandService {
     @Transactional
     public LedgerWithdrawalResponse withdraw(LedgerWithdrawalRequest request) {
         OpenValidator.validateOrThrow(request);
-        LedgerBalanceAccountType accountType = request.accountType();
+
         String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
         LedgerBalance balance = getOrDefault(
                 request.userId(),
-                accountType,
+                LedgerBalanceAccountType.SPOT_MAIN,
                 request.instrumentId(),
                 normalizedAsset
         );
@@ -106,7 +105,7 @@ public class LedgerAccountCommandService {
                 .userId(balance.getUserId())
                 .asset(balance.getAsset())
                 .amount(totalOut)
-                .direction(LedgerEntry.ENTRY_DIRECTION_DEBIT)
+                .direction(LedgerEntry.DIRECTION_DEBIT)
                 .balanceAfter(balance.getAvailable())
                 .referenceType(LedgerEntry.ENTRY_TYPE_WITHDRAWAL)
                 .referenceId(entryId)
@@ -118,7 +117,18 @@ public class LedgerAccountCommandService {
                 .build();
         ledgerEntryRepository.insert(entry);
 
-        return OpenApiResponseMapper.toWithdrawalResponse(entry, balance.getAvailable(), request.amount(), fee, request.externalRef());
+        return new LedgerWithdrawalResponse(
+                entry.getEntryId(),
+                entry.getEntryId(),
+                "REQUESTED",
+                balance.getAvailable(),
+                entry.getEventTime(),
+                balance.getUserId(),
+                balance.getAsset(),
+                request.amount(),
+                fee,
+                request.externalRef()
+        );
     }
 
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance, BigDecimal amount, Long userId, String asset) {

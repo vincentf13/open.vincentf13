@@ -16,13 +16,10 @@ public class LedgerEntry {
 
     public static final String OWNER_TYPE_USER = "USER";
     public static final String OWNER_TYPE_PLATFORM = "PLATFORM";
-    public static final String ENTRY_DIRECTION_CREDIT = "CREDIT";
-    public static final String ENTRY_DIRECTION_DEBIT = "DEBIT";
+    public static final String DIRECTION_CREDIT = "CREDIT";
+    public static final String DIRECTION_DEBIT = "DEBIT";
     public static final String ENTRY_TYPE_DEPOSIT = "DEPOSIT";
     public static final String ENTRY_TYPE_WITHDRAWAL = "WITHDRAWAL";
-
-    public static final String OWNER_TYPE_USER = "USER";
-    public static final String OWNER_TYPE_PLATFORM = "PLATFORM";
 
     private Long entryId;
     private String ownerType;
