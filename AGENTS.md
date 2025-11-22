@@ -44,3 +44,17 @@
 - 回覆最終總結時請一律使用中文。
 - Kafka 消費邏輯（例如 PositionReserveRequestListener）僅在成功處理後手動 ack，若發生異常需讓 Kafka 重送或進 DLQ，禁止在 finally 中強制 ack。
 - 所有 Domain ↔ DTO ↔ PO 之間的物件轉換一律透過 `open.vincentf13.sdk.core.OpenMapstruct`，禁止手寫 builder/constructor 直接複製欄位（包含行情查詢、標記價等服務）。
+- 任何帳戶、倉位、風險快照（`account` / `positions` / `risk_snapshot`）的狀態變更都必須包在 `@Transactional` 範圍內，確保跨 repository 更新的一致性。
+- 取得帳戶或快照時，一律使用 `getOrCreate` + 樂觀鎖的方式；若不存在就建一筆新的帳戶/快照。例如：
+
+```
+@Transactional
+public Account getOrCreate(long userId, String asset) {
+    return accountRepository.findByUserIdAndAsset(userId, asset)
+        .orElseGet(() -> accountRepository.save(
+            Account.create(userId, asset)
+        ));
+}
+```
+
+呼叫端要在拿到實體後用版本欄位做樂觀鎖更新，確保快照與帳戶建立流程具備冪等與競態保護。
