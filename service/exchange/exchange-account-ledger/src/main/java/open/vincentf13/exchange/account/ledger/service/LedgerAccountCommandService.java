@@ -33,7 +33,7 @@ public class LedgerAccountCommandService {
         OpenValidator.validateOrThrow(request);
 
         String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
-        LedgerBalance balance = getOrDefault(
+        LedgerBalance balance = getOrCreate(
                 request.userId(),
                 LedgerBalanceAccountType.SPOT_MAIN,
                 null,
@@ -81,7 +81,7 @@ public class LedgerAccountCommandService {
         OpenValidator.validateOrThrow(request);
 
         String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
-        LedgerBalance balance = getOrDefault(
+        LedgerBalance balance = getOrCreate(
                 request.userId(),
                 LedgerBalanceAccountType.SPOT_MAIN,
                 request.instrumentId(),
@@ -166,35 +166,17 @@ public class LedgerAccountCommandService {
     }
 
     private LedgerBalance reloadBalance(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
-        return getOrDefault(userId, accountType, instrumentId, asset);
+        return getOrCreate(userId, accountType, instrumentId, asset);
     }
 
-    private LedgerBalance getOrDefault(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
+    private LedgerBalance getOrCreate(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
                         .accountType(accountType)
                         .instrumentId(instrumentId)
                         .asset(asset)
                         .build())
-                .orElseGet(() -> ledgerBalanceRepository.insert(newBalance(userId, accountType, instrumentId, asset)));
-    }
-
-    private LedgerBalance newBalance(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
-        return LedgerBalance.builder()
-                .userId(userId)
-                .accountType(accountType)
-                .instrumentId(instrumentId)
-                .asset(asset)
-                .balance(BigDecimal.ZERO)
-                .available(BigDecimal.ZERO)
-                .reserved(BigDecimal.ZERO)
-                .totalDeposited(BigDecimal.ZERO)
-                .totalWithdrawn(BigDecimal.ZERO)
-                .totalPnl(BigDecimal.ZERO)
-                .version(0)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
+                .orElseGet(() -> ledgerBalanceRepository.insert(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
     }
 
 

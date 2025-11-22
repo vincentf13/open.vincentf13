@@ -63,3 +63,4 @@ public Account getOrCreate(long userId, String asset) {
 - 所有 REST DTO 專用的枚舉（例如帳戶型別）都要放在 `sdk-contract/.../dto` 內，server code 直接引用，不得在 domain/service 再定義重複的 enum。
 - 與 Domain 行為緊密相關的常數（如 OwnerType、EntryType）必須封裝在對應 Domain Model/Value Object 內統一維護，Service/Controller 不得自建字串常量。
 - 所有服務模組都必須依設計文件實作 CQRS：查詢邏輯集中在 `*QueryService`，寫入/更新集中在 `*CommandService`，Controller 需分別注入 Query/Command 服務；新增功能時亦要遵守這個拆分慣例，禁止將查詢與命令混在同一服務類別。
+- 嚴格遵守 DDD 原則：Domain Model 統一維護領域常數/工廠，Application Service 僅協調用例；跨用例邏輯需落在 Domain 或專用的 Service 層，不得堆疊在 Controller/Application。

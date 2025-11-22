@@ -1,11 +1,13 @@
 package open.vincentf13.exchange.account.ledger.domain.model;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
+
 import java.math.BigDecimal;
 import java.time.Instant;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
 
 @Data
 @Builder
@@ -29,4 +31,26 @@ public class LedgerBalance {
     private Long lastEntryId;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static LedgerBalance createDefault(Long userId,
+                                              LedgerBalanceAccountType accountType,
+                                              Long instrumentId,
+                                              String asset) {
+        Instant now = Instant.now();
+        return LedgerBalance.builder()
+                .userId(userId)
+                .accountType(accountType)
+                .instrumentId(instrumentId)
+                .asset(asset)
+                .balance(BigDecimal.ZERO)
+                .available(BigDecimal.ZERO)
+                .reserved(BigDecimal.ZERO)
+                .totalDeposited(BigDecimal.ZERO)
+                .totalWithdrawn(BigDecimal.ZERO)
+                .totalPnl(BigDecimal.ZERO)
+                .version(0)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
 }
