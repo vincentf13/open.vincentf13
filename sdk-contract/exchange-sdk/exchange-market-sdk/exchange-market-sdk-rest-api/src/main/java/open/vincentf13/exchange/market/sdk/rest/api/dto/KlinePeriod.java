@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.marketdata.domain.model;
+package open.vincentf13.exchange.market.sdk.rest.api.dto;
 
 import lombok.Getter;
 

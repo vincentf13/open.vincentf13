@@ -3,7 +3,7 @@ package open.vincentf13.exchange.marketdata.service;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.KlineResponse;
 import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
-import open.vincentf13.exchange.marketdata.domain.model.KlinePeriod;
+import open.vincentf13.exchange.market.sdk.rest.api.dto.KlinePeriod;
 import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Service;

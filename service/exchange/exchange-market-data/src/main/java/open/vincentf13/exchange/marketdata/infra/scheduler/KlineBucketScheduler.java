@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.marketdata.scheduler;
+package open.vincentf13.exchange.marketdata.infra.scheduler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
