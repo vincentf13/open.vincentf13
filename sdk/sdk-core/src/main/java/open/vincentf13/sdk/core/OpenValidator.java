@@ -4,6 +4,8 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -51,7 +53,6 @@ public final class OpenValidator {
      * @return 錯誤訊息集合，若無違規則回傳空集合
      */
     public static <T> Set<String> validate(T bean) {
-        Objects.requireNonNull(bean, "Validation target must not be null");
         Objects.requireNonNull(bean, "Validation target must not be null");
         return VALIDATOR.validate(bean).stream()
                 .map(v -> v.getPropertyPath() + " " + v.getMessage())

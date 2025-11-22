@@ -3,7 +3,7 @@ package open.vincentf13.exchange.account.ledger.service;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
-import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalanceAccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
@@ -39,7 +39,7 @@ public class LedgerAccountCommandService {
     public LedgerDepositResponse deposit(LedgerDepositRequest request) {
         OpenValidator.validateOrThrow(request);
 
-        LedgerBalanceAccountType accountType = LedgerBalanceAccountType.fromValue(request.accountType());
+        LedgerBalanceAccountType accountType = request.accountType();
         if (accountType != LedgerBalanceAccountType.SPOT_MAIN) {
             throw new IllegalArgumentException("deposit only supports SPOT_MAIN account");
         }

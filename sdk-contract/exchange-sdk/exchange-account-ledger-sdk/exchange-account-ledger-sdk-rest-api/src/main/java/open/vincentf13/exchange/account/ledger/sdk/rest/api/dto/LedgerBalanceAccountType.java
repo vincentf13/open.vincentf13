@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.account.ledger.domain.model;
+package open.vincentf13.exchange.account.ledger.sdk.rest.api.dto;
 
 import java.util.Locale;
 
@@ -8,7 +8,7 @@ public enum LedgerBalanceAccountType {
 
     public static LedgerBalanceAccountType fromValue(String value) {
         if (value == null) {
-            return null;
+            throw new IllegalArgumentException("accountType is required");
         }
         try {
             return LedgerBalanceAccountType.valueOf(value.toUpperCase(Locale.ROOT));
