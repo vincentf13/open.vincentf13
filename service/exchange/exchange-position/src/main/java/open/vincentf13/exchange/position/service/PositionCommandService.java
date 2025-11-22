@@ -11,6 +11,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
+import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import open.vincentf13.sdk.spring.mvc.util.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
@@ -51,7 +52,10 @@ public class PositionCommandService {
     }
 
     public PositionLeverageResponse adjustLeverage(Long userId, Long instrumentId, PositionLeverageRequest request) {
-        validateLeverageRequest(instrumentId, request);
+        if (instrumentId == null) {
+            throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND, "instrumentId is required");
+        }
+        OpenValidator.validateOrThrow(request);
         Position position = positionRepository.findActive(userId, instrumentId)
                 .orElseGet(() -> positionRepository.createDefault(userId, instrumentId));
         if (position == null) {
@@ -82,18 +86,6 @@ public class PositionCommandService {
         log.info("Position leverage updated. positionId={} userId={} instrumentId={} leverage={} -> {}",
                 position.getPositionId(), position.getUserId(), instrumentId, position.getLeverage(), targetLeverage);
         return new PositionLeverageResponse(targetLeverage, Instant.now());
-    }
-
-    private void validateLeverageRequest(Long instrumentId, PositionLeverageRequest request) {
-        if (instrumentId == null) {
-            throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND, "instrumentId is required");
-        }
-        if (request == null || request.targetLeverage() == null) {
-            throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "targetLeverage is required");
-        }
-        if (request.targetLeverage() <= 0) {
-            throw OpenServiceException.of(PositionErrorCode.INVALID_LEVERAGE_REQUEST, "targetLeverage must be positive");
-        }
     }
 
     private LeveragePrecheckRequest buildPrecheckRequest(Position position, Integer targetLeverage) {

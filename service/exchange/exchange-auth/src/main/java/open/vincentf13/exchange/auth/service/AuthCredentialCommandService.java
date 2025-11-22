@@ -2,6 +2,7 @@ package open.vincentf13.exchange.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
@@ -19,6 +20,7 @@ public class AuthCredentialCommandService {
 
     @Transactional
     public AuthCredentialResponse create(AuthCredentialCreateRequest request) {
+        OpenValidator.validateOrThrow(request);
         AuthCredential probe = AuthCredential.builder()
                 .userId(request.userId())
                 .credentialType(request.credentialType())

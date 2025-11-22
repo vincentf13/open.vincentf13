@@ -8,8 +8,8 @@ import open.vincentf13.exchange.order.domain.service.OrderDomainService;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderResponse;
+import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
@@ -18,6 +18,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import open.vincentf13.sdk.spring.mvc.client.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
@@ -38,6 +39,7 @@ public class OrderCommandService {
     private final TransactionTemplate transactionTemplate;
 
     public OrderResponse createOrder(OrderCreateRequest request) {
+        OpenValidator.validateOrThrow(request);
         Long userId = currentUserId();
         try {
             Order order = orderDomainService.createNewOrder(userId, request);

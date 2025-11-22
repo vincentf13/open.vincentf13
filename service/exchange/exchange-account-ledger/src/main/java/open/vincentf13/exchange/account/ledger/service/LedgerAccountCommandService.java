@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalanceAccountType;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
-import open.vincentf13.exchange.account.ledger.domain.model.LedgerWithdrawalRecord;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
@@ -13,10 +12,10 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRes
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
 import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -38,24 +37,41 @@ public class LedgerAccountCommandService {
 
     @Transactional
     public LedgerDepositResponse deposit(LedgerDepositRequest request) {
-        validateDepositRequest(request);
+        OpenValidator.validateOrThrow(request);
 
         LedgerBalanceAccountType accountType = LedgerBalanceAccountType.fromValue(request.accountType());
         if (accountType != LedgerBalanceAccountType.SPOT_MAIN) {
             throw new IllegalArgumentException("deposit only supports SPOT_MAIN account");
         }
+        String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
         LedgerBalance balance = getOrDefault(
                 request.userId(),
                 accountType,
                 null,
-                request.asset().toUpperCase(Locale.ROOT)
+                normalizedAsset
         );
 
         BigDecimal amount = request.amount();
-        balance = retryUpdateForDeposit(balance, amount, request.userId(), request.asset());
+        balance = retryUpdateForDeposit(balance, amount, request.userId(), normalizedAsset);
 
-        LedgerEntry entry = buildLedgerEntry(balance, amount, request.creditedAt(),
-                request.channel(), request.metadata(), ENTRY_TYPE_DEPOSIT, ENTRY_DIRECTION_CREDIT);
+        Instant eventTime = request.creditedAt();
+        Long entryId = idGenerator.newLong();
+        LedgerEntry entry = LedgerEntry.builder()
+                .entryId(entryId)
+                .ownerType(OWNER_TYPE_USER)
+                .accountId(balance.getAccountId())
+                .userId(balance.getUserId())
+                .asset(balance.getAsset())
+                .amount(amount)
+                .direction(ENTRY_DIRECTION_CREDIT)
+                .balanceAfter(balance.getAvailable())
+                .referenceType(ENTRY_TYPE_DEPOSIT)
+                .referenceId(entryId)
+                .entryType(ENTRY_TYPE_DEPOSIT)
+                .description(request.txId())
+                .eventTime(eventTime != null ? eventTime : Instant.now())
+                .createdAt(Instant.now())
+                .build();
         ledgerEntryRepository.insert(entry);
 
         return new LedgerDepositResponse(
@@ -67,20 +83,20 @@ public class LedgerAccountCommandService {
                 balance.getUserId(),
                 balance.getAsset(),
                 amount,
-                request.txId(),
-                request.channel()
+                request.txId()
         );
     }
 
     @Transactional
     public LedgerWithdrawalResponse withdraw(LedgerWithdrawalRequest request) {
-        validateWithdrawalRequest(request);
+        OpenValidator.validateOrThrow(request);
         LedgerBalanceAccountType accountType = LedgerBalanceAccountType.fromValue(request.accountType());
+        String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
         LedgerBalance balance = getOrDefault(
                 request.userId(),
                 accountType,
                 request.instrumentId(),
-                request.asset()
+                normalizedAsset
         );
 
         BigDecimal fee = request.fee() == null ? BigDecimal.ZERO : request.fee();
@@ -89,79 +105,30 @@ public class LedgerAccountCommandService {
             throw new IllegalArgumentException("Insufficient available balance");
         }
 
-        balance = retryUpdateForWithdrawal(balance, totalOut, request.amount(), request.userId(), request.asset());
+        balance = retryUpdateForWithdrawal(balance, totalOut, request.amount(), request.userId(), normalizedAsset);
 
-        LedgerEntry entry = buildLedgerEntry(balance, totalOut, request.requestedAt(),
-                request.destination(), request.metadata(), ENTRY_TYPE_WITHDRAWAL, ENTRY_DIRECTION_DEBIT);
-        ledgerEntryRepository.insert(entry);
-
-        LedgerWithdrawalRecord record = LedgerWithdrawalRecord.builder()
-                .withdrawalId(entry.getEntryId())
-                .reservedEntryId(entry.getEntryId())
-                .status("REQUESTED")
-                .balanceAfter(balance.getAvailable())
-                .requestedAt(entry.getEventTime())
-                .userId(balance.getUserId())
-                .asset(balance.getAsset())
-                .amount(request.amount())
-                .fee(fee)
-                .externalRef(request.externalRef())
-                .build();
-        return OpenMapstruct.map(record, LedgerWithdrawalResponse.class);
-    }
-
-    private LedgerEntry buildLedgerEntry(LedgerBalance balance,
-                                         BigDecimal amount,
-                                         Instant eventTime,
-                                         String description,
-                                         String metadata,
-                                         String entryType,
-                                         String direction) {
+        Instant eventTime = request.requestedAt();
         Long entryId = idGenerator.newLong();
-        return LedgerEntry.builder()
+        LedgerEntry entry = LedgerEntry.builder()
                 .entryId(entryId)
                 .ownerType(OWNER_TYPE_USER)
                 .accountId(balance.getAccountId())
                 .userId(balance.getUserId())
                 .asset(balance.getAsset())
-                .amount(amount)
-                .direction(direction)
+                .amount(totalOut)
+                .direction(ENTRY_DIRECTION_DEBIT)
                 .balanceAfter(balance.getAvailable())
-                .referenceType(entryType)
+                .referenceType(ENTRY_TYPE_WITHDRAWAL)
                 .referenceId(entryId)
-                .entryType(entryType)
-                .description(description)
-                .metadata(metadata)
+                .entryType(ENTRY_TYPE_WITHDRAWAL)
+                .description(request.destination())
+                .metadata(request.metadata())
                 .eventTime(eventTime != null ? eventTime : Instant.now())
                 .createdAt(Instant.now())
                 .build();
-    }
+        ledgerEntryRepository.insert(entry);
 
-    private void validateDepositRequest(LedgerDepositRequest request) {
-        if (request.userId() == null) {
-            throw new IllegalArgumentException("userId is required");
-        }
-        if (!StringUtils.hasText(request.asset())) {
-            throw new IllegalArgumentException("asset is required");
-        }
-        if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amount must be positive");
-        }
-    }
-
-    private void validateWithdrawalRequest(LedgerWithdrawalRequest request) {
-        if (request.userId() == null) {
-            throw new IllegalArgumentException("userId is required");
-        }
-        if (!StringUtils.hasText(request.asset())) {
-            throw new IllegalArgumentException("asset is required");
-        }
-        if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amount must be positive");
-        }
-        if (request.fee() != null && request.fee().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("fee cannot be negative");
-        }
+        return OpenApiResponseMapper.toWithdrawalResponse(entry, balance.getAvailable(), request.amount(), fee, request.externalRef());
     }
 
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance, BigDecimal amount, Long userId, String asset) {

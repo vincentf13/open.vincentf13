@@ -7,6 +7,7 @@ import open.vincentf13.exchange.risk.domain.model.RiskLimit;
 import open.vincentf13.exchange.risk.infra.persistence.repository.RiskLimitRepository;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,7 +28,7 @@ public class LeveragePrecheckService {
 
     // ref: 槓桿調整預檢：`POST /api/risk/precheck/leverage`
     public LeveragePrecheckResponse precheck(LeveragePrecheckRequest request) {
-        validate(request);
+        OpenValidator.validateOrThrow(request);
         RiskLimit riskLimit = riskLimitRepository.findEffective(request.instrumentId())
                 .orElse(null);
         if (riskLimit == null) {
@@ -58,24 +59,6 @@ public class LeveragePrecheckService {
             return new LeveragePrecheckResponse(false, deficit, suggestion, "MARGIN_RATIO_TOO_LOW");
         }
         return new LeveragePrecheckResponse(true, BigDecimal.ZERO, request.targetLeverage(), null);
-    }
-
-    private void validate(LeveragePrecheckRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("LeveragePrecheckRequest must not be null");
-        }
-        if (request.positionId() == null) {
-            throw new IllegalArgumentException("positionId is required");
-        }
-        if (request.instrumentId() == null) {
-            throw new IllegalArgumentException("instrumentId is required");
-        }
-        if (request.userId() == null) {
-            throw new IllegalArgumentException("userId is required");
-        }
-        if (request.targetLeverage() == null || request.targetLeverage() <= 0) {
-            throw new IllegalArgumentException("targetLeverage must be positive");
-        }
     }
 
     private BigDecimal computeNotional(BigDecimal quantity, BigDecimal markPrice) {

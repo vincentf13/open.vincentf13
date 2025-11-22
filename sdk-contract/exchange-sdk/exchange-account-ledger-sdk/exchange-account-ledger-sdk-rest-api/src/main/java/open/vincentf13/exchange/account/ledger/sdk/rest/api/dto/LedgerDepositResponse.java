@@ -12,6 +12,5 @@ public record LedgerDepositResponse(
         Long userId,
         String asset,
         BigDecimal amount,
-        String txId,
-        String channel
+        String txId
 ) { }

@@ -20,6 +20,7 @@ import open.vincentf13.exchange.user.domain.model.UserErrorCode;
 import open.vincentf13.exchange.user.domain.service.UserDomainService;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -39,6 +40,7 @@ public class UserCommandService {
     private final TransactionTemplate transactionTemplate;
 
     public UserResponse register(UserRegisterRequest request)  {
+        OpenValidator.validateOrThrow(request);
         final String normalizedEmail = userDomainService.normalizeEmail(request.email());
 
         OpenApiResponse<AuthCredentialPrepareResponse> prepareResponse = authClient.prepare(

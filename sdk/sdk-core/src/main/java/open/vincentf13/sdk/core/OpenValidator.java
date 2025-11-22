@@ -51,6 +51,8 @@ public final class OpenValidator {
      * @return 錯誤訊息集合，若無違規則回傳空集合
      */
     public static <T> Set<String> validate(T bean) {
+        Objects.requireNonNull(bean, "Validation target must not be null");
+        Objects.requireNonNull(bean, "Validation target must not be null");
         return VALIDATOR.validate(bean).stream()
                 .map(v -> v.getPropertyPath() + " " + v.getMessage())
                 .collect(Collectors.toSet());
@@ -64,6 +66,7 @@ public final class OpenValidator {
      * @throws IllegalArgumentException 驗證失敗時
      */
     public static <T> void validateOrThrow(T bean) {
+        Objects.requireNonNull(bean, "Validation target must not be null");
         Set<ConstraintViolation<T>> violations = VALIDATOR.validate(bean);
         if (!violations.isEmpty()) {
             String msg = violations.stream()
