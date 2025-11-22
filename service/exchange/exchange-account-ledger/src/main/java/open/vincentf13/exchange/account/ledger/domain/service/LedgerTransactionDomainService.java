@@ -11,9 +11,10 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Ledg
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.AccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -24,9 +25,6 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class LedgerTransactionDomainService {
 
-    private static final String USER_DEPOSIT_DESCRIPTION = "用戶充值";
-    private static final String PLATFORM_DEPOSIT_DESCRIPTION = "User deposit liability";
-
     private final LedgerBalanceRepository ledgerBalanceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final PlatformAccountRepository platformAccountRepository;
@@ -34,7 +32,7 @@ public class LedgerTransactionDomainService {
     private final DefaultIdGenerator idGenerator;
 
     public LedgerDepositResult deposit(LedgerDepositRequest request) {
-        AccountType accountType = AccountType.SPOT_MAIN;
+        LedgerBalanceAccountType accountType = LedgerBalanceAccountType.SPOT_MAIN;
         String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, normalizedAsset);
         LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
@@ -48,48 +46,38 @@ public class LedgerTransactionDomainService {
         Long userEntryId = idGenerator.newLong();
         Long platformEntryId = idGenerator.newLong();
 
-        LedgerEntry userEntry = LedgerEntry.builder()
-                .entryId(userEntryId)
-                .ownerType(LedgerEntry.OWNER_TYPE_USER)
-                .accountId(balanceUpdated.getAccountId())
-                .userId(balanceUpdated.getUserId())
-                .asset(balanceUpdated.getAsset())
-                .amount(request.amount())
-                .direction(LedgerEntry.DIRECTION_CREDIT)
-                .counterpartyEntryId(platformEntryId)
-                .balanceAfter(balanceUpdated.getAvailable())
-                .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .referenceId(request.txId())
-                .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .description(USER_DEPOSIT_DESCRIPTION)
-                .eventTime(eventTime)
-                .createdAt(createdAt)
-                .build();
+        LedgerEntry userEntry = LedgerEntry.userDeposit(
+                userEntryId,
+                balanceUpdated.getAccountId(),
+                balanceUpdated.getUserId(),
+                balanceUpdated.getAsset(),
+                request.amount(),
+                platformEntryId,
+                balanceUpdated.getAvailable(),
+                request.txId(),
+                eventTime,
+                createdAt
+        );
         ledgerEntryRepository.insert(userEntry);
 
-        LedgerEntry platformEntry = LedgerEntry.builder()
-                .entryId(platformEntryId)
-                .ownerType(LedgerEntry.OWNER_TYPE_PLATFORM)
-                .accountId(platformBalanceUpdated.getAccountId())
-                .asset(platformBalanceUpdated.getAsset())
-                .amount(request.amount())
-                .direction(LedgerEntry.DIRECTION_CREDIT)
-                .counterpartyEntryId(userEntryId)
-                .balanceAfter(platformBalanceUpdated.getBalance())
-                .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .referenceId(request.txId())
-                .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .description(PLATFORM_DEPOSIT_DESCRIPTION)
-                .eventTime(eventTime)
-                .createdAt(createdAt)
-                .build();
+        LedgerEntry platformEntry = LedgerEntry.platformDeposit(
+                platformEntryId,
+                platformBalanceUpdated.getAccountId(),
+                platformBalanceUpdated.getAsset(),
+                request.amount(),
+                userEntryId,
+                platformBalanceUpdated.getBalance(),
+                request.txId(),
+                eventTime,
+                createdAt
+        );
         ledgerEntryRepository.insert(platformEntry);
 
         return new LedgerDepositResult(userEntry, platformEntry, balanceUpdated, platformBalanceUpdated);
     }
 
     private LedgerBalance getOrCreateLedgerBalance(Long userId,
-                                                   AccountType accountType,
+                                                   LedgerBalanceAccountType accountType,
                                                    String asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
@@ -121,7 +109,7 @@ public class LedgerTransactionDomainService {
     }
 
     private LedgerBalance reloadLedgerBalance(Long userId,
-                                              AccountType accountType,
+                                              LedgerBalanceAccountType accountType,
                                               Long instrumentId,
                                               String asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
@@ -146,7 +134,7 @@ public class LedgerTransactionDomainService {
         PlatformAccount account = PlatformAccount.createUserDepositAccount();
         try {
             return platformAccountRepository.insert(account);
-        } catch (DataIntegrityViolationException ex) {
+        } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
             return platformAccountRepository.findOne(PlatformAccount.builder()
                             .accountCode(PlatformAccount.ACCOUNT_CODE_USER_DEPOSIT)
                             .build())
@@ -167,7 +155,7 @@ public class LedgerTransactionDomainService {
         PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);
         try {
             return platformBalanceRepository.insert(newBalance);
-        } catch (DataIntegrityViolationException ex) {
+        } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
             return platformBalanceRepository.findOne(PlatformBalance.builder()
                             .accountId(platformAccount.getAccountId())
                             .accountCode(platformAccount.getAccountCode())

@@ -65,25 +65,22 @@ public class LedgerBalanceCommandService {
 
         balance = retryUpdateForWithdrawal(balance, totalOut, request.amount(), request.userId(), normalizedAsset);
 
-        Instant eventTime = request.requestedAt();
+        Instant eventTime = request.requestedAt() != null ? request.requestedAt() : Instant.now();
+        Instant createdAt = Instant.now();
         Long entryId = idGenerator.newLong();
-        LedgerEntry entry = LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(LedgerEntry.OWNER_TYPE_USER)
-                .accountId(balance.getAccountId())
-                .userId(balance.getUserId())
-                .asset(balance.getAsset())
-                .amount(totalOut)
-                .direction(LedgerEntry.DIRECTION_DEBIT)
-                .balanceAfter(balance.getAvailable())
-                .referenceType(LedgerEntry.ENTRY_TYPE_WITHDRAWAL)
-                .referenceId(null)
-                .entryType(LedgerEntry.ENTRY_TYPE_WITHDRAWAL)
-                .description(request.destination())
-                .metadata(request.metadata())
-                .eventTime(eventTime != null ? eventTime : Instant.now())
-                .createdAt(Instant.now())
-                .build();
+        LedgerEntry entry = LedgerEntry.userWithdrawal(
+                entryId,
+                balance.getAccountId(),
+                balance.getUserId(),
+                balance.getAsset(),
+                totalOut,
+                balance.getAvailable(),
+                null,
+                request.destination(),
+                request.metadata(),
+                eventTime,
+                createdAt
+        );
         ledgerEntryRepository.insert(entry);
 
         return new LedgerWithdrawalResponse(
