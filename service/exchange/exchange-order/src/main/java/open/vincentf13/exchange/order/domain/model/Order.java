@@ -4,13 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderTimeInForce;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderType;
+import open.vincentf13.exchange.order.infra.OrderErrorCode;
+import open.vincentf13.exchange.order.sdk.rest.api.dto.*;
+import open.vincentf13.sdk.core.OpenBigDecimal;
+import open.vincentf13.sdk.core.exception.OpenServiceException;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 
 @Data
@@ -18,6 +17,8 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
+
+    private static final String DEFAULT_SOURCE = "WEB";
 
     private Long orderId;
     private Long userId;
@@ -53,48 +54,82 @@ public class Order {
         this.version = this.version + 1;
     }
 
-    public void applyTrade(BigDecimal tradeQuantity, BigDecimal tradePrice, BigDecimal tradeFee, Instant executedAt) {
-        BigDecimal qty = normalize(tradeQuantity);
-        if (qty.signum() <= 0) {
-            return;
-        }
-        Instant now = executedAt != null ? executedAt : Instant.now();
-        BigDecimal originalFilled = normalize(this.filledQuantity);
-        BigDecimal newFilled = originalFilled.add(qty);
-        BigDecimal orderQuantity = normalize(this.quantity);
-        BigDecimal remaining = orderQuantity.subtract(newFilled);
-        if (remaining.signum() < 0) {
-            remaining = BigDecimal.ZERO;
-            newFilled = orderQuantity;
-        }
 
-        BigDecimal avgPrice = calculateWeightedAverage(originalFilled, normalize(this.avgFillPrice), qty, normalize(tradePrice));
-        BigDecimal updatedFee = normalize(this.fee).add(normalize(tradeFee));
+    public static Order createNew(Long userId, OrderCreateRequest request) {
+        if (userId == null) {
+            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "Missing userId");
+        }
+        validateRequest(request);
+        Instant now = Instant.now();
+        BigDecimal normalizedQty = OpenBigDecimal.normalizeDecimal(request.quantity());
+        BigDecimal normalizedPrice = OpenBigDecimal.normalizeDecimal(request.price());
+        BigDecimal normalizedStopPrice = OpenBigDecimal.normalizeDecimal(request.stopPrice());
+        OrderTimeInForce timeInForce = request.timeInForce() != null ? request.timeInForce() : OrderTimeInForce.GTC;
+        return Order.builder()
+                .userId(userId)
+                .instrumentId(request.instrumentId())
+                .clientOrderId(trimToNull(request.clientOrderId()))
+                .side(request.side())
+                .type(request.type())
+                .status(OrderStatus.PENDING)
+                .timeInForce(timeInForce)
+                .price(normalizedPrice)
+                .stopPrice(normalizedStopPrice)
+                .quantity(normalizedQty)
+                .filledQuantity(BigDecimal.ZERO)
+                .remainingQuantity(normalizedQty)
+                .avgFillPrice(null)
+                .fee(BigDecimal.ZERO)
+                .source(trimToDefault(request.source()))
+                .version(0)
+                .createdAt(now)
+                .updatedAt(now)
+                .submittedAt(null)
+                .filledAt(null)
+                .build();
+    }
 
-        this.filledQuantity = newFilled;
-        this.remainingQuantity = remaining;
-        this.avgFillPrice = avgPrice;
-        this.fee = updatedFee;
-        this.updatedAt = now;
-        this.status = remaining.signum() == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL_FILLED;
-        if (this.status == OrderStatus.FILLED && this.filledAt == null) {
-            this.filledAt = now;
+
+
+    private static void validateRequest(OrderCreateRequest request) {
+        if (request == null) {
+            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "request cannot be null");
+        }
+        if (requiresPrice(request.type()) && request.price() == null) {
+            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "price is required for type " + request.type());
+        }
+        if (requiresStopPrice(request.type()) && request.stopPrice() == null) {
+            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "stopPrice is required for type " + request.type());
+        }
+        if (request.quantity() == null || OpenBigDecimal.isNonPositive(request.quantity())) {
+            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "quantity must be positive");
+        }
+        if (request.price() != null && OpenBigDecimal.isNonPositive(request.price())) {
+            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "price must be positive");
+        }
+        if (request.stopPrice() != null && OpenBigDecimal.isNonPositive(request.stopPrice())) {
+            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "stopPrice must be positive");
         }
     }
 
-    private static BigDecimal normalize(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
+    private static boolean requiresPrice(OrderType type) {
+        return type == OrderType.LIMIT || type == OrderType.STOP_LIMIT;
     }
 
-    private static BigDecimal calculateWeightedAverage(BigDecimal existingQty, BigDecimal existingAvgPrice,
-                                                       BigDecimal tradeQty, BigDecimal tradePrice) {
-        BigDecimal totalQty = existingQty.add(tradeQty);
-        if (totalQty.signum() == 0) {
+    private static boolean requiresStopPrice(OrderType type) {
+        return type == OrderType.STOP_LIMIT || type == OrderType.STOP_MARKET;
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
             return null;
         }
-        BigDecimal existingValue = existingAvgPrice.multiply(existingQty);
-        BigDecimal tradeValue = tradePrice.multiply(tradeQty);
-        BigDecimal totalValue = existingValue.add(tradeValue);
-        return totalValue.divide(totalQty, 18, RoundingMode.HALF_UP);
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String trimToDefault(String value) {
+        String trimmed = trimToNull(value);
+        return trimmed == null ? DEFAULT_SOURCE : trimmed;
     }
 }

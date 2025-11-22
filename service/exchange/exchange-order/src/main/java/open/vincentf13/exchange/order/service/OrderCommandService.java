@@ -3,8 +3,7 @@ package open.vincentf13.exchange.order.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
-import open.vincentf13.exchange.order.domain.model.OrderErrorCode;
-import open.vincentf13.exchange.order.domain.service.OrderDomainService;
+import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
@@ -32,7 +31,6 @@ import java.time.Instant;
 @Slf4j
 public class OrderCommandService {
 
-    private final OrderDomainService orderDomainService;
     private final OrderRepository orderRepository;
     private final OrderEventPublisher orderEventPublisher;
     private final ExchangePositionClient exchangePositionClient;
@@ -42,7 +40,7 @@ public class OrderCommandService {
         OpenValidator.validateOrThrow(request);
         Long userId = currentUserId();
         try {
-            Order order = orderDomainService.createNewOrder(userId, request);
+            Order order = Order.createNew(userId, request);
             PositionIntentType intentType = determineIntent(userId, request);
 
             transactionTemplate.executeWithoutResult(status -> {

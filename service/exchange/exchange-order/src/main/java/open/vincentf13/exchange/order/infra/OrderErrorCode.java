@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.domain.model;
+package open.vincentf13.exchange.order.infra;
 
 import open.vincentf13.sdk.core.error.OpenError;
 
