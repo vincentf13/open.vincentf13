@@ -24,7 +24,7 @@ public class LedgerEntryPO {
     private Long counterpartyEntryId;
     private BigDecimal balanceAfter;
     private String referenceType;
-    private Long referenceId;
+    private String referenceId;
     private String entryType;
     private String description;
     private String metadata;
