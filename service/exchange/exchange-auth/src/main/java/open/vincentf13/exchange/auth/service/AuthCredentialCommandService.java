@@ -6,7 +6,6 @@ import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
-import open.vincentf13.exchange.auth.domain.service.AuthCredentialDomainService;
 import open.vincentf13.exchange.auth.infra.persistence.repository.AuthCredentialRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthCredentialCommandService {
 
     private final AuthCredentialRepository repository;
-    private final AuthCredentialDomainService authCredentialDomainService;
 
     @Transactional
     public AuthCredentialResponse create(AuthCredentialCreateRequest request) {
@@ -28,13 +26,11 @@ public class AuthCredentialCommandService {
         return repository.findOne(probe)
                 .map(existing -> OpenMapstruct.map(existing, AuthCredentialResponse.class))
                 .orElseGet(() -> {
-                    AuthCredentialDomainService.PreparedCredential prepared =
-                            new AuthCredentialDomainService.PreparedCredential(request.secretHash(), request.salt());
-
-                    AuthCredential credential = authCredentialDomainService.createCredential(
+                    AuthCredential credential = AuthCredential.create(
                             request.userId(),
                             request.credentialType(),
-                            prepared,
+                            request.secretHash(),
+                            request.salt(),
                             request.status()
                     );
 

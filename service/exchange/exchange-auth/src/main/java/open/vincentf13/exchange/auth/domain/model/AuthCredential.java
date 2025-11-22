@@ -21,4 +21,19 @@ public class AuthCredential {
     private String status;
     private Instant expiresAt;
     private Instant createdAt;
+
+    public static AuthCredential create(Long userId,
+                                        AuthCredentialType credentialType,
+                                        String secretHash,
+                                        String salt,
+                                        String status) {
+        return AuthCredential.builder()
+                .userId(userId)
+                .credentialType(credentialType)
+                .secretHash(secretHash)
+                .salt(salt)
+                .status(status)
+                .createdAt(Instant.now())
+                .build();
+    }
 }

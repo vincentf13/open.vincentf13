@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.domain.model;
+package open.vincentf13.exchange.auth.infra;
 
 import open.vincentf13.sdk.core.error.OpenError;
 

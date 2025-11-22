@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.security;
+package open.vincentf13.exchange.auth.infra.security;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;

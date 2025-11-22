@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.security;
+package open.vincentf13.exchange.auth.infra.security;
 
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUser;
 import org.springframework.security.authentication.BadCredentialsException;
