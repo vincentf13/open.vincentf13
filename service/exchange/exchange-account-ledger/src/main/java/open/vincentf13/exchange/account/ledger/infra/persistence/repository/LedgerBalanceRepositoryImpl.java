@@ -5,7 +5,10 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerBalanceMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 import open.vincentf13.sdk.core.OpenMapstruct;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -88,5 +91,56 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
             throw new IllegalStateException("Expected single ledger balance but found " + results.size());
         }
         return Optional.of(results.get(0));
+    }
+
+    @Override
+    public LedgerBalance getOrCreate(Long userId,
+                                     AccountType accountType,
+                                     Long instrumentId,
+                                     AssetSymbol asset) {
+        LedgerBalance probe = LedgerBalance.builder()
+                .userId(userId)
+                .accountType(accountType)
+                .instrumentId(instrumentId)
+                .asset(asset)
+                .build();
+        return findOne(probe)
+                .orElseGet(() -> insert(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
+    }
+
+    @Override
+    public LedgerBalance updateIncrement(LedgerBalance balance,
+                                         BigDecimal balanceDelta,
+                                         BigDecimal availableDelta,
+                                         BigDecimal depositedDelta,
+                                         BigDecimal withdrawnDelta,
+                                         Long userId) {
+        int retries = 0;
+        while (retries < 3) {
+            int currentVersion = safeVersion(balance);
+            if (balanceDelta != null) {
+                balance.setBalance(balance.getBalance().add(balanceDelta));
+            }
+            if (availableDelta != null) {
+                balance.setAvailable(balance.getAvailable().add(availableDelta));
+            }
+            if (depositedDelta != null) {
+                balance.setTotalDeposited(balance.getTotalDeposited().add(depositedDelta));
+            }
+            if (withdrawnDelta != null) {
+                balance.setTotalWithdrawn(balance.getTotalWithdrawn().add(withdrawnDelta));
+            }
+            balance.setVersion(currentVersion + 1);
+            if (updateWithVersion(balance, currentVersion)) {
+                return balance;
+            }
+            retries++;
+            balance = getOrCreate(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), balance.getAsset());
+        }
+        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+    }
+
+    private int safeVersion(LedgerBalance balance) {
+        return balance.getVersion() == null ? 0 : balance.getVersion();
     }
 }

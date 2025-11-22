@@ -17,7 +17,6 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawal
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -37,11 +36,11 @@ public class LedgerTransactionDomainService {
     public LedgerDepositResult deposit(LedgerDepositRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
-        LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, null, normalizedAsset);
+        LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(request.userId(), accountType, null, normalizedAsset);
         LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
 
         PlatformAccount platformAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.USER_DEPOSIT);
-        PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
+        PlatformBalance platformBalance = platformBalanceRepository.getOrCreate(platformAccount.getAccountId(), platformAccount.getAccountCode(), normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, request.amount(), normalizedAsset);
 
         Instant createdAt = Instant.now();
@@ -81,12 +80,12 @@ public class LedgerTransactionDomainService {
     public LedgerWithdrawalResult withdraw(LedgerWithdrawalRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
-        LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, null, normalizedAsset);
+        LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(request.userId(), accountType, null, normalizedAsset);
 
         LedgerBalance balanceUpdated = retryUpdateForWithdrawal(userBalance, request.amount(), request.userId(), normalizedAsset);
 
         PlatformAccount platformAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.USER_DEPOSIT);
-        PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
+        PlatformBalance platformBalance = platformBalanceRepository.getOrCreate(platformAccount.getAccountId(), platformAccount.getAccountCode(), normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformWithdrawal(platformBalance, request.amount(), normalizedAsset);
 
         Instant createdAt = Instant.now();
@@ -121,19 +120,6 @@ public class LedgerTransactionDomainService {
         ledgerEntryRepository.insert(platformEntry);
 
         return new LedgerWithdrawalResult(userEntry, balanceUpdated);
-    }
-
-    private LedgerBalance getOrCreateLedgerBalance(Long userId,
-                                                   AccountType accountType,
-                                                   Long instrumentId,
-                                                   AssetSymbol asset) {
-        return ledgerBalanceRepository.findOne(LedgerBalance.builder()
-                        .userId(userId)
-                        .accountType(accountType)
-                        .instrumentId(instrumentId)
-                        .asset(asset)
-                        .build())
-                .orElseGet(() -> ledgerBalanceRepository.insert(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
     }
 
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
@@ -190,14 +176,6 @@ public class LedgerTransactionDomainService {
                         "Ledger balance not found for user=" + userId + ", asset=" + asset.code()));
     }
 
-    private PlatformBalance getOrCreatePlatformBalance(PlatformAccount platformAccount, AssetSymbol asset) {
-        return platformBalanceRepository.findOne(PlatformBalance.builder()
-                        .accountId(platformAccount.getAccountId())
-                        .accountCode(platformAccount.getAccountCode())
-                        .asset(asset)
-                        .build())
-                .orElseGet(() -> insertPlatformBalance(platformAccount, asset));
-    }
 
     private PlatformBalance insertPlatformBalance(PlatformAccount platformAccount, AssetSymbol asset) {
         PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);

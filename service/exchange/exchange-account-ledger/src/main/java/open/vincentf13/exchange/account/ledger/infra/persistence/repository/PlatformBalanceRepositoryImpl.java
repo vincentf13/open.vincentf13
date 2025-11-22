@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformBalance;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.PlatformBalanceMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
+import org.springframework.dao.DuplicateKeyException;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 
@@ -88,5 +91,23 @@ public class PlatformBalanceRepositoryImpl implements PlatformBalanceRepository 
             throw new IllegalStateException("Expected single platform balance but found " + results.size());
         }
         return Optional.of(results.get(0));
+    }
+
+    @Override
+    public PlatformBalance getOrCreate(Long accountId, PlatformAccountCode accountCode, AssetSymbol asset) {
+        PlatformBalance probe = PlatformBalance.builder()
+                .accountId(accountId)
+                .accountCode(accountCode)
+                .asset(asset)
+                .build();
+        return findOne(probe)
+                .orElseGet(() -> {
+                    try {
+                        return insert(PlatformBalance.createDefault(accountId, accountCode, asset));
+                    } catch (DuplicateKeyException ex) {
+                        return findOne(probe)
+                                .orElseThrow(() -> ex);
+                    }
+                });
     }
 }
