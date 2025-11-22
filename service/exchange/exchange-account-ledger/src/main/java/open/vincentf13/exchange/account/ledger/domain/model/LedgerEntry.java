@@ -4,9 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.Direction;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.EntryType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.OwnerType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.Direction;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.OwnerType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -21,7 +23,7 @@ public class LedgerEntry {
     private OwnerType ownerType;
     private Long accountId;
     private Long userId;
-    private String asset;
+    private AssetSymbol asset;
     private BigDecimal amount;
     private Direction direction;
     private Long counterpartyEntryId;
@@ -37,7 +39,7 @@ public class LedgerEntry {
     public static LedgerEntry userDeposit(Long entryId,
                                           Long accountId,
                                           Long userId,
-                                          String asset,
+                                          AssetSymbol asset,
                                           BigDecimal amount,
                                           Long counterpartyEntryId,
                                           BigDecimal balanceAfter,
@@ -60,7 +62,7 @@ public class LedgerEntry {
 
     public static LedgerEntry platformDeposit(Long entryId,
                                               Long accountId,
-                                              String asset,
+                                              AssetSymbol asset,
                                               BigDecimal amount,
                                               Long counterpartyEntryId,
                                               BigDecimal balanceAfter,
@@ -84,7 +86,7 @@ public class LedgerEntry {
     public static LedgerEntry userWithdrawal(Long entryId,
                                              Long accountId,
                                              Long userId,
-                                             String asset,
+                                             AssetSymbol asset,
                                              BigDecimal amount,
                                              BigDecimal balanceAfter,
                                              String referenceId,
@@ -115,7 +117,7 @@ public class LedgerEntry {
                                        OwnerType ownerType,
                                        Long accountId,
                                        Long userId,
-                                       String asset,
+                                       AssetSymbol asset,
                                        BigDecimal amount,
                                        Long counterpartyEntryId,
                                        BigDecimal balanceAfter,

@@ -35,6 +35,9 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
             balance.setUpdatedAt(balance.getCreatedAt());
         }
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
+        if (balance.getAsset() != null && po.getAsset() == null) {
+            po.setAsset(balance.getAsset().code());
+        }
         mapper.insertSelective(po);
         if (po.getCreatedAt() != null) {
             balance.setCreatedAt(po.getCreatedAt());
@@ -49,12 +52,18 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
     public boolean updateWithVersion(LedgerBalance balance, Integer expectedVersion) {
         balance.setUpdatedAt(Instant.now());
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
+        if (balance.getAsset() != null && po.getAsset() == null) {
+            po.setAsset(balance.getAsset().code());
+        }
         return mapper.updateByIdAndVersion(po, expectedVersion) > 0;
     }
 
     @Override
     public List<LedgerBalance> findBy(LedgerBalance condition) {
         LedgerBalancePO probe = OpenMapstruct.map(condition, LedgerBalancePO.class);
+        if (condition.getAsset() != null && probe.getAsset() == null) {
+            probe.setAsset(condition.getAsset().code());
+        }
         return mapper.findBy(probe).stream()
                 .map(item -> OpenMapstruct.map(item, LedgerBalance.class))
                 .collect(Collectors.toList());

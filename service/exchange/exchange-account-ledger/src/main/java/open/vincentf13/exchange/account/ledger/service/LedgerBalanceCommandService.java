@@ -8,7 +8,12 @@ import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.*;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -39,7 +44,7 @@ public class LedgerBalanceCommandService {
                 updatedBalance.getAvailable(),
                 userEntry.getCreatedAt(),
                 updatedBalance.getUserId(),
-                updatedBalance.getAsset(),
+                updatedBalance.getAsset().code(),
                 request.amount(),
                 request.txId()
         );
@@ -49,7 +54,7 @@ public class LedgerBalanceCommandService {
     public LedgerWithdrawalResponse withdraw(LedgerWithdrawalRequest request) {
         OpenValidator.validateOrThrow(request);
 
-        String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
+        var normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance balance = getOrCreate(
                 request.userId(),
                 AccountType.SPOT_MAIN,
@@ -90,14 +95,14 @@ public class LedgerBalanceCommandService {
                 balance.getAvailable(),
                 entry.getEventTime(),
                 balance.getUserId(),
-                balance.getAsset(),
+                balance.getAsset().code(),
                 request.amount(),
                 fee,
                 request.externalRef()
         );
     }
 
-    private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance, BigDecimal totalOut, BigDecimal amount, Long userId, String asset) {
+    private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance, BigDecimal totalOut, BigDecimal amount, Long userId, AssetSymbol asset) {
         int retries = 0;
         while (retries < 3) {
             int currentVersion = safeVersion(balance);
@@ -114,11 +119,11 @@ public class LedgerBalanceCommandService {
         throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
     }
 
-    private LedgerBalance reloadBalance(Long userId, AccountType accountType, Long instrumentId, String asset) {
+    private LedgerBalance reloadBalance(Long userId, AccountType accountType, Long instrumentId, AssetSymbol asset) {
         return getOrCreate(userId, accountType, instrumentId, asset);
     }
 
-    private LedgerBalance getOrCreate(Long userId, AccountType accountType, Long instrumentId, String asset) {
+    private LedgerBalance getOrCreate(Long userId, AccountType accountType, Long instrumentId, AssetSymbol asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
                         .accountType(accountType)

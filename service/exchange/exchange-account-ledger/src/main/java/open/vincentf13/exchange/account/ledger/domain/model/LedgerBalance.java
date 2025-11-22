@@ -4,11 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.AccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Locale;
 
 @Data
 @Builder
@@ -21,7 +21,7 @@ public class LedgerBalance {
     private Long userId;
     private AccountType accountType;
     private Long instrumentId;
-    private String asset;
+    private AssetSymbol asset;
     private BigDecimal balance;
     private BigDecimal available;
     private BigDecimal reserved;
@@ -36,13 +36,13 @@ public class LedgerBalance {
     public static LedgerBalance createDefault(Long userId,
                                               AccountType accountType,
                                               Long instrumentId,
-                                              String asset) {
+                                              AssetSymbol asset) {
         Instant now = Instant.now();
         return LedgerBalance.builder()
                 .userId(userId)
                 .accountType(accountType)
                 .instrumentId(instrumentId)
-                .asset(normalizeAsset(asset))
+                .asset(asset)
                 .balance(BigDecimal.ZERO)
                 .available(BigDecimal.ZERO)
                 .reserved(BigDecimal.ZERO)
@@ -54,10 +54,7 @@ public class LedgerBalance {
                 .updatedAt(now)
                 .build();
     }
-    public static String normalizeAsset(String asset) {
-        if (asset == null) {
-            throw new IllegalArgumentException("asset is required");
-        }
-        return asset.toUpperCase(Locale.ROOT);
+    public static AssetSymbol normalizeAsset(String asset) {
+        return AssetSymbol.fromValue(asset);
     }
 }

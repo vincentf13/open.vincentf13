@@ -11,9 +11,10 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Ledg
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.PlatformAccountCode;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -33,8 +34,8 @@ public class LedgerTransactionDomainService {
     private final DefaultIdGenerator idGenerator;
 
     public LedgerDepositResult deposit(LedgerDepositRequest request) {
-        LedgerBalanceAccountType accountType = LedgerBalanceAccountType.SPOT_MAIN;
-        String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
+        AccountType accountType = AccountType.SPOT_MAIN;
+        AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, normalizedAsset);
         LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
 
@@ -78,8 +79,8 @@ public class LedgerTransactionDomainService {
     }
 
     private LedgerBalance getOrCreateLedgerBalance(Long userId,
-                                                   LedgerBalanceAccountType accountType,
-                                                   String asset) {
+                                                   AccountType accountType,
+                                                   AssetSymbol asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
                         .accountType(accountType)
@@ -92,7 +93,7 @@ public class LedgerTransactionDomainService {
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
                                                 BigDecimal amount,
                                                 Long userId,
-                                                String asset) {
+                                                AssetSymbol asset) {
         int retries = 0;
         while (retries < 3) {
             int currentVersion = safeVersion(balance);
@@ -110,9 +111,9 @@ public class LedgerTransactionDomainService {
     }
 
     private LedgerBalance reloadLedgerBalance(Long userId,
-                                              LedgerBalanceAccountType accountType,
+                                              AccountType accountType,
                                               Long instrumentId,
-                                              String asset) {
+                                              AssetSymbol asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
                         .accountType(accountType)
@@ -120,7 +121,7 @@ public class LedgerTransactionDomainService {
                         .asset(asset)
                         .build())
                 .orElseThrow(() -> new IllegalStateException(
-                        "Ledger balance not found for user=" + userId + ", asset=" + asset));
+                        "Ledger balance not found for user=" + userId + ", asset=" + asset.code()));
     }
 
     private PlatformAccount getOrCreatePlatformUserDepositAccount() {
@@ -143,7 +144,7 @@ public class LedgerTransactionDomainService {
         }
     }
 
-    private PlatformBalance getOrCreatePlatformBalance(PlatformAccount platformAccount, String asset) {
+    private PlatformBalance getOrCreatePlatformBalance(PlatformAccount platformAccount, AssetSymbol asset) {
         return platformBalanceRepository.findOne(PlatformBalance.builder()
                         .accountId(platformAccount.getAccountId())
                         .accountCode(platformAccount.getAccountCode())
@@ -152,7 +153,7 @@ public class LedgerTransactionDomainService {
                 .orElseGet(() -> insertPlatformBalance(platformAccount, asset));
     }
 
-    private PlatformBalance insertPlatformBalance(PlatformAccount platformAccount, String asset) {
+    private PlatformBalance insertPlatformBalance(PlatformAccount platformAccount, AssetSymbol asset) {
         PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);
         try {
             return platformBalanceRepository.insert(newBalance);
@@ -168,7 +169,7 @@ public class LedgerTransactionDomainService {
 
     private PlatformBalance retryUpdateForPlatformDeposit(PlatformBalance platformBalance,
                                                           BigDecimal amount,
-                                                          String asset) {
+                                                          AssetSymbol asset) {
         int retries = 0;
         while (retries < 3) {
             int currentVersion = safeVersion(platformBalance);
@@ -184,13 +185,13 @@ public class LedgerTransactionDomainService {
         throw new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId());
     }
 
-    private PlatformBalance reloadPlatformBalance(Long accountId, PlatformAccountCode accountCode, String asset) {
+    private PlatformBalance reloadPlatformBalance(Long accountId, PlatformAccountCode accountCode, AssetSymbol asset) {
         return platformBalanceRepository.findOne(PlatformBalance.builder()
                         .accountId(accountId)
                         .accountCode(accountCode)
                         .asset(asset)
                         .build())
-                .orElseThrow(() -> new IllegalStateException("Platform balance not found for account=" + accountId + ", asset=" + asset));
+                .orElseThrow(() -> new IllegalStateException("Platform balance not found for account=" + accountId + ", asset=" + asset.code()));
     }
 
     private int safeVersion(LedgerBalance balance) {

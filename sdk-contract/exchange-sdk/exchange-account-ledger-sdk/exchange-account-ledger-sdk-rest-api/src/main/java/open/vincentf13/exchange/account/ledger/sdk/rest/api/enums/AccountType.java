@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.account.ledger.sdk.rest.api.dto;
+package open.vincentf13.exchange.account.ledger.sdk.rest.api.enums;
 
 import java.util.Locale;
 

@@ -4,9 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.PlatformAccountCategory;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.PlatformAccountCode;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.PlatformAccountStatus;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCategory;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountStatus;
 
 import java.time.Instant;
 
