@@ -60,4 +60,6 @@ public Account getOrCreate(long userId, String asset) {
 呼叫端要在拿到實體後用版本欄位做樂觀鎖更新，確保快照與帳戶建立流程具備冪等與競態保護。
 - Controller 實作 REST 介面時不得重複宣告 Spring MVC 綁定或 Bean Validation 註解，所有 `@RequestParam` / `@PathVariable` / `@RequestBody` / `@Valid` / `@NotBlank` 等註解一律集中在對應的 *interface* 上；提交前需檢查所有服務的 REST 介面皆符合此規則。
 - Application 層處理入參時必須使用 `open.vincentf13.sdk.core.OpenValidator.validateOrThrow(...)` 或同等 Bean Validation 方式於方法一開始驗證 DTO，禁止手寫重複的 null/空字串檢查；必要的商業規則再額外檢查。
+- 所有 REST DTO 專用的枚舉（例如帳戶型別）都要放在 `sdk-contract/.../dto` 內，server code 直接引用，不得在 domain/service 再定義重複的 enum。
+- 與 Domain 行為緊密相關的常數（如 OwnerType、EntryType）必須封裝在對應 Domain Model/Value Object 內統一維護，Service/Controller 不得自建字串常量。
 - 所有服務模組都必須依設計文件實作 CQRS：查詢邏輯集中在 `*QueryService`，寫入/更新集中在 `*CommandService`，Controller 需分別注入 Query/Command 服務；新增功能時亦要遵守這個拆分慣例，禁止將查詢與命令混在同一服務類別。

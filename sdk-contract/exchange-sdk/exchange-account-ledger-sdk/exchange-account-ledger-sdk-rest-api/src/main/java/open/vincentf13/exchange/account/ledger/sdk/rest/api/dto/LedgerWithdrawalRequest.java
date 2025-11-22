@@ -12,7 +12,7 @@ public record LedgerWithdrawalRequest(
         @NotBlank String asset,
         @NotNull @DecimalMin(value = "0.00000001") BigDecimal amount,
         @DecimalMin(value = "0") BigDecimal fee,
-        String accountType,
+        @NotNull LedgerBalanceAccountType accountType,
         Long instrumentId,
         String destination,
         String externalRef,

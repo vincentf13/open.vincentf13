@@ -11,7 +11,6 @@ public record LedgerDepositRequest(
         @NotNull Long userId,
         @NotBlank String asset,
         @NotNull @DecimalMin(value = "0.00000001") BigDecimal amount,
-        @NotNull LedgerBalanceAccountType accountType,
         @NotBlank String txId,
         @NotNull Instant creditedAt
 ) { }

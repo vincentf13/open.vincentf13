@@ -25,12 +25,6 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class LedgerAccountCommandService {
 
-    private static final String OWNER_TYPE_USER = "USER";
-    private static final String ENTRY_DIRECTION_CREDIT = "CREDIT";
-    private static final String ENTRY_DIRECTION_DEBIT = "DEBIT";
-    private static final String ENTRY_TYPE_DEPOSIT = "DEPOSIT";
-    private static final String ENTRY_TYPE_WITHDRAWAL = "WITHDRAWAL";
-
     private final LedgerBalanceRepository ledgerBalanceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final DefaultIdGenerator idGenerator;
@@ -39,14 +33,10 @@ public class LedgerAccountCommandService {
     public LedgerDepositResponse deposit(LedgerDepositRequest request) {
         OpenValidator.validateOrThrow(request);
 
-        LedgerBalanceAccountType accountType = request.accountType();
-        if (accountType != LedgerBalanceAccountType.SPOT_MAIN) {
-            throw new IllegalArgumentException("deposit only supports SPOT_MAIN account");
-        }
         String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
         LedgerBalance balance = getOrDefault(
                 request.userId(),
-                accountType,
+                LedgerBalanceAccountType.SPOT_MAIN,
                 null,
                 normalizedAsset
         );
@@ -58,16 +48,16 @@ public class LedgerAccountCommandService {
         Long entryId = idGenerator.newLong();
         LedgerEntry entry = LedgerEntry.builder()
                 .entryId(entryId)
-                .ownerType(OWNER_TYPE_USER)
+                .ownerType(LedgerEntry.OWNER_TYPE_USER)
                 .accountId(balance.getAccountId())
                 .userId(balance.getUserId())
                 .asset(balance.getAsset())
                 .amount(amount)
-                .direction(ENTRY_DIRECTION_CREDIT)
+                .direction(LedgerEntry.ENTRY_DIRECTION_CREDIT)
                 .balanceAfter(balance.getAvailable())
-                .referenceType(ENTRY_TYPE_DEPOSIT)
+                .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
                 .referenceId(entryId)
-                .entryType(ENTRY_TYPE_DEPOSIT)
+                .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
                 .description(request.txId())
                 .eventTime(eventTime != null ? eventTime : Instant.now())
                 .createdAt(Instant.now())
@@ -90,7 +80,7 @@ public class LedgerAccountCommandService {
     @Transactional
     public LedgerWithdrawalResponse withdraw(LedgerWithdrawalRequest request) {
         OpenValidator.validateOrThrow(request);
-        LedgerBalanceAccountType accountType = LedgerBalanceAccountType.fromValue(request.accountType());
+        LedgerBalanceAccountType accountType = request.accountType();
         String normalizedAsset = request.asset().toUpperCase(Locale.ROOT);
         LedgerBalance balance = getOrDefault(
                 request.userId(),
@@ -111,16 +101,16 @@ public class LedgerAccountCommandService {
         Long entryId = idGenerator.newLong();
         LedgerEntry entry = LedgerEntry.builder()
                 .entryId(entryId)
-                .ownerType(OWNER_TYPE_USER)
+                .ownerType(LedgerEntry.OWNER_TYPE_USER)
                 .accountId(balance.getAccountId())
                 .userId(balance.getUserId())
                 .asset(balance.getAsset())
                 .amount(totalOut)
-                .direction(ENTRY_DIRECTION_DEBIT)
+                .direction(LedgerEntry.ENTRY_DIRECTION_DEBIT)
                 .balanceAfter(balance.getAvailable())
-                .referenceType(ENTRY_TYPE_WITHDRAWAL)
+                .referenceType(LedgerEntry.ENTRY_TYPE_WITHDRAWAL)
                 .referenceId(entryId)
-                .entryType(ENTRY_TYPE_WITHDRAWAL)
+                .entryType(LedgerEntry.ENTRY_TYPE_WITHDRAWAL)
                 .description(request.destination())
                 .metadata(request.metadata())
                 .eventTime(eventTime != null ? eventTime : Instant.now())
