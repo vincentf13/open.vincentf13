@@ -50,9 +50,9 @@ public class LedgerAccountCommandService {
                 .direction(LedgerEntry.DIRECTION_CREDIT)
                 .balanceAfter(balance.getAvailable())
                 .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .referenceId(entryId)
+                .referenceId(request.txId())
                 .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .description(request.txId())
+                .description("用戶充值")
                 .eventTime(eventTime != null ? eventTime : Instant.now())
                 .createdAt(Instant.now())
                 .build();
