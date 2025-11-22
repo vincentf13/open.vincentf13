@@ -85,11 +85,16 @@ public class LedgerTransactionDomainService {
 
         LedgerBalance balanceUpdated = retryUpdateForWithdrawal(userBalance, request.amount(), request.userId(), normalizedAsset);
 
-        Instant createdAt = Instant.now();
-        Long entryId = idGenerator.newLong();
+        PlatformAccount platformAccount = getOrCreatePlatformUserDepositAccount();
+        PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
+        PlatformBalance platformBalanceUpdated = retryUpdateForPlatformWithdrawal(platformBalance, request.amount(), normalizedAsset);
 
-        LedgerEntry entry = LedgerEntry.userWithdrawal(
-                entryId,
+        Instant createdAt = Instant.now();
+        Long userEntryId = idGenerator.newLong();
+        Long platformEntryId = idGenerator.newLong();
+
+        LedgerEntry userEntry = LedgerEntry.userWithdrawal(
+                userEntryId,
                 balanceUpdated.getAccountId(),
                 balanceUpdated.getUserId(),
                 balanceUpdated.getAsset(),
@@ -100,9 +105,22 @@ public class LedgerTransactionDomainService {
                 request.creditedAt(),
                 createdAt
         );
-        ledgerEntryRepository.insert(entry);
+        ledgerEntryRepository.insert(userEntry);
 
-        return new LedgerWithdrawalResult(entry, balanceUpdated);
+        LedgerEntry platformEntry = LedgerEntry.platformWithdrawal(
+                platformEntryId,
+                platformBalanceUpdated.getAccountId(),
+                platformBalanceUpdated.getAsset(),
+                request.amount(),
+                userEntryId,
+                platformBalanceUpdated.getBalance(),
+                request.txId(),
+                request.creditedAt(),
+                createdAt
+        );
+        ledgerEntryRepository.insert(platformEntry);
+
+        return new LedgerWithdrawalResult(userEntry, balanceUpdated);
     }
 
     private LedgerBalance getOrCreateLedgerBalance(Long userId,
@@ -223,6 +241,24 @@ public class LedgerTransactionDomainService {
             int currentVersion = safeVersion(platformBalance);
             BigDecimal currentBalance = platformBalance.getBalance() == null ? BigDecimal.ZERO : platformBalance.getBalance();
             platformBalance.setBalance(currentBalance.add(amount));
+            platformBalance.setVersion(currentVersion + 1);
+            if (platformBalanceRepository.updateWithVersion(platformBalance, currentVersion)) {
+                return platformBalance;
+            }
+            retries++;
+            platformBalance = reloadPlatformBalance(platformBalance.getAccountId(), platformBalance.getAccountCode(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId());
+    }
+
+    private PlatformBalance retryUpdateForPlatformWithdrawal(PlatformBalance platformBalance,
+                                                            BigDecimal amount,
+                                                            AssetSymbol asset) {
+        int retries = 0;
+        while (retries < 3) {
+            int currentVersion = safeVersion(platformBalance);
+            BigDecimal currentBalance = platformBalance.getBalance() == null ? BigDecimal.ZERO : platformBalance.getBalance();
+            platformBalance.setBalance(currentBalance.subtract(amount));
             platformBalance.setVersion(currentVersion + 1);
             if (platformBalanceRepository.updateWithVersion(platformBalance, currentVersion)) {
                 return platformBalance;

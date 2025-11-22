@@ -101,8 +101,35 @@ public class LedgerEntry {
                 .referenceType(EntryType.WITHDRAWAL.referenceType())
                 .referenceId(referenceId)
                 .entryType(EntryType.WITHDRAWAL)
-                .description("用戶提款")
+                .description("User withdrawal")
                 .metadata(metadata)
+                .eventTime(eventTime)
+                .createdAt(createdAt)
+                .build();
+    }
+
+    public static LedgerEntry platformWithdrawal(Long entryId,
+                                                 Long accountId,
+                                                 AssetSymbol asset,
+                                                 BigDecimal amount,
+                                                 Long counterpartyEntryId,
+                                                 BigDecimal balanceAfter,
+                                                 String referenceId,
+                                                 Instant eventTime,
+                                                 Instant createdAt) {
+        return LedgerEntry.builder()
+                .entryId(entryId)
+                .ownerType(OwnerType.PLATFORM)
+                .accountId(accountId)
+                .asset(asset)
+                .amount(amount)
+                .direction(Direction.DEBIT)
+                .counterpartyEntryId(counterpartyEntryId)
+                .balanceAfter(balanceAfter)
+                .referenceType(EntryType.WITHDRAWAL.referenceType())
+                .referenceId(referenceId)
+                .entryType(EntryType.WITHDRAWAL)
+                .description("User withdrawal liability")
                 .eventTime(eventTime)
                 .createdAt(createdAt)
                 .build();
