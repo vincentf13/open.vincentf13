@@ -13,6 +13,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Plat
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.PlatformAccountCode;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -124,7 +125,7 @@ public class LedgerTransactionDomainService {
 
     private PlatformAccount getOrCreatePlatformUserDepositAccount() {
         PlatformAccount probe = PlatformAccount.builder()
-                .accountCode(PlatformAccount.ACCOUNT_CODE_USER_DEPOSIT)
+                .accountCode(PlatformAccountCode.USER_DEPOSIT)
                 .build();
         return platformAccountRepository.findOne(probe)
                 .orElseGet(this::createUserDepositAccount);
@@ -136,7 +137,7 @@ public class LedgerTransactionDomainService {
             return platformAccountRepository.insert(account);
         } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
             return platformAccountRepository.findOne(PlatformAccount.builder()
-                            .accountCode(PlatformAccount.ACCOUNT_CODE_USER_DEPOSIT)
+                            .accountCode(PlatformAccountCode.USER_DEPOSIT)
                             .build())
                     .orElseThrow(() -> ex);
         }
@@ -145,20 +146,20 @@ public class LedgerTransactionDomainService {
     private PlatformBalance getOrCreatePlatformBalance(PlatformAccount platformAccount, String asset) {
         return platformBalanceRepository.findOne(PlatformBalance.builder()
                         .accountId(platformAccount.getAccountId())
-                        .accountCode(platformAccount.getAccountCode())
+                        .accountCode(platformAccount.getAccountCode().code())
                         .asset(asset)
                         .build())
                 .orElseGet(() -> insertPlatformBalance(platformAccount, asset));
     }
 
     private PlatformBalance insertPlatformBalance(PlatformAccount platformAccount, String asset) {
-        PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);
+        PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode().code(), asset);
         try {
             return platformBalanceRepository.insert(newBalance);
         } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
             return platformBalanceRepository.findOne(PlatformBalance.builder()
                             .accountId(platformAccount.getAccountId())
-                            .accountCode(platformAccount.getAccountCode())
+                            .accountCode(platformAccount.getAccountCode().code())
                             .asset(asset)
                             .build())
                     .orElseThrow(() -> ex);

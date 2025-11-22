@@ -29,6 +29,9 @@ public class PlatformAccountRepositoryImpl implements PlatformAccountRepository 
             platformAccount.setCreatedAt(Instant.now());
         }
         PlatformAccountPO po = OpenMapstruct.map(platformAccount, PlatformAccountPO.class);
+        if (po.getName() == null && platformAccount.getAccountCode() != null) {
+            po.setName(platformAccount.getAccountCode().displayName());
+        }
         mapper.insertSelective(po);
         if (po.getCreatedAt() != null) {
             platformAccount.setCreatedAt(po.getCreatedAt());
