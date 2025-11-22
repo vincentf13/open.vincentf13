@@ -2,18 +2,20 @@ package open.vincentf13.exchange.account.ledger.domain.service;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformBalance;
+import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
+import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
@@ -36,7 +38,7 @@ public class LedgerTransactionDomainService {
     public LedgerDepositResult deposit(LedgerDepositRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
-        LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, normalizedAsset);
+        LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, null, normalizedAsset);
         LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
 
         PlatformAccount platformAccount = getOrCreatePlatformUserDepositAccount();
@@ -78,16 +80,52 @@ public class LedgerTransactionDomainService {
         return new LedgerDepositResult(userEntry, platformEntry, balanceUpdated, platformBalanceUpdated);
     }
 
+    public LedgerWithdrawalResult withdraw(LedgerWithdrawalRequest request) {
+        AccountType accountType = AccountType.SPOT_MAIN;
+        AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
+        LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, request.instrumentId(), normalizedAsset);
+
+        BigDecimal fee = request.fee() == null ? BigDecimal.ZERO : request.fee();
+        BigDecimal totalOut = request.amount().add(fee);
+        if (userBalance.getAvailable().compareTo(totalOut) < 0) {
+            throw new IllegalArgumentException("Insufficient available balance");
+        }
+
+        LedgerBalance balanceUpdated = retryUpdateForWithdrawal(userBalance, totalOut, request.amount(), request.userId(), normalizedAsset);
+
+        Instant eventTime = request.requestedAt() != null ? request.requestedAt() : Instant.now();
+        Instant createdAt = Instant.now();
+        Long entryId = idGenerator.newLong();
+
+        LedgerEntry entry = LedgerEntry.userWithdrawal(
+                entryId,
+                balanceUpdated.getAccountId(),
+                balanceUpdated.getUserId(),
+                balanceUpdated.getAsset(),
+                totalOut,
+                balanceUpdated.getAvailable(),
+                null,
+                request.destination(),
+                request.metadata(),
+                eventTime,
+                createdAt
+        );
+        ledgerEntryRepository.insert(entry);
+
+        return new LedgerWithdrawalResult(entry, balanceUpdated);
+    }
+
     private LedgerBalance getOrCreateLedgerBalance(Long userId,
                                                    AccountType accountType,
+                                                   Long instrumentId,
                                                    AssetSymbol asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
                         .accountType(accountType)
-                        .instrumentId(null)
+                        .instrumentId(instrumentId)
                         .asset(asset)
                         .build())
-                .orElseGet(() -> ledgerBalanceRepository.insert(LedgerBalance.createDefault(userId, accountType, null, asset)));
+                .orElseGet(() -> ledgerBalanceRepository.insert(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
     }
 
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
