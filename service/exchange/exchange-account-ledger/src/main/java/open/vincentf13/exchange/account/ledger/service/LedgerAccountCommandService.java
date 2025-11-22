@@ -39,13 +39,16 @@ public class LedgerAccountCommandService {
     @Transactional
     public LedgerDepositResponse deposit(LedgerDepositRequest request) {
         validateDepositRequest(request);
-        LedgerBalance balance = initializeAmounts(
-                getOrDefault(
-                        request.userId(),
-                        defaultAccountType(LedgerBalanceAccountType.fromValue(request.accountType())),
-                        request.instrumentId(),
-                        normalizeAsset(request.asset())
-                )
+
+        LedgerBalanceAccountType accountType = LedgerBalanceAccountType.fromValue(request.accountType());
+        if (accountType != LedgerBalanceAccountType.SPOT_MAIN) {
+            throw new IllegalArgumentException("deposit only supports SPOT_MAIN account");
+        }
+        LedgerBalance balance = getOrDefault(
+                request.userId(),
+                accountType,
+                null,
+                request.asset().toUpperCase(Locale.ROOT)
         );
 
         int currentVersion = safeVersion(balance);
@@ -79,13 +82,12 @@ public class LedgerAccountCommandService {
     @Transactional
     public LedgerWithdrawalResponse withdraw(LedgerWithdrawalRequest request) {
         validateWithdrawalRequest(request);
-        LedgerBalance balance = initializeAmounts(
-                getOrDefault(
-                        request.userId(),
-                        defaultAccountType(LedgerBalanceAccountType.fromValue(request.accountType())),
-                        request.instrumentId(),
-                        normalizeAsset(request.asset())
-                )
+        LedgerBalanceAccountType accountType = LedgerBalanceAccountType.fromValue(request.accountType());
+        LedgerBalance balance = getOrDefault(
+                request.userId(),
+                accountType,
+                request.instrumentId(),
+                request.asset()
         );
 
         BigDecimal fee = request.fee() == null ? BigDecimal.ZERO : request.fee();
@@ -204,35 +206,6 @@ public class LedgerAccountCommandService {
                 .build();
     }
 
-    private LedgerBalance initializeAmounts(LedgerBalance balance) {
-        if (balance.getBalance() == null) {
-            balance.setBalance(BigDecimal.ZERO);
-        }
-        if (balance.getAvailable() == null) {
-            balance.setAvailable(BigDecimal.ZERO);
-        }
-        if (balance.getReserved() == null) {
-            balance.setReserved(BigDecimal.ZERO);
-        }
-        if (balance.getTotalDeposited() == null) {
-            balance.setTotalDeposited(BigDecimal.ZERO);
-        }
-        if (balance.getTotalWithdrawn() == null) {
-            balance.setTotalWithdrawn(BigDecimal.ZERO);
-        }
-        if (balance.getTotalPnl() == null) {
-            balance.setTotalPnl(BigDecimal.ZERO);
-        }
-        return balance;
-    }
-
-    private LedgerBalanceAccountType defaultAccountType(LedgerBalanceAccountType accountType) {
-        return accountType != null ? accountType : LedgerBalanceAccountType.SPOT_MAIN;
-    }
-
-    private String normalizeAsset(String asset) {
-        return asset == null ? null : asset.toUpperCase(Locale.ROOT);
-    }
 
     private int safeVersion(LedgerBalance balance) {
         return balance.getVersion() == null ? 0 : balance.getVersion();

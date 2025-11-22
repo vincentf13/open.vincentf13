@@ -12,7 +12,6 @@ public record LedgerDepositRequest(
         @NotBlank String asset,
         @NotNull @DecimalMin(value = "0.00000001") BigDecimal amount,
         String accountType,
-        Long instrumentId,
         @NotBlank String txId,
         @NotBlank String channel,
         Instant creditedAt,
