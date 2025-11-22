@@ -5,6 +5,10 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.PlatformAccountMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAccountPO;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCategory;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountStatus;
+import org.springframework.dao.DuplicateKeyException;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 
@@ -75,5 +79,25 @@ public class PlatformAccountRepositoryImpl implements PlatformAccountRepository 
             throw new IllegalStateException("Expected single platform account but found " + results.size());
         }
         return Optional.of(results.get(0));
+    }
+
+    @Override
+    public PlatformAccount getOrCreate(PlatformAccountCode code) {
+        PlatformAccount probe = PlatformAccount.builder()
+                .accountCode(code)
+                .build();
+        return findOne(probe)
+                .orElseGet(() -> {
+                    try {
+                        return insert(PlatformAccount.builder()
+                                .accountCode(code)
+                                .category(PlatformAccountCategory.LIABILITY)
+                                .status(PlatformAccountStatus.ACTIVE)
+                                .build());
+                    } catch (DuplicateKeyException ex) {
+                        return findOne(probe)
+                                .orElseThrow(() -> ex);
+                    }
+                });
     }
 }

@@ -40,7 +40,7 @@ public class LedgerTransactionDomainService {
         LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, null, normalizedAsset);
         LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
 
-        PlatformAccount platformAccount = getOrCreatePlatformUserDepositAccount();
+        PlatformAccount platformAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.USER_DEPOSIT);
         PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, request.amount(), normalizedAsset);
 
@@ -85,7 +85,7 @@ public class LedgerTransactionDomainService {
 
         LedgerBalance balanceUpdated = retryUpdateForWithdrawal(userBalance, request.amount(), request.userId(), normalizedAsset);
 
-        PlatformAccount platformAccount = getOrCreatePlatformUserDepositAccount();
+        PlatformAccount platformAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.USER_DEPOSIT);
         PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformWithdrawal(platformBalance, request.amount(), normalizedAsset);
 
@@ -188,26 +188,6 @@ public class LedgerTransactionDomainService {
                         .build())
                 .orElseThrow(() -> new IllegalStateException(
                         "Ledger balance not found for user=" + userId + ", asset=" + asset.code()));
-    }
-
-    private PlatformAccount getOrCreatePlatformUserDepositAccount() {
-        PlatformAccount probe = PlatformAccount.builder()
-                .accountCode(PlatformAccountCode.USER_DEPOSIT)
-                .build();
-        return platformAccountRepository.findOne(probe)
-                .orElseGet(this::createUserDepositAccount);
-    }
-
-    private PlatformAccount createUserDepositAccount() {
-        PlatformAccount account = PlatformAccount.createUserDepositAccount();
-        try {
-            return platformAccountRepository.insert(account);
-        } catch (DataIntegrityViolationException ex) {
-            return platformAccountRepository.findOne(PlatformAccount.builder()
-                            .accountCode(PlatformAccountCode.USER_DEPOSIT)
-                            .build())
-                    .orElseThrow(() -> ex);
-        }
     }
 
     private PlatformBalance getOrCreatePlatformBalance(PlatformAccount platformAccount, AssetSymbol asset) {
