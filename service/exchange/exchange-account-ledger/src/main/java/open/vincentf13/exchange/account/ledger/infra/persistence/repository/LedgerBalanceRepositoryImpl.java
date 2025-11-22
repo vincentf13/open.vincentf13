@@ -117,7 +117,7 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
                                          Long userId) {
         int retries = 0;
         while (retries < 3) {
-            int currentVersion = safeVersion(balance);
+            int currentVersion = balance.safeVersion();
             if (balanceDelta != null) {
                 balance.setBalance(balance.getBalance().add(balanceDelta));
             }
@@ -140,7 +140,4 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
         throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
     }
 
-    private int safeVersion(LedgerBalance balance) {
-        return balance.getVersion() == null ? 0 : balance.getVersion();
-    }
 }

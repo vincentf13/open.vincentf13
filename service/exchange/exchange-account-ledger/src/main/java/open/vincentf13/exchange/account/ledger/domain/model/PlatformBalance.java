@@ -44,4 +44,8 @@ public class PlatformBalance {
     public static AssetSymbol normalizeAsset(String asset) {
         return AssetSymbol.fromValue(asset);
     }
+
+    public int safeVersion() {
+        return version == null ? 0 : version;
+    }
 }

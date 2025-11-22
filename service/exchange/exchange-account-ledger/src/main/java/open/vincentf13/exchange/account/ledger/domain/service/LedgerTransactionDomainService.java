@@ -128,7 +128,7 @@ public class LedgerTransactionDomainService {
                                                 AssetSymbol asset) {
         int retries = 0;
         while (retries < 3) {
-            int currentVersion = safeVersion(balance);
+            int currentVersion = balance.safeVersion();
             balance.setBalance(balance.getBalance().add(amount));
             balance.setAvailable(balance.getAvailable().add(amount));
             balance.setTotalDeposited(balance.getTotalDeposited().add(amount));
@@ -148,7 +148,7 @@ public class LedgerTransactionDomainService {
                                                    AssetSymbol asset) {
         int retries = 0;
         while (retries < 3) {
-            int currentVersion = safeVersion(balance);
+            int currentVersion = balance.safeVersion();
             balance.setAvailable(balance.getAvailable().subtract(amount));
             balance.setBalance(balance.getBalance().subtract(amount));
             balance.setTotalWithdrawn(balance.getTotalWithdrawn().add(amount));
@@ -177,26 +177,13 @@ public class LedgerTransactionDomainService {
     }
 
 
-    private PlatformBalance insertPlatformBalance(PlatformAccount platformAccount, AssetSymbol asset) {
-        PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);
-        try {
-            return platformBalanceRepository.insert(newBalance);
-        } catch (DataIntegrityViolationException ex) {
-            return platformBalanceRepository.findOne(PlatformBalance.builder()
-                            .accountId(platformAccount.getAccountId())
-                            .accountCode(platformAccount.getAccountCode())
-                            .asset(asset)
-                            .build())
-                    .orElseThrow(() -> ex);
-        }
-    }
 
     private PlatformBalance retryUpdateForPlatformDeposit(PlatformBalance platformBalance,
                                                           BigDecimal amount,
                                                           AssetSymbol asset) {
         int retries = 0;
         while (retries < 3) {
-            int currentVersion = safeVersion(platformBalance);
+            int currentVersion = platformBalance.safeVersion();
             BigDecimal currentBalance = platformBalance.getBalance() == null ? BigDecimal.ZERO : platformBalance.getBalance();
             platformBalance.setBalance(currentBalance.add(amount));
             platformBalance.setVersion(currentVersion + 1);
@@ -214,7 +201,7 @@ public class LedgerTransactionDomainService {
                                                             AssetSymbol asset) {
         int retries = 0;
         while (retries < 3) {
-            int currentVersion = safeVersion(platformBalance);
+            int currentVersion = platformBalance.safeVersion();
             BigDecimal currentBalance = platformBalance.getBalance() == null ? BigDecimal.ZERO : platformBalance.getBalance();
             platformBalance.setBalance(currentBalance.subtract(amount));
             platformBalance.setVersion(currentVersion + 1);
@@ -236,11 +223,4 @@ public class LedgerTransactionDomainService {
                 .orElseThrow(() -> new IllegalStateException("Platform balance not found for account=" + accountId + ", asset=" + asset.code()));
     }
 
-    private int safeVersion(LedgerBalance balance) {
-        return balance.getVersion() == null ? 0 : balance.getVersion();
-    }
-
-    private int safeVersion(PlatformBalance balance) {
-        return balance.getVersion() == null ? 0 : balance.getVersion();
-    }
 }

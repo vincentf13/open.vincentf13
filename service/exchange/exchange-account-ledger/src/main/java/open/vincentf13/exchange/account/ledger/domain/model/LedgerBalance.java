@@ -64,4 +64,8 @@ public class LedgerBalance {
         }
         return asset;
     }
+
+    public int safeVersion() {
+        return version == null ? 0 : version;
+    }
 }
