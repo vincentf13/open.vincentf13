@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.PlatformAccountCode;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -17,7 +18,7 @@ public class PlatformBalance {
 
     private Long id;
     private Long accountId;
-    private String accountCode;
+    private PlatformAccountCode accountCode;
     private String asset;
     private BigDecimal balance;
     private BigDecimal reserved;
@@ -26,7 +27,7 @@ public class PlatformBalance {
     private Instant createdAt;
     private Instant updatedAt;
 
-    public static PlatformBalance createDefault(Long accountId, String accountCode, String asset) {
+    public static PlatformBalance createDefault(Long accountId, PlatformAccountCode accountCode, String asset) {
         Instant now = Instant.now();
         return PlatformBalance.builder()
                 .accountId(accountId)

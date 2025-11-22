@@ -4,14 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum PlatformAccountCode {
-    HOT_WALLET("Hot Wallet"),
-    COLD_WALLET("Cold Wallet"),
-    EXCHANGE_LIAB("Exchange Liability"),
-    INSURANCE_FUND("Insurance Fund"),
-    FEE_REVENUE("Fee Revenue"),
-    FUNDING_CLEARING("Funding Clearing"),
-    PNL_CLEARING("PnL Clearing"),
-    TREASURY("Treasury"),
     USER_DEPOSIT("User Deposit");
 
     private final String displayName;

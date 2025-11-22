@@ -146,20 +146,20 @@ public class LedgerTransactionDomainService {
     private PlatformBalance getOrCreatePlatformBalance(PlatformAccount platformAccount, String asset) {
         return platformBalanceRepository.findOne(PlatformBalance.builder()
                         .accountId(platformAccount.getAccountId())
-                        .accountCode(platformAccount.getAccountCode().code())
+                        .accountCode(platformAccount.getAccountCode())
                         .asset(asset)
                         .build())
                 .orElseGet(() -> insertPlatformBalance(platformAccount, asset));
     }
 
     private PlatformBalance insertPlatformBalance(PlatformAccount platformAccount, String asset) {
-        PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode().code(), asset);
+        PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);
         try {
             return platformBalanceRepository.insert(newBalance);
         } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
             return platformBalanceRepository.findOne(PlatformBalance.builder()
                             .accountId(platformAccount.getAccountId())
-                            .accountCode(platformAccount.getAccountCode().code())
+                            .accountCode(platformAccount.getAccountCode())
                             .asset(asset)
                             .build())
                     .orElseThrow(() -> ex);
@@ -184,7 +184,7 @@ public class LedgerTransactionDomainService {
         throw new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId());
     }
 
-    private PlatformBalance reloadPlatformBalance(Long accountId, String accountCode, String asset) {
+    private PlatformBalance reloadPlatformBalance(Long accountId, PlatformAccountCode accountCode, String asset) {
         return platformBalanceRepository.findOne(PlatformBalance.builder()
                         .accountId(accountId)
                         .accountCode(accountCode)
