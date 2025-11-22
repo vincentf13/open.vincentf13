@@ -69,4 +69,22 @@
         </set>
         WHERE id = #{id}
     </update>
+
+    <update id="updateByIdAndVersion">
+        UPDATE platform_balances
+        <set>
+            <if test="record.accountId != null">account_id = #{record.accountId},</if>
+            <if test="record.accountCode != null">account_code = #{record.accountCode},</if>
+            <if test="record.asset != null">asset = #{record.asset},</if>
+            <if test="record.balance != null">balance = #{record.balance},</if>
+            <if test="record.reserved != null">reserved = #{record.reserved},</if>
+            <if test="record.version != null">version = #{record.version},</if>
+            <if test="record.lastEntryId != null">last_entry_id = #{record.lastEntryId},</if>
+            <if test="record.updatedAt != null">updated_at = #{record.updatedAt},</if>
+        </set>
+        WHERE id = #{record.id}
+        <if test="expectedVersion != null">
+            AND version = #{expectedVersion}
+        </if>
+    </update>
 </mapper>
