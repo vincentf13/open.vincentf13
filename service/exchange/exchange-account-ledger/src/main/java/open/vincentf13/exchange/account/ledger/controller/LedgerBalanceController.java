@@ -7,8 +7,8 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositReq
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
-import open.vincentf13.exchange.account.ledger.service.LedgerAccountCommandService;
-import open.vincentf13.exchange.account.ledger.service.LedgerAccountQueryService;
+import open.vincentf13.exchange.account.ledger.service.LedgerBalanceCommandService;
+import open.vincentf13.exchange.account.ledger.service.LedgerBalanceQueryService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,26 +17,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/ledger")
 @RequiredArgsConstructor
-public class LedgerAccountController implements LedgerAccountApi {
+public class LedgerBalanceController implements LedgerAccountApi {
 
-    private final LedgerAccountQueryService ledgerAccountQueryService;
-    private final LedgerAccountCommandService ledgerAccountCommandService;
+    private final LedgerBalanceQueryService ledgerBalanceQueryService;
+    private final LedgerBalanceCommandService ledgerBalanceCommandService;
 
     @Override
     public OpenApiResponse<LedgerBalanceResponse> getBalances(String asset, Long userId) {
         Long effectiveUserId = userId != null
                 ? userId
                 : OpenJwtLoginUserInfo.currentUserIdOrThrow(() -> new IllegalArgumentException("Missing user context"));
-        return OpenApiResponse.success(ledgerAccountQueryService.getBalances(effectiveUserId, asset));
+        return OpenApiResponse.success(ledgerBalanceQueryService.getBalances(effectiveUserId, asset));
     }
 
     @Override
     public OpenApiResponse<LedgerDepositResponse> deposit(LedgerDepositRequest request) {
-        return OpenApiResponse.success(ledgerAccountCommandService.deposit(request));
+        return OpenApiResponse.success(ledgerBalanceCommandService.deposit(request));
     }
 
     @Override
     public OpenApiResponse<LedgerWithdrawalResponse> withdraw(LedgerWithdrawalRequest request) {
-        return OpenApiResponse.success(ledgerAccountCommandService.withdraw(request));
-    }
+        return OpenApiResponse.success(ledgerBalanceCommandService.withdraw(request));
+}
 }

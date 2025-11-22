@@ -1,28 +1,27 @@
-package open.vincentf13.exchange.account.ledger.service;
+package open.vincentf13.exchange.account.ledger.domain.service;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
-import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
-import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
-import open.vincentf13.exchange.account.ledger.domain.model.PlatformBalance;
+import open.vincentf13.exchange.account.ledger.domain.model.*;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.*;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
-public class LedgerAccountCommandService {
+public class LedgerTransactionDomainService {
+
+    private static final String USER_DEPOSIT_DESCRIPTION = "用戶充值";
+    private static final String PLATFORM_DEPOSIT_DESCRIPTION = "User deposit liability";
 
     private final LedgerBalanceRepository ledgerBalanceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
@@ -30,45 +29,37 @@ public class LedgerAccountCommandService {
     private final PlatformBalanceRepository platformBalanceRepository;
     private final DefaultIdGenerator idGenerator;
 
-    @Transactional
-    public LedgerDepositResponse deposit(LedgerDepositRequest request) {
-        OpenValidator.validateOrThrow(request);
-        BigDecimal amount = request.amount();
-
-
-        String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
-        LedgerBalance balance = getOrCreate(
-                request.userId(),
-                LedgerBalanceAccountType.SPOT_MAIN,
-                null,
-                normalizedAsset
-        );
-        LedgerBalance balanceUpdated = retryUpdateForDeposit(balance, amount, request.userId(), normalizedAsset);
+    public LedgerDepositResult deposit(LedgerDepositCommand command) {
+        LedgerBalanceAccountType accountType = command.getAccountType() == null
+                ? LedgerBalanceAccountType.SPOT_MAIN
+                : command.getAccountType();
+        String normalizedAsset = LedgerBalance.normalizeAsset(command.getAsset());
+        LedgerBalance userBalance = getOrCreateLedgerBalance(command.getUserId(), accountType, normalizedAsset);
+        LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, command.getAmount(), command.getUserId(), normalizedAsset);
 
         PlatformAccount platformAccount = getOrCreatePlatformUserDepositAccount();
         PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
-        PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, amount, normalizedAsset);
+        PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, command.getAmount(), normalizedAsset);
 
-
-        Instant creditedAt = request.creditedAt();
-        Instant eventTime = creditedAt != null ? creditedAt : Instant.now();
+        Instant eventTime = command.getCreditedAt() != null ? command.getCreditedAt() : Instant.now();
         Instant createdAt = Instant.now();
         Long userEntryId = idGenerator.newLong();
         Long platformEntryId = idGenerator.newLong();
+
         LedgerEntry userEntry = LedgerEntry.builder()
                 .entryId(userEntryId)
                 .ownerType(LedgerEntry.OWNER_TYPE_USER)
                 .accountId(balanceUpdated.getAccountId())
                 .userId(balanceUpdated.getUserId())
                 .asset(balanceUpdated.getAsset())
-                .amount(amount)
+                .amount(command.getAmount())
                 .direction(LedgerEntry.DIRECTION_CREDIT)
                 .counterpartyEntryId(platformEntryId)
                 .balanceAfter(balanceUpdated.getAvailable())
                 .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .referenceId(request.txId())
+                .referenceId(command.getTxId())
                 .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .description("User deposit")
+                .description(USER_DEPOSIT_DESCRIPTION)
                 .eventTime(eventTime)
                 .createdAt(createdAt)
                 .build();
@@ -79,87 +70,38 @@ public class LedgerAccountCommandService {
                 .ownerType(LedgerEntry.OWNER_TYPE_PLATFORM)
                 .accountId(platformBalanceUpdated.getAccountId())
                 .asset(platformBalanceUpdated.getAsset())
-                .amount(amount)
+                .amount(command.getAmount())
                 .direction(LedgerEntry.DIRECTION_CREDIT)
                 .counterpartyEntryId(userEntryId)
                 .balanceAfter(platformBalanceUpdated.getBalance())
                 .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .referenceId(request.txId())
+                .referenceId(command.getTxId())
                 .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .description("User deposit liability")
+                .description(PLATFORM_DEPOSIT_DESCRIPTION)
                 .eventTime(eventTime)
                 .createdAt(createdAt)
                 .build();
         ledgerEntryRepository.insert(platformEntry);
 
-        return new LedgerDepositResponse(
-                userEntry.getEntryId(),
-                userEntry.getEntryId(),
-                balanceUpdated.getAvailable(),
-                userEntry.getCreatedAt(),
-                balanceUpdated.getUserId(),
-                balanceUpdated.getAsset(),
-                amount,
-                request.txId()
-        );
+        return new LedgerDepositResult(userEntry, platformEntry, balanceUpdated, platformBalanceUpdated);
     }
 
-    @Transactional
-    public LedgerWithdrawalResponse withdraw(LedgerWithdrawalRequest request) {
-        OpenValidator.validateOrThrow(request);
-
-        String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
-        LedgerBalance balance = getOrCreate(
-                request.userId(),
-                LedgerBalanceAccountType.SPOT_MAIN,
-                request.instrumentId(),
-                normalizedAsset
-        );
-
-        BigDecimal fee = request.fee() == null ? BigDecimal.ZERO : request.fee();
-        BigDecimal totalOut = request.amount().add(fee);
-        if (balance.getAvailable().compareTo(totalOut) < 0) {
-            throw new IllegalArgumentException("Insufficient available balance");
-        }
-
-        balance = retryUpdateForWithdrawal(balance, totalOut, request.amount(), request.userId(), normalizedAsset);
-
-        Instant eventTime = request.requestedAt();
-        Long entryId = idGenerator.newLong();
-        LedgerEntry entry = LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(LedgerEntry.OWNER_TYPE_USER)
-                .accountId(balance.getAccountId())
-                .userId(balance.getUserId())
-                .asset(balance.getAsset())
-                .amount(totalOut)
-                .direction(LedgerEntry.DIRECTION_DEBIT)
-                .balanceAfter(balance.getAvailable())
-                .referenceType(LedgerEntry.ENTRY_TYPE_WITHDRAWAL)
-                .referenceId(null)
-                .entryType(LedgerEntry.ENTRY_TYPE_WITHDRAWAL)
-                .description(request.destination())
-                .metadata(request.metadata())
-                .eventTime(eventTime != null ? eventTime : Instant.now())
-                .createdAt(Instant.now())
-                .build();
-        ledgerEntryRepository.insert(entry);
-
-        return new LedgerWithdrawalResponse(
-                entry.getEntryId(),
-                entry.getEntryId(),
-                "REQUESTED",
-                balance.getAvailable(),
-                entry.getEventTime(),
-                balance.getUserId(),
-                balance.getAsset(),
-                request.amount(),
-                fee,
-                request.externalRef()
-        );
+    private LedgerBalance getOrCreateLedgerBalance(Long userId,
+                                                   LedgerBalanceAccountType accountType,
+                                                   String asset) {
+        return ledgerBalanceRepository.findOne(LedgerBalance.builder()
+                        .userId(userId)
+                        .accountType(accountType)
+                        .instrumentId(null)
+                        .asset(asset)
+                        .build())
+                .orElseGet(() -> ledgerBalanceRepository.insert(LedgerBalance.createDefault(userId, accountType, null, asset)));
     }
 
-    private LedgerBalance retryUpdateForDeposit(LedgerBalance balance, BigDecimal amount, Long userId, String asset) {
+    private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
+                                                BigDecimal amount,
+                                                Long userId,
+                                                String asset) {
         int retries = 0;
         while (retries < 3) {
             int currentVersion = safeVersion(balance);
@@ -171,43 +113,24 @@ public class LedgerAccountCommandService {
                 return balance;
             }
             retries++;
-            balance = reloadBalance(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), asset);
+            balance = reloadLedgerBalance(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), asset);
         }
         throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
     }
 
-    private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance, BigDecimal totalOut, BigDecimal amount, Long userId, String asset) {
-        int retries = 0;
-        while (retries < 3) {
-            int currentVersion = safeVersion(balance);
-            balance.setAvailable(balance.getAvailable().subtract(totalOut));
-            balance.setBalance(balance.getBalance().subtract(totalOut));
-            balance.setTotalWithdrawn(balance.getTotalWithdrawn().add(amount));
-            balance.setVersion(currentVersion + 1);
-            if (ledgerBalanceRepository.updateWithVersion(balance, currentVersion)) {
-                return balance;
-            }
-            retries++;
-            balance = reloadBalance(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), asset);
-        }
-        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
-    }
-
-    private LedgerBalance reloadBalance(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
-        return getOrCreate(userId, accountType, instrumentId, asset);
-    }
-
-    private LedgerBalance getOrCreate(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
+    private LedgerBalance reloadLedgerBalance(Long userId,
+                                              LedgerBalanceAccountType accountType,
+                                              Long instrumentId,
+                                              String asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
                         .accountType(accountType)
                         .instrumentId(instrumentId)
                         .asset(asset)
                         .build())
-                .orElseGet(() -> ledgerBalanceRepository.insert(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
+                .orElseThrow(() -> new IllegalStateException(
+                        "Ledger balance not found for user=" + userId + ", asset=" + asset));
     }
-
-
 
     private PlatformAccount getOrCreatePlatformUserDepositAccount() {
         PlatformAccount probe = PlatformAccount.builder()
@@ -221,7 +144,7 @@ public class LedgerAccountCommandService {
         PlatformAccount account = PlatformAccount.createUserDepositAccount();
         try {
             return platformAccountRepository.insert(account);
-        } catch (DataIntegrityViolationException ex) {
+        } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
             return platformAccountRepository.findOne(PlatformAccount.builder()
                             .accountCode(PlatformAccount.ACCOUNT_CODE_USER_DEPOSIT)
                             .build())
@@ -242,7 +165,7 @@ public class LedgerAccountCommandService {
         PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);
         try {
             return platformBalanceRepository.insert(newBalance);
-        } catch (DataIntegrityViolationException ex) {
+        } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
             return platformBalanceRepository.findOne(PlatformBalance.builder()
                             .accountId(platformAccount.getAccountId())
                             .accountCode(platformAccount.getAccountCode())
@@ -252,7 +175,9 @@ public class LedgerAccountCommandService {
         }
     }
 
-    private PlatformBalance retryUpdateForPlatformDeposit(PlatformBalance platformBalance, BigDecimal amount, String asset) {
+    private PlatformBalance retryUpdateForPlatformDeposit(PlatformBalance platformBalance,
+                                                          BigDecimal amount,
+                                                          String asset) {
         int retries = 0;
         while (retries < 3) {
             int currentVersion = safeVersion(platformBalance);

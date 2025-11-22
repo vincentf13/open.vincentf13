@@ -2,9 +2,9 @@ package open.vincentf13.exchange.account.ledger.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
-import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalanceSnapshot;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceItem;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceResponse;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Service;
@@ -17,7 +17,7 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
-public class LedgerAccountQueryService {
+public class LedgerBalanceQueryService {
 
     private final LedgerBalanceRepository ledgerBalanceRepository;
 
@@ -40,11 +40,7 @@ public class LedgerAccountQueryService {
                 .filter(Objects::nonNull)
                 .max(Instant::compareTo)
                 .orElseGet(() -> null);
-        LedgerBalanceSnapshot snapshot = LedgerBalanceSnapshot.builder()
-                .userId(userId)
-                .snapshotAt(snapshotAt)
-                .balances(balances)
-                .build();
-        return OpenMapstruct.map(snapshot, LedgerBalanceResponse.class);
+        List<LedgerBalanceItem> items = OpenMapstruct.mapList(balances, LedgerBalanceItem.class);
+        return new LedgerBalanceResponse(userId, snapshotAt, items);
     }
 }
