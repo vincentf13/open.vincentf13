@@ -2,15 +2,13 @@ package open.vincentf13.exchange.account.ledger.service;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
-import open.vincentf13.exchange.account.ledger.application.command.LedgerDepositCommand;
 import open.vincentf13.exchange.account.ledger.application.result.LedgerDepositResult;
+import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.*;
-import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -31,10 +29,7 @@ public class LedgerBalanceCommandService {
     @Transactional
     public LedgerDepositResponse deposit(LedgerDepositRequest request) {
         OpenValidator.validateOrThrow(request);
-        LedgerDepositCommand command = OpenMapstruct.map(request, LedgerDepositCommand.class);
-        command.setAccountType(LedgerBalanceAccountType.SPOT_MAIN);
-
-        LedgerDepositResult result = ledgerTransactionDomainService.deposit(command);
+        LedgerDepositResult result = ledgerTransactionDomainService.deposit(request);
         LedgerEntry userEntry = result.userEntry();
         LedgerBalance updatedBalance = result.userBalance();
 
@@ -45,8 +40,8 @@ public class LedgerBalanceCommandService {
                 userEntry.getCreatedAt(),
                 updatedBalance.getUserId(),
                 updatedBalance.getAsset(),
-                command.getAmount(),
-                command.getTxId()
+                request.amount(),
+                request.txId()
         );
     }
 

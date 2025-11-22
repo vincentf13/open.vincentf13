@@ -2,7 +2,6 @@ package open.vincentf13.exchange.account.ledger.domain.service;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.application.command.LedgerDepositCommand;
 import open.vincentf13.exchange.account.ledger.application.result.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
@@ -13,6 +12,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Ledg
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -34,19 +34,17 @@ public class LedgerTransactionDomainService {
     private final PlatformBalanceRepository platformBalanceRepository;
     private final DefaultIdGenerator idGenerator;
 
-    public LedgerDepositResult deposit(LedgerDepositCommand command) {
-        LedgerBalanceAccountType accountType = command.getAccountType() == null
-                ? LedgerBalanceAccountType.SPOT_MAIN
-                : command.getAccountType();
-        String normalizedAsset = LedgerBalance.normalizeAsset(command.getAsset());
-        LedgerBalance userBalance = getOrCreateLedgerBalance(command.getUserId(), accountType, normalizedAsset);
-        LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, command.getAmount(), command.getUserId(), normalizedAsset);
+    public LedgerDepositResult deposit(LedgerDepositRequest request) {
+        LedgerBalanceAccountType accountType = LedgerBalanceAccountType.SPOT_MAIN;
+        String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
+        LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, normalizedAsset);
+        LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
 
         PlatformAccount platformAccount = getOrCreatePlatformUserDepositAccount();
         PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
-        PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, command.getAmount(), normalizedAsset);
+        PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, request.amount(), normalizedAsset);
 
-        Instant eventTime = command.getCreditedAt() != null ? command.getCreditedAt() : Instant.now();
+        Instant eventTime = request.creditedAt() != null ? request.creditedAt() : Instant.now();
         Instant createdAt = Instant.now();
         Long userEntryId = idGenerator.newLong();
         Long platformEntryId = idGenerator.newLong();
@@ -57,12 +55,12 @@ public class LedgerTransactionDomainService {
                 .accountId(balanceUpdated.getAccountId())
                 .userId(balanceUpdated.getUserId())
                 .asset(balanceUpdated.getAsset())
-                .amount(command.getAmount())
+                .amount(request.amount())
                 .direction(LedgerEntry.DIRECTION_CREDIT)
                 .counterpartyEntryId(platformEntryId)
                 .balanceAfter(balanceUpdated.getAvailable())
                 .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .referenceId(command.getTxId())
+                .referenceId(request.txId())
                 .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
                 .description(USER_DEPOSIT_DESCRIPTION)
                 .eventTime(eventTime)
@@ -75,12 +73,12 @@ public class LedgerTransactionDomainService {
                 .ownerType(LedgerEntry.OWNER_TYPE_PLATFORM)
                 .accountId(platformBalanceUpdated.getAccountId())
                 .asset(platformBalanceUpdated.getAsset())
-                .amount(command.getAmount())
+                .amount(request.amount())
                 .direction(LedgerEntry.DIRECTION_CREDIT)
                 .counterpartyEntryId(userEntryId)
                 .balanceAfter(platformBalanceUpdated.getBalance())
                 .referenceType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
-                .referenceId(command.getTxId())
+                .referenceId(request.txId())
                 .entryType(LedgerEntry.ENTRY_TYPE_DEPOSIT)
                 .description(PLATFORM_DEPOSIT_DESCRIPTION)
                 .eventTime(eventTime)
