@@ -44,7 +44,6 @@ public class LedgerTransactionDomainService {
         PlatformBalance platformBalance = getOrCreatePlatformBalance(platformAccount, normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, request.amount(), normalizedAsset);
 
-        Instant eventTime = request.creditedAt() != null ? request.creditedAt() : Instant.now();
         Instant createdAt = Instant.now();
         Long userEntryId = idGenerator.newLong();
         Long platformEntryId = idGenerator.newLong();
@@ -58,9 +57,9 @@ public class LedgerTransactionDomainService {
                 platformEntryId,
                 balanceUpdated.getAvailable(),
                 request.txId(),
-                eventTime,
+                request.creditedAt(),
                 createdAt
-        );
+                                                       );
         ledgerEntryRepository.insert(userEntry);
 
         LedgerEntry platformEntry = LedgerEntry.platformDeposit(
@@ -71,9 +70,9 @@ public class LedgerTransactionDomainService {
                 userEntryId,
                 platformBalanceUpdated.getBalance(),
                 request.txId(),
-                eventTime,
+                request.creditedAt(),
                 createdAt
-        );
+                                                               );
         ledgerEntryRepository.insert(platformEntry);
 
         return new LedgerDepositResult(userEntry, platformEntry, balanceUpdated, platformBalanceUpdated);
@@ -82,17 +81,10 @@ public class LedgerTransactionDomainService {
     public LedgerWithdrawalResult withdraw(LedgerWithdrawalRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
-        LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, request.instrumentId(), normalizedAsset);
+        LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, null, normalizedAsset);
 
-        BigDecimal fee = request.fee() == null ? BigDecimal.ZERO : request.fee();
-        BigDecimal totalOut = request.amount().add(fee);
-        if (userBalance.getAvailable().compareTo(totalOut) < 0) {
-            throw new IllegalArgumentException("Insufficient available balance");
-        }
+        LedgerBalance balanceUpdated = retryUpdateForWithdrawal(userBalance, request.amount(), request.userId(), normalizedAsset);
 
-        LedgerBalance balanceUpdated = retryUpdateForWithdrawal(userBalance, totalOut, request.amount(), request.userId(), normalizedAsset);
-
-        Instant eventTime = request.requestedAt() != null ? request.requestedAt() : Instant.now();
         Instant createdAt = Instant.now();
         Long entryId = idGenerator.newLong();
 
@@ -101,12 +93,11 @@ public class LedgerTransactionDomainService {
                 balanceUpdated.getAccountId(),
                 balanceUpdated.getUserId(),
                 balanceUpdated.getAsset(),
-                totalOut,
+                request.amount(),
                 balanceUpdated.getAvailable(),
+                request.txId(),
                 null,
-                request.destination(),
-                request.metadata(),
-                eventTime,
+                request.creditedAt(),
                 createdAt
         );
         ledgerEntryRepository.insert(entry);
@@ -148,15 +139,14 @@ public class LedgerTransactionDomainService {
     }
 
     private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance,
-                                                   BigDecimal totalOut,
                                                    BigDecimal amount,
                                                    Long userId,
                                                    AssetSymbol asset) {
         int retries = 0;
         while (retries < 3) {
             int currentVersion = safeVersion(balance);
-            balance.setAvailable(balance.getAvailable().subtract(totalOut));
-            balance.setBalance(balance.getBalance().subtract(totalOut));
+            balance.setAvailable(balance.getAvailable().subtract(amount));
+            balance.setBalance(balance.getBalance().subtract(amount));
             balance.setTotalWithdrawn(balance.getTotalWithdrawn().add(amount));
             balance.setVersion(currentVersion + 1);
             if (ledgerBalanceRepository.updateWithVersion(balance, currentVersion)) {

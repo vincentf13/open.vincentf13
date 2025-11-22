@@ -1,10 +1,10 @@
 package open.vincentf13.exchange.account.ledger.service;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
-import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
+import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
+import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
@@ -13,8 +13,6 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawal
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -47,19 +45,16 @@ public class LedgerBalanceCommandService {
         LedgerWithdrawalResult result = ledgerTransactionDomainService.withdraw(request);
         LedgerEntry entry = result.entry();
         LedgerBalance balance = result.userBalance();
-        BigDecimal fee = request.fee() == null ? BigDecimal.ZERO : request.fee();
 
         return new LedgerWithdrawalResponse(
                 entry.getEntryId(),
                 entry.getEntryId(),
-                "REQUESTED",
                 balance.getAvailable(),
-                entry.getEventTime(),
+                entry.getCreatedAt(),
                 balance.getUserId(),
                 balance.getAsset(),
                 request.amount(),
-                fee,
-                request.externalRef()
+                request.txId()
         );
     }
 }

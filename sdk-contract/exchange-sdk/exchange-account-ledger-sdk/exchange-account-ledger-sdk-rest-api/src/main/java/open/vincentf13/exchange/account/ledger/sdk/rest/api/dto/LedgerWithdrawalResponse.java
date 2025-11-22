@@ -8,12 +8,10 @@ import java.time.Instant;
 public record LedgerWithdrawalResponse(
         Long withdrawalId,
         Long reservedEntryId,
-        String status,
         BigDecimal balanceAfter,
         Instant requestedAt,
         Long userId,
         AssetSymbol asset,
         BigDecimal amount,
-        BigDecimal fee,
-        String externalRef
+        String txId
 ) { }

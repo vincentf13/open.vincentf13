@@ -86,7 +86,6 @@ public class LedgerEntry {
                                              BigDecimal amount,
                                              BigDecimal balanceAfter,
                                              String referenceId,
-                                             String description,
                                              String metadata,
                                              Instant eventTime,
                                              Instant createdAt) {
@@ -102,7 +101,7 @@ public class LedgerEntry {
                 .referenceType(EntryType.WITHDRAWAL.referenceType())
                 .referenceId(referenceId)
                 .entryType(EntryType.WITHDRAWAL)
-                .description(description)
+                .description("用戶提款")
                 .metadata(metadata)
                 .eventTime(eventTime)
                 .createdAt(createdAt)
