@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.user.scheduler;
+package open.vincentf13.exchange.user.infra.scheduler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

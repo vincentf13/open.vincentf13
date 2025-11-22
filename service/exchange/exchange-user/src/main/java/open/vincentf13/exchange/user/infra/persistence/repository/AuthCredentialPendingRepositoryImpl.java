@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
-import open.vincentf13.exchange.user.domain.model.AuthCredentialPendingStatus;
+import open.vincentf13.exchange.user.sdk.rest.api.dto.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.infra.persistence.mapper.AuthCredentialPendingMapper;
 import open.vincentf13.exchange.user.infra.persistence.po.AuthCredentialPendingPO;
 import org.springframework.stereotype.Repository;

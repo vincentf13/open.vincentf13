@@ -14,15 +14,13 @@ import open.vincentf13.exchange.auth.sdk.rest.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
-import open.vincentf13.exchange.user.domain.model.AuthCredentialPendingStatus;
+import open.vincentf13.exchange.user.sdk.rest.api.dto.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.domain.model.UserErrorCode;
-import open.vincentf13.exchange.user.domain.service.UserDomainService;
+import open.vincentf13.exchange.user.infra.UserErrorCode;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
@@ -34,14 +32,13 @@ import java.util.Optional;
 public class UserCommandService {
 
     private final UserRepository userRepository;
-    private final UserDomainService userDomainService;
     private final ExchangeAuthClient authClient;
     private final AuthCredentialPendingRepository authCredentialPendingRepository;
     private final TransactionTemplate transactionTemplate;
 
     public UserResponse register(UserRegisterRequest request)  {
         OpenValidator.validateOrThrow(request);
-        final String normalizedEmail = userDomainService.normalizeEmail(request.email());
+        final String normalizedEmail = User.normalizeEmail(request.email());
 
         OpenApiResponse<AuthCredentialPrepareResponse> prepareResponse = authClient.prepare(
                 new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())
@@ -57,7 +54,7 @@ public class UserCommandService {
         }
 
         RegistrationContext context = transactionTemplate.execute(status -> {
-            User user = userDomainService.createActiveUser(request.email(), request.externalId());
+            User user = User.createActive(request.email(), request.externalId());
             userRepository.insertSelective(user);
 
             Instant now = Instant.now();
