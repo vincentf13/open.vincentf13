@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.AccountType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -19,7 +19,7 @@ public class LedgerBalance {
     private Long id;
     private Long accountId;
     private Long userId;
-    private LedgerBalanceAccountType accountType;
+    private AccountType accountType;
     private Long instrumentId;
     private String asset;
     private BigDecimal balance;
@@ -34,7 +34,7 @@ public class LedgerBalance {
     private Instant updatedAt;
 
     public static LedgerBalance createDefault(Long userId,
-                                              LedgerBalanceAccountType accountType,
+                                              AccountType accountType,
                                               Long instrumentId,
                                               String asset) {
         Instant now = Instant.now();

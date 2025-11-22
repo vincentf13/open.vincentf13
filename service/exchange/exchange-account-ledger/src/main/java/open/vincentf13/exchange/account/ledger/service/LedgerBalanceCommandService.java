@@ -2,7 +2,7 @@ package open.vincentf13.exchange.account.ledger.service;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.application.result.LedgerDepositResult;
+import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
@@ -52,7 +52,7 @@ public class LedgerBalanceCommandService {
         String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance balance = getOrCreate(
                 request.userId(),
-                LedgerBalanceAccountType.SPOT_MAIN,
+                AccountType.SPOT_MAIN,
                 request.instrumentId(),
                 normalizedAsset
         );
@@ -117,11 +117,11 @@ public class LedgerBalanceCommandService {
         throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
     }
 
-    private LedgerBalance reloadBalance(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
+    private LedgerBalance reloadBalance(Long userId, AccountType accountType, Long instrumentId, String asset) {
         return getOrCreate(userId, accountType, instrumentId, asset);
     }
 
-    private LedgerBalance getOrCreate(Long userId, LedgerBalanceAccountType accountType, Long instrumentId, String asset) {
+    private LedgerBalance getOrCreate(Long userId, AccountType accountType, Long instrumentId, String asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
                         .accountType(accountType)

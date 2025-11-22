@@ -3,7 +3,7 @@ package open.vincentf13.exchange.account.ledger.service;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.AccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceItem;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceResponse;
 import open.vincentf13.sdk.core.OpenMapstruct;
@@ -32,7 +32,7 @@ public class LedgerBalanceQueryService {
         String normalizedAsset = LedgerBalance.normalizeAsset(asset);
         List<LedgerBalance> balances = ledgerBalanceRepository.findBy(LedgerBalance.builder()
                 .userId(userId)
-                .accountType(LedgerBalanceAccountType.SPOT_MAIN)
+                .accountType(AccountType.SPOT_MAIN)
                 .asset(normalizedAsset)
                 .build());
         Instant snapshotAt = balances.stream()

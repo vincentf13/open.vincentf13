@@ -2,7 +2,7 @@ package open.vincentf13.exchange.account.ledger.domain.service;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.application.result.LedgerDepositResult;
+import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
@@ -11,10 +11,9 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Ledg
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceAccountType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.AccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -35,7 +34,7 @@ public class LedgerTransactionDomainService {
     private final DefaultIdGenerator idGenerator;
 
     public LedgerDepositResult deposit(LedgerDepositRequest request) {
-        LedgerBalanceAccountType accountType = LedgerBalanceAccountType.SPOT_MAIN;
+        AccountType accountType = AccountType.SPOT_MAIN;
         String normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance userBalance = getOrCreateLedgerBalance(request.userId(), accountType, normalizedAsset);
         LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
@@ -90,7 +89,7 @@ public class LedgerTransactionDomainService {
     }
 
     private LedgerBalance getOrCreateLedgerBalance(Long userId,
-                                                   LedgerBalanceAccountType accountType,
+                                                   AccountType accountType,
                                                    String asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
                         .userId(userId)
@@ -122,7 +121,7 @@ public class LedgerTransactionDomainService {
     }
 
     private LedgerBalance reloadLedgerBalance(Long userId,
-                                              LedgerBalanceAccountType accountType,
+                                              AccountType accountType,
                                               Long instrumentId,
                                               String asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
@@ -147,7 +146,7 @@ public class LedgerTransactionDomainService {
         PlatformAccount account = PlatformAccount.createUserDepositAccount();
         try {
             return platformAccountRepository.insert(account);
-        } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
+        } catch (DataIntegrityViolationException ex) {
             return platformAccountRepository.findOne(PlatformAccount.builder()
                             .accountCode(PlatformAccount.ACCOUNT_CODE_USER_DEPOSIT)
                             .build())
@@ -168,7 +167,7 @@ public class LedgerTransactionDomainService {
         PlatformBalance newBalance = PlatformBalance.createDefault(platformAccount.getAccountId(), platformAccount.getAccountCode(), asset);
         try {
             return platformBalanceRepository.insert(newBalance);
-        } catch (DuplicateKeyException | DataIntegrityViolationException ex) {
+        } catch (DataIntegrityViolationException ex) {
             return platformBalanceRepository.findOne(PlatformBalance.builder()
                             .accountId(platformAccount.getAccountId())
                             .accountCode(platformAccount.getAccountCode())
