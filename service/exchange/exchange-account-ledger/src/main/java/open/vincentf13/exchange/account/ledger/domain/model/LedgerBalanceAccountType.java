@@ -2,16 +2,16 @@ package open.vincentf13.exchange.account.ledger.domain.model;
 
 import java.util.Locale;
 
-public enum AccountType {
+public enum LedgerBalanceAccountType {
     SPOT_MAIN,
     ISOLATED_MARGIN;
 
-    public static AccountType fromValue(String value) {
+    public static LedgerBalanceAccountType fromValue(String value) {
         if (value == null) {
             return null;
         }
         try {
-            return AccountType.valueOf(value.toUpperCase(Locale.ROOT));
+            return LedgerBalanceAccountType.valueOf(value.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Unknown account type: " + value, ex);
         }

@@ -17,7 +17,7 @@ public class LedgerBalance {
     private Long id;
     private Long accountId;
     private Long userId;
-    private AccountType accountType;
+    private LedgerBalanceAccountType accountType;
     private Long instrumentId;
     private String asset;
     private BigDecimal balance;
