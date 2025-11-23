@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.admin.infra.persistence.mapper.InstrumentMapper">
+
+    <resultMap id="InstrumentResultMap" type="open.vincentf13.exchange.admin.infra.persistence.po.InstrumentPO">
+        <id property="instrumentId" column="instrument_id" />
+        <result property="symbol" column="symbol" />
+        <result property="baseAsset" column="base_asset" />
+        <result property="quoteAsset" column="quote_asset" />
+        <result property="instrumentType" column="instrument_type" />
+        <result property="status" column="status" />
+        <result property="tickSize" column="tick_size" />
+        <result property="lotSize" column="lot_size" />
+        <result property="minOrderValue" column="min_order_value" />
+        <result property="maxOrderValue" column="max_order_value" />
+        <result property="minNotional" column="min_notional" />
+        <result property="pricePrecision" column="price_precision" />
+        <result property="quantityPrecision" column="quantity_precision" />
+        <result property="makerFeeRate" column="maker_fee_rate" />
+        <result property="takerFeeRate" column="taker_fee_rate" />
+        <result property="contractSize" column="contract_size" />
+        <result property="settlementAsset" column="settlement_asset" />
+        <result property="maxLeverage" column="max_leverage" />
+        <result property="maintenanceMargin" column="maintenance_margin" />
+        <result property="launchAt" column="launch_at" />
+        <result property="delistAt" column="delist_at" />
+        <result property="displayOrder" column="display_order" />
+        <result property="tradable" column="is_tradable" />
+        <result property="visible" column="is_visible" />
+        <result property="description" column="description" />
+        <result property="metadata" column="metadata" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findBy" parameterType="open.vincentf13.exchange.admin.infra.persistence.po.InstrumentPO" resultMap="InstrumentResultMap">
+        SELECT
+            instrument_id,
+            symbol,
+            base_asset,
+            quote_asset,
+            instrument_type,
+            status,
+            tick_size,
+            lot_size,
+            min_order_value,
+            max_order_value,
+            min_notional,
+            price_precision,
+            quantity_precision,
+            maker_fee_rate,
+            taker_fee_rate,
+            contract_size,
+            settlement_asset,
+            max_leverage,
+            maintenance_margin,
+            launch_at,
+            delist_at,
+            display_order,
+            is_tradable,
+            is_visible,
+            description,
+            metadata,
+            created_at,
+            updated_at
+        FROM instrument
+        <where>
+            <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+            <if test="instrumentType != null">AND instrument_type = #{instrumentType}</if>
+            <if test="status != null">AND status = #{status}</if>
+            <if test="tradable != null">AND is_tradable = #{tradable}</if>
+            <if test="visible != null">AND is_visible = #{visible}</if>
+        </where>
+        ORDER BY display_order ASC, instrument_id ASC
+    </select>
+
+    <select id="findOne" parameterType="open.vincentf13.exchange.admin.infra.persistence.po.InstrumentPO" resultMap="InstrumentResultMap">
+        SELECT
+        instrument_id,
+        symbol,
+        base_asset,
+        quote_asset,
+        instrument_type,
+        status,
+        tick_size,
+        lot_size,
+        min_order_value,
+        max_order_value,
+        min_notional,
+        price_precision,
+        quantity_precision,
+        maker_fee_rate,
+        taker_fee_rate,
+        contract_size,
+        settlement_asset,
+        max_leverage,
+        maintenance_margin,
+        launch_at,
+        delist_at,
+        display_order,
+        is_tradable,
+        is_visible,
+        description,
+        metadata,
+        created_at,
+        updated_at
+        FROM instrument
+        <where>
+            <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+            <if test="symbol != null">AND symbol = #{symbol}</if>
+        </where>
+        LIMIT 1
+    </select>
+</mapper>

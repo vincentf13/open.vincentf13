@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: exchange-admin
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+
+mybatis:
+  type-aliases-package: open.vincentf13.exchange.admin.infra.persistence.po
+
+open:
+  vincentf13:
+    mybatis:
+      mapper-base-packages: open.vincentf13.exchange.admin.infra.persistence.mapper
+    id-generator:
+      snowflake:
+        worker-id: 7

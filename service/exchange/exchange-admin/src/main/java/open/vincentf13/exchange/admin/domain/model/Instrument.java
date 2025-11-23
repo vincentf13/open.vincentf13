@@ -1,0 +1,47 @@
+package open.vincentf13.exchange.admin.domain.model;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.admin.contract.enums.InstrumentStatus;
+import open.vincentf13.exchange.admin.contract.enums.InstrumentType;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Instrument {
+
+    private Long instrumentId;
+    private String symbol;
+    private String baseAsset;
+    private String quoteAsset;
+    private InstrumentType instrumentType;
+    private InstrumentStatus status;
+    private BigDecimal tickSize;
+    private BigDecimal lotSize;
+    private BigDecimal minOrderValue;
+    private BigDecimal maxOrderValue;
+    private BigDecimal minNotional;
+    private Integer pricePrecision;
+    private Integer quantityPrecision;
+    private BigDecimal makerFeeRate;
+    private BigDecimal takerFeeRate;
+    private BigDecimal contractSize;
+    private String settlementAsset;
+    private Integer maxLeverage;
+    private BigDecimal maintenanceMargin;
+    private Instant launchAt;
+    private Instant delistAt;
+    private Integer displayOrder;
+    private Boolean tradable;
+    private Boolean visible;
+    private String description;
+    private String metadata;
+    private Instant createdAt;
+    private Instant updatedAt;
+}
