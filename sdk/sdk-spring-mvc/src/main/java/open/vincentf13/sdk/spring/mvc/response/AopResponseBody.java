@@ -67,22 +67,27 @@ public class AopResponseBody implements ResponseBodyAdvice<Object> {
                                   Class<? extends HttpMessageConverter<?>> selectedConverterType,
                                   ServerHttpRequest request,
                                   ServerHttpResponse response) {
+        // 全域回應包裝開關也會在 supports() 判斷，但此處再次檢查可避免外部程式直接呼叫 beforeBodyWrite 時未帶入 supports 結果。
         if (!properties.getResponse().isWrapEnabled()) {
             return body;
         }
+        // ResponseEntity 表示應用層已自行包裝（含狀態碼與 headers），尊重既有格式直接返回。
         if (returnType != null && ResponseEntity.class.isAssignableFrom(returnType.getParameterType())) {
             return body;
         }
-        if (body == null) { // 允許 GET 等無內容時仍回傳成功標準格式
+        if (body == null) { // 允許 GET/DELETE 等無內容回傳時仍回傳標準成功格式
             return OpenApiResponse.success();
         }
-        if (body instanceof OpenApiResponse<?> || body instanceof org.springframework.http.ProblemDetail) { // 已是標準格式或 RFC7807 結構時不再包裝
+        // 已是標準格式（OpenApiResponse）或 RFC7807 標準錯誤格式時，不再重複包裝。
+        if (body instanceof OpenApiResponse<?> || body instanceof org.springframework.http.ProblemDetail) {
             return body;
         }
-        if (body instanceof byte[] || body instanceof Collection<?> || body.getClass().isArray()) { // 直接封裝在 data 內
+        // 任何集合、陣列或 byte[] 直接塞進 data 內即可。
+        if (body instanceof byte[] || body instanceof Collection<?> || body.getClass().isArray()) {
             return OpenApiResponse.success(body);
         }
-        if (body instanceof CharSequence) { // String 需手動序列化避免被當作純文字回傳
+        // String 回傳需改寫成 JSON，避免 StringHttpMessageConverter 以 text/plain 輸出。
+        if (body instanceof CharSequence) {
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
             return wrapString(body.toString(), selectedConverterType);
         }
