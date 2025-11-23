@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import open.vincentf13.sdk.core.OpenConstant;
 
-@SpringBootApplication(scanBasePackages = OpenConstant.Package.BASE.value())
+@SpringBootApplication(scanBasePackages = OpenConstant.BASE_PACKAGE)
 @RestController
 public class ServiceTemplateApplication {
     private final BuildProperties buildProperties;
