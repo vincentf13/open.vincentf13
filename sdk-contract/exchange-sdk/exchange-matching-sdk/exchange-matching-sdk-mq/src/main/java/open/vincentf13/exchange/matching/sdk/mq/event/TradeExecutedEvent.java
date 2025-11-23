@@ -10,7 +10,7 @@ public record TradeExecutedEvent(
         @NotNull Long tradeId,
         @NotNull Long orderId,
         @NotNull Long instrumentId,
-        @NotNull @DecimalMin(value = "0.00000001") BigDecimal price,
+        @org.jetbrains.annotations.NotNull @DecimalMin(value = "0.00000001") BigDecimal price,
         @NotNull @DecimalMin(value = "0.00000001") BigDecimal quantity,
         @NotNull BigDecimal fee,
         @NotNull Instant executedAt
