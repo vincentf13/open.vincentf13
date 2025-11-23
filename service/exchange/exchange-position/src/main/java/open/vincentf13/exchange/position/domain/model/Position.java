@@ -37,6 +37,10 @@ public class Position {
     private Instant updatedAt;
     private Instant closedAt;
 
+    public int safeVersion() {
+        return version == null ? 0 : version;
+    }
+
     public BigDecimal availableToClose() {
         if (quantity == null) {
             return BigDecimal.ZERO;

@@ -82,14 +82,14 @@ public class PositionRepositoryImpl implements PositionRepository {
     }
 
     @Override
-    public boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, PositionSide side) {
+    public boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, PositionSide side, int expectedVersion) {
         if (userId == null || instrumentId == null || quantity == null || side == null) {
             return false;
         }
         if (quantity.signum() <= 0) {
             return false;
         }
-        return mapper.reserveForClose(userId, instrumentId, quantity, side) > 0;
+        return mapper.reserveForClose(userId, instrumentId, quantity, side, expectedVersion) > 0;
     }
 
     @Override

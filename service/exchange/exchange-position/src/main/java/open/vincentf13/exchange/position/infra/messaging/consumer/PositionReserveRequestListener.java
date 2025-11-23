@@ -9,7 +9,7 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEv
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.position.service.PositionCommandService;
-import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveResult;
+import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveOutcome;
 import open.vincentf13.sdk.core.OpenLog;
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -44,19 +44,21 @@ public class PositionReserveRequestListener {
     }
 
     private void handleReserveRequestInTransaction(PositionReserveRequestedEvent event) {
-        PositionReserveResult result = positionCommandService.reserveForClose(
+        PositionReserveOutcome outcome = positionCommandService.reserveForClose(
+                event.orderId(),
                 event.userId(),
                 event.instrumentId(),
                 event.quantity(),
                 toPositionSide(event.orderSide())
         );
-        if (result.success()) {
+        if (outcome.result().success()) {
             PositionReservedEvent reservedEvent = new PositionReservedEvent(
                     event.orderId(),
                     event.userId(),
                     event.instrumentId(),
                     event.intentType(),
-                    result.reservedQuantity(),
+                    outcome.result().reservedQuantity(),
+                    outcome.avgOpenPrice(),
                     Instant.now()
             );
             positionEventPublisher.publishReserved(reservedEvent);
@@ -64,17 +66,17 @@ public class PositionReserveRequestListener {
             return;
         }
         PositionReserveRejectedEvent rejectedEvent = new PositionReserveRejectedEvent(
-                event.orderId(),
-                event.userId(),
-                event.instrumentId(),
-                event.intentType(),
-                result.reason(),
-                Instant.now()
+                    event.orderId(),
+                    event.userId(),
+                    event.instrumentId(),
+                    event.intentType(),
+                    outcome.result().reason(),
+                    Instant.now()
         );
         positionEventPublisher.publishRejected(rejectedEvent);
         OpenLog.warn(log, "PositionReserveRejected", "Position reserve rejected", null,
                 "orderId", event.orderId(),
-                "reason", result.reason());
+                "reason", outcome.result().reason());
     }
 
     private PositionSide toPositionSide(open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide orderSide) {

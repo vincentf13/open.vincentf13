@@ -74,7 +74,8 @@
           AND instrument_id = #{instrumentId}
           AND side = #{side}
           AND status = 'ACTIVE'
-        AND (quantity - closing_reserved_quantity) >= #{quantity}
+          AND version = #{expectedVersion}
+          AND (quantity - closing_reserved_quantity) >= #{quantity}
     </update>
 
     <insert id="insertDefault" parameterType="open.vincentf13.exchange.position.infra.persistence.po.PositionPO">

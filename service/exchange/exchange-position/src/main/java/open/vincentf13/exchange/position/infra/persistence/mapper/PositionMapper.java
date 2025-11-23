@@ -15,7 +15,8 @@ public interface PositionMapper {
     int reserveForClose(@Param("userId") Long userId,
                         @Param("instrumentId") Long instrumentId,
                         @Param("quantity") BigDecimal quantity,
-                        @Param("side") PositionSide side);
+                        @Param("side") PositionSide side,
+                        @Param("expectedVersion") int expectedVersion);
 
     int updateLeverage(@Param("positionId") Long positionId,
                        @Param("leverage") Integer leverage);

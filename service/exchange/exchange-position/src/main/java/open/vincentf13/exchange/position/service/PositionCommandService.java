@@ -29,26 +29,33 @@ public class PositionCommandService {
     private final PositionRepository positionRepository;
     private final ExchangeRiskMarginClient riskMarginClient;
 
-    public PositionReserveResult reserveForClose(
+    public PositionReserveOutcome reserveForClose(
+            Long orderId,
             Long userId,
             Long instrumentId,
             BigDecimal quantity,
             PositionSide side
     ) {
         if (userId == null || instrumentId == null) {
-            return PositionReserveResult.rejected("POSITION_NOT_FOUND");
+            return PositionReserveOutcome.rejected("POSITION_NOT_FOUND");
         }
         if (quantity == null || quantity.signum() <= 0) {
-            return PositionReserveResult.rejected("INVALID_QUANTITY");
+            return PositionReserveOutcome.rejected("INVALID_QUANTITY");
         }
         if (side == null) {
-            return PositionReserveResult.rejected("ORDER_SIDE_REQUIRED");
+            return PositionReserveOutcome.rejected("ORDER_SIDE_REQUIRED");
         }
-        boolean success = positionRepository.reserveForClose(userId, instrumentId, quantity, side);
+        Position position = positionRepository.findActive(userId, instrumentId).orElse(null);
+        if (position == null) {
+            return PositionReserveOutcome.rejected("POSITION_NOT_FOUND");
+        }
+        int expectedVersion = position.safeVersion();
+        boolean success = positionRepository.reserveForClose(userId, instrumentId, quantity, side, expectedVersion);
         if (!success) {
-            return PositionReserveResult.rejected("RESERVE_FAILED");
+            return PositionReserveOutcome.rejected("RESERVE_FAILED");
         }
-        return PositionReserveResult.accepted(quantity);
+        BigDecimal avgOpenPrice = position.getEntryPrice();
+        return PositionReserveOutcome.accepted(quantity, avgOpenPrice);
     }
 
     public PositionLeverageResponse adjustLeverage(Long userId, Long instrumentId, PositionLeverageRequest request) {
@@ -130,6 +137,16 @@ public class PositionCommandService {
 
         public boolean isCloseIntent() {
             return true;
+        }
+    }
+
+    public record PositionReserveOutcome(PositionReserveResult result, BigDecimal avgOpenPrice) {
+        public static PositionReserveOutcome accepted(BigDecimal reservedQuantity, BigDecimal avgOpenPrice) {
+            return new PositionReserveOutcome(PositionReserveResult.accepted(reservedQuantity), avgOpenPrice);
+        }
+
+        public static PositionReserveOutcome rejected(String reason) {
+            return new PositionReserveOutcome(PositionReserveResult.rejected(reason), null);
         }
     }
 }

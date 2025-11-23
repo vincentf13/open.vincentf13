@@ -14,7 +14,7 @@ public interface PositionRepository {
 
     Position createDefault(Long userId, Long instrumentId);
 
-    boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, PositionSide side);
+    boolean reserveForClose(Long userId, Long instrumentId, BigDecimal quantity, PositionSide side, int expectedVersion);
 
     boolean updateLeverage(Long positionId, Integer leverage);
 }
