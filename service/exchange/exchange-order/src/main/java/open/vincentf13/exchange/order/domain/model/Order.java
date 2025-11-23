@@ -9,6 +9,7 @@ import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderTimeInForce;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 
@@ -28,6 +29,7 @@ public class Order {
     private Long instrumentId;
     private String clientOrderId;
     private OrderSide side;
+    private PositionIntentType intent;
     private OrderType type;
     private OrderStatus status;
     private OrderTimeInForce timeInForce;
@@ -73,6 +75,7 @@ public class Order {
                 .instrumentId(request.instrumentId())
                 .clientOrderId(trimToNull(request.clientOrderId()))
                 .side(request.side())
+                .intent(null)
                 .type(request.type())
                 .status(OrderStatus.PENDING)
                 .timeInForce(timeInForce)

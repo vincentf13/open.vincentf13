@@ -8,6 +8,7 @@ import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderTimeInForce;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -22,6 +23,7 @@ public class OrderPO {
     private Long instrumentId;
     private String clientOrderId;
     private OrderSide side;
+    private PositionIntentType intent;
     private OrderType type;
     private OrderStatus status;
     private OrderTimeInForce timeInForce;

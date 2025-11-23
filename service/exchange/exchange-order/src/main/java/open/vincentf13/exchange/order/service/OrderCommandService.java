@@ -42,10 +42,11 @@ public class OrderCommandService {
         try {
             Order order = Order.createNew(userId, request);
             PositionIntentType intentType = determineIntent(userId, request);
+            order.setIntent(intentType);
 
             transactionTemplate.executeWithoutResult(status -> {
-                if (intentType != null && intentType.requiresPositionReservation()) {
-                    orderEventPublisher.publishPositionReserveRequested(order, intentType);
+                if (order.getIntent() != null && order.getIntent().requiresPositionReservation()) {
+                    orderEventPublisher.publishPositionReserveRequested(order, order.getIntent());
                 } else {
                     markSubmitted(order);
                     orderEventPublisher.publishOrderSubmitted(order);
