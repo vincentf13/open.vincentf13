@@ -10,6 +10,7 @@ import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -34,10 +35,11 @@ public class LedgerEventListener {
             groupId = "${open.vincentf13.exchange.order.ledger.consumer-group:exchange-order-ledger}"
     )
     public void onFundsFrozen(@Payload FundsFrozenEvent event, Acknowledgment acknowledgment) {
-        if (event == null || event.orderId() == null) {
+        if (event == null) {
             acknowledgment.acknowledge();
             return;
         }
+        OpenValidator.validateOrThrow(event);
         transactionTemplate.executeWithoutResult(status -> {
             Optional<Order> optional = orderRepository.findById(event.orderId());
             if (optional.isEmpty()) {
@@ -54,10 +56,11 @@ public class LedgerEventListener {
             groupId = "${open.vincentf13.exchange.order.ledger.consumer-group:exchange-order-ledger}"
     )
     public void onFundsFreezeFailed(@Payload FundsFreezeFailedEvent event, Acknowledgment acknowledgment) {
-        if (event == null || event.orderId() == null) {
+        if (event == null) {
             acknowledgment.acknowledge();
             return;
         }
+        OpenValidator.validateOrThrow(event);
         orderFailureHandler.markFailed(event.orderId(), "LEDGER_REJECT", event.reason());
         acknowledgment.acknowledge();
     }

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.marketdata.infra.cache.TickerStatsCacheService;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -22,10 +23,11 @@ public class TradeExecutedEventListener {
             groupId = "${open.vincentf13.exchange.marketdata.trade.consumer-group:exchange-market-data-trade}"
     )
     public void onTradeExecuted(@Payload TradeExecutedEvent event, Acknowledgment acknowledgment) {
-        if (event == null || event.instrumentId() == null) {
+        if (event == null) {
             acknowledgment.acknowledge();
             return;
         }
+        OpenValidator.validateOrThrow(event);
         tickerStatsCacheService.recordTrade(
                 event.instrumentId(),
                 event.tradeId(),

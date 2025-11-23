@@ -3,6 +3,7 @@ package open.vincentf13.sdk.infra.mysql.mq.outbox;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenObjectMapper;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.Assert;
 
@@ -20,6 +21,7 @@ public class MqOutboxRepository {
         Assert.hasText(topic, "topic must not be blank");
         Assert.notNull(key, "key must not be null");
         Assert.notNull(message, "message must not be null");
+        OpenValidator.validateOrThrow(message);
 
         String eventId = String.valueOf(idGenerator.newLong());
 

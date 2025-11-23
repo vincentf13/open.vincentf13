@@ -10,6 +10,7 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEve
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.sdk.core.OpenLog;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -37,6 +38,7 @@ public class PositionReserveEventListener {
             acknowledgment.acknowledge();
             return;
         }
+        OpenValidator.validateOrThrow(event);
         transactionTemplate.executeWithoutResult(status -> handleReservationSuccess(event));
         acknowledgment.acknowledge();
     }
@@ -50,6 +52,7 @@ public class PositionReserveEventListener {
             acknowledgment.acknowledge();
             return;
         }
+        OpenValidator.validateOrThrow(event);
         transactionTemplate.executeWithoutResult(status -> handleReservationFailure(event));
         acknowledgment.acknowledge();
     }

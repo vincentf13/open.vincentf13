@@ -6,6 +6,7 @@ import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 import open.vincentf13.exchange.marketdata.infra.cache.OrderBookCacheService;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -28,10 +29,11 @@ public class OrderBookUpdatedEventListener {
             groupId = "${open.vincentf13.exchange.marketdata.orderbook.consumer-group:exchange-market-data-orderbook}"
     )
     public void onOrderBookUpdated(@Payload OrderBookUpdatedEvent event, Acknowledgment acknowledgment) {
-        if (event == null || event.instrumentId() == null) {
+        if (event == null) {
             acknowledgment.acknowledge();
             return;
         }
+        OpenValidator.validateOrThrow(event);
         try {
             List<OrderBookLevel> bids = mapLevels(event.bids());
             List<OrderBookLevel> asks = mapLevels(event.asks());

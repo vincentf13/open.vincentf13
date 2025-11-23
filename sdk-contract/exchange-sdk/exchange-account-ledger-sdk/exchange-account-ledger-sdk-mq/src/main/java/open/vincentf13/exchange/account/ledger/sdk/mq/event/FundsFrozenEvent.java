@@ -1,11 +1,15 @@
 package open.vincentf13.exchange.account.ledger.sdk.mq.event;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 import java.math.BigDecimal;
 
 public record FundsFrozenEvent(
-        Long orderId,
-        Long userId,
-        String asset,
-        BigDecimal frozenAmount
+        @NotNull Long orderId,
+        @NotNull Long userId,
+        @NotBlank String asset,
+        @NotNull @DecimalMin(value = "0.00000001") BigDecimal frozenAmount
 ) {
 }
