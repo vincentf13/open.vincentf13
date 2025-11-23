@@ -52,7 +52,7 @@ public class ApiKeyFilter extends OncePerRequestFilter {
         PrivateAPI privateApiAnnotation = findPrivateApiAnnotation(handlerMethod);
 
         if (privateApiAnnotation != null) {
-            String apiKey = request.getHeader(OpenConstant.Header.API_KEY.value());
+            String apiKey = request.getHeader(OpenConstant.HttpHeader.API_KEY.value());
             if (apiKey == null || !apiKeyValidator.isValid(apiKey)) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("Invalid or missing API Key");

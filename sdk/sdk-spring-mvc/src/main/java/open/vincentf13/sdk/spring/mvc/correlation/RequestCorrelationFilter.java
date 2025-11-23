@@ -26,8 +26,8 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String traceHeader = OpenConstant.Header.TRACE_ID.value();
-        String requestHeader = OpenConstant.Header.REQUEST_ID.value();
+        String traceHeader = OpenConstant.HttpHeader.TRACE_ID.value();
+        String requestHeader = OpenConstant.HttpHeader.REQUEST_ID.value();
 
         String traceId = resolveOrGenerate(request, traceHeader);
         String requestId = resolveOrGenerate(request, requestHeader);

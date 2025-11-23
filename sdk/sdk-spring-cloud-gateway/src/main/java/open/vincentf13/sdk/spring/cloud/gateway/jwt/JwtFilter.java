@@ -98,10 +98,10 @@ public class JwtFilter implements GlobalFilter, Ordered {
 
     private Optional<String> resolveToken(ServerWebExchange exchange) {
         String header = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (!StringUtils.hasText(header) || !header.startsWith(OpenConstant.Auth.BEARER_PREFIX.value())) {
+        if (!StringUtils.hasText(header) || !header.startsWith(OpenConstant.HttpHeader.Authorization.BEARER_PREFIX.value())) {
             return Optional.empty();
         }
-        return Optional.of(header.substring(OpenConstant.Auth.BEARER_PREFIX.value().length()).trim());
+        return Optional.of(header.substring(OpenConstant.HttpHeader.Authorization.BEARER_PREFIX.value().length()).trim());
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String reason) {

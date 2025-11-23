@@ -9,9 +9,6 @@ public final class OpenConstant {
     private OpenConstant() {
     }
 
-    public static final String BASE_PACKAGE = Package.Names.BASE_PACKAGE;
-    public static final String TEST_BASE_PACKAGE = Package.Names.TEST_BASE_PACKAGE;
-
     @Getter
     @Accessors(fluent = true)
     @RequiredArgsConstructor
@@ -33,20 +30,20 @@ public final class OpenConstant {
     @Getter
     @Accessors(fluent = true)
     @RequiredArgsConstructor
-    public enum Header {
+    public enum HttpHeader {
         TRACE_ID("X-Trace-Id"),
         REQUEST_ID("X-Request-Id"),
-        API_KEY("X-API-KEY");
+        API_KEY("X-API-KEY"),
+        AUTHORIZATION("Authorization");
 
         private final String value;
-    }
 
-    @Getter
-    @Accessors(fluent = true)
-    @RequiredArgsConstructor
-    public enum Auth {
-        BEARER_PREFIX("Bearer ");
+        @Getter
+        @RequiredArgsConstructor
+        public enum Authorization {
+            BEARER_PREFIX("Bearer ");
 
-        private final String value;
+            private final String value;
+        }
     }
 }

@@ -209,8 +209,8 @@ public class AopRestException implements MessageSourceAware {
             // 使用 attribute 而非重新生成，確保與 RequestCorrelationFilter 一致。
             meta.put("path", request.getRequestURI());
             meta.put("method", request.getMethod());
-            meta.put(OpenConstant.Header.TRACE_ID.value(), request.getAttribute(OpenConstant.Header.TRACE_ID.value()));
-            meta.put(OpenConstant.Header.REQUEST_ID.value(), request.getAttribute(OpenConstant.Header.REQUEST_ID.value()));
+            meta.put(OpenConstant.HttpHeader.TRACE_ID.value(), request.getAttribute(OpenConstant.HttpHeader.TRACE_ID.value()));
+            meta.put(OpenConstant.HttpHeader.REQUEST_ID.value(), request.getAttribute(OpenConstant.HttpHeader.REQUEST_ID.value()));
         }
         return meta;
     }

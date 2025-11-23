@@ -15,7 +15,7 @@ import java.util.List;
  */
 @Validated
 @Getter
-@ConfigurationProperties(prefix = OpenConstant.BASE_PACKAGE + ".mvc")
+@ConfigurationProperties(prefix = OpenConstant.Package.Names.BASE_PACKAGE + ".mvc")
 public class MvcProperties {
 
     @NestedConfigurationProperty

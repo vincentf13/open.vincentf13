@@ -8,7 +8,7 @@ import open.vincentf13.sdk.core.OpenConstant;
 
 // 單一共用的 Spring Boot 測試主程式；其他測試若需額外 bean，請使用 @TestConfiguration 避免產生多個 @SpringBootConfiguration
 @SpringBootConfiguration
-@ComponentScan({OpenConstant.BASE_PACKAGE, OpenConstant.TEST_BASE_PACKAGE}) // 掃描正式與測試用元件
+@ComponentScan({OpenConstant.Package.Names.BASE_PACKAGE, OpenConstant.Package.Names.TEST_BASE_PACKAGE}) // 掃描正式與測試用元件
 @EnableAutoConfiguration
 public class TestBoot {
 }

@@ -27,7 +27,7 @@ import org.springframework.web.client.RestTemplate;
 @ConditionalOnClass({FeignException.class, EnableFeignClients.class})
 @ConditionalOnProperty(prefix = "spring.cloud.openfeign", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(FeignApiKeyProperties.class)
-@EnableFeignClients(basePackages = OpenConstant.BASE_PACKAGE)
+@EnableFeignClients(basePackages = OpenConstant.Package.Names.BASE_PACKAGE)
 @Import(FeignExceptionHandler.class)
 public class OpenFeignAutoConfiguration {
 

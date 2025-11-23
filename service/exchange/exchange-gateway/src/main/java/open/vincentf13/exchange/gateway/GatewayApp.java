@@ -4,7 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import open.vincentf13.sdk.core.OpenConstant;
 
-@SpringBootApplication(scanBasePackages = OpenConstant.BASE_PACKAGE)
+@SpringBootApplication(scanBasePackages = OpenConstant.Package.Names.BASE_PACKAGE)
 public class GatewayApp {
 
     public static void main(String[] args) {
