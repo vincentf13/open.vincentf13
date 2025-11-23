@@ -14,4 +14,11 @@
     <artifactId>exchange-market-sdk-mq</artifactId>
     <name>exchange-market-sdk-mq</name>
     <description>Market data service MQ contracts</description>
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 </project>

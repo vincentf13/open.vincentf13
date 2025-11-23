@@ -14,4 +14,11 @@
     <artifactId>exchange-matching-sdk-mq</artifactId>
     <name>exchange-matching-sdk-mq</name>
     <description>Matching service MQ contracts</description>
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -14,4 +14,10 @@
     <artifactId>exchange-account-ledger-sdk-mq</artifactId>
     <name>exchange-account-ledger-sdk-mq</name>
     <description>Account ledger MQ contracts</description>
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+    </dependencies>
 </project>
