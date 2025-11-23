@@ -5,7 +5,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.*;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderTimeInForce;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 
@@ -55,7 +58,7 @@ public class Order {
     }
 
 
-    public static Order createNew(Long userId, OrderCreateRequest request) {
+    public static Order createNew(Long userId, open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest request) {
         if (userId == null) {
             throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "Missing userId");
         }
@@ -91,7 +94,7 @@ public class Order {
 
 
 
-    private static void validateRequest(OrderCreateRequest request) {
+    private static void validateRequest(open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest request) {
         if (request == null) {
             throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "request cannot be null");
         }
