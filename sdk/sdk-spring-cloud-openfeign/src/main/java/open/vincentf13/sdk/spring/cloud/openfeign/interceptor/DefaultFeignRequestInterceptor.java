@@ -54,11 +54,11 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
     }
 
     private void attachTraceHeaders(RequestTemplate template) {
-        String traceId = resolveAttribute(OpenConstant.Header.TRACE_ID.value(), OpenConstant.ContextKey.TRACE_ID.value());
+        String traceId = resolveAttribute(OpenConstant.Header.TRACE_ID.value());
         if (!template.headers().containsKey(OpenConstant.Header.TRACE_ID.value()) && StringUtils.hasText(traceId)) {
             template.header(OpenConstant.Header.TRACE_ID.value(), traceId);
         }
-        String requestId = resolveAttribute(OpenConstant.Header.REQUEST_ID.value(), OpenConstant.ContextKey.REQUEST_ID.value());
+        String requestId = resolveAttribute(OpenConstant.Header.REQUEST_ID.value());
         if (!template.headers().containsKey(OpenConstant.Header.REQUEST_ID.value()) && StringUtils.hasText(requestId)) {
             template.header(OpenConstant.Header.REQUEST_ID.value(), requestId);
         }
@@ -79,19 +79,20 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
         template.header(HttpHeaders.ACCEPT_LANGUAGE, locale.toLanguageTag());
     }
 
-    private String resolveAttribute(String headerName, String mdcKey) {
+    private String resolveAttribute(String headerName) {
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
         if (attributes instanceof ServletRequestAttributes servletAttributes) {
-            Object value = servletAttributes.getRequest().getAttribute(mdcKey);
-            if (value instanceof String stringValue && StringUtils.hasText(stringValue)) {
-                return stringValue;
+            var request = servletAttributes.getRequest();
+            Object value = request.getAttribute(headerName);
+            if (value instanceof String attrValue && StringUtils.hasText(attrValue)) {
+                return attrValue;
             }
-            value = servletAttributes.getRequest().getAttribute(headerName);
-            if (value instanceof String stringValue && StringUtils.hasText(stringValue)) {
-                return stringValue;
+            String headerValue = request.getHeader(headerName);
+            if (StringUtils.hasText(headerValue)) {
+                return headerValue;
             }
         }
-        String mdcValue = MDC.get(mdcKey);
+        String mdcValue = MDC.get(headerName);
         return StringUtils.hasText(mdcValue) ? mdcValue : null;
     }
 }

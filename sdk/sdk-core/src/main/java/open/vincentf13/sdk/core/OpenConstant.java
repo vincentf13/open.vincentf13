@@ -33,16 +33,6 @@ public final class OpenConstant {
     @Getter
     @Accessors(fluent = true)
     @RequiredArgsConstructor
-    public enum ContextKey {
-        TRACE_ID("traceId"),
-        REQUEST_ID("requestId");
-
-        private final String value;
-    }
-
-    @Getter
-    @Accessors(fluent = true)
-    @RequiredArgsConstructor
     public enum Auth {
         BEARER_PREFIX("Bearer ");
 
