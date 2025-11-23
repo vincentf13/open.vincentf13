@@ -110,7 +110,7 @@ public class LedgerTransactionDomainService {
                 null,
                 request.creditedAt(),
                 createdAt
-        );
+                                                          );
         ledgerEntryRepository.insert(userEntry);
 
         LedgerEntry platformEntry = LedgerEntry.platformWithdrawal(
@@ -123,7 +123,7 @@ public class LedgerTransactionDomainService {
                 request.txId(),
                 request.creditedAt(),
                 createdAt
-        );
+                                                                  );
         ledgerEntryRepository.insert(platformEntry);
 
         return new LedgerWithdrawalResult(userEntry, balanceUpdated);
@@ -153,24 +153,25 @@ public class LedgerTransactionDomainService {
         Long freezeEntryId = idGenerator.newLong();
         Long reservedEntryId = idGenerator.newLong();
         LedgerEntry freezeEntry = LedgerEntry.userFundsFreeze(freezeEntryId,
-                updatedBalance.getAccountId(),
-                userId,
-                normalizedAsset,
-                requiredMargin,
-                updatedBalance.getAvailable(),
-                orderId,
-                reservedEntryId,
-                entryEventTime,
-                now);
+                                                              updatedBalance.getAccountId(),
+                                                              userId,
+                                                              normalizedAsset,
+                                                              requiredMargin,
+                                                              updatedBalance.getAvailable(),
+                                                              orderId,
+                                                              reservedEntryId,
+                                                              entryEventTime,
+                                                              now);
         LedgerEntry reservedEntry = LedgerEntry.userFundsReserved(reservedEntryId,
-                updatedBalance.getAccountId(),
-                userId,
-                normalizedAsset,
-                requiredMargin,
-                updatedBalance.getReserved(),
-                orderId,
-                entryEventTime,
-                now);
+                                                                  updatedBalance.getAccountId(),
+                                                                  userId,
+                                                                  normalizedAsset,
+                                                                  requiredMargin,
+                                                                  updatedBalance.getReserved(),
+                                                                  orderId,
+                                                                  freezeEntryId,
+                                                                  entryEventTime,
+                                                                  now);
         ledgerEntryRepository.insert(freezeEntry);
         ledgerEntryRepository.insert(reservedEntry);
         return freezeEntry;
@@ -188,7 +189,7 @@ public class LedgerTransactionDomainService {
             BigDecimal available = safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
                 throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
-                        "Insufficient available balance for user=" + userId + " asset=" + asset.code());
+                                               "Insufficient available balance for user=" + userId + " asset=" + asset.code());
             }
             BigDecimal reserved = safeDecimal(current.getReserved());
             current.setAvailable(available.subtract(amount));
@@ -254,11 +255,11 @@ public class LedgerTransactionDomainService {
                                               Long instrumentId,
                                               AssetSymbol asset) {
         return ledgerBalanceRepository.findOne(LedgerBalance.builder()
-                        .userId(userId)
-                        .accountType(accountType)
-                        .instrumentId(instrumentId)
-                        .asset(asset)
-                        .build())
+                                                       .userId(userId)
+                                                       .accountType(accountType)
+                                                       .instrumentId(instrumentId)
+                                                       .asset(asset)
+                                                       .build())
                 .orElseThrow(() -> new IllegalStateException(
                         "Ledger balance not found for user=" + userId + ", asset=" + asset.code()));
     }
@@ -288,8 +289,8 @@ public class LedgerTransactionDomainService {
     }
 
     private PlatformBalance retryUpdateForPlatformWithdrawal(PlatformBalance platformBalance,
-                                                            BigDecimal amount,
-                                                            AssetSymbol asset) {
+                                                             BigDecimal amount,
+                                                             AssetSymbol asset) {
         PlatformBalance current = platformBalance;
         int attempts = 0;
         while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
@@ -309,10 +310,10 @@ public class LedgerTransactionDomainService {
 
     private PlatformBalance reloadPlatformBalance(Long accountId, PlatformAccountCode accountCode, AssetSymbol asset) {
         return platformBalanceRepository.findOne(PlatformBalance.builder()
-                        .accountId(accountId)
-                        .accountCode(accountCode)
-                        .asset(asset)
-                        .build())
+                                                         .accountId(accountId)
+                                                         .accountCode(accountCode)
+                                                         .asset(asset)
+                                                         .build())
                 .orElseThrow(() -> new IllegalStateException("Platform balance not found for account=" + accountId + ", asset=" + asset.code()));
     }
 
