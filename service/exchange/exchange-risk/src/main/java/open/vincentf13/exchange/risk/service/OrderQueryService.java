@@ -135,7 +135,7 @@ public class OrderQueryService {
     private void publishFailure(OrderSubmittedEvent event, FailureReason reason) {
         MarginPreCheckFailedEvent payload = new MarginPreCheckFailedEvent(event.orderId(), reason.name());
         String key = event.orderId() == null ? null : event.orderId().toString();
-        kafkaTemplate.send(RiskTopics.MARGIN_PRECHECK_FAILED, key, payload);
+        kafkaTemplate.send(RiskTopics.MARGIN_PRECHECK_FAILED.getTopic(), key, payload);
         log.warn("Risk pre-check failed. orderId={} reason={}", event.orderId(), reason.name());
     }
 
@@ -149,7 +149,7 @@ public class OrderQueryService {
                 Instant.now()
         );
         String key = event.orderId() == null ? null : event.orderId().toString();
-        kafkaTemplate.send(RiskTopics.MARGIN_PRECHECK_PASSED, key, payload);
+        kafkaTemplate.send(RiskTopics.MARGIN_PRECHECK_PASSED.getTopic(), key, payload);
         log.info("Risk pre-check passed. orderId={} userId={} instrumentId={} quantity={} price={} requiredMargin={} asset={}",
                 event.orderId(), event.userId(), event.instrumentId(), event.quantity(), event.price(), requiredMargin,
                 preCheckProperties.getMarginAsset());

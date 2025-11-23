@@ -18,7 +18,7 @@ public class RiskMarginEventListener {
     private final LedgerBalanceCommandService ledgerBalanceCommandService;
 
     @KafkaListener(
-            topics = RiskTopics.MARGIN_PRECHECK_PASSED,
+            topics = RiskTopics.MARGIN_PRECHECK_PASSED.getTopic(),
             groupId = "${open.vincentf13.exchange.account.ledger.risk.consumer-group:exchange-account-ledger-risk}"
     )
     public void onMarginPreCheckPassed(@Payload MarginPreCheckPassedEvent event, Acknowledgment acknowledgment) {

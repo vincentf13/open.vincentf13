@@ -20,14 +20,14 @@ public class LedgerEventPublisher {
 
     public void publishFundsFrozen(Long orderId, Long userId, AssetSymbol asset, BigDecimal frozenAmount) {
         FundsFrozenEvent event = new FundsFrozenEvent(orderId, userId, asset.code(), frozenAmount);
-        outboxRepository.append(LedgerTopics.FUNDS_FROZEN, orderId, event, null);
+        outboxRepository.append(LedgerTopics.FUNDS_FROZEN.getTopic(), orderId, event, null);
         log.info("FundsFrozen event enqueued. orderId={} userId={} asset={} amount={}",
                 orderId, userId, asset, frozenAmount);
     }
 
     public void publishFundsFreezeFailed(Long orderId, String reason) {
         FundsFreezeFailedEvent event = new FundsFreezeFailedEvent(orderId, reason);
-        outboxRepository.append(LedgerTopics.FUNDS_FREEZE_FAILED, orderId, event, null);
+        outboxRepository.append(LedgerTopics.FUNDS_FREEZE_FAILED.getTopic(), orderId, event, null);
         log.warn("FundsFreezeFailed event enqueued. orderId={} reason={} ", orderId, reason);
     }
 }

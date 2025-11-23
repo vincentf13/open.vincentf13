@@ -66,3 +66,4 @@ public Account getOrCreate(long userId, String asset) {
 - 嚴格遵守 DDD 原則：Domain Model 統一維護領域常數/工廠，Application Service 僅協調用例；跨用例邏輯需落在 Domain 或專用的 Service 層，不得堆疊在 Controller/Application。
 - Application 層若無特殊需求，一律直接使用 REST request DTO 作為輸入參數，不再額外定義 Command 類別；既有 Command 物件逐步移除。
 - Enum 新增時若需要存取欄位，優先使用 Lombok（例如 `@RequiredArgsConstructor` + `@Getter`）簡化建構子與 getter，維持一致風格。
+- Kafka Topic 定義統一改為 Enum（內含 topic 字串與事件類別），透過 `.getTopic()` append/outbox，避免裸字串重複；新 topic 需遵守此模式。

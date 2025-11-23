@@ -1,6 +1,16 @@
 package open.vincentf13.exchange.risk.margin.sdk.mq.topic;
 
-public interface RiskTopics {
-    String MARGIN_PRECHECK_PASSED = "risk.margin-check-passed";
-    String MARGIN_PRECHECK_FAILED = "risk.margin-check-failed";
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckFailedEvent;
+import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
+
+@Getter
+@RequiredArgsConstructor
+public enum RiskTopics {
+    MARGIN_PRECHECK_PASSED("risk.margin-check-passed", MarginPreCheckPassedEvent.class),
+    MARGIN_PRECHECK_FAILED("risk.margin-check-failed", MarginPreCheckFailedEvent.class);
+
+    private final String topic;
+    private final Class<?> eventType;
 }

@@ -30,7 +30,7 @@ public class LedgerEventListener {
     private final OrderFailureHandler orderFailureHandler;
 
     @KafkaListener(
-            topics = LedgerTopics.FUNDS_FROZEN,
+            topics = LedgerTopics.FUNDS_FROZEN.getTopic(),
             groupId = "${open.vincentf13.exchange.order.ledger.consumer-group:exchange-order-ledger}"
     )
     public void onFundsFrozen(@Payload FundsFrozenEvent event, Acknowledgment acknowledgment) {
@@ -50,7 +50,7 @@ public class LedgerEventListener {
     }
 
     @KafkaListener(
-            topics = LedgerTopics.FUNDS_FREEZE_FAILED,
+            topics = LedgerTopics.FUNDS_FREEZE_FAILED.getTopic(),
             groupId = "${open.vincentf13.exchange.order.ledger.consumer-group:exchange-order-ledger}"
     )
     public void onFundsFreezeFailed(@Payload FundsFreezeFailedEvent event, Acknowledgment acknowledgment) {

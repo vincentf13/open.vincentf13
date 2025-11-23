@@ -26,7 +26,7 @@ public class MarkPriceEventPublisher {
                 snapshot.getTradeExecutedAt(),
                 snapshot.getCalculatedAt()
         );
-        outboxRepository.append(MarketTopics.MARK_PRICE_UPDATED,
+        outboxRepository.append(MarketTopics.MARK_PRICE_UPDATED.getTopic(),
                 snapshot.getInstrumentId(),
                 event,
                 null);

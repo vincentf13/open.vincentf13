@@ -24,7 +24,7 @@ public class OrderEventPublisher {
 
     public void publishOrderSubmitted(Order order) {
         OrderSubmittedEvent payload = OpenMapstruct.map(order, OrderSubmittedEvent.class);
-        outboxRepository.append(OrderTopics.ORDER_SUBMITTED,
+        outboxRepository.append(OrderTopics.ORDER_SUBMITTED.getTopic(),
                 order.getOrderId(),
                 payload,
                 null);
@@ -40,7 +40,7 @@ public class OrderEventPublisher {
                 order.getQuantity(),
                 Instant.now()
         );
-        outboxRepository.append(OrderTopics.POSITION_RESERVE_REQUESTED,
+        outboxRepository.append(OrderTopics.POSITION_RESERVE_REQUESTED.getTopic(),
                 order.getOrderId(),
                 event,
                 null);
@@ -63,7 +63,7 @@ public class OrderEventPublisher {
                 frozenAmount,
                 Instant.now()
         );
-        outboxRepository.append(OrderTopics.ORDER_CREATED,
+        outboxRepository.append(OrderTopics.ORDER_CREATED.getTopic(),
                 order.getOrderId(),
                 payload,
                 null);
