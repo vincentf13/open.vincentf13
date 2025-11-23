@@ -8,7 +8,6 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalanc
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 import open.vincentf13.sdk.core.OpenMapstruct;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -108,36 +107,5 @@ public class LedgerBalanceRepositoryImpl implements LedgerBalanceRepository {
                 .orElseGet(() -> insert(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
     }
 
-    @Override
-    public LedgerBalance updateIncrement(LedgerBalance balance,
-                                         BigDecimal balanceDelta,
-                                         BigDecimal availableDelta,
-                                         BigDecimal depositedDelta,
-                                         BigDecimal withdrawnDelta,
-                                         Long userId) {
-        int retries = 0;
-        while (retries < 3) {
-            int currentVersion = balance.safeVersion();
-            if (balanceDelta != null) {
-                balance.setBalance(balance.getBalance().add(balanceDelta));
-            }
-            if (availableDelta != null) {
-                balance.setAvailable(balance.getAvailable().add(availableDelta));
-            }
-            if (depositedDelta != null) {
-                balance.setTotalDeposited(balance.getTotalDeposited().add(depositedDelta));
-            }
-            if (withdrawnDelta != null) {
-                balance.setTotalWithdrawn(balance.getTotalWithdrawn().add(withdrawnDelta));
-            }
-            balance.setVersion(currentVersion + 1);
-            if (updateWithVersion(balance, currentVersion)) {
-                return balance;
-            }
-            retries++;
-            balance = getOrCreate(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), balance.getAsset());
-        }
-        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
-    }
 
 }
