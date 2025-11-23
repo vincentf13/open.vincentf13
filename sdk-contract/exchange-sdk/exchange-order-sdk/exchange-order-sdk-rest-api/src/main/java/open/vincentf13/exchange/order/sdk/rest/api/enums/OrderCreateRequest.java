@@ -3,6 +3,9 @@ package open.vincentf13.exchange.order.sdk.rest.api.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderTimeInForce;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
 
 import java.math.BigDecimal;
 

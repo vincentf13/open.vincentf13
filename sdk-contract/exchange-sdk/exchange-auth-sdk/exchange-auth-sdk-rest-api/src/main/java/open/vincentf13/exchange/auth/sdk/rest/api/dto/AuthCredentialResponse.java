@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.auth.sdk.rest.api.dto;
 
+import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
+
 import java.time.Instant;
 
 public record AuthCredentialResponse(
