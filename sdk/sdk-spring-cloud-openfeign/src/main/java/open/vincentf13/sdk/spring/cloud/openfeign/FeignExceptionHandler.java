@@ -141,8 +141,8 @@ public class FeignExceptionHandler implements MessageSourceAware {
         if (request != null) {
             meta.put("path", request.getRequestURI());
             meta.put("method", request.getMethod());
-            meta.put(OpenConstant.TRACE_ID_KEY, request.getAttribute(OpenConstant.TRACE_ID_KEY));
-            meta.put(OpenConstant.REQUEST_ID_KEY, request.getAttribute(OpenConstant.REQUEST_ID_KEY));
+            meta.put(OpenConstant.ContextKey.TRACE_ID.value(), request.getAttribute(OpenConstant.ContextKey.TRACE_ID.value()));
+            meta.put(OpenConstant.ContextKey.REQUEST_ID.value(), request.getAttribute(OpenConstant.ContextKey.REQUEST_ID.value()));
         }
         return meta;
     }

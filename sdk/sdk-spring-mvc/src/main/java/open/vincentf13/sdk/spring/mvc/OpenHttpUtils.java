@@ -6,7 +6,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.Optional;
 
-import static open.vincentf13.sdk.core.OpenConstant.BEARER_PREFIX;
+import static open.vincentf13.sdk.core.OpenConstant.Auth.BEARER_PREFIX;
 
 /**
  * Web related helper utilities shared across MVC components.
@@ -21,9 +21,10 @@ public final class OpenHttpUtils {
             return Optional.empty();
         }
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (!StringUtils.hasText(header) || !header.startsWith(BEARER_PREFIX)) {
+        String prefix = BEARER_PREFIX.value();
+        if (!StringUtils.hasText(header) || !header.startsWith(prefix)) {
             return Optional.empty();
         }
-        return Optional.of(header.substring(BEARER_PREFIX.length()));
+        return Optional.of(header.substring(prefix.length()));
     }
 }

@@ -14,7 +14,7 @@ public class JwtProperties {
     @Size(min = 32)
     private String secret = "change-me-change-me-change-me-change";
 
-    private String issuer = OpenConstant.BASE_PACKAGE;
+    private String issuer = OpenConstant.Package.BASE.value();
 
     private long accessTokenTtlSeconds = 3600;
 

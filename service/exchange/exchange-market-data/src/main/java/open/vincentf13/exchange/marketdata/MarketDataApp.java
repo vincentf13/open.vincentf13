@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication(scanBasePackages = OpenConstant.BASE_PACKAGE)
+@SpringBootApplication(scanBasePackages = OpenConstant.Package.BASE.value())
 @EnableScheduling
 public class MarketDataApp {
 

@@ -21,7 +21,7 @@ import org.springframework.context.annotation.Bean;
 @AutoConfiguration
 @ConditionalOnClass(EnableFeignClients.class)
 @ConditionalOnProperty(prefix = "spring.cloud.openfeign", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableFeignClients(basePackages = OpenConstant.BASE_PACKAGE)
+@EnableFeignClients(basePackages = OpenConstant.Package.BASE.value())
 @EnableConfigurationProperties(FeignApiKeyProperties.class)
 public class OpenFeignAutoConfiguration {
 

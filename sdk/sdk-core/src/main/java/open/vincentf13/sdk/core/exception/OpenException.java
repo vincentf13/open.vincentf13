@@ -15,11 +15,11 @@ public interface OpenException {
 
     default Map<String, Object> initMeta() {
         Map<String, Object> meta = new HashMap<>();
-        String traceId = MDC.get(OpenConstant.TRACE_ID_KEY);
+        String traceId = MDC.get(OpenConstant.ContextKey.TRACE_ID.value());
         if (traceId != null) {
             meta.put("mdcTraceId", traceId);
         }
-        String requestId = MDC.get(OpenConstant.REQUEST_ID_KEY);
+        String requestId = MDC.get(OpenConstant.ContextKey.REQUEST_ID.value());
         if (requestId != null) {
             meta.put("mdcRequestId", requestId);
         }

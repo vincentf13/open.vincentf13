@@ -36,12 +36,12 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
     }
 
     private void attachApiKey(RequestTemplate template) {
-        if (template.headers().containsKey(OpenConstant.API_KEY_HEADER)) {
+        if (template.headers().containsKey(OpenConstant.Header.API_KEY.value())) {
             return;
         }
         apiKeyProvider.apiKey()
                 .filter(StringUtils::hasText)
-                .ifPresent(value -> template.header(OpenConstant.API_KEY_HEADER, value));
+                .ifPresent(value -> template.header(OpenConstant.Header.API_KEY.value(), value));
     }
 
     private void attachAuthorization(RequestTemplate template) {
@@ -54,13 +54,13 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
     }
 
     private void attachTraceHeaders(RequestTemplate template) {
-        String traceId = resolveAttribute(OpenConstant.TRACE_ID_HEADER, OpenConstant.TRACE_ID_KEY);
-        if (!template.headers().containsKey(OpenConstant.TRACE_ID_HEADER) && StringUtils.hasText(traceId)) {
-            template.header(OpenConstant.TRACE_ID_HEADER, traceId);
+        String traceId = resolveAttribute(OpenConstant.Header.TRACE_ID.value(), OpenConstant.ContextKey.TRACE_ID.value());
+        if (!template.headers().containsKey(OpenConstant.Header.TRACE_ID.value()) && StringUtils.hasText(traceId)) {
+            template.header(OpenConstant.Header.TRACE_ID.value(), traceId);
         }
-        String requestId = resolveAttribute(OpenConstant.REQUEST_ID_HEADER, OpenConstant.REQUEST_ID_KEY);
-        if (!template.headers().containsKey(OpenConstant.REQUEST_ID_HEADER) && StringUtils.hasText(requestId)) {
-            template.header(OpenConstant.REQUEST_ID_HEADER, requestId);
+        String requestId = resolveAttribute(OpenConstant.Header.REQUEST_ID.value(), OpenConstant.ContextKey.REQUEST_ID.value());
+        if (!template.headers().containsKey(OpenConstant.Header.REQUEST_ID.value()) && StringUtils.hasText(requestId)) {
+            template.header(OpenConstant.Header.REQUEST_ID.value(), requestId);
         }
     }
 

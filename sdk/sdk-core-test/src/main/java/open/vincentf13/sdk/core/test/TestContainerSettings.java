@@ -14,7 +14,7 @@ import open.vincentf13.sdk.core.OpenConstant;
  */
 final class TestContainerSettings {
 
-    private static final String PROPERTY_PREFIX = OpenConstant.BASE_PACKAGE + ".common.core.test.testcontainer.";
+    private static final String PROPERTY_PREFIX = OpenConstant.Package.BASE.value() + ".common.core.test.testcontainer.";
     private static final String ENV_PREFIX = "OPEN_VINCENTF13_SDK_CORE_TEST_TESTCONTAINER_";
     private static final String GLOBAL_PROPERTY = PROPERTY_PREFIX + "enabled";
     private static final String GLOBAL_ENV = ENV_PREFIX + "ENABLED";

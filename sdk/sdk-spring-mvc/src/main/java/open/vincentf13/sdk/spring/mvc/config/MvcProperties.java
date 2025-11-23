@@ -15,7 +15,7 @@ import java.util.List;
  */
 @Validated
 @Getter
-@ConfigurationProperties(prefix = OpenConstant.BASE_PACKAGE + ".mvc")
+@ConfigurationProperties(prefix = OpenConstant.Package.BASE.value() + ".mvc")
 public class MvcProperties {
 
     @NestedConfigurationProperty
@@ -32,8 +32,8 @@ public class MvcProperties {
     public static class Request {
         /** 是否在請求缺少 header 時自動生成追蹤資訊。 */
         private boolean generateCorrelationIds = true;
-        private String traceIdHeader = OpenConstant.TRACE_ID_HEADER;
-        private String requestIdHeader = OpenConstant.REQUEST_ID_HEADER;
+        private String traceIdHeader = OpenConstant.Header.TRACE_ID.value();
+        private String requestIdHeader = OpenConstant.Header.REQUEST_ID.value();
         private boolean writeResponseHeader = true;
         /**
          * Filter 註冊順序，預設值讓追蹤資訊最先寫入。

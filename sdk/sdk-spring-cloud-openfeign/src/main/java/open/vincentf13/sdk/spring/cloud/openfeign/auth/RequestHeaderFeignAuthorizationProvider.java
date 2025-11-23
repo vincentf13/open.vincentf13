@@ -21,7 +21,7 @@ public class RequestHeaderFeignAuthorizationProvider implements FeignAuthorizati
             HttpServletRequest request = servletAttributes.getRequest();
             if (request != null) {
                 String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-                if (StringUtils.hasText(header) && header.startsWith(OpenConstant.BEARER_PREFIX)) {
+                if (StringUtils.hasText(header) && header.startsWith(OpenConstant.Auth.BEARER_PREFIX.value())) {
                     return Optional.of(header);
                 }
             }

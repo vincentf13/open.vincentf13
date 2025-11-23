@@ -65,3 +65,4 @@ public Account getOrCreate(long userId, String asset) {
 - 所有服務模組都必須依設計文件實作 CQRS：查詢邏輯集中在 `*QueryService`，寫入/更新集中在 `*CommandService`，Controller 需分別注入 Query/Command 服務；新增功能時亦要遵守這個拆分慣例，禁止將查詢與命令混在同一服務類別。
 - 嚴格遵守 DDD 原則：Domain Model 統一維護領域常數/工廠，Application Service 僅協調用例；跨用例邏輯需落在 Domain 或專用的 Service 層，不得堆疊在 Controller/Application。
 - Application 層若無特殊需求，一律直接使用 REST request DTO 作為輸入參數，不再額外定義 Command 類別；既有 Command 物件逐步移除。
+- Enum 新增時若需要存取欄位，優先使用 Lombok（例如 `@RequiredArgsConstructor` + `@Getter`）簡化建構子與 getter，維持一致風格。
