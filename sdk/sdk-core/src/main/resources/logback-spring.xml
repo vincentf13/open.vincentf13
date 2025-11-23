@@ -4,7 +4,7 @@
   重點：
   - 使用 Spring 屬性注入 LOG_PATH 與 LOG_LEVEL_ROOT
   - Console 與 File 皆可透過 AsyncAppender 異步寫入
-  - Pattern 內含 MDC 的 traceId/spanId
+  - Pattern 內含 MDC 的 X-Trace-Id / X-Request-Id（與 RequestCorrelationFilter 一致）
 -->
 <configuration scan="true" scanPeriod="60 seconds">
     <!--
@@ -14,7 +14,7 @@
 
     <!--
       性能與可靠性備註：
-      - AsyncAppender 會複製 MDC（含 traceId、spanId）
+      - AsyncAppender 會複製 MDC（含 X-Trace-Id、X-Request-Id）
       - 未使用 %caller 時，保持 includeCallerData=false（預設）避免取堆疊
       - neverBlock=true 佇列滿時不阻塞，可能丟棄低等級日誌；生產多用 false 確保不丟
     -->
@@ -29,13 +29,13 @@
 
     <!--
       日誌格式
-      - LOG_PATTERN_CONSOLE：短時間格式，含 traceId/spanId
-      - LOG_PATTERN_FILE   ：完整日期時間格式，含 traceId/spanId
+      - LOG_PATTERN_CONSOLE：短時間格式，含 X-Trace-Id / X-Request-Id
+      - LOG_PATTERN_FILE   ：完整日期時間格式，含 X-Trace-Id / X-Request-Id
     -->
     <property name="LOG_PATTERN_CONSOLE"
-              value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId:-} %X{spanId:-}] - %msg%n"/>
+              value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id:-} %X{X-Request-Id:-}] - %msg%n"/>
     <property name="LOG_PATTERN_FILE"
-              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId:-} %X{spanId:-}] - %msg%n"/>
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id:-} %X{X-Request-Id:-}] - %msg%n"/>
 
     <!-- ======================================== -->
     <!-- 開發環境 profile: dev -->

@@ -6,12 +6,12 @@
         <Property name="LOG_PATH">${spring:logging.file.path:-./logs}</Property>
         <Property name="LOG_LEVEL_ROOT">${spring:logging.level.root:-INFO}</Property>
 
-        <!-- 模式：含 traceId/spanId（MDC） -->
-        <Property name="LOG_PATTERN_CONSOLE">%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId:-}
-            %X{spanId:-}] - %msg%n
+        <!-- 模式：含 X-Trace-Id / X-Request-Id（MDC） -->
+        <Property name="LOG_PATTERN_CONSOLE">%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id:-}
+            %X{X-Request-Id:-}] - %msg%n
         </Property>
-        <Property name="LOG_PATTERN_FILE">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId:-}
-            %X{spanId:-}] - %msg%n
+        <Property name="LOG_PATTERN_FILE">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id:-}
+            %X{X-Request-Id:-}] - %msg%n
         </Property>
     </Properties>
 
