@@ -1,10 +1,9 @@
-package open.vincentf13.sdk.spring.mvc.filter;
+package open.vincentf13.sdk.spring.mvc.log;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import open.vincentf13.sdk.spring.mvc.logging.MvcLogService;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;

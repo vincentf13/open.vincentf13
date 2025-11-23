@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.mvc.advice;
+package open.vincentf13.sdk.spring.mvc.response;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -1,8 +1,8 @@
 package open.vincentf13.sdk.spring.mvc.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.sdk.spring.mvc.advice.AopResponseBody;
-import open.vincentf13.sdk.spring.mvc.advice.AopRestException;
+import open.vincentf13.sdk.spring.mvc.response.AopResponseBody;
+import open.vincentf13.sdk.spring.mvc.exception.AopRestException;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

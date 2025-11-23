@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.mvc.logging;
+package open.vincentf13.sdk.spring.mvc.log;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

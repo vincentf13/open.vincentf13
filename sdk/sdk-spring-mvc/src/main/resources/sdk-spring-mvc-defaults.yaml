@@ -69,5 +69,5 @@ open:
         ignore-controller-prefixes: []
 logging:
   level:
-    open.vincentf13.sdk.spring.mvc.logging: DEBUG
+    open.vincentf13.sdk.spring.mvc.log: DEBUG
 

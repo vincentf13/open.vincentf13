@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.spring.mvc.config;
 
-import open.vincentf13.sdk.spring.mvc.logging.MvcLogService;
+import open.vincentf13.sdk.spring.mvc.log.MvcLogService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;

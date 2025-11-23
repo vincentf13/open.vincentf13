@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.mvc.advice;
+package open.vincentf13.sdk.spring.mvc.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
