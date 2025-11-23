@@ -11,6 +11,7 @@
         <result property="clientOrderId" column="client_order_id" />
         <result property="side" column="side" />
         <result property="intent" column="intent" />
+        <result property="closeCostPrice" column="close_cost_price" />
         <result property="type" column="type" />
         <result property="status" column="status" />
         <result property="timeInForce" column="time_in_force" />
@@ -38,6 +39,7 @@
             <if test="clientOrderId != null">client_order_id,</if>
             <if test="side != null">side,</if>
             <if test="intent != null">intent,</if>
+            <if test="closeCostPrice != null">close_cost_price,</if>
             <if test="type != null">type,</if>
             <if test="status != null">status,</if>
             <if test="timeInForce != null">time_in_force,</if>
@@ -63,6 +65,7 @@
             <if test="clientOrderId != null">#{clientOrderId},</if>
             <if test="side != null">#{side},</if>
             <if test="intent != null">#{intent},</if>
+            <if test="closeCostPrice != null">#{closeCostPrice},</if>
             <if test="type != null">#{type},</if>
             <if test="status != null">#{status},</if>
             <if test="timeInForce != null">#{timeInForce},</if>
@@ -90,6 +93,7 @@
             client_order_id,
             side,
             intent,
+            close_cost_price,
             type,
             status,
             time_in_force,
@@ -114,6 +118,7 @@
             <if test="clientOrderId != null">AND client_order_id = #{clientOrderId}</if>
             <if test="side != null">AND side = #{side}</if>
             <if test="intent != null">AND intent = #{intent}</if>
+            <if test="closeCostPrice != null">AND close_cost_price = #{closeCostPrice}</if>
             <if test="type != null">AND type = #{type}</if>
             <if test="status != null">AND status = #{status}</if>
         </where>
@@ -134,6 +139,7 @@
             <if test="fee != null">fee = #{fee},</if>
             <if test="source != null">source = #{source},</if>
             <if test="intent != null">intent = #{intent},</if>
+            <if test="closeCostPrice != null">close_cost_price = #{closeCostPrice},</if>
             <if test="version != null">version = #{version},</if>
             <if test="updatedAt != null">updated_at = #{updatedAt},</if>
             <if test="submittedAt != null">submitted_at = #{submittedAt},</if>

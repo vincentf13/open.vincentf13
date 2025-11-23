@@ -89,6 +89,8 @@ public class OrderRepositoryImpl implements OrderRepository {
                 .orderId(order.getOrderId())
                 .userId(order.getUserId())
                 .status(order.getStatus())
+                .intent(order.getIntent())
+                .closeCostPrice(order.getCloseCostPrice())
                 .filledQuantity(order.getFilledQuantity())
                 .remainingQuantity(order.getRemainingQuantity())
                 .avgFillPrice(order.getAvgFillPrice())

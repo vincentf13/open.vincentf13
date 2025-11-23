@@ -30,6 +30,7 @@ public class Order {
     private String clientOrderId;
     private OrderSide side;
     private PositionIntentType intent;
+    private BigDecimal closeCostPrice;
     private OrderType type;
     private OrderStatus status;
     private OrderTimeInForce timeInForce;
@@ -76,6 +77,7 @@ public class Order {
                 .clientOrderId(trimToNull(request.clientOrderId()))
                 .side(request.side())
                 .intent(null)
+                .closeCostPrice(null)
                 .type(request.type())
                 .status(OrderStatus.PENDING)
                 .timeInForce(timeInForce)
