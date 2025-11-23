@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.retry;
+package open.vincentf13.sdk.infra.mysql;
 
 import java.util.Objects;
 import java.util.function.BiConsumer;

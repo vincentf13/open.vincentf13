@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.spring.cloud.gateway.service;
 
-import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.core.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;

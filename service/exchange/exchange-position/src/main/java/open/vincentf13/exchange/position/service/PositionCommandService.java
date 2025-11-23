@@ -13,7 +13,7 @@ import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRespons
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
-import open.vincentf13.sdk.spring.mvc.util.OpenApiClientInvoker;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;

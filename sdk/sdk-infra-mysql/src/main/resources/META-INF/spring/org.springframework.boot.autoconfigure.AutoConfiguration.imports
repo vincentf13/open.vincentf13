@@ -1,2 +1,2 @@
-open.vincentf13.sdk.infra.mysql.MysqlMapperScanAutoConfiguration
+open.vincentf13.sdk.infra.mysql.config.MysqlMapperScanAutoConfiguration
 open.vincentf13.sdk.infra.mysql.config.MapperSqlLoggingAutoConfiguration

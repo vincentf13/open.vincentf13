@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.auth.jwt.session;
 
-import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.core.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

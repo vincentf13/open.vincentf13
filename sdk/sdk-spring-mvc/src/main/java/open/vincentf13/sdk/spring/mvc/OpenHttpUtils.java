@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.mvc.util;
+package open.vincentf13.sdk.spring.mvc;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;

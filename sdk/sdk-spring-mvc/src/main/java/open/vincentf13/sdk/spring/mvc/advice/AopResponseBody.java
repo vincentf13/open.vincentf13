@@ -3,7 +3,7 @@ package open.vincentf13.sdk.spring.mvc.advice;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.core.OpenLog;
 import open.vincentf13.sdk.spring.mvc.config.MvcProperties;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

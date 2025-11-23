@@ -1,5 +1,6 @@
-package open.vincentf13.sdk.spring.mvc.util;
+package open.vincentf13.sdk.spring.cloud.openfeign;
 
+import open.vincentf13.sdk.core.OpenStackWalker;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 
 import java.util.Objects;
@@ -8,10 +9,23 @@ import java.util.function.Supplier;
 
 public final class OpenApiClientInvoker {
 
+    private static final int CALLER_SKIP = 4;
     private static final Function<ClientErrorContext, RuntimeException> DEFAULT_EXCEPTION_FACTORY =
             ctx -> new IllegalStateException(ctx.describe());
 
     private OpenApiClientInvoker() {
+    }
+
+    public static <T> T call(Supplier<OpenApiResponse<T>> call) {
+        return call(call, DEFAULT_EXCEPTION_FACTORY);
+    }
+
+    public static <T> T call(Supplier<OpenApiResponse<T>> call,
+                             Function<ClientErrorContext, RuntimeException> exceptionFactory) {
+        Objects.requireNonNull(call, "call");
+        Objects.requireNonNull(exceptionFactory, "exceptionFactory");
+        String operation = OpenStackWalker.resolveOperation(call, CALLER_SKIP);
+        return invoke(call, operation, exceptionFactory);
     }
 
     public static <T> T invoke(Supplier<OpenApiResponse<T>> call, String operation) {

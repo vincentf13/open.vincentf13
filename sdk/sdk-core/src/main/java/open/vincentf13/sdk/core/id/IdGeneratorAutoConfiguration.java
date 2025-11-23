@@ -4,7 +4,7 @@ import com.github.yitter.contract.IdGeneratorOptions;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.config.SnowflakeIdProperties;
-import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.core.OpenLog;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

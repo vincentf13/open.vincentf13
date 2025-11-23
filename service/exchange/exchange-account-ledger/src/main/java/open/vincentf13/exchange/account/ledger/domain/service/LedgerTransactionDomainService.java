@@ -21,7 +21,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
-import open.vincentf13.sdk.infra.mysql.retry.OpenOptimisticLockRetrier;
+import open.vincentf13.sdk.infra.mysql.OpenOptimisticLockRetrier;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
