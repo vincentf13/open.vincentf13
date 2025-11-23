@@ -236,7 +236,12 @@ public class LedgerTransactionDomainService {
         int attempts = 0;
         while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
             int expectedVersion = current.safeVersion();
-            current.setAvailable(current.getAvailable().subtract(amount));
+            BigDecimal available = safeDecimal(current.getAvailable());
+            if (available.compareTo(amount) < 0) {
+                throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
+                        "Insufficient available balance for user=" + userId + " asset=" + asset.code());
+            }
+            current.setAvailable(available.subtract(amount));
             current.setBalance(current.getBalance().subtract(amount));
             current.setTotalWithdrawn(current.getTotalWithdrawn().add(amount));
             current.setVersion(expectedVersion + 1);
