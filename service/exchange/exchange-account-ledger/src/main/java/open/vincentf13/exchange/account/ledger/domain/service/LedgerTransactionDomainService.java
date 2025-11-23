@@ -139,19 +139,20 @@ public class LedgerTransactionDomainService {
         if (requiredMargin == null || requiredMargin.signum() <= 0) {
             throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_AMOUNT, "Required margin must be positive");
         }
+        AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
         String referenceId = orderId.toString();
         Optional<LedgerEntry> existing = ledgerEntryRepository.findByReference(ReferenceType.ORDER, referenceId, EntryType.FREEZE);
         if (existing.isPresent()) {
             return existing.get();
         }
-        LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, asset);
-        LedgerBalance updatedBalance = retryUpdateForFreeze(userBalance, requiredMargin, userId, asset, orderId);
+        LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
+        LedgerBalance updatedBalance = retryUpdateForFreeze(userBalance, requiredMargin, userId, normalizedAsset, orderId);
         Instant now = Instant.now();
         Long entryId = idGenerator.newLong();
         LedgerEntry entry = LedgerEntry.userFundsFreeze(entryId,
                 updatedBalance.getAccountId(),
                 userId,
-                asset,
+                normalizedAsset,
                 requiredMargin,
                 updatedBalance.getAvailable(),
                 orderId,
