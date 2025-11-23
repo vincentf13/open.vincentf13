@@ -29,8 +29,6 @@ public interface OrderRepository {
                                         Instant submittedAt,
                                         Instant filledAt);
 
-    boolean updateCloseCostPrice(Long orderId, Long userId, BigDecimal closeCostPrice);
-
     boolean updateStatusAndCost(Long orderId,
                                 Long userId,
                                 OrderStatus currentStatus,

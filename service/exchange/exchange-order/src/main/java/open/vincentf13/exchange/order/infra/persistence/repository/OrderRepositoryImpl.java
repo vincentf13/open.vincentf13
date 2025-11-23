@@ -84,17 +84,6 @@ public class OrderRepositoryImpl implements OrderRepository {
     }
 
     @Override
-    public boolean updateCloseCostPrice(Long orderId, Long userId, BigDecimal closeCostPrice) {
-        OrderPO record = OrderPO.builder()
-                .orderId(orderId)
-                .userId(userId)
-                .closeCostPrice(closeCostPrice)
-                .updatedAt(Instant.now())
-                .build();
-        return mapper.updateSelective(record) > 0;
-    }
-
-    @Override
     public boolean updateStatusAndCost(Long orderId,
                                        Long userId,
                                        OrderStatus currentStatus,
