@@ -10,6 +10,7 @@ import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
 

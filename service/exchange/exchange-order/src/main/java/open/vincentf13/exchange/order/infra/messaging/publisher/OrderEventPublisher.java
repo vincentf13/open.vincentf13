@@ -53,12 +53,9 @@ public class OrderEventPublisher {
                 order.getInstrumentId(),
                 order.getSide(),
                 order.getType(),
-                order.getTimeInForce(),
                 order.getPrice(),
-                order.getStopPrice(),
                 order.getQuantity(),
                 order.getClientOrderId(),
-                order.getSource(),
                 frozenAsset,
                 frozenAmount,
                 Instant.now()

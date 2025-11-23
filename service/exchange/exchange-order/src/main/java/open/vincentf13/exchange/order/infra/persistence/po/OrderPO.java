@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderTimeInForce;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 
@@ -27,15 +26,12 @@ public class OrderPO {
     private BigDecimal closeCostPrice;
     private OrderType type;
     private OrderStatus status;
-    private OrderTimeInForce timeInForce;
     private BigDecimal price;
-    private BigDecimal stopPrice;
     private BigDecimal quantity;
     private BigDecimal filledQuantity;
     private BigDecimal remainingQuantity;
     private BigDecimal avgFillPrice;
     private BigDecimal fee;
-    private String source;
     private Integer version;
     private Integer expectedVersion;
     private Instant createdAt;
