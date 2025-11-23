@@ -2,6 +2,8 @@ package open.vincentf13.exchange.account.ledger.domain.service;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeException;
+import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeFailureReason;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
@@ -16,12 +18,15 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositReq
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -122,6 +127,64 @@ public class LedgerTransactionDomainService {
         return new LedgerWithdrawalResult(userEntry, balanceUpdated);
     }
 
+    public LedgerEntry freezeForOrder(Long orderId,
+                                      Long userId,
+                                      AssetSymbol asset,
+                                      BigDecimal requiredMargin) {
+        if (orderId == null || userId == null) {
+            throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_EVENT, "orderId and userId are required");
+        }
+        if (requiredMargin == null || requiredMargin.signum() <= 0) {
+            throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_AMOUNT, "Required margin must be positive");
+        }
+        String referenceId = orderId.toString();
+        Optional<LedgerEntry> existing = ledgerEntryRepository.findByReference(ReferenceType.ORDER, referenceId, EntryType.FREEZE);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, asset);
+        LedgerBalance updatedBalance = retryUpdateForFreeze(userBalance, requiredMargin, userId, asset, orderId);
+        Instant now = Instant.now();
+        Long entryId = idGenerator.newLong();
+        LedgerEntry entry = LedgerEntry.userFundsFreeze(entryId,
+                updatedBalance.getAccountId(),
+                userId,
+                asset,
+                requiredMargin,
+                updatedBalance.getAvailable(),
+                orderId,
+                now,
+                now);
+        ledgerEntryRepository.insert(entry);
+        return entry;
+    }
+
+    private LedgerBalance retryUpdateForFreeze(LedgerBalance balance,
+                                               BigDecimal amount,
+                                               Long userId,
+                                               AssetSymbol asset,
+                                               Long orderId) {
+        int retries = 0;
+        while (retries < 3) {
+            int currentVersion = balance.safeVersion();
+            BigDecimal available = safeDecimal(balance.getAvailable());
+            if (available.compareTo(amount) < 0) {
+                throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
+                        "Insufficient available balance for user=" + userId + " asset=" + asset.code());
+            }
+            BigDecimal reserved = safeDecimal(balance.getReserved());
+            balance.setAvailable(available.subtract(amount));
+            balance.setReserved(reserved.add(amount));
+            balance.setVersion(currentVersion + 1);
+            if (ledgerBalanceRepository.updateWithVersion(balance, currentVersion)) {
+                return balance;
+            }
+            retries++;
+            balance = reloadLedgerBalance(balance.getUserId(), balance.getAccountType(), balance.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to freeze funds for user=" + userId + " order=" + orderId);
+    }
+
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
                                                 BigDecimal amount,
                                                 Long userId,
@@ -177,6 +240,10 @@ public class LedgerTransactionDomainService {
     }
 
 
+
+    private BigDecimal safeDecimal(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
 
     private PlatformBalance retryUpdateForPlatformDeposit(PlatformBalance platformBalance,
                                                           BigDecimal amount,

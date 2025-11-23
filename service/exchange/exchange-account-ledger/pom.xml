@@ -34,7 +34,19 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-infra-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
             <artifactId>exchange-account-ledger-sdk-rest-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-account-ledger-sdk-mq</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-risk-margin-sdk-mq</artifactId>
         </dependency>
     </dependencies>
 </project>

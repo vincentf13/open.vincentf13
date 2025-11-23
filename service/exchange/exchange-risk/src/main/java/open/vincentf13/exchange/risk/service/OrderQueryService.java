@@ -9,6 +9,7 @@ import open.vincentf13.exchange.risk.domain.model.RiskSnapshot;
 import open.vincentf13.exchange.risk.infra.persistence.repository.RiskLimitRepository;
 import open.vincentf13.exchange.risk.infra.persistence.repository.RiskSnapshotRepository;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckFailedEvent;
+import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.topic.RiskTopics;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.Optional;
 
 @Service
@@ -35,31 +37,28 @@ public class OrderQueryService {
             log.warn("Skip OrderSubmitted due to invalid payload: {}", event);
             return;
         }
-        FailureReason failureReason = evaluate(event);
+        PreCheckEvaluation evaluation = evaluate(event);
 
-        if (failureReason != null) {
-            publishFailure(event, failureReason);
+        if (evaluation.failureReason() != null) {
+            publishFailure(event, evaluation.failureReason());
             return;
         }
 
-        // 成功事件
-
-        log.info("Risk pre-check passed. orderId={} userId={} instrumentId={} quantity={} price={}",
-                 event.orderId(), event.userId(), event.instrumentId(), event.quantity(), event.price());
+        publishSuccess(event, evaluation.requiredMargin());
     }
 
-    private FailureReason evaluate(OrderSubmittedEvent event) {
+    private PreCheckEvaluation evaluate(OrderSubmittedEvent event) {
 
        // 取得風控基準
         RiskLimit riskLimit = riskLimitRepository.findEffective(event.instrumentId())
                 .orElse(null);
         if (riskLimit == null) {
-            return FailureReason.RISK_LIMIT_NOT_FOUND;
+            return PreCheckEvaluation.failure(FailureReason.RISK_LIMIT_NOT_FOUND);
         }
         RiskSnapshot snapshot = riskSnapshotRepository.findByUserAndInstrument(event.userId(), event.instrumentId())
                 .orElse(null);
         if (snapshot == null) {
-            return FailureReason.SNAPSHOT_NOT_FOUND;
+            return PreCheckEvaluation.failure(FailureReason.SNAPSHOT_NOT_FOUND);
         }
         // 如快照時間落後 `OrderSubmitted` 事件時間，則即時呼叫 `position` 取得最新倉位
 
@@ -71,11 +70,11 @@ public class OrderQueryService {
         // 計算委託名義價值
         BigDecimal orderPrice = resolvePrice(event);
         if (orderPrice == null || orderPrice.signum() <= 0) {
-            return FailureReason.MARK_PRICE_UNAVAILABLE;
+            return PreCheckEvaluation.failure(FailureReason.MARK_PRICE_UNAVAILABLE);
         }
         BigDecimal quantity = Optional.ofNullable(event.quantity()).orElse(BigDecimal.ZERO);
         if (quantity.signum() <= 0) {
-            return FailureReason.INVALID_QUANTITY;
+            return PreCheckEvaluation.failure(FailureReason.INVALID_QUANTITY);
         }
         BigDecimal orderNotional = orderPrice.multiply(quantity, DIVISION_CONTEXT);
         // 試算預扣保證金
@@ -92,24 +91,23 @@ public class OrderQueryService {
         BigDecimal usedMargin = Optional.ofNullable(snapshot.getUsedMargin()).orElse(BigDecimal.ZERO);
         BigDecimal availableMargin = equity.subtract(usedMargin, DIVISION_CONTEXT);
         if (availableMargin.compareTo(requiredMargin) < 0) {
-            return FailureReason.INSUFFICIENT_MARGIN;
+            return PreCheckEvaluation.failure(FailureReason.INSUFFICIENT_MARGIN);
         }
 
         // 計算下單後指標
         BigDecimal existingNotional = Optional.ofNullable(snapshot.getNotionalValue()).orElse(BigDecimal.ZERO);
         BigDecimal simulatedNotional = existingNotional.add(orderNotional, DIVISION_CONTEXT);
         if (simulatedNotional.signum() == 0) {
-            return null;
+            return PreCheckEvaluation.success(requiredMargin);
         }
         BigDecimal simulatedMarginRatio = equity.divide(simulatedNotional, DIVISION_CONTEXT);
         BigDecimal maintenance = Optional.ofNullable(riskLimit.getMaintenanceMarginRate()).orElse(BigDecimal.ZERO);
         BigDecimal buffer = Optional.ofNullable(preCheckProperties.getMaintenanceBuffer()).orElse(BigDecimal.ZERO);
         BigDecimal threshold = maintenance.add(buffer, DIVISION_CONTEXT);
         if (simulatedMarginRatio.compareTo(threshold) < 0) {
-            return FailureReason.MARGIN_RATIO_TOO_LOW;
+            return PreCheckEvaluation.failure(FailureReason.MARGIN_RATIO_TOO_LOW);
         }
-
-        return null;
+        return PreCheckEvaluation.success(requiredMargin);
     }
 
     private BigDecimal resolvePrice(OrderSubmittedEvent event) {
@@ -139,6 +137,32 @@ public class OrderQueryService {
         String key = event.orderId() == null ? null : event.orderId().toString();
         kafkaTemplate.send(RiskTopics.MARGIN_PRECHECK_FAILED, key, payload);
         log.warn("Risk pre-check failed. orderId={} reason={}", event.orderId(), reason.name());
+    }
+
+    private void publishSuccess(OrderSubmittedEvent event, BigDecimal requiredMargin) {
+        MarginPreCheckPassedEvent payload = new MarginPreCheckPassedEvent(
+                event.orderId(),
+                event.userId(),
+                event.instrumentId(),
+                preCheckProperties.getMarginAsset(),
+                requiredMargin,
+                Instant.now()
+        );
+        String key = event.orderId() == null ? null : event.orderId().toString();
+        kafkaTemplate.send(RiskTopics.MARGIN_PRECHECK_PASSED, key, payload);
+        log.info("Risk pre-check passed. orderId={} userId={} instrumentId={} quantity={} price={} requiredMargin={} asset={}",
+                event.orderId(), event.userId(), event.instrumentId(), event.quantity(), event.price(), requiredMargin,
+                preCheckProperties.getMarginAsset());
+    }
+
+    private record PreCheckEvaluation(FailureReason failureReason, BigDecimal requiredMargin) {
+        private static PreCheckEvaluation failure(FailureReason reason) {
+            return new PreCheckEvaluation(reason, null);
+        }
+
+        private static PreCheckEvaluation success(BigDecimal requiredMargin) {
+            return new PreCheckEvaluation(null, requiredMargin);
+        }
     }
 
     private enum FailureReason {

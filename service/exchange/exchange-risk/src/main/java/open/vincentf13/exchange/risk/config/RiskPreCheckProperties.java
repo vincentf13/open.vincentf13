@@ -15,4 +15,9 @@ public class RiskPreCheckProperties {
      * Additional buffer added to maintenance margin rate when simulating post-order margin ratio.
      */
     private BigDecimal maintenanceBuffer = new BigDecimal("0.001");
+
+    /**
+     * Asset code used when freezing margin (e.g. USDT).
+     */
+    private String marginAsset = "USDT";
 }

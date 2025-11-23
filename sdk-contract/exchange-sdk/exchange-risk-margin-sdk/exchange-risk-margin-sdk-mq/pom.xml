@@ -14,4 +14,11 @@
     <artifactId>exchange-risk-margin-sdk-mq</artifactId>
     <name>exchange-risk-margin-sdk-mq</name>
     <description>Risk margin MQ contracts</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+    </dependencies>
 </project>

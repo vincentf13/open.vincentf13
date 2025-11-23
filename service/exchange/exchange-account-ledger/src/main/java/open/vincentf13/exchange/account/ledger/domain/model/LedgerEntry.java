@@ -135,6 +135,33 @@ public class LedgerEntry {
                 .build();
     }
 
+    public static LedgerEntry userFundsFreeze(Long entryId,
+                                              Long accountId,
+                                              Long userId,
+                                              AssetSymbol asset,
+                                              BigDecimal amount,
+                                              BigDecimal balanceAfter,
+                                              Long orderId,
+                                              Instant eventTime,
+                                              Instant createdAt) {
+        return LedgerEntry.builder()
+                .entryId(entryId)
+                .ownerType(OwnerType.USER)
+                .accountId(accountId)
+                .userId(userId)
+                .asset(asset)
+                .amount(amount)
+                .direction(Direction.DEBIT)
+                .balanceAfter(balanceAfter)
+                .referenceType(EntryType.FREEZE.referenceType())
+                .referenceId(orderId == null ? null : orderId.toString())
+                .entryType(EntryType.FREEZE)
+                .description("Funds frozen for order")
+                .eventTime(eventTime)
+                .createdAt(createdAt)
+                .build();
+    }
+
     private static LedgerEntry deposit(Long entryId,
                                        OwnerType ownerType,
                                        Long accountId,

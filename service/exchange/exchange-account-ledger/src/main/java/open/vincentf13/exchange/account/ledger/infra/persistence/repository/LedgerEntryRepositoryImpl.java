@@ -4,8 +4,13 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerEntryMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -32,5 +37,18 @@ public class LedgerEntryRepositoryImpl implements LedgerEntryRepository {
             po.setReferenceType(entry.getReferenceType().code());
         }
         mapper.insert(po);
+    }
+
+    @Override
+    public Optional<LedgerEntry> findByReference(ReferenceType referenceType, String referenceId, EntryType entryType) {
+        LedgerEntryPO condition = new LedgerEntryPO();
+        condition.setReferenceType(referenceType == null ? null : referenceType.code());
+        condition.setReferenceId(referenceId);
+        condition.setEntryType(entryType == null ? null : entryType.code());
+        List<LedgerEntryPO> results = mapper.findBy(condition);
+        if (results.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(OpenMapstruct.map(results.get(0), LedgerEntry.class));
     }
 }
