@@ -75,7 +75,8 @@ public class LedgerBalanceCommandService {
                     event.orderId(),
                     event.userId(),
                     normalizedAsset,
-                    event.requiredMargin());
+                    event.requiredMargin(),
+                    event.checkedAt());
             ledgerEventPublisher.publishFundsFrozen(event.orderId(), event.userId(), normalizedAsset, entry.getAmount());
         } catch (FundsFreezeException ex) {
             ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), ex.getReason().name());

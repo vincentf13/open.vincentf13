@@ -3,7 +3,8 @@ package open.vincentf13.exchange.account.ledger.sdk.rest.api.enums;
 public enum EntryType {
     DEPOSIT(ReferenceType.DEPOSIT),
     WITHDRAWAL(ReferenceType.WITHDRAWAL),
-    FREEZE(ReferenceType.ORDER);
+    FREEZE(ReferenceType.ORDER),
+    RESERVED(ReferenceType.ORDER);
 
     private final ReferenceType referenceType;
 

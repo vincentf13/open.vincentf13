@@ -142,6 +142,7 @@ public class LedgerEntry {
                                               BigDecimal amount,
                                               BigDecimal balanceAfter,
                                               Long orderId,
+                                              Long counterpartyEntryId,
                                               Instant eventTime,
                                               Instant createdAt) {
         return LedgerEntry.builder()
@@ -152,11 +153,41 @@ public class LedgerEntry {
                 .asset(asset)
                 .amount(amount)
                 .direction(Direction.DEBIT)
+                .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
                 .referenceType(EntryType.FREEZE.referenceType())
                 .referenceId(orderId == null ? null : orderId.toString())
                 .entryType(EntryType.FREEZE)
                 .description("Funds frozen for order")
+                .eventTime(eventTime)
+                .createdAt(createdAt)
+                .build();
+    }
+
+    public static LedgerEntry userFundsReserved(Long entryId,
+                                                Long accountId,
+                                                Long userId,
+                                                AssetSymbol asset,
+                                                BigDecimal amount,
+                                                BigDecimal balanceAfter,
+                                                Long orderId,
+                                                Long counterpartyEntryId,
+                                                Instant eventTime,
+                                                Instant createdAt) {
+        return LedgerEntry.builder()
+                .entryId(entryId)
+                .ownerType(OwnerType.USER)
+                .accountId(accountId)
+                .userId(userId)
+                .asset(asset)
+                .amount(amount)
+                .direction(Direction.CREDIT)
+                .counterpartyEntryId(counterpartyEntryId)
+                .balanceAfter(balanceAfter)
+                .referenceType(EntryType.RESERVED.referenceType())
+                .referenceId(orderId == null ? null : orderId.toString())
+                .entryType(EntryType.RESERVED)
+                .description("Reserved balance increased for order")
                 .eventTime(eventTime)
                 .createdAt(createdAt)
                 .build();

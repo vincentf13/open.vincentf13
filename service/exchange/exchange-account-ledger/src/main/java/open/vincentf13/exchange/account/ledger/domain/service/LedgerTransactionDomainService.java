@@ -132,13 +132,15 @@ public class LedgerTransactionDomainService {
     public LedgerEntry freezeForOrder(Long orderId,
                                       Long userId,
                                       AssetSymbol asset,
-                                      BigDecimal requiredMargin) {
+                                      BigDecimal requiredMargin,
+                                      Instant eventTime) {
         if (orderId == null || userId == null) {
             throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_EVENT, "orderId and userId are required");
         }
-        if (requiredMargin == null || requiredMargin.signum() <= 0) {
-            throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_AMOUNT, "Required margin must be positive");
+        if (requiredMargin == null || requiredMargin.signum() < 0) {
+            throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_AMOUNT, "Required margin must not be negative");
         }
+        Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
         String referenceId = orderId.toString();
         Optional<LedgerEntry> existing = ledgerEntryRepository.findByReference(ReferenceType.ORDER, referenceId, EntryType.FREEZE);
@@ -148,18 +150,30 @@ public class LedgerTransactionDomainService {
         LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
         LedgerBalance updatedBalance = retryUpdateForFreeze(userBalance, requiredMargin, userId, normalizedAsset, orderId);
         Instant now = Instant.now();
-        Long entryId = idGenerator.newLong();
-        LedgerEntry entry = LedgerEntry.userFundsFreeze(entryId,
+        Long freezeEntryId = idGenerator.newLong();
+        Long reservedEntryId = idGenerator.newLong();
+        LedgerEntry freezeEntry = LedgerEntry.userFundsFreeze(freezeEntryId,
                 updatedBalance.getAccountId(),
                 userId,
                 normalizedAsset,
                 requiredMargin,
                 updatedBalance.getAvailable(),
                 orderId,
-                now,
+                reservedEntryId,
+                entryEventTime,
                 now);
-        ledgerEntryRepository.insert(entry);
-        return entry;
+        LedgerEntry reservedEntry = LedgerEntry.userFundsReserved(reservedEntryId,
+                updatedBalance.getAccountId(),
+                userId,
+                normalizedAsset,
+                requiredMargin,
+                updatedBalance.getReserved(),
+                orderId,
+                entryEventTime,
+                now);
+        ledgerEntryRepository.insert(freezeEntry);
+        ledgerEntryRepository.insert(reservedEntry);
+        return freezeEntry;
     }
 
     private LedgerBalance retryUpdateForFreeze(LedgerBalance balance,
