@@ -1,6 +1,5 @@
-package open.vincentf13.sdk.spring.cloud.gateway.filter;
+package open.vincentf13.sdk.spring.cloud.gateway.log;
 
-import open.vincentf13.sdk.spring.cloud.gateway.service.LogService;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;

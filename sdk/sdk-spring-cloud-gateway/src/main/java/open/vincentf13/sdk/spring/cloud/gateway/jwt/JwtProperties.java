@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.cloud.gateway.config;
+package open.vincentf13.sdk.spring.cloud.gateway.jwt;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
