@@ -70,8 +70,7 @@ public class OrderCommandService {
 
     private PositionIntentType determineIntent(Long userId, OrderCreateRequest request) {
         PositionIntentResponse response = OpenApiClientInvoker.call(
-                () -> exchangePositionClient.determineIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity())),
-                errorMsg -> OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT, "Unable to determine position intent. " + errorMsg.describe())
+                () -> exchangePositionClient.determineIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity()))
         );
         PositionIntentType intentType = response.intentType();
         if (intentType == null) {
