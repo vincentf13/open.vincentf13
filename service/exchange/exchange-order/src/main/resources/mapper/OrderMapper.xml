@@ -165,4 +165,19 @@
           AND user_id = #{userId}
           <if test="currentStatus != null">AND status = #{currentStatus}</if>
     </update>
+
+    <update id="updateStatusWithCost">
+        UPDATE orders
+        <set>
+            status = #{targetStatus},
+            updated_at = #{updatedAt},
+            version = version + 1
+            <if test="submittedAt != null">, submitted_at = #{submittedAt}</if>
+            <if test="filledAt != null">, filled_at = #{filledAt}</if>
+            <if test="closeCostPrice != null">, close_cost_price = #{closeCostPrice}</if>
+        </set>
+        WHERE order_id = #{orderId}
+          AND user_id = #{userId}
+          <if test="currentStatus != null">AND status = #{currentStatus}</if>
+    </update>
 </mapper>

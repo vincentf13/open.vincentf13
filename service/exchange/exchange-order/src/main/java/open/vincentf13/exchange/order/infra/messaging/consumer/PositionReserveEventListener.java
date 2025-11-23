@@ -59,14 +59,15 @@ public class PositionReserveEventListener {
 
     private void handleReservationSuccess(PositionReservedEvent event) {
         Instant now = Instant.now();
-        boolean updated = orderRepository.updateStatusByCurrentStatus(
+        boolean updated = orderRepository.updateStatusAndCost(
                 event.orderId(),
                 event.userId(),
                 OrderStatus.PENDING,
                 OrderStatus.SUBMITTED,
                 now,
                 now,
-                null
+                null,
+                event.avgOpenPrice()
         );
         if (!updated) {
             OpenLog.warn(log, "OrderStatusConflict", "Failed to update order status on position reserve", null,
