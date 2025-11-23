@@ -1,13 +1,14 @@
-package open.vincentf13.sdk.spring.cloud.openfeign.auth;
+package open.vincentf13.sdk.spring.cloud.openfeign.interceptor.jwt;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Optional;
 import open.vincentf13.sdk.core.OpenConstant;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.Optional;
 
 /**
  * Propagates the current HTTP request's bearer token to downstream Feign calls.

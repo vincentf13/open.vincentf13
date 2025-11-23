@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.position.sdk.mq.event;
 
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
+import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 
 import java.time.Instant;
 

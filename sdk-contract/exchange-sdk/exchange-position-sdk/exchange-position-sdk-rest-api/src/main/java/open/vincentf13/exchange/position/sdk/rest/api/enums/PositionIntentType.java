@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.position.sdk.rest.api.dto;
+package open.vincentf13.exchange.position.sdk.rest.api.enums;
 
 /**
  * 操作意圖類型

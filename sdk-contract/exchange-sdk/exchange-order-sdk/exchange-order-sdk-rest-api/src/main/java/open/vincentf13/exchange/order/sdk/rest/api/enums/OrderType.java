@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.sdk.rest.api.dto;
+package open.vincentf13.exchange.order.sdk.rest.api.enums;
 
 public enum OrderType {
     LIMIT,

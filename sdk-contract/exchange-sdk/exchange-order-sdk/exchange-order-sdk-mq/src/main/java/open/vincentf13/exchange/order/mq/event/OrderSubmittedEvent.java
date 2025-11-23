@@ -1,9 +1,9 @@
 package open.vincentf13.exchange.order.mq.event;
 
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderSide;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderTimeInForce;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderType;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderTimeInForce;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

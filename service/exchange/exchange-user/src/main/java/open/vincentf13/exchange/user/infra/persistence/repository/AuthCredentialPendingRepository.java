@@ -1,8 +1,8 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
+import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
-import open.vincentf13.exchange.user.sdk.rest.api.dto.AuthCredentialPendingStatus;
+import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 
 import java.time.Instant;
 import java.util.List;

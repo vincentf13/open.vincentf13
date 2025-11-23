@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.order.infra.persistence.mapper;
 
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.Instant;

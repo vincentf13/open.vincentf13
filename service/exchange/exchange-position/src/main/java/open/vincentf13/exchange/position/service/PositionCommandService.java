@@ -7,7 +7,7 @@ import open.vincentf13.exchange.position.domain.model.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;

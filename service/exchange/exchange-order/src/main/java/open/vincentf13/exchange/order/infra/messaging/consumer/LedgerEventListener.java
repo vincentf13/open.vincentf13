@@ -8,7 +8,7 @@ import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

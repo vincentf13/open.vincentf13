@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.order.infra.persistence.repository;
 
 import open.vincentf13.exchange.order.domain.model.Order;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderStatus;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 
 import java.time.Instant;
 import java.util.Optional;

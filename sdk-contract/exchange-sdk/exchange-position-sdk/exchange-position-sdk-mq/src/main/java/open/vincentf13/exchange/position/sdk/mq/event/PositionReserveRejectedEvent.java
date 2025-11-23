@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.position.sdk.mq.event;
 
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 
 import java.time.Instant;
 

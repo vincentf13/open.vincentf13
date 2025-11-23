@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.auth.sdk.rest.api.dto;
+package open.vincentf13.exchange.auth.sdk.rest.api.enums;
 
 /**
  * 認證憑證類型枚舉，與 API 契約對應。

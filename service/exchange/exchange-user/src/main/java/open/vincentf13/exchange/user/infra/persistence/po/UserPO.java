@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.user.sdk.rest.api.dto.UserStatus;
+import open.vincentf13.exchange.user.sdk.rest.api.enums.UserStatus;
 
 import java.time.Instant;
 

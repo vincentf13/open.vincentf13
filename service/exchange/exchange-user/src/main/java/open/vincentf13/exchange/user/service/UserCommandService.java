@@ -9,12 +9,12 @@ import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateReques
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
+import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.auth.sdk.rest.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
-import open.vincentf13.exchange.user.sdk.rest.api.dto.AuthCredentialPendingStatus;
+import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.UserErrorCode;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;

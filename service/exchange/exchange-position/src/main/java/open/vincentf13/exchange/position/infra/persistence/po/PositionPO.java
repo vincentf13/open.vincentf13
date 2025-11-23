@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 
 import java.math.BigDecimal;
 import java.time.Instant;

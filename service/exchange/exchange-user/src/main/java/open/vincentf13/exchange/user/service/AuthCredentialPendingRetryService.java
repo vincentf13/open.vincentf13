@@ -5,10 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialType;
+import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.auth.sdk.rest.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
-import open.vincentf13.exchange.user.sdk.rest.api.dto.AuthCredentialPendingStatus;
+import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import org.springframework.stereotype.Service;
 

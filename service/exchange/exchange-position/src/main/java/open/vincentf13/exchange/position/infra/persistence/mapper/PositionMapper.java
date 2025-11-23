@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.position.infra.persistence.mapper;
 
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionSide;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;

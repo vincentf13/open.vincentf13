@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.market.sdk.rest.api.dto;
+package open.vincentf13.exchange.market.sdk.rest.api.enums;
 
 import lombok.Getter;
 
