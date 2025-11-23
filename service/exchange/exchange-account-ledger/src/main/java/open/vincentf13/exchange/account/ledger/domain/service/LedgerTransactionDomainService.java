@@ -21,7 +21,6 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
-import open.vincentf13.sdk.infra.mysql.OpenOptimisticLockRetrier;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +31,8 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class LedgerTransactionDomainService {
+
+    private static final int OPTIMISTIC_LOCK_MAX_RETRIES = 3;
 
     private final LedgerBalanceRepository ledgerBalanceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
@@ -165,63 +166,72 @@ public class LedgerTransactionDomainService {
                                                Long userId,
                                                AssetSymbol asset,
                                                Long orderId) {
-        return OpenOptimisticLockRetrier.execute(
-                balance,
-                current -> {
-                    BigDecimal available = safeDecimal(current.getAvailable());
-                    if (available.compareTo(amount) < 0) {
-                        throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
-                                "Insufficient available balance for user=" + userId + " asset=" + asset.code());
-                    }
-                    BigDecimal reserved = safeDecimal(current.getReserved());
-                    current.setAvailable(available.subtract(amount));
-                    current.setReserved(reserved.add(amount));
-                },
-                LedgerBalance::safeVersion,
-                LedgerBalance::setVersion,
-                (current, expectedVersion) -> ledgerBalanceRepository.updateWithVersion(current, expectedVersion),
-                current -> reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset),
-                () -> new OptimisticLockingFailureException(
-                        "Failed to freeze funds for user=" + userId + " order=" + orderId)
-        );
+        LedgerBalance current = balance;
+        int attempts = 0;
+        while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
+            int expectedVersion = current.safeVersion();
+            BigDecimal available = safeDecimal(current.getAvailable());
+            if (available.compareTo(amount) < 0) {
+                throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
+                        "Insufficient available balance for user=" + userId + " asset=" + asset.code());
+            }
+            BigDecimal reserved = safeDecimal(current.getReserved());
+            current.setAvailable(available.subtract(amount));
+            current.setReserved(reserved.add(amount));
+            current.setVersion(expectedVersion + 1);
+            boolean updated = ledgerBalanceRepository.updateWithVersion(current, expectedVersion);
+            if (updated) {
+                return current;
+            }
+            attempts++;
+            current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException(
+                "Failed to freeze funds for user=" + userId + " order=" + orderId);
     }
 
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
                                                 BigDecimal amount,
                                                 Long userId,
                                                 AssetSymbol asset) {
-        return OpenOptimisticLockRetrier.execute(
-                balance,
-                current -> {
-                    current.setBalance(current.getBalance().add(amount));
-                    current.setAvailable(current.getAvailable().add(amount));
-                    current.setTotalDeposited(current.getTotalDeposited().add(amount));
-                },
-                LedgerBalance::safeVersion,
-                LedgerBalance::setVersion,
-                (current, expectedVersion) -> ledgerBalanceRepository.updateWithVersion(current, expectedVersion),
-                current -> reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset),
-                () -> new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId)
-        );
+        LedgerBalance current = balance;
+        int attempts = 0;
+        while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
+            int expectedVersion = current.safeVersion();
+            current.setBalance(current.getBalance().add(amount));
+            current.setAvailable(current.getAvailable().add(amount));
+            current.setTotalDeposited(current.getTotalDeposited().add(amount));
+            current.setVersion(expectedVersion + 1);
+            boolean updated = ledgerBalanceRepository.updateWithVersion(current, expectedVersion);
+            if (updated) {
+                return current;
+            }
+            attempts++;
+            current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
     }
 
     private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance,
                                                    BigDecimal amount,
                                                    Long userId,
                                                    AssetSymbol asset) {
-        return OpenOptimisticLockRetrier.execute(
-                balance,
-                current -> {
-                    current.setAvailable(current.getAvailable().subtract(amount));
-                    current.setBalance(current.getBalance().subtract(amount));
-                    current.setTotalWithdrawn(current.getTotalWithdrawn().add(amount));
-                },
-                LedgerBalance::safeVersion,
-                LedgerBalance::setVersion,
-                (current, expectedVersion) -> ledgerBalanceRepository.updateWithVersion(current, expectedVersion),
-                current -> reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset),
-                () -> new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId)
-        );
+        LedgerBalance current = balance;
+        int attempts = 0;
+        while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
+            int expectedVersion = current.safeVersion();
+            current.setAvailable(current.getAvailable().subtract(amount));
+            current.setBalance(current.getBalance().subtract(amount));
+            current.setTotalWithdrawn(current.getTotalWithdrawn().add(amount));
+            current.setVersion(expectedVersion + 1);
+            boolean updated = ledgerBalanceRepository.updateWithVersion(current, expectedVersion);
+            if (updated) {
+                return current;
+            }
+            attempts++;
+            current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
     }
 
     private LedgerBalance reloadLedgerBalance(Long userId,
@@ -245,35 +255,41 @@ public class LedgerTransactionDomainService {
     private PlatformBalance retryUpdateForPlatformDeposit(PlatformBalance platformBalance,
                                                           BigDecimal amount,
                                                           AssetSymbol asset) {
-        return OpenOptimisticLockRetrier.execute(
-                platformBalance,
-                current -> {
-                    BigDecimal currentBalance = current.getBalance() == null ? BigDecimal.ZERO : current.getBalance();
-                    current.setBalance(currentBalance.add(amount));
-                },
-                PlatformBalance::safeVersion,
-                PlatformBalance::setVersion,
-                (current, expectedVersion) -> platformBalanceRepository.updateWithVersion(current, expectedVersion),
-                current -> reloadPlatformBalance(current.getAccountId(), current.getAccountCode(), asset),
-                () -> new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId())
-        );
+        PlatformBalance current = platformBalance;
+        int attempts = 0;
+        while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
+            int expectedVersion = current.safeVersion();
+            BigDecimal currentBalance = safeDecimal(current.getBalance());
+            current.setBalance(currentBalance.add(amount));
+            current.setVersion(expectedVersion + 1);
+            boolean updated = platformBalanceRepository.updateWithVersion(current, expectedVersion);
+            if (updated) {
+                return current;
+            }
+            attempts++;
+            current = reloadPlatformBalance(current.getAccountId(), current.getAccountCode(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId());
     }
 
     private PlatformBalance retryUpdateForPlatformWithdrawal(PlatformBalance platformBalance,
                                                             BigDecimal amount,
                                                             AssetSymbol asset) {
-        return OpenOptimisticLockRetrier.execute(
-                platformBalance,
-                current -> {
-                    BigDecimal currentBalance = current.getBalance() == null ? BigDecimal.ZERO : current.getBalance();
-                    current.setBalance(currentBalance.subtract(amount));
-                },
-                PlatformBalance::safeVersion,
-                PlatformBalance::setVersion,
-                (current, expectedVersion) -> platformBalanceRepository.updateWithVersion(current, expectedVersion),
-                current -> reloadPlatformBalance(current.getAccountId(), current.getAccountCode(), asset),
-                () -> new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId())
-        );
+        PlatformBalance current = platformBalance;
+        int attempts = 0;
+        while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
+            int expectedVersion = current.safeVersion();
+            BigDecimal currentBalance = safeDecimal(current.getBalance());
+            current.setBalance(currentBalance.subtract(amount));
+            current.setVersion(expectedVersion + 1);
+            boolean updated = platformBalanceRepository.updateWithVersion(current, expectedVersion);
+            if (updated) {
+                return current;
+            }
+            attempts++;
+            current = reloadPlatformBalance(current.getAccountId(), current.getAccountCode(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId());
     }
 
     private PlatformBalance reloadPlatformBalance(Long accountId, PlatformAccountCode accountCode, AssetSymbol asset) {
