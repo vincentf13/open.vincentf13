@@ -2,9 +2,8 @@ package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.auth.sdk.rest.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
@@ -55,15 +54,17 @@ public class AuthCredentialPendingRetryService {
                 "ACTIVE"
         );
 
-        OpenApiResponse<AuthCredentialResponse> response = authClient.create(request);
-        if (response != null && response.isSuccess()) {
+        try {
+            OpenApiClientInvoker.call(
+                    () -> authClient.create(request),
+                    msg -> new IllegalStateException(
+                            "Failed to create credential for user %s during retry: %s".formatted(pending.getUserId(), msg))
+            );
             authCredentialPendingRepository.markCompleted(pending.getUserId(), pending.getCredentialType(), Instant.now());
             log.info("Successfully synchronized auth credential for user {}", pending.getUserId());
-            return;
+        } catch (Exception ex) {
+            scheduleNextRetry(pending, ex.getMessage());
         }
-
-        String message = response == null ? "No response" : response.message();
-        scheduleNextRetry(pending, message);
     }
 
     private void scheduleNextRetry(AuthCredentialPending pending, String reason) {

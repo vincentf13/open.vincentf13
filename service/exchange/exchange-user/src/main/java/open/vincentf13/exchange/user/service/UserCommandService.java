@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
-import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
@@ -40,15 +40,12 @@ public class UserCommandService {
         OpenValidator.validateOrThrow(request);
         final String normalizedEmail = User.normalizeEmail(request.email());
 
-        OpenApiResponse<AuthCredentialPrepareResponse> prepareResponse = authClient.prepare(
-                new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())
+        AuthCredentialPrepareResponse preparedData = OpenApiClientInvoker.call(
+                () -> authClient.prepare(new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())),
+                msg -> OpenServiceException.of(UserErrorCode.USER_AUTH_PREPARATION_FAILED,
+                        "Failed to prepare credential secret for email %s: %s".formatted(normalizedEmail, msg))
         );
-
-        AuthCredentialPrepareResponse preparedData = prepareResponse.data();
-        if (!prepareResponse.isSuccess()
-                || preparedData == null
-                || preparedData.secretHash() == null
-                || preparedData.salt() == null) {
+        if (preparedData.secretHash() == null || preparedData.salt() == null) {
             throw OpenServiceException.of(UserErrorCode.USER_AUTH_PREPARATION_FAILED,
                     "Failed to prepare credential secret for email " + normalizedEmail);
         }
@@ -90,12 +87,12 @@ public class UserCommandService {
         );
 
         try {
-            OpenApiResponse<AuthCredentialResponse> credentialResponse = authClient.create(credentialRequest);
-            if (credentialResponse.isSuccess()) {
-                authCredentialPendingRepository.markCompleted(persistedUser.getId(), AuthCredentialType.PASSWORD, Instant.now());
-            } else {
-                handleCredentialFailure(persistedUser.getId(), credentialResponse.message());
-            }
+            OpenApiClientInvoker.call(
+                    () -> authClient.create(credentialRequest),
+                    msg -> new IllegalStateException(
+                            "Failed to create auth credential for user %s: %s".formatted(persistedUser.getId(), msg))
+            );
+            authCredentialPendingRepository.markCompleted(persistedUser.getId(), AuthCredentialType.PASSWORD, Instant.now());
         } catch (Exception ex) {
             handleCredentialFailure(persistedUser.getId(), ex.getMessage());
         }

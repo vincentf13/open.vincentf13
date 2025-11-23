@@ -7,8 +7,8 @@ import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.sdk.rest.api.enums.UserStatus;
 import open.vincentf13.exchange.user.sdk.rest.client.ExchangeUserClient;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUser;
-import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -36,7 +36,10 @@ public class AuthUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("Email must not be blank");
         }
 
-        UserResponse user = getUserResponse(email);
+        UserResponse user = OpenApiClientInvoker.call(
+                () -> exchangeUserClient.findByEmail(email),
+                msg -> new UsernameNotFoundException("Failed to query user service: " + msg));
+
         Long userId = user.id();
         if (userId == null) {
             throw new UsernameNotFoundException("User id missing for email " + email);
@@ -71,21 +74,5 @@ public class AuthUserDetailsService implements UserDetailsService {
                                     true,
                                     true,
                                     authorities);
-    }
-
-    private UserResponse getUserResponse(String email) {
-        OpenApiResponse<UserResponse> response;
-        try {
-            response = exchangeUserClient.findByEmail(email);
-        } catch (Exception ex) {
-            throw new UsernameNotFoundException("Failed to query user service", ex);
-        }
-
-        if (response == null || !response.isSuccess() || response.data() == null) {
-            throw new UsernameNotFoundException("User not found in user service: " + email);
-        }
-
-        UserResponse user = response.data();
-        return user;
     }
 }

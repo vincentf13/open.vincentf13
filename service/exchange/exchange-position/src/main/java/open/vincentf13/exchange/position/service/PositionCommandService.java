@@ -71,7 +71,11 @@ public class PositionCommandService {
 
         LeveragePrecheckRequest precheckRequest = buildPrecheckRequest(position, targetLeverage);
         LeveragePrecheckResponse precheckResponse = OpenApiClientInvoker.call(
-                () -> riskMarginClient.precheckLeverage(precheckRequest));
+                () -> riskMarginClient.precheckLeverage(precheckRequest),
+                msg -> OpenServiceException.of(PositionErrorCode.LEVERAGE_PRECHECK_FAILED,
+                        "Failed to invoke leverage pre-check for position %s: %s"
+                                .formatted(position.getPositionId(), msg))
+        );
         if (!precheckResponse.allow()) {
             throw OpenServiceException.of(PositionErrorCode.LEVERAGE_PRECHECK_FAILED,
                     "Leverage pre-check rejected", buildPrecheckMeta(position.getPositionId(), instrumentId, targetLeverage, precheckResponse));
