@@ -29,7 +29,7 @@ public class PositionReserveRequestListener {
     private final TransactionTemplate transactionTemplate;
 
     @KafkaListener(
-            topics = OrderTopics.POSITION_RESERVE_REQUESTED.getTopic(),
+            topics = OrderTopics.Names.POSITION_RESERVE_REQUESTED,
             groupId = "${exchange.position.reserve.consumer-group:exchange-position-reserve}"
     )
     public void handleReserveRequest(@Payload PositionReserveRequestedEvent event, Acknowledgment acknowledgment) {

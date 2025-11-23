@@ -8,9 +8,17 @@ import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEve
 @Getter
 @RequiredArgsConstructor
 public enum RiskTopics {
-    MARGIN_PRECHECK_PASSED("risk.margin-check-passed", MarginPreCheckPassedEvent.class),
-    MARGIN_PRECHECK_FAILED("risk.margin-check-failed", MarginPreCheckFailedEvent.class);
+    MARGIN_PRECHECK_PASSED(Names.MARGIN_PRECHECK_PASSED, MarginPreCheckPassedEvent.class),
+    MARGIN_PRECHECK_FAILED(Names.MARGIN_PRECHECK_FAILED, MarginPreCheckFailedEvent.class);
 
     private final String topic;
     private final Class<?> eventType;
+
+    public static final class Names {
+        public static final String MARGIN_PRECHECK_PASSED = "risk.margin-check-passed";
+        public static final String MARGIN_PRECHECK_FAILED = "risk.margin-check-failed";
+
+        private Names() {
+        }
+    }
 }

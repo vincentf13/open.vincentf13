@@ -8,9 +8,17 @@ import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 @Getter
 @RequiredArgsConstructor
 public enum MatchingTopics {
-    TRADE_EXECUTED("matching.trade-executed", TradeExecutedEvent.class),
-    ORDERBOOK_UPDATED("matching.orderbook-updated", OrderBookUpdatedEvent.class);
+    TRADE_EXECUTED(Names.TRADE_EXECUTED, TradeExecutedEvent.class),
+    ORDERBOOK_UPDATED(Names.ORDERBOOK_UPDATED, OrderBookUpdatedEvent.class);
 
     private final String topic;
     private final Class<?> eventType;
+
+    public static final class Names {
+        public static final String TRADE_EXECUTED = "matching.trade-executed";
+        public static final String ORDERBOOK_UPDATED = "matching.orderbook-updated";
+
+        private Names() {
+        }
+    }
 }

@@ -9,17 +9,25 @@ public final class OpenConstant {
     private OpenConstant() {
     }
 
-    public static final String BASE_PACKAGE = "open.vincentf13";
-    public static final String TEST_BASE_PACKAGE = "test." + BASE_PACKAGE;
+    public static final String BASE_PACKAGE = Package.Names.BASE_PACKAGE;
+    public static final String TEST_BASE_PACKAGE = Package.Names.TEST_BASE_PACKAGE;
 
     @Getter
     @Accessors(fluent = true)
     @RequiredArgsConstructor
     public enum Package {
-        BASE(BASE_PACKAGE),
-        TEST(TEST_BASE_PACKAGE);
+        BASE(Names.BASE_PACKAGE),
+        TEST(Names.TEST_BASE_PACKAGE);
 
         private final String value;
+
+        public static final class Names {
+            public static final String BASE_PACKAGE = "open.vincentf13";
+            public static final String TEST_BASE_PACKAGE = "test." + BASE_PACKAGE;
+
+            private Names() {
+            }
+        }
     }
 
     @Getter

@@ -16,7 +16,7 @@ public class RiskEventListener {
     private final OrderFailureHandler orderFailureHandler;
 
     @KafkaListener(
-            topics = RiskTopics.MARGIN_PRECHECK_FAILED.getTopic(),
+            topics = RiskTopics.Names.MARGIN_PRECHECK_FAILED,
             groupId = "${open.vincentf13.exchange.order.risk.consumer-group:exchange-order-risk}"
     )
     public void onMarginPreCheckFailed(@Payload MarginPreCheckFailedEvent event, Acknowledgment acknowledgment) {

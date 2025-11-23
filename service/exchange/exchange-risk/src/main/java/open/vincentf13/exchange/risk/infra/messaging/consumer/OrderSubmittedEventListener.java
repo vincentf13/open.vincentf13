@@ -18,7 +18,7 @@ public class OrderSubmittedEventListener {
     private final OrderQueryService orderQueryService;
 
     @KafkaListener(
-            topics = OrderTopics.ORDER_SUBMITTED.getTopic(),
+            topics = OrderTopics.Names.ORDER_SUBMITTED,
             groupId = "${exchange.risk.precheck.consumer-group:exchange-risk-precheck}"
     )
     public void onOrderSubmitted(@Payload OrderSubmittedEvent event, Acknowledgment acknowledgment) {

@@ -24,7 +24,7 @@ public class OrderBookUpdatedEventListener {
     private final OrderBookCacheService orderBookCacheService;
 
     @KafkaListener(
-            topics = MatchingTopics.ORDERBOOK_UPDATED.getTopic(),
+            topics = MatchingTopics.Names.ORDERBOOK_UPDATED,
             groupId = "${open.vincentf13.exchange.marketdata.orderbook.consumer-group:exchange-market-data-orderbook}"
     )
     public void onOrderBookUpdated(@Payload OrderBookUpdatedEvent event, Acknowledgment acknowledgment) {

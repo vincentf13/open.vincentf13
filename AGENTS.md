@@ -67,3 +67,4 @@ public Account getOrCreate(long userId, String asset) {
 - Application 層若無特殊需求，一律直接使用 REST request DTO 作為輸入參數，不再額外定義 Command 類別；既有 Command 物件逐步移除。
 - Enum 新增時若需要存取欄位，優先使用 Lombok（例如 `@RequiredArgsConstructor` + `@Getter`）簡化建構子與 getter，維持一致風格。
 - Kafka Topic 定義統一改為 Enum（內含 topic 字串與事件類別），透過 `.getTopic()` append/outbox，避免裸字串重複；新 topic 需遵守此模式。
+- 若需在註解中引用 Topic 或 Base Package 這類值，Enum/常數定義時同步提供 `Names` 類或 `public static final` 常數，確保註解可引用編譯期常數並仍維持 Enum 封裝。

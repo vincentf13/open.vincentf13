@@ -18,7 +18,7 @@ public class TradeExecutedEventListener {
     private final TickerStatsCacheService tickerStatsCacheService;
 
     @KafkaListener(
-            topics = MatchingTopics.TRADE_EXECUTED.getTopic(),
+            topics = MatchingTopics.Names.TRADE_EXECUTED,
             groupId = "${open.vincentf13.exchange.marketdata.trade.consumer-group:exchange-market-data-trade}"
     )
     public void onTradeExecuted(@Payload TradeExecutedEvent event, Acknowledgment acknowledgment) {
