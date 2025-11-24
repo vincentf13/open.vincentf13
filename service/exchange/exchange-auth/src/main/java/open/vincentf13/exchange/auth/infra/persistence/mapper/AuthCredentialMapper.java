@@ -11,11 +11,11 @@ public interface AuthCredentialMapper {
 
     List<AuthCredentialPO> findBy(AuthCredentialPO credential);
 
-    int updateStatusByIdAndVersion(@Param("id") Long id,
-                                   @Param("status") String status,
-                                   @Param("expectedVersion") Integer expectedVersion);
+    int updateSelectiveBy(@Param("record") AuthCredentialPO record,
+                          @Param("id") Long id,
+                          @Param("userId") Long userId,
+                          @Param("expectedVersion") Integer expectedVersion,
+                          @Param("currentStatus") String currentStatus);
 
     void batchInsert(@Param("list") List<AuthCredentialPO> credentials);
-
-    void batchUpdate(@Param("list") List<AuthCredentialPO> credentials);
 }

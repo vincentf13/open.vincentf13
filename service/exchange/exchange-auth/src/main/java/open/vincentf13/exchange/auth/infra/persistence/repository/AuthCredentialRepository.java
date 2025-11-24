@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.auth.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -23,13 +24,22 @@ public class AuthCredentialRepository {
     private final AuthCredentialMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public Long insertSelective(@NotNull AuthCredential credential) {
+    public Long insertSelective(@NotNull @Valid AuthCredential credential) {
         if (credential.getId() == null) {
             credential.setId(idGenerator.newLong());
         }
         AuthCredentialPO po = OpenMapstruct.map(credential, AuthCredentialPO.class);
         mapper.insertSelective(po);
         return credential.getId();
+    }
+
+    public boolean updateSelectiveBy(@NotNull @Valid AuthCredential update,
+                                     @NotNull Long id,
+                                     Long userId,
+                                     Integer expectedVersion,
+                                     String currentStatus) {
+        AuthCredentialPO record = OpenMapstruct.map(update, AuthCredentialPO.class);
+        return mapper.updateSelectiveBy(record, id, userId, expectedVersion, currentStatus) > 0;
     }
 
     public Optional<AuthCredential> findOne(@NotNull AuthCredential probe) {
@@ -55,12 +65,6 @@ public class AuthCredentialRepository {
                 .filter(credential -> credential.getId() == null)
                 .forEach(credential -> credential.setId(idGenerator.newLong()));
         mapper.batchInsert(credentials.stream()
-                .map(credential -> OpenMapstruct.map(credential, AuthCredentialPO.class))
-                .collect(Collectors.toList()));
-    }
-
-    public void batchUpdate(@NotEmpty List<AuthCredential> credentials) {
-        mapper.batchUpdate(credentials.stream()
                 .map(credential -> OpenMapstruct.map(credential, AuthCredentialPO.class))
                 .collect(Collectors.toList()));
     }
