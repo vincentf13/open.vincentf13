@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
 

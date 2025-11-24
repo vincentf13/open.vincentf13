@@ -30,7 +30,7 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-position-sdk-rest-api</artifactId>
+            <artifactId>exchange-common-sdk</artifactId>
         </dependency>
     </dependencies>
 </project>

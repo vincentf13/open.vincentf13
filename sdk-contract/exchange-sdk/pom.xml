@@ -18,6 +18,7 @@
     <description>Exchange service API contracts and clients</description>
 
     <modules>
+        <module>exchange-common-sdk</module>
         <module>exchange-user-sdk</module>
         <module>exchange-auth-sdk</module>
         <module>exchange-order-sdk</module>

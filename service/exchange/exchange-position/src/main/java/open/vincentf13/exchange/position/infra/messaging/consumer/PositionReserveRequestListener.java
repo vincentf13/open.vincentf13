@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
-import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
+import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.position.service.PositionCommandService;

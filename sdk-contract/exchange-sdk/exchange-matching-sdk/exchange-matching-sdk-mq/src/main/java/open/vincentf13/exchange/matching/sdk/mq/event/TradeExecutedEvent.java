@@ -14,7 +14,7 @@ public record TradeExecutedEvent(
         @NotBlank String quoteAsset,
         @org.jetbrains.annotations.NotNull @DecimalMin(value = "0.00000001") BigDecimal price,
         @NotNull @DecimalMin(value = "0.00000001") BigDecimal quantity,
-        @NotNull BigDecimal fee,
+        @NotNull @DecimalMin(value = "0.00000000") BigDecimal fee,
         @NotNull Instant executedAt
 ) {
 }

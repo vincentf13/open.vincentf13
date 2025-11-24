@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.mq.event.OrderCancelRequestedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
-import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
+import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
 
 @Getter
 @RequiredArgsConstructor

@@ -6,23 +6,19 @@
 
     <parent>
         <groupId>open.vincentf13</groupId>
-        <artifactId>exchange-position-sdk</artifactId>
+        <artifactId>exchange-sdk</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>exchange-position-sdk-mq</artifactId>
-    <name>exchange-position-sdk-mq</name>
-    <description>Position service MQ contracts</description>
+    <artifactId>exchange-common-sdk</artifactId>
 
+    <name>exchange-common-sdk</name>
+    <description>Shared enums and types for exchange SDK modules</description>
     <dependencies>
         <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-position-sdk-rest-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-common-sdk</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
         </dependency>
     </dependencies>
 </project>

@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.position.sdk.mq.event;
+package open.vincentf13.exchange.order.mq.event;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;

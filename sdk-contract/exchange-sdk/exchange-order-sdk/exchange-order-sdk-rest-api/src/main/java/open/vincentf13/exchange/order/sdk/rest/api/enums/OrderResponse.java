@@ -3,6 +3,7 @@ package open.vincentf13.exchange.order.sdk.rest.api.dto;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

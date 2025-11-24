@@ -4,7 +4,8 @@ public enum EntryType {
     DEPOSIT(ReferenceType.DEPOSIT),
     WITHDRAWAL(ReferenceType.WITHDRAWAL),
     FREEZE(ReferenceType.ORDER),
-    RESERVED(ReferenceType.ORDER);
+    RESERVED(ReferenceType.ORDER),
+    TRADE(ReferenceType.TRADE);
 
     private final ReferenceType referenceType;
 

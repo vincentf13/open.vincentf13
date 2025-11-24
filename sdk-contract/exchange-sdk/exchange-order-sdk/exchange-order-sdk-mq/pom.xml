@@ -22,7 +22,7 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-position-sdk-mq</artifactId>
+            <artifactId>exchange-common-sdk</artifactId>
         </dependency>
     </dependencies>
 </project>

@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;

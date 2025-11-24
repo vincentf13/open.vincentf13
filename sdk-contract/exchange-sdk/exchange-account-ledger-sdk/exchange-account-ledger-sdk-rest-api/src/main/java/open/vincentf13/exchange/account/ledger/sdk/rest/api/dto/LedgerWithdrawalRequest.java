@@ -3,7 +3,7 @@ package open.vincentf13.exchange.account.ledger.sdk.rest.api.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;

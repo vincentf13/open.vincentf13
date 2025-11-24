@@ -14,11 +14,14 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositReq
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -85,5 +88,21 @@ public class LedgerBalanceCommandService {
             ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), FundsFreezeFailureReason.INVALID_EVENT.name());
             log.warn("Invalid MarginPreCheckPassedEvent. orderId={} message={}", event.orderId(), ex.getMessage());
         }
+    }
+
+    @Transactional
+    public void handleTradeExecuted(TradeExecutedEvent event) {
+        OpenValidator.validateOrThrow(event);
+        AssetSymbol asset = LedgerBalance.normalizeAsset(event.quoteAsset());
+        BigDecimal tradeValue = event.price().multiply(event.quantity());
+        BigDecimal totalCost = tradeValue.add(event.fee());
+        ledgerTransactionDomainService.settleTrade(
+                event.tradeId(),
+                event.orderId(),
+                event.instrumentId(),
+                asset,
+                totalCost,
+                event.executedAt()
+        );
     }
 }

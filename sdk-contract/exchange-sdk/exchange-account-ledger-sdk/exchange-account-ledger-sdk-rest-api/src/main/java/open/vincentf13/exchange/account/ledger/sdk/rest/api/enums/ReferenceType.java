@@ -8,7 +8,8 @@ import java.util.Locale;
 public enum ReferenceType {
     DEPOSIT,
     WITHDRAWAL,
-    ORDER;
+    ORDER,
+    TRADE;
 
     @JsonCreator
     public static ReferenceType fromValue(String value) {

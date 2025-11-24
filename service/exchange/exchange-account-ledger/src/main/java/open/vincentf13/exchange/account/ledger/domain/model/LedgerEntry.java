@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -188,6 +189,35 @@ public class LedgerEntry {
                 .referenceId(orderId == null ? null : orderId.toString())
                 .entryType(EntryType.RESERVED)
                 .description("Reserved balance increased for order")
+                .eventTime(eventTime)
+                .createdAt(createdAt)
+                .build();
+    }
+
+    public static LedgerEntry tradeSettlement(Long entryId,
+                                              Long accountId,
+                                              Long userId,
+                                              AssetSymbol asset,
+                                              BigDecimal amount,
+                                              BigDecimal balanceAfter,
+                                              Long tradeId,
+                                              Long orderId,
+                                              Long instrumentId,
+                                              Instant eventTime,
+                                              Instant createdAt) {
+        return LedgerEntry.builder()
+                .entryId(entryId)
+                .ownerType(OwnerType.USER)
+                .accountId(accountId)
+                .userId(userId)
+                .asset(asset)
+                .amount(amount)
+                .direction(Direction.DEBIT)
+                .balanceAfter(balanceAfter)
+                .referenceType(EntryType.TRADE.referenceType())
+                .referenceId(tradeId == null ? null : tradeId.toString())
+                .entryType(EntryType.TRADE)
+                .description("Trade executed for order " + orderId + " instrument " + instrumentId)
                 .eventTime(eventTime)
                 .createdAt(createdAt)
                 .build();

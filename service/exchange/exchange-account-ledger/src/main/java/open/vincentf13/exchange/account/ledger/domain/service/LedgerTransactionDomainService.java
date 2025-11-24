@@ -17,10 +17,10 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Plat
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -177,6 +177,62 @@ public class LedgerTransactionDomainService {
         return freezeEntry;
     }
 
+    public LedgerEntry settleTrade(Long tradeId,
+                                   Long orderId,
+                                   Long instrumentId,
+                                   AssetSymbol asset,
+                                   BigDecimal totalCost,
+                                   Instant eventTime) {
+        if (tradeId == null || orderId == null) {
+            throw new IllegalArgumentException("tradeId and orderId are required");
+        }
+        BigDecimal normalizedCost = totalCost == null ? BigDecimal.ZERO : totalCost;
+        if (normalizedCost.signum() < 0) {
+            throw new IllegalArgumentException("totalCost must not be negative");
+        }
+        Optional<LedgerEntry> existing = ledgerEntryRepository.findByReference(ReferenceType.TRADE,
+                                                                               tradeId.toString(),
+                                                                               EntryType.TRADE);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        LedgerEntry reservedEntry = ledgerEntryRepository.findByReference(ReferenceType.ORDER,
+                                                                          orderId.toString(),
+                                                                          EntryType.RESERVED)
+                .orElseThrow(() -> new IllegalStateException("Reserved entry not found for order=" + orderId));
+        AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
+        if (reservedEntry.getAsset() != null && normalizedAsset != null && reservedEntry.getAsset() != normalizedAsset) {
+            throw new IllegalStateException("Asset mismatch for order=" + orderId + ", reserved=" + reservedEntry.getAsset()
+                    + ", event=" + normalizedAsset);
+        }
+        LedgerBalance balance = ledgerBalanceRepository.findOne(LedgerBalance.builder()
+                                                                     .accountId(reservedEntry.getAccountId())
+                                                                     .asset(normalizedAsset)
+                                                                     .build())
+                .orElseThrow(() -> new IllegalStateException("Ledger balance not found for account=" + reservedEntry.getAccountId()));
+        LedgerBalance updated = retryUpdateForTrade(balance,
+                                                    normalizedCost,
+                                                    reservedEntry.getUserId(),
+                                                    normalizedAsset,
+                                                    tradeId);
+        Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
+        Instant createdAt = Instant.now();
+        Long tradeEntryId = idGenerator.newLong();
+        LedgerEntry tradeEntry = LedgerEntry.tradeSettlement(tradeEntryId,
+                                                             updated.getAccountId(),
+                                                             updated.getUserId(),
+                                                             normalizedAsset,
+                                                             normalizedCost,
+                                                             updated.getBalance(),
+                                                             tradeId,
+                                                             orderId,
+                                                             instrumentId,
+                                                             entryEventTime,
+                                                             createdAt);
+        ledgerEntryRepository.insert(tradeEntry);
+        return tradeEntry;
+    }
+
     private LedgerBalance retryUpdateForFreeze(LedgerBalance balance,
                                                BigDecimal amount,
                                                Long userId,
@@ -204,6 +260,33 @@ public class LedgerTransactionDomainService {
         }
         throw new OptimisticLockingFailureException(
                 "Failed to freeze funds for user=" + userId + " order=" + orderId);
+    }
+
+    private LedgerBalance retryUpdateForTrade(LedgerBalance balance,
+                                              BigDecimal amount,
+                                              Long userId,
+                                              AssetSymbol asset,
+                                              Long tradeId) {
+        LedgerBalance current = balance;
+        int attempts = 0;
+        while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
+            int expectedVersion = current.safeVersion();
+            BigDecimal reserved = safeDecimal(current.getReserved());
+            if (reserved.compareTo(amount) < 0) {
+                throw new IllegalStateException("Insufficient reserved balance for user=" + userId + ", trade=" + tradeId);
+            }
+            BigDecimal totalBalance = safeDecimal(current.getBalance());
+            current.setReserved(reserved.subtract(amount));
+            current.setBalance(totalBalance.subtract(amount));
+            current.setVersion(expectedVersion + 1);
+            boolean updated = ledgerBalanceRepository.updateWithVersion(current, expectedVersion);
+            if (updated) {
+                return current;
+            }
+            attempts++;
+            current = reloadLedgerBalance(current.getAccountId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to settle trade for user=" + userId + ", trade=" + tradeId);
     }
 
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
@@ -267,6 +350,15 @@ public class LedgerTransactionDomainService {
                                                        .build())
                 .orElseThrow(() -> new IllegalStateException(
                         "Ledger balance not found for user=" + userId + ", asset=" + asset.code()));
+    }
+
+    private LedgerBalance reloadLedgerBalance(Long accountId, AssetSymbol asset) {
+        return ledgerBalanceRepository.findOne(LedgerBalance.builder()
+                                                       .accountId(accountId)
+                                                       .asset(asset)
+                                                       .build())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Ledger balance not found for account=" + accountId + ", asset=" + asset.code()));
     }
 
     private BigDecimal safeDecimal(BigDecimal value) {

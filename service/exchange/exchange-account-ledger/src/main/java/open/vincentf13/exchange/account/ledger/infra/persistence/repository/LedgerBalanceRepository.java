@@ -2,7 +2,7 @@ package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AssetSymbol;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 
 import java.util.List;
 import java.util.Optional;
