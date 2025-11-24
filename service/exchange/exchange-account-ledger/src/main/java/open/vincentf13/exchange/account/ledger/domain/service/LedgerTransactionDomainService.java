@@ -251,7 +251,7 @@ public class LedgerTransactionDomainService {
             current.setAvailable(available.subtract(amount));
             current.setReserved(reserved.add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateWithVersion(current, expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -279,7 +279,7 @@ public class LedgerTransactionDomainService {
             current.setReserved(reserved.subtract(amount));
             current.setBalance(totalBalance.subtract(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateWithVersion(current, expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -301,7 +301,7 @@ public class LedgerTransactionDomainService {
             current.setAvailable(current.getAvailable().add(amount));
             current.setTotalDeposited(current.getTotalDeposited().add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateWithVersion(current, expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -328,7 +328,7 @@ public class LedgerTransactionDomainService {
             current.setBalance(current.getBalance().subtract(amount));
             current.setTotalWithdrawn(current.getTotalWithdrawn().add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateWithVersion(current, expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -375,7 +375,7 @@ public class LedgerTransactionDomainService {
             BigDecimal currentBalance = safeDecimal(current.getBalance());
             current.setBalance(currentBalance.add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = platformBalanceRepository.updateWithVersion(current, expectedVersion);
+            boolean updated = platformBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -395,7 +395,7 @@ public class LedgerTransactionDomainService {
             BigDecimal currentBalance = safeDecimal(current.getBalance());
             current.setBalance(currentBalance.subtract(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = platformBalanceRepository.updateWithVersion(current, expectedVersion);
+            boolean updated = platformBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }

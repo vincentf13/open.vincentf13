@@ -38,9 +38,9 @@ public class LedgerBalanceRepository {
         return balance;
     }
 
-    public boolean updateWithVersion(@NotNull @Valid LedgerBalance balance, Integer expectedVersion) {
+    public boolean updateWithVersion(@NotNull @Valid LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
-        return mapper.updateByIdAndVersion(po, expectedVersion) > 0;
+        return mapper.updateSelective(po, id, expectedVersion) > 0;
     }
 
     public List<LedgerBalance> findBy(@NotNull @Valid LedgerBalance condition) {
