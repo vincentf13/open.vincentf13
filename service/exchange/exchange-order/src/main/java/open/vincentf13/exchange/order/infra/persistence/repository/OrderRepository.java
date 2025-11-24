@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.order.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
@@ -22,7 +23,7 @@ public class OrderRepository {
     private final OrderMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public void insertSelective(@NotNull Order order) {
+    public void insertSelective(@NotNull @Valid Order order) {
         order.setOrderId(idGenerator.newLong());
         OrderPO po = OpenMapstruct.map(order, OrderPO.class);
         mapper.insertSelective(po);

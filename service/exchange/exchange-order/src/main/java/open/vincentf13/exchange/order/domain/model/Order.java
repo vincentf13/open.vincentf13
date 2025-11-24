@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
@@ -22,20 +24,33 @@ import java.time.Instant;
 public class Order {
 
     private Long orderId;
+    @NotNull
     private Long userId;
+    @NotNull
     private Long instrumentId;
     private String clientOrderId;
+    @NotNull
     private OrderSide side;
     private PositionIntentType intent;
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal closeCostPrice;
+    @NotNull
     private OrderType type;
+    @NotNull
     private OrderStatus status;
+    @DecimalMin(value = "0", inclusive = false)
     private BigDecimal price;
+    @NotNull
+    @DecimalMin(value = "0.00000001", inclusive = true)
     private BigDecimal quantity;
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal filledQuantity;
     
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal remainingQuantity;
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal avgFillPrice;
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal fee;
     private Integer version;
     private Instant createdAt;
