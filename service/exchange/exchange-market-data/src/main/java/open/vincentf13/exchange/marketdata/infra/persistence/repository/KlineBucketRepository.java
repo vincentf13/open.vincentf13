@@ -25,11 +25,6 @@ public class KlineBucketRepository {
     private final KlineBucketMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public Optional<KlineBucket> findActive(@NotNull Long instrumentId, @NotBlank String period, @NotNull Instant targetTime) {
-        return Optional.ofNullable(mapper.findActiveBucket(instrumentId, period, targetTime))
-                .map(po -> OpenMapstruct.map(po, KlineBucket.class));
-    }
-
     public Optional<KlineBucket> findByStart(@NotNull Long instrumentId, @NotBlank String period, @NotNull Instant bucketStart) {
         return Optional.ofNullable(mapper.findByInstrumentPeriodAndStart(instrumentId, period, bucketStart))
                 .map(po -> OpenMapstruct.map(po, KlineBucket.class));
@@ -56,16 +51,6 @@ public class KlineBucketRepository {
                                      Boolean closed) {
         KlineBucketPO record = OpenMapstruct.map(update, KlineBucketPO.class);
         return mapper.updateSelectiveBy(record, bucketId, instrumentId, period, closed) > 0;
-    }
-
-    public List<KlineBucket> findRecent(@NotNull Long instrumentId, @NotBlank String period, @Min(1) int limit) {
-        List<KlineBucketPO> records = mapper.findRecentBuckets(instrumentId, period, limit);
-        if (records == null || records.isEmpty()) {
-            return List.of();
-        }
-        return records.stream()
-                .map(po -> OpenMapstruct.map(po, KlineBucket.class))
-                .toList();
     }
 
     public List<KlineBucket> findBetween(@NotNull Long instrumentId, @NotBlank String period, @NotNull Instant start, @NotNull Instant end) {

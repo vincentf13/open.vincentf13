@@ -20,14 +20,6 @@ public interface KlineBucketMapper {
                                                  @Param("period") String period,
                                                  @Param("bucketStart") Instant bucketStart);
 
-    KlineBucketPO findActiveBucket(@Param("instrumentId") Long instrumentId,
-                                   @Param("period") String period,
-                                   @Param("targetTime") Instant targetTime);
-
-    List<KlineBucketPO> findRecentBuckets(@Param("instrumentId") Long instrumentId,
-                                          @Param("period") String period,
-                                          @Param("limit") int limit);
-
     List<KlineBucketPO> findBucketsBetween(@Param("instrumentId") Long instrumentId,
                                            @Param("period") String period,
                                            @Param("start") Instant start,

@@ -93,60 +93,6 @@
         LIMIT 1
     </select>
 
-    <select id="findActiveBucket" resultType="KlineBucketPO">
-        SELECT
-            bucket_id,
-            instrument_id,
-            period,
-            bucket_start,
-            bucket_end,
-            open_price,
-            high_price,
-            low_price,
-            close_price,
-            volume,
-            turnover,
-            trade_count,
-            taker_buy_volume,
-            taker_buy_turnover,
-            is_closed,
-            created_at,
-            updated_at
-        FROM kline_buckets
-        WHERE instrument_id = #{instrumentId}
-          AND period = #{period}
-          AND bucket_start <= #{targetTime}
-          AND bucket_end > #{targetTime}
-        ORDER BY bucket_start DESC
-        LIMIT 1
-    </select>
-
-    <select id="findRecentBuckets" resultType="KlineBucketPO">
-        SELECT
-            bucket_id,
-            instrument_id,
-            period,
-            bucket_start,
-            bucket_end,
-            open_price,
-            high_price,
-            low_price,
-            close_price,
-            volume,
-            turnover,
-            trade_count,
-            taker_buy_volume,
-            taker_buy_turnover,
-            is_closed,
-            created_at,
-            updated_at
-        FROM kline_buckets
-        WHERE instrument_id = #{instrumentId}
-          AND period = #{period}
-        ORDER BY bucket_start DESC
-        LIMIT #{limit}
-    </select>
-
     <select id="findBucketsBetween" resultType="KlineBucketPO">
         SELECT
             bucket_id,
