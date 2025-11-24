@@ -33,8 +33,8 @@ public class AuthCredentialRepository {
         return credential.getId();
     }
 
-    public void updateSelective(@NotNull @Valid AuthCredential credential) {
-        mapper.updateSelective(OpenMapstruct.map(credential, AuthCredentialPO.class));
+    public boolean updateStatus(@NotNull Long id, @NotNull String status, Integer expectedVersion) {
+        return mapper.updateStatusByIdAndVersion(id, status, expectedVersion) > 0;
     }
 
     public Optional<AuthCredential> findOne(@NotNull @Valid AuthCredential probe) {

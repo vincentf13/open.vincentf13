@@ -94,7 +94,6 @@ public class PositionReserveEventListener {
                 event.userId(),
                 OrderStatus.PENDING,
                 OrderStatus.FAILED,
-                now,
                 null,
                 null
         );

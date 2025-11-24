@@ -7,11 +7,13 @@ import java.util.List;
 
 public interface AuthCredentialMapper {
 
-    void insertSelective(AuthCredentialPO credential);
+    int insertSelective(AuthCredentialPO credential);
 
     List<AuthCredentialPO> findBy(AuthCredentialPO credential);
 
-    void updateSelective(AuthCredentialPO credential);
+    int updateStatusByIdAndVersion(@Param("id") Long id,
+                                   @Param("status") String status,
+                                   @Param("expectedVersion") Integer expectedVersion);
 
     void batchInsert(@Param("list") List<AuthCredentialPO> credentials);
 
