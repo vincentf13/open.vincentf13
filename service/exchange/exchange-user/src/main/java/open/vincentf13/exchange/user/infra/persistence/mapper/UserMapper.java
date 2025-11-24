@@ -16,6 +16,4 @@ public interface UserMapper {
                           @Param("externalId") String externalId);
 
     void batchInsert(@Param("list") List<UserPO> users);
-
-    void batchUpdate(@Param("list") List<UserPO> users);
 }
