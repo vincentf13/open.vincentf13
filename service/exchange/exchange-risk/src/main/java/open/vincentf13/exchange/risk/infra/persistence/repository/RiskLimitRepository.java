@@ -33,7 +33,7 @@ public class RiskLimitRepository {
             po.setRiskLimitId(idGenerator.newLong());
             mapper.insertSelective(po);
         } else {
-            mapper.updateSelective(po);
+            mapper.updateActiveByIdAndVersion(po.getRiskLimitId(), po.getActive(), po.getVersion());
         }
         return OpenMapstruct.map(po, RiskLimit.class);
     }

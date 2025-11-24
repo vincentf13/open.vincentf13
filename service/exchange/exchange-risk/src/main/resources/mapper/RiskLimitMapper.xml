@@ -4,23 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.risk.infra.persistence.mapper.RiskLimitMapper">
 
-    <resultMap id="RiskLimitResultMap" type="open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO">
-        <id property="riskLimitId" column="id" />
-        <result property="instrumentId" column="instrument_id" />
-        <result property="initialMarginRate" column="initial_margin_rate" />
-        <result property="maxLeverage" column="max_leverage" />
-        <result property="maintenanceMarginRate" column="maintenance_margin_rate" />
-        <result property="liquidationFeeRate" column="liquidation_fee_rate" />
-        <result property="positionSizeMin" column="position_size_min" />
-        <result property="positionSizeMax" column="position_size_max" />
-        <result property="maxPositionValue" column="max_position_value" />
-        <result property="maxOrderValue" column="max_order_value" />
-        <result property="active" column="is_active" />
-        <result property="createdAt" column="created_at" />
-        <result property="updatedAt" column="updated_at" />
-    </resultMap>
-
-    <select id="findBy" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO" resultMap="RiskLimitResultMap">
+    <select id="findBy" parameterType="RiskLimitPO" resultType="RiskLimitPO">
         SELECT *
         FROM risk_limits
         <where>
@@ -28,10 +12,9 @@
             <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
             <if test="active != null">AND is_active = #{active}</if>
         </where>
-        LIMIT 1
     </select>
 
-    <select id="findEffective" resultMap="RiskLimitResultMap">
+    <select id="findEffective" resultType="RiskLimitPO">
         SELECT *
         FROM risk_limits
         WHERE instrument_id = #{instrumentId}
@@ -40,7 +23,7 @@
         LIMIT 1
     </select>
 
-    <insert id="insertSelective" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO">
+    <insert id="insertSelective" parameterType="RiskLimitPO">
         INSERT INTO risk_limits
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="riskLimitId != null">id,</if>
@@ -54,8 +37,6 @@
             <if test="maxPositionValue != null">max_position_value,</if>
             <if test="maxOrderValue != null">max_order_value,</if>
             <if test="active != null">is_active,</if>
-            <if test="createdAt != null">created_at,</if>
-            <if test="updatedAt != null">updated_at,</if>
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -70,26 +51,16 @@
             <if test="maxPositionValue != null">#{maxPositionValue},</if>
             <if test="maxOrderValue != null">#{maxOrderValue},</if>
             <if test="active != null">#{active},</if>
-            <if test="createdAt != null">#{createdAt},</if>
-            <if test="updatedAt != null">#{updatedAt},</if>
         </trim>
     </insert>
 
-    <update id="updateSelective" parameterType="open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO">
+    <update id="updateActiveByIdAndVersion">
         UPDATE risk_limits
-        <set>
-            <if test="instrumentId != null">instrument_id = #{instrumentId},</if>
-            <if test="initialMarginRate != null">initial_margin_rate = #{initialMarginRate},</if>
-            <if test="maxLeverage != null">max_leverage = #{maxLeverage},</if>
-            <if test="maintenanceMarginRate != null">maintenance_margin_rate = #{maintenanceMarginRate},</if>
-            <if test="liquidationFeeRate != null">liquidation_fee_rate = #{liquidationFeeRate},</if>
-            <if test="positionSizeMin != null">position_size_min = #{positionSizeMin},</if>
-            <if test="positionSizeMax != null">position_size_max = #{positionSizeMax},</if>
-            <if test="maxPositionValue != null">max_position_value = #{maxPositionValue},</if>
-            <if test="maxOrderValue != null">max_order_value = #{maxOrderValue},</if>
-            <if test="active != null">is_active = #{active},</if>
-            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
-        </set>
+        SET is_active = #{active},
+            version = version + 1
         WHERE id = #{riskLimitId}
+        <if test="expectedVersion != null">
+            AND version = #{expectedVersion}
+        </if>
     </update>
 </mapper>

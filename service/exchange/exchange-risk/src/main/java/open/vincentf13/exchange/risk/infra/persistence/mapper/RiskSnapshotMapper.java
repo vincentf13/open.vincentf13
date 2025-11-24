@@ -4,9 +4,11 @@ import open.vincentf13.exchange.risk.infra.persistence.po.RiskSnapshotPO;
 
 public interface RiskSnapshotMapper {
 
-    RiskSnapshotPO findBy(RiskSnapshotPO condition);
+    java.util.List<RiskSnapshotPO> findBy(RiskSnapshotPO condition);
 
     int insertSelective(RiskSnapshotPO snapshot);
 
-    int updateSelective(RiskSnapshotPO snapshot);
+    int updateStatusByIdAndVersion(@Param("snapshotId") Long snapshotId,
+                                   @Param("status") String status,
+                                   @Param("expectedVersion") Integer expectedVersion);
 }

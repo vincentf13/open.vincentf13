@@ -36,13 +36,9 @@
         ORDER BY id DESC
     </select>
 
-    <update id="updateSelective">
+    <update id="updateStatusById">
         UPDATE users
-        <set>
-            <if test="externalId != null">external_id = #{externalId},</if>
-            <if test="email != null">email = #{email},</if>
-            <if test="status != null">status = #{status},</if>
-        </set>
+        SET status = #{status}
         WHERE id = #{id}
     </update>
 

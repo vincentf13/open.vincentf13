@@ -27,8 +27,9 @@ public class RiskSnapshotRepository {
                 .userId(userId)
                 .instrumentId(instrumentId)
                 .build();
-        RiskSnapshotPO po = mapper.findBy(condition);
-        return Optional.ofNullable(OpenMapstruct.map(po, RiskSnapshot.class));
+        return mapper.findBy(condition).stream()
+                .findFirst()
+                .map(po -> OpenMapstruct.map(po, RiskSnapshot.class));
     }
 
     public RiskSnapshot save(@NotNull @Valid RiskSnapshot snapshot) {
@@ -37,7 +38,7 @@ public class RiskSnapshotRepository {
             po.setSnapshotId(idGenerator.newLong());
             mapper.insertSelective(po);
         } else {
-            mapper.updateSelective(po);
+            mapper.updateStatusByIdAndVersion(po.getSnapshotId(), po.getStatus(), po.getRiskVersion());
         }
         return OpenMapstruct.map(po, RiskSnapshot.class);
     }

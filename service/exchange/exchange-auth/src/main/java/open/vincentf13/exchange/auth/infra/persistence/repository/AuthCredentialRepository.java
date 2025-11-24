@@ -33,10 +33,6 @@ public class AuthCredentialRepository {
         return credential.getId();
     }
 
-    public boolean updateStatus(@NotNull Long id, @NotNull String status, Integer expectedVersion) {
-        return mapper.updateStatusByIdAndVersion(id, status, expectedVersion) > 0;
-    }
-
     public Optional<AuthCredential> findOne(@NotNull @Valid AuthCredential probe) {
         List<AuthCredential> results = findBy(probe);
         if (results.isEmpty()) {

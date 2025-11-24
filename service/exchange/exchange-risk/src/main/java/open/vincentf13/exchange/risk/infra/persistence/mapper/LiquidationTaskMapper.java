@@ -10,7 +10,7 @@ public interface LiquidationTaskMapper {
 
     int insertSelective(LiquidationTaskPO task);
 
-    LiquidationTaskPO findBy(LiquidationTaskPO condition);
+    List<LiquidationTaskPO> findBy(LiquidationTaskPO condition);
 
     List<LiquidationTaskPO> findPending(@Param("limit") int limit);
 

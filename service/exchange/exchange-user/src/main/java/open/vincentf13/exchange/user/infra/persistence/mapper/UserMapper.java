@@ -7,11 +7,11 @@ import java.util.List;
 
 public interface UserMapper {
 
-    void insertSelective(UserPO user);
+    int insertSelective(UserPO user);
 
     List<UserPO> findBy(UserPO user);
 
-    void updateSelective(UserPO user);
+    int updateStatusById(@Param("id") Long id, @Param("status") String status);
 
     void batchInsert(@Param("list") List<UserPO> users);
 

@@ -5,11 +5,13 @@ import org.apache.ibatis.annotations.Param;
 
 public interface RiskLimitMapper {
 
-    RiskLimitPO findBy(RiskLimitPO condition);
+    java.util.List<RiskLimitPO> findBy(RiskLimitPO condition);
 
     RiskLimitPO findEffective(@Param("instrumentId") Long instrumentId);
 
     int insertSelective(RiskLimitPO record);
 
-    int updateSelective(RiskLimitPO record);
+    int updateActiveByIdAndVersion(@Param("riskLimitId") Long riskLimitId,
+                                   @Param("active") Boolean active,
+                                   @Param("expectedVersion") Integer expectedVersion);
 }
