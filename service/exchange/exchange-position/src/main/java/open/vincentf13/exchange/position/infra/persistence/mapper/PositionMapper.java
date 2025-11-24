@@ -5,12 +5,13 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public interface PositionMapper {
 
-    PositionPO findBy(PositionPO condition);
+    List<PositionPO> findBy(PositionPO condition);
 
-    int insertDefault(PositionPO po);
+    int insertSelective(PositionPO po);
 
     int reserveForClose(@Param("userId") Long userId,
                         @Param("instrumentId") Long instrumentId,

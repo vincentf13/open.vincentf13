@@ -1,18 +1,18 @@
 package open.vincentf13.exchange.position.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.domain.model.Position;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -31,16 +31,18 @@ public class PositionRepository {
                 .instrumentId(instrumentId)
                 .status("ACTIVE")
                 .build();
-        PositionPO po = mapper.findBy(condition);
-        return Optional.ofNullable(OpenMapstruct.map(po, Position.class));
+        return findOne(condition);
     }
 
-    public Optional<Position> findById(@NotNull Long positionId) {
-        PositionPO condition = PositionPO.builder()
-                .positionId(positionId)
-                .build();
-        PositionPO po = mapper.findBy(condition);
-        return Optional.ofNullable(OpenMapstruct.map(po, Position.class));
+    public Optional<Position> findOne(@NotNull @Valid PositionPO condition) {
+        var results = mapper.findBy(condition);
+        if (results.isEmpty()) {
+            return Optional.empty();
+        }
+        if (results.size() > 1) {
+            throw new IllegalStateException("Expected single position but found " + results.size());
+        }
+        return Optional.of(OpenMapstruct.map(results.get(0), Position.class));
     }
 
     public Position createDefault(@NotNull Long userId, @NotNull Long instrumentId) {
@@ -48,7 +50,7 @@ public class PositionRepository {
         domain.setPositionId(idGenerator.newLong());
         PositionPO po = OpenMapstruct.map(domain, PositionPO.class);
         try {
-            mapper.insertDefault(po);
+            mapper.insertSelective(po);
             return OpenMapstruct.map(po, Position.class);
         } catch (DuplicateKeyException duplicateKeyException) {
             PositionPO existing = PositionPO.builder()
@@ -56,8 +58,8 @@ public class PositionRepository {
                     .instrumentId(instrumentId)
                     .status("ACTIVE")
                     .build();
-            PositionPO poExisting = mapper.findBy(existing);
-            return OpenMapstruct.map(poExisting, Position.class);
+            return findOne(existing)
+                    .orElseThrow(() -> duplicateKeyException);
         }
     }
 

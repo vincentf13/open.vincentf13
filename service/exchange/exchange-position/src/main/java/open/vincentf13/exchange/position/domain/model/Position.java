@@ -67,7 +67,6 @@ public class Position {
     }
 
     public static Position createDefault(Long userId, Long instrumentId, PositionSide side) {
-        Instant now = Instant.now();
         return Position.builder()
                 .userId(userId)
                 .instrumentId(instrumentId)
@@ -82,8 +81,6 @@ public class Position {
                 .unrealizedPnl(BigDecimal.ZERO)
                 .realizedPnl(BigDecimal.ZERO)
                 .status("ACTIVE")
-                .createdAt(now)
-                .updatedAt(now)
                 .build();
     }
 }
