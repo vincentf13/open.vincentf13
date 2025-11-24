@@ -73,7 +73,7 @@ public class LedgerEventListener {
                 .submittedAt(now)
                 .version(currentVersion + 1)
                 .build();
-        boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion);
+        boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion, null);
         if (!updated) {
             log.warn("Optimistic lock conflict while marking order accepted. orderId={}", order.getOrderId());
             return;

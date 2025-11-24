@@ -10,7 +10,7 @@
 	- 一般的update，使用 updateSelecticeBy，
 		- 第一個參數為 domain，為要更新的值，調用mybatis updateSelective，若值不為null 則更新。 
 		- 第二及其他參數為 WHERE 條件 使用的參數。
-		- 特殊的update另外寫
+		- 所有 updateSelecticeBy 使用同一方法，只是不同場景第二~第N個參數，可能部分帶null值。
 
 - Mybatis Mapper
 	- 優先使用 insertSelective / updateSelecticeBy / findBy(PO) 模板，避免重工。

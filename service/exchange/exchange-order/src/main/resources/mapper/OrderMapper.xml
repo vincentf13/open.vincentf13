@@ -85,26 +85,6 @@
         WHERE order_id = #{orderId}
           <if test="userId != null">AND user_id = #{userId}</if>
           <if test="expectedVersion != null">AND version = #{expectedVersion}</if>
-    </update>
-
-    <update id="updateSelectiveByCurrentStatus">
-        UPDATE orders
-        <set>
-            <if test="record.status != null">status = #{record.status},</if>
-            <if test="record.price != null">price = #{record.price},</if>
-            <if test="record.quantity != null">quantity = #{record.quantity},</if>
-            <if test="record.filledQuantity != null">filled_quantity = #{record.filledQuantity},</if>
-            <if test="record.remainingQuantity != null">remaining_quantity = #{record.remainingQuantity},</if>
-            <if test="record.avgFillPrice != null">avg_fill_price = #{record.avgFillPrice},</if>
-            <if test="record.fee != null">fee = #{record.fee},</if>
-            <if test="record.intent != null">intent = #{record.intent},</if>
-            <if test="record.closeCostPrice != null">close_cost_price = #{record.closeCostPrice},</if>
-            <if test="record.version != null">version = #{record.version},</if>
-            <if test="record.submittedAt != null">submitted_at = #{record.submittedAt},</if>
-            <if test="record.filledAt != null">filled_at = #{record.filledAt},</if>
-        </set>
-        WHERE order_id = #{orderId}
-          AND user_id = #{userId}
           <if test="currentStatus != null">AND status = #{currentStatus}</if>
     </update>
 </mapper>

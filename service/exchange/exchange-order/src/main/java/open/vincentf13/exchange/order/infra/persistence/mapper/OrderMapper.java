@@ -15,10 +15,6 @@ public interface OrderMapper {
     int updateSelectiveBy(@Param("record") OrderPO record,
                           @Param("orderId") Long orderId,
                           @Param("userId") Long userId,
-                          @Param("expectedVersion") Integer expectedVersion);
-
-    int updateSelectiveByCurrentStatus(@Param("record") OrderPO record,
-                                       @Param("orderId") Long orderId,
-                                       @Param("userId") Long userId,
-                                       @Param("currentStatus") OrderStatus currentStatus);
+                          @Param("expectedVersion") Integer expectedVersion,
+                          @Param("currentStatus") OrderStatus currentStatus);
 }

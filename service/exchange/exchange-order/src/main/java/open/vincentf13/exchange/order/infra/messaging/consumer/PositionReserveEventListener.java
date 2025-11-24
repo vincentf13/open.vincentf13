@@ -64,10 +64,11 @@ public class PositionReserveEventListener {
                 .submittedAt(now)
                 .closeCostPrice(event.avgOpenPrice())
                 .build();
-        boolean updated = orderRepository.updateSelectiveByCurrentStatus(
+        boolean updated = orderRepository.updateSelectiveBy(
                 updateRecord,
                 event.orderId(),
                 event.userId(),
+                null,
                 OrderStatus.PENDING);
         if (!updated) {
             OpenLog.warn(log, "OrderStatusConflict", "Failed to update order status on position reserve", null,
@@ -93,10 +94,11 @@ public class PositionReserveEventListener {
         Order updateRecord = Order.builder()
                 .status(OrderStatus.FAILED)
                 .build();
-        boolean updated = orderRepository.updateSelectiveByCurrentStatus(
+        boolean updated = orderRepository.updateSelectiveBy(
                 updateRecord,
                 event.orderId(),
                 event.userId(),
+                null,
                 OrderStatus.PENDING);
         if (!updated) {
             OpenLog.warn(log, "OrderStatusConflict", "Failed to mark order failed on position reserve rejection", null,

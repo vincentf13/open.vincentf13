@@ -49,17 +49,10 @@ public class OrderRepository {
     public boolean updateSelectiveBy(@NotNull @Valid Order update,
                                      @NotNull Long orderId,
                                      Long userId,
-                                     Integer expectedVersion) {
+                                     Integer expectedVersion,
+                                     OrderStatus currentStatus) {
         OrderPO record = OpenMapstruct.map(update, OrderPO.class);
-        return mapper.updateSelectiveBy(record, orderId, userId, expectedVersion) > 0;
-    }
-
-    public boolean updateSelectiveByCurrentStatus(@NotNull @Valid Order update,
-                                                  @NotNull Long orderId,
-                                                  @NotNull Long userId,
-                                                  @NotNull OrderStatus currentStatus) {
-        OrderPO record = OpenMapstruct.map(update, OrderPO.class);
-        return mapper.updateSelectiveByCurrentStatus(record, orderId, userId, currentStatus) > 0;
+        return mapper.updateSelectiveBy(record, orderId, userId, expectedVersion, currentStatus) > 0;
     }
 
 }

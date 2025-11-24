@@ -36,7 +36,7 @@ public class OrderFailureHandler {
                     .status(OrderStatus.FAILED)
                     .version(currentVersion + 1)
                     .build();
-            boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion);
+            boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion, null);
             if (!updated) {
                 log.warn("Optimistic lock conflict while marking order failed. orderId={} stage={}", orderId, stage);
                 return;
