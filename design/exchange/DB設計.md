@@ -10,3 +10,15 @@
 - Mybatis Mapper
 	- 優先使用 insertSelective / updateSelective / findBy(PO) 模板，避免重工
 	- 所有xml內，如無必要，不需要寫 resultMap 因為已經會自動轉換
+
+
+- 帳戶或快照等用戶資產，一律延遲建立，讀取時使用 `getOrCreate` + 樂觀鎖的方式；若不存在就建一筆新的帳戶/快照。例如：
+```
+@Transactional
+public Account getOrCreate(long userId, String asset) {
+    return accountRepository.findByUserIdAndAsset(userId, asset)
+        .orElseGet(() -> accountRepository.save(
+            Account.create(userId, asset)
+        ));
+}
+```
