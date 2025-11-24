@@ -2,27 +2,8 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerBalanceMapper">
 
-    <resultMap id="LedgerBalanceResultMap" type="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO">
-        <id property="id" column="id" />
-        <result property="accountId" column="account_id" />
-        <result property="userId" column="user_id" />
-        <result property="accountType" column="account_type" />
-        <result property="instrumentId" column="instrument_id" />
-        <result property="asset" column="asset" />
-        <result property="balance" column="balance" />
-        <result property="available" column="available" />
-        <result property="reserved" column="reserved" />
-        <result property="totalDeposited" column="total_deposited" />
-        <result property="totalWithdrawn" column="total_withdrawn" />
-        <result property="totalPnl" column="total_pnl" />
-        <result property="version" column="version" />
-        <result property="lastEntryId" column="last_entry_id" />
-        <result property="createdAt" column="created_at" />
-        <result property="updatedAt" column="updated_at" />
-    </resultMap>
-
-    <select id="findBy" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO"
-            resultMap="LedgerBalanceResultMap">
+    <select id="findBy" parameterType="LedgerBalancePO"
+            resultType="LedgerBalancePO">
         SELECT * FROM ledger_balances
         <where>
             <if test="id != null">AND id = #{id}</if>

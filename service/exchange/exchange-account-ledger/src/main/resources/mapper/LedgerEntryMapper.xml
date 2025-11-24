@@ -2,26 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerEntryMapper">
 
-    <resultMap id="LedgerEntryResultMap" type="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO">
-        <id property="entryId" column="entry_id" />
-        <result property="ownerType" column="owner_type" />
-        <result property="accountId" column="account_id" />
-        <result property="userId" column="user_id" />
-        <result property="asset" column="asset" />
-        <result property="amount" column="amount" />
-        <result property="direction" column="direction" />
-        <result property="counterpartyEntryId" column="counterparty_entry" />
-        <result property="balanceAfter" column="balance_after" />
-        <result property="referenceType" column="reference_type" />
-        <result property="referenceId" column="reference_id" />
-        <result property="entryType" column="entry_type" />
-        <result property="description" column="description" />
-        <result property="metadata" column="metadata" />
-        <result property="eventTime" column="event_time" />
-        <result property="createdAt" column="created_at" />
-    </resultMap>
-
-    <insert id="insert" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO">
+    <insert id="insertSelective" parameterType="LedgerEntryPO">
         INSERT INTO ledger_entries (
             entry_id,
             owner_type,
@@ -59,8 +40,8 @@
         )
     </insert>
 
-    <select id="findBy" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO"
-            resultMap="LedgerEntryResultMap">
+    <select id="findBy" parameterType="LedgerEntryPO"
+            resultType="LedgerEntryPO">
         SELECT * FROM ledger_entries
         <where>
             <if test="entryId != null">AND entry_id = #{entryId}</if>

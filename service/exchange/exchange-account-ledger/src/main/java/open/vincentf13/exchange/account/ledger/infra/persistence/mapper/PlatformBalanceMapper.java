@@ -11,7 +11,7 @@ public interface PlatformBalanceMapper {
 
     int insertSelective(PlatformBalancePO record);
 
-    int updateSelective(@Param("record") PlatformBalancePO record,
-                        @Param("id") Long id,
-                        @Param("expectedVersion") Integer expectedVersion);
+    int updateSelectiveBy(@Param("record") PlatformBalancePO record,
+                          @Param("id") Long id,
+                          @Param("expectedVersion") Integer expectedVersion);
 }
