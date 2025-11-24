@@ -41,8 +41,7 @@ public class LedgerEntry {
                                           Long counterpartyEntryId,
                                           BigDecimal balanceAfter,
                                           String referenceId,
-                                          Instant eventTime,
-                                          Instant createdAt) {
+                                          Instant eventTime) {
         return deposit(entryId,
                 OwnerType.USER,
                 accountId,
@@ -53,8 +52,7 @@ public class LedgerEntry {
                 balanceAfter,
                 referenceId,
                 "用戶充值",
-                eventTime,
-                createdAt);
+                eventTime);
     }
 
     public static LedgerEntry platformDeposit(Long entryId,
@@ -64,8 +62,7 @@ public class LedgerEntry {
                                               Long counterpartyEntryId,
                                               BigDecimal balanceAfter,
                                               String referenceId,
-                                              Instant eventTime,
-                                              Instant createdAt) {
+                                              Instant eventTime) {
         return deposit(entryId,
                 OwnerType.PLATFORM,
                 accountId,
@@ -76,8 +73,7 @@ public class LedgerEntry {
                 balanceAfter,
                 referenceId,
                 "User deposit liability",
-                eventTime,
-                createdAt);
+                eventTime);
     }
 
     public static LedgerEntry userWithdrawal(Long entryId,
@@ -88,8 +84,7 @@ public class LedgerEntry {
                                              BigDecimal balanceAfter,
                                              String referenceId,
                                              String metadata,
-                                             Instant eventTime,
-                                             Instant createdAt) {
+                                             Instant eventTime) {
         return LedgerEntry.builder()
                 .entryId(entryId)
                 .ownerType(OwnerType.USER)
@@ -105,7 +100,6 @@ public class LedgerEntry {
                 .description("User withdrawal")
                 .metadata(metadata)
                 .eventTime(eventTime)
-                .createdAt(createdAt)
                 .build();
     }
 
@@ -116,8 +110,7 @@ public class LedgerEntry {
                                                  Long counterpartyEntryId,
                                                  BigDecimal balanceAfter,
                                                  String referenceId,
-                                                 Instant eventTime,
-                                                 Instant createdAt) {
+                                                 Instant eventTime) {
         return LedgerEntry.builder()
                 .entryId(entryId)
                 .ownerType(OwnerType.PLATFORM)
@@ -132,7 +125,6 @@ public class LedgerEntry {
                 .entryType(EntryType.WITHDRAWAL)
                 .description("User withdrawal liability")
                 .eventTime(eventTime)
-                .createdAt(createdAt)
                 .build();
     }
 
@@ -144,8 +136,7 @@ public class LedgerEntry {
                                               BigDecimal balanceAfter,
                                               Long orderId,
                                               Long counterpartyEntryId,
-                                              Instant eventTime,
-                                              Instant createdAt) {
+                                              Instant eventTime) {
         return LedgerEntry.builder()
                 .entryId(entryId)
                 .ownerType(OwnerType.USER)
@@ -161,7 +152,6 @@ public class LedgerEntry {
                 .entryType(EntryType.FREEZE)
                 .description("Funds frozen for order")
                 .eventTime(eventTime)
-                .createdAt(createdAt)
                 .build();
     }
 
@@ -173,8 +163,7 @@ public class LedgerEntry {
                                                 BigDecimal balanceAfter,
                                                 Long orderId,
                                                 Long counterpartyEntryId,
-                                                Instant eventTime,
-                                                Instant createdAt) {
+                                                Instant eventTime) {
         return LedgerEntry.builder()
                 .entryId(entryId)
                 .ownerType(OwnerType.USER)
@@ -190,7 +179,6 @@ public class LedgerEntry {
                 .entryType(EntryType.RESERVED)
                 .description("Reserved balance increased for order")
                 .eventTime(eventTime)
-                .createdAt(createdAt)
                 .build();
     }
 
@@ -203,8 +191,7 @@ public class LedgerEntry {
                                               Long tradeId,
                                               Long orderId,
                                               Long instrumentId,
-                                              Instant eventTime,
-                                              Instant createdAt) {
+                                              Instant eventTime) {
         return LedgerEntry.builder()
                 .entryId(entryId)
                 .ownerType(OwnerType.USER)
@@ -219,7 +206,6 @@ public class LedgerEntry {
                 .entryType(EntryType.TRADE)
                 .description("Trade executed for order " + orderId + " instrument " + instrumentId)
                 .eventTime(eventTime)
-                .createdAt(createdAt)
                 .build();
     }
 
@@ -233,8 +219,7 @@ public class LedgerEntry {
                                        BigDecimal balanceAfter,
                                        String referenceId,
                                        String description,
-                                       Instant eventTime,
-                                       Instant createdAt) {
+                                       Instant eventTime) {
         return LedgerEntry.builder()
                 .entryId(entryId)
                 .ownerType(ownerType)
@@ -250,7 +235,6 @@ public class LedgerEntry {
                 .entryType(EntryType.DEPOSIT)
                 .description(description)
                 .eventTime(eventTime)
-                .createdAt(createdAt)
                 .build();
     }
 }

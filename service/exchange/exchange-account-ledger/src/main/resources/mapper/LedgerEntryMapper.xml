@@ -18,8 +18,7 @@
             entry_type,
             description,
             metadata,
-            event_time,
-            created_at
+            event_time
         ) VALUES (
             #{entryId},
             #{ownerType},
@@ -35,8 +34,7 @@
             #{entryType},
             #{description},
             #{metadata},
-            #{eventTime},
-            #{createdAt}
+            #{eventTime}
         )
     </insert>
 

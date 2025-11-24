@@ -56,7 +56,6 @@ public class LedgerTransactionDomainService {
         PlatformBalance platformBalance = platformBalanceRepository.getOrCreate(platformAccount.getAccountId(), platformAccount.getAccountCode(), normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, request.amount(), normalizedAsset);
 
-        Instant createdAt = Instant.now();
         Long userEntryId = idGenerator.newLong();
         Long platformEntryId = idGenerator.newLong();
 
@@ -69,8 +68,7 @@ public class LedgerTransactionDomainService {
                 platformEntryId,
                 balanceUpdated.getAvailable(),
                 request.txId(),
-                request.creditedAt(),
-                createdAt
+                request.creditedAt()
                                                        );
         ledgerEntryRepository.insert(userEntry);
 
@@ -82,8 +80,7 @@ public class LedgerTransactionDomainService {
                 userEntryId,
                 platformBalanceUpdated.getBalance(),
                 request.txId(),
-                request.creditedAt(),
-                createdAt
+                request.creditedAt()
                                                                );
         ledgerEntryRepository.insert(platformEntry);
 
@@ -101,7 +98,6 @@ public class LedgerTransactionDomainService {
         PlatformBalance platformBalance = platformBalanceRepository.getOrCreate(platformAccount.getAccountId(), platformAccount.getAccountCode(), normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformWithdrawal(platformBalance, request.amount(), normalizedAsset);
 
-        Instant createdAt = Instant.now();
         Long userEntryId = idGenerator.newLong();
         Long platformEntryId = idGenerator.newLong();
 
@@ -114,8 +110,7 @@ public class LedgerTransactionDomainService {
                 balanceUpdated.getAvailable(),
                 request.txId(),
                 null,
-                request.creditedAt(),
-                createdAt
+                request.creditedAt()
                                                           );
         ledgerEntryRepository.insert(userEntry);
 
@@ -127,9 +122,8 @@ public class LedgerTransactionDomainService {
                 userEntryId,
                 platformBalanceUpdated.getBalance(),
                 request.txId(),
-                request.creditedAt(),
-                createdAt
-                                                                  );
+                request.creditedAt()
+                                                                );
         ledgerEntryRepository.insert(platformEntry);
 
         return new LedgerWithdrawalResult(userEntry, balanceUpdated);
@@ -159,7 +153,6 @@ public class LedgerTransactionDomainService {
         }
         LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
         LedgerBalance updatedBalance = retryUpdateForFreeze(userBalance, requiredMargin, userId, normalizedAsset, orderId);
-        Instant now = Instant.now();
         Long freezeEntryId = idGenerator.newLong();
         Long reservedEntryId = idGenerator.newLong();
         LedgerEntry freezeEntry = LedgerEntry.userFundsFreeze(freezeEntryId,
@@ -170,8 +163,7 @@ public class LedgerTransactionDomainService {
                                                               updatedBalance.getAvailable(),
                                                               orderId,
                                                               reservedEntryId,
-                                                              entryEventTime,
-                                                              now);
+                                                              entryEventTime);
         LedgerEntry reservedEntry = LedgerEntry.userFundsReserved(reservedEntryId,
                                                                   updatedBalance.getAccountId(),
                                                                   userId,
@@ -180,8 +172,7 @@ public class LedgerTransactionDomainService {
                                                                   updatedBalance.getReserved(),
                                                                   orderId,
                                                                   freezeEntryId,
-                                                                  entryEventTime,
-                                                                  now);
+                                                                  entryEventTime);
         ledgerEntryRepository.insert(freezeEntry);
         ledgerEntryRepository.insert(reservedEntry);
         return freezeEntry;
@@ -224,7 +215,6 @@ public class LedgerTransactionDomainService {
                                                     normalizedAsset,
                                                     tradeId);
         Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
-        Instant createdAt = Instant.now();
         Long tradeEntryId = idGenerator.newLong();
         LedgerEntry tradeEntry = LedgerEntry.tradeSettlement(tradeEntryId,
                                                              updated.getAccountId(),
@@ -235,8 +225,7 @@ public class LedgerTransactionDomainService {
                                                              tradeId,
                                                              orderId,
                                                              instrumentId,
-                                                             entryEventTime,
-                                                             createdAt);
+                                                             entryEventTime);
         ledgerEntryRepository.insert(tradeEntry);
         return tradeEntry;
     }
