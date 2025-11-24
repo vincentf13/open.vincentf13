@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.position.service;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.position.domain.model.Position;
@@ -15,6 +17,7 @@ import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -24,6 +27,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class PositionCommandService {
 
     private final PositionRepository positionRepository;
@@ -31,20 +35,11 @@ public class PositionCommandService {
 
     public PositionReserveOutcome reserveForClose(
             Long orderId,
-            Long userId,
-            Long instrumentId,
-            BigDecimal quantity,
-            PositionSide side
+            @NotNull Long userId,
+            @NotNull Long instrumentId,
+            @NotNull @DecimalMin(value = "0.00000001", inclusive = true) BigDecimal quantity,
+            @NotNull PositionSide side
     ) {
-        if (userId == null || instrumentId == null) {
-            return PositionReserveOutcome.rejected("POSITION_NOT_FOUND");
-        }
-        if (quantity == null || quantity.signum() <= 0) {
-            return PositionReserveOutcome.rejected("INVALID_QUANTITY");
-        }
-        if (side == null) {
-            return PositionReserveOutcome.rejected("ORDER_SIDE_REQUIRED");
-        }
         Position position = positionRepository.findOne(Position.builder()
                         .userId(userId)
                         .instrumentId(instrumentId)

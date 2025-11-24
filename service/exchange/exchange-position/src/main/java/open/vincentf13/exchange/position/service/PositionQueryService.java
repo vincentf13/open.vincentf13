@@ -1,23 +1,29 @@
 package open.vincentf13.exchange.position.service;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
+import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
+@Validated
 public class PositionQueryService {
 
     private final PositionRepository positionRepository;
 
-    public PositionIntentResponse determineIntent(PositionIntentRequest request) {
-        validate(request);
+    public PositionIntentResponse determineIntent(@NotNull @Valid PositionIntentRequest request) {
+        OpenValidator.validateOrThrow(request);
         var activePosition = positionRepository.findOne(open.vincentf13.exchange.position.domain.model.Position.builder()
                         .userId(request.userId())
                         .instrumentId(request.instrumentId())
@@ -30,26 +36,5 @@ public class PositionQueryService {
                 .map(position -> position.evaluateIntent(request.side(), request.quantity()))
                 .orElse(PositionIntentType.INCREASE);
         return PositionIntentResponse.of(intentType, existing);
-    }
-
-    private void validate(PositionIntentRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("PositionIntentRequest must not be null");
-        }
-        if (request.userId() == null) {
-            throw new IllegalArgumentException("userId is required");
-        }
-        if (request.instrumentId() == null) {
-            throw new IllegalArgumentException("instrumentId is required");
-        }
-        if (request.side() == null) {
-            throw new IllegalArgumentException("side is required");
-        }
-        if (request.quantity() == null) {
-            throw new IllegalArgumentException("quantity is required");
-        }
-        if (request.quantity().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("quantity must be positive");
-        }
     }
 }
