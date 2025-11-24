@@ -1,5 +1,5 @@
-- 所有domain與PO，不對createdAt, updatedAt 設值，統一由 DB 在 insert update時賦值。
-- 所有Enum，由typehandler處理，在DB寫入時自動call .name()轉為字串
+- 所有 DDL 的審計欄位 `created_by`/`updated_by` 由資料庫統一處理：INSERT 時同時寫入 created_by 與 updated_by，UPDATE 時更新 updated_by；應用程式層禁止手動賦值這兩欄。`created_at`/`updated_at` 同樣由 DB 預設或 trigger 管控，Domain/PO/Mapper 不得手動設值。
+- 全域 MyBatis Enum TypeHandler 已將 Enum `name()` 寫入資料庫並自動還原，禁止在程式中手動轉字串或自建 enum↔字串映射。
 - Repository:	
 - Repository : 使用以下規定，不要建立其他方法，除非特殊需要提出討論。
 	- findOne ，入參為 domain 內含給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，若返回超過一個則報錯，否則轉成domain返回
@@ -21,4 +21,7 @@
 		- 特殊的 update 依場景，使用專用方法，方便了解具體改動的值
 	- 所有xml內，不需要寫 resultMap 因為已經會自動轉換
 	- 若已配置 `mybatis.type-aliases-package`，`parameterType` ,`resultType` 直接寫別名（例如 `PlatformBalancePO`），可省略全限定類名。
+
+
+
 
