@@ -18,7 +18,11 @@ public class PositionQueryService {
 
     public PositionIntentResponse determineIntent(PositionIntentRequest request) {
         validate(request);
-        var activePosition = positionRepository.findActive(request.userId(), request.instrumentId());
+        var activePosition = positionRepository.findOne(open.vincentf13.exchange.position.domain.model.Position.builder()
+                        .userId(request.userId())
+                        .instrumentId(request.instrumentId())
+                        .status("ACTIVE")
+                        .build());
         BigDecimal existing = activePosition
                 .map(position -> position.getQuantity())
                 .orElse(BigDecimal.ZERO);
