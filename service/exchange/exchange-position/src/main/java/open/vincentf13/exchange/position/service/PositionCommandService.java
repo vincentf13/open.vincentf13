@@ -33,7 +33,7 @@ public class PositionCommandService {
     private final ExchangeRiskMarginClient riskMarginClient;
 
     public PositionReserveOutcome reserveForClose(
-            Long orderId,
+            @NotNull Long orderId,
             @NotNull Long userId,
             @NotNull Long instrumentId,
             @NotNull @DecimalMin(value = "0.00000001", inclusive = true) BigDecimal quantity,
@@ -71,10 +71,9 @@ public class PositionCommandService {
         return PositionReserveOutcome.accepted(quantity, avgOpenPrice);
     }
 
-    public PositionLeverageResponse adjustLeverage(Long userId, Long instrumentId, @Valid PositionLeverageRequest request) {
-        if (instrumentId == null) {
-            throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND, "instrumentId is required");
-        }
+    public PositionLeverageResponse adjustLeverage(@NotNull Long userId,
+                                                   @NotNull Long instrumentId,
+                                                   @Valid PositionLeverageRequest request) {
         Position position = positionRepository.findOne(Position.builder()
                         .userId(userId)
                         .instrumentId(instrumentId)

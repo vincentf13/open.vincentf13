@@ -134,12 +134,6 @@ public class LedgerTransactionDomainService {
                                       @NotNull AssetSymbol asset,
                                       @NotNull @DecimalMin(value = "0.00000000") BigDecimal requiredMargin,
                                       Instant eventTime) {
-        if (orderId == null || userId == null) {
-            throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_EVENT, "orderId and userId are required");
-        }
-        if (requiredMargin == null || requiredMargin.signum() < 0) {
-            throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_AMOUNT, "Required margin must not be negative");
-        }
         Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
         String referenceId = orderId.toString();
