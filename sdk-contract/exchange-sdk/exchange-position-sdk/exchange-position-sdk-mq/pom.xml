@@ -18,11 +18,17 @@
     <dependencies>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-position-sdk-rest-api</artifactId>
+            <artifactId>exchange-common-sdk</artifactId>
         </dependency>
         <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-common-sdk</artifactId>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>25.0.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
         </dependency>
     </dependencies>
 </project>

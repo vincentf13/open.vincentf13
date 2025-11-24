@@ -10,7 +10,7 @@ public record PositionReserveRejectedEvent(
         @NotNull Long orderId,
         @NotNull Long userId,
         @NotNull Long instrumentId,
-        @NotNull PositionIntentType intentType,
+        @org.jetbrains.annotations.NotNull PositionIntentType intentType,
         @NotBlank String reason,
         @NotNull Instant rejectedAt
 ) { }
