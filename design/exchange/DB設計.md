@@ -1,5 +1,8 @@
 - 所有domain與PO，不對createdAt, updatedAt 設值，統一由 DB 在 insert update時賦值。
 - 所有Enum，由typehandler處理，在DB寫入時自動call .name()轉為字串
+- Repository:
+	- 查詢時，禁止以任何domain作為入參，必須每個條件做成一個參數給入。除非他是私有方法，才可以用PO當參數。
+	
 - Repository : 提供以下方法
 	- findOne ，入參為多個給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，若返回超過一個則報錯，否則轉成domain返回
 	- findBy ，入參為多個給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，轉成domain返回

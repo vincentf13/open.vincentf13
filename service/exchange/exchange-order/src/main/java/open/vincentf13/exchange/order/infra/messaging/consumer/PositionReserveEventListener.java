@@ -65,7 +65,6 @@ public class PositionReserveEventListener {
                 OrderStatus.PENDING,
                 OrderStatus.SUBMITTED,
                 now,
-                now,
                 null,
                 event.avgOpenPrice()
         );

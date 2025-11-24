@@ -34,7 +34,7 @@ public class PositionRepository {
         return findOne(condition);
     }
 
-    public Optional<Position> findOne(@NotNull @Valid PositionPO condition) {
+    private Optional<Position> findOne(@NotNull @Valid PositionPO condition) {
         var results = mapper.findBy(condition);
         if (results.isEmpty()) {
             return Optional.empty();
