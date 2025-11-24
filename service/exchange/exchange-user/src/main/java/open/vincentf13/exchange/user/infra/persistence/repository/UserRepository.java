@@ -23,14 +23,17 @@ public class UserRepository {
     private final UserMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public void insertSelective(@NotNull User user) {
+    public void insertSelective(@NotNull @Valid User user) {
         user.setId(idGenerator.newLong());
         UserPO po = OpenMapstruct.map(user, UserPO.class);
         mapper.insertSelective(po);
     }
 
-    public boolean updateStatus(@NotNull Long id, @NotNull String status) {
-        return mapper.updateStatusById(id, status) > 0;
+    public boolean updateSelectiveBy(@NotNull @Valid User update,
+                                     @NotNull Long id,
+                                     String externalId) {
+        UserPO record = OpenMapstruct.map(update, UserPO.class);
+        return mapper.updateSelectiveBy(record, id, externalId) > 0;
     }
 
     public List<User> findBy(@NotNull User probe) {
@@ -58,9 +61,4 @@ public class UserRepository {
                 .collect(Collectors.toList()));
     }
 
-    public void batchUpdate(@NotEmpty List<User> users) {
-        mapper.batchUpdate(users.stream()
-                .map(user -> OpenMapstruct.map(user, UserPO.class))
-                .collect(Collectors.toList()));
-    }
 }

@@ -11,7 +11,9 @@ public interface UserMapper {
 
     List<UserPO> findBy(UserPO user);
 
-    int updateStatusById(@Param("id") Long id, @Param("status") String status);
+    int updateSelectiveBy(@Param("record") UserPO record,
+                          @Param("id") Long id,
+                          @Param("externalId") String externalId);
 
     void batchInsert(@Param("list") List<UserPO> users);
 

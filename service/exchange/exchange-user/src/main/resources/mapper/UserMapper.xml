@@ -4,8 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper">
 
-    <insert id="insertSelective" parameterType="UserPO"
-            useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertSelective" parameterType="UserPO">
         INSERT INTO users
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="id != null">id,</if>
@@ -30,16 +29,19 @@
             <if test="externalId != null">AND external_id = #{externalId}</if>
             <if test="email != null">AND email = #{email}</if>
             <if test="status != null">AND status = #{status}</if>
-            <if test="createdAt != null">AND created_at = #{createdAt}</if>
-            <if test="updatedAt != null">AND updated_at = #{updatedAt}</if>
         </where>
         ORDER BY id DESC
     </select>
 
-    <update id="updateStatusById">
+    <update id="updateSelectiveBy">
         UPDATE users
-        SET status = #{status}
+        <set>
+            <if test="record.externalId != null">external_id = #{record.externalId},</if>
+            <if test="record.email != null">email = #{record.email},</if>
+            <if test="record.status != null">status = #{record.status},</if>
+        </set>
         WHERE id = #{id}
+          <if test="externalId != null">AND external_id = #{externalId}</if>
     </update>
 
     <insert id="batchInsert" parameterType="java.util.List">
@@ -49,17 +51,5 @@
             (#{item.id}, #{item.externalId}, #{item.email}, #{item.status})
         </foreach>
     </insert>
-
-    <update id="batchUpdate" parameterType="java.util.List">
-        <foreach collection="list" item="item" separator=";">
-            UPDATE users
-            <set>
-                <if test="item.externalId != null">external_id = #{item.externalId},</if>
-                <if test="item.email != null">email = #{item.email},</if>
-                <if test="item.status != null">status = #{item.status},</if>
-            </set>
-            WHERE id = #{item.id}
-        </foreach>
-    </update>
 
 </mapper>

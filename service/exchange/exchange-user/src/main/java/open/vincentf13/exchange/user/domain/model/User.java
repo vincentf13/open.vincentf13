@@ -18,7 +18,10 @@ import java.util.UUID;
 public class User {
     private Long id;
     private String externalId;
+    @NotBlank
+    @Email
     private String email;
+    @NotNull
     private UserStatus status;
     private Instant createdAt;
     private Instant updatedAt;
