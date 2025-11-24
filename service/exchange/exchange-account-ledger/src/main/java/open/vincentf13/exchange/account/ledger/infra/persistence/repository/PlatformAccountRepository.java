@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
@@ -26,7 +27,7 @@ public class PlatformAccountRepository {
     private final PlatformAccountMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public PlatformAccount insertSelective(@NotNull PlatformAccount platformAccount) {
+    public PlatformAccount insertSelective(@NotNull @Valid PlatformAccount platformAccount) {
         if (platformAccount.getAccountId() == null) {
             platformAccount.setAccountId(idGenerator.newLong());
         }

@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.account.ledger.domain.model;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,8 +18,11 @@ import java.time.Instant;
 public class PlatformAccount {
 
     private Long accountId;
+    @NotNull
     private PlatformAccountCode accountCode;
+    @NotNull
     private PlatformAccountCategory category;
+    @NotNull
     private PlatformAccountStatus status;
     private Instant createdAt;
 

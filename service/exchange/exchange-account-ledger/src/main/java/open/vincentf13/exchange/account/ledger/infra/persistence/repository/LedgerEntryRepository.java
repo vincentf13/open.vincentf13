@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
@@ -21,9 +22,16 @@ public class LedgerEntryRepository {
 
     private final LedgerEntryMapper mapper;
 
-    public void insert(@NotNull LedgerEntry entry) {
+    public void insert(@NotNull @Valid LedgerEntry entry) {
         LedgerEntryPO po = OpenMapstruct.map(entry, LedgerEntryPO.class);
         mapper.insertSelective(po);
+    }
+
+    public List<LedgerEntry> findBy(@NotNull LedgerEntry condition) {
+        LedgerEntryPO probe = OpenMapstruct.map(condition, LedgerEntryPO.class);
+        return mapper.findBy(probe).stream()
+                .map(item -> OpenMapstruct.map(item, LedgerEntry.class))
+                .toList();
     }
 
     public Optional<LedgerEntry> findOne(@NotNull LedgerEntry condition) {
@@ -38,14 +46,4 @@ public class LedgerEntryRepository {
         return Optional.of(OpenMapstruct.map(results.get(0), LedgerEntry.class));
     }
 
-    public Optional<LedgerEntry> findByReference(@NotNull ReferenceType referenceType,
-                                                 @NotNull String referenceId,
-                                                 EntryType entryType) {
-        LedgerEntry condition = LedgerEntry.builder()
-                .referenceType(referenceType)
-                .referenceId(referenceId)
-                .entryType(entryType)
-                .build();
-        return findOne(condition);
-    }
 }

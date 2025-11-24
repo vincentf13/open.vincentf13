@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.account.ledger.domain.model;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,9 +20,15 @@ public class PlatformBalance {
 
     private Long id;
     private Long accountId;
+    @NotNull
     private PlatformAccountCode accountCode;
+    @NotNull
     private AssetSymbol asset;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal balance;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal reserved;
     private Integer version;
     private Long lastEntryId;

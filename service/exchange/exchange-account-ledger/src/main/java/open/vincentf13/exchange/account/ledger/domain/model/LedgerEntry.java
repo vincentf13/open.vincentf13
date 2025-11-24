@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.account.ledger.domain.model;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,20 +18,30 @@ import java.time.Instant;
 @AllArgsConstructor
 public class LedgerEntry {
 
+    @NotNull
     private Long entryId;
+    @NotNull
     private OwnerType ownerType;
+    @NotNull
     private Long accountId;
     private Long userId;
+    @NotNull
     private AssetSymbol asset;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal amount;
+    @NotNull
     private Direction direction;
     private Long counterpartyEntryId;
     private BigDecimal balanceAfter;
+    @NotNull
     private ReferenceType referenceType;
     private String referenceId;
+    @NotNull
     private EntryType entryType;
     private String description;
     private String metadata;
+    @NotNull
     private Instant eventTime;
     private Instant createdAt;
 

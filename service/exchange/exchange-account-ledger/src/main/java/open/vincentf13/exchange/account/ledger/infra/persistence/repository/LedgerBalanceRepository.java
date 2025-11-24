@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
@@ -24,7 +25,7 @@ public class LedgerBalanceRepository {
     private final LedgerBalanceMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public LedgerBalance insertSelective(@NotNull LedgerBalance balance) {
+    public LedgerBalance insertSelective(@NotNull @Valid LedgerBalance balance) {
         if (balance.getId() == null) {
             balance.setId(idGenerator.newLong());
         }
@@ -36,7 +37,7 @@ public class LedgerBalanceRepository {
         return balance;
     }
 
-    public boolean updateSelectiveBy(@NotNull LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
+    public boolean updateSelectiveBy(@NotNull @Valid LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
         return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
     }
