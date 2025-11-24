@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.account.ledger.service.LedgerBalanceCommandService;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
-import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -28,7 +27,6 @@ public class MatchingTradeEventListener {
             acknowledgment.acknowledge();
             return;
         }
-        OpenValidator.validateOrThrow(event);
         ledgerBalanceCommandService.handleTradeExecuted(event);
         acknowledgment.acknowledge();
     }
