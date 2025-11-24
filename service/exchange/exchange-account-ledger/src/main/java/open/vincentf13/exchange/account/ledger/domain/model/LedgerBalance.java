@@ -37,7 +37,6 @@ public class LedgerBalance {
                                               AccountType accountType,
                                               Long instrumentId,
                                               AssetSymbol asset) {
-        Instant now = Instant.now();
         return LedgerBalance.builder()
                 .userId(userId)
                 .accountType(accountType)
@@ -50,8 +49,6 @@ public class LedgerBalance {
                 .totalWithdrawn(BigDecimal.ZERO)
                 .totalPnl(BigDecimal.ZERO)
                 .version(0)
-                .createdAt(now)
-                .updatedAt(now)
                 .build();
     }
     public static AssetSymbol normalizeAsset(String asset) {

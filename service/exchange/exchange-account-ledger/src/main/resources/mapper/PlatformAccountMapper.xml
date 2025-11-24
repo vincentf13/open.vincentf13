@@ -32,7 +32,6 @@
             <if test="category != null">category,</if>
             <if test="name != null">name,</if>
             <if test="status != null">status,</if>
-            <if test="createdAt != null">created_at,</if>
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -41,7 +40,6 @@
             <if test="category != null">#{category},</if>
             <if test="name != null">#{name},</if>
             <if test="status != null">#{status},</if>
-            <if test="createdAt != null">#{createdAt},</if>
         </trim>
     </insert>
 

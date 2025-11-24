@@ -120,8 +120,6 @@ public class KlineAggregationService {
                 .takerBuyVolume(BigDecimal.ZERO)
                 .takerBuyTurnover(BigDecimal.ZERO)
                 .closed(Boolean.FALSE)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
                 .build();
         return klineBucketRepository.save(bucket);
     }
@@ -147,7 +145,6 @@ public class KlineAggregationService {
             bucket.setTakerBuyTurnover(safeAdd(bucket.getTakerBuyTurnover(), price.multiply(quantity)));
         }
         bucket.setClosed(Boolean.FALSE);
-        bucket.setUpdatedAt(executedAt);
         klineBucketRepository.save(bucket);
     }
 

@@ -52,8 +52,6 @@
             <if test="totalPnl != null">total_pnl,</if>
             <if test="version != null">version,</if>
             <if test="lastEntryId != null">last_entry_id,</if>
-            <if test="createdAt != null">created_at,</if>
-            <if test="updatedAt != null">updated_at,</if>
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -71,8 +69,6 @@
             <if test="totalPnl != null">#{totalPnl},</if>
             <if test="version != null">#{version},</if>
             <if test="lastEntryId != null">#{lastEntryId},</if>
-            <if test="createdAt != null">#{createdAt},</if>
-            <if test="updatedAt != null">#{updatedAt},</if>
         </trim>
     </insert>
 
@@ -92,7 +88,6 @@
             <if test="record.totalPnl != null">total_pnl = #{record.totalPnl},</if>
             <if test="record.version != null">version = #{record.version},</if>
             <if test="record.lastEntryId != null">last_entry_id = #{record.lastEntryId},</if>
-            <if test="record.updatedAt != null">updated_at = #{record.updatedAt},</if>
         </set>
         WHERE id = #{record.id}
         <if test="expectedVersion != null">

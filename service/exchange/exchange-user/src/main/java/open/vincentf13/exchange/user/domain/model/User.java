@@ -29,13 +29,10 @@ public class User {
 
     public static User createActive(String rawEmail, String externalId) {
         String normalizedEmail = normalizeEmail(rawEmail);
-        Instant now = Instant.now();
         return User.builder()
                 .email(normalizedEmail)
                 .externalId(externalId != null ? externalId : UUID.randomUUID().toString())
                 .status(UserStatus.ACTIVE)
-                .createdAt(now)
-                .updatedAt(now)
                 .build();
     }
 

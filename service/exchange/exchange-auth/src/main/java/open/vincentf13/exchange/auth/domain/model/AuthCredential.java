@@ -33,7 +33,6 @@ public class AuthCredential {
                 .secretHash(secretHash)
                 .salt(salt)
                 .status(status)
-                .createdAt(Instant.now())
                 .build();
     }
 }

@@ -33,12 +33,6 @@ public class LedgerBalanceRepository {
         if (balance.getAccountId() == null) {
             balance.setAccountId(idGenerator.newLong());
         }
-        if (balance.getCreatedAt() == null) {
-            balance.setCreatedAt(Instant.now());
-        }
-        if (balance.getUpdatedAt() == null) {
-            balance.setUpdatedAt(balance.getCreatedAt());
-        }
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
         if (balance.getAccountType() != null && po.getAccountType() == null) {
             po.setAccountType(balance.getAccountType().value());
@@ -47,17 +41,10 @@ public class LedgerBalanceRepository {
             po.setAsset(balance.getAsset().code());
         }
         mapper.insertSelective(po);
-        if (po.getCreatedAt() != null) {
-            balance.setCreatedAt(po.getCreatedAt());
-        }
-        if (po.getUpdatedAt() != null) {
-            balance.setUpdatedAt(po.getUpdatedAt());
-        }
         return balance;
     }
 
     public boolean updateWithVersion(@NotNull @Valid LedgerBalance balance, Integer expectedVersion) {
-        balance.setUpdatedAt(Instant.now());
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
         if (balance.getAccountType() != null && po.getAccountType() == null) {
             po.setAccountType(balance.getAccountType().value());

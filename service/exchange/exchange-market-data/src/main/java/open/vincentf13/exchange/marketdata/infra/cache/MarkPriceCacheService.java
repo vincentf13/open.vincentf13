@@ -59,8 +59,6 @@ public class MarkPriceCacheService {
                 .tradeId(0L)
                 .tradeExecutedAt(now)
                 .calculatedAt(now)
-                .createdAt(now)
-                .updatedAt(now)
                 .build();
     }
 

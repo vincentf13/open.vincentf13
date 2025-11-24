@@ -28,7 +28,6 @@ public class PlatformBalance {
     private Instant updatedAt;
 
     public static PlatformBalance createDefault(Long accountId, PlatformAccountCode accountCode, AssetSymbol asset) {
-        Instant now = Instant.now();
         return PlatformBalance.builder()
                 .accountId(accountId)
                 .accountCode(accountCode)
@@ -36,8 +35,6 @@ public class PlatformBalance {
                 .balance(BigDecimal.ZERO)
                 .reserved(BigDecimal.ZERO)
                 .version(0)
-                .createdAt(now)
-                .updatedAt(now)
                 .build();
     }
 

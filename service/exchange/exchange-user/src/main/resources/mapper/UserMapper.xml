@@ -12,8 +12,6 @@
             <if test="externalId != null">external_id,</if>
             <if test="email != null">email,</if>
             <if test="status != null">status,</if>
-            <if test="createdAt != null">created_at,</if>
-            <if test="updatedAt != null">updated_at,</if>
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -21,8 +19,6 @@
             <if test="externalId != null">#{externalId},</if>
             <if test="email != null">#{email},</if>
             <if test="status != null">#{status},</if>
-            <if test="createdAt != null">#{createdAt},</if>
-            <if test="updatedAt != null">#{updatedAt},</if>
         </trim>
     </insert>
 
@@ -46,17 +42,15 @@
             <if test="externalId != null">external_id = #{externalId},</if>
             <if test="email != null">email = #{email},</if>
             <if test="status != null">status = #{status},</if>
-            <if test="createdAt != null">created_at = #{createdAt},</if>
-            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
         </set>
         WHERE id = #{id}
     </update>
 
     <insert id="batchInsert" parameterType="java.util.List">
-        INSERT INTO users (id, external_id, email, status, created_at, updated_at)
+        INSERT INTO users (id, external_id, email, status)
         VALUES
         <foreach collection="list" item="item" separator=",">
-            (#{item.id}, #{item.externalId}, #{item.email}, #{item.status}, #{item.createdAt}, #{item.updatedAt})
+            (#{item.id}, #{item.externalId}, #{item.email}, #{item.status})
         </foreach>
     </insert>
 
@@ -67,8 +61,6 @@
                 <if test="item.externalId != null">external_id = #{item.externalId},</if>
                 <if test="item.email != null">email = #{item.email},</if>
                 <if test="item.status != null">status = #{item.status},</if>
-                <if test="item.createdAt != null">created_at = #{item.createdAt},</if>
-                <if test="item.updatedAt != null">updated_at = #{item.updatedAt},</if>
             </set>
             WHERE id = #{item.id}
         </foreach>

@@ -1,23 +1,58 @@
 package open.vincentf13.exchange.risk.infra.persistence.repository;
 
+import com.github.yitter.idgen.DefaultIdGenerator;
+import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.risk.domain.model.LiquidationTask;
+import open.vincentf13.exchange.risk.infra.persistence.mapper.LiquidationTaskMapper;
+import open.vincentf13.exchange.risk.infra.persistence.po.LiquidationTaskPO;
+import open.vincentf13.sdk.core.OpenMapstruct;
+import org.springframework.stereotype.Repository;
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-public interface LiquidationTaskRepository {
+@Repository
+@RequiredArgsConstructor
+@Validated
+public class LiquidationTaskRepository {
 
-    LiquidationTask enqueue(LiquidationTask task);
+    private final LiquidationTaskMapper mapper;
+    private final DefaultIdGenerator idGenerator;
 
-    Optional<LiquidationTask> findById(Long taskId);
+    public LiquidationTask enqueue(@NotNull @Valid LiquidationTask task) {
+        LiquidationTaskPO po = OpenMapstruct.map(task, LiquidationTaskPO.class);
+        Instant now = Instant.now();
+        po.setTaskId(idGenerator.newLong());
+        po.setQueuedAt(po.getQueuedAt() == null ? now : po.getQueuedAt());
+        mapper.insertSelective(po);
+        return OpenMapstruct.map(po, LiquidationTask.class);
+    }
 
-    List<LiquidationTask> findPending(int limit);
+    public Optional<LiquidationTask> findById(@NotNull Long taskId) {
+        LiquidationTaskPO condition = new LiquidationTaskPO();
+        condition.setTaskId(taskId);
+        LiquidationTaskPO po = mapper.findBy(condition);
+        return Optional.ofNullable(OpenMapstruct.map(po, LiquidationTask.class));
+    }
 
-    boolean markProcessing(Long taskId, Instant startedAt);
+    public List<LiquidationTask> findPending(int limit) {
+        return OpenMapstruct.mapList(mapper.findPending(limit), LiquidationTask.class);
+    }
 
-    boolean markCompleted(Long taskId, Instant processedAt, BigDecimal liquidationPrice, BigDecimal liquidationPnl);
+    public boolean markProcessing(@NotNull Long taskId, @NotNull Instant startedAt) {
+        return mapper.markProcessing(taskId, startedAt) > 0;
+    }
 
-    boolean markFailed(Long taskId, String errorMessage, int retryCount, Instant processedAt);
+    public boolean markCompleted(@NotNull Long taskId, @NotNull Instant processedAt, @NotNull BigDecimal liquidationPrice, @NotNull BigDecimal liquidationPnl) {
+        return mapper.markCompleted(taskId, processedAt, liquidationPrice, liquidationPnl) > 0;
+    }
+
+    public boolean markFailed(@NotNull Long taskId, String errorMessage, int retryCount, @NotNull Instant processedAt) {
+        return mapper.markFailed(taskId, errorMessage, retryCount, processedAt) > 0;
+    }
 }

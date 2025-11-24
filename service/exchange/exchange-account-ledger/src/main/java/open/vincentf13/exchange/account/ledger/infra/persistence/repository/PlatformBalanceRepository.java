@@ -31,12 +31,6 @@ public class PlatformBalanceRepository {
         if (platformBalance.getId() == null) {
             platformBalance.setId(idGenerator.newLong());
         }
-        if (platformBalance.getCreatedAt() == null) {
-            platformBalance.setCreatedAt(Instant.now());
-        }
-        if (platformBalance.getUpdatedAt() == null) {
-            platformBalance.setUpdatedAt(platformBalance.getCreatedAt());
-        }
         if (platformBalance.getVersion() == null) {
             platformBalance.setVersion(0);
         }
@@ -48,17 +42,10 @@ public class PlatformBalanceRepository {
             po.setAsset(platformBalance.getAsset().code());
         }
         mapper.insertSelective(po);
-        if (po.getCreatedAt() != null) {
-            platformBalance.setCreatedAt(po.getCreatedAt());
-        }
-        if (po.getUpdatedAt() != null) {
-            platformBalance.setUpdatedAt(po.getUpdatedAt());
-        }
         return platformBalance;
     }
 
     public boolean updateWithVersion(@NotNull @Valid PlatformBalance platformBalance, Integer expectedVersion) {
-        platformBalance.setUpdatedAt(Instant.now());
         PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
         if (platformBalance.getAccountCode() != null && po.getAccountCode() == null) {
             po.setAccountCode(platformBalance.getAccountCode().code());

@@ -23,12 +23,10 @@ public class PlatformAccount {
     private Instant createdAt;
 
     public static PlatformAccount createUserDepositAccount() {
-        Instant now = Instant.now();
         return PlatformAccount.builder()
                 .accountCode(PlatformAccountCode.USER_DEPOSIT)
                 .category(PlatformAccountCategory.LIABILITY)
                 .status(PlatformAccountStatus.ACTIVE)
-                .createdAt(now)
                 .build();
     }
 }

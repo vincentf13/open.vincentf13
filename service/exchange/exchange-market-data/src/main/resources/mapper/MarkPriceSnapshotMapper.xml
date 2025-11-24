@@ -24,8 +24,6 @@
             <if test="tradeId != null">trade_id,</if>
             <if test="tradeExecutedAt != null">trade_executed_at,</if>
             <if test="calculatedAt != null">calculated_at,</if>
-            <if test="createdAt != null">created_at,</if>
-            <if test="updatedAt != null">updated_at,</if>
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -35,8 +33,6 @@
             <if test="tradeId != null">#{tradeId},</if>
             <if test="tradeExecutedAt != null">#{tradeExecutedAt},</if>
             <if test="calculatedAt != null">#{calculatedAt},</if>
-            <if test="createdAt != null">#{createdAt},</if>
-            <if test="updatedAt != null">#{updatedAt},</if>
         </trim>
     </insert>
 

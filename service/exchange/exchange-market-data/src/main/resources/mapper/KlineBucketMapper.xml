@@ -42,8 +42,6 @@
             <if test="takerBuyVolume != null">taker_buy_volume,</if>
             <if test="takerBuyTurnover != null">taker_buy_turnover,</if>
             <if test="closed != null">is_closed,</if>
-            <if test="createdAt != null">created_at,</if>
-            <if test="updatedAt != null">updated_at,</if>
         </trim>
         VALUES
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -62,8 +60,6 @@
             <if test="takerBuyVolume != null">#{takerBuyVolume},</if>
             <if test="takerBuyTurnover != null">#{takerBuyTurnover},</if>
             <if test="closed != null">#{closed},</if>
-            <if test="createdAt != null">#{createdAt},</if>
-            <if test="updatedAt != null">#{updatedAt},</if>
         </trim>
     </insert>
 
@@ -84,7 +80,6 @@
             <if test="takerBuyVolume != null">taker_buy_volume = #{takerBuyVolume},</if>
             <if test="takerBuyTurnover != null">taker_buy_turnover = #{takerBuyTurnover},</if>
             <if test="closed != null">is_closed = #{closed},</if>
-            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
         </set>
         WHERE bucket_id = #{bucketId}
     </update>

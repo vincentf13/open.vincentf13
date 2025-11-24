@@ -65,4 +65,25 @@ public class Position {
         BigDecimal current = quantity == null ? BigDecimal.ZERO : quantity;
         return current.compareTo(requested) > 0 ? PositionIntentType.REDUCE : PositionIntentType.CLOSE;
     }
+
+    public static Position createDefault(Long userId, Long instrumentId, PositionSide side) {
+        Instant now = Instant.now();
+        return Position.builder()
+                .userId(userId)
+                .instrumentId(instrumentId)
+                .leverage(40)
+                .margin(BigDecimal.ZERO)
+                .side(side == null ? PositionSide.LONG : side)
+                .entryPrice(BigDecimal.ZERO)
+                .quantity(BigDecimal.ZERO)
+                .closingReservedQuantity(BigDecimal.ZERO)
+                .markPrice(BigDecimal.ZERO)
+                .marginRatio(BigDecimal.ZERO)
+                .unrealizedPnl(BigDecimal.ZERO)
+                .realizedPnl(BigDecimal.ZERO)
+                .status("ACTIVE")
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
 }

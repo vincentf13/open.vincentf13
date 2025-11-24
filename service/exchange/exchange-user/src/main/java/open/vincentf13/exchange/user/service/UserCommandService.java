@@ -64,8 +64,6 @@ public class UserCommandService {
                     .retryCount(0)
                     .nextRetryAt(null)
                     .lastError(null)
-                    .createdAt(now)
-                    .updatedAt(now)
                     .build();
             authCredentialPendingRepository.insert(pendingCredential);
             return new RegistrationContext(user, pendingCredential);
