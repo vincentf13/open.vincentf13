@@ -11,7 +11,7 @@ public interface LedgerBalanceMapper {
 
     int insertSelective(LedgerBalancePO record);
 
-    int updateSelective(@Param("record") LedgerBalancePO record,
-                        @Param("id") Long id,
-                        @Param("expectedVersion") Integer expectedVersion);
+    int updateSelectiveBy(@Param("record") LedgerBalancePO record,
+                          @Param("id") Long id,
+                          @Param("expectedVersion") Integer expectedVersion);
 }

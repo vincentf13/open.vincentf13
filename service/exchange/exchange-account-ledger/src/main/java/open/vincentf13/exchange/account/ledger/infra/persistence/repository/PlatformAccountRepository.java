@@ -28,7 +28,7 @@ public class PlatformAccountRepository {
     private final PlatformAccountMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public PlatformAccount insert(@NotNull @Valid PlatformAccount platformAccount) {
+    public PlatformAccount insertSelective(@NotNull @Valid PlatformAccount platformAccount) {
         if (platformAccount.getAccountId() == null) {
             platformAccount.setAccountId(idGenerator.newLong());
         }
@@ -65,7 +65,7 @@ public class PlatformAccountRepository {
         return findOne(probe)
                 .orElseGet(() -> {
                     try {
-                        return insert(PlatformAccount.builder()
+                        return insertSelective(PlatformAccount.builder()
                                 .accountCode(code)
                                 .category(PlatformAccountCategory.LIABILITY)
                                 .status(PlatformAccountStatus.ACTIVE)

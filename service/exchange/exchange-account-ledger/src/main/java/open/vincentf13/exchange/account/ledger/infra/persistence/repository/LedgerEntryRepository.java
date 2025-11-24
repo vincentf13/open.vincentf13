@@ -24,17 +24,17 @@ public class LedgerEntryRepository {
 
     public void insert(@NotNull @Valid LedgerEntry entry) {
         LedgerEntryPO po = OpenMapstruct.map(entry, LedgerEntryPO.class);
-        mapper.insert(po);
+        mapper.insertSelective(po);
     }
 
-    public Optional<LedgerEntry> findByReference(@NotNull ReferenceType referenceType, @NotNull String referenceId, EntryType entryType) {
-        LedgerEntryPO condition = new LedgerEntryPO();
-        condition.setReferenceType(referenceType);
-        condition.setReferenceId(referenceId);
-        condition.setEntryType(entryType);
-        List<LedgerEntryPO> results = mapper.findBy(condition);
+    public Optional<LedgerEntry> findOne(@NotNull @Valid LedgerEntry condition) {
+        LedgerEntryPO probe = OpenMapstruct.map(condition, LedgerEntryPO.class);
+        List<LedgerEntryPO> results = mapper.findBy(probe);
         if (results.isEmpty()) {
             return Optional.empty();
+        }
+        if (results.size() > 1) {
+            throw new IllegalStateException("Expected single ledger entry but found " + results.size());
         }
         return Optional.of(OpenMapstruct.map(results.get(0), LedgerEntry.class));
     }

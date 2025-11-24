@@ -149,7 +149,11 @@ public class LedgerTransactionDomainService {
         Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
         String referenceId = orderId.toString();
-        Optional<LedgerEntry> existing = ledgerEntryRepository.findByReference(ReferenceType.ORDER, referenceId, EntryType.FREEZE);
+        Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(LedgerEntry.builder()
+                .referenceType(ReferenceType.ORDER)
+                .referenceId(referenceId)
+                .entryType(EntryType.FREEZE)
+                .build());
         if (existing.isPresent()) {
             return existing.get();
         }
@@ -190,15 +194,19 @@ public class LedgerTransactionDomainService {
                                    @NotNull @DecimalMin(value = "0.00000000") BigDecimal totalCost,
                                    @NotNull Instant eventTime) {
         BigDecimal normalizedCost = totalCost;
-        Optional<LedgerEntry> existing = ledgerEntryRepository.findByReference(ReferenceType.TRADE,
-                                                                               tradeId.toString(),
-                                                                               EntryType.TRADE);
+        Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(LedgerEntry.builder()
+                .referenceType(ReferenceType.TRADE)
+                .referenceId(tradeId.toString())
+                .entryType(EntryType.TRADE)
+                .build());
         if (existing.isPresent()) {
             return existing.get();
         }
-        LedgerEntry reservedEntry = ledgerEntryRepository.findByReference(ReferenceType.ORDER,
-                                                                          orderId.toString(),
-                                                                          EntryType.RESERVED)
+        LedgerEntry reservedEntry = ledgerEntryRepository.findOne(LedgerEntry.builder()
+                        .referenceType(ReferenceType.ORDER)
+                        .referenceId(orderId.toString())
+                        .entryType(EntryType.RESERVED)
+                        .build())
                 .orElseThrow(() -> new IllegalStateException("Reserved entry not found for order=" + orderId));
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
         if (reservedEntry.getAsset() != null && normalizedAsset != null && reservedEntry.getAsset() != normalizedAsset) {
@@ -251,7 +259,7 @@ public class LedgerTransactionDomainService {
             current.setAvailable(available.subtract(amount));
             current.setReserved(reserved.add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -279,7 +287,7 @@ public class LedgerTransactionDomainService {
             current.setReserved(reserved.subtract(amount));
             current.setBalance(totalBalance.subtract(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -301,7 +309,7 @@ public class LedgerTransactionDomainService {
             current.setAvailable(current.getAvailable().add(amount));
             current.setTotalDeposited(current.getTotalDeposited().add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -328,7 +336,7 @@ public class LedgerTransactionDomainService {
             current.setBalance(current.getBalance().subtract(amount));
             current.setTotalWithdrawn(current.getTotalWithdrawn().add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -375,7 +383,7 @@ public class LedgerTransactionDomainService {
             BigDecimal currentBalance = safeDecimal(current.getBalance());
             current.setBalance(currentBalance.add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = platformBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
+            boolean updated = platformBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }
@@ -395,7 +403,7 @@ public class LedgerTransactionDomainService {
             BigDecimal currentBalance = safeDecimal(current.getBalance());
             current.setBalance(currentBalance.subtract(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = platformBalanceRepository.updateWithVersion(current, current.getId(), expectedVersion);
+            boolean updated = platformBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
             if (updated) {
                 return current;
             }

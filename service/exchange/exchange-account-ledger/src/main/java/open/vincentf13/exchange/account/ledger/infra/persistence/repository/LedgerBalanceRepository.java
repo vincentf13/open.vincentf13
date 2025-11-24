@@ -26,7 +26,7 @@ public class LedgerBalanceRepository {
     private final LedgerBalanceMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public LedgerBalance insert(@NotNull @Valid LedgerBalance balance) {
+    public LedgerBalance insertSelective(@NotNull @Valid LedgerBalance balance) {
         if (balance.getId() == null) {
             balance.setId(idGenerator.newLong());
         }
@@ -38,9 +38,9 @@ public class LedgerBalanceRepository {
         return balance;
     }
 
-    public boolean updateWithVersion(@NotNull @Valid LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
+    public boolean updateSelectiveBy(@NotNull @Valid LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
-        return mapper.updateSelective(po, id, expectedVersion) > 0;
+        return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
     }
 
     public List<LedgerBalance> findBy(@NotNull @Valid LedgerBalance condition) {
@@ -72,7 +72,7 @@ public class LedgerBalanceRepository {
                 .asset(asset)
                 .build();
         return findOne(probe)
-                .orElseGet(() -> insert(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
+                .orElseGet(() -> insertSelective(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
     }
 
 

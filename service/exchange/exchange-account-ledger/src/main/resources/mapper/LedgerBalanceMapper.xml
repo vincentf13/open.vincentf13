@@ -72,7 +72,7 @@
         </trim>
     </insert>
 
-    <update id="updateSelective">
+    <update id="updateSelectiveBy">
         UPDATE ledger_balances
         <set>
             <if test="record.accountId != null">account_id = #{record.accountId},</if>

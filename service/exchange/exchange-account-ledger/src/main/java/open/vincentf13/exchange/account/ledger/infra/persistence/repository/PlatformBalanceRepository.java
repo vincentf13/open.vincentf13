@@ -27,7 +27,7 @@ public class PlatformBalanceRepository {
     private final PlatformBalanceMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public PlatformBalance insert(@NotNull @Valid PlatformBalance platformBalance) {
+    public PlatformBalance insertSelective(@NotNull @Valid PlatformBalance platformBalance) {
         if (platformBalance.getId() == null) {
             platformBalance.setId(idGenerator.newLong());
         }
@@ -39,7 +39,7 @@ public class PlatformBalanceRepository {
         return platformBalance;
     }
 
-    public boolean updateWithVersion(@NotNull @Valid PlatformBalance platformBalance, @NotNull Long id, Integer expectedVersion) {
+    public boolean updateSelectiveBy(@NotNull @Valid PlatformBalance platformBalance, @NotNull Long id, Integer expectedVersion) {
         PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
         return mapper.updateSelective(po, id, expectedVersion) > 0;
     }
@@ -71,7 +71,7 @@ public class PlatformBalanceRepository {
         return findOne(probe)
                 .orElseGet(() -> {
                     try {
-                        return insert(PlatformBalance.createDefault(accountId, accountCode, asset));
+                        return insertSelective(PlatformBalance.createDefault(accountId, accountCode, asset));
                     } catch (DuplicateKeyException ex) {
                         return findOne(probe)
                                 .orElseThrow(() -> ex);

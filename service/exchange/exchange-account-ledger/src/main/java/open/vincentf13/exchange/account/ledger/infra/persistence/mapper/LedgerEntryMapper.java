@@ -5,7 +5,7 @@ import java.util.List;
 
 public interface LedgerEntryMapper {
 
-    int insert(LedgerEntryPO record);
+    int insertSelective(LedgerEntryPO record);
 
     List<LedgerEntryPO> findBy(LedgerEntryPO condition);
 }
