@@ -21,14 +21,20 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
+import jakarta.validation.Valid;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
 
 @Service
+@Validated
 @RequiredArgsConstructor
 public class LedgerTransactionDomainService {
 
@@ -40,7 +46,7 @@ public class LedgerTransactionDomainService {
     private final PlatformBalanceRepository platformBalanceRepository;
     private final DefaultIdGenerator idGenerator;
 
-    public LedgerDepositResult deposit(LedgerDepositRequest request) {
+    public LedgerDepositResult deposit(@NotNull @Valid LedgerDepositRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(request.userId(), accountType, null, normalizedAsset);
@@ -84,7 +90,7 @@ public class LedgerTransactionDomainService {
         return new LedgerDepositResult(userEntry, platformEntry, balanceUpdated, platformBalanceUpdated);
     }
 
-    public LedgerWithdrawalResult withdraw(LedgerWithdrawalRequest request) {
+    public LedgerWithdrawalResult withdraw(@NotNull @Valid LedgerWithdrawalRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(request.userId(), accountType, null, normalizedAsset);
@@ -129,10 +135,10 @@ public class LedgerTransactionDomainService {
         return new LedgerWithdrawalResult(userEntry, balanceUpdated);
     }
 
-    public LedgerEntry freezeForOrder(Long orderId,
-                                      Long userId,
-                                      AssetSymbol asset,
-                                      BigDecimal requiredMargin,
+    public LedgerEntry freezeForOrder(@NotNull Long orderId,
+                                      @NotNull Long userId,
+                                      @NotNull AssetSymbol asset,
+                                      @NotNull @DecimalMin(value = "0.00000000") BigDecimal requiredMargin,
                                       Instant eventTime) {
         if (orderId == null || userId == null) {
             throw new FundsFreezeException(FundsFreezeFailureReason.INVALID_EVENT, "orderId and userId are required");
@@ -177,19 +183,13 @@ public class LedgerTransactionDomainService {
         return freezeEntry;
     }
 
-    public LedgerEntry settleTrade(Long tradeId,
-                                   Long orderId,
-                                   Long instrumentId,
-                                   AssetSymbol asset,
-                                   BigDecimal totalCost,
-                                   Instant eventTime) {
-        if (tradeId == null || orderId == null) {
-            throw new IllegalArgumentException("tradeId and orderId are required");
-        }
-        BigDecimal normalizedCost = totalCost == null ? BigDecimal.ZERO : totalCost;
-        if (normalizedCost.signum() < 0) {
-            throw new IllegalArgumentException("totalCost must not be negative");
-        }
+    public LedgerEntry settleTrade(@NotNull Long tradeId,
+                                   @NotNull Long orderId,
+                                   @NotNull Long instrumentId,
+                                   @NotNull AssetSymbol asset,
+                                   @NotNull @DecimalMin(value = "0.00000000") BigDecimal totalCost,
+                                   @NotNull Instant eventTime) {
+        BigDecimal normalizedCost = totalCost;
         Optional<LedgerEntry> existing = ledgerEntryRepository.findByReference(ReferenceType.TRADE,
                                                                                tradeId.toString(),
                                                                                EntryType.TRADE);

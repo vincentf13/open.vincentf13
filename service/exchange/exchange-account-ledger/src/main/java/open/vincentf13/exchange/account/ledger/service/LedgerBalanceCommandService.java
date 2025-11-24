@@ -18,21 +18,25 @@ import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
 import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 import open.vincentf13.sdk.core.OpenValidator;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class LedgerBalanceCommandService {
 
     private final LedgerTransactionDomainService ledgerTransactionDomainService;
     private final LedgerEventPublisher ledgerEventPublisher;
 
     @Transactional
-    public LedgerDepositResponse deposit(LedgerDepositRequest request) {
+    public LedgerDepositResponse deposit(@NotNull @Valid LedgerDepositRequest request) {
         OpenValidator.validateOrThrow(request);
         LedgerDepositResult result = ledgerTransactionDomainService.deposit(request);
         LedgerEntry userEntry = result.userEntry();
@@ -51,7 +55,7 @@ public class LedgerBalanceCommandService {
     }
 
     @Transactional
-    public LedgerWithdrawalResponse withdraw(LedgerWithdrawalRequest request) {
+    public LedgerWithdrawalResponse withdraw(@NotNull @Valid LedgerWithdrawalRequest request) {
         OpenValidator.validateOrThrow(request);
         LedgerWithdrawalResult result = ledgerTransactionDomainService.withdraw(request);
         LedgerEntry entry = result.entry();
@@ -70,7 +74,7 @@ public class LedgerBalanceCommandService {
     }
 
     @Transactional
-    public void handleMarginPreCheckPassed(MarginPreCheckPassedEvent event) {
+    public void handleMarginPreCheckPassed(@NotNull @Valid MarginPreCheckPassedEvent event) {
         try {
             OpenValidator.validateOrThrow(event);
             AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(event.asset());
@@ -91,7 +95,7 @@ public class LedgerBalanceCommandService {
     }
 
     @Transactional
-    public void handleTradeExecuted(TradeExecutedEvent event) {
+    public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
         OpenValidator.validateOrThrow(event);
         AssetSymbol asset = LedgerBalance.normalizeAsset(event.quoteAsset());
         BigDecimal tradeValue = event.price().multiply(event.quantity());
