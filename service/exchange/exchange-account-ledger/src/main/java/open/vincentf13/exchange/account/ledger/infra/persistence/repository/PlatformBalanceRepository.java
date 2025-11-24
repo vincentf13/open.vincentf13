@@ -39,9 +39,9 @@ public class PlatformBalanceRepository {
         return platformBalance;
     }
 
-    public boolean updateWithVersion(@NotNull @Valid PlatformBalance platformBalance, Integer expectedVersion) {
+    public boolean updateWithVersion(@NotNull Long id, @NotNull @Valid PlatformBalance platformBalance, Integer expectedVersion) {
         PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
-        return mapper.updateByIdAndVersion(po, expectedVersion) > 0;
+        return mapper.updateSelective(po, id, expectedVersion) > 0;
     }
 
     public List<PlatformBalance> findBy(@NotNull @Valid PlatformBalance condition) {

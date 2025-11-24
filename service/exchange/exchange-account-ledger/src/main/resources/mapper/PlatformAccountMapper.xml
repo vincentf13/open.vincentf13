@@ -42,15 +42,4 @@
             <if test="status != null">#{status},</if>
         </trim>
     </insert>
-
-    <update id="updateSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAccountPO">
-        UPDATE platform_accounts
-        <set>
-            <if test="accountCode != null">account_code = #{accountCode},</if>
-            <if test="category != null">category = #{category},</if>
-            <if test="name != null">name = #{name},</if>
-            <if test="status != null">status = #{status},</if>
-        </set>
-        WHERE account_id = #{accountId}
-    </update>
 </mapper>

@@ -9,6 +9,4 @@ public interface PlatformAccountMapper {
     List<PlatformAccountPO> findBy(PlatformAccountPO condition);
 
     int insertSelective(PlatformAccountPO record);
-
-    int updateSelective(PlatformAccountPO record);
 }

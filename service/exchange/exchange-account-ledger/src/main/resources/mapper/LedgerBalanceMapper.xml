@@ -72,7 +72,7 @@
         </trim>
     </insert>
 
-    <update id="updateByIdAndVersion">
+    <update id="updateSelective">
         UPDATE ledger_balances
         <set>
             <if test="record.accountId != null">account_id = #{record.accountId},</if>
@@ -89,7 +89,7 @@
             <if test="record.version != null">version = #{record.version},</if>
             <if test="record.lastEntryId != null">last_entry_id = #{record.lastEntryId},</if>
         </set>
-        WHERE id = #{record.id}
+        WHERE id = #{id}
         <if test="expectedVersion != null">
             AND version = #{expectedVersion}
         </if>
