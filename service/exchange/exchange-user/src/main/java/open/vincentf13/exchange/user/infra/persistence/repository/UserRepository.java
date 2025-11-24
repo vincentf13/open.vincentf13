@@ -30,8 +30,8 @@ public class UserRepository {
         mapper.insertSelective(po);
     }
 
-    public void updateSelective(@NotNull @Valid User user) {
-        mapper.updateSelective(OpenMapstruct.map(user, UserPO.class));
+    public boolean updateStatus(@NotNull Long id, @NotNull String status) {
+        return mapper.updateStatusById(id, status) > 0;
     }
 
     public List<User> findBy(@NotNull @Valid User probe) {
