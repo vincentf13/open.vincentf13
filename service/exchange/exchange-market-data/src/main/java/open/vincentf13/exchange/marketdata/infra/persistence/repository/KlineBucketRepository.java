@@ -1,6 +1,9 @@
 package open.vincentf13.exchange.marketdata.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
 import open.vincentf13.exchange.marketdata.infra.persistence.mapper.KlineBucketMapper;
@@ -8,10 +11,6 @@ import open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.List;
@@ -35,8 +34,7 @@ public class KlineBucketRepository {
                 .map(po -> OpenMapstruct.map(po, KlineBucket.class));
     }
 
-    public KlineBucket save(@NotNull @Valid KlineBucket bucket) {
-        Instant now = Instant.now();
+    public KlineBucket save(@NotNull KlineBucket bucket) {
         KlineBucketPO record = OpenMapstruct.map(bucket, KlineBucketPO.class);
         if (record.getClosed() == null) {
             record.setClosed(Boolean.FALSE);

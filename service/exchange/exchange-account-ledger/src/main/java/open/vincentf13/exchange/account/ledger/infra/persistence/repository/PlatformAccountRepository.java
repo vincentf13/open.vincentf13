@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.PlatformAccountMapper;
@@ -8,27 +9,24 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAcco
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCategory;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountStatus;
-import org.springframework.dao.DuplicateKeyException;
 import open.vincentf13.sdk.core.OpenMapstruct;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
-@RequiredArgsConstructor
 @Validated
+@RequiredArgsConstructor
 public class PlatformAccountRepository {
 
     private final PlatformAccountMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public PlatformAccount insertSelective(@NotNull @Valid PlatformAccount platformAccount) {
+    public PlatformAccount insertSelective(@NotNull PlatformAccount platformAccount) {
         if (platformAccount.getAccountId() == null) {
             platformAccount.setAccountId(idGenerator.newLong());
         }
@@ -40,14 +38,14 @@ public class PlatformAccountRepository {
         return platformAccount;
     }
 
-    public List<PlatformAccount> findBy(@NotNull @Valid PlatformAccount condition) {
+    public List<PlatformAccount> findBy(@NotNull PlatformAccount condition) {
         PlatformAccountPO probe = OpenMapstruct.map(condition, PlatformAccountPO.class);
         return mapper.findBy(probe).stream()
                 .map(item -> OpenMapstruct.map(item, PlatformAccount.class))
                 .collect(Collectors.toList());
     }
 
-    public Optional<PlatformAccount> findOne(@NotNull @Valid PlatformAccount condition) {
+    public Optional<PlatformAccount> findOne(@NotNull PlatformAccount condition) {
         List<PlatformAccount> results = findBy(condition);
         if (results.isEmpty()) {
             return Optional.empty();

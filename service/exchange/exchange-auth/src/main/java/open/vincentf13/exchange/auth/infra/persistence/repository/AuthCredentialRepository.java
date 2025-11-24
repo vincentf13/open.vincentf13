@@ -1,16 +1,15 @@
 package open.vincentf13.exchange.auth.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.infra.persistence.mapper.AuthCredentialMapper;
 import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;
+import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,7 +23,7 @@ public class AuthCredentialRepository {
     private final AuthCredentialMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public Long insertSelective(@NotNull @Valid AuthCredential credential) {
+    public Long insertSelective(@NotNull AuthCredential credential) {
         if (credential.getId() == null) {
             credential.setId(idGenerator.newLong());
         }
@@ -33,7 +32,7 @@ public class AuthCredentialRepository {
         return credential.getId();
     }
 
-    public Optional<AuthCredential> findOne(@NotNull @Valid AuthCredential probe) {
+    public Optional<AuthCredential> findOne(@NotNull AuthCredential probe) {
         List<AuthCredential> results = findBy(probe);
         if (results.isEmpty()) {
             return Optional.empty();
@@ -44,14 +43,14 @@ public class AuthCredentialRepository {
         return Optional.of(results.get(0));
     }
 
-    public List<AuthCredential> findBy(@NotNull @Valid AuthCredential probe) {
+    public List<AuthCredential> findBy(@NotNull AuthCredential probe) {
         AuthCredentialPO poProbe = OpenMapstruct.map(probe, AuthCredentialPO.class);
         return mapper.findBy(poProbe).stream()
                 .map(item -> OpenMapstruct.map(item, AuthCredential.class))
                 .collect(Collectors.toList());
     }
 
-    public void batchInsert(@NotEmpty List<@Valid AuthCredential> credentials) {
+    public void batchInsert(@NotEmpty List<AuthCredential> credentials) {
         credentials.stream()
                 .filter(credential -> credential.getId() == null)
                 .forEach(credential -> credential.setId(idGenerator.newLong()));
@@ -60,7 +59,7 @@ public class AuthCredentialRepository {
                 .collect(Collectors.toList()));
     }
 
-    public void batchUpdate(@NotEmpty List<@Valid AuthCredential> credentials) {
+    public void batchUpdate(@NotEmpty List<AuthCredential> credentials) {
         mapper.batchUpdate(credentials.stream()
                 .map(credential -> OpenMapstruct.map(credential, AuthCredentialPO.class))
                 .collect(Collectors.toList()));

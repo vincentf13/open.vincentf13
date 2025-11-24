@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.marketdata.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.marketdata.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.marketdata.infra.persistence.mapper.MarkPriceSnapshotMapper;
@@ -8,8 +9,6 @@ import open.vincentf13.exchange.marketdata.infra.persistence.po.MarkPriceSnapsho
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -22,7 +21,7 @@ public class MarkPriceSnapshotRepository {
     private final MarkPriceSnapshotMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public MarkPriceSnapshot save(@NotNull @Valid MarkPriceSnapshot snapshot) {
+    public MarkPriceSnapshot save(@NotNull MarkPriceSnapshot snapshot) {
         MarkPriceSnapshotPO record = OpenMapstruct.map(snapshot, MarkPriceSnapshotPO.class);
         Instant calculatedAt = record.getCalculatedAt() != null ? record.getCalculatedAt() : Instant.now();
         record.setCalculatedAt(calculatedAt);

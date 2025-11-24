@@ -1,19 +1,17 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerBalanceMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -26,7 +24,7 @@ public class LedgerBalanceRepository {
     private final LedgerBalanceMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public LedgerBalance insertSelective(@NotNull @Valid LedgerBalance balance) {
+    public LedgerBalance insertSelective(@NotNull LedgerBalance balance) {
         if (balance.getId() == null) {
             balance.setId(idGenerator.newLong());
         }
@@ -38,19 +36,19 @@ public class LedgerBalanceRepository {
         return balance;
     }
 
-    public boolean updateSelectiveBy(@NotNull @Valid LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
+    public boolean updateSelectiveBy(@NotNull LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
         return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
     }
 
-    public List<LedgerBalance> findBy(@NotNull @Valid LedgerBalance condition) {
+    public List<LedgerBalance> findBy(@NotNull LedgerBalance condition) {
         LedgerBalancePO probe = OpenMapstruct.map(condition, LedgerBalancePO.class);
         return mapper.findBy(probe).stream()
                 .map(item -> OpenMapstruct.map(item, LedgerBalance.class))
                 .collect(Collectors.toList());
     }
 
-    public Optional<LedgerBalance> findOne(@NotNull @Valid LedgerBalance condition) {
+    public Optional<LedgerBalance> findOne(@NotNull LedgerBalance condition) {
         List<LedgerBalance> results = findBy(condition);
         if (results.isEmpty()) {
             return Optional.empty();
@@ -74,6 +72,4 @@ public class LedgerBalanceRepository {
         return findOne(probe)
                 .orElseGet(() -> insertSelective(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
     }
-
-
 }

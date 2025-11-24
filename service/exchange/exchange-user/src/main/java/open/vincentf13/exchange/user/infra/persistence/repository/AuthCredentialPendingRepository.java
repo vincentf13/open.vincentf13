@@ -1,16 +1,15 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.core.OpenMapstruct;
 import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
-import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.infra.persistence.mapper.AuthCredentialPendingMapper;
 import open.vincentf13.exchange.user.infra.persistence.po.AuthCredentialPendingPO;
+import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
+import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,7 +22,7 @@ public class AuthCredentialPendingRepository {
 
     private final AuthCredentialPendingMapper mapper;
 
-    public void insert(@NotNull @Valid AuthCredentialPending credential) {
+    public void insert(@NotNull AuthCredentialPending credential) {
         mapper.insert(OpenMapstruct.map(credential, AuthCredentialPendingPO.class));
     }
 

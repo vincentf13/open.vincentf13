@@ -1,18 +1,17 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformBalance;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.PlatformBalanceMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
-import org.springframework.dao.DuplicateKeyException;
 import open.vincentf13.sdk.core.OpenMapstruct;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,7 +25,7 @@ public class PlatformBalanceRepository {
     private final PlatformBalanceMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public PlatformBalance insertSelective(@NotNull @Valid PlatformBalance platformBalance) {
+    public PlatformBalance insertSelective(@NotNull PlatformBalance platformBalance) {
         if (platformBalance.getId() == null) {
             platformBalance.setId(idGenerator.newLong());
         }
@@ -38,19 +37,19 @@ public class PlatformBalanceRepository {
         return platformBalance;
     }
 
-    public boolean updateSelectiveBy(@NotNull @Valid PlatformBalance platformBalance, @NotNull Long id, Integer expectedVersion) {
+    public boolean updateSelectiveBy(@NotNull PlatformBalance platformBalance, @NotNull Long id, Integer expectedVersion) {
         PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
-        return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
+        return mapper.updateSelective(po, id, expectedVersion) > 0;
     }
 
-    public List<PlatformBalance> findBy(@NotNull @Valid PlatformBalance condition) {
+    public List<PlatformBalance> findBy(@NotNull PlatformBalance condition) {
         PlatformBalancePO probe = OpenMapstruct.map(condition, PlatformBalancePO.class);
         return mapper.findBy(probe).stream()
                 .map(item -> OpenMapstruct.map(item, PlatformBalance.class))
                 .collect(Collectors.toList());
     }
 
-    public Optional<PlatformBalance> findOne(@NotNull @Valid PlatformBalance condition) {
+    public Optional<PlatformBalance> findOne(@NotNull PlatformBalance condition) {
         List<PlatformBalance> results = findBy(condition);
         if (results.isEmpty()) {
             return Optional.empty();

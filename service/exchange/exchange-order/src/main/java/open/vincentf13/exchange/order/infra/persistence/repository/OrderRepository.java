@@ -1,13 +1,12 @@
 package open.vincentf13.exchange.order.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.persistence.mapper.OrderMapper;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import open.vincentf13.sdk.core.OpenMapstruct;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -23,7 +22,7 @@ public class OrderRepository {
     private final OrderMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public void insertSelective(@NotNull @Valid Order order) {
+    public void insertSelective(@NotNull Order order) {
         order.setOrderId(idGenerator.newLong());
         OrderPO po = OpenMapstruct.map(order, OrderPO.class);
         mapper.insertSelective(po);
@@ -56,8 +55,12 @@ public class OrderRepository {
         return Optional.of(OpenMapstruct.map(results.get(0), Order.class));
     }
 
-    public boolean updateStatus(Long orderId, Long userId, OrderStatus status,
-                                int expectedVersion, Instant submittedAt, Instant filledAt) {
+    public boolean updateStatus(Long orderId,
+                                Long userId,
+                                OrderStatus status,
+                                int expectedVersion,
+                                Instant submittedAt,
+                                Instant filledAt) {
         return mapper.updateStatusByIdAndVersion(orderId, userId, status, submittedAt, filledAt, expectedVersion) > 0;
     }
 

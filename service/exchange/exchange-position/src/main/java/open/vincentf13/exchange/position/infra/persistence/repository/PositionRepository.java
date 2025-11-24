@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.position.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +33,7 @@ public class PositionRepository {
         return findOne(condition);
     }
 
-    private Optional<Position> findOne(@NotNull @Valid PositionPO condition) {
+    private Optional<Position> findOne(@NotNull PositionPO condition) {
         var results = mapper.findBy(condition);
         if (results.isEmpty()) {
             return Optional.empty();
@@ -74,5 +73,4 @@ public class PositionRepository {
     public boolean updateLeverage(@NotNull Long positionId, @NotNull Integer leverage) {
         return mapper.updateLeverage(positionId, leverage) > 0;
     }
-
 }
