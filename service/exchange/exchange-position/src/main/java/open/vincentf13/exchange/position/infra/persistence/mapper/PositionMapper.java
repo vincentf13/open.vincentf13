@@ -13,12 +13,11 @@ public interface PositionMapper {
 
     int insertSelective(PositionPO po);
 
-    int reserveForClose(@Param("userId") Long userId,
-                        @Param("instrumentId") Long instrumentId,
-                        @Param("quantity") BigDecimal quantity,
-                        @Param("side") PositionSide side,
-                        @Param("expectedVersion") int expectedVersion);
-
-    int updateLeverage(@Param("positionId") Long positionId,
-                       @Param("leverage") Integer leverage);
+    int updateSelectiveBy(@Param("record") PositionPO record,
+                          @Param("positionId") Long positionId,
+                          @Param("userId") Long userId,
+                          @Param("instrumentId") Long instrumentId,
+                          @Param("side") PositionSide side,
+                          @Param("expectedVersion") Integer expectedVersion,
+                          @Param("status") String status);
 }

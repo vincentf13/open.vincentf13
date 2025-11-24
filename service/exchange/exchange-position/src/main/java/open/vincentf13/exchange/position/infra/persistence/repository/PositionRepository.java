@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.position.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
-import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.domain.model.Position;
@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -24,26 +25,6 @@ public class PositionRepository {
     private final PositionMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public Optional<Position> findActive(@NotNull Long userId, @NotNull Long instrumentId) {
-        PositionPO condition = PositionPO.builder()
-                .userId(userId)
-                .instrumentId(instrumentId)
-                .status("ACTIVE")
-                .build();
-        return findOne(condition);
-    }
-
-    private Optional<Position> findOne(@NotNull PositionPO condition) {
-        var results = mapper.findBy(condition);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single position but found " + results.size());
-        }
-        return Optional.of(OpenMapstruct.map(results.get(0), Position.class));
-    }
-
     public Position createDefault(@NotNull Long userId, @NotNull Long instrumentId) {
         Position domain = Position.createDefault(userId, instrumentId, PositionSide.LONG);
         domain.setPositionId(idGenerator.newLong());
@@ -52,7 +33,7 @@ public class PositionRepository {
             mapper.insertSelective(po);
             return OpenMapstruct.map(po, Position.class);
         } catch (DuplicateKeyException duplicateKeyException) {
-            PositionPO existing = PositionPO.builder()
+            Position existing = Position.builder()
                     .userId(userId)
                     .instrumentId(instrumentId)
                     .status("ACTIVE")
@@ -62,15 +43,41 @@ public class PositionRepository {
         }
     }
 
-    public boolean reserveForClose(@NotNull Long userId,
-                                   @NotNull Long instrumentId,
-                                   @NotNull @DecimalMin(value = "0.00000001") BigDecimal quantity,
-                                   @NotNull PositionSide side,
-                                   int expectedVersion) {
-        return mapper.reserveForClose(userId, instrumentId, quantity, side, expectedVersion) > 0;
+    public void insertSelective(@NotNull @Valid Position position) {
+        if (position.getPositionId() == null) {
+            position.setPositionId(idGenerator.newLong());
+        }
+        PositionPO po = OpenMapstruct.map(position, PositionPO.class);
+        mapper.insertSelective(po);
     }
 
-    public boolean updateLeverage(@NotNull Long positionId, @NotNull Integer leverage) {
-        return mapper.updateLeverage(positionId, leverage) > 0;
+    public List<Position> findBy(@NotNull Position condition) {
+        PositionPO probe = OpenMapstruct.map(condition, PositionPO.class);
+        return mapper.findBy(probe).stream()
+                .map(item -> OpenMapstruct.map(item, Position.class))
+                .toList();
+    }
+
+    public Optional<Position> findOne(@NotNull Position condition) {
+        PositionPO probe = OpenMapstruct.map(condition, PositionPO.class);
+        var results = mapper.findBy(probe);
+        if (results.isEmpty()) {
+            return Optional.empty();
+        }
+        if (results.size() > 1) {
+            throw new IllegalStateException("Expected single position but found " + results.size());
+        }
+        return Optional.of(OpenMapstruct.map(results.get(0), Position.class));
+    }
+
+    public boolean updateSelectiveBy(@NotNull @Valid Position update,
+                                     @NotNull Long positionId,
+                                     Long userId,
+                                     Long instrumentId,
+                                     PositionSide side,
+                                     Integer expectedVersion,
+                                     String status) {
+        PositionPO record = OpenMapstruct.map(update, PositionPO.class);
+        return mapper.updateSelectiveBy(record, positionId, userId, instrumentId, side, expectedVersion, status) > 0;
     }
 }

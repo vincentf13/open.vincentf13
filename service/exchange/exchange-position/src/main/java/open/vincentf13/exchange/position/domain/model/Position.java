@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.position.domain.model;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,20 +19,46 @@ import java.time.Instant;
 public class Position {
 
     private Long positionId;
+    @NotNull
     private Long userId;
+    @NotNull
     private Long instrumentId;
+    @NotNull
+    @DecimalMin(value = "1", inclusive = true)
     private Integer leverage;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal margin;
+    @NotNull
     private PositionSide side;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal entryPrice;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal quantity;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal closingReservedQuantity;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal markPrice;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal marginRatio;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal unrealizedPnl;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal realizedPnl;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal liquidationPrice;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal bankruptcyPrice;
+    @NotNull
     private String status;
     private Integer version;
     private Instant createdAt;
@@ -80,6 +108,8 @@ public class Position {
                 .marginRatio(BigDecimal.ZERO)
                 .unrealizedPnl(BigDecimal.ZERO)
                 .realizedPnl(BigDecimal.ZERO)
+                .liquidationPrice(BigDecimal.ZERO)
+                .bankruptcyPrice(BigDecimal.ZERO)
                 .status("ACTIVE")
                 .build();
     }

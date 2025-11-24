@@ -2,6 +2,7 @@
 - 全域 MyBatis Enum TypeHandler 已將 Enum `name()` 寫入資料庫並自動還原，禁止在程式中手動轉字串或自建 enum↔字串映射。
 - Repository:	
 - Repository : 使用以下規定，不要建立其他方法，除非特殊需要提出討論。
+	- 對入參標上必要的效驗參數，只對 insert,update相關方法的domain物件標上 @Vaild 註解
 	- findOne ，入參為 domain 內含給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，若返回超過一個則報錯，否則轉成domain返回
 	- findBy ，入參為 domain 內含給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，轉成domain返回
 	- getOrCreate，帳戶或快照等用戶資產，一律延遲建立。建立時 domain 負責初始化。

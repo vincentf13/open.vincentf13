@@ -45,12 +45,31 @@ public class PositionCommandService {
         if (side == null) {
             return PositionReserveOutcome.rejected("ORDER_SIDE_REQUIRED");
         }
-        Position position = positionRepository.findActive(userId, instrumentId).orElse(null);
+        Position position = positionRepository.findOne(Position.builder()
+                        .userId(userId)
+                        .instrumentId(instrumentId)
+                        .status("ACTIVE")
+                        .build())
+                .orElse(null);
         if (position == null) {
             return PositionReserveOutcome.rejected("POSITION_NOT_FOUND");
         }
+        if (position.availableToClose().compareTo(quantity) < 0) {
+            return PositionReserveOutcome.rejected("INSUFFICIENT_AVAILABLE");
+        }
         int expectedVersion = position.safeVersion();
-        boolean success = positionRepository.reserveForClose(userId, instrumentId, quantity, side, expectedVersion);
+        Position updateRecord = Position.builder()
+                .closingReservedQuantity(position.getClosingReservedQuantity().add(quantity))
+                .version(expectedVersion + 1)
+                .build();
+        boolean success = positionRepository.updateSelectiveBy(
+                updateRecord,
+                position.getPositionId(),
+                position.getUserId(),
+                position.getInstrumentId(),
+                side,
+                expectedVersion,
+                "ACTIVE");
         if (!success) {
             return PositionReserveOutcome.rejected("RESERVE_FAILED");
         }
@@ -63,7 +82,11 @@ public class PositionCommandService {
             throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND, "instrumentId is required");
         }
         OpenValidator.validateOrThrow(request);
-        Position position = positionRepository.findActive(userId, instrumentId)
+        Position position = positionRepository.findOne(Position.builder()
+                        .userId(userId)
+                        .instrumentId(instrumentId)
+                        .status("ACTIVE")
+                        .build())
                 .orElseGet(() -> positionRepository.createDefault(userId, instrumentId));
         if (position == null) {
             throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
@@ -88,7 +111,19 @@ public class PositionCommandService {
                     "Leverage pre-check rejected", buildPrecheckMeta(position.getPositionId(), instrumentId, targetLeverage, precheckResponse));
         }
 
-        boolean updated = positionRepository.updateLeverage(position.getPositionId(), targetLeverage);
+        int expectedVersion = position.safeVersion();
+        Position updateRecord = Position.builder()
+                .leverage(targetLeverage)
+                .version(expectedVersion + 1)
+                .build();
+        boolean updated = positionRepository.updateSelectiveBy(
+                updateRecord,
+                position.getPositionId(),
+                position.getUserId(),
+                position.getInstrumentId(),
+                position.getSide(),
+                expectedVersion,
+                "ACTIVE");
         if (!updated) {
             throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND,
                     "Failed to update leverage due to concurrent modification");

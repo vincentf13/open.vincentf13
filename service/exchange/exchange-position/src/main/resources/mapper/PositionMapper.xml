@@ -17,18 +17,6 @@
         ORDER BY updated_at DESC
     </select>
 
-    <update id="reserveForClose">
-        UPDATE positions
-        SET closing_reserved_quantity = closing_reserved_quantity + #{quantity},
-            version = version + 1
-        WHERE user_id = #{userId}
-          AND instrument_id = #{instrumentId}
-          AND side = #{side}
-          AND status = 'ACTIVE'
-          AND version = #{expectedVersion}
-          AND (quantity - closing_reserved_quantity) >= #{quantity}
-    </update>
-
     <insert id="insertSelective" parameterType="PositionPO">
         INSERT INTO positions
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -74,13 +62,32 @@
         </trim>
     </insert>
 
-    <update id="updateLeverage">
+    <update id="updateSelectiveBy">
         UPDATE positions
-        SET leverage = #{leverage},
-            version = version + 1
+        <set>
+            <if test="record.userId != null">user_id = #{record.userId},</if>
+            <if test="record.instrumentId != null">instrument_id = #{record.instrumentId},</if>
+            <if test="record.leverage != null">leverage = #{record.leverage},</if>
+            <if test="record.margin != null">margin = #{record.margin},</if>
+            <if test="record.side != null">side = #{record.side},</if>
+            <if test="record.entryPrice != null">entry_price = #{record.entryPrice},</if>
+            <if test="record.quantity != null">quantity = #{record.quantity},</if>
+            <if test="record.closingReservedQuantity != null">closing_reserved_quantity = #{record.closingReservedQuantity},</if>
+            <if test="record.markPrice != null">mark_price = #{record.markPrice},</if>
+            <if test="record.marginRatio != null">margin_ratio = #{record.marginRatio},</if>
+            <if test="record.unrealizedPnl != null">unrealized_pnl = #{record.unrealizedPnl},</if>
+            <if test="record.realizedPnl != null">realized_pnl = #{record.realizedPnl},</if>
+            <if test="record.liquidationPrice != null">liquidation_price = #{record.liquidationPrice},</if>
+            <if test="record.bankruptcyPrice != null">bankruptcy_price = #{record.bankruptcyPrice},</if>
+            <if test="record.status != null">status = #{record.status},</if>
+            <if test="record.version != null">version = #{record.version},</if>
+            <if test="record.closedAt != null">closed_at = #{record.closedAt},</if>
+        </set>
         WHERE position_id = #{positionId}
-          AND status = 'ACTIVE'
+          <if test="userId != null">AND user_id = #{userId}</if>
+          <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+          <if test="side != null">AND side = #{side}</if>
+          <if test="expectedVersion != null">AND version = #{expectedVersion}</if>
+          <if test="status != null">AND status = #{status}</if>
     </update>
-
-    <!-- write operations will be reintroduced once position creation logic is wired -->
 </mapper>
