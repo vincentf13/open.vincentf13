@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.marketdata.domain.model;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,10 +20,14 @@ import java.time.Instant;
 public class MarkPriceSnapshot {
 
     private Long snapshotId;
+    @NotNull
     private Long instrumentId;
+    @NotNull
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal markPrice;
     private Long tradeId;
     private Instant tradeExecutedAt;
+    @NotNull
     private Instant calculatedAt;
     private Instant createdAt;
     private Instant updatedAt;

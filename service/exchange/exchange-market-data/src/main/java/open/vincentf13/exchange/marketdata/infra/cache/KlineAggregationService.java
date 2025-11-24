@@ -79,8 +79,11 @@ public class KlineAggregationService {
             bucket.setTakerBuyTurnover(BigDecimal.ZERO);
         }
         bucket.setClosed(Boolean.TRUE);
-        bucket.setUpdatedAt(Instant.now());
-        klineBucketRepository.save(bucket);
+        klineBucketRepository.updateSelectiveBy(bucket,
+                bucket.getBucketId(),
+                bucket.getInstrumentId(),
+                bucket.getPeriod(),
+                null);
     }
 
     private BigDecimal findPreviousClose(KlineBucket bucket, KlinePeriod period) {
@@ -105,23 +108,11 @@ public class KlineAggregationService {
     }
 
     private KlineBucket createNewBucket(Long instrumentId, KlinePeriod period, Instant bucketStart, Instant bucketEnd) {
-        KlineBucket bucket = KlineBucket.builder()
-                .instrumentId(instrumentId)
-                .period(period.getValue())
-                .bucketStart(bucketStart)
-                .bucketEnd(bucketEnd)
-                .openPrice(BigDecimal.ZERO)
-                .highPrice(BigDecimal.ZERO)
-                .lowPrice(BigDecimal.ZERO)
-                .closePrice(BigDecimal.ZERO)
-                .volume(BigDecimal.ZERO)
-                .turnover(BigDecimal.ZERO)
-                .tradeCount(0)
-                .takerBuyVolume(BigDecimal.ZERO)
-                .takerBuyTurnover(BigDecimal.ZERO)
-                .closed(Boolean.FALSE)
-                .build();
-        return klineBucketRepository.save(bucket);
+        KlineBucket bucket = KlineBucket.createEmpty(instrumentId,
+                period.getValue(),
+                bucketStart,
+                bucketEnd);
+        return klineBucketRepository.insertSelective(bucket);
     }
 
     private void applyTrade(KlineBucket bucket,
@@ -145,7 +136,11 @@ public class KlineAggregationService {
             bucket.setTakerBuyTurnover(safeAdd(bucket.getTakerBuyTurnover(), price.multiply(quantity)));
         }
         bucket.setClosed(Boolean.FALSE);
-        klineBucketRepository.save(bucket);
+        klineBucketRepository.updateSelectiveBy(bucket,
+                bucket.getBucketId(),
+                bucket.getInstrumentId(),
+                bucket.getPeriod(),
+                null);
     }
 
     private BigDecimal max(BigDecimal left, BigDecimal right) {

@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.marketdata.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -34,18 +35,27 @@ public class KlineBucketRepository {
                 .map(po -> OpenMapstruct.map(po, KlineBucket.class));
     }
 
-    public KlineBucket save(@NotNull KlineBucket bucket) {
+    public KlineBucket insertSelective(@NotNull @Valid KlineBucket bucket) {
         KlineBucketPO record = OpenMapstruct.map(bucket, KlineBucketPO.class);
         if (record.getClosed() == null) {
             record.setClosed(Boolean.FALSE);
         }
         if (record.getBucketId() == null) {
             record.setBucketId(idGenerator.newLong());
-            mapper.insertSelective(record);
-        } else {
-            mapper.updateById(record);
         }
-        return OpenMapstruct.map(record, KlineBucket.class);
+        mapper.insertSelective(record);
+        bucket.setBucketId(record.getBucketId());
+        bucket.setClosed(record.getClosed());
+        return bucket;
+    }
+
+    public boolean updateSelectiveBy(@NotNull @Valid KlineBucket update,
+                                     @NotNull Long bucketId,
+                                     Long instrumentId,
+                                     String period,
+                                     Boolean closed) {
+        KlineBucketPO record = OpenMapstruct.map(update, KlineBucketPO.class);
+        return mapper.updateSelectiveBy(record, bucketId, instrumentId, period, closed) > 0;
     }
 
     public List<KlineBucket> findRecent(@NotNull Long instrumentId, @NotBlank String period, @Min(1) int limit) {

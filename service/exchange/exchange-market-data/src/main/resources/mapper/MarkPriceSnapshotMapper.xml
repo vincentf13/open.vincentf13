@@ -4,18 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.marketdata.infra.persistence.mapper.MarkPriceSnapshotMapper">
 
-    <resultMap id="MarkPriceSnapshotResultMap" type="open.vincentf13.exchange.marketdata.infra.persistence.po.MarkPriceSnapshotPO">
-        <id property="snapshotId" column="snapshot_id" />
-        <result property="instrumentId" column="instrument_id" />
-        <result property="markPrice" column="mark_price" />
-        <result property="tradeId" column="trade_id" />
-        <result property="tradeExecutedAt" column="trade_executed_at" />
-        <result property="calculatedAt" column="calculated_at" />
-        <result property="createdAt" column="created_at" />
-        <result property="updatedAt" column="updated_at" />
-    </resultMap>
-
-    <insert id="insertSelective" parameterType="open.vincentf13.exchange.marketdata.infra.persistence.po.MarkPriceSnapshotPO">
+    <insert id="insertSelective" parameterType="MarkPriceSnapshotPO">
         INSERT INTO mark_price_snapshots
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="snapshotId != null">snapshot_id,</if>
@@ -36,7 +25,7 @@
         </trim>
     </insert>
 
-    <select id="findLatest" resultMap="MarkPriceSnapshotResultMap">
+    <select id="findLatest" resultType="MarkPriceSnapshotPO">
         SELECT
             snapshot_id,
             instrument_id,

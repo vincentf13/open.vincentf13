@@ -46,7 +46,7 @@ public class MarkPriceCacheService {
             return latest;
         }
         MarkPriceSnapshot defaultSnapshot = createDefaultSnapshot(instrumentId);
-        MarkPriceSnapshot persisted = repository.save(defaultSnapshot);
+        MarkPriceSnapshot persisted = repository.insertSelective(defaultSnapshot);
         cache.put(instrumentId, persisted);
         return Optional.of(persisted);
     }
@@ -89,7 +89,7 @@ public class MarkPriceCacheService {
             return;
         }
 
-        MarkPriceSnapshot persisted = repository.save(current);
+        MarkPriceSnapshot persisted = repository.insertSelective(current);
         cache.put(instrumentId, persisted);
         eventPublisher.publishMarkPriceUpdated(persisted);
         log.debug("Mark price updated for instrument {} with trade {}", instrumentId, tradeId);

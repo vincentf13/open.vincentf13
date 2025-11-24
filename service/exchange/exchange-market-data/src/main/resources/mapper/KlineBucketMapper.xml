@@ -4,27 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.marketdata.infra.persistence.mapper.KlineBucketMapper">
 
-    <resultMap id="KlineBucketResultMap" type="open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO">
-        <id property="bucketId" column="bucket_id" />
-        <result property="instrumentId" column="instrument_id" />
-        <result property="period" column="period" />
-        <result property="bucketStart" column="bucket_start" />
-        <result property="bucketEnd" column="bucket_end" />
-        <result property="openPrice" column="open_price" />
-        <result property="highPrice" column="high_price" />
-        <result property="lowPrice" column="low_price" />
-        <result property="closePrice" column="close_price" />
-        <result property="volume" column="volume" />
-        <result property="turnover" column="turnover" />
-        <result property="tradeCount" column="trade_count" />
-        <result property="takerBuyVolume" column="taker_buy_volume" />
-        <result property="takerBuyTurnover" column="taker_buy_turnover" />
-        <result property="closed" column="is_closed" />
-        <result property="createdAt" column="created_at" />
-        <result property="updatedAt" column="updated_at" />
-    </resultMap>
-
-    <insert id="insertSelective" parameterType="open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO">
+    <insert id="insertSelective" parameterType="KlineBucketPO">
         INSERT INTO kline_buckets
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="bucketId != null">bucket_id,</if>
@@ -63,28 +43,31 @@
         </trim>
     </insert>
 
-    <update id="updateById" parameterType="open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO">
+    <update id="updateSelectiveBy">
         UPDATE kline_buckets
         <set>
-            <if test="instrumentId != null">instrument_id = #{instrumentId},</if>
-            <if test="period != null">period = #{period},</if>
-            <if test="bucketStart != null">bucket_start = #{bucketStart},</if>
-            <if test="bucketEnd != null">bucket_end = #{bucketEnd},</if>
-            <if test="openPrice != null">open_price = #{openPrice},</if>
-            <if test="highPrice != null">high_price = #{highPrice},</if>
-            <if test="lowPrice != null">low_price = #{lowPrice},</if>
-            <if test="closePrice != null">close_price = #{closePrice},</if>
-            <if test="volume != null">volume = #{volume},</if>
-            <if test="turnover != null">turnover = #{turnover},</if>
-            <if test="tradeCount != null">trade_count = #{tradeCount},</if>
-            <if test="takerBuyVolume != null">taker_buy_volume = #{takerBuyVolume},</if>
-            <if test="takerBuyTurnover != null">taker_buy_turnover = #{takerBuyTurnover},</if>
-            <if test="closed != null">is_closed = #{closed},</if>
+            <if test="record.instrumentId != null">instrument_id = #{record.instrumentId},</if>
+            <if test="record.period != null">period = #{record.period},</if>
+            <if test="record.bucketStart != null">bucket_start = #{record.bucketStart},</if>
+            <if test="record.bucketEnd != null">bucket_end = #{record.bucketEnd},</if>
+            <if test="record.openPrice != null">open_price = #{record.openPrice},</if>
+            <if test="record.highPrice != null">high_price = #{record.highPrice},</if>
+            <if test="record.lowPrice != null">low_price = #{record.lowPrice},</if>
+            <if test="record.closePrice != null">close_price = #{record.closePrice},</if>
+            <if test="record.volume != null">volume = #{record.volume},</if>
+            <if test="record.turnover != null">turnover = #{record.turnover},</if>
+            <if test="record.tradeCount != null">trade_count = #{record.tradeCount},</if>
+            <if test="record.takerBuyVolume != null">taker_buy_volume = #{record.takerBuyVolume},</if>
+            <if test="record.takerBuyTurnover != null">taker_buy_turnover = #{record.takerBuyTurnover},</if>
+            <if test="record.closed != null">is_closed = #{record.closed},</if>
         </set>
         WHERE bucket_id = #{bucketId}
+          <if test="instrumentId != null">AND instrument_id = #{instrumentId}</if>
+          <if test="period != null">AND period = #{period}</if>
+          <if test="closed != null">AND is_closed = #{closed}</if>
     </update>
 
-    <select id="findByInstrumentPeriodAndStart" resultMap="KlineBucketResultMap">
+    <select id="findByInstrumentPeriodAndStart" resultType="KlineBucketPO">
         SELECT
             bucket_id,
             instrument_id,
@@ -110,7 +93,7 @@
         LIMIT 1
     </select>
 
-    <select id="findActiveBucket" resultMap="KlineBucketResultMap">
+    <select id="findActiveBucket" resultType="KlineBucketPO">
         SELECT
             bucket_id,
             instrument_id,
@@ -138,7 +121,7 @@
         LIMIT 1
     </select>
 
-    <select id="findRecentBuckets" resultMap="KlineBucketResultMap">
+    <select id="findRecentBuckets" resultType="KlineBucketPO">
         SELECT
             bucket_id,
             instrument_id,
@@ -164,7 +147,7 @@
         LIMIT #{limit}
     </select>
 
-    <select id="findBucketsBetween" resultMap="KlineBucketResultMap">
+    <select id="findBucketsBetween" resultType="KlineBucketPO">
         SELECT
             bucket_id,
             instrument_id,
@@ -190,7 +173,7 @@
         ORDER BY bucket_start ASC
     </select>
 
-    <select id="findLatestBefore" resultMap="KlineBucketResultMap">
+    <select id="findLatestBefore" resultType="KlineBucketPO">
         SELECT
             bucket_id,
             instrument_id,

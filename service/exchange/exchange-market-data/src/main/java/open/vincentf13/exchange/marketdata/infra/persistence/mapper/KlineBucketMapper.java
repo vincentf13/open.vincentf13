@@ -10,7 +10,11 @@ public interface KlineBucketMapper {
 
     void insertSelective(KlineBucketPO record);
 
-    int updateById(KlineBucketPO record);
+    int updateSelectiveBy(@Param("record") KlineBucketPO record,
+                          @Param("bucketId") Long bucketId,
+                          @Param("instrumentId") Long instrumentId,
+                          @Param("period") String period,
+                          @Param("closed") Boolean closed);
 
     KlineBucketPO findByInstrumentPeriodAndStart(@Param("instrumentId") Long instrumentId,
                                                  @Param("period") String period,

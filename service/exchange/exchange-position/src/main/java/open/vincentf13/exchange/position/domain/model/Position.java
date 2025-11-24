@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.position.domain.model;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +25,7 @@ public class Position {
     @NotNull
     private Long instrumentId;
     @NotNull
-    @DecimalMin(value = "1", inclusive = true)
+    @Min(1)
     private Integer leverage;
     @NotNull
     @DecimalMin(value = "0", inclusive = true)

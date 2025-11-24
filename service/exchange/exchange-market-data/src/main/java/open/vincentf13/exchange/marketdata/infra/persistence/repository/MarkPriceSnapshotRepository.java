@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.marketdata.infra.persistence.repository;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.marketdata.domain.model.MarkPriceSnapshot;
@@ -21,15 +22,18 @@ public class MarkPriceSnapshotRepository {
     private final MarkPriceSnapshotMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public MarkPriceSnapshot save(@NotNull MarkPriceSnapshot snapshot) {
+    public MarkPriceSnapshot insertSelective(@NotNull @Valid MarkPriceSnapshot snapshot) {
         MarkPriceSnapshotPO record = OpenMapstruct.map(snapshot, MarkPriceSnapshotPO.class);
-        Instant calculatedAt = record.getCalculatedAt() != null ? record.getCalculatedAt() : Instant.now();
-        record.setCalculatedAt(calculatedAt);
         if (record.getSnapshotId() == null) {
             record.setSnapshotId(idGenerator.newLong());
         }
+        if (record.getCalculatedAt() == null) {
+            record.setCalculatedAt(Instant.now());
+        }
         mapper.insertSelective(record);
-        return OpenMapstruct.map(record, MarkPriceSnapshot.class);
+        snapshot.setSnapshotId(record.getSnapshotId());
+        snapshot.setCalculatedAt(record.getCalculatedAt());
+        return snapshot;
     }
 
     public Optional<MarkPriceSnapshot> findLatest(@NotNull Long instrumentId) {
