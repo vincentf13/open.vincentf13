@@ -57,7 +57,10 @@ public class OrderCommandService {
             return OpenMapstruct.map(order, OrderResponse.class);
         } catch (DuplicateKeyException ex) {
             log.info("Duplicate order insert for user {} clientOrderId {}", userId, request.clientOrderId());
-            return orderRepository.findByUserIdAndClientOrderId(userId, request.clientOrderId())
+            return orderRepository.findOne(Order.builder()
+                            .userId(userId)
+                            .clientOrderId(request.clientOrderId())
+                            .build())
                     .map(o -> OpenMapstruct.map(o, OrderResponse.class))
                     .orElseThrow(() -> OpenServiceException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                             "Duplicate order detected but existing record not found"));

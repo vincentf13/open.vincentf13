@@ -1,7 +1,7 @@
 - 所有domain與PO，不對createdAt, updatedAt 設值，統一由 DB 在 insert update時賦值。
 - 所有Enum，由typehandler處理，在DB寫入時自動call .name()轉為字串
 - Repository:	
-- Repository : 盡量使用以下規定
+- Repository : 使用以下規定，不要建立其他方法，除非特殊需要提出討論。
 	- findOne ，入參為 domain 內含給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，若返回超過一個則報錯，否則轉成domain返回
 	- findBy ，入參為 domain 內含給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，轉成domain返回
 	- getOrCreate，帳戶或快照等用戶資產，一律延遲建立。建立時 domain 負責初始化。
@@ -11,13 +11,13 @@
 		- 第一個參數為 domain，為要更新的值，調用mybatis updateSelective，若值不為null 則更新。 
 		- 第二及其他參數為 WHERE 條件 使用的參數。
 		- 特殊的update另外寫
-	- 若有其他特殊方法需要提出討論。
 
 - Mybatis Mapper
 	- 優先使用 insertSelective / updateSelecticeBy / findBy(PO) 模板，避免重工。
 		- Mybatis 的 updateSelecticeBy
 			- 第一個參數為 domain，為要更新的值，若值不為null 則更新。 
 			- 第二及其他參數為 WHERE 條件 使用的參數。
+			- 所有 updateSelecticeBy 使用同一方法，只是不同場景第二~第N個參數，可能部分帶null值。
 		- 特殊的 update 依場景，使用專用方法，方便了解具體改動的值
 	- 所有xml內，不需要寫 resultMap 因為已經會自動轉換
 	- 若已配置 `mybatis.type-aliases-package`，`parameterType` ,`resultType` 直接寫別名（例如 `PlatformBalancePO`），可省略全限定類名。

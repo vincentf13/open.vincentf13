@@ -41,7 +41,7 @@ public class LedgerEventListener {
         }
         OpenValidator.validateOrThrow(event);
         transactionTemplate.executeWithoutResult(status -> {
-            Optional<Order> optional = orderRepository.findById(event.orderId());
+            Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
             if (optional.isEmpty()) {
                 log.warn("Skip funds frozen event, order not found. orderId={}", event.orderId());
                 return;
@@ -68,8 +68,12 @@ public class LedgerEventListener {
     private void handleFundsFrozen(Order order, FundsFrozenEvent event) {
         Instant now = Instant.now();
         int currentVersion = Optional.ofNullable(order.getVersion()).orElse(0);
-        boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.ACCEPTED,
-                currentVersion, now, null);
+        Order updateRecord = Order.builder()
+                .status(OrderStatus.ACCEPTED)
+                .submittedAt(now)
+                .version(currentVersion + 1)
+                .build();
+        boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion);
         if (!updated) {
             log.warn("Optimistic lock conflict while marking order accepted. orderId={}", order.getOrderId());
             return;

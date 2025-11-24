@@ -4,16 +4,14 @@ import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.persistence.mapper.OrderMapper;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.exchange.order.domain.model.Order;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
-import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -29,24 +27,16 @@ public class OrderRepository {
         mapper.insertSelective(po);
     }
 
-    public Optional<Order> findById(@NotNull Long orderId) {
-        OrderPO probe = OrderPO.builder().orderId(orderId).build();
-        return findOne(probe);
+    public List<Order> findBy(@NotNull Order condition) {
+        OrderPO probe = OpenMapstruct.map(condition, OrderPO.class);
+        return mapper.findBy(probe).stream()
+                .map(item -> OpenMapstruct.map(item, Order.class))
+                .toList();
     }
 
-    public Optional<Order> findByUserIdAndClientOrderId(@NotNull Long userId, String clientOrderId) {
-        if (userId == null || !StringUtils.hasText(clientOrderId)) {
-            return Optional.empty();
-        }
-        OrderPO probe = OrderPO.builder()
-                .userId(userId)
-                .clientOrderId(clientOrderId)
-                .build();
-        return findOne(probe);
-    }
-
-    private Optional<Order> findOne(@NotNull OrderPO condition) {
-        var results = mapper.findBy(condition);
+    public Optional<Order> findOne(@NotNull Order condition) {
+        OrderPO probe = OpenMapstruct.map(condition, OrderPO.class);
+        var results = mapper.findBy(probe);
         if (results == null || results.isEmpty()) {
             return Optional.empty();
         }
@@ -56,31 +46,20 @@ public class OrderRepository {
         return Optional.of(OpenMapstruct.map(results.get(0), Order.class));
     }
 
-    public boolean updateStatus(Long orderId,
-                                Long userId,
-                                OrderStatus status,
-                                int expectedVersion,
-                                Instant submittedAt,
-                                Instant filledAt) {
-        return mapper.updateStatusByIdAndVersion(orderId, userId, status, submittedAt, filledAt, expectedVersion) > 0;
+    public boolean updateSelectiveBy(@NotNull @Valid Order update,
+                                     @NotNull Long orderId,
+                                     Long userId,
+                                     Integer expectedVersion) {
+        OrderPO record = OpenMapstruct.map(update, OrderPO.class);
+        return mapper.updateSelectiveBy(record, orderId, userId, expectedVersion) > 0;
     }
 
-    public boolean updateStatusByCurrentStatus(Long orderId,
-                                               Long userId,
-                                               OrderStatus currentStatus,
-                                               OrderStatus targetStatus,
-                                               Instant submittedAt,
-                                               Instant filledAt) {
-        return mapper.updateStatusByCurrentStatus(orderId, userId, currentStatus, targetStatus, submittedAt, filledAt) > 0;
+    public boolean updateSelectiveByCurrentStatus(@NotNull @Valid Order update,
+                                                  @NotNull Long orderId,
+                                                  @NotNull Long userId,
+                                                  @NotNull OrderStatus currentStatus) {
+        OrderPO record = OpenMapstruct.map(update, OrderPO.class);
+        return mapper.updateSelectiveByCurrentStatus(record, orderId, userId, currentStatus) > 0;
     }
 
-    public boolean updateStatusAndCost(Long orderId,
-                                       Long userId,
-                                       OrderStatus currentStatus,
-                                       OrderStatus targetStatus,
-                                       Instant submittedAt,
-                                       Instant filledAt,
-                                       BigDecimal closeCostPrice) {
-        return mapper.updateStatusWithCost(orderId, userId, currentStatus, targetStatus, submittedAt, filledAt, closeCostPrice) > 0;
-    }
 }

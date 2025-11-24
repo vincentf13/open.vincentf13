@@ -18,7 +18,7 @@ public class OrderQueryService {
 
     @Transactional(readOnly = true)
     public OrderResponse get(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findOne(Order.builder().orderId(orderId).build())
                 .orElseThrow(() -> OpenServiceException.of(OrderErrorCode.ORDER_NOT_FOUND,
                         "Order not found: " + orderId));
         return OpenMapstruct.map(order, OrderResponse.class);

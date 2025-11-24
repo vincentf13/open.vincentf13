@@ -24,15 +24,19 @@ public class OrderFailureHandler {
             return;
         }
         transactionTemplate.executeWithoutResult(status -> {
-            Optional<Order> optional = orderRepository.findById(orderId);
+            Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(orderId).build());
             if (optional.isEmpty()) {
                 log.warn("Skip {} failure event, order not found. orderId={}", stage, orderId);
                 return;
             }
             Order order = optional.get();
             Instant now = Instant.now();
-            boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.FAILED,
-                    Optional.ofNullable(order.getVersion()).orElse(0), null, null);
+            int currentVersion = Optional.ofNullable(order.getVersion()).orElse(0);
+            Order updateRecord = Order.builder()
+                    .status(OrderStatus.FAILED)
+                    .version(currentVersion + 1)
+                    .build();
+            boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion);
             if (!updated) {
                 log.warn("Optimistic lock conflict while marking order failed. orderId={} stage={}", orderId, stage);
                 return;

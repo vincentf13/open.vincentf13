@@ -59,21 +59,22 @@ public class PositionReserveEventListener {
 
     private void handleReservationSuccess(PositionReservedEvent event) {
         Instant now = Instant.now();
-        boolean updated = orderRepository.updateStatusAndCost(
+        Order updateRecord = Order.builder()
+                .status(OrderStatus.SUBMITTED)
+                .submittedAt(now)
+                .closeCostPrice(event.avgOpenPrice())
+                .build();
+        boolean updated = orderRepository.updateSelectiveByCurrentStatus(
+                updateRecord,
                 event.orderId(),
                 event.userId(),
-                OrderStatus.PENDING,
-                OrderStatus.SUBMITTED,
-                now,
-                null,
-                event.avgOpenPrice()
-        );
+                OrderStatus.PENDING);
         if (!updated) {
             OpenLog.warn(log, "OrderStatusConflict", "Failed to update order status on position reserve", null,
                     "orderId", event.orderId());
             return;
         }
-        Optional<Order> optionalOrder = orderRepository.findById(event.orderId());
+        Optional<Order> optionalOrder = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
         if (optionalOrder.isEmpty()) {
             OpenLog.warn(log, "OrderNotFoundAfterReserve", "Order updated but not found for event publish", null,
                     "orderId", event.orderId());
@@ -82,26 +83,27 @@ public class PositionReserveEventListener {
         Order order = optionalOrder.get();
         order.markStatus(OrderStatus.SUBMITTED, now);
         order.setSubmittedAt(now);
+        order.setCloseCostPrice(event.avgOpenPrice());
         orderEventPublisher.publishOrderSubmitted(order);
         OpenLog.info(log, "OrderPositionReserved", "Position reserved for order", "orderId", order.getOrderId());
     }
 
     private void handleReservationFailure(PositionReserveRejectedEvent event) {
         Instant now = Instant.now();
-        boolean updated = orderRepository.updateStatusByCurrentStatus(
+        Order updateRecord = Order.builder()
+                .status(OrderStatus.FAILED)
+                .build();
+        boolean updated = orderRepository.updateSelectiveByCurrentStatus(
+                updateRecord,
                 event.orderId(),
                 event.userId(),
-                OrderStatus.PENDING,
-                OrderStatus.FAILED,
-                null,
-                null
-        );
+                OrderStatus.PENDING);
         if (!updated) {
             OpenLog.warn(log, "OrderStatusConflict", "Failed to mark order failed on position reserve rejection", null,
                     "orderId", event.orderId());
             return;
         }
-        Optional<Order> optionalOrder = orderRepository.findById(event.orderId());
+        Optional<Order> optionalOrder = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
         if (optionalOrder.isPresent()) {
             Order order = optionalOrder.get();
             order.markStatus(OrderStatus.FAILED, now);
