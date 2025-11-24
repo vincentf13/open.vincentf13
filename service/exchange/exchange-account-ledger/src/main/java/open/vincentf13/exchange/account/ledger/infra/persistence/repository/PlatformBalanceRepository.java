@@ -39,7 +39,7 @@ public class PlatformBalanceRepository {
 
     public boolean updateSelectiveBy(@NotNull PlatformBalance platformBalance, @NotNull Long id, Integer expectedVersion) {
         PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
-        return mapper.updateSelective(po, id, expectedVersion) > 0;
+        return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
     }
 
     public List<PlatformBalance> findBy(@NotNull PlatformBalance condition) {
