@@ -1,10 +1,9 @@
 package open.vincentf13.exchange.order.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckFailedEvent;
 import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
+import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckFailedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.topic.RiskTopics;
-import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -25,7 +24,6 @@ public class RiskEventListener {
             acknowledgment.acknowledge();
             return;
         }
-        OpenValidator.validateOrThrow(event);
         orderFailureHandler.markFailed(event.orderId(), "RISK_REJECT", event.reason());
         acknowledgment.acknowledge();
     }

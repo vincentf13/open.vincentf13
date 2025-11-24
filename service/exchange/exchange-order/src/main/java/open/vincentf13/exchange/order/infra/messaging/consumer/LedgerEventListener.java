@@ -2,15 +2,14 @@ package open.vincentf13.exchange.order.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
-import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
+import open.vincentf13.exchange.order.domain.model.Order;
+import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
+import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
-import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -39,7 +38,6 @@ public class LedgerEventListener {
             acknowledgment.acknowledge();
             return;
         }
-        OpenValidator.validateOrThrow(event);
         transactionTemplate.executeWithoutResult(status -> {
             Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
             if (optional.isEmpty()) {
@@ -60,7 +58,6 @@ public class LedgerEventListener {
             acknowledgment.acknowledge();
             return;
         }
-        OpenValidator.validateOrThrow(event);
         orderFailureHandler.markFailed(event.orderId(), "LEDGER_REJECT", event.reason());
         acknowledgment.acknowledge();
     }

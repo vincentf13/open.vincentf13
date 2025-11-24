@@ -11,7 +11,6 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveOutcome;
 import open.vincentf13.sdk.core.OpenLog;
-import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -38,7 +37,6 @@ public class PositionReserveRequestListener {
             acknowledgment.acknowledge();
             return;
         }
-        OpenValidator.validateOrThrow(event);
         transactionTemplate.executeWithoutResult(status -> handleReserveRequestInTransaction(event));
         acknowledgment.acknowledge();
     }
