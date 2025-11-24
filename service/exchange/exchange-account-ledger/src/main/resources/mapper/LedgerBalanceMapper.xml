@@ -16,7 +16,7 @@
         ORDER BY updated_at DESC
     </select>
 
-    <insert id="insertSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO">
+    <insert id="insertSelective" parameterType="LedgerBalancePO">
         INSERT INTO ledger_balances
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="id != null">id,</if>

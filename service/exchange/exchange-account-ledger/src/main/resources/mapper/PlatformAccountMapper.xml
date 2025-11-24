@@ -15,7 +15,7 @@
         ORDER BY account_code ASC
     </select>
 
-    <insert id="insertSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAccountPO">
+    <insert id="insertSelective" parameterType="PlatformAccountPO">
         INSERT INTO platform_accounts
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="accountId != null">account_id,</if>

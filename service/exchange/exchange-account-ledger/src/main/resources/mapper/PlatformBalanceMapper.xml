@@ -14,7 +14,7 @@
         ORDER BY updated_at DESC
     </select>
 
-    <insert id="insertSelective" parameterType="open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO">
+    <insert id="insertSelective" parameterType="PlatformBalancePO">
         INSERT INTO platform_balances
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="id != null">id,</if>

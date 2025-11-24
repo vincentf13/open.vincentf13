@@ -12,5 +12,5 @@
 - Mybatis Mapper
 	- 優先使用 insertSelective / updateSelectiveBy / findBy(PO) 模板，避免重工
 	- 所有xml內，不需要寫 resultMap 因為已經會自動轉換
-	- 若已配置 `mybatis.type-aliases-package`，`resultType` 直接寫別名（例如 `PlatformBalancePO`），可省略全限定類名。
+	- 若已配置 `mybatis.type-aliases-package`，`parameterType` ,`resultType` 直接寫別名（例如 `PlatformBalancePO`），可省略全限定類名。
 
