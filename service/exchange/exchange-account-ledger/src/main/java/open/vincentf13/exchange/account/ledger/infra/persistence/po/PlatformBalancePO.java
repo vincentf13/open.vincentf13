@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,8 +18,8 @@ public class PlatformBalancePO {
 
     private Long id;
     private Long accountId;
-    private String accountCode;
-    private String asset;
+    private PlatformAccountCode accountCode;
+    private AssetSymbol asset;
     private BigDecimal balance;
     private BigDecimal reserved;
     private Integer version;

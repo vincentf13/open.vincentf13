@@ -34,35 +34,17 @@ public class LedgerBalanceRepository {
             balance.setAccountId(idGenerator.newLong());
         }
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
-        if (balance.getAccountType() != null && po.getAccountType() == null) {
-            po.setAccountType(balance.getAccountType().value());
-        }
-        if (balance.getAsset() != null && po.getAsset() == null) {
-            po.setAsset(balance.getAsset().code());
-        }
         mapper.insertSelective(po);
         return balance;
     }
 
     public boolean updateWithVersion(@NotNull @Valid LedgerBalance balance, Integer expectedVersion) {
         LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
-        if (balance.getAccountType() != null && po.getAccountType() == null) {
-            po.setAccountType(balance.getAccountType().value());
-        }
-        if (balance.getAsset() != null && po.getAsset() == null) {
-            po.setAsset(balance.getAsset().code());
-        }
         return mapper.updateByIdAndVersion(po, expectedVersion) > 0;
     }
 
     public List<LedgerBalance> findBy(@NotNull @Valid LedgerBalance condition) {
         LedgerBalancePO probe = OpenMapstruct.map(condition, LedgerBalancePO.class);
-        if (condition.getAccountType() != null && probe.getAccountType() == null) {
-            probe.setAccountType(condition.getAccountType().value());
-        }
-        if (condition.getAsset() != null && probe.getAsset() == null) {
-            probe.setAsset(condition.getAsset().code());
-        }
         return mapper.findBy(probe).stream()
                 .map(item -> OpenMapstruct.map(item, LedgerBalance.class))
                 .collect(Collectors.toList());

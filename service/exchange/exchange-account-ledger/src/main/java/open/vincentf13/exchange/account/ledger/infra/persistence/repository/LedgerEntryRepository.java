@@ -24,29 +24,14 @@ public class LedgerEntryRepository {
 
     public void insert(@NotNull @Valid LedgerEntry entry) {
         LedgerEntryPO po = OpenMapstruct.map(entry, LedgerEntryPO.class);
-        if (entry.getOwnerType() != null && po.getOwnerType() == null) {
-            po.setOwnerType(entry.getOwnerType().code());
-        }
-        if (entry.getDirection() != null && po.getDirection() == null) {
-            po.setDirection(entry.getDirection().code());
-        }
-        if (entry.getEntryType() != null && po.getEntryType() == null) {
-            po.setEntryType(entry.getEntryType().code());
-        }
-        if (entry.getAsset() != null && po.getAsset() == null) {
-            po.setAsset(entry.getAsset().code());
-        }
-        if (entry.getReferenceType() != null && po.getReferenceType() == null) {
-            po.setReferenceType(entry.getReferenceType().code());
-        }
         mapper.insert(po);
     }
 
     public Optional<LedgerEntry> findByReference(@NotNull ReferenceType referenceType, @NotNull String referenceId, EntryType entryType) {
         LedgerEntryPO condition = new LedgerEntryPO();
-        condition.setReferenceType(referenceType == null ? null : referenceType.code());
+        condition.setReferenceType(referenceType);
         condition.setReferenceId(referenceId);
-        condition.setEntryType(entryType == null ? null : entryType.code());
+        condition.setEntryType(entryType);
         List<LedgerEntryPO> results = mapper.findBy(condition);
         if (results.isEmpty()) {
             return Optional.empty();

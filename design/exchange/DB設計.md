@@ -1,5 +1,5 @@
 - 所有domain與PO，不對createdAt, updatedAt 設值，統一由 DB 在 insert update時賦值。
-- 所有Enum賦值，由typehandler處理
+- 所有Enum，由typehandler處理，在DB寫入時自動call .name()轉為字串
 - Repository : 提供以下方法
 	- findOne ，入參為多個給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，若超過一個報錯，否則轉成domain返回
 	- findBy ，入參為多個給定查詢條件，在其此組成PO後，查詢 mabtis的  findBy(PO)，轉成domain返回
@@ -7,4 +7,6 @@
 	- upsert，入參為domain物件，在其此組成PO後，執行mabtis的  upsertSelective
 	- updateBy，入參domain物件為要更新的值，其他參數是update的WHERE條件的參數，且為not null，調用 mybatis 的 updateSelective，因為共用 updateSelective，所以updateSelective會有更種repositor傳入的條件參數，若條件參數為null，就在xm上，用參數判斷，為null，該參數就不組成為 WHERE 條件。
 	- 若有其他特殊方法需要提出討論。
-- Mybatis Mapper優先使用 insertSelective / updateSelective / findBy(PO) 模板，避免重工
+- Mybatis Mapper
+	- 優先使用 insertSelective / updateSelective / findBy(PO) 模板，避免重工
+	- 所有xml內，如無必要，不需要寫 resultMap 因為已經會自動轉換

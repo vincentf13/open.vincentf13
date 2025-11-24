@@ -4,6 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCategory;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountStatus;
 
 import java.time.Instant;
 
@@ -14,9 +17,9 @@ import java.time.Instant;
 public class PlatformAccountPO {
 
     private Long accountId;
-    private String accountCode;
-    private String category;
+    private PlatformAccountCode accountCode;
+    private PlatformAccountCategory category;
     private String name;
-    private String status;
+    private PlatformAccountStatus status;
     private Instant createdAt;
 }

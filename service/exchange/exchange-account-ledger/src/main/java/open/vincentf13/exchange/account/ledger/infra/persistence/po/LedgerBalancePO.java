@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -17,9 +19,9 @@ public class LedgerBalancePO {
     private Long id;
     private Long accountId;
     private Long userId;
-    private String accountType;
+    private AccountType accountType;
     private Long instrumentId;
-    private String asset;
+    private AssetSymbol asset;
     private BigDecimal balance;
     private BigDecimal available;
     private BigDecimal reserved;

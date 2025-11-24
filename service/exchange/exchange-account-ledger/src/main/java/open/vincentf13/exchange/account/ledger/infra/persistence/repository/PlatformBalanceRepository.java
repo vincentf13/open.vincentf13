@@ -35,35 +35,17 @@ public class PlatformBalanceRepository {
             platformBalance.setVersion(0);
         }
         PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
-        if (platformBalance.getAccountCode() != null && po.getAccountCode() == null) {
-            po.setAccountCode(platformBalance.getAccountCode().code());
-        }
-        if (platformBalance.getAsset() != null && po.getAsset() == null) {
-            po.setAsset(platformBalance.getAsset().code());
-        }
         mapper.insertSelective(po);
         return platformBalance;
     }
 
     public boolean updateWithVersion(@NotNull @Valid PlatformBalance platformBalance, Integer expectedVersion) {
         PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
-        if (platformBalance.getAccountCode() != null && po.getAccountCode() == null) {
-            po.setAccountCode(platformBalance.getAccountCode().code());
-        }
-        if (platformBalance.getAsset() != null && po.getAsset() == null) {
-            po.setAsset(platformBalance.getAsset().code());
-        }
         return mapper.updateByIdAndVersion(po, expectedVersion) > 0;
     }
 
     public List<PlatformBalance> findBy(@NotNull @Valid PlatformBalance condition) {
         PlatformBalancePO probe = OpenMapstruct.map(condition, PlatformBalancePO.class);
-        if (condition.getAccountCode() != null && probe.getAccountCode() == null) {
-            probe.setAccountCode(condition.getAccountCode().code());
-        }
-        if (condition.getAsset() != null && probe.getAsset() == null) {
-            probe.setAsset(condition.getAsset().code());
-        }
         return mapper.findBy(probe).stream()
                 .map(item -> OpenMapstruct.map(item, PlatformBalance.class))
                 .collect(Collectors.toList());

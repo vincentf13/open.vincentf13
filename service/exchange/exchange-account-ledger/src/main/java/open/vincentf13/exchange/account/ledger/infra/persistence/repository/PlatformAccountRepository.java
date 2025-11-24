@@ -33,15 +33,6 @@ public class PlatformAccountRepository {
             platformAccount.setAccountId(idGenerator.newLong());
         }
         PlatformAccountPO po = OpenMapstruct.map(platformAccount, PlatformAccountPO.class);
-        if (platformAccount.getAccountCode() != null && po.getAccountCode() == null) {
-            po.setAccountCode(platformAccount.getAccountCode().code());
-        }
-        if (platformAccount.getCategory() != null && po.getCategory() == null) {
-            po.setCategory(platformAccount.getCategory().code());
-        }
-        if (platformAccount.getStatus() != null && po.getStatus() == null) {
-            po.setStatus(platformAccount.getStatus().code());
-        }
         if (po.getName() == null && platformAccount.getAccountCode() != null) {
             po.setName(platformAccount.getAccountCode().displayName());
         }
@@ -51,15 +42,6 @@ public class PlatformAccountRepository {
 
     public List<PlatformAccount> findBy(@NotNull @Valid PlatformAccount condition) {
         PlatformAccountPO probe = OpenMapstruct.map(condition, PlatformAccountPO.class);
-        if (condition.getAccountCode() != null && probe.getAccountCode() == null) {
-            probe.setAccountCode(condition.getAccountCode().code());
-        }
-        if (condition.getCategory() != null && probe.getCategory() == null) {
-            probe.setCategory(condition.getCategory().code());
-        }
-        if (condition.getStatus() != null && probe.getStatus() == null) {
-            probe.setStatus(condition.getStatus().code());
-        }
         return mapper.findBy(probe).stream()
                 .map(item -> OpenMapstruct.map(item, PlatformAccount.class))
                 .collect(Collectors.toList());

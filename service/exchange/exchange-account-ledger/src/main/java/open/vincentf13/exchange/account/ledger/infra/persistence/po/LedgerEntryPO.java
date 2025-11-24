@@ -4,6 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.Direction;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.OwnerType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
+import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,17 +20,17 @@ import java.time.Instant;
 public class LedgerEntryPO {
 
     private Long entryId;
-    private String ownerType;
+    private OwnerType ownerType;
     private Long accountId;
     private Long userId;
-    private String asset;
+    private AssetSymbol asset;
     private BigDecimal amount;
-    private String direction;
+    private Direction direction;
     private Long counterpartyEntryId;
     private BigDecimal balanceAfter;
-    private String referenceType;
+    private ReferenceType referenceType;
     private String referenceId;
-    private String entryType;
+    private EntryType entryType;
     private String description;
     private String metadata;
     private Instant eventTime;
