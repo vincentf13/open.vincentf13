@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.user.service;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenMapstruct;
@@ -19,9 +20,9 @@ import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.UserErrorCode;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
-import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -29,6 +30,7 @@ import java.util.Optional;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Validated
 public class UserCommandService {
 
     private final UserRepository userRepository;
@@ -36,8 +38,7 @@ public class UserCommandService {
     private final AuthCredentialPendingRepository authCredentialPendingRepository;
     private final TransactionTemplate transactionTemplate;
 
-    public UserResponse register(UserRegisterRequest request)  {
-        OpenValidator.validateOrThrow(request);
+    public UserResponse register(@Valid UserRegisterRequest request)  {
         final String normalizedEmail = User.normalizeEmail(request.email());
 
         AuthCredentialPrepareResponse preparedData = OpenApiClientInvoker.call(

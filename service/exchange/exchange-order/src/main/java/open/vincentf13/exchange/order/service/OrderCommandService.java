@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.order.service;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
@@ -17,18 +18,19 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.OpenMapstruct;
-import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class OrderCommandService {
 
     private final OrderRepository orderRepository;
@@ -36,8 +38,7 @@ public class OrderCommandService {
     private final ExchangePositionClient exchangePositionClient;
     private final TransactionTemplate transactionTemplate;
 
-    public OrderResponse createOrder(OrderCreateRequest request) {
-        OpenValidator.validateOrThrow(request);
+    public OrderResponse createOrder(@Valid OrderCreateRequest request) {
         Long userId = currentUserId();
         try {
             Order order = Order.createNew(userId, request);

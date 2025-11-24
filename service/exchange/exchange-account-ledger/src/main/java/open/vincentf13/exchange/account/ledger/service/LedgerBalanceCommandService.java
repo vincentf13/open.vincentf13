@@ -17,7 +17,6 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawal
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
 import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
-import open.vincentf13.sdk.core.OpenValidator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.stereotype.Service;
@@ -37,7 +36,6 @@ public class LedgerBalanceCommandService {
 
     @Transactional
     public LedgerDepositResponse deposit(@NotNull @Valid LedgerDepositRequest request) {
-        OpenValidator.validateOrThrow(request);
         LedgerDepositResult result = ledgerTransactionDomainService.deposit(request);
         LedgerEntry userEntry = result.userEntry();
         LedgerBalance updatedBalance = result.userBalance();
@@ -56,7 +54,6 @@ public class LedgerBalanceCommandService {
 
     @Transactional
     public LedgerWithdrawalResponse withdraw(@NotNull @Valid LedgerWithdrawalRequest request) {
-        OpenValidator.validateOrThrow(request);
         LedgerWithdrawalResult result = ledgerTransactionDomainService.withdraw(request);
         LedgerEntry entry = result.entry();
         LedgerBalance balance = result.userBalance();
@@ -76,7 +73,6 @@ public class LedgerBalanceCommandService {
     @Transactional
     public void handleMarginPreCheckPassed(@NotNull @Valid MarginPreCheckPassedEvent event) {
         try {
-            OpenValidator.validateOrThrow(event);
             AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(event.asset());
             LedgerEntry entry = ledgerTransactionDomainService.freezeForOrder(
                     event.orderId(),
@@ -96,7 +92,6 @@ public class LedgerBalanceCommandService {
 
     @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
-        OpenValidator.validateOrThrow(event);
         AssetSymbol asset = LedgerBalance.normalizeAsset(event.quoteAsset());
         BigDecimal tradeValue = event.price().multiply(event.quantity());
         BigDecimal totalCost = tradeValue.add(event.fee());

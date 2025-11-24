@@ -13,7 +13,6 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
-import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
@@ -72,11 +71,10 @@ public class PositionCommandService {
         return PositionReserveOutcome.accepted(quantity, avgOpenPrice);
     }
 
-    public PositionLeverageResponse adjustLeverage(Long userId, Long instrumentId, PositionLeverageRequest request) {
+    public PositionLeverageResponse adjustLeverage(Long userId, Long instrumentId, @Valid PositionLeverageRequest request) {
         if (instrumentId == null) {
             throw OpenServiceException.of(PositionErrorCode.POSITION_NOT_FOUND, "instrumentId is required");
         }
-        OpenValidator.validateOrThrow(request);
         Position position = positionRepository.findOne(Position.builder()
                         .userId(userId)
                         .instrumentId(instrumentId)
