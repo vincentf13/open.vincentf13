@@ -32,7 +32,7 @@ public class OrderFailureHandler {
             Order order = optional.get();
             Instant now = Instant.now();
             boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.FAILED,
-                    now, Optional.ofNullable(order.getVersion()).orElse(0));
+                    Optional.ofNullable(order.getVersion()).orElse(0), null, null);
             if (!updated) {
                 log.warn("Optimistic lock conflict while marking order failed. orderId={} stage={}", orderId, stage);
                 return;

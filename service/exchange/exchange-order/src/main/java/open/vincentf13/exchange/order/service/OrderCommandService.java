@@ -51,7 +51,7 @@ public class OrderCommandService {
                     markSubmitted(order);
                     orderEventPublisher.publishOrderSubmitted(order);
                 }
-                orderRepository.insert(order);
+                orderRepository.insertSelective(order);
             });
 
             return OpenMapstruct.map(order, OrderResponse.class);

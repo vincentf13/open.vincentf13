@@ -80,8 +80,6 @@ public class Order {
                 .avgFillPrice(null)
                 .fee(BigDecimal.ZERO)
                 .version(0)
-                .createdAt(now)
-                .updatedAt(now)
                 .submittedAt(null)
                 .filledAt(null)
                 .build();

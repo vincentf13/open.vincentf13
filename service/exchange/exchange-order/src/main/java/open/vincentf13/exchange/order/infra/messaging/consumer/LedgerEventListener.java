@@ -69,7 +69,7 @@ public class LedgerEventListener {
         Instant now = Instant.now();
         int currentVersion = Optional.ofNullable(order.getVersion()).orElse(0);
         boolean updated = orderRepository.updateStatus(order.getOrderId(), order.getUserId(), OrderStatus.ACCEPTED,
-                now, currentVersion, now, null);
+                currentVersion, now, null);
         if (!updated) {
             log.warn("Optimistic lock conflict while marking order accepted. orderId={}", order.getOrderId());
             return;
