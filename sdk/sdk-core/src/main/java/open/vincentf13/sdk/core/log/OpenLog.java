@@ -1,6 +1,5 @@
 package open.vincentf13.sdk.core.log;
 
-import open.vincentf13.sdk.core.OpenStackWalker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,8 +111,13 @@ public final class OpenLog {
                 .walk(frames -> frames.skip(3).findFirst().map(StackWalker.StackFrame::getDeclaringClass).orElse(null));
     }
 
-    private static String resolveOperation() {
-        // 跳過 OpenLog 的封裝層
-        return OpenStackWalker.resolveOperation(3);
+    public static OpenEvent event(String event) {
+        return event(event, null);
     }
+
+    public static OpenEvent event(String event, String message) {
+        return new SimpleEvent(event, message);
+    }
+
+    private record SimpleEvent(String event, String message) implements OpenEvent {}
 }

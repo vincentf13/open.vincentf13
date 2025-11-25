@@ -2,9 +2,9 @@ package open.vincentf13.exchange.order.service;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCodeEnum;
+import open.vincentf13.exchange.order.infra.OrderEventEnum;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
@@ -19,6 +19,7 @@ import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.exception.OpenException;
+import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,6 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 @Validated
 public class OrderCommandService {
 
@@ -58,7 +58,9 @@ public class OrderCommandService {
 
             return OpenObjectMapper.convert(order, OrderResponse.class);
         } catch (DuplicateKeyException ex) {
-            log.info("Duplicate order insert for user {} clientOrderId {}", userId, request.clientOrderId());
+            OpenLog.info(OrderEventEnum.ORDER_DUPLICATE_INSERT,
+                    "userId", userId,
+                    "clientOrderId", request.clientOrderId());
             return orderRepository.findOne(Order.builder()
                             .userId(userId)
                             .clientOrderId(request.clientOrderId())

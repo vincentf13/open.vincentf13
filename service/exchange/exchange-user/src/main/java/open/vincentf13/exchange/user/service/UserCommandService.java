@@ -2,9 +2,9 @@ package open.vincentf13.exchange.user.service;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.exception.OpenException;
+import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
@@ -17,6 +17,7 @@ import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
 import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.UserErrorCodeEnum;
+import open.vincentf13.exchange.user.infra.UserEventEnum;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,6 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 @Validated
 public class UserCommandService {
@@ -101,7 +101,9 @@ public class UserCommandService {
 
     private void handleCredentialFailure(Long userId, String reason) {
         String message = Optional.ofNullable(reason).orElse("UNKNOWN_ERROR");
-        log.warn("Failed to persist auth credential for user {}: {}", userId, message);
+        OpenLog.warn(UserEventEnum.AUTH_CREDENTIAL_PERSIST_FAILED,
+                "userId", userId,
+                "reason", message);
         authCredentialPendingRepository.markFailure(
                 userId,
                 AuthCredentialType.PASSWORD,

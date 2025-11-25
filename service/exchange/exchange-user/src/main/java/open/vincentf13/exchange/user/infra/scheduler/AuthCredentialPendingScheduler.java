@@ -1,13 +1,13 @@
 package open.vincentf13.exchange.user.infra.scheduler;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.exchange.user.infra.UserEventEnum;
 import open.vincentf13.exchange.user.service.AuthCredentialPendingRetryService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
-@Slf4j
 @RequiredArgsConstructor
 public class AuthCredentialPendingScheduler {
 
@@ -18,7 +18,7 @@ public class AuthCredentialPendingScheduler {
         try {
             retryService.processPendingCredentials();
         } catch (Exception ex) {
-            log.error("Unexpected error during pending auth credential retry job", ex);
+            OpenLog.error(UserEventEnum.AUTH_CREDENTIAL_RETRY_JOB_FAILED, ex);
         }
     }
 }

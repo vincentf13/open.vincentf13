@@ -1,13 +1,14 @@
 package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.auth.sdk.rest.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
 import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
+import open.vincentf13.exchange.user.infra.UserEventEnum;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +18,6 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class AuthCredentialPendingRetryService {
 
@@ -38,8 +38,9 @@ public class AuthCredentialPendingRetryService {
             try {
                 handlePendingCredential(pending);
             } catch (Exception ex) {
-                log.warn("Unexpected error while retrying credential creation for user {}: {}",
-                        pending.getUserId(), ex.getMessage(), ex);
+                OpenLog.warn(UserEventEnum.AUTH_CREDENTIAL_RETRY_ERROR, ex,
+                        "userId", pending.getUserId(),
+                        "reason", ex.getMessage());
                 scheduleNextRetry(pending, ex.getMessage());
             }
         }
@@ -61,7 +62,8 @@ public class AuthCredentialPendingRetryService {
                             "Failed to create credential for user %s during retry: %s".formatted(pending.getUserId(), msg))
             );
             authCredentialPendingRepository.markCompleted(pending.getUserId(), pending.getCredentialType(), Instant.now());
-            log.info("Successfully synchronized auth credential for user {}", pending.getUserId());
+            OpenLog.info(UserEventEnum.AUTH_CREDENTIAL_RETRY_SUCCESS,
+                    "userId", pending.getUserId());
         } catch (Exception ex) {
             scheduleNextRetry(pending, ex.getMessage());
         }
@@ -85,11 +87,15 @@ public class AuthCredentialPendingRetryService {
         );
 
         if (exceeded) {
-            log.error("Exceeded retry attempts for user {} credential type {}. marking as FAILED",
-                    pending.getUserId(), pending.getCredentialType());
+            OpenLog.error(UserEventEnum.AUTH_CREDENTIAL_RETRY_EXCEEDED, null,
+                    "userId", pending.getUserId(),
+                    "credentialType", pending.getCredentialType());
         } else {
-            log.info("Scheduled retry {} for user {} credential type {} at {}",
-                    nextRetry, pending.getUserId(), pending.getCredentialType(), nextRetryAt);
+            OpenLog.info(UserEventEnum.AUTH_CREDENTIAL_RETRY_SCHEDULED,
+                    "retry", nextRetry,
+                    "userId", pending.getUserId(),
+                    "credentialType", pending.getCredentialType(),
+                    "nextRetryAt", nextRetryAt);
         }
     }
 

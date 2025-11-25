@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.infra.PositionErrorCodeEnum;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
@@ -16,6 +15,8 @@ import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRespons
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
+import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.exchange.position.infra.PositionEventEnum;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -26,7 +27,6 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 @Validated
 public class PositionCommandService {
 
@@ -88,7 +88,7 @@ public class PositionCommandService {
 
         Integer targetLeverage = request.targetLeverage();
         if (targetLeverage.equals(position.getLeverage())) {
-            log.info("Leverage unchanged for userId={} instrumentId={}", userId, instrumentId);
+            OpenLog.info(PositionEventEnum.POSITION_LEVERAGE_UNCHANGED, "userId", userId, "instrumentId", instrumentId);
             return new PositionLeverageResponse(position.getLeverage(), Instant.now());
         }
 
@@ -120,8 +120,7 @@ public class PositionCommandService {
             throw OpenException.of(PositionErrorCodeEnum.POSITION_NOT_FOUND,
                                    Map.of("positionId", position.getPositionId(), "instrumentId", instrumentId));
         }
-        log.info("Position leverage updated. positionId={} userId={} instrumentId={} leverage={} -> {}",
-                position.getPositionId(), position.getUserId(), instrumentId, position.getLeverage(), targetLeverage);
+        OpenLog.info(PositionEventEnum.POSITION_LEVERAGE_UPDATED, "positionId", position.getPositionId(), "userId", position.getUserId(), "instrumentId", instrumentId, "fromLeverage", position.getLeverage(), "toLeverage", targetLeverage);
         return new PositionLeverageResponse(targetLeverage, Instant.now());
     }
 
