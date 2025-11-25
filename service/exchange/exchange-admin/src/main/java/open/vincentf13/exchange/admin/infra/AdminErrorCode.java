@@ -2,12 +2,12 @@ package open.vincentf13.exchange.admin.infra;
 
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
 
-public enum AdminErrorCodeEnum implements OpenErrorCode {
+public enum AdminErrorCode implements OpenErrorCode {
     INSTRUMENT_NOT_FOUND("Instrument not found");
 
     private final String message;
 
-    AdminErrorCodeEnum(String message) {
+    AdminErrorCode(String message) {
         this.message = message;
     }
 

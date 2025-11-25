@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * User 模組事件。
  */
-public enum UserEventEnum implements OpenEvent {
+public enum UserEvent implements OpenEvent {
     AUTH_CREDENTIAL_PERSIST_FAILED("UserAuthCredentialPersistFailed", "Failed to persist auth credential"),
     AUTH_CREDENTIAL_RETRY_ERROR("UserAuthCredentialRetryError", "Unexpected error while retrying credential creation"),
     AUTH_CREDENTIAL_RETRY_SUCCESS("UserAuthCredentialRetrySuccess", "Successfully synchronized auth credential"),
@@ -16,7 +16,7 @@ public enum UserEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    UserEventEnum(String event, String message) {
+    UserEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

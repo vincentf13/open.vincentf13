@@ -9,10 +9,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /*
  * 統一日誌輸出，事件需實作 OpenEvent。
- * 範例（事件來自各模組自定義的 XxxEventEnum）：
- *   OpenLog.info(SomeEventEnum.ORDER_CREATED, "orderId", 12345);
- *   OpenLog.warn(SomeEventEnum.ORDER_SAVE_FAILED, ex, "orderId", 12345);
- *   OpenLog.debug(SomeEventEnum.CALC_PRICE, "sku", "A100");
+ * 範例（事件來自各模組自定義的 XxxEvent）：
+ *   OpenLog.info(SomeEvent.ORDER_CREATED, "orderId", 12345);
+ *   OpenLog.warn(SomeEvent.ORDER_SAVE_FAILED, ex, "orderId", 12345);
+ *   OpenLog.debug(SomeEvent.CALC_PRICE, "sku", "A100");
  */
 public final class OpenLog {
 

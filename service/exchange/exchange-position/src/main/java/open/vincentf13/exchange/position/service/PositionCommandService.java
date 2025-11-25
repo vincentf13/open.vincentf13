@@ -5,7 +5,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.domain.model.Position;
-import open.vincentf13.exchange.position.infra.PositionErrorCodeEnum;
+import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
@@ -16,7 +16,7 @@ import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginCl
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.exchange.position.infra.PositionEventEnum;
+import open.vincentf13.exchange.position.infra.PositionEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -82,24 +82,24 @@ public class PositionCommandService {
                         .build())
                 .orElseGet(() -> positionRepository.createDefault(userId, instrumentId));
         if (position == null) {
-            throw OpenException.of(PositionErrorCodeEnum.POSITION_NOT_FOUND,
+            throw OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
                                    Map.of("instrumentId", instrumentId, "userId", userId));
         }
 
         Integer targetLeverage = request.targetLeverage();
         if (targetLeverage.equals(position.getLeverage())) {
-            OpenLog.info(PositionEventEnum.POSITION_LEVERAGE_UNCHANGED, "userId", userId, "instrumentId", instrumentId);
+            OpenLog.info(PositionEvent.POSITION_LEVERAGE_UNCHANGED, "userId", userId, "instrumentId", instrumentId);
             return new PositionLeverageResponse(position.getLeverage(), Instant.now());
         }
 
         LeveragePrecheckRequest precheckRequest = buildPrecheckRequest(position, targetLeverage);
         LeveragePrecheckResponse precheckResponse = OpenApiClientInvoker.call(
                 () -> riskMarginClient.precheckLeverage(precheckRequest),
-                msg -> OpenException.of(PositionErrorCodeEnum.LEVERAGE_PRECHECK_FAILED,
+                msg -> OpenException.of(PositionErrorCode.LEVERAGE_PRECHECK_FAILED,
                                         Map.of("positionId", position.getPositionId(), "remoteMessage", msg))
         );
         if (!precheckResponse.allow()) {
-            throw OpenException.of(PositionErrorCodeEnum.LEVERAGE_PRECHECK_FAILED,
+            throw OpenException.of(PositionErrorCode.LEVERAGE_PRECHECK_FAILED,
                                    buildPrecheckMeta(position.getPositionId(), instrumentId, targetLeverage, precheckResponse));
         }
 
@@ -117,10 +117,10 @@ public class PositionCommandService {
                 expectedVersion,
                 "ACTIVE");
         if (!updated) {
-            throw OpenException.of(PositionErrorCodeEnum.POSITION_NOT_FOUND,
+            throw OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
                                    Map.of("positionId", position.getPositionId(), "instrumentId", instrumentId));
         }
-        OpenLog.info(PositionEventEnum.POSITION_LEVERAGE_UPDATED, "positionId", position.getPositionId(), "userId", position.getUserId(), "instrumentId", instrumentId, "fromLeverage", position.getLeverage(), "toLeverage", targetLeverage);
+        OpenLog.info(PositionEvent.POSITION_LEVERAGE_UPDATED, "positionId", position.getPositionId(), "userId", position.getUserId(), "instrumentId", instrumentId, "fromLeverage", position.getLeverage(), "toLeverage", targetLeverage);
         return new PositionLeverageResponse(targetLeverage, Instant.now());
     }
 

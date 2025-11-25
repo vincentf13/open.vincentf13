@@ -3,7 +3,7 @@ package open.vincentf13.exchange.marketdata.infra.messaging.consumer;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 import open.vincentf13.exchange.marketdata.infra.cache.OrderBookCacheService;
-import open.vincentf13.exchange.marketdata.infra.MarketDataEventEnum;
+import open.vincentf13.exchange.marketdata.infra.MarketDataEvent;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -46,7 +46,7 @@ public class OrderBookUpdatedEventListener {
             );
             acknowledgment.acknowledge();
         } catch (Exception ex) {
-            OpenLog.error(MarketDataEventEnum.ORDERBOOK_APPLY_FAILED, ex,
+            OpenLog.error(MarketDataEvent.ORDERBOOK_APPLY_FAILED, ex,
                     "instrumentId", event.instrumentId());
         }
     }

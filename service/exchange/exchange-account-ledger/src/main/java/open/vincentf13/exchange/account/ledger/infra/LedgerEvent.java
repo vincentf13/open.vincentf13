@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Account-Ledger 事件枚舉。
  */
-public enum LedgerEventEnum implements OpenEvent {
+public enum LedgerEvent implements OpenEvent {
     FUNDS_FREEZE_FAILED("FundsFreezeFailed", "Funds freeze failed"),
     INVALID_MARGIN_PRECHECK_EVENT("InvalidMarginPreCheckEvent", "Invalid MarginPreCheckPassedEvent"),
     MATCHING_TRADE_PAYLOAD_MISSING("MatchingTradePayloadMissing", "TradeExecuted payload missing"),
@@ -16,7 +16,7 @@ public enum LedgerEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    LedgerEventEnum(String event, String message) {
+    LedgerEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

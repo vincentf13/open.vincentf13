@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Position 事件枚舉。
  */
-public enum PositionEventEnum implements OpenEvent {
+public enum PositionEvent implements OpenEvent {
     POSITION_RESERVED("PositionReserved", "Position reserved"),
     POSITION_RESERVE_REJECTED("PositionReserveRejected", "Position reserve rejected"),
     POSITION_LEVERAGE_UNCHANGED("PositionLeverageUnchanged", "Leverage unchanged"),
@@ -14,7 +14,7 @@ public enum PositionEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    PositionEventEnum(String event, String message) {
+    PositionEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

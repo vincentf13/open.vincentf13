@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.core.exception;
 
-public enum OpenErrorCodeEnum implements OpenErrorCode {
+public enum OpenErrorCodes implements OpenErrorCode {
     /**
      * 後端統一錯誤碼定義，採 "ERR-<HTTP>-<序號>" 命名以利排查。
      */
@@ -18,7 +18,7 @@ public enum OpenErrorCodeEnum implements OpenErrorCode {
     private final String code;       // 數字狀態碼字串
     private final String message;    // 英文訊息（對外訊息維持英文）
 
-    OpenErrorCodeEnum(String code, String message) {
+    OpenErrorCodes(String code, String message) {
         this.code = code;
         this.message = message;
     }

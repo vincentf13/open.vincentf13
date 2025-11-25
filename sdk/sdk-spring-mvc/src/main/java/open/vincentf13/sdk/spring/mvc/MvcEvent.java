@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * MVC 事件枚舉。
  */
-public enum MvcEventEnum implements OpenEvent {
+public enum MvcEvent implements OpenEvent {
     HTTP_MESSAGE_UNREADABLE("HttpMessageUnreadable", "Request payload unreadable"),
     OPEN_EXCEPTION("OpenException", "Open exception"),
     UNHANDLED_EXCEPTION("UnhandledException", "Unhandled exception"),
@@ -17,7 +17,7 @@ public enum MvcEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    MvcEventEnum(String event, String message) {
+    MvcEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

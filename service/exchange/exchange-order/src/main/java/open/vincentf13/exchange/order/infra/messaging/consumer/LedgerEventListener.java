@@ -5,7 +5,7 @@ import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEve
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
 import open.vincentf13.exchange.order.domain.model.Order;
-import open.vincentf13.exchange.order.infra.OrderEventEnum;
+import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
@@ -41,7 +41,7 @@ public class LedgerEventListener {
         transactionTemplate.executeWithoutResult(status -> {
             Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
             if (optional.isEmpty()) {
-                OpenLog.warn(OrderEventEnum.ORDER_FUNDS_FROZEN_SKIP_NOT_FOUND,
+                OpenLog.warn(OrderEvent.ORDER_FUNDS_FROZEN_SKIP_NOT_FOUND,
                         "orderId", event.orderId());
                 return;
             }
@@ -73,7 +73,7 @@ public class LedgerEventListener {
                 .build();
         boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion, null);
         if (!updated) {
-            OpenLog.warn(OrderEventEnum.ORDER_FUNDS_FROZEN_LOCK_CONFLICT,
+            OpenLog.warn(OrderEvent.ORDER_FUNDS_FROZEN_LOCK_CONFLICT,
                     "orderId", order.getOrderId());
             return;
         }
@@ -81,7 +81,7 @@ public class LedgerEventListener {
         order.setSubmittedAt(now);
         order.incrementVersion();
         orderEventPublisher.publishOrderCreated(order, event.asset(), event.frozenAmount());
-        OpenLog.info(OrderEventEnum.ORDER_MARK_ACCEPTED,
+        OpenLog.info(OrderEvent.ORDER_MARK_ACCEPTED,
                 "orderId", order.getOrderId(),
                 "asset", event.asset(),
                 "amount", event.frozenAmount());

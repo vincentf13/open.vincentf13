@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.auth.jwt.session;
 
-import open.vincentf13.sdk.auth.jwt.JwtEventEnum;
+import open.vincentf13.sdk.auth.JwtEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 
 import java.time.Instant;
@@ -35,7 +35,7 @@ public class JwtSessionStoreInMemory implements JwtSessionStore {
         findById(sessionId).ifPresent(session -> {
             session.markRevoked(revokedAt, reason);
             sessions.put(sessionId, session);
-            OpenLog.info( JwtEventEnum.IN_MEMORY_SESSION_REVOKED,
+            OpenLog.info( JwtEvent.IN_MEMORY_SESSION_REVOKED,
                     "sessionId", sessionId,
                     "reason", reason);
         });

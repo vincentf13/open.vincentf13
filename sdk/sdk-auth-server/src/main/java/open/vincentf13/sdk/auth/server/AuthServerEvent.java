@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Auth Server 事件枚舉。
  */
-public enum AuthServerEventEnum implements OpenEvent {
+public enum AuthServerEvent implements OpenEvent {
     JWT_SESSION_CREATED("JwtSessionCreated", "Session created"),
     REFRESH_MISSING_SESSION("RefreshMissingSession", "Refresh jwtToken does not carry a session id"),
     REFRESH_SESSION_NOT_FOUND("RefreshSessionNotFound", "Unable to locate session for refresh"),
@@ -19,7 +19,7 @@ public enum AuthServerEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    AuthServerEventEnum(String event, String message) {
+    AuthServerEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

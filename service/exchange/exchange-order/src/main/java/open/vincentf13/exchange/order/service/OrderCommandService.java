@@ -3,8 +3,8 @@ package open.vincentf13.exchange.order.service;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
-import open.vincentf13.exchange.order.infra.OrderErrorCodeEnum;
-import open.vincentf13.exchange.order.infra.OrderEventEnum;
+import open.vincentf13.exchange.order.infra.OrderErrorCode;
+import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
@@ -58,7 +58,7 @@ public class OrderCommandService {
 
             return OpenObjectMapper.convert(order, OrderResponse.class);
         } catch (DuplicateKeyException ex) {
-            OpenLog.info(OrderEventEnum.ORDER_DUPLICATE_INSERT,
+            OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
                     "userId", userId,
                     "clientOrderId", request.clientOrderId());
             return orderRepository.findOne(Order.builder()
@@ -66,25 +66,25 @@ public class OrderCommandService {
                             .clientOrderId(request.clientOrderId())
                             .build())
                     .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
-                    .orElseThrow(() -> OpenException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
+                    .orElseThrow(() -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                                         Map.of("userId", userId, "clientOrderId", request.clientOrderId())));
         }
     }
 
     private Long currentUserId() {
         return OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
-                OpenException.of(OrderErrorCodeEnum.ORDER_NOT_FOUND));
+                OpenException.of(OrderErrorCode.ORDER_NOT_FOUND));
     }
 
     private PositionIntentType determineIntent(Long userId, OrderCreateRequest request) {
         PositionIntentResponse response = OpenApiClientInvoker.call(
                 () -> exchangePositionClient.determineIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity())),
-                msg -> OpenException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
+                msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                         Map.of("userId", userId, "instrumentId", request.instrumentId(), "remoteMessage", msg))
         );
         PositionIntentType intentType = response.intentType();
         if (intentType == null) {
-            throw OpenException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
+            throw OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                    Map.of("instrumentId", request.instrumentId()));
         }
         return intentType;

@@ -3,7 +3,7 @@ package open.vincentf13.sdk.auth.server.controller;
 import jakarta.validation.Valid;
 import open.vincentf13.sdk.auth.auth.PublicAPI;
 import open.vincentf13.sdk.auth.jwt.model.JwtTokenPair;
-import open.vincentf13.sdk.auth.server.AuthServerEventEnum;
+import open.vincentf13.sdk.auth.server.AuthServerEvent;
 import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
 import open.vincentf13.sdk.auth.server.error.FailureReason;
 import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
@@ -58,7 +58,7 @@ public class AuthLoginController {
                                                     tokens.refreshToken().expiresAt(),
                                                     tokens.sessionId());
 
-            OpenLog.info(AuthServerEventEnum.LOGIN_SUCCESS,
+            OpenLog.info(AuthServerEvent.LOGIN_SUCCESS,
                          "username", authentication.getName());
 
             OpenApiResponse<JwtTokenPair> body = OpenApiResponse.success(payload)
@@ -67,7 +67,7 @@ public class AuthLoginController {
         } catch (AuthenticationException ex) {
             FailureReason reason = FailureReason.from(ex);
             String username = request.email() != null ? request.email() : "<unknown>";
-            OpenLog.warn( AuthServerEventEnum.LOGIN_FAILURE,
+            OpenLog.warn( AuthServerEvent.LOGIN_FAILURE,
                     ex,
                     "username", username,
                     "code", reason.code());

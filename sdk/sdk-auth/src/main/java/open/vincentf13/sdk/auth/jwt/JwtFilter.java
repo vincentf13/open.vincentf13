@@ -4,7 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import open.vincentf13.sdk.auth.JwtAuthEventEnum;
+import open.vincentf13.sdk.auth.JwtAuthEvent;
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
@@ -56,7 +56,7 @@ public class JwtFilter extends OncePerRequestFilter {
         }
         boolean active = sessionService.isActive(authentication.getSessionId());
         if (!active) {
-            OpenLog.info(JwtAuthEventEnum.JWT_SESSION_INACTIVE,
+            OpenLog.info(JwtAuthEvent.JWT_SESSION_INACTIVE,
                          "sessionId", authentication.getSessionId(),
                          "principal", authentication.getName());
         }

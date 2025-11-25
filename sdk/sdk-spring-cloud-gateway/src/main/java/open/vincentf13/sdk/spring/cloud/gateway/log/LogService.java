@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.spring.cloud.gateway.log;
 
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.spring.cloud.gateway.GatewayEventEnum;
+import open.vincentf13.sdk.spring.cloud.gateway.GatewayEvent;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.loadbalancer.Response;
 import org.springframework.cloud.gateway.route.Route;
@@ -38,7 +38,7 @@ public class LogService {
         String instanceDesc = formatServiceInstance(serviceInstance);
         String method = request.getMethod() != null ? request.getMethod().name() : "UNKNOWN";
 
-        OpenLog.info( GatewayEventEnum.REQUEST,
+        OpenLog.info( GatewayEvent.REQUEST,
                 "method", method,
                 "uri", request.getURI(),
                 "routeId", routeId,
@@ -47,21 +47,21 @@ public class LogService {
 
         request.getHeaders().forEach((name, values) -> logHeader("GatewayRequestHeader", "Request header", name, values));
         if (route != null) {
-            OpenLog.debug( GatewayEventEnum.ROUTE,
+            OpenLog.debug( GatewayEvent.ROUTE,
                     "id", route.getId(),
                     "uri", route.getUri(),
                     "metadata", route.getMetadata());
         }
         if (forwardUrl != null) {
-            OpenLog.debug( GatewayEventEnum.FORWARD_URL, "url", forwardUrl);
+            OpenLog.debug( GatewayEvent.FORWARD_URL, "url", forwardUrl);
         }
         if (serviceInstance != null) {
-            OpenLog.debug( GatewayEventEnum.SERVICE_INSTANCE,
+            OpenLog.debug( GatewayEvent.SERVICE_INSTANCE,
                     "serviceId", serviceInstance.getServiceId(),
                     "host", serviceInstance.getHost(),
                     "port", serviceInstance.getPort());
         } else {
-            OpenLog.debug( GatewayEventEnum.SERVICE_INSTANCE_PENDING,
+            OpenLog.debug( GatewayEvent.SERVICE_INSTANCE_PENDING,
                     "routeId", routeId);
         }
     }
@@ -79,7 +79,7 @@ public class LogService {
 
         ServerHttpResponse response = exchange.getResponse();
 
-        OpenLog.info( GatewayEventEnum.RESPONSE,
+        OpenLog.info( GatewayEvent.RESPONSE,
                 "status", response.getStatusCode(),
                 "durationMs", durationMs,
                 "routeId", routeId,
@@ -87,10 +87,10 @@ public class LogService {
                 "instance", finalInstanceDesc);
 
         if (finalForwardUrl != null && initialForwardUrl == null) {
-            OpenLog.debug( GatewayEventEnum.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
+            OpenLog.debug( GatewayEvent.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
         }
         if (finalInstance != null && initialInstance == null) {
-            OpenLog.debug( GatewayEventEnum.SERVICE_INSTANCE_RESOLVED,
+            OpenLog.debug( GatewayEvent.SERVICE_INSTANCE_RESOLVED,
                     "serviceId", finalInstance.getServiceId(),
                     "host", finalInstance.getHost(),
                     "port", finalInstance.getPort());
@@ -106,13 +106,13 @@ public class LogService {
         String routeId = resolveRouteId(route);
         String targetUri = resolveTargetUri(route, forwardUrl);
 
-        OpenLog.error( GatewayEventEnum.FORWARD_FAILED, ex,
+        OpenLog.error( GatewayEvent.FORWARD_FAILED, ex,
                 "routeId", routeId,
                 "target", targetUri);
     }
 
     private void logHeader(String event, String message, String name, List<String> values) {
-        GatewayEventEnum evt = "GatewayResponseHeader".equals(event) ? GatewayEventEnum.RESPONSE_HEADER : GatewayEventEnum.REQUEST_HEADER;
+        GatewayEvent evt = "GatewayResponseHeader".equals(event) ? GatewayEvent.RESPONSE_HEADER : GatewayEvent.REQUEST_HEADER;
         OpenLog.debug( evt, "name", name, "values", values);
     }
 

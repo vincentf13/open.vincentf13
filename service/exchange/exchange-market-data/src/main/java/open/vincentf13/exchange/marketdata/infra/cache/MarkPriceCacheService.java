@@ -3,7 +3,7 @@ package open.vincentf13.exchange.marketdata.infra.cache;
 import open.vincentf13.exchange.marketdata.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.marketdata.infra.messaging.publisher.MarkPriceEventPublisher;
 import open.vincentf13.exchange.marketdata.infra.persistence.repository.MarkPriceSnapshotRepository;
-import open.vincentf13.exchange.marketdata.infra.MarketDataEventEnum;
+import open.vincentf13.exchange.marketdata.infra.MarketDataEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
@@ -92,7 +92,7 @@ public class MarkPriceCacheService {
         MarkPriceSnapshot persisted = repository.insertSelective(current);
         cache.put(instrumentId, persisted);
         eventPublisher.publishMarkPriceUpdated(persisted);
-        OpenLog.debug(MarketDataEventEnum.MARK_PRICE_CACHE_UPDATED,
+        OpenLog.debug(MarketDataEvent.MARK_PRICE_CACHE_UPDATED,
                 "instrumentId", instrumentId,
                 "tradeId", tradeId);
     }

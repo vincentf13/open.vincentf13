@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import open.vincentf13.exchange.order.infra.OrderEventEnum;
+import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -26,7 +26,7 @@ public class OrderFailureHandler {
         transactionTemplate.executeWithoutResult(status -> {
             Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(orderId).build());
             if (optional.isEmpty()) {
-                OpenLog.warn(OrderEventEnum.ORDER_FAILURE_SKIP_NOT_FOUND,
+                OpenLog.warn(OrderEvent.ORDER_FAILURE_SKIP_NOT_FOUND,
                         "stage", stage,
                         "orderId", orderId);
                 return;
@@ -40,14 +40,14 @@ public class OrderFailureHandler {
                     .build();
             boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion, null);
             if (!updated) {
-                OpenLog.warn(OrderEventEnum.ORDER_FAILURE_OPTIMISTIC_LOCK,
+                OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK,
                         "orderId", orderId,
                         "stage", stage);
                 return;
             }
             order.markStatus(OrderStatus.FAILED, now);
             order.incrementVersion();
-            OpenLog.warn(OrderEventEnum.ORDER_MARK_FAILED,
+            OpenLog.warn(OrderEvent.ORDER_MARK_FAILED,
                     "orderId", orderId,
                     "stage", stage,
                     "reason", reason);

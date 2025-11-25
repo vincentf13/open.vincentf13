@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Feign 相關事件枚舉。
  */
-public enum FeignEventEnum implements OpenEvent {
+public enum FeignEvent implements OpenEvent {
     FEIGN_CIRCUIT_BREAKER_OPEN("FeignCircuitBreakerOpen", "Circuit breaker prevented remote call"),
     FEIGN_RETRYABLE_EXCEPTION("FeignRetryableException", "Retryable remote call failure"),
     FEIGN_EXCEPTION("FeignException", "Feign call failed"),
@@ -15,7 +15,7 @@ public enum FeignEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    FeignEventEnum(String event, String message) {
+    FeignEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

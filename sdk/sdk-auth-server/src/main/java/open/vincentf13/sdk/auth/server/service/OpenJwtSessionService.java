@@ -6,7 +6,7 @@ import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
 import open.vincentf13.sdk.auth.jwt.session.JwtSession;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
-import open.vincentf13.sdk.auth.server.AuthServerEventEnum;
+import open.vincentf13.sdk.auth.server.AuthServerEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -38,7 +38,7 @@ public class OpenJwtSessionService {
                 .toList();
         JwtSession session = new JwtSession(sessionId, authentication.getName(), accessToken.issuedAt(), refreshToken.expiresAt(), authorities);
         sessionStore.save(session);
-        OpenLog.info(AuthServerEventEnum.JWT_SESSION_CREATED,
+        OpenLog.info(AuthServerEvent.JWT_SESSION_CREATED,
                      "sessionId", sessionId,
                      "username", authentication.getName());
         return new IssueResult(sessionId, authentication.getName(), accessToken, refreshToken);
@@ -52,32 +52,32 @@ public class OpenJwtSessionService {
         RefreshTokenParseInfo claims = refreshToken.get();
         String sessionId = claims.sessionId();
         if (sessionId == null) {
-            OpenLog.warn( AuthServerEventEnum.REFRESH_MISSING_SESSION, "subject", claims.subject());
+            OpenLog.warn( AuthServerEvent.REFRESH_MISSING_SESSION, "subject", claims.subject());
             return Optional.empty();
         }
         Optional<JwtSession> sessionOpt = sessionStore.findById(sessionId);
         Instant now = Instant.now();
         if (sessionOpt.isEmpty()) {
-            OpenLog.info( AuthServerEventEnum.REFRESH_SESSION_NOT_FOUND, "sessionId", sessionId);
+            OpenLog.info( AuthServerEvent.REFRESH_SESSION_NOT_FOUND, "sessionId", sessionId);
             return Optional.empty();
         }
         JwtSession session = sessionOpt.get();
         if (!session.getUsername().equals(claims.subject())) {
-            OpenLog.warn( AuthServerEventEnum.REFRESH_SUBJECT_MISMATCH,
+            OpenLog.warn( AuthServerEvent.REFRESH_SUBJECT_MISMATCH,
                     "sessionId", sessionId,
                     "tokenSubject", claims.subject(),
                     "storedUsername", session.getUsername());
             return Optional.empty();
         }
         if (!session.isActive(now)) {
-            OpenLog.info( AuthServerEventEnum.REFRESH_SESSION_INACTIVE, "sessionId", sessionId);
+            OpenLog.info( AuthServerEvent.REFRESH_SESSION_INACTIVE, "sessionId", sessionId);
             return Optional.empty();
         }
         GenerateTokenInfo newAccess = openJwtService.generateAccessToken(sessionId, buildAuthentication(session, refreshTokenValue));
         GenerateTokenInfo newRefresh = openJwtService.generateRefreshToken(sessionId, session.getUsername());
         session.setRefreshTokenExpiresAt(newRefresh.expiresAt());
         sessionStore.save(session);
-        OpenLog.info( AuthServerEventEnum.JWT_SESSION_REFRESHED,
+        OpenLog.info( AuthServerEvent.JWT_SESSION_REFRESHED,
                 "sessionId", sessionId,
                 "username", session.getUsername());
         return Optional.of(new IssueResult(sessionId, session.getUsername(), newAccess, newRefresh));
@@ -86,7 +86,7 @@ public class OpenJwtSessionService {
     public void revoke(String sessionId, String reason) {
         sessionStore.markRevoked(sessionId, Instant.now(), reason);
         sessionStore.delete(sessionId);
-        OpenLog.info( AuthServerEventEnum.JWT_SESSION_REVOKED,
+        OpenLog.info( AuthServerEvent.JWT_SESSION_REVOKED,
                 "sessionId", sessionId,
                 "reason", reason);
     }

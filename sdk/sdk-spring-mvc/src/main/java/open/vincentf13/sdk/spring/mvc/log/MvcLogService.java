@@ -3,7 +3,7 @@ package open.vincentf13.sdk.spring.mvc.log;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.spring.mvc.MvcEventEnum;
+import open.vincentf13.sdk.spring.mvc.MvcEvent;
 import org.springframework.util.StringUtils;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerMapping;
@@ -47,7 +47,7 @@ public class MvcLogService {
         int status = response.getStatus();
 
         if (ex != null) {
-            OpenLog.error(MvcEventEnum.MVC_REQUEST_FAILED, ex,
+            OpenLog.error(MvcEvent.MVC_REQUEST_FAILED, ex,
                           "method", method,
                           "uri", uri,
                           "status", status,
@@ -58,7 +58,7 @@ public class MvcLogService {
                           "requestBytes", requestBody.length(),
                           "responseBytes", responseBody.length());
         } else {
-            OpenLog.info( MvcEventEnum.MVC_REQUEST_COMPLETED,
+            OpenLog.info( MvcEvent.MVC_REQUEST_COMPLETED,
                     "method", method,
                     "uri", uri,
                     "status", status,
@@ -70,7 +70,7 @@ public class MvcLogService {
                     "responseBytes", responseBody.length());
         }
 
-        OpenLog.debug( MvcEventEnum.MVC_REQUEST_DETAIL,
+        OpenLog.debug( MvcEvent.MVC_REQUEST_DETAIL,
                 "status", status,
                 "durationMs", durationMs,
                 "requestBytes", requestBody.length(),

@@ -2,7 +2,7 @@ package open.vincentf13.exchange.position.infra;
 
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
 
-public enum PositionErrorCodeEnum implements OpenErrorCode {
+public enum PositionErrorCode implements OpenErrorCode {
 
     POSITION_NOT_FOUND("Position-404-1001", "Position not found"),
     INVALID_LEVERAGE_REQUEST("Position-400-1001", "Invalid leverage request"),
@@ -11,7 +11,7 @@ public enum PositionErrorCodeEnum implements OpenErrorCode {
     private final String code;
     private final String message;
 
-    PositionErrorCodeEnum(String code, String message) {
+    PositionErrorCode(String code, String message) {
         this.code = code;
         this.message = message;
     }

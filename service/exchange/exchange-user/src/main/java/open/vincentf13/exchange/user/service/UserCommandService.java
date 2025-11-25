@@ -16,8 +16,8 @@ import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
 import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.infra.UserErrorCodeEnum;
-import open.vincentf13.exchange.user.infra.UserEventEnum;
+import open.vincentf13.exchange.user.infra.UserErrorCode;
+import open.vincentf13.exchange.user.infra.UserEvent;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -43,11 +43,11 @@ public class UserCommandService {
 
         AuthCredentialPrepareResponse preparedData = OpenApiClientInvoker.call(
                 () -> authClient.prepare(new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())),
-                msg -> OpenException.of(UserErrorCodeEnum.USER_AUTH_PREPARATION_FAILED,
+                msg -> OpenException.of(UserErrorCode.USER_AUTH_PREPARATION_FAILED,
                                         Map.of("email", normalizedEmail, "remoteMessage", msg))
         );
         if (preparedData.secretHash() == null || preparedData.salt() == null) {
-            throw OpenException.of(UserErrorCodeEnum.USER_AUTH_PREPARATION_FAILED,
+            throw OpenException.of(UserErrorCode.USER_AUTH_PREPARATION_FAILED,
                                     Map.of("email", normalizedEmail));
         }
 
@@ -101,7 +101,7 @@ public class UserCommandService {
 
     private void handleCredentialFailure(Long userId, String reason) {
         String message = Optional.ofNullable(reason).orElse("UNKNOWN_ERROR");
-        OpenLog.warn(UserEventEnum.AUTH_CREDENTIAL_PERSIST_FAILED,
+        OpenLog.warn(UserEvent.AUTH_CREDENTIAL_PERSIST_FAILED,
                 "userId", userId,
                 "reason", message);
         authCredentialPendingRepository.markFailure(

@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.auth.jwt.session;
 
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.JwtEventEnum;
+import open.vincentf13.sdk.auth.JwtEvent;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -62,7 +62,7 @@ public class JwtSessionStoreRedis implements JwtSessionStore {
         findById(sessionId).ifPresent(session -> {
             session.markRevoked(revokedAt, reason);
             save(session);
-            OpenLog.info( JwtEventEnum.REDIS_SESSION_REVOKED,
+            OpenLog.info( JwtEvent.REDIS_SESSION_REVOKED,
                          "sessionId", sessionId,
                          "reason", reason);
         });

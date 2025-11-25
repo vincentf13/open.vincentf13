@@ -10,7 +10,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveOutcome;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.exchange.position.infra.PositionEventEnum;
+import open.vincentf13.exchange.position.infra.PositionEvent;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -59,7 +59,7 @@ public class PositionReserveRequestListener {
                     Instant.now()
             );
             positionEventPublisher.publishReserved(reservedEvent);
-            OpenLog.info( PositionEventEnum.POSITION_RESERVED, "orderId", event.orderId());
+            OpenLog.info( PositionEvent.POSITION_RESERVED, "orderId", event.orderId());
             return;
         }
         PositionReserveRejectedEvent rejectedEvent = new PositionReserveRejectedEvent(
@@ -71,7 +71,7 @@ public class PositionReserveRequestListener {
                     Instant.now()
         );
         positionEventPublisher.publishRejected(rejectedEvent);
-        OpenLog.warn( PositionEventEnum.POSITION_RESERVE_REJECTED,
+        OpenLog.warn( PositionEvent.POSITION_RESERVE_REJECTED,
                 "orderId", event.orderId(),
                 "reason", outcome.result().reason());
     }

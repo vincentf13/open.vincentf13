@@ -3,7 +3,7 @@ package open.vincentf13.exchange.account.ledger.infra.messaging.consumer;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.service.LedgerBalanceCommandService;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.exchange.account.ledger.infra.LedgerEventEnum;
+import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.topic.RiskTopics;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,7 +23,7 @@ public class RiskMarginEventListener {
     )
     public void onMarginPreCheckPassed(@Payload MarginPreCheckPassedEvent event, Acknowledgment acknowledgment) {
         if (event == null) {
-            OpenLog.warn(LedgerEventEnum.RISK_MARGIN_IDENTIFIERS_MISSING, "event", event);
+            OpenLog.warn(LedgerEvent.RISK_MARGIN_IDENTIFIERS_MISSING, "event", event);
             acknowledgment.acknowledge();
             return;
         }

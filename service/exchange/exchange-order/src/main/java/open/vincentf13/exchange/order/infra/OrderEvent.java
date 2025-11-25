@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Order 事件枚舉。
  */
-public enum OrderEventEnum implements OpenEvent {
+public enum OrderEvent implements OpenEvent {
     ORDER_STATUS_CONFLICT("OrderStatusConflict", "Order status conflict"),
     ORDER_NOT_FOUND_AFTER_RESERVE("OrderNotFoundAfterReserve", "Order updated but not found for event publish"),
     ORDER_POSITION_RESERVED("OrderPositionReserved", "Position reserved for order"),
@@ -22,7 +22,7 @@ public enum OrderEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    OrderEventEnum(String event, String message) {
+    OrderEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

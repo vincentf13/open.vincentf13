@@ -3,7 +3,7 @@ package open.vincentf13.exchange.marketdata.infra.scheduler;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.marketdata.infra.cache.KlineAggregationService;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.exchange.marketdata.infra.MarketDataEventEnum;
+import open.vincentf13.exchange.marketdata.infra.MarketDataEvent;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +22,6 @@ public class KlineBucketScheduler {
     public void closeExpiredBuckets() {
         Instant now = Instant.now();
         klineAggregationService.closeExpiredBuckets(now);
-        OpenLog.debug(MarketDataEventEnum.KLINE_CLEANUP_TRIGGERED, "timestamp", now);
+        OpenLog.debug(MarketDataEvent.KLINE_CLEANUP_TRIGGERED, "timestamp", now);
     }
 }

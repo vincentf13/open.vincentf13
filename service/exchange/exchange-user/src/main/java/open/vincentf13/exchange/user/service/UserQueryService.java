@@ -2,7 +2,7 @@ package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.infra.UserErrorCodeEnum;
+import open.vincentf13.exchange.user.infra.UserErrorCode;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
@@ -22,10 +22,10 @@ public class UserQueryService {
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
         Long userId = OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
-                OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND, Map.of("reason", "No authenticated user in context")));
+                OpenException.of(UserErrorCode.USER_NOT_FOUND, Map.of("reason", "No authenticated user in context")));
         return userRepository.findOne(User.builder().id(userId).build())
                 .map(user -> OpenObjectMapper.convert(user, UserResponse.class))
-                .orElseThrow(() -> OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND,
+                .orElseThrow(() -> OpenException.of(UserErrorCode.USER_NOT_FOUND,
                                                     Map.of("userId", userId)));
     }
 
@@ -34,7 +34,7 @@ public class UserQueryService {
         String normalizedEmail = User.normalizeEmail(email);
         return userRepository.findOne(User.builder().email(normalizedEmail).build())
                 .map(user -> OpenObjectMapper.convert(user, UserResponse.class))
-                .orElseThrow(() -> OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND,
+                .orElseThrow(() -> OpenException.of(UserErrorCode.USER_NOT_FOUND,
                                                     Map.of("email", normalizedEmail)));
     }
 }

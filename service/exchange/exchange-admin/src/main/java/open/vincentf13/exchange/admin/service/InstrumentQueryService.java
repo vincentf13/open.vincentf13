@@ -2,7 +2,7 @@ package open.vincentf13.exchange.admin.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.admin.domain.model.Instrument;
-import open.vincentf13.exchange.admin.infra.AdminErrorCodeEnum;
+import open.vincentf13.exchange.admin.infra.AdminErrorCode;
 import open.vincentf13.exchange.admin.infra.persistence.repository.InstrumentRepository;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentDetailResponse;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
@@ -31,7 +31,7 @@ public class InstrumentQueryService {
     @Transactional(readOnly = true)
     public InstrumentDetailResponse get(Long instrumentId) {
         Instrument instrument = instrumentRepository.findById(instrumentId)
-                .orElseThrow(() -> OpenException.of(AdminErrorCodeEnum.INSTRUMENT_NOT_FOUND,
+                .orElseThrow(() -> OpenException.of(AdminErrorCode.INSTRUMENT_NOT_FOUND,
                                                     Map.of("instrumentId", instrumentId)));
         return OpenObjectMapper.convert(instrument, InstrumentDetailResponse.class);
     }

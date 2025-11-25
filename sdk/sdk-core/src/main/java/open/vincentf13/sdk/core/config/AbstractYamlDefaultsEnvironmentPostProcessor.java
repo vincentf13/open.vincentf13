@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import open.vincentf13.sdk.core.CoreEventEnum;
+import open.vincentf13.sdk.core.CoreEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
@@ -30,7 +30,7 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements En
     public final void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         Resource resource = resolveResource();
         if (resource == null || !resource.exists()) {
-            OpenLog.debug(CoreEventEnum.DEFAULTS_RESOURCE_MISSING, "resource", getResourceLocation());
+            OpenLog.debug(CoreEvent.DEFAULTS_RESOURCE_MISSING, "resource", getResourceLocation());
             return;
         }
 
@@ -49,7 +49,7 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements En
             }
 
             if (!defaults.isEmpty()) {
-                OpenLog.debug(CoreEventEnum.DEFAULTS_APPLIED, "resource", getResourceLocation(), "keys", defaults.keySet());
+                OpenLog.debug(CoreEvent.DEFAULTS_APPLIED, "resource", getResourceLocation(), "keys", defaults.keySet());
                 environment.getPropertySources().addLast(new MapPropertySource(getPropertySourceName(), defaults));
             }
         } catch (IOException ex) {

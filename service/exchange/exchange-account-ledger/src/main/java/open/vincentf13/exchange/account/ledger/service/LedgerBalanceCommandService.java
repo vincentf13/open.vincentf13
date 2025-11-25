@@ -9,7 +9,7 @@ import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDe
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
 import open.vincentf13.exchange.account.ledger.infra.messaging.publisher.LedgerEventPublisher;
-import open.vincentf13.exchange.account.ledger.infra.LedgerEventEnum;
+import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
@@ -83,10 +83,10 @@ public class LedgerBalanceCommandService {
             ledgerEventPublisher.publishFundsFrozen(event.orderId(), event.userId(), normalizedAsset, entry.getAmount());
         } catch (FundsFreezeException ex) {
             ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), ex.getReason().name());
-            OpenLog.warn(LedgerEventEnum.FUNDS_FREEZE_FAILED, ex, "orderId", event.orderId(), "reason", ex.getReason());
+            OpenLog.warn(LedgerEvent.FUNDS_FREEZE_FAILED, ex, "orderId", event.orderId(), "reason", ex.getReason());
         } catch (IllegalArgumentException ex) {
             ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), FundsFreezeFailureReason.INVALID_EVENT.name());
-            OpenLog.warn(LedgerEventEnum.INVALID_MARGIN_PRECHECK_EVENT, "orderId", event.orderId(), "message", ex.getMessage());
+            OpenLog.warn(LedgerEvent.INVALID_MARGIN_PRECHECK_EVENT, "orderId", event.orderId(), "message", ex.getMessage());
         }
     }
 

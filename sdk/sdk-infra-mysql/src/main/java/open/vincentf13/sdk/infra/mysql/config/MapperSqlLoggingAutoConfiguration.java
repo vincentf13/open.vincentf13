@@ -5,7 +5,7 @@ import java.util.Set;
 
 import org.apache.ibatis.session.SqlSessionFactory;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.infra.mysql.MysqlEventEnum;
+import open.vincentf13.sdk.infra.mysql.MysqlEvent;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -41,7 +41,7 @@ public class MapperSqlLoggingAutoConfiguration {
 
             for (String packageName : mapperPackages) {
                 loggingSystem.setLogLevel(packageName, LogLevel.DEBUG);
-                OpenLog.debug(MysqlEventEnum.MAPPER_SQL_DEBUG_ENABLED, "package", packageName);
+                OpenLog.debug(MysqlEvent.MAPPER_SQL_DEBUG_ENABLED, "package", packageName);
             }
         };
     }

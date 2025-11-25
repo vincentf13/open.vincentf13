@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Market Data 事件枚舉。
  */
-public enum MarketDataEventEnum implements OpenEvent {
+public enum MarketDataEvent implements OpenEvent {
     MARK_PRICE_CACHE_UPDATED("MarkPriceCacheUpdated", "Mark price updated in cache"),
     MARK_PRICE_OUTBOX_APPENDED("MarkPriceOutboxAppended", "MarkPriceUpdated appended to outbox"),
     ORDERBOOK_APPLY_FAILED("OrderBookApplyFailed", "Failed to apply OrderBookUpdated event"),
@@ -14,7 +14,7 @@ public enum MarketDataEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    MarketDataEventEnum(String event, String message) {
+    MarketDataEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

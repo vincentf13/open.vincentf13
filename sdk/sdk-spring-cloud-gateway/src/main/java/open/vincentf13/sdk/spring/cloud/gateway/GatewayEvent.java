@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Gateway 事件枚舉。
  */
-public enum GatewayEventEnum implements OpenEvent {
+public enum GatewayEvent implements OpenEvent {
     REQUEST("GatewayRequest", "Forwarding request"),
     REQUEST_HEADER("GatewayRequestHeader", "Request header"),
     ROUTE("GatewayRoute", "Resolved route"),
@@ -24,7 +24,7 @@ public enum GatewayEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    GatewayEventEnum(String event, String message) {
+    GatewayEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

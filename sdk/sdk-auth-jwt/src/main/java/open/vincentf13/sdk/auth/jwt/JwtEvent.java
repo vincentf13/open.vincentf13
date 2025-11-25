@@ -1,11 +1,11 @@
-package open.vincentf13.sdk.auth.jwt;
+package open.vincentf13.sdk.auth;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
- * JWT 相關事件枚舉。
+ * JWT 相關事件。
  */
-public enum JwtEventEnum implements OpenEvent {
+public enum JwtEvent implements OpenEvent {
     JWT_ACCESS_ISSUED("JwtAccessIssued", "Access jwtToken issued"),
     JWT_REFRESH_ISSUED("JwtRefreshIssued", "Refresh jwtToken issued"),
     JWT_INVALID_TYPE("JwtInvalidType", "Token type mismatch"),
@@ -18,7 +18,7 @@ public enum JwtEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    JwtEventEnum(String event, String message) {
+    JwtEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

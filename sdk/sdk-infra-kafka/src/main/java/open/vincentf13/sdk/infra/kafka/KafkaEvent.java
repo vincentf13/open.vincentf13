@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Kafka 事件枚舉。
  */
-public enum KafkaEventEnum implements OpenEvent {
+public enum KafkaEvent implements OpenEvent {
     KAFKA_SEND("KafkaSend", "送出 Kafka 訊息"),
     KAFKA_SEND_FAILED("KafkaSendFailed", "Kafka 訊息送出失敗"),
     KAFKA_HEADER_ENCODE_FAILED("KafkaHeaderEncodeFailed", "Kafka header 序列化失敗"),
@@ -17,7 +17,7 @@ public enum KafkaEventEnum implements OpenEvent {
     private final String event;
     private final String message;
 
-    KafkaEventEnum(String event, String message) {
+    KafkaEvent(String event, String message) {
         this.event = event;
         this.message = message;
     }

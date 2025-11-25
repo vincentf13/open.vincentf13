@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.infra.kafka.config;
 
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.infra.kafka.KafkaEventEnum;
+import open.vincentf13.sdk.infra.kafka.KafkaEvent;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -63,7 +63,7 @@ public class ConfigKafkaConsumer {
 
         // 註冊日誌記錄，以便觀察重試和 DLQ 的行為
         errorHandler.setRetryListeners((record, ex, deliveryAttempt) ->
-                                               OpenLog.warn( KafkaEventEnum.KAFKA_CONSUME_RETRY, ex,
+                                               OpenLog.warn( KafkaEvent.KAFKA_CONSUME_RETRY, ex,
                                                             "topic", record.topic(),
                                                             "partition", record.partition(),
                                                             "offset", record.offset(),
@@ -73,7 +73,7 @@ public class ConfigKafkaConsumer {
 
         factory.setCommonErrorHandler(errorHandler);
 
-        OpenLog.info( KafkaEventEnum.KAFKA_CONSUMER_CONFIGURED,
+        OpenLog.info( KafkaEvent.KAFKA_CONSUMER_CONFIGURED,
                      "ackMode", factory.getContainerProperties().getAckMode(),
                      "listenerType", factory.isBatchListener() ? "BATCH" : "SINGLE" ,
                      "errorHandler", "DLQ with 2 retries");
