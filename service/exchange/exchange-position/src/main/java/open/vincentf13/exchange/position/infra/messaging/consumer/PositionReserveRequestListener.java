@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.position.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
@@ -22,7 +21,6 @@ import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class PositionReserveRequestListener {
 
     private final PositionCommandService positionCommandService;

@@ -5,8 +5,6 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.kafka.KafkaEventEnum;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.util.concurrent.ListenableFuture;
@@ -24,8 +22,6 @@ import java.util.function.Function;
  * Kafka Producer 靜態工具：將 payload 序列化為 bytes，並提供批次送出與自訂 key/header 的彈性。
  */
 public final class OpenKafkaProducer {
-
-    private static final Logger log = LoggerFactory.getLogger(OpenKafkaProducer.class);
 
     private static volatile KafkaTemplate<String, Object> kafkaTemplate;
     private static volatile ObjectMapper objectMapper;

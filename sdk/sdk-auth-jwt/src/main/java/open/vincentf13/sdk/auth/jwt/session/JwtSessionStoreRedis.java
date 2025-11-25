@@ -4,8 +4,6 @@ import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.JwtEventEnum;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 
 import java.time.Duration;
@@ -16,8 +14,6 @@ import java.util.Optional;
  * Redis-backed session store supporting read and write operations.
  */
 public class JwtSessionStoreRedis implements JwtSessionStore {
-
-    private static final Logger log = LoggerFactory.getLogger(JwtSessionStoreRedis.class);
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtProperties properties;

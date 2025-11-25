@@ -6,8 +6,6 @@ import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.gateway.GatewayEventEnum;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -24,8 +22,6 @@ import java.util.List;
 import java.util.Optional;
 
 public class JwtFilter implements GlobalFilter, Ordered {
-
-    private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
     private final OpenJwtService openJwtService;
     private final JwtProperties jwtProperties;

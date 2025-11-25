@@ -4,8 +4,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.log.MvcEventEnum;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerMapping;
@@ -26,7 +24,6 @@ import java.util.stream.Collectors;
 
 public class MvcLogService {
 
-    private static final Logger log = LoggerFactory.getLogger(MvcLogService.class);
     private static final int MAX_BODY_PREVIEW_LENGTH = 4096;
     private static final Set<String> TEXT_SUB_TYPES = Set.of(
             "json", "xml", "javascript", "x-www-form-urlencoded", "html", "plain", "css", "csv"

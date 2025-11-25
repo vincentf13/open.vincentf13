@@ -2,8 +2,6 @@ package open.vincentf13.sdk.auth.jwt.session;
 
 import open.vincentf13.sdk.auth.jwt.JwtEventEnum;
 import open.vincentf13.sdk.core.log.OpenLog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Map;
@@ -14,8 +12,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * Fallback in-memory store mainly intended for tests; data is not persisted across nodes.
  */
 public class JwtSessionStoreInMemory implements JwtSessionStore {
-
-    private static final Logger log = LoggerFactory.getLogger(JwtSessionStoreInMemory.class);
 
     private final Map<String, JwtSession> sessions = new ConcurrentHashMap<>();
 

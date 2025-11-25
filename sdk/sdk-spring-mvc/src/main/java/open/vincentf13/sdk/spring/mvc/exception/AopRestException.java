@@ -3,7 +3,6 @@ package open.vincentf13.sdk.spring.mvc.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.exception.OpenErrorCodeEnum;
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
@@ -40,7 +39,6 @@ import java.util.stream.Collectors;
 /**
  * Spring MVC 統一例外處理，轉換成統一的 {@link OpenApiResponse} 物件。
  */
-@Slf4j
 @RestControllerAdvice
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class AopRestException implements MessageSourceAware {

@@ -4,8 +4,6 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.kafka.KafkaEventEnum;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
@@ -28,8 +26,6 @@ import java.util.function.BiFunction;
 @EnableKafka
 @ConditionalOnBean(ConsumerFactory.class)
 public class ConfigKafkaConsumer {
-
-    private static final Logger log = LoggerFactory.getLogger(ConfigKafkaConsumer.class);
 
 
     /**

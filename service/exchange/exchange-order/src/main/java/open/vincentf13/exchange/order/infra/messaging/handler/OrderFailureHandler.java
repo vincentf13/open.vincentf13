@@ -1,10 +1,11 @@
 package open.vincentf13.exchange.order.infra.messaging.handler;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
+import open.vincentf13.exchange.order.infra.OrderEventEnum;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -13,7 +14,6 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class OrderFailureHandler {
 
     private final OrderRepository orderRepository;
@@ -26,7 +26,9 @@ public class OrderFailureHandler {
         transactionTemplate.executeWithoutResult(status -> {
             Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(orderId).build());
             if (optional.isEmpty()) {
-                log.warn("Skip {} failure event, order not found. orderId={}", stage, orderId);
+                OpenLog.warn(OrderEventEnum.ORDER_FAILURE_SKIP_NOT_FOUND,
+                        "stage", stage,
+                        "orderId", orderId);
                 return;
             }
             Order order = optional.get();
@@ -38,12 +40,17 @@ public class OrderFailureHandler {
                     .build();
             boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion, null);
             if (!updated) {
-                log.warn("Optimistic lock conflict while marking order failed. orderId={} stage={}", orderId, stage);
+                OpenLog.warn(OrderEventEnum.ORDER_FAILURE_OPTIMISTIC_LOCK,
+                        "orderId", orderId,
+                        "stage", stage);
                 return;
             }
             order.markStatus(OrderStatus.FAILED, now);
             order.incrementVersion();
-            log.warn("Order marked FAILED due to {}. orderId={} reason={}", stage, orderId, reason);
+            OpenLog.warn(OrderEventEnum.ORDER_MARK_FAILED,
+                    "orderId", orderId,
+                    "stage", stage,
+                    "reason", reason);
         });
     }
 }

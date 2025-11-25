@@ -9,8 +9,6 @@ import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.server.event.AuthServerEventEnum;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +28,6 @@ import java.util.Map;
 @RequestMapping("/api/")
 public class AuthLoginController {
 
-    private static final Logger log = LoggerFactory.getLogger(AuthLoginController.class);
     private static final String LOGIN_SUCCESS_KEY = "auth.login.success";
 
     private final AuthenticationManager authenticationManager;

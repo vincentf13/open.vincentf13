@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.marketdata.infra.cache;
 
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.marketdata.domain.model.TickerStats;
 import org.springframework.stereotype.Service;
 
@@ -10,7 +9,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-@Slf4j
 public class TickerStatsCacheService {
 
     private final Map<Long, TickerStats> cache = new ConcurrentHashMap<>();

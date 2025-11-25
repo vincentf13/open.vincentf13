@@ -2,7 +2,6 @@ package open.vincentf13.sdk.core.id;
 
 import com.github.yitter.contract.IdGeneratorOptions;
 import com.github.yitter.idgen.DefaultIdGenerator;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.id.IdEventEnum;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -11,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableConfigurationProperties(SnowflakeIdProperties.class)
-@Slf4j
 public class IdGeneratorAutoConfiguration {
 
     @Bean

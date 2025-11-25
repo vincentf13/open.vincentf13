@@ -1,15 +1,16 @@
 package open.vincentf13.exchange.order.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
 import open.vincentf13.exchange.order.domain.model.Order;
+import open.vincentf13.exchange.order.infra.OrderEventEnum;
 import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -21,7 +22,6 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class LedgerEventListener {
 
     private final OrderRepository orderRepository;
@@ -41,7 +41,8 @@ public class LedgerEventListener {
         transactionTemplate.executeWithoutResult(status -> {
             Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
             if (optional.isEmpty()) {
-                log.warn("Skip funds frozen event, order not found. orderId={}", event.orderId());
+                OpenLog.warn(OrderEventEnum.ORDER_FUNDS_FROZEN_SKIP_NOT_FOUND,
+                        "orderId", event.orderId());
                 return;
             }
             handleFundsFrozen(optional.get(), event);
@@ -72,15 +73,18 @@ public class LedgerEventListener {
                 .build();
         boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion, null);
         if (!updated) {
-            log.warn("Optimistic lock conflict while marking order accepted. orderId={}", order.getOrderId());
+            OpenLog.warn(OrderEventEnum.ORDER_FUNDS_FROZEN_LOCK_CONFLICT,
+                    "orderId", order.getOrderId());
             return;
         }
         order.markStatus(OrderStatus.ACCEPTED, now);
         order.setSubmittedAt(now);
         order.incrementVersion();
         orderEventPublisher.publishOrderCreated(order, event.asset(), event.frozenAmount());
-        log.info("Order marked ACCEPTED after funds frozen. orderId={} asset={} amount={}",
-                order.getOrderId(), event.asset(), event.frozenAmount());
+        OpenLog.info(OrderEventEnum.ORDER_MARK_ACCEPTED,
+                "orderId", order.getOrderId(),
+                "asset", event.asset(),
+                "amount", event.frozenAmount());
     }
 
 }

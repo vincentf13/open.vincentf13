@@ -1,9 +1,7 @@
 package open.vincentf13.sdk.spring.cloud.gateway.log;
 
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.spring.cloud.gateway.log.GatewayEventEnum;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import open.vincentf13.sdk.spring.cloud.gateway.GatewayEventEnum;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.loadbalancer.Response;
 import org.springframework.cloud.gateway.route.Route;
@@ -19,7 +17,6 @@ import java.util.List;
 @Component
 public class LogService {
 
-    private static final Logger log = LoggerFactory.getLogger(LogService.class);
     private static final String ATTR_INITIAL_FORWARD_URL = LogService.class.getName() + ".initialForwardUrl";
     private static final String ATTR_INITIAL_SERVICE_INSTANCE = LogService.class.getName() + ".initialServiceInstance";
 

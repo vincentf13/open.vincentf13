@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import open.vincentf13.sdk.core.CoreEventEnum;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.boot.env.YamlPropertySourceLoader;
@@ -24,17 +24,13 @@ import org.springframework.util.StringUtils;
  */
 public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 
-    private static final Logger log = LoggerFactory.getLogger(AbstractYamlDefaultsEnvironmentPostProcessor.class);
-
     private final YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
 
     @Override
     public final void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         Resource resource = resolveResource();
         if (resource == null || !resource.exists()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Defaults resource {} not found", getResourceLocation());
-            }
+            OpenLog.debug(CoreEventEnum.DEFAULTS_RESOURCE_MISSING, "resource", getResourceLocation());
             return;
         }
 
@@ -53,9 +49,7 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements En
             }
 
             if (!defaults.isEmpty()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Applying defaults from {}: {}", getResourceLocation(), defaults.keySet());
-                }
+                OpenLog.debug(CoreEventEnum.DEFAULTS_APPLIED, "resource", getResourceLocation(), "keys", defaults.keySet());
                 environment.getPropertySources().addLast(new MapPropertySource(getPropertySourceName(), defaults));
             }
         } catch (IOException ex) {

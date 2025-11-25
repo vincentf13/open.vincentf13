@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.marketdata.infra.cache;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
 import open.vincentf13.exchange.market.sdk.rest.api.enums.KlinePeriod;
 import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
@@ -18,7 +17,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class KlineAggregationService {
 

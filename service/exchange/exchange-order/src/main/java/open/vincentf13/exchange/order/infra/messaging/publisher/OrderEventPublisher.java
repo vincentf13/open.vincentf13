@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.order.infra.messaging.publisher;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
@@ -17,7 +16,6 @@ import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class OrderEventPublisher {
 
     private final MqOutboxRepository outboxRepository;

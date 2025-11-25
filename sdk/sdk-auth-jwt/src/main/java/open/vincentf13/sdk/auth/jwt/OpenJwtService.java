@@ -5,8 +5,6 @@ import open.vincentf13.sdk.auth.jwt.JwtEventEnum;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
 import open.vincentf13.sdk.core.log.OpenLog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -29,7 +27,6 @@ import java.util.stream.Collectors;
 
 public class OpenJwtService {
 
-    private static final Logger log = LoggerFactory.getLogger(OpenJwtService.class);
     public static final String AUTHORITIES_CLAIM = "authorities";
     public static final String SESSION_ID_CLAIM = "sid";
     public static final String TOKEN_TYPE_CLAIM = "token_type";

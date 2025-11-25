@@ -10,8 +10,6 @@ import open.vincentf13.sdk.auth.jwt.JwtAuthEventEnum;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -27,8 +25,6 @@ public class JwtFilter extends OncePerRequestFilter {
     private final OpenJwtService openJwtService;
     private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final JwtProperties properties;
-    private final Logger log = LoggerFactory.getLogger(JwtFilter.class);
-
     public JwtFilter(OpenJwtService openJwtService,
                      ObjectProvider<JwtSessionService> sessionServiceProvider,
                      JwtProperties properties) {

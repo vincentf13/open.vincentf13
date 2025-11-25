@@ -1,9 +1,10 @@
 package open.vincentf13.exchange.marketdata.infra.cache;
 
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.marketdata.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.marketdata.infra.messaging.publisher.MarkPriceEventPublisher;
 import open.vincentf13.exchange.marketdata.infra.persistence.repository.MarkPriceSnapshotRepository;
+import open.vincentf13.exchange.marketdata.infra.MarketDataEventEnum;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -14,7 +15,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-@Slf4j
 public class MarkPriceCacheService {
 
     private static final Duration SNAPSHOT_INTERVAL = Duration.ofSeconds(5);
@@ -92,6 +92,8 @@ public class MarkPriceCacheService {
         MarkPriceSnapshot persisted = repository.insertSelective(current);
         cache.put(instrumentId, persisted);
         eventPublisher.publishMarkPriceUpdated(persisted);
-        log.debug("Mark price updated for instrument {} with trade {}", instrumentId, tradeId);
+        OpenLog.debug(MarketDataEventEnum.MARK_PRICE_CACHE_UPDATED,
+                "instrumentId", instrumentId,
+                "tradeId", tradeId);
     }
 }

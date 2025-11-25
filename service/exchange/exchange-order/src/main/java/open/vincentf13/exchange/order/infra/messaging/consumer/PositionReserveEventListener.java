@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.order.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
@@ -22,7 +21,6 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class PositionReserveEventListener {
 
     private final OrderRepository orderRepository;

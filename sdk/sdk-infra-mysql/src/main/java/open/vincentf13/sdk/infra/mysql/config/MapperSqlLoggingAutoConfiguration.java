@@ -4,8 +4,8 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.apache.ibatis.session.SqlSessionFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.infra.mysql.MysqlEventEnum;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -22,8 +22,6 @@ import org.springframework.util.StringUtils;
 @AutoConfiguration(after = MysqlMapperScanAutoConfiguration.class)
 @ConditionalOnProperty(name = "open.vincentf13.mybatis.mapper-sql-logging.enabled", havingValue = "true")
 public class MapperSqlLoggingAutoConfiguration {
-
-    private static final Logger log = LoggerFactory.getLogger(MapperSqlLoggingAutoConfiguration.class);
 
     private static final String PROPERTY_ENABLED = "open.vincentf13.mybatis.mapper-sql-logging.enabled";
 
@@ -43,9 +41,7 @@ public class MapperSqlLoggingAutoConfiguration {
 
             for (String packageName : mapperPackages) {
                 loggingSystem.setLogLevel(packageName, LogLevel.DEBUG);
-                if (log.isDebugEnabled()) {
-                    log.debug("Enabled DEBUG logging for mapper package: {}", packageName);
-                }
+                OpenLog.debug(MysqlEventEnum.MAPPER_SQL_DEBUG_ENABLED, "package", packageName);
             }
         };
     }

@@ -11,8 +11,6 @@ import open.vincentf13.sdk.core.exception.OpenErrorCodeEnum;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.openfeign.FeignEventEnum;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceAware;
@@ -36,8 +34,6 @@ import java.util.Map;
 @RestControllerAdvice
 @ConditionalOnClass(FeignException.class)
 public class FeignExceptionHandler implements MessageSourceAware {
-
-    private static final Logger log = LoggerFactory.getLogger(FeignExceptionHandler.class);
 
     private MessageSourceAccessor messageAccessor;
 

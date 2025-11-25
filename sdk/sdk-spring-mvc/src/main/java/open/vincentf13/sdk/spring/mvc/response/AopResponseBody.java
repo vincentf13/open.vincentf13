@@ -2,7 +2,6 @@ package open.vincentf13.sdk.spring.mvc.response;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.log.MvcEventEnum;
 import open.vincentf13.sdk.spring.mvc.config.MvcProperties;
@@ -25,7 +24,6 @@ import java.util.Collection;
 /**
  * 對 REST 回應做統一包裝，避免每支 API 重複建立標準格式。
  */
-@Slf4j
 @RestControllerAdvice
 @ConditionalOnClass(ResponseBodyAdvice.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
