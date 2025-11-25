@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.config;
+package open.vincentf13.sdk.core.id;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

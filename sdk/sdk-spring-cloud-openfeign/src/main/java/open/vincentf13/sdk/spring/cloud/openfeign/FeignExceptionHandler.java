@@ -7,7 +7,7 @@ import feign.codec.EncodeException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.servlet.http.HttpServletRequest;
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.core.error.OpenErrorCodeEnum;
+import open.vincentf13.sdk.core.exception.OpenErrorCodeEnum;
 import open.vincentf13.sdk.core.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.slf4j.Logger;

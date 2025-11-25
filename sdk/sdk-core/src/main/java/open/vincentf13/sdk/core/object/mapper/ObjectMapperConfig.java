@@ -1,11 +1,10 @@
-package open.vincentf13.sdk.core.config;
+package open.vincentf13.sdk.core.object.mapper;
 
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -20,7 +19,7 @@ import org.springframework.context.annotation.Bean;
 
 @AutoConfiguration
 @ConditionalOnClass(ObjectMapper.class)
-public class BeanConfig {
+public class ObjectMapperConfig {
 
     // 統一使用此配置，避免其他套件內的 ObjectMapper 影響。 例如：Spring MVC 取錯ObjectMapper，導致沒使用到此統一配置
     @Bean

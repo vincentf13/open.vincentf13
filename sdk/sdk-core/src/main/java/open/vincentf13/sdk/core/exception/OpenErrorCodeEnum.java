@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.error;
+package open.vincentf13.sdk.core.exception;
 
 public enum OpenErrorCodeEnum implements OpenErrorCode {
     /**

@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.order.infra;
 
-import open.vincentf13.sdk.core.error.OpenErrorCode;
+import open.vincentf13.sdk.core.exception.OpenErrorCode;
 
 public enum OrderErrorCodeEnum implements OpenErrorCode {
     ORDER_ALREADY_EXISTS("Order-409-1001", "Order already exists"),

@@ -1,7 +1,6 @@
 package open.vincentf13.sdk.core.exception;
 
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.core.error.OpenErrorCode;
 import org.slf4j.MDC;
 
 import java.util.HashMap;

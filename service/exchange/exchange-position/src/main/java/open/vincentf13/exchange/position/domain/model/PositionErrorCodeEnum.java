@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.position.domain.model;
 
-import open.vincentf13.sdk.core.error.OpenErrorCode;
+import open.vincentf13.sdk.core.exception.OpenErrorCode;
 
 public enum PositionErrorCodeEnum implements OpenErrorCode {
 
