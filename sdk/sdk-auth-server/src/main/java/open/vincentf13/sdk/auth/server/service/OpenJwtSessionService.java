@@ -1,13 +1,13 @@
 package open.vincentf13.sdk.auth.server.service;
 
-import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.auth.server.event.AuthServerEventEnum;
-import open.vincentf13.sdk.auth.jwt.session.JwtSession;
-import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService.GenerateTokenInfo;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
+import open.vincentf13.sdk.auth.jwt.session.JwtSession;
+import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
+import open.vincentf13.sdk.auth.server.AuthServerEventEnum;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -38,9 +38,9 @@ public class OpenJwtSessionService {
                 .toList();
         JwtSession session = new JwtSession(sessionId, authentication.getName(), accessToken.issuedAt(), refreshToken.expiresAt(), authorities);
         sessionStore.save(session);
-        OpenLog.info( AuthServerEventEnum.JWT_SESSION_CREATED,
-                "sessionId", sessionId,
-                "username", authentication.getName());
+        OpenLog.info(AuthServerEventEnum.JWT_SESSION_CREATED,
+                     "sessionId", sessionId,
+                     "username", authentication.getName());
         return new IssueResult(sessionId, authentication.getName(), accessToken, refreshToken);
     }
 

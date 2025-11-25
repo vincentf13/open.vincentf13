@@ -16,7 +16,7 @@ public class MatchingTradeEventListener {
 
     private final LedgerBalanceCommandService ledgerBalanceCommandService;
 
-    @KafkaListener(topics = MatchingTopics.TradeExecuted.Names.TRADE_EXECUTED,
+    @KafkaListener(topics = MatchingTopics.Names.TRADE_EXECUTED,
             groupId = "${open.vincentf13.exchange.account-ledger.consumer-group:exchange-account-ledger}")
     public void onTradeExecuted(@Payload TradeExecutedEvent event) {
         if (event == null || event.tradeId() == null || event.orderId() == null) {
@@ -24,6 +24,6 @@ public class MatchingTradeEventListener {
                     "event", event);
             return;
         }
-        ledgerBalanceCommandService.applyTrade(event);
+        ledgerBalanceCommandService.handleTradeExecuted(event);
     }
 }

@@ -4,11 +4,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.core.exception.OpenErrorCodeEnum;
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
+import open.vincentf13.sdk.core.exception.OpenErrorCodeEnum;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.spring.mvc.log.MvcEventEnum;
+import open.vincentf13.sdk.spring.mvc.MvcEventEnum;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.MessageSource;
@@ -101,9 +101,9 @@ public class AopRestException implements MessageSourceAware {
                                                                WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         String reason = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
-        OpenLog.debug( MvcEventEnum.HTTP_MESSAGE_UNREADABLE,
-                "path", servletRequest != null ? servletRequest.getRequestURI() : "unknown",
-                "reason", reason);
+        OpenLog.debug(MvcEventEnum.HTTP_MESSAGE_UNREADABLE,
+                      "path", servletRequest != null ? servletRequest.getRequestURI() : "unknown",
+                      "reason", reason);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
         meta.put("reason", reason);
         OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.REQUEST_PAYLOAD_UNREADABLE.code(),

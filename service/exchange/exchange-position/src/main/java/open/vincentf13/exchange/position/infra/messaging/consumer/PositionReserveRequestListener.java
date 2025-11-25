@@ -71,7 +71,7 @@ public class PositionReserveRequestListener {
                     Instant.now()
         );
         positionEventPublisher.publishRejected(rejectedEvent);
-        OpenLog.warn( PositionEventEnum.POSITION_RESERVE_REJECTED, ex,
+        OpenLog.warn( PositionEventEnum.POSITION_RESERVE_REJECTED,
                 "orderId", event.orderId(),
                 "reason", outcome.result().reason());
     }

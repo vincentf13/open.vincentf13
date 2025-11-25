@@ -4,12 +4,12 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import open.vincentf13.sdk.spring.mvc.OpenHttpUtils;
-import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.auth.jwt.JwtAuthEventEnum;
-import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
+import open.vincentf13.sdk.auth.JwtAuthEventEnum;
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
+import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
+import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.mvc.OpenHttpUtils;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -57,8 +57,8 @@ public class JwtFilter extends OncePerRequestFilter {
         boolean active = sessionService.isActive(authentication.getSessionId());
         if (!active) {
             OpenLog.info(JwtAuthEventEnum.JWT_SESSION_INACTIVE,
-                    "sessionId", authentication.getSessionId(),
-                    "principal", authentication.getName());
+                         "sessionId", authentication.getSessionId(),
+                         "principal", authentication.getName());
         }
         return active;
     }

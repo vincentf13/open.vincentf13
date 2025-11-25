@@ -3,7 +3,7 @@ package open.vincentf13.sdk.spring.mvc.log;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.spring.mvc.log.MvcEventEnum;
+import open.vincentf13.sdk.spring.mvc.MvcEventEnum;
 import org.springframework.util.StringUtils;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerMapping;
@@ -13,13 +13,7 @@ import org.springframework.web.util.WebUtils;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class MvcLogService {
@@ -53,16 +47,16 @@ public class MvcLogService {
         int status = response.getStatus();
 
         if (ex != null) {
-            OpenLog.error( MvcEventEnum.MVC_REQUEST_FAILED, ex,
-                    "method", method,
-                    "uri", uri,
-                    "status", status,
-                    "durationMs", durationMs,
-                    "handler", handlerDisplay,
-                    "pattern", matchingPattern,
-                    "clientIp", clientIp,
-                    "requestBytes", requestBody.length(),
-                    "responseBytes", responseBody.length());
+            OpenLog.error(MvcEventEnum.MVC_REQUEST_FAILED, ex,
+                          "method", method,
+                          "uri", uri,
+                          "status", status,
+                          "durationMs", durationMs,
+                          "handler", handlerDisplay,
+                          "pattern", matchingPattern,
+                          "clientIp", clientIp,
+                          "requestBytes", requestBody.length(),
+                          "responseBytes", responseBody.length());
         } else {
             OpenLog.info( MvcEventEnum.MVC_REQUEST_COMPLETED,
                     "method", method,

@@ -3,11 +3,11 @@ package open.vincentf13.sdk.auth.server.controller;
 import jakarta.validation.Valid;
 import open.vincentf13.sdk.auth.auth.PublicAPI;
 import open.vincentf13.sdk.auth.jwt.model.JwtTokenPair;
+import open.vincentf13.sdk.auth.server.AuthServerEventEnum;
 import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
 import open.vincentf13.sdk.auth.server.error.FailureReason;
 import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.auth.server.event.AuthServerEventEnum;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.context.MessageSource;
 import org.springframework.context.support.MessageSourceAccessor;
@@ -58,8 +58,8 @@ public class AuthLoginController {
                                                     tokens.refreshToken().expiresAt(),
                                                     tokens.sessionId());
 
-            OpenLog.info( AuthServerEventEnum.LOGIN_SUCCESS,
-                    "username", authentication.getName());
+            OpenLog.info(AuthServerEventEnum.LOGIN_SUCCESS,
+                         "username", authentication.getName());
 
             OpenApiResponse<JwtTokenPair> body = OpenApiResponse.success(payload)
                     .withMeta(Map.of("message", messages.getMessage(LOGIN_SUCCESS_KEY, "Login successful")));
