@@ -103,7 +103,7 @@ public class AopRestException implements MessageSourceAware {
                                                                WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         String reason = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
-        OpenLog.debug(log, MvcEventEnum.HTTP_MESSAGE_UNREADABLE,
+        OpenLog.debug( MvcEventEnum.HTTP_MESSAGE_UNREADABLE,
                 "path", servletRequest != null ? servletRequest.getRequestURI() : "unknown",
                 "reason", reason);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
@@ -154,7 +154,7 @@ public class AopRestException implements MessageSourceAware {
     public ResponseEntity<OpenApiResponse<Object>> handleOpenException(OpenException ex,
                                                                        HttpServletRequest request) {
         HttpStatus status = mapStatus(ex.getCode());
-        OpenLog.warn(log, MvcEventEnum.OPEN_EXCEPTION, ex,
+        OpenLog.warn( MvcEventEnum.OPEN_EXCEPTION, ex,
                 "code", ex.getCode() != null ? ex.getCode().code() : null,
                 "path", request != null ? request.getRequestURI() : "unknown");
         Map<String, Object> meta = baseMeta(request, status);
@@ -171,7 +171,7 @@ public class AopRestException implements MessageSourceAware {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<OpenApiResponse<Object>> handleUnexpectedException(Exception ex, HttpServletRequest request) {
-        OpenLog.error(log, MvcEventEnum.UNHANDLED_EXCEPTION, ex,
+        OpenLog.error( MvcEventEnum.UNHANDLED_EXCEPTION, ex,
                 "path", request != null ? request.getRequestURI() : "unknown");
         Map<String, Object> meta = baseMeta(request, HttpStatus.INTERNAL_SERVER_ERROR);
         OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.INTERNAL_ERROR.code(),

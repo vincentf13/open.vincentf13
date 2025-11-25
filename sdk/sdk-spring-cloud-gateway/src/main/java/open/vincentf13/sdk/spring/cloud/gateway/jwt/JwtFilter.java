@@ -54,7 +54,7 @@ public class JwtFilter implements GlobalFilter, Ordered {
 
         Optional<JwtParseInfo> authentication = openJwtService.parseAccessToken(tokenValue.get());
         if (authentication.isEmpty()) {
-            OpenLog.warn(log, GatewayEventEnum.JWT_INVALID, "jwtToken", "redacted");
+            OpenLog.warn( GatewayEventEnum.JWT_INVALID, "jwtToken", "redacted");
             return unauthorized(exchange, "Invalid access jwtToken");
         }
 
@@ -88,7 +88,7 @@ public class JwtFilter implements GlobalFilter, Ordered {
         }
         boolean active = sessionService.isActive(authentication.getSessionId());
         if (!active) {
-            OpenLog.info(log, GatewayEventEnum.JWT_SESSION_INACTIVE,
+            OpenLog.info( GatewayEventEnum.JWT_SESSION_INACTIVE,
                     "sessionId", authentication.getSessionId(),
                     "principal", authentication.getName());
         }
@@ -107,7 +107,7 @@ public class JwtFilter implements GlobalFilter, Ordered {
         if (exchange.getResponse().isCommitted()) {
             return Mono.empty();
         }
-        OpenLog.info(log, GatewayEventEnum.JWT_UNAUTHORIZED, "reason", reason);
+        OpenLog.info( GatewayEventEnum.JWT_UNAUTHORIZED, "reason", reason);
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         return exchange.getResponse().setComplete();
     }

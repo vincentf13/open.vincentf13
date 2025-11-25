@@ -102,7 +102,7 @@ public class AopResponseBody implements ResponseBodyAdvice<Object> {
                 // 手動序列化避免 StringHttpMessageConverter 以純文字方式輸出，確保前端收到一致 JSON 結構。
                 return objectMapper.writeValueAsString(OpenApiResponse.success(value));
             } catch (JsonProcessingException ex) {
-                OpenLog.warn(log, MvcEventEnum.WRAP_STRING_RESPONSE_FAILED,
+                OpenLog.warn( MvcEventEnum.WRAP_STRING_RESPONSE_FAILED,
                         ex,
                         "converter", converterType != null ? converterType.getName() : "unknown");
                 return value;

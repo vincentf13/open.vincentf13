@@ -69,13 +69,13 @@ public class PositionReserveEventListener {
                 null,
                 OrderStatus.PENDING);
         if (!updated) {
-            OpenLog.warn(log, OrderEventEnum.ORDER_STATUS_CONFLICT, null,
+            OpenLog.warn( OrderEventEnum.ORDER_STATUS_CONFLICT, null,
                     "orderId", event.orderId());
             return;
         }
         Optional<Order> optionalOrder = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
         if (optionalOrder.isEmpty()) {
-            OpenLog.warn(log, OrderEventEnum.ORDER_NOT_FOUND_AFTER_RESERVE, null,
+            OpenLog.warn( OrderEventEnum.ORDER_NOT_FOUND_AFTER_RESERVE, null,
                     "orderId", event.orderId());
             return;
         }
@@ -84,7 +84,7 @@ public class PositionReserveEventListener {
         order.setSubmittedAt(now);
         order.setCloseCostPrice(event.avgOpenPrice());
         orderEventPublisher.publishOrderSubmitted(order);
-        OpenLog.info(log, OrderEventEnum.ORDER_POSITION_RESERVED, "orderId", order.getOrderId());
+        OpenLog.info( OrderEventEnum.ORDER_POSITION_RESERVED, "orderId", order.getOrderId());
     }
 
     private void handleReservationFailure(PositionReserveRejectedEvent event) {
@@ -99,7 +99,7 @@ public class PositionReserveEventListener {
                 null,
                 OrderStatus.PENDING);
         if (!updated) {
-            OpenLog.warn(log, OrderEventEnum.ORDER_STATUS_CONFLICT, null,
+            OpenLog.warn( OrderEventEnum.ORDER_STATUS_CONFLICT, null,
                     "orderId", event.orderId());
             return;
         }
@@ -107,12 +107,12 @@ public class PositionReserveEventListener {
         if (optionalOrder.isPresent()) {
             Order order = optionalOrder.get();
             order.markStatus(OrderStatus.FAILED, now);
-            OpenLog.warn(log, OrderEventEnum.ORDER_POSITION_RESERVE_REJECTED, null,
+            OpenLog.warn( OrderEventEnum.ORDER_POSITION_RESERVE_REJECTED, null,
                     "orderId", order.getOrderId(),
                     "reason", event.reason());
             return;
         }
-        OpenLog.warn(log, OrderEventEnum.ORDER_NOT_FOUND_AFTER_RESERVE_REJECT, null,
+        OpenLog.warn( OrderEventEnum.ORDER_NOT_FOUND_AFTER_RESERVE_REJECT, null,
                 "orderId", event.orderId(),
                 "reason", event.reason());
     }

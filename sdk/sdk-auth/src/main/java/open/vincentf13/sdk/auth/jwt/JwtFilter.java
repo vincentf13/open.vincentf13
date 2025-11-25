@@ -60,7 +60,7 @@ public class JwtFilter extends OncePerRequestFilter {
         }
         boolean active = sessionService.isActive(authentication.getSessionId());
         if (!active) {
-            OpenLog.info(log, JwtAuthEventEnum.JWT_SESSION_INACTIVE,
+            OpenLog.info(JwtAuthEventEnum.JWT_SESSION_INACTIVE,
                     "sessionId", authentication.getSessionId(),
                     "principal", authentication.getName());
         }

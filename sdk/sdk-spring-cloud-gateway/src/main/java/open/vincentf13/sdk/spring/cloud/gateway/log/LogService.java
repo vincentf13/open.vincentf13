@@ -41,7 +41,7 @@ public class LogService {
         String instanceDesc = formatServiceInstance(serviceInstance);
         String method = request.getMethod() != null ? request.getMethod().name() : "UNKNOWN";
 
-        OpenLog.info(log, GatewayEventEnum.REQUEST,
+        OpenLog.info( GatewayEventEnum.REQUEST,
                 "method", method,
                 "uri", request.getURI(),
                 "routeId", routeId,
@@ -50,21 +50,21 @@ public class LogService {
 
         request.getHeaders().forEach((name, values) -> logHeader("GatewayRequestHeader", "Request header", name, values));
         if (route != null) {
-            OpenLog.debug(log, GatewayEventEnum.ROUTE,
+            OpenLog.debug( GatewayEventEnum.ROUTE,
                     "id", route.getId(),
                     "uri", route.getUri(),
                     "metadata", route.getMetadata());
         }
         if (forwardUrl != null) {
-            OpenLog.debug(log, GatewayEventEnum.FORWARD_URL, "url", forwardUrl);
+            OpenLog.debug( GatewayEventEnum.FORWARD_URL, "url", forwardUrl);
         }
         if (serviceInstance != null) {
-            OpenLog.debug(log, GatewayEventEnum.SERVICE_INSTANCE,
+            OpenLog.debug( GatewayEventEnum.SERVICE_INSTANCE,
                     "serviceId", serviceInstance.getServiceId(),
                     "host", serviceInstance.getHost(),
                     "port", serviceInstance.getPort());
         } else {
-            OpenLog.debug(log, GatewayEventEnum.SERVICE_INSTANCE_PENDING,
+            OpenLog.debug( GatewayEventEnum.SERVICE_INSTANCE_PENDING,
                     "routeId", routeId);
         }
     }
@@ -82,7 +82,7 @@ public class LogService {
 
         ServerHttpResponse response = exchange.getResponse();
 
-        OpenLog.info(log, GatewayEventEnum.RESPONSE,
+        OpenLog.info( GatewayEventEnum.RESPONSE,
                 "status", response.getStatusCode(),
                 "durationMs", durationMs,
                 "routeId", routeId,
@@ -90,10 +90,10 @@ public class LogService {
                 "instance", finalInstanceDesc);
 
         if (finalForwardUrl != null && initialForwardUrl == null) {
-            OpenLog.debug(log, GatewayEventEnum.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
+            OpenLog.debug( GatewayEventEnum.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
         }
         if (finalInstance != null && initialInstance == null) {
-            OpenLog.debug(log, GatewayEventEnum.SERVICE_INSTANCE_RESOLVED,
+            OpenLog.debug( GatewayEventEnum.SERVICE_INSTANCE_RESOLVED,
                     "serviceId", finalInstance.getServiceId(),
                     "host", finalInstance.getHost(),
                     "port", finalInstance.getPort());
@@ -109,14 +109,14 @@ public class LogService {
         String routeId = resolveRouteId(route);
         String targetUri = resolveTargetUri(route, forwardUrl);
 
-        OpenLog.error(log, GatewayEventEnum.FORWARD_FAILED, ex,
+        OpenLog.error( GatewayEventEnum.FORWARD_FAILED, ex,
                 "routeId", routeId,
                 "target", targetUri);
     }
 
     private void logHeader(String event, String message, String name, List<String> values) {
         GatewayEventEnum evt = "GatewayResponseHeader".equals(event) ? GatewayEventEnum.RESPONSE_HEADER : GatewayEventEnum.REQUEST_HEADER;
-        OpenLog.debug(log, evt, "name", name, "values", values);
+        OpenLog.debug( evt, "name", name, "values", values);
     }
 
     private String resolveRouteId(Route route) {

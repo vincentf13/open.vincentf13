@@ -39,7 +39,7 @@ public class JwtSessionStoreInMemory implements JwtSessionStore {
         findById(sessionId).ifPresent(session -> {
             session.markRevoked(revokedAt, reason);
             sessions.put(sessionId, session);
-            OpenLog.info(log, JwtEventEnum.IN_MEMORY_SESSION_REVOKED,
+            OpenLog.info( JwtEventEnum.IN_MEMORY_SESSION_REVOKED,
                     "sessionId", sessionId,
                     "reason", reason);
         });

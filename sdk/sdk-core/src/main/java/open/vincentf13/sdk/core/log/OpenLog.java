@@ -8,23 +8,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.lang.StackWalker;
 
-/*
- * 統一日誌輸出，事件需實作 OpenEvent。
- * 範例（事件來自各模組自定義的 XxxEventEnum）：
- *   OpenLog.info(SomeEventEnum.ORDER_CREATED, "orderId", 12345);
- *   OpenLog.warn(SomeEventEnum.ORDER_SAVE_FAILED, ex, "orderId", 12345);
- *   OpenLog.debug(SomeEventEnum.CALC_PRICE, "sku", "A100");
- *
- * 亦保留需手動傳入 Logger 的 overload，便於特殊情境控制。
- */
+    /*
+     * 統一日誌輸出，事件需實作 OpenEvent。
+     * 範例（事件來自各模組自定義的 XxxEventEnum）：
+     *   OpenLog.info(SomeEventEnum.ORDER_CREATED, "orderId", 12345);
+     *   OpenLog.warn(SomeEventEnum.ORDER_SAVE_FAILED, ex, "orderId", 12345);
+     *   OpenLog.debug(SomeEventEnum.CALC_PRICE, "sku", "A100");
+     */
 public final class OpenLog {
 
     private static final Map<String, Logger> LOGGER_CACHE = new ConcurrentHashMap<>();
 
     private OpenLog() {
     }
-
-    // ===== 無需傳入 Logger，會自動解析呼叫端類別並附上 op=caller =====
 
     public static String info(OpenEvent event, Object... kv) {
         Logger log = resolveLogger();
@@ -76,57 +72,6 @@ public final class OpenLog {
 
     public static String trace(OpenEvent event, Object... kv) {
         Logger log = resolveLogger();
-        if (!log.isTraceEnabled()) return "Trace Not Enabled";
-        String finalLog = format(event, null, kv);
-        log.trace(finalLog);
-        return finalLog;
-    }
-
-    // ===== 保留需傳入 Logger 的 overload =====
-
-    public static String info(Logger log, OpenEvent event, Object... kv) {
-        if (!log.isInfoEnabled()) return "Info Not Enabled";
-        String finalLog = format(event, null, kv);
-        log.info(finalLog);
-        return finalLog;
-    }
-
-    public static String warn(Logger log, OpenEvent event, Object... kv) {
-        if (!log.isWarnEnabled()) return "Warn Not Enabled";
-        String finalLog = format(event, null, kv);
-        log.warn(finalLog);
-        return finalLog;
-    }
-
-    public static String warn(Logger log, OpenEvent event, Throwable t, Object... kv) {
-        if (!log.isWarnEnabled()) return "Warn Not Enabled";
-        String finalLog = format(event, null, kv);
-        log.warn(finalLog, t);
-        return finalLog;
-    }
-
-    public static String error(Logger log, OpenEvent event, Throwable t, Object... kv) {
-        if (!log.isErrorEnabled()) return "Error Not Enabled";
-        String finalLog = format(event, null, kv);
-        log.error(finalLog, t);
-        return finalLog;
-    }
-
-    public static String debug(Logger log, OpenEvent event, Object... kv) {
-        if (!log.isDebugEnabled()) return "Debug Not Enabled";
-        String finalLog = format(event, null, kv);
-        log.debug(finalLog);
-        return finalLog;
-    }
-
-    public static String debug(Logger log, OpenEvent event, Throwable t, Object... kv) {
-        if (!log.isDebugEnabled()) return "Debug Not Enabled";
-        String finalLog = format(event, null, kv);
-        log.debug(finalLog, t);
-        return finalLog;
-    }
-
-    public static String trace(Logger log, OpenEvent event, Object... kv) {
         if (!log.isTraceEnabled()) return "Trace Not Enabled";
         String finalLog = format(event, null, kv);
         log.trace(finalLog);

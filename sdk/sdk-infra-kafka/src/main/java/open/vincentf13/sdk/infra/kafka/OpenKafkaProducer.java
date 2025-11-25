@@ -49,7 +49,7 @@ public final class OpenKafkaProducer {
         try {
             ProducerRecord<String, Object> record = new ProducerRecord<>(topic, key, msg);
             addHeaders(record, headers);
-            OpenLog.debug(log, KafkaEventEnum.KAFKA_SEND,
+            OpenLog.debug( KafkaEventEnum.KAFKA_SEND,
                     "topic", topic,
                     "key", key,
                     "payloadType", msg.getClass().getName());
@@ -63,7 +63,7 @@ public final class OpenKafkaProducer {
         } catch (Exception ex) {
             CompletableFuture<SendResult<String, Object>> future = new CompletableFuture<>();
             future.completeExceptionally(ex);
-            OpenLog.error(log, KafkaEventEnum.KAFKA_SEND_FAILED, ex, "topic", topic, "key", key);
+            OpenLog.error( KafkaEventEnum.KAFKA_SEND_FAILED, ex, "topic", topic, "key", key);
             return future;
         }
     }
@@ -161,7 +161,7 @@ public final class OpenKafkaProducer {
                                : requireMapper().writeValueAsBytes(headerValue);
                 record.headers().add(headerKey, bytes);
             } catch (Exception ex) {
-                OpenLog.warn(log, KafkaEventEnum.KAFKA_HEADER_ENCODE_FAILED, ex, "headerKey", headerKey);
+                OpenLog.warn( KafkaEventEnum.KAFKA_HEADER_ENCODE_FAILED, ex, "headerKey", headerKey);
             }
         });
     }
@@ -173,19 +173,19 @@ public final class OpenKafkaProducer {
             String key
                                  ) {
         if (throwable != null) {
-            OpenLog.error(log, KafkaEventEnum.KAFKA_SEND_ERROR, throwable, "topic", topic, "key", key);
+            OpenLog.error( KafkaEventEnum.KAFKA_SEND_ERROR, throwable, "topic", topic, "key", key);
             return;
         }
         RecordMetadata metadata = result != null ? result.getRecordMetadata() : null;
         if (metadata != null) {
-            OpenLog.debug(log, KafkaEventEnum.KAFKA_SEND_SUCCESS,
+            OpenLog.debug( KafkaEventEnum.KAFKA_SEND_SUCCESS,
                     "topic", metadata.topic(),
                     "partition", metadata.partition(),
                     "offset", metadata.offset(),
                     "timestamp", metadata.timestamp(),
                     "key", key);
         } else {
-            OpenLog.debug(log, KafkaEventEnum.KAFKA_SEND_SUCCESS,
+            OpenLog.debug( KafkaEventEnum.KAFKA_SEND_SUCCESS,
                     "topic", topic,
                     "key", key);
         }

@@ -53,7 +53,7 @@ public class FeignExceptionHandler implements MessageSourceAware {
     public ResponseEntity<OpenApiResponse<Object>> handleCallNotPermitted(CallNotPermittedException ex,
                                                                           HttpServletRequest request) {
         String breakerName = resolveCircuitBreakerName(ex);
-        OpenLog.warn(log, FeignEventEnum.FEIGN_CIRCUIT_BREAKER_OPEN,
+        OpenLog.warn( FeignEventEnum.FEIGN_CIRCUIT_BREAKER_OPEN,
                 ex,
                 "circuitBreaker", breakerName);
         Map<String, Object> meta = baseMeta(request, HttpStatus.SERVICE_UNAVAILABLE);
@@ -71,7 +71,7 @@ public class FeignExceptionHandler implements MessageSourceAware {
      */
     @ExceptionHandler(RetryableException.class)
     public ResponseEntity<OpenApiResponse<Object>> handleRetryable(RetryableException ex, HttpServletRequest request) {
-        OpenLog.warn(log, FeignEventEnum.FEIGN_RETRYABLE_EXCEPTION,
+        OpenLog.warn( FeignEventEnum.FEIGN_RETRYABLE_EXCEPTION,
                 ex,
                 "target", ex.request() != null ? ex.request().url() : "unknown");
         Map<String, Object> meta = baseMeta(request, HttpStatus.SERVICE_UNAVAILABLE);
@@ -91,7 +91,7 @@ public class FeignExceptionHandler implements MessageSourceAware {
         if (status == null) {
             status = HttpStatus.BAD_GATEWAY;
         }
-        OpenLog.warn(log, FeignEventEnum.FEIGN_EXCEPTION,
+        OpenLog.warn( FeignEventEnum.FEIGN_EXCEPTION,
                 ex,
                 "status", ex.status(),
                 "target", ex.request() != null ? ex.request().url() : "unknown");
@@ -112,7 +112,7 @@ public class FeignExceptionHandler implements MessageSourceAware {
      */
     @ExceptionHandler(DecodeException.class)
     public ResponseEntity<OpenApiResponse<Object>> handleDecode(DecodeException ex, HttpServletRequest request) {
-        OpenLog.warn(log, FeignEventEnum.FEIGN_DECODE_EXCEPTION,
+        OpenLog.warn( FeignEventEnum.FEIGN_DECODE_EXCEPTION,
                 ex);
         Map<String, Object> meta = baseMeta(request, HttpStatus.BAD_GATEWAY);
         OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.REMOTE_RESPONSE_DECODE_FAILED.code(),
@@ -126,7 +126,7 @@ public class FeignExceptionHandler implements MessageSourceAware {
      */
     @ExceptionHandler(EncodeException.class)
     public ResponseEntity<OpenApiResponse<Object>> handleEncode(EncodeException ex, HttpServletRequest request) {
-        OpenLog.warn(log, FeignEventEnum.FEIGN_ENCODE_EXCEPTION,
+        OpenLog.warn( FeignEventEnum.FEIGN_ENCODE_EXCEPTION,
                 ex);
         Map<String, Object> meta = baseMeta(request, HttpStatus.BAD_REQUEST);
         OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.REMOTE_REQUEST_ENCODE_FAILED.code(),

@@ -61,7 +61,7 @@ public class PositionReserveRequestListener {
                     Instant.now()
             );
             positionEventPublisher.publishReserved(reservedEvent);
-            OpenLog.info(log, PositionEventEnum.POSITION_RESERVED, "orderId", event.orderId());
+            OpenLog.info( PositionEventEnum.POSITION_RESERVED, "orderId", event.orderId());
             return;
         }
         PositionReserveRejectedEvent rejectedEvent = new PositionReserveRejectedEvent(
@@ -73,7 +73,7 @@ public class PositionReserveRequestListener {
                     Instant.now()
         );
         positionEventPublisher.publishRejected(rejectedEvent);
-        OpenLog.warn(log, PositionEventEnum.POSITION_RESERVE_REJECTED, ex,
+        OpenLog.warn( PositionEventEnum.POSITION_RESERVE_REJECTED, ex,
                 "orderId", event.orderId(),
                 "reason", outcome.result().reason());
     }

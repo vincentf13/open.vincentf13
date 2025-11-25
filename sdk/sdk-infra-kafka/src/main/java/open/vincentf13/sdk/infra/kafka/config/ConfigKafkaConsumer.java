@@ -67,7 +67,7 @@ public class ConfigKafkaConsumer {
 
         // 註冊日誌記錄，以便觀察重試和 DLQ 的行為
         errorHandler.setRetryListeners((record, ex, deliveryAttempt) ->
-                                               OpenLog.warn(log, KafkaEventEnum.KAFKA_CONSUME_RETRY, ex,
+                                               OpenLog.warn( KafkaEventEnum.KAFKA_CONSUME_RETRY, ex,
                                                             "topic", record.topic(),
                                                             "partition", record.partition(),
                                                             "offset", record.offset(),
@@ -77,7 +77,7 @@ public class ConfigKafkaConsumer {
 
         factory.setCommonErrorHandler(errorHandler);
 
-        OpenLog.info(log, KafkaEventEnum.KAFKA_CONSUMER_CONFIGURED,
+        OpenLog.info( KafkaEventEnum.KAFKA_CONSUMER_CONFIGURED,
                      "ackMode", factory.getContainerProperties().getAckMode(),
                      "listenerType", factory.isBatchListener() ? "BATCH" : "SINGLE" ,
                      "errorHandler", "DLQ with 2 retries");

@@ -66,7 +66,7 @@ public class JwtSessionStoreRedis implements JwtSessionStore {
         findById(sessionId).ifPresent(session -> {
             session.markRevoked(revokedAt, reason);
             save(session);
-            OpenLog.info(log, JwtEventEnum.REDIS_SESSION_REVOKED,
+            OpenLog.info( JwtEventEnum.REDIS_SESSION_REVOKED,
                          "sessionId", sessionId,
                          "reason", reason);
         });

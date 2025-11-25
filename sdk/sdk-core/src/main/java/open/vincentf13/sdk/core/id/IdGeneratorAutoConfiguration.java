@@ -16,7 +16,7 @@ public class IdGeneratorAutoConfiguration {
 
     @Bean
     public DefaultIdGenerator snowflakeIdGenerator(SnowflakeIdProperties snowflakeIdProperties) {
-        OpenLog.info(log, IdEventEnum.BEAN_CONFIG,"worker id" , snowflakeIdProperties.getWorkerId());
+        OpenLog.info( IdEventEnum.BEAN_CONFIG,"worker id" , snowflakeIdProperties.getWorkerId());
         IdGeneratorOptions options = new IdGeneratorOptions(snowflakeIdProperties.getWorkerId());
         return new DefaultIdGenerator(options);
     }

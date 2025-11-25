@@ -56,7 +56,7 @@ public class MvcLogService {
         int status = response.getStatus();
 
         if (ex != null) {
-            OpenLog.error(log, MvcEventEnum.MVC_REQUEST_FAILED, ex,
+            OpenLog.error( MvcEventEnum.MVC_REQUEST_FAILED, ex,
                     "method", method,
                     "uri", uri,
                     "status", status,
@@ -67,7 +67,7 @@ public class MvcLogService {
                     "requestBytes", requestBody.length(),
                     "responseBytes", responseBody.length());
         } else {
-            OpenLog.info(log, MvcEventEnum.MVC_REQUEST_COMPLETED,
+            OpenLog.info( MvcEventEnum.MVC_REQUEST_COMPLETED,
                     "method", method,
                     "uri", uri,
                     "status", status,
@@ -79,7 +79,7 @@ public class MvcLogService {
                     "responseBytes", responseBody.length());
         }
 
-        OpenLog.debug(log, MvcEventEnum.MVC_REQUEST_DETAIL,
+        OpenLog.debug( MvcEventEnum.MVC_REQUEST_DETAIL,
                 "status", status,
                 "durationMs", durationMs,
                 "requestBytes", requestBody.length(),

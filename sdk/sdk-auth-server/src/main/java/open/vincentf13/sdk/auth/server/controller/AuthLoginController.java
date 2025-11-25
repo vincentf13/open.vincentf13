@@ -61,7 +61,7 @@ public class AuthLoginController {
                                                     tokens.refreshToken().expiresAt(),
                                                     tokens.sessionId());
 
-            OpenLog.info(log, AuthServerEventEnum.LOGIN_SUCCESS,
+            OpenLog.info( AuthServerEventEnum.LOGIN_SUCCESS,
                     "username", authentication.getName());
 
             OpenApiResponse<JwtTokenPair> body = OpenApiResponse.success(payload)
@@ -70,7 +70,7 @@ public class AuthLoginController {
         } catch (AuthenticationException ex) {
             FailureReason reason = FailureReason.from(ex);
             String username = request.email() != null ? request.email() : "<unknown>";
-            OpenLog.warn(log, AuthServerEventEnum.LOGIN_FAILURE,
+            OpenLog.warn( AuthServerEventEnum.LOGIN_FAILURE,
                     ex,
                     "username", username,
                     "code", reason.code());
