@@ -12,10 +12,11 @@ import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 import open.vincentf13.sdk.core.OpenBigDecimal;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.exception.OpenException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 
 @Data
 @Builder
@@ -73,7 +74,7 @@ public class Order {
 
     public static Order createNew(Long userId, open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest request) {
         if (userId == null) {
-            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "Missing userId");
+            throw OpenException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, Map.of("field", "userId"));
         }
         validateRequest(request);
         Instant now = Instant.now();
@@ -104,16 +105,17 @@ public class Order {
 
     private static void validateRequest(open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest request) {
         if (request == null) {
-            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "request cannot be null");
+            throw OpenException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, Map.of("field", "request"));
         }
         if (requiresPrice(request.type()) && request.price() == null) {
-            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "price is required for type " + request.type());
+            throw OpenException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED,
+                                   Map.of("field", "price", "orderType", request.type()));
         }
         if (request.quantity() == null || OpenBigDecimal.isNonPositive(request.quantity())) {
-            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "quantity must be positive");
+            throw OpenException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, Map.of("field", "quantity"));
         }
         if (request.price() != null && OpenBigDecimal.isNonPositive(request.price())) {
-            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "price must be positive");
+            throw OpenException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, Map.of("field", "price"));
         }
     }
 

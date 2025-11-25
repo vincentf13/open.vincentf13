@@ -6,8 +6,8 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.error.OpenErrorCodeEnum;
-import open.vincentf13.sdk.core.exception.OpenApiException;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.error.OpenErrorCode;
+import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -148,39 +148,23 @@ public class AopRestException implements MessageSourceAware {
     }
 
     /**
-     * 將業務層主動拋出的 ControllerException 轉為 500 響應。
+     * 處理業務層丟出的 OpenException，依錯誤碼映射 HTTP 狀態。
      */
-    @ExceptionHandler(OpenApiException.class)
-    public ResponseEntity<OpenApiResponse<Object>> handleControllerException(OpenApiException ex,
-                                                                             HttpServletRequest request) {
-        OpenLog.warn(log, "ControllerException", "Controller exception",
+    @ExceptionHandler(OpenException.class)
+    public ResponseEntity<OpenApiResponse<Object>> handleOpenException(OpenException ex,
+                                                                       HttpServletRequest request) {
+        HttpStatus status = mapStatus(ex.getCode());
+        OpenLog.warn(log, "OpenException", "Open exception",
                 ex,
-                "code", ex.getCode(),
+                "code", ex.getCode() != null ? ex.getCode().code() : null,
                 "path", request != null ? request.getRequestURI() : "unknown");
-        Map<String, Object> meta = baseMeta(request, HttpStatus.INTERNAL_SERVER_ERROR);
+        Map<String, Object> meta = baseMeta(request, status);
         if (!CollectionUtils.isEmpty(ex.getMeta())) {
             meta.putAll(ex.getMeta());
         }
-        OpenApiResponse<Object> body = OpenApiResponse.failure(ex.getCode(), ex.getMessage(), meta);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
-    }
-
-    /**
-     * 處理服務層丟出的業務例外，統一回傳 4xx 響應。
-     */
-    @ExceptionHandler(OpenServiceException.class)
-    public ResponseEntity<OpenApiResponse<Object>> handleServiceException(OpenServiceException ex,
-                                                                          HttpServletRequest request) {
-        OpenLog.warn(log, "ServiceException", "Service layer exception",
-                ex,
-                "code", ex.getCode(),
-                "path", request != null ? request.getRequestURI() : "unknown");
-        Map<String, Object> meta = baseMeta(request, HttpStatus.BAD_REQUEST);
-        if (!CollectionUtils.isEmpty(ex.getMeta())) {
-            meta.putAll(ex.getMeta());
-        }
-        OpenApiResponse<Object> body = OpenApiResponse.failure(ex.getCode(), ex.getMessage(), meta);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        String code = ex.getCode() != null ? ex.getCode().code() : null;
+        OpenApiResponse<Object> body = OpenApiResponse.failure(code, ex.getMessage(), meta);
+        return ResponseEntity.status(status).body(body);
     }
 
     /**
@@ -253,6 +237,22 @@ public class AopRestException implements MessageSourceAware {
             return resolveMessage(code, violation.getMessage());
         }
         return violation.getMessage();
+    }
+
+    private HttpStatus mapStatus(OpenErrorCode code) {
+        if (code == null || code.code() == null) {
+            return HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        String[] segments = code.code().split("-");
+        if (segments.length < 2) {
+            return HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        try {
+            int statusCode = Integer.parseInt(segments[1]);
+            return HttpStatus.resolve(statusCode) != null ? HttpStatus.valueOf(statusCode) : HttpStatus.INTERNAL_SERVER_ERROR;
+        } catch (NumberFormatException ex) {
+            return HttpStatus.INTERNAL_SERVER_ERROR;
+        }
     }
 
     private static String violationPath(ConstraintViolation<?> violation) {

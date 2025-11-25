@@ -18,7 +18,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.OpenMapstruct;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -26,6 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -63,26 +64,26 @@ public class OrderCommandService {
                             .clientOrderId(request.clientOrderId())
                             .build())
                     .map(o -> OpenMapstruct.map(o, OrderResponse.class))
-                    .orElseThrow(() -> OpenServiceException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
-                                                               "Duplicate order detected but existing record not found"));
+                    .orElseThrow(() -> OpenException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
+                                                        Map.of("userId", userId, "clientOrderId", request.clientOrderId())));
         }
     }
 
     private Long currentUserId() {
         return OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
-                OpenServiceException.of(OrderErrorCodeEnum.ORDER_NOT_FOUND, "No authenticated user context"));
+                OpenException.of(OrderErrorCodeEnum.ORDER_NOT_FOUND));
     }
 
     private PositionIntentType determineIntent(Long userId, OrderCreateRequest request) {
         PositionIntentResponse response = OpenApiClientInvoker.call(
                 () -> exchangePositionClient.determineIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity())),
-                msg -> OpenServiceException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
-                                               "Failed to determine position intent for user %s instrument %s: %s".formatted(userId, request.instrumentId(), msg))
+                msg -> OpenException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
+                                        Map.of("userId", userId, "instrumentId", request.instrumentId(), "remoteMessage", msg))
         );
         PositionIntentType intentType = response.intentType();
         if (intentType == null) {
-            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
-                                          "Position intent type is null for instrument=" + request.instrumentId());
+            throw OpenException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
+                                   Map.of("instrumentId", request.instrumentId()));
         }
         return intentType;
     }

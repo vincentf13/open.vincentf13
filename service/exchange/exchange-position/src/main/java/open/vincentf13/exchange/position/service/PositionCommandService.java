@@ -14,7 +14,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
@@ -82,8 +82,8 @@ public class PositionCommandService {
                         .build())
                 .orElseGet(() -> positionRepository.createDefault(userId, instrumentId));
         if (position == null) {
-            throw OpenServiceException.of(PositionErrorCodeEnum.POSITION_NOT_FOUND,
-                                          "Failed to initialize position for leverage adjustment");
+            throw OpenException.of(PositionErrorCodeEnum.POSITION_NOT_FOUND,
+                                   Map.of("instrumentId", instrumentId, "userId", userId));
         }
 
         Integer targetLeverage = request.targetLeverage();
@@ -95,13 +95,12 @@ public class PositionCommandService {
         LeveragePrecheckRequest precheckRequest = buildPrecheckRequest(position, targetLeverage);
         LeveragePrecheckResponse precheckResponse = OpenApiClientInvoker.call(
                 () -> riskMarginClient.precheckLeverage(precheckRequest),
-                msg -> OpenServiceException.of(PositionErrorCodeEnum.LEVERAGE_PRECHECK_FAILED,
-                                               "Failed to invoke leverage pre-check for position %s: %s"
-                                .formatted(position.getPositionId(), msg))
+                msg -> OpenException.of(PositionErrorCodeEnum.LEVERAGE_PRECHECK_FAILED,
+                                        Map.of("positionId", position.getPositionId(), "remoteMessage", msg))
         );
         if (!precheckResponse.allow()) {
-            throw OpenServiceException.of(PositionErrorCodeEnum.LEVERAGE_PRECHECK_FAILED,
-                                          "Leverage pre-check rejected", buildPrecheckMeta(position.getPositionId(), instrumentId, targetLeverage, precheckResponse));
+            throw OpenException.of(PositionErrorCodeEnum.LEVERAGE_PRECHECK_FAILED,
+                                   buildPrecheckMeta(position.getPositionId(), instrumentId, targetLeverage, precheckResponse));
         }
 
         int expectedVersion = position.safeVersion();
@@ -118,8 +117,8 @@ public class PositionCommandService {
                 expectedVersion,
                 "ACTIVE");
         if (!updated) {
-            throw OpenServiceException.of(PositionErrorCodeEnum.POSITION_NOT_FOUND,
-                                          "Failed to update leverage due to concurrent modification");
+            throw OpenException.of(PositionErrorCodeEnum.POSITION_NOT_FOUND,
+                                   Map.of("positionId", position.getPositionId(), "instrumentId", instrumentId));
         }
         log.info("Position leverage updated. positionId={} userId={} instrumentId={} leverage={} -> {}",
                 position.getPositionId(), position.getUserId(), instrumentId, position.getLeverage(), targetLeverage);

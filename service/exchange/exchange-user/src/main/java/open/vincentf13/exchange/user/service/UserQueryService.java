@@ -7,9 +7,11 @@ import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.OpenMapstruct;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -20,11 +22,11 @@ public class UserQueryService {
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
         Long userId = OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
-                OpenServiceException.of(UserErrorCodeEnum.USER_NOT_FOUND, "No authenticated user in context"));
+                OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND, Map.of("reason", "No authenticated user in context")));
         return userRepository.findOne(User.builder().id(userId).build())
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
-                .orElseThrow(() -> OpenServiceException.of(UserErrorCodeEnum.USER_NOT_FOUND,
-                                                           "User not found. id=" + userId));
+                .orElseThrow(() -> OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND,
+                                                    Map.of("userId", userId)));
     }
 
     @Transactional(readOnly = true)
@@ -32,7 +34,7 @@ public class UserQueryService {
         String normalizedEmail = User.normalizeEmail(email);
         return userRepository.findOne(User.builder().email(normalizedEmail).build())
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
-                .orElseThrow(() -> OpenServiceException.of(UserErrorCodeEnum.USER_NOT_FOUND,
-                                                           "User not found. email=" + normalizedEmail));
+                .orElseThrow(() -> OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND,
+                                                    Map.of("email", normalizedEmail)));
     }
 }

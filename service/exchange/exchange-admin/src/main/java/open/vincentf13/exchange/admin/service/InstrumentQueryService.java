@@ -9,11 +9,12 @@ import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.admin.contract.enums.InstrumentStatus;
 import open.vincentf13.exchange.admin.contract.enums.InstrumentType;
 import open.vincentf13.sdk.core.OpenMapstruct;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,8 +31,8 @@ public class InstrumentQueryService {
     @Transactional(readOnly = true)
     public InstrumentDetailResponse get(Long instrumentId) {
         Instrument instrument = instrumentRepository.findById(instrumentId)
-                .orElseThrow(() -> OpenServiceException.of(AdminErrorCodeEnum.INSTRUMENT_NOT_FOUND,
-                                                           "Instrument not found: " + instrumentId));
+                .orElseThrow(() -> OpenException.of(AdminErrorCodeEnum.INSTRUMENT_NOT_FOUND,
+                                                    Map.of("instrumentId", instrumentId)));
         return OpenMapstruct.map(instrument, InstrumentDetailResponse.class);
     }
 }

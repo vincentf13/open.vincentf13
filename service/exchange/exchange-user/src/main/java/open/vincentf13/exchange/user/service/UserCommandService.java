@@ -4,7 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenMapstruct;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
@@ -24,6 +24,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -42,12 +43,12 @@ public class UserCommandService {
 
         AuthCredentialPrepareResponse preparedData = OpenApiClientInvoker.call(
                 () -> authClient.prepare(new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())),
-                msg -> OpenServiceException.of(UserErrorCodeEnum.USER_AUTH_PREPARATION_FAILED,
-                                               "Failed to prepare credential secret for email %s: %s".formatted(normalizedEmail, msg))
+                msg -> OpenException.of(UserErrorCodeEnum.USER_AUTH_PREPARATION_FAILED,
+                                        Map.of("email", normalizedEmail, "remoteMessage", msg))
         );
         if (preparedData.secretHash() == null || preparedData.salt() == null) {
-            throw OpenServiceException.of(UserErrorCodeEnum.USER_AUTH_PREPARATION_FAILED,
-                                          "Failed to prepare credential secret for email " + normalizedEmail);
+            throw OpenException.of(UserErrorCodeEnum.USER_AUTH_PREPARATION_FAILED,
+                                    Map.of("email", normalizedEmail));
         }
 
         RegistrationContext context = transactionTemplate.execute(status -> {

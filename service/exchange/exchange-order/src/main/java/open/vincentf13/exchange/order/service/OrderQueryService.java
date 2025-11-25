@@ -6,9 +6,11 @@ import open.vincentf13.exchange.order.infra.OrderErrorCodeEnum;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderResponse;
 import open.vincentf13.sdk.core.OpenMapstruct;
-import open.vincentf13.sdk.core.exception.OpenServiceException;
+import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -19,8 +21,8 @@ public class OrderQueryService {
     @Transactional(readOnly = true)
     public OrderResponse get(Long orderId) {
         Order order = orderRepository.findOne(Order.builder().orderId(orderId).build())
-                .orElseThrow(() -> OpenServiceException.of(OrderErrorCodeEnum.ORDER_NOT_FOUND,
-                                                           "Order not found: " + orderId));
+                .orElseThrow(() -> OpenException.of(OrderErrorCodeEnum.ORDER_NOT_FOUND,
+                                                    Map.of("orderId", orderId)));
         return OpenMapstruct.map(order, OrderResponse.class);
     }
 }
