@@ -3,7 +3,7 @@ package open.vincentf13.exchange.marketdata.service;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.TickerResponse;
 import open.vincentf13.exchange.marketdata.infra.cache.TickerStatsCacheService;
-import open.vincentf13.sdk.core.OpenObjectMapper;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 
 @Service

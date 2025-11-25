@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.infra.persistence.mapper.OrderMapper;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import open.vincentf13.sdk.core.OpenObjectMapper;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.exchange.order.domain.model.Order;
 import org.springframework.stereotype.Repository;
 

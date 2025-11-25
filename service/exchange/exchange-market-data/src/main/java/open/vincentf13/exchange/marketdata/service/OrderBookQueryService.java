@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookResponse;
 import open.vincentf13.exchange.marketdata.domain.model.OrderBookSnapshot;
 import open.vincentf13.exchange.marketdata.infra.cache.OrderBookCacheService;
-import open.vincentf13.sdk.core.OpenObjectMapper;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;

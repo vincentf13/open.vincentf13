@@ -10,7 +10,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAcco
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCategory;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountStatus;
-import open.vincentf13.sdk.core.OpenObjectMapper;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;

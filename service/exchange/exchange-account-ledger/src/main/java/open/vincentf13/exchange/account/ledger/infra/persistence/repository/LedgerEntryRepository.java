@@ -6,9 +6,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerEntryMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
-import open.vincentf13.sdk.core.OpenObjectMapper;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 

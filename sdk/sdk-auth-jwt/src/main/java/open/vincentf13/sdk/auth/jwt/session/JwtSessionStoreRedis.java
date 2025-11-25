@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.auth.jwt.session;
 
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
-import open.vincentf13.sdk.core.OpenObjectMapper;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
