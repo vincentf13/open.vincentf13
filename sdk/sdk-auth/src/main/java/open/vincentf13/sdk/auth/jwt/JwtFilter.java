@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.sdk.spring.mvc.OpenHttpUtils;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.auth.jwt.JwtAuthEventEnum;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
@@ -59,9 +60,7 @@ public class JwtFilter extends OncePerRequestFilter {
         }
         boolean active = sessionService.isActive(authentication.getSessionId());
         if (!active) {
-            OpenLog.info(log,
-                    "JwtSessionInactive",
-                    "Session inactive, skip authentication",
+            OpenLog.info(log, JwtAuthEventEnum.JWT_SESSION_INACTIVE,
                     "sessionId", authentication.getSessionId(),
                     "principal", authentication.getName());
         }

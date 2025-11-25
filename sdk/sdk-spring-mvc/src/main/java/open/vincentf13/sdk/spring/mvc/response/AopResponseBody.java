@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.mvc.log.MvcEventEnum;
 import open.vincentf13.sdk.spring.mvc.config.MvcProperties;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -101,7 +102,7 @@ public class AopResponseBody implements ResponseBodyAdvice<Object> {
                 // 手動序列化避免 StringHttpMessageConverter 以純文字方式輸出，確保前端收到一致 JSON 結構。
                 return objectMapper.writeValueAsString(OpenApiResponse.success(value));
             } catch (JsonProcessingException ex) {
-                OpenLog.warn(log, "WrapStringResponseFailed", "Failed to wrap String response body",
+                OpenLog.warn(log, MvcEventEnum.WRAP_STRING_RESPONSE_FAILED,
                         ex,
                         "converter", converterType != null ? converterType.getName() : "unknown");
                 return value;

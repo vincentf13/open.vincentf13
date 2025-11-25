@@ -5,6 +5,7 @@ import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.cloud.gateway.GatewayEventEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -53,7 +54,7 @@ public class JwtFilter implements GlobalFilter, Ordered {
 
         Optional<JwtParseInfo> authentication = openJwtService.parseAccessToken(tokenValue.get());
         if (authentication.isEmpty()) {
-            OpenLog.warn(log, "GatewayJwtInvalid", "JWT access jwtToken validation failed", "jwtToken", "redacted");
+            OpenLog.warn(log, GatewayEventEnum.JWT_INVALID, "jwtToken", "redacted");
             return unauthorized(exchange, "Invalid access jwtToken");
         }
 
@@ -87,9 +88,7 @@ public class JwtFilter implements GlobalFilter, Ordered {
         }
         boolean active = sessionService.isActive(authentication.getSessionId());
         if (!active) {
-            OpenLog.info(log,
-                    "GatewayJwtSessionInactive",
-                    "Session inactive, rejecting request",
+            OpenLog.info(log, GatewayEventEnum.JWT_SESSION_INACTIVE,
                     "sessionId", authentication.getSessionId(),
                     "principal", authentication.getName());
         }
@@ -108,7 +107,7 @@ public class JwtFilter implements GlobalFilter, Ordered {
         if (exchange.getResponse().isCommitted()) {
             return Mono.empty();
         }
-        OpenLog.info(log, "GatewayJwtUnauthorized", "Request rejected", "reason", reason);
+        OpenLog.info(log, GatewayEventEnum.JWT_UNAUTHORIZED, "reason", reason);
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         return exchange.getResponse().setComplete();
     }

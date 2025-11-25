@@ -10,6 +10,7 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEve
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.exchange.order.infra.OrderEventEnum;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -68,13 +69,13 @@ public class PositionReserveEventListener {
                 null,
                 OrderStatus.PENDING);
         if (!updated) {
-            OpenLog.warn(log, "OrderStatusConflict", "Failed to update order status on position reserve", null,
+            OpenLog.warn(log, OrderEventEnum.ORDER_STATUS_CONFLICT, null,
                     "orderId", event.orderId());
             return;
         }
         Optional<Order> optionalOrder = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
         if (optionalOrder.isEmpty()) {
-            OpenLog.warn(log, "OrderNotFoundAfterReserve", "Order updated but not found for event publish", null,
+            OpenLog.warn(log, OrderEventEnum.ORDER_NOT_FOUND_AFTER_RESERVE, null,
                     "orderId", event.orderId());
             return;
         }
@@ -83,7 +84,7 @@ public class PositionReserveEventListener {
         order.setSubmittedAt(now);
         order.setCloseCostPrice(event.avgOpenPrice());
         orderEventPublisher.publishOrderSubmitted(order);
-        OpenLog.info(log, "OrderPositionReserved", "Position reserved for order", "orderId", order.getOrderId());
+        OpenLog.info(log, OrderEventEnum.ORDER_POSITION_RESERVED, "orderId", order.getOrderId());
     }
 
     private void handleReservationFailure(PositionReserveRejectedEvent event) {
@@ -98,7 +99,7 @@ public class PositionReserveEventListener {
                 null,
                 OrderStatus.PENDING);
         if (!updated) {
-            OpenLog.warn(log, "OrderStatusConflict", "Failed to mark order failed on position reserve rejection", null,
+            OpenLog.warn(log, OrderEventEnum.ORDER_STATUS_CONFLICT, null,
                     "orderId", event.orderId());
             return;
         }
@@ -106,12 +107,12 @@ public class PositionReserveEventListener {
         if (optionalOrder.isPresent()) {
             Order order = optionalOrder.get();
             order.markStatus(OrderStatus.FAILED, now);
-            OpenLog.warn(log, "OrderPositionReserveRejected", "Position reserve rejected", null,
+            OpenLog.warn(log, OrderEventEnum.ORDER_POSITION_RESERVE_REJECTED, null,
                     "orderId", order.getOrderId(),
                     "reason", event.reason());
             return;
         }
-        OpenLog.warn(log, "OrderNotFoundAfterReserveReject", "Order updated but not found for reject log", null,
+        OpenLog.warn(log, OrderEventEnum.ORDER_NOT_FOUND_AFTER_RESERVE_REJECT, null,
                 "orderId", event.orderId(),
                 "reason", event.reason());
     }

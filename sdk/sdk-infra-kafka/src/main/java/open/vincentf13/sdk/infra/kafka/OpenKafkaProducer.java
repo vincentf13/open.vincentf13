@@ -2,6 +2,7 @@ package open.vincentf13.sdk.infra.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.infra.kafka.KafkaEventEnum;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
@@ -48,7 +49,10 @@ public final class OpenKafkaProducer {
         try {
             ProducerRecord<String, Object> record = new ProducerRecord<>(topic, key, msg);
             addHeaders(record, headers);
-            OpenLog.debug(log, "KafkaSend", () -> "送出 Kafka 訊息", "topic", topic, "key", key, "payloadType", msg.getClass().getName());
+            OpenLog.debug(log, KafkaEventEnum.KAFKA_SEND,
+                    "topic", topic,
+                    "key", key,
+                    "payloadType", msg.getClass().getName());
             CompletableFuture<SendResult<String, Object>> sendFuture = adaptFuture(
                     template.send(record)
                                                                                   );
@@ -59,7 +63,7 @@ public final class OpenKafkaProducer {
         } catch (Exception ex) {
             CompletableFuture<SendResult<String, Object>> future = new CompletableFuture<>();
             future.completeExceptionally(ex);
-            OpenLog.error(log, "KafkaSendFailed", "Kafka 訊息送出失敗", ex, "topic", topic, "key", key);
+            OpenLog.error(log, KafkaEventEnum.KAFKA_SEND_FAILED, ex, "topic", topic, "key", key);
             return future;
         }
     }
@@ -157,7 +161,7 @@ public final class OpenKafkaProducer {
                                : requireMapper().writeValueAsBytes(headerValue);
                 record.headers().add(headerKey, bytes);
             } catch (Exception ex) {
-                OpenLog.warn(log, "KafkaHeaderEncodeFailed", "Kafka header 序列化失敗", ex, "headerKey", headerKey);
+                OpenLog.warn(log, KafkaEventEnum.KAFKA_HEADER_ENCODE_FAILED, ex, "headerKey", headerKey);
             }
         });
     }
@@ -169,19 +173,21 @@ public final class OpenKafkaProducer {
             String key
                                  ) {
         if (throwable != null) {
-            OpenLog.error(log, "KafkaSendError", "Kafka 訊息送出失敗", throwable, "topic", topic, "key", key);
+            OpenLog.error(log, KafkaEventEnum.KAFKA_SEND_ERROR, throwable, "topic", topic, "key", key);
             return;
         }
         RecordMetadata metadata = result != null ? result.getRecordMetadata() : null;
         if (metadata != null) {
-            OpenLog.debug(log, "KafkaSendSuccess", () -> "Kafka 訊息送出成功",
-                          "topic", metadata.topic(),
-                          "partition", metadata.partition(),
-                          "offset", metadata.offset(),
-                          "timestamp", metadata.timestamp(),
-                          "key", key);
+            OpenLog.debug(log, KafkaEventEnum.KAFKA_SEND_SUCCESS,
+                    "topic", metadata.topic(),
+                    "partition", metadata.partition(),
+                    "offset", metadata.offset(),
+                    "timestamp", metadata.timestamp(),
+                    "key", key);
         } else {
-            OpenLog.debug(log, "KafkaSendSuccess", () -> "Kafka 訊息送出成功", "topic", topic, "key", key);
+            OpenLog.debug(log, KafkaEventEnum.KAFKA_SEND_SUCCESS,
+                    "topic", topic,
+                    "key", key);
         }
     }
 

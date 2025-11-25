@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.position.domain.model.Position;
-import open.vincentf13.exchange.position.domain.model.PositionErrorCodeEnum;
+import open.vincentf13.exchange.position.infra.PositionErrorCodeEnum;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;

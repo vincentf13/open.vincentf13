@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.position.domain.model;
+package open.vincentf13.exchange.position.infra;
 
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
 

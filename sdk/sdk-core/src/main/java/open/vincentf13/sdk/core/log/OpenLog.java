@@ -2,90 +2,76 @@ package open.vincentf13.sdk.core.log;
 
 import org.slf4j.Logger;
 
-import java.util.function.Supplier;
-
-
+/*
+ * 統一日誌輸出，事件需實作 OpenEvent。
+ * 範例（事件來自各模組自定義的 XxxEventEnum）：
+ *   OpenLog.info(log, SomeEventEnum.ORDER_CREATED, "orderId", 12345);
+ *   OpenLog.warn(log, SomeEventEnum.ORDER_SAVE_FAILED, ex, "orderId", 12345);
+ *   OpenLog.debug(log, SomeEventEnum.CALC_PRICE, "sku", "A100");
+ */
 public final class OpenLog {
+
     private OpenLog() {
     }
 
-    // INFO
-    /*
-     info(log, "OrderCreated", "created",
-              "orderId", 12345, "userId", 6789);
-
-     輸出
-     [OrderCreated] created | orderId=12345 userId=6789
-     */
-    public static String info(Logger log, String event, String msg, Object... kv) {
+    public static String info(Logger log, OpenEvent event, Object... kv) {
         if (!log.isInfoEnabled()) return "Info Not Enabled";
-        String finalLog = format(event, msg, kv);
+        String finalLog = format(event, kv);
         log.info(finalLog);
         return finalLog;
     }
 
-    // WARN
-    public static String warn(Logger log, String event, String msg, Object... kv) {
+    public static String warn(Logger log, OpenEvent event, Object... kv) {
         if (!log.isWarnEnabled()) return "Warn Not Enabled";
-        String finalLog = format(event, msg, kv);
+        String finalLog = format(event, kv);
         log.warn(finalLog);
         return finalLog;
     }
 
-    public static String warn(Logger log, String event, String msg, Throwable t, Object... kv) {
+    public static String warn(Logger log, OpenEvent event, Throwable t, Object... kv) {
         if (!log.isWarnEnabled()) return "Warn Not Enabled";
-        String finalLog = format(event, msg, kv);
+        String finalLog = format(event, kv);
         log.warn(finalLog, t);
         return finalLog;
     }
 
-    // ERROR
-
-    /*
-      error(log, "OrderSaveFailed", "db error", e,
-                         "orderId", 12345);
-
-      輸出（含堆疊）
-      [OrderSaveFailed] db error | orderId=12345
-      java.lang.RuntimeException: save failed
-      at open.vincentf13.service.OrderService.save(OrderService.java:42)
-      at open.vincentf13.service.OrderService.demo(OrderService.java:21)
-     */
-    public static String error(Logger log, String event, String msg, Throwable t, Object... kv) {
+    public static String error(Logger log, OpenEvent event, Throwable t, Object... kv) {
         if (!log.isErrorEnabled()) return "Error Not Enabled";
-        String finalLog = format(event, msg, kv);
+        String finalLog = format(event, kv);
         log.error(finalLog, t);
         return finalLog;
     }
 
-    // DEBUG（延遲訊息）
-    public static String debug(Logger log, String event, Supplier<String> msg, Object... kv) {
+    public static String debug(Logger log, OpenEvent event, Object... kv) {
         if (!log.isDebugEnabled()) return "Debug Not Enabled";
-        String finalLog = format(event, safeGet(msg), kv);
+        String finalLog = format(event, kv);
         log.debug(finalLog);
         return finalLog;
     }
 
-    public static String debug(Logger log, String event, Supplier<String> msg, Throwable t, Object... kv) {
+    public static String debug(Logger log, OpenEvent event, Throwable t, Object... kv) {
         if (!log.isDebugEnabled()) return "Debug Not Enabled";
-        String finalLog = format(event, safeGet(msg), kv);
+        String finalLog = format(event, kv);
         log.debug(finalLog, t);
         return finalLog;
     }
 
-    // TRACE（延遲訊息）
-    public static String trace(Logger log, String event, Supplier<String> msg, Object... kv) {
+    public static String trace(Logger log, OpenEvent event, Object... kv) {
         if (!log.isTraceEnabled()) return "Trace Not Enabled";
-        String finalLog = format(event, safeGet(msg), kv);
+        String finalLog = format(event, kv);
         log.trace(finalLog);
         return finalLog;
     }
 
-    // key=value 輕量拼接；不建 Map、不用 streams
-    private static String format(String event, String msg, Object... kv) {
+    private static String format(OpenEvent event, Object... kv) {
         StringBuilder sb = new StringBuilder(64);
-        if (event != null && !event.isEmpty()) sb.append('[').append(event).append("] ");
-        if (msg != null) sb.append(msg);
+        if (event != null && event.event() != null && !event.event().isEmpty()) {
+            sb.append('[').append(event.event()).append("] ");
+        }
+        String msg = event != null ? event.message() : null;
+        if (msg != null) {
+            sb.append(msg);
+        }
         if (kv != null && kv.length > 0) {
             sb.append(" | ");
             for (int i = 0; i < kv.length; i += 2) {
@@ -96,13 +82,5 @@ public final class OpenLog {
             }
         }
         return sb.toString();
-    }
-
-    private static String safeGet(Supplier<String> s) {
-        try {
-            return s == null ? null : s.get();
-        } catch (Exception e) {
-            return "<msgSupplier-error>";
-        }
     }
 }

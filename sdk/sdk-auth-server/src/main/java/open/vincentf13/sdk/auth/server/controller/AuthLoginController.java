@@ -7,6 +7,7 @@ import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
 import open.vincentf13.sdk.auth.server.error.FailureReason;
 import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.auth.server.event.AuthServerEventEnum;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,9 +61,7 @@ public class AuthLoginController {
                                                     tokens.refreshToken().expiresAt(),
                                                     tokens.sessionId());
 
-            OpenLog.info(log,
-                    "LoginSuccess",
-                    "User authenticated",
+            OpenLog.info(log, AuthServerEventEnum.LOGIN_SUCCESS,
                     "username", authentication.getName());
 
             OpenApiResponse<JwtTokenPair> body = OpenApiResponse.success(payload)
@@ -71,9 +70,7 @@ public class AuthLoginController {
         } catch (AuthenticationException ex) {
             FailureReason reason = FailureReason.from(ex);
             String username = request.email() != null ? request.email() : "<unknown>";
-            OpenLog.warn(log,
-                    "LoginFailure",
-                    "Authentication failed",
+            OpenLog.warn(log, AuthServerEventEnum.LOGIN_FAILURE,
                     ex,
                     "username", username,
                     "code", reason.code());

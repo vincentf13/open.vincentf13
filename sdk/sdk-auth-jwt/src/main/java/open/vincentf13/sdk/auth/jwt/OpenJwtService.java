@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.auth.jwt;
 
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
+import open.vincentf13.sdk.auth.jwt.JwtEventEnum;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -80,9 +81,7 @@ public class OpenJwtService {
 
         JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
         String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
-        OpenLog.debug(log,
-                "JwtAccessIssued",
-                () -> "Access jwtToken issued",
+        OpenLog.debug(log, JwtEventEnum.JWT_ACCESS_ISSUED,
                 "subject", authentication.getName(),
                 "userId", userId,
                 "email", email,
@@ -107,9 +106,7 @@ public class OpenJwtService {
 
         JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
         String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
-        OpenLog.debug(log,
-                "JwtRefreshIssued",
-                () -> "Refresh jwtToken issued",
+        OpenLog.debug(log, JwtEventEnum.JWT_REFRESH_ISSUED,
                 "subject", subject,
                 "sessionId", sessionId == null ? "<legacy>" : sessionId);
         return new GenerateTokenInfo(tokenValue, issuedAt, expiresAt, TokenType.REFRESH, sessionId);
@@ -120,7 +117,7 @@ public class OpenJwtService {
             Jwt jwt = jwtDecoder.decode(tokenValue);
             TokenType tokenType = resolveTokenType(jwt);
             if (tokenType != TokenType.ACCESS) {
-                OpenLog.warn(log, "JwtInvalidType", "Token is not an access jwtToken", "expected", TokenType.ACCESS, "actual", tokenType);
+                OpenLog.warn(log, JwtEventEnum.JWT_INVALID_TYPE, "expected", TokenType.ACCESS, "actual", tokenType);
                 return Optional.empty();
             }
 
@@ -138,7 +135,7 @@ public class OpenJwtService {
             JwtParseInfo authentication = new JwtParseInfo(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
             return Optional.of(authentication);
         } catch (JwtException ex) {
-            OpenLog.warn(log, "JwtInvalid", "JWT validation failed", ex, "reason", ex.getMessage());
+            OpenLog.warn(log, JwtEventEnum.JWT_INVALID, ex, "reason", ex.getMessage());
             return Optional.empty();
         }
     }
@@ -148,13 +145,13 @@ public class OpenJwtService {
             Jwt jwt = jwtDecoder.decode(tokenValue);
             TokenType tokenType = resolveTokenType(jwt);
             if (tokenType != TokenType.REFRESH) {
-                OpenLog.warn(log, "JwtInvalidType", "Token is not a refresh jwtToken", "expected", TokenType.REFRESH, "actual", tokenType);
+                OpenLog.warn(log, JwtEventEnum.JWT_INVALID_TYPE, "expected", TokenType.REFRESH, "actual", tokenType);
                 return Optional.empty();
             }
             String sessionId = jwt.getClaimAsString(SESSION_ID_CLAIM);
             return Optional.of(new RefreshTokenParseInfo(jwt.getTokenValue(), jwt.getSubject(), sessionId, jwt.getIssuedAt(), jwt.getExpiresAt()));
         } catch (JwtException ex) {
-            OpenLog.warn(log, "JwtInvalid", "JWT validation failed", ex, "reason", ex.getMessage());
+            OpenLog.warn(log, JwtEventEnum.JWT_INVALID, ex, "reason", ex.getMessage());
             return Optional.empty();
         }
     }
@@ -167,7 +164,7 @@ public class OpenJwtService {
         try {
             return TokenType.valueOf(raw);
         } catch (IllegalArgumentException ex) {
-            OpenLog.warn(log, "JwtUnknownType", "Unknown jwtToken type", ex, "value", raw, "tokenId", jwt.getId() == null ? UUID.randomUUID() : jwt.getId());
+            OpenLog.warn(log, JwtEventEnum.JWT_UNKNOWN_TYPE, ex, "value", raw, "tokenId", jwt.getId() == null ? UUID.randomUUID() : jwt.getId());
             return TokenType.ACCESS;
         }
     }

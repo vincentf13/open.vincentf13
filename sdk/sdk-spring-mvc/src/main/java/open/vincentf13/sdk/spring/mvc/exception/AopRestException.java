@@ -9,6 +9,7 @@ import open.vincentf13.sdk.core.exception.OpenErrorCodeEnum;
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.mvc.log.MvcEventEnum;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.MessageSource;
@@ -102,8 +103,7 @@ public class AopRestException implements MessageSourceAware {
                                                                WebRequest request) {
         HttpServletRequest servletRequest = extractRequest(request);
         String reason = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
-        OpenLog.debug(log, "HttpMessageUnreadable", () -> "Request payload unreadable",
-                ex,
+        OpenLog.debug(log, MvcEventEnum.HTTP_MESSAGE_UNREADABLE,
                 "path", servletRequest != null ? servletRequest.getRequestURI() : "unknown",
                 "reason", reason);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
@@ -154,8 +154,7 @@ public class AopRestException implements MessageSourceAware {
     public ResponseEntity<OpenApiResponse<Object>> handleOpenException(OpenException ex,
                                                                        HttpServletRequest request) {
         HttpStatus status = mapStatus(ex.getCode());
-        OpenLog.warn(log, "OpenException", "Open exception",
-                ex,
+        OpenLog.warn(log, MvcEventEnum.OPEN_EXCEPTION, ex,
                 "code", ex.getCode() != null ? ex.getCode().code() : null,
                 "path", request != null ? request.getRequestURI() : "unknown");
         Map<String, Object> meta = baseMeta(request, status);
@@ -172,8 +171,7 @@ public class AopRestException implements MessageSourceAware {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<OpenApiResponse<Object>> handleUnexpectedException(Exception ex, HttpServletRequest request) {
-        OpenLog.error(log, "UnhandledException", "Unhandled exception",
-                ex,
+        OpenLog.error(log, MvcEventEnum.UNHANDLED_EXCEPTION, ex,
                 "path", request != null ? request.getRequestURI() : "unknown");
         Map<String, Object> meta = baseMeta(request, HttpStatus.INTERNAL_SERVER_ERROR);
         OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.INTERNAL_ERROR.code(),

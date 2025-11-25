@@ -3,6 +3,7 @@ package open.vincentf13.sdk.spring.mvc.log;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.mvc.log.MvcEventEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -55,7 +56,7 @@ public class MvcLogService {
         int status = response.getStatus();
 
         if (ex != null) {
-            OpenLog.error(log, "MvcRequestFailed", "MVC request failed", ex,
+            OpenLog.error(log, MvcEventEnum.MVC_REQUEST_FAILED, ex,
                     "method", method,
                     "uri", uri,
                     "status", status,
@@ -66,7 +67,7 @@ public class MvcLogService {
                     "requestBytes", requestBody.length(),
                     "responseBytes", responseBody.length());
         } else {
-            OpenLog.info(log, "MvcRequestCompleted", "MVC request completed",
+            OpenLog.info(log, MvcEventEnum.MVC_REQUEST_COMPLETED,
                     "method", method,
                     "uri", uri,
                     "status", status,
@@ -78,13 +79,14 @@ public class MvcLogService {
                     "responseBytes", responseBody.length());
         }
 
-        OpenLog.debug(log, "MvcRequestDetail", () -> buildVerboseLog(method, uri, clientIp, handlerDisplay,
-                        matchingPattern, handlerRaw, status, durationMs, requestHeaders, requestBody.preview(),
-                        responseHeaders, responseBody.preview()),
+        OpenLog.debug(log, MvcEventEnum.MVC_REQUEST_DETAIL,
                 "status", status,
                 "durationMs", durationMs,
                 "requestBytes", requestBody.length(),
-                "responseBytes", responseBody.length());
+                "responseBytes", responseBody.length(),
+                "detail", buildVerboseLog(method, uri, clientIp, handlerDisplay,
+                        matchingPattern, handlerRaw, status, durationMs, requestHeaders, requestBody.preview(),
+                        responseHeaders, responseBody.preview()));
     }
 
     private String buildRequestUri(HttpServletRequest request) {

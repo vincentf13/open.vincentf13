@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.infra.kafka.config;
 
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.infra.kafka.KafkaEventEnum;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -66,7 +67,7 @@ public class ConfigKafkaConsumer {
 
         // 註冊日誌記錄，以便觀察重試和 DLQ 的行為
         errorHandler.setRetryListeners((record, ex, deliveryAttempt) ->
-                                               OpenLog.warn(log, "KafkaConsumeRetry", "Kafka 訊息消費重試", ex,
+                                               OpenLog.warn(log, KafkaEventEnum.KAFKA_CONSUME_RETRY, ex,
                                                             "topic", record.topic(),
                                                             "partition", record.partition(),
                                                             "offset", record.offset(),
@@ -76,7 +77,7 @@ public class ConfigKafkaConsumer {
 
         factory.setCommonErrorHandler(errorHandler);
 
-        OpenLog.info(log, "KafkaConsumerConfigured", "自定義 Kafka Consumer 配置已加載",
+        OpenLog.info(log, KafkaEventEnum.KAFKA_CONSUMER_CONFIGURED,
                      "ackMode", factory.getContainerProperties().getAckMode(),
                      "listenerType", factory.isBatchListener() ? "BATCH" : "SINGLE" ,
                      "errorHandler", "DLQ with 2 retries");

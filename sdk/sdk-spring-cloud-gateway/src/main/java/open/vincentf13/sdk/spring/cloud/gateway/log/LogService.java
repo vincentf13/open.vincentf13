@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.spring.cloud.gateway.log;
 
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.cloud.gateway.log.GatewayEventEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;
@@ -40,7 +41,7 @@ public class LogService {
         String instanceDesc = formatServiceInstance(serviceInstance);
         String method = request.getMethod() != null ? request.getMethod().name() : "UNKNOWN";
 
-        OpenLog.info(log, "GatewayRequest", "Forwarding request",
+        OpenLog.info(log, GatewayEventEnum.REQUEST,
                 "method", method,
                 "uri", request.getURI(),
                 "routeId", routeId,
@@ -49,21 +50,21 @@ public class LogService {
 
         request.getHeaders().forEach((name, values) -> logHeader("GatewayRequestHeader", "Request header", name, values));
         if (route != null) {
-            OpenLog.debug(log, "GatewayRoute", () -> "Resolved route",
+            OpenLog.debug(log, GatewayEventEnum.ROUTE,
                     "id", route.getId(),
                     "uri", route.getUri(),
                     "metadata", route.getMetadata());
         }
         if (forwardUrl != null) {
-            OpenLog.debug(log, "GatewayForwardUrl", () -> "Forward URL", "url", forwardUrl);
+            OpenLog.debug(log, GatewayEventEnum.FORWARD_URL, "url", forwardUrl);
         }
         if (serviceInstance != null) {
-            OpenLog.debug(log, "GatewayServiceInstance", () -> "Service instance resolved",
+            OpenLog.debug(log, GatewayEventEnum.SERVICE_INSTANCE,
                     "serviceId", serviceInstance.getServiceId(),
                     "host", serviceInstance.getHost(),
                     "port", serviceInstance.getPort());
         } else {
-            OpenLog.debug(log, "GatewayServiceInstancePending", () -> "Service instance not yet resolved",
+            OpenLog.debug(log, GatewayEventEnum.SERVICE_INSTANCE_PENDING,
                     "routeId", routeId);
         }
     }
@@ -81,7 +82,7 @@ public class LogService {
 
         ServerHttpResponse response = exchange.getResponse();
 
-        OpenLog.info(log, "GatewayResponse", "Response completed",
+        OpenLog.info(log, GatewayEventEnum.RESPONSE,
                 "status", response.getStatusCode(),
                 "durationMs", durationMs,
                 "routeId", routeId,
@@ -89,10 +90,10 @@ public class LogService {
                 "instance", finalInstanceDesc);
 
         if (finalForwardUrl != null && initialForwardUrl == null) {
-            OpenLog.debug(log, "GatewayForwardUrlResolved", () -> "Forward URL resolved", "url", finalForwardUrl);
+            OpenLog.debug(log, GatewayEventEnum.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
         }
         if (finalInstance != null && initialInstance == null) {
-            OpenLog.debug(log, "GatewayServiceInstanceResolved", () -> "Service instance resolved after filter",
+            OpenLog.debug(log, GatewayEventEnum.SERVICE_INSTANCE_RESOLVED,
                     "serviceId", finalInstance.getServiceId(),
                     "host", finalInstance.getHost(),
                     "port", finalInstance.getPort());
@@ -108,13 +109,14 @@ public class LogService {
         String routeId = resolveRouteId(route);
         String targetUri = resolveTargetUri(route, forwardUrl);
 
-        OpenLog.error(log, "GatewayForwardFailed", "Forwarding failed", ex,
+        OpenLog.error(log, GatewayEventEnum.FORWARD_FAILED, ex,
                 "routeId", routeId,
                 "target", targetUri);
     }
 
     private void logHeader(String event, String message, String name, List<String> values) {
-        OpenLog.debug(log, event, () -> message, "name", name, "values", values);
+        GatewayEventEnum evt = "GatewayResponseHeader".equals(event) ? GatewayEventEnum.RESPONSE_HEADER : GatewayEventEnum.REQUEST_HEADER;
+        OpenLog.debug(log, evt, "name", name, "values", values);
     }
 
     private String resolveRouteId(Route route) {
