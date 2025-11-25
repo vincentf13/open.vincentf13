@@ -2,7 +2,7 @@ package open.vincentf13.exchange.user.service;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.infra.UserErrorCode;
+import open.vincentf13.exchange.user.infra.UserErrorCodeEnum;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
@@ -20,11 +20,11 @@ public class UserQueryService {
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
         Long userId = OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
-                OpenServiceException.of(UserErrorCode.USER_NOT_FOUND, "No authenticated user in context"));
+                OpenServiceException.of(UserErrorCodeEnum.USER_NOT_FOUND, "No authenticated user in context"));
         return userRepository.findOne(User.builder().id(userId).build())
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
-                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
-                        "User not found. id=" + userId));
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCodeEnum.USER_NOT_FOUND,
+                                                           "User not found. id=" + userId));
     }
 
     @Transactional(readOnly = true)
@@ -32,7 +32,7 @@ public class UserQueryService {
         String normalizedEmail = User.normalizeEmail(email);
         return userRepository.findOne(User.builder().email(normalizedEmail).build())
                 .map(user -> OpenMapstruct.map(user, UserResponse.class))
-                .orElseThrow(() -> OpenServiceException.of(UserErrorCode.USER_NOT_FOUND,
-                        "User not found. email=" + normalizedEmail));
+                .orElseThrow(() -> OpenServiceException.of(UserErrorCodeEnum.USER_NOT_FOUND,
+                                                           "User not found. email=" + normalizedEmail));
     }
 }

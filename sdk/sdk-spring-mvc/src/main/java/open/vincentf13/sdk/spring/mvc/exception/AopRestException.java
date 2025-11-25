@@ -5,7 +5,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.core.error.OpenErrorEnum;
+import open.vincentf13.sdk.core.error.OpenErrorCodeEnum;
 import open.vincentf13.sdk.core.exception.OpenApiException;
 import open.vincentf13.sdk.core.exception.OpenServiceException;
 import open.vincentf13.sdk.core.OpenLog;
@@ -62,8 +62,8 @@ public class AopRestException implements MessageSourceAware {
                         (left, right) -> right,
                         LinkedHashMap::new));
         meta.put("errors", errors);
-        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorEnum.REQUEST_VALIDATION_FAILED.code(),
-                                                               resolveMessage("error.validation", OpenErrorEnum.REQUEST_VALIDATION_FAILED.message()),
+        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.REQUEST_VALIDATION_FAILED.code(),
+                                                               resolveMessage("error.validation", OpenErrorCodeEnum.REQUEST_VALIDATION_FAILED.message()),
                                                                meta);
         return ResponseEntity.badRequest().body(body);
     }
@@ -79,8 +79,8 @@ public class AopRestException implements MessageSourceAware {
                         (left, right) -> right,
                         LinkedHashMap::new));
         meta.put("errors", errors);
-        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorEnum.REQUEST_VALIDATION_FAILED.code(),
-                                                               resolveMessage("error.validation", OpenErrorEnum.REQUEST_VALIDATION_FAILED.message()),
+        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.REQUEST_VALIDATION_FAILED.code(),
+                                                               resolveMessage("error.validation", OpenErrorCodeEnum.REQUEST_VALIDATION_FAILED.message()),
                                                                meta);
         return ResponseEntity.badRequest().body(body);
     }
@@ -91,8 +91,8 @@ public class AopRestException implements MessageSourceAware {
         HttpServletRequest servletRequest = extractRequest(request);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
         meta.put("parameter", ex.getParameterName());
-        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorEnum.REQUEST_PARAMETER_MISSING.code(),
-                                                               resolveMessage("error.missing-parameter", OpenErrorEnum.REQUEST_PARAMETER_MISSING.message()),
+        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.REQUEST_PARAMETER_MISSING.code(),
+                                                               resolveMessage("error.missing-parameter", OpenErrorCodeEnum.REQUEST_PARAMETER_MISSING.message()),
                                                                meta);
         return ResponseEntity.badRequest().body(body);
     }
@@ -108,8 +108,8 @@ public class AopRestException implements MessageSourceAware {
                 "reason", reason);
         Map<String, Object> meta = baseMeta(servletRequest, HttpStatus.BAD_REQUEST);
         meta.put("reason", reason);
-        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorEnum.REQUEST_PAYLOAD_UNREADABLE.code(),
-                                                               resolveMessage("error.bad-request", OpenErrorEnum.REQUEST_PAYLOAD_UNREADABLE.message()),
+        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.REQUEST_PAYLOAD_UNREADABLE.code(),
+                                                               resolveMessage("error.bad-request", OpenErrorCodeEnum.REQUEST_PAYLOAD_UNREADABLE.message()),
                                                                meta);
         return ResponseEntity.badRequest().body(body);
     }
@@ -122,8 +122,8 @@ public class AopRestException implements MessageSourceAware {
         if (!CollectionUtils.isEmpty(ex.getSupportedHttpMethods())) {
             meta.put("supportedMethods", ex.getSupportedHttpMethods().stream().map(org.springframework.http.HttpMethod::name).toList());
         }
-        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorEnum.HTTP_METHOD_NOT_ALLOWED.code(),
-                                                               resolveMessage("error.method-not-supported", OpenErrorEnum.HTTP_METHOD_NOT_ALLOWED.message()),
+        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.HTTP_METHOD_NOT_ALLOWED.code(),
+                                                               resolveMessage("error.method-not-supported", OpenErrorCodeEnum.HTTP_METHOD_NOT_ALLOWED.message()),
                                                                meta);
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
     }
@@ -141,8 +141,8 @@ public class AopRestException implements MessageSourceAware {
                                           (left, right) -> right,
                                           LinkedHashMap::new));
         meta.put("errors", errors);
-        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorEnum.REQUEST_VALIDATION_FAILED.code(),
-                                                               resolveMessage("error.validation", OpenErrorEnum.REQUEST_VALIDATION_FAILED.message()),
+        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.REQUEST_VALIDATION_FAILED.code(),
+                                                               resolveMessage("error.validation", OpenErrorCodeEnum.REQUEST_VALIDATION_FAILED.message()),
                                                                meta);
         return ResponseEntity.badRequest().body(body);
     }
@@ -192,8 +192,8 @@ public class AopRestException implements MessageSourceAware {
                 ex,
                 "path", request != null ? request.getRequestURI() : "unknown");
         Map<String, Object> meta = baseMeta(request, HttpStatus.INTERNAL_SERVER_ERROR);
-        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorEnum.INTERNAL_ERROR.code(),
-                                                               resolveMessage("error.internal", OpenErrorEnum.INTERNAL_ERROR.message()),
+        OpenApiResponse<Object> body = OpenApiResponse.failure(OpenErrorCodeEnum.INTERNAL_ERROR.code(),
+                                                               resolveMessage("error.internal", OpenErrorCodeEnum.INTERNAL_ERROR.message()),
                                                                meta);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }

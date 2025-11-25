@@ -9,7 +9,6 @@ import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
-import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.auth.sdk.rest.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserRegisterRequest;
@@ -17,7 +16,7 @@ import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
 import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.domain.model.User;
-import open.vincentf13.exchange.user.infra.UserErrorCode;
+import open.vincentf13.exchange.user.infra.UserErrorCodeEnum;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -43,12 +42,12 @@ public class UserCommandService {
 
         AuthCredentialPrepareResponse preparedData = OpenApiClientInvoker.call(
                 () -> authClient.prepare(new AuthCredentialPrepareRequest(AuthCredentialType.PASSWORD, request.password())),
-                msg -> OpenServiceException.of(UserErrorCode.USER_AUTH_PREPARATION_FAILED,
-                        "Failed to prepare credential secret for email %s: %s".formatted(normalizedEmail, msg))
+                msg -> OpenServiceException.of(UserErrorCodeEnum.USER_AUTH_PREPARATION_FAILED,
+                                               "Failed to prepare credential secret for email %s: %s".formatted(normalizedEmail, msg))
         );
         if (preparedData.secretHash() == null || preparedData.salt() == null) {
-            throw OpenServiceException.of(UserErrorCode.USER_AUTH_PREPARATION_FAILED,
-                    "Failed to prepare credential secret for email " + normalizedEmail);
+            throw OpenServiceException.of(UserErrorCodeEnum.USER_AUTH_PREPARATION_FAILED,
+                                          "Failed to prepare credential secret for email " + normalizedEmail);
         }
 
         RegistrationContext context = transactionTemplate.execute(status -> {

@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.core.exception;
 
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.core.error.OpenError;
+import open.vincentf13.sdk.core.error.OpenErrorCode;
 import org.slf4j.MDC;
 
 import java.util.HashMap;
@@ -9,7 +9,7 @@ import java.util.Map;
 
 public interface OpenException {
 
-    static String resolveMessage(OpenError error, String fallbackMessage) {
+    static String resolveMessage(OpenErrorCode error, String fallbackMessage) {
         return fallbackMessage == null ? error.message() : fallbackMessage;
     }
 

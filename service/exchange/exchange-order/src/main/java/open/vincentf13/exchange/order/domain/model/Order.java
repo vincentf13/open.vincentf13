@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.order.infra.OrderErrorCode;
+import open.vincentf13.exchange.order.infra.OrderErrorCodeEnum;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
@@ -73,7 +73,7 @@ public class Order {
 
     public static Order createNew(Long userId, open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest request) {
         if (userId == null) {
-            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "Missing userId");
+            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "Missing userId");
         }
         validateRequest(request);
         Instant now = Instant.now();
@@ -104,16 +104,16 @@ public class Order {
 
     private static void validateRequest(open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest request) {
         if (request == null) {
-            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "request cannot be null");
+            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "request cannot be null");
         }
         if (requiresPrice(request.type()) && request.price() == null) {
-            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "price is required for type " + request.type());
+            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "price is required for type " + request.type());
         }
         if (request.quantity() == null || OpenBigDecimal.isNonPositive(request.quantity())) {
-            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "quantity must be positive");
+            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "quantity must be positive");
         }
         if (request.price() != null && OpenBigDecimal.isNonPositive(request.price())) {
-            throw OpenServiceException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, "price must be positive");
+            throw OpenServiceException.of(OrderErrorCodeEnum.ORDER_VALIDATION_FAILED, "price must be positive");
         }
     }
 

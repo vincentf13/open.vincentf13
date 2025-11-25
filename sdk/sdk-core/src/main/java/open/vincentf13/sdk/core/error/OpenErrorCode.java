@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.core.error;
 
-public interface OpenError {
+public interface OpenErrorCode {
     String code();
     String message();
 }

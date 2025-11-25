@@ -1,8 +1,8 @@
 package open.vincentf13.exchange.order.infra;
 
-import open.vincentf13.sdk.core.error.OpenError;
+import open.vincentf13.sdk.core.error.OpenErrorCode;
 
-public enum OrderErrorCode implements OpenError {
+public enum OrderErrorCodeEnum implements OpenErrorCode {
     ORDER_ALREADY_EXISTS("Order-409-1001", "Order already exists"),
     ORDER_NOT_FOUND("Order-404-1001", "Order not found"),
     ORDER_NOT_OWNED("Order-403-1001", "Order does not belong to current user"),
@@ -13,7 +13,7 @@ public enum OrderErrorCode implements OpenError {
     private final String code;
     private final String message;
 
-    OrderErrorCode(String code, String message) {
+    OrderErrorCodeEnum(String code, String message) {
         this.code = code;
         this.message = message;
     }
