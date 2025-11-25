@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.auth.server.service;
 
-import open.vincentf13.sdk.core.OpenLog;
+import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.auth.jwt.session.JwtSession;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
 import open.vincentf13.sdk.auth.jwt.OpenJwtService;

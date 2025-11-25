@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.infra.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.sdk.core.OpenLog;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;

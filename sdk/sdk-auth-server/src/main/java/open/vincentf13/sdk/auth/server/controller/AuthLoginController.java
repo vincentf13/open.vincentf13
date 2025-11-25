@@ -6,7 +6,7 @@ import open.vincentf13.sdk.auth.jwt.model.JwtTokenPair;
 import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
 import open.vincentf13.sdk.auth.server.error.FailureReason;
 import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
-import open.vincentf13.sdk.core.OpenLog;
+import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

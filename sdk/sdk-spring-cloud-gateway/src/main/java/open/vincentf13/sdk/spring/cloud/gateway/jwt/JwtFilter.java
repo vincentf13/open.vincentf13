@@ -4,7 +4,7 @@ import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.core.OpenLog;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;

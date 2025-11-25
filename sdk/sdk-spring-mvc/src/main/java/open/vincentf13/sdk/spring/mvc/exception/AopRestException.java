@@ -8,7 +8,7 @@ import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.exception.OpenErrorCodeEnum;
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
 import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.OpenLog;
+import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.MessageSource;
