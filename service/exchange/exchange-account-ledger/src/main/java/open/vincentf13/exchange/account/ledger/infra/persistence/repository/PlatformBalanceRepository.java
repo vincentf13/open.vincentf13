@@ -9,7 +9,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.Platform
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
@@ -33,20 +33,20 @@ public class PlatformBalanceRepository {
         if (platformBalance.getVersion() == null) {
             platformBalance.setVersion(0);
         }
-        PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
+        PlatformBalancePO po = OpenObjectMapper.convert(platformBalance, PlatformBalancePO.class);
         mapper.insertSelective(po);
         return platformBalance;
     }
 
     public boolean updateSelectiveBy(@NotNull @Valid PlatformBalance platformBalance, @NotNull Long id, Integer expectedVersion) {
-        PlatformBalancePO po = OpenMapstruct.map(platformBalance, PlatformBalancePO.class);
+        PlatformBalancePO po = OpenObjectMapper.convert(platformBalance, PlatformBalancePO.class);
         return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
     }
 
     public List<PlatformBalance> findBy(@NotNull PlatformBalance condition) {
-        PlatformBalancePO probe = OpenMapstruct.map(condition, PlatformBalancePO.class);
+        PlatformBalancePO probe = OpenObjectMapper.convert(condition, PlatformBalancePO.class);
         return mapper.findBy(probe).stream()
-                .map(item -> OpenMapstruct.map(item, PlatformBalance.class))
+                .map(item -> OpenObjectMapper.convert(item, PlatformBalance.class))
                 .collect(Collectors.toList());
     }
 

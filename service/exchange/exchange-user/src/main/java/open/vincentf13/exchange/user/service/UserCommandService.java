@@ -3,7 +3,7 @@ package open.vincentf13.exchange.user.service;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
@@ -96,7 +96,7 @@ public class UserCommandService {
             handleCredentialFailure(persistedUser.getId(), ex.getMessage());
         }
 
-        return OpenMapstruct.map(persistedUser, UserResponse.class);
+        return OpenObjectMapper.convert(persistedUser, UserResponse.class);
     }
 
     private void handleCredentialFailure(Long userId, String reason) {

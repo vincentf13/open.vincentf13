@@ -2,7 +2,7 @@ package open.vincentf13.exchange.auth.service;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
@@ -25,7 +25,7 @@ public class AuthCredentialCommandService {
                 .credentialType(request.credentialType())
                 .build();
         return repository.findOne(probe)
-                .map(existing -> OpenMapstruct.map(existing, AuthCredentialResponse.class))
+                .map(existing -> OpenObjectMapper.convert(existing, AuthCredentialResponse.class))
                 .orElseGet(() -> {
                     AuthCredential credential = AuthCredential.create(
                             request.userId(),
@@ -38,7 +38,7 @@ public class AuthCredentialCommandService {
                     Long credentialId = repository.insertSelective(credential);
                     credential.setId(credentialId);
 
-                    return OpenMapstruct.map(credential, AuthCredentialResponse.class);
+                    return OpenObjectMapper.convert(credential, AuthCredentialResponse.class);
                 });
     }
 }

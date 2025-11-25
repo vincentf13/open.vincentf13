@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper;
 import open.vincentf13.exchange.user.infra.persistence.po.UserPO;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -26,21 +26,21 @@ public class UserRepository {
 
     public void insertSelective(@NotNull @Valid User user) {
         user.setId(idGenerator.newLong());
-        UserPO po = OpenMapstruct.map(user, UserPO.class);
+        UserPO po = OpenObjectMapper.convert(user, UserPO.class);
         mapper.insertSelective(po);
     }
 
     public boolean updateSelectiveBy(@NotNull @Valid User update,
                                      @NotNull Long id,
                                      String externalId) {
-        UserPO record = OpenMapstruct.map(update, UserPO.class);
+        UserPO record = OpenObjectMapper.convert(update, UserPO.class);
         return mapper.updateSelectiveBy(record, id, externalId) > 0;
     }
 
     public List<User> findBy(@NotNull User probe) {
-        UserPO poProbe = OpenMapstruct.map(probe, UserPO.class);
+        UserPO poProbe = OpenObjectMapper.convert(probe, UserPO.class);
         return mapper.findBy(poProbe).stream()
-                .map(item -> OpenMapstruct.map(item, User.class))
+                .map(item -> OpenObjectMapper.convert(item, User.class))
                 .collect(Collectors.toList());
     }
 
@@ -58,7 +58,7 @@ public class UserRepository {
     public void batchInsert(@NotEmpty List<User> users) {
         users.forEach(user -> user.setId(idGenerator.newLong()));
         mapper.batchInsert(users.stream()
-                .map(user -> OpenMapstruct.map(user, UserPO.class))
+                .map(user -> OpenObjectMapper.convert(user, UserPO.class))
                 .collect(Collectors.toList()));
     }
 

@@ -6,7 +6,7 @@ import open.vincentf13.exchange.admin.infra.persistence.mapper.InstrumentMapper;
 import open.vincentf13.exchange.admin.infra.persistence.po.InstrumentPO;
 import open.vincentf13.exchange.admin.contract.enums.InstrumentStatus;
 import open.vincentf13.exchange.admin.contract.enums.InstrumentType;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotNull;
@@ -27,12 +27,12 @@ public class InstrumentRepository {
                 .instrumentType(instrumentType)
                 .build();
         List<InstrumentPO> records = instrumentMapper.findBy(condition);
-        return OpenMapstruct.mapList(records, Instrument.class);
+        return OpenObjectMapper.convertList(records, Instrument.class);
     }
 
     public Optional<Instrument> findById(@NotNull Long instrumentId) {
         InstrumentPO condition = InstrumentPO.builder().instrumentId(instrumentId).build();
         InstrumentPO po = instrumentMapper.findOne(condition);
-        return Optional.ofNullable(OpenMapstruct.map(po, Instrument.class));
+        return Optional.ofNullable(OpenObjectMapper.convert(po, Instrument.class));
     }
 }

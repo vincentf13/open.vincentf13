@@ -10,7 +10,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAcco
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCategory;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountStatus;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
@@ -31,7 +31,7 @@ public class PlatformAccountRepository {
         if (platformAccount.getAccountId() == null) {
             platformAccount.setAccountId(idGenerator.newLong());
         }
-        PlatformAccountPO po = OpenMapstruct.map(platformAccount, PlatformAccountPO.class);
+        PlatformAccountPO po = OpenObjectMapper.convert(platformAccount, PlatformAccountPO.class);
         if (po.getName() == null && platformAccount.getAccountCode() != null) {
             po.setName(platformAccount.getAccountCode().displayName());
         }
@@ -40,9 +40,9 @@ public class PlatformAccountRepository {
     }
 
     public List<PlatformAccount> findBy(@NotNull PlatformAccount condition) {
-        PlatformAccountPO probe = OpenMapstruct.map(condition, PlatformAccountPO.class);
+        PlatformAccountPO probe = OpenObjectMapper.convert(condition, PlatformAccountPO.class);
         return mapper.findBy(probe).stream()
-                .map(item -> OpenMapstruct.map(item, PlatformAccount.class))
+                .map(item -> OpenObjectMapper.convert(item, PlatformAccount.class))
                 .collect(Collectors.toList());
     }
 

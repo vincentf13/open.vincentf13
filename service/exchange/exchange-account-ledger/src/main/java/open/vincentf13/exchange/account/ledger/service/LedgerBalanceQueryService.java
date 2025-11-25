@@ -7,7 +7,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceIte
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,7 @@ public class LedgerBalanceQueryService {
                 .filter(Objects::nonNull)
                 .max(Instant::compareTo)
                 .orElseGet(() -> null);
-        List<LedgerBalanceItem> items = OpenMapstruct.mapList(balances, LedgerBalanceItem.class);
+        List<LedgerBalanceItem> items = OpenObjectMapper.convertList(balances, LedgerBalanceItem.class);
         return new LedgerBalanceResponse(userId, snapshotAt, items);
     }
 }

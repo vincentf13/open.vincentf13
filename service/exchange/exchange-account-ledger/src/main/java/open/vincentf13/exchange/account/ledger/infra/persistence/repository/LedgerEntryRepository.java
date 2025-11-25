@@ -8,7 +8,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerEn
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -23,19 +23,19 @@ public class LedgerEntryRepository {
     private final LedgerEntryMapper mapper;
 
     public void insert(@NotNull @Valid LedgerEntry entry) {
-        LedgerEntryPO po = OpenMapstruct.map(entry, LedgerEntryPO.class);
+        LedgerEntryPO po = OpenObjectMapper.convert(entry, LedgerEntryPO.class);
         mapper.insertSelective(po);
     }
 
     public List<LedgerEntry> findBy(@NotNull LedgerEntry condition) {
-        LedgerEntryPO probe = OpenMapstruct.map(condition, LedgerEntryPO.class);
+        LedgerEntryPO probe = OpenObjectMapper.convert(condition, LedgerEntryPO.class);
         return mapper.findBy(probe).stream()
-                .map(item -> OpenMapstruct.map(item, LedgerEntry.class))
+                .map(item -> OpenObjectMapper.convert(item, LedgerEntry.class))
                 .toList();
     }
 
     public Optional<LedgerEntry> findOne(@NotNull LedgerEntry condition) {
-        LedgerEntryPO probe = OpenMapstruct.map(condition, LedgerEntryPO.class);
+        LedgerEntryPO probe = OpenObjectMapper.convert(condition, LedgerEntryPO.class);
         List<LedgerEntryPO> results = mapper.findBy(probe);
         if (results.isEmpty()) {
             return Optional.empty();
@@ -43,7 +43,7 @@ public class LedgerEntryRepository {
         if (results.size() > 1) {
             throw new IllegalStateException("Expected single ledger entry but found " + results.size());
         }
-        return Optional.of(OpenMapstruct.map(results.get(0), LedgerEntry.class));
+        return Optional.of(OpenObjectMapper.convert(results.get(0), LedgerEntry.class));
     }
 
 }

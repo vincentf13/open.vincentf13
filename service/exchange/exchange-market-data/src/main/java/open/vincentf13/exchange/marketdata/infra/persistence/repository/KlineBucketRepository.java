@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
 import open.vincentf13.exchange.marketdata.infra.persistence.mapper.KlineBucketMapper;
 import open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -27,11 +27,11 @@ public class KlineBucketRepository {
 
     public Optional<KlineBucket> findByStart(@NotNull Long instrumentId, @NotBlank String period, @NotNull Instant bucketStart) {
         return Optional.ofNullable(mapper.findByInstrumentPeriodAndStart(instrumentId, period, bucketStart))
-                .map(po -> OpenMapstruct.map(po, KlineBucket.class));
+                .map(po -> OpenObjectMapper.convert(po, KlineBucket.class));
     }
 
     public KlineBucket insertSelective(@NotNull @Valid KlineBucket bucket) {
-        KlineBucketPO record = OpenMapstruct.map(bucket, KlineBucketPO.class);
+        KlineBucketPO record = OpenObjectMapper.convert(bucket, KlineBucketPO.class);
         if (record.getClosed() == null) {
             record.setClosed(Boolean.FALSE);
         }
@@ -49,7 +49,7 @@ public class KlineBucketRepository {
                                      Long instrumentId,
                                      String period,
                                      Boolean closed) {
-        KlineBucketPO record = OpenMapstruct.map(update, KlineBucketPO.class);
+        KlineBucketPO record = OpenObjectMapper.convert(update, KlineBucketPO.class);
         return mapper.updateSelectiveBy(record, bucketId, instrumentId, period, closed) > 0;
     }
 
@@ -59,12 +59,12 @@ public class KlineBucketRepository {
             return List.of();
         }
         return records.stream()
-                .map(po -> OpenMapstruct.map(po, KlineBucket.class))
+                .map(po -> OpenObjectMapper.convert(po, KlineBucket.class))
                 .toList();
     }
 
     public Optional<KlineBucket> findLatestBefore(@NotNull Long instrumentId, @NotBlank String period, @NotNull Instant start) {
         return Optional.ofNullable(mapper.findLatestBefore(instrumentId, period, start))
-                .map(po -> OpenMapstruct.map(po, KlineBucket.class));
+                .map(po -> OpenObjectMapper.convert(po, KlineBucket.class));
     }
 }

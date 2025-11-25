@@ -5,7 +5,7 @@ import open.vincentf13.exchange.market.sdk.rest.api.dto.KlineResponse;
 import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
 import open.vincentf13.exchange.market.sdk.rest.api.enums.KlinePeriod;
 import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -62,7 +62,7 @@ public class KlineQueryService {
             }
             cursor = cursor.plus(duration);
         }
-        return OpenMapstruct.mapList(normalized, KlineResponse.class);
+        return OpenObjectMapper.convertList(normalized, KlineResponse.class);
     }
 
     private int resolveLimit(Integer limit) {

@@ -17,7 +17,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
@@ -56,14 +56,14 @@ public class OrderCommandService {
                 orderRepository.insertSelective(order);
             });
 
-            return OpenMapstruct.map(order, OrderResponse.class);
+            return OpenObjectMapper.convert(order, OrderResponse.class);
         } catch (DuplicateKeyException ex) {
             log.info("Duplicate order insert for user {} clientOrderId {}", userId, request.clientOrderId());
             return orderRepository.findOne(Order.builder()
                             .userId(userId)
                             .clientOrderId(request.clientOrderId())
                             .build())
-                    .map(o -> OpenMapstruct.map(o, OrderResponse.class))
+                    .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
                     .orElseThrow(() -> OpenException.of(OrderErrorCodeEnum.ORDER_STATE_CONFLICT,
                                                         Map.of("userId", userId, "clientOrderId", request.clientOrderId())));
         }

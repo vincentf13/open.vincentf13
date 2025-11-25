@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.MarkPriceResponse;
 import open.vincentf13.exchange.marketdata.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.marketdata.infra.cache.MarkPriceCacheService;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -21,6 +21,6 @@ public class MarkPriceQueryService {
             return Optional.empty();
         }
         return markPriceCacheService.getLatest(instrumentId)
-                .map(snapshot -> OpenMapstruct.map(snapshot, MarkPriceResponse.class));
+                .map(snapshot -> OpenObjectMapper.convert(snapshot, MarkPriceResponse.class));
     }
 }

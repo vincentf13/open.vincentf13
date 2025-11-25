@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookResponse;
 import open.vincentf13.exchange.marketdata.domain.model.OrderBookSnapshot;
 import open.vincentf13.exchange.marketdata.infra.cache.OrderBookCacheService;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -23,6 +23,6 @@ public class OrderBookQueryService {
         if (snapshot == null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(OpenMapstruct.map(snapshot, OrderBookResponse.class));
+        return Optional.ofNullable(OpenObjectMapper.convert(snapshot, OrderBookResponse.class));
     }
 }

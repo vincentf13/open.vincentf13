@@ -8,7 +8,7 @@ import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +23,7 @@ public class OrderEventPublisher {
     private final MqOutboxRepository outboxRepository;
 
     public void publishOrderSubmitted(Order order) {
-        OrderSubmittedEvent payload = OpenMapstruct.map(order, OrderSubmittedEvent.class);
+        OrderSubmittedEvent payload = OpenObjectMapper.convert(order, OrderSubmittedEvent.class);
         outboxRepository.append(OrderTopics.ORDER_SUBMITTED.getTopic(),
                 order.getOrderId(),
                 payload,

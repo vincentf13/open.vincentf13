@@ -8,7 +8,7 @@ import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
@@ -28,10 +28,10 @@ public class PositionRepository {
     public Position createDefault(@NotNull Long userId, @NotNull Long instrumentId) {
         Position domain = Position.createDefault(userId, instrumentId, PositionSide.LONG);
         domain.setPositionId(idGenerator.newLong());
-        PositionPO po = OpenMapstruct.map(domain, PositionPO.class);
+        PositionPO po = OpenObjectMapper.convert(domain, PositionPO.class);
         try {
             mapper.insertSelective(po);
-            return OpenMapstruct.map(po, Position.class);
+            return OpenObjectMapper.convert(po, Position.class);
         } catch (DuplicateKeyException duplicateKeyException) {
             Position existing = Position.builder()
                     .userId(userId)
@@ -47,19 +47,19 @@ public class PositionRepository {
         if (position.getPositionId() == null) {
             position.setPositionId(idGenerator.newLong());
         }
-        PositionPO po = OpenMapstruct.map(position, PositionPO.class);
+        PositionPO po = OpenObjectMapper.convert(position, PositionPO.class);
         mapper.insertSelective(po);
     }
 
     public List<Position> findBy(@NotNull Position condition) {
-        PositionPO probe = OpenMapstruct.map(condition, PositionPO.class);
+        PositionPO probe = OpenObjectMapper.convert(condition, PositionPO.class);
         return mapper.findBy(probe).stream()
-                .map(item -> OpenMapstruct.map(item, Position.class))
+                .map(item -> OpenObjectMapper.convert(item, Position.class))
                 .toList();
     }
 
     public Optional<Position> findOne(@NotNull Position condition) {
-        PositionPO probe = OpenMapstruct.map(condition, PositionPO.class);
+        PositionPO probe = OpenObjectMapper.convert(condition, PositionPO.class);
         var results = mapper.findBy(probe);
         if (results.isEmpty()) {
             return Optional.empty();
@@ -67,7 +67,7 @@ public class PositionRepository {
         if (results.size() > 1) {
             throw new IllegalStateException("Expected single position but found " + results.size());
         }
-        return Optional.of(OpenMapstruct.map(results.get(0), Position.class));
+        return Optional.of(OpenObjectMapper.convert(results.get(0), Position.class));
     }
 
     public boolean updateSelectiveBy(@NotNull @Valid Position update,
@@ -77,7 +77,7 @@ public class PositionRepository {
                                      PositionSide side,
                                      Integer expectedVersion,
                                      String status) {
-        PositionPO record = OpenMapstruct.map(update, PositionPO.class);
+        PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);
         return mapper.updateSelectiveBy(record, positionId, userId, instrumentId, side, expectedVersion, status) > 0;
     }
 }

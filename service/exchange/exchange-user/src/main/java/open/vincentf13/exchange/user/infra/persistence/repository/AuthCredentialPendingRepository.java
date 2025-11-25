@@ -7,7 +7,7 @@ import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
 import open.vincentf13.exchange.user.infra.persistence.mapper.AuthCredentialPendingMapper;
 import open.vincentf13.exchange.user.infra.persistence.po.AuthCredentialPendingPO;
 import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -23,7 +23,7 @@ public class AuthCredentialPendingRepository {
     private final AuthCredentialPendingMapper mapper;
 
     public void insert(@NotNull AuthCredentialPending credential) {
-        mapper.insert(OpenMapstruct.map(credential, AuthCredentialPendingPO.class));
+        mapper.insert(OpenObjectMapper.convert(credential, AuthCredentialPendingPO.class));
     }
 
     public void markCompleted(@NotNull Long userId, @NotNull AuthCredentialType credentialType, @NotNull Instant updatedAt) {
@@ -40,7 +40,7 @@ public class AuthCredentialPendingRepository {
 
     public List<AuthCredentialPending> findReady(int limit, @NotNull Instant now) {
         return mapper.findReady(AuthCredentialPendingStatus.PENDING.name(), now, limit).stream()
-                .map(item -> OpenMapstruct.map(item, AuthCredentialPending.class))
+                .map(item -> OpenObjectMapper.convert(item, AuthCredentialPending.class))
                 .collect(Collectors.toList());
     }
 }

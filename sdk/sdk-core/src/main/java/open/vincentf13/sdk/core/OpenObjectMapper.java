@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -151,20 +152,40 @@ public final class OpenObjectMapper {
         return mapper().valueToTree(value);
     }
 
-    /**
-     * 物件轉換：DTO ↔ VO ↔ Map。
+    /*
+     * 物件轉換：DTO ↔ VO ↔ Map，使用具體類別做目標型別。
+     * 例如：
+     *   UserResponse resp = OpenObjectMapper.convert(user, UserResponse.class);
+     *   String[] names = OpenObjectMapper.convert(jsonNode, String[].class);
+     *   Integer count = OpenObjectMapper.convert(jsonNode, Integer.class);
      */
     public static <T> T convert(Object src, Class<T> targetType) {
         if (src == null) return null;
         return mapper().convertValue(src, targetType);
     }
 
-    /**
-     * 類型轉換：支援泛型目標。
+    /*
+     * 類型轉換：支援泛型目標，避免型別擦除需傳入 TypeReference。
+     * 例如：
+     *   List<UserResponse> list = OpenObjectMapper.convert(jsonNode, new TypeReference<List<UserResponse>>() {});
+     *   Map<String, Object> payload = OpenObjectMapper.convert(jsonNode, new TypeReference<Map<String, Object>>() {});
      */
     public static <T> T convert(Object src, TypeReference<T> targetType) {
         if (src == null) return null;
         return mapper().convertValue(src, targetType);
+    }
+
+    /**
+     * 清單轉換：來源 null 或空時回傳空集合。
+     */
+    public static <S, T> List<T> convertList(List<S> source, Class<T> targetType) {
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        return source.stream()
+                .map(item -> convert(item, targetType))
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     /**

@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.infra.persistence.mapper.OrderMapper;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import open.vincentf13.exchange.order.domain.model.Order;
 import org.springframework.stereotype.Repository;
 
@@ -23,19 +23,19 @@ public class OrderRepository {
 
     public void insertSelective(@NotNull @Valid Order order) {
         order.setOrderId(idGenerator.newLong());
-        OrderPO po = OpenMapstruct.map(order, OrderPO.class);
+        OrderPO po = OpenObjectMapper.convert(order, OrderPO.class);
         mapper.insertSelective(po);
     }
 
     public List<Order> findBy(@NotNull Order condition) {
-        OrderPO probe = OpenMapstruct.map(condition, OrderPO.class);
+        OrderPO probe = OpenObjectMapper.convert(condition, OrderPO.class);
         return mapper.findBy(probe).stream()
-                .map(item -> OpenMapstruct.map(item, Order.class))
+                .map(item -> OpenObjectMapper.convert(item, Order.class))
                 .toList();
     }
 
     public Optional<Order> findOne(@NotNull Order condition) {
-        OrderPO probe = OpenMapstruct.map(condition, OrderPO.class);
+        OrderPO probe = OpenObjectMapper.convert(condition, OrderPO.class);
         var results = mapper.findBy(probe);
         if (results == null || results.isEmpty()) {
             return Optional.empty();
@@ -43,7 +43,7 @@ public class OrderRepository {
         if (results.size() > 1) {
             throw new IllegalStateException("Expected single order but found " + results.size());
         }
-        return Optional.of(OpenMapstruct.map(results.get(0), Order.class));
+        return Optional.of(OpenObjectMapper.convert(results.get(0), Order.class));
     }
 
     public boolean updateSelectiveBy(@NotNull @Valid Order update,
@@ -51,7 +51,7 @@ public class OrderRepository {
                                      Long userId,
                                      Integer expectedVersion,
                                      OrderStatus currentStatus) {
-        OrderPO record = OpenMapstruct.map(update, OrderPO.class);
+        OrderPO record = OpenObjectMapper.convert(update, OrderPO.class);
         return mapper.updateSelectiveBy(record, orderId, userId, expectedVersion, currentStatus) > 0;
     }
 

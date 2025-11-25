@@ -9,7 +9,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerBa
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -32,20 +32,20 @@ public class LedgerBalanceRepository {
         if (balance.getAccountId() == null) {
             balance.setAccountId(idGenerator.newLong());
         }
-        LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
+        LedgerBalancePO po = OpenObjectMapper.convert(balance, LedgerBalancePO.class);
         mapper.insertSelective(po);
         return balance;
     }
 
     public boolean updateSelectiveBy(@NotNull @Valid LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
-        LedgerBalancePO po = OpenMapstruct.map(balance, LedgerBalancePO.class);
+        LedgerBalancePO po = OpenObjectMapper.convert(balance, LedgerBalancePO.class);
         return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
     }
 
     public List<LedgerBalance> findBy(@NotNull LedgerBalance condition) {
-        LedgerBalancePO probe = OpenMapstruct.map(condition, LedgerBalancePO.class);
+        LedgerBalancePO probe = OpenObjectMapper.convert(condition, LedgerBalancePO.class);
         return mapper.findBy(probe).stream()
-                .map(item -> OpenMapstruct.map(item, LedgerBalance.class))
+                .map(item -> OpenObjectMapper.convert(item, LedgerBalance.class))
                 .collect(Collectors.toList());
     }
 

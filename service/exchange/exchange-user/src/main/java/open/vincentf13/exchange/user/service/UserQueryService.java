@@ -6,7 +6,7 @@ import open.vincentf13.exchange.user.infra.UserErrorCodeEnum;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
-import open.vincentf13.sdk.core.OpenMapstruct;
+import open.vincentf13.sdk.core.OpenObjectMapper;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +24,7 @@ public class UserQueryService {
         Long userId = OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
                 OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND, Map.of("reason", "No authenticated user in context")));
         return userRepository.findOne(User.builder().id(userId).build())
-                .map(user -> OpenMapstruct.map(user, UserResponse.class))
+                .map(user -> OpenObjectMapper.convert(user, UserResponse.class))
                 .orElseThrow(() -> OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND,
                                                     Map.of("userId", userId)));
     }
@@ -33,7 +33,7 @@ public class UserQueryService {
     public UserResponse getUserByEmail(String email) {
         String normalizedEmail = User.normalizeEmail(email);
         return userRepository.findOne(User.builder().email(normalizedEmail).build())
-                .map(user -> OpenMapstruct.map(user, UserResponse.class))
+                .map(user -> OpenObjectMapper.convert(user, UserResponse.class))
                 .orElseThrow(() -> OpenException.of(UserErrorCodeEnum.USER_NOT_FOUND,
                                                     Map.of("email", normalizedEmail)));
     }
