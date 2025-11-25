@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.auth.jwt.session;
 
-import open.vincentf13.sdk.auth.JwtEvent;
+import open.vincentf13.sdk.auth.jwt.JwtEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 
 import java.time.Instant;

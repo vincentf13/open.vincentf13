@@ -1,7 +1,6 @@
 package open.vincentf13.sdk.auth.jwt;
 
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
-import open.vincentf13.sdk.auth.JwtEvent;
 import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
 import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
 import open.vincentf13.sdk.core.log.OpenLog;

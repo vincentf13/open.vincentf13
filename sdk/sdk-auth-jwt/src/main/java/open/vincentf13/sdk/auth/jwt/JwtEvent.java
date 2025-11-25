@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth;
+package open.vincentf13.sdk.auth.jwt;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
