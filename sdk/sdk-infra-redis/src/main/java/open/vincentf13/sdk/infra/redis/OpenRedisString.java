@@ -28,6 +28,16 @@ public final class OpenRedisString {
     private OpenRedisString() {
     }
 
+    /*
+     * 取得值並轉為指定型別。
+     * 例如：
+     *   Human human = OpenRedisString.get("human:1", Human.class);
+     */
+    public static <T> T get(String key, Class<T> targetType) {
+        Object obj = redisTemplate().opsForValue().get(key);
+        return OpenObjectMapper.convert(obj, targetType);
+    }
+
     public static void register(RedisTemplate<String, Object> redisTemplate,
                                 StringRedisTemplate stringRedisTemplate) {
         OpenRedisString.redisTemplate = redisTemplate;
@@ -40,14 +50,22 @@ public final class OpenRedisString {
 
 
     // ===== Cache-Aside =====
-    @SuppressWarnings("unchecked")
+    /*
+     * Cache-aside：命中則回傳，未命中載入並回填。
+     * 例如：
+     *   User user = OpenRedisString.getOrLoad("user:1", Duration.ofMinutes(5), User.class, () -> userRepo.findById(1L));
+     */
     public static <T> T getOrLoad(String key, Duration ttl, Class<T> type, Supplier<T> loader) {
         RedisTemplate<String, Object> redis = redisTemplate();
-        T hit = (T) redis.opsForValue().get(key);
-        if (hit != null) return hit;
+        Object cached = redis.opsForValue().get(key);
+        if (cached != null) {
+            return OpenObjectMapper.convert(cached, type);
+        }
         synchronized (intern(key)) { // 簡易擊穿保護：單機級別
-            T again = (T) redis.opsForValue().get(key);
-            if (again != null) return again;
+            Object again = redis.opsForValue().get(key);
+            if (again != null) {
+                return OpenObjectMapper.convert(again, type);
+            }
             T val = loader.get();
             if (val == null) {
                 // 穿透保護：空值短 TTL
@@ -59,8 +77,10 @@ public final class OpenRedisString {
         }
     }
 
-    /**
-     * 非阻塞寫入，有重試機制
+    /*
+     * 非阻塞寫入，有重試機制。
+     * 例如：
+     *   OpenRedisString.setAsync("user:1", user, Duration.ofMinutes(10), 3);
      */
     public static CompletableFuture<Boolean> setAsync(String key, Object value, Duration ttl, int retry) {
         return CompletableFuture.supplyAsync(() -> {
@@ -82,8 +102,10 @@ public final class OpenRedisString {
         }, ForkJoinPool.commonPool());
     }
 
-    /**
-     * fire-and-forget 模式，不關心結果
+    /*
+     * fire-and-forget 模式，不關心結果。
+     * 例如：
+     *   OpenRedisString.setAsyncFireAndForget("cache:foo", payload, Duration.ofSeconds(30));
      */
     public static void setAsyncFireAndForget(String key, Object value, Duration ttl) {
         StringRedisTemplate stringRedis = stringRedisTemplate();
