@@ -8,7 +8,7 @@ import open.vincentf13.exchange.account.ledger.domain.model.PlatformBalance;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.PlatformBalanceMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
-import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;

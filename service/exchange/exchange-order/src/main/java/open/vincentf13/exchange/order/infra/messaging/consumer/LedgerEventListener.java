@@ -9,7 +9,7 @@ import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
+import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

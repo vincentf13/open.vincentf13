@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
-import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;

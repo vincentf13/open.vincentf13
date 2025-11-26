@@ -2,11 +2,12 @@ package open.vincentf13.exchange.position.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveOutcome;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -76,11 +77,11 @@ public class PositionReserveRequestListener {
                 "reason", outcome.result().reason());
     }
 
-    private PositionSide toPositionSide(open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide orderSide) {
+    private PositionSide toPositionSide(OrderSide orderSide) {
         if (orderSide == null) {
             return null;
         }
-        return orderSide == open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide.BUY
+        return orderSide == OrderSide.BUY
                 ? PositionSide.LONG
                 : PositionSide.SHORT;
     }

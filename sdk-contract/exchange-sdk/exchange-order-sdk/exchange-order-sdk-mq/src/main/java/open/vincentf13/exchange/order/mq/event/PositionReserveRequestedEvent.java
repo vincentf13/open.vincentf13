@@ -2,8 +2,8 @@ package open.vincentf13.exchange.order.mq.event;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

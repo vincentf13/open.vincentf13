@@ -2,7 +2,7 @@ package open.vincentf13.exchange.position.sdk.mq.event;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 
 import java.time.Instant;
 

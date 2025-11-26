@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.order.mq.event;
 
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.OrderType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

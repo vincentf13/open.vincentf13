@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;

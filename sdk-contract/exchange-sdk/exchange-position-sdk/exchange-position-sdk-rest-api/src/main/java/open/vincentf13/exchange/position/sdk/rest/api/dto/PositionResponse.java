@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.position.sdk.rest.api.dto;
 
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 
 import java.math.BigDecimal;
 import java.time.Instant;

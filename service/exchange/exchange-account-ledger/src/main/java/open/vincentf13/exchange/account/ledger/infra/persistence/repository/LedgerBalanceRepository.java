@@ -8,7 +8,7 @@ import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.infra.persistence.mapper.LedgerBalanceMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
-import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;

@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.sdk.common.enums;
+package open.vincentf13.exchange.common.sdk.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

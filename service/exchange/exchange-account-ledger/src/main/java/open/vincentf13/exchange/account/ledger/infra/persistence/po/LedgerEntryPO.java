@@ -8,7 +8,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.Direction;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.OwnerType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
-import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;

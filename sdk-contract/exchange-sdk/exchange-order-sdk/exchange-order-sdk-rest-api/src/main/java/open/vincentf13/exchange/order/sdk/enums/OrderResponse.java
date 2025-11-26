@@ -1,9 +1,9 @@
-package open.vincentf13.exchange.order.sdk.rest.api.dto;
+package open.vincentf13.exchange.order.sdk.enums;
 
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
+import open.vincentf13.exchange.common.sdk.enums.OrderType;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

@@ -7,14 +7,14 @@ import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest;
-import open.vincentf13.exchange.order.sdk.rest.api.dto.OrderResponse;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
+import open.vincentf13.exchange.order.sdk.enums.OrderCreateRequest;
+import open.vincentf13.exchange.order.sdk.enums.OrderResponse;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -94,7 +94,7 @@ public class OrderCommandService {
         if (orderSide == null) {
             return null;
         }
-        return orderSide == open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide.BUY
+        return orderSide == OrderSide.BUY
                 ? PositionSide.LONG
                 : PositionSide.SHORT;
     }

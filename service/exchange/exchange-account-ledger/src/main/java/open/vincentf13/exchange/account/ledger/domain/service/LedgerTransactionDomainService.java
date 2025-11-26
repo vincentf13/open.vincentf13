@@ -20,7 +20,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
-import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import jakarta.validation.Valid;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;

@@ -16,7 +16,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawal
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
-import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.log.OpenLog;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

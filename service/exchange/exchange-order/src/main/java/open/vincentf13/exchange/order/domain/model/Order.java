@@ -7,10 +7,11 @@ import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
+import open.vincentf13.exchange.order.sdk.enums.OrderCreateRequest;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
+import open.vincentf13.exchange.common.sdk.enums.OrderType;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 import open.vincentf13.sdk.core.exception.OpenException;
 
@@ -72,7 +73,7 @@ public class Order {
     }
 
 
-    public static Order createNew(Long userId, open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest request) {
+    public static Order createNew(Long userId, OrderCreateRequest request) {
         if (userId == null) {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "userId"));
         }
@@ -103,7 +104,7 @@ public class Order {
 
 
 
-    private static void validateRequest(open.vincentf13.exchange.order.sdk.rest.api.dto.OrderCreateRequest request) {
+    private static void validateRequest(OrderCreateRequest request) {
         if (request == null) {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "request"));
         }

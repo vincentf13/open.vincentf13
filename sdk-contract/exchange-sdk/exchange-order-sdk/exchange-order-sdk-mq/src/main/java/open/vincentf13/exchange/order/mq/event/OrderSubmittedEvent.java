@@ -2,9 +2,9 @@ package open.vincentf13.exchange.order.mq.event;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderSide;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderStatus;
-import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderType;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
+import open.vincentf13.exchange.common.sdk.enums.OrderType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

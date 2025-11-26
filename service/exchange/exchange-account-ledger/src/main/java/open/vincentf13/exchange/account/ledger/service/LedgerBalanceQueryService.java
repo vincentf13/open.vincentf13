@@ -6,7 +6,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Ledg
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceItem;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
-import open.vincentf13.exchange.sdk.common.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

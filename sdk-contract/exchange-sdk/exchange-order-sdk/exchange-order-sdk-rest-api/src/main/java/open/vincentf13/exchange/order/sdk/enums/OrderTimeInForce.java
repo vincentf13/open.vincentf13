@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.sdk.rest.api.enums;
+package open.vincentf13.exchange.order.sdk.enums;
 
 public enum OrderTimeInForce {
     GTC,

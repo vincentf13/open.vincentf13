@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.position.sdk.rest.api.enums;
+package open.vincentf13.exchange.common.sdk.enums;
 
 /**
  * 操作意圖類型

@@ -6,7 +6,7 @@ import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
