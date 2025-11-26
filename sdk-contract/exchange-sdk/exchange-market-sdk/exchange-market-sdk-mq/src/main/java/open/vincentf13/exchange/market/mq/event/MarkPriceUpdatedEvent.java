@@ -2,6 +2,7 @@ package open.vincentf13.exchange.market.mq.event;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,7 +12,7 @@ import java.time.Instant;
  */
 public record MarkPriceUpdatedEvent(
         @NotNull Long instrumentId,
-        @NotNull @DecimalMin(value = "0.00000001") BigDecimal markPrice,
+        @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN) BigDecimal markPrice,
         @NotNull Long tradeId,
         @NotNull Instant tradeExecutedAt,
         @NotNull Instant calculatedAt

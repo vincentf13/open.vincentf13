@@ -1,12 +1,13 @@
 package open.vincentf13.exchange.common.sdk.constants;
 
 /*
- * 交易相關的常用十進位數值限制，提供 enum 與 Names 供註解/欄位引用。
+ * 共用驗證常數：依欄位語意提供對應的最小值定義，並提供 enum/Names 供註解引用。
  */
 public enum ValidationConstant {
-    PRICE_MIN(Values.PRICE_MIN),
-    QUANTITY_MIN(Values.QUANTITY_MIN),
-    FEE_MIN(Values.FEE_MIN);
+    PRICE_MIN(Names.PRICE_MIN),
+    QUANTITY_MIN(Names.QUANTITY_MIN),
+    AMOUNT_MIN(Names.AMOUNT_MIN),
+    FEE_MIN(Names.FEE_MIN);
 
     private final String value;
 
@@ -18,12 +19,13 @@ public enum ValidationConstant {
         return value;
     }
 
-    public static final class Values {
+    public static final class Names {
         public static final String PRICE_MIN = "0.00000001";
         public static final String QUANTITY_MIN = "0.00000001";
+        public static final String AMOUNT_MIN = "0.00000001";
         public static final String FEE_MIN = "0.00000000";
 
-        private Values() {
+        private Names() {
         }
     }
 }
