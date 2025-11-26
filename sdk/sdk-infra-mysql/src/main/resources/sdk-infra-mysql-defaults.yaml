@@ -109,17 +109,11 @@ mybatis:
     # 對查詢結果 null 欄位也呼叫 setter，避免忽略顯式清空
     call-setters-on-nulls: true
 
-pagehelper:
-  # 指定方言以支援 MySQL 分頁語法
-  helper-dialect: mysql
-  # 啟用合理化：頁碼<=0 時回第一頁、超過最大頁時回最後一頁
-  reasonable: true
-  # 是否允許在 Service 層直接帶 PageHelper 參數
-  support-methods-arguments: false
-  # count 語法參數最佳化，避免重複解析
-  params: count=countSql
-  # PageInfo.RowBounds 查詢時自動追加 count 查詢
-  row-bounds-with-count: true
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-value: 1
+      logic-not-delete-value: 0
 
 open:
   vincentf13:
