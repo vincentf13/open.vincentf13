@@ -1,9 +1,10 @@
 package open.vincentf13.exchange.account.ledger.sdk.mq.event;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record FundsFreezeFailedEvent(
-        @org.jetbrains.annotations.NotNull Long orderId,
+        @NotNull Long orderId,
         @NotBlank String reason
 ) {
 }
