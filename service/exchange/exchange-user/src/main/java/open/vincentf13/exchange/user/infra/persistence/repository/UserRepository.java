@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -9,12 +11,12 @@ import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.persistence.mapper.UserMapper;
 import open.vincentf13.exchange.user.infra.persistence.po.UserPO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -23,43 +25,41 @@ public class UserRepository {
 
     private final UserMapper mapper;
     private final DefaultIdGenerator idGenerator;
+    private final OpenMybatisBatchExecutor batchExecutor;
 
     public void insertSelective(@NotNull @Valid User user) {
-        user.setId(idGenerator.newLong());
+        if (user.getId() == null) {
+            user.setId(idGenerator.newLong());
+        }
         UserPO po = OpenObjectMapper.convert(user, UserPO.class);
-        mapper.insertSelective(po);
+        mapper.insert(po);
     }
 
-    public boolean updateSelectiveBy(@NotNull @Valid User update,
-                                     @NotNull Long id,
-                                     String externalId) {
+    public boolean updateSelective(@NotNull @Valid User update,
+                                   @NotNull LambdaUpdateWrapper<UserPO> updateWrapper) {
         UserPO record = OpenObjectMapper.convert(update, UserPO.class);
-        return mapper.updateSelectiveBy(record, id, externalId) > 0;
+        return mapper.update(record, updateWrapper) > 0;
     }
 
-    public List<User> findBy(@NotNull User probe) {
-        UserPO poProbe = OpenObjectMapper.convert(probe, UserPO.class);
-        return mapper.findBy(poProbe).stream()
-                .map(item -> OpenObjectMapper.convert(item, User.class))
-                .collect(Collectors.toList());
+    public List<User> findBy(@NotNull LambdaQueryWrapper<UserPO> wrapper) {
+        return OpenObjectMapper.convertList(mapper.selectList(wrapper), User.class);
     }
 
-    public Optional<User> findOne(@NotNull User probe) {
-        List<User> results = findBy(probe);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single user but found " + results.size());
-        }
-        return Optional.of(results.get(0));
+    public Optional<User> findOne(@NotNull LambdaQueryWrapper<UserPO> wrapper) {
+        UserPO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(OpenObjectMapper.convert(po, User.class));
     }
 
     public void batchInsert(@NotEmpty List<User> users) {
-        users.forEach(user -> user.setId(idGenerator.newLong()));
-        mapper.batchInsert(users.stream()
+        users.forEach(user -> {
+            if (user.getId() == null) {
+                user.setId(idGenerator.newLong());
+            }
+        });
+        List<UserPO> records = users.stream()
                 .map(user -> OpenObjectMapper.convert(user, UserPO.class))
-                .collect(Collectors.toList()));
+                .toList();
+        batchExecutor.execute(UserMapper.class, records, UserMapper::insert);
     }
 
 }
