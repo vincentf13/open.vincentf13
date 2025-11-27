@@ -40,13 +40,12 @@ public class LedgerEventPublisher {
                 "reason", reason);
     }
 
-    public void publishLedgerEntryCreated(Long entryId, Long userId, AssetSymbol asset, BigDecimal deltaAvailable, BigDecimal deltaReserved, BigDecimal balanceAfter, ReferenceType referenceType, String referenceId, EntryType entryType, Long instrumentId) {
+    public void publishLedgerEntryCreated(Long entryId, Long userId, AssetSymbol asset, BigDecimal deltaBalance, BigDecimal balanceAfter, ReferenceType referenceType, String referenceId, EntryType entryType, Long instrumentId) {
         LedgerEntryCreatedEvent event = new LedgerEntryCreatedEvent(
                 entryId,
                 userId,
                 asset.code(),
-                deltaAvailable,
-                deltaReserved,
+                deltaBalance,
                 balanceAfter,
                 referenceType.name(),
                 referenceId,
@@ -59,8 +58,7 @@ public class LedgerEventPublisher {
                 "entryId", entryId,
                 "userId", userId,
                 "asset", asset,
-                "deltaAvailable", deltaAvailable,
-                "deltaReserved", deltaReserved,
+                "deltaBalance", deltaBalance,
                 "balanceAfter", balanceAfter,
                 "referenceType", referenceType,
                 "referenceId", referenceId,

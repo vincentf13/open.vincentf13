@@ -10,7 +10,8 @@ public enum EntryType {
     WITHDRAWAL(ReferenceType.WITHDRAWAL),
     FREEZE(ReferenceType.ORDER),
     RESERVED(ReferenceType.ORDER),
-    TRADE_SETTLEMENT(ReferenceType.TRADE),
+    TRADE_SETTLEMENT_SPOT_MAIN(ReferenceType.TRADE),
+    TRADE_SETTLEMENT_ISOLATED_MARGIN(ReferenceType.TRADE),
     FEE(ReferenceType.TRADE),
     TRADE(ReferenceType.TRADE);
 
