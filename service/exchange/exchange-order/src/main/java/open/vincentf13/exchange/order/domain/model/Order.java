@@ -8,7 +8,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
-import open.vincentf13.exchange.order.sdk.enums.OrderCreateRequest;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.common.sdk.enums.OrderType;

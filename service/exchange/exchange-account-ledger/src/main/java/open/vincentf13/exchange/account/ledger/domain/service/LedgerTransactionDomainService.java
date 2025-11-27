@@ -15,6 +15,7 @@ import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDe
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeException;
 import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeFailureReason;
+import open.vincentf13.exchange.account.ledger.infra.messaging.publisher.LedgerEventPublisher;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO;
@@ -27,8 +28,10 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawal
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
+import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
@@ -47,6 +50,7 @@ public class LedgerTransactionDomainService {
     private final PlatformAccountRepository platformAccountRepository;
     private final PlatformBalanceRepository platformBalanceRepository;
     private final DefaultIdGenerator idGenerator;
+    private final LedgerEventPublisher ledgerEventPublisher;
 
     public LedgerDepositResult deposit(@NotNull @Valid LedgerDepositRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
@@ -180,61 +184,117 @@ public class LedgerTransactionDomainService {
         return freezeEntry;
     }
 
-    public LedgerEntry settleTrade(@NotNull Long tradeId,
-                                   @NotNull Long instrumentId, @NotNull AssetSymbol asset, @NotNull Long takerOrderId, @NotNull Long makerOrderId,
-                                   @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN) BigDecimal price,
-                                   @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
-                                   @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal makerFee,
-                                   @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal takerFee,
-                                   @NotNull Long makerUserId,
-                                   @NotNull Long takerUserId,
-                                   @NotNull Instant eventTime) {
-        BigDecimal totalCost = price.multiply(quantity).add(takerFee);
+    @Transactional
+    public void settleTrade(@NotNull @Valid TradeExecutedEvent event, @NotNull @Valid open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse order, boolean isMaker) {
+        AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(event.quoteAsset());
+        String referenceId = event.tradeId() + ":" + (isMaker ? "maker" : "taker");
+
         Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(
                 Wrappers.lambdaQuery(LedgerEntryPO.class)
                         .eq(LedgerEntryPO::getReferenceType, ReferenceType.TRADE)
-                        .eq(LedgerEntryPO::getReferenceId, tradeId.toString())
-                        .eq(LedgerEntryPO::getEntryType, EntryType.TRADE));
+                        .eq(LedgerEntryPO::getReferenceId, referenceId));
         if (existing.isPresent()) {
-            return existing.get();
+            return;
         }
-        LedgerEntry reservedEntry = ledgerEntryRepository.findOne(
-                        Wrappers.lambdaQuery(LedgerEntryPO.class)
-                                .eq(LedgerEntryPO::getReferenceType, ReferenceType.ORDER)
-                                .eq(LedgerEntryPO::getReferenceId, takerOrderId.toString())
-                                .eq(LedgerEntryPO::getEntryType, EntryType.RESERVED))
-                .orElseThrow(() -> new IllegalStateException(
-                        "Reserved entry not found for takerOrderId=" + takerOrderId + ", makerOrderId=" + makerOrderId));
-        AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
-        if (reservedEntry.getAsset() != null && normalizedAsset != null && reservedEntry.getAsset() != normalizedAsset) {
-            throw new IllegalStateException("Asset mismatch for order=" + orderId + ", reserved=" + reservedEntry.getAsset()
-                    + ", event=" + normalizedAsset);
+
+        if (order.intent() == null) {
+            throw new IllegalStateException("Order intent is null for orderId=" + order.orderId());
         }
-        LedgerBalance balance = ledgerBalanceRepository.findOne(
-                        Wrappers.lambdaQuery(LedgerBalancePO.class)
-                                .eq(LedgerBalancePO::getAccountId, reservedEntry.getAccountId())
-                                .eq(LedgerBalancePO::getAsset, normalizedAsset))
-                .orElseThrow(() -> new IllegalStateException("Ledger balance not found for account=" + reservedEntry.getAccountId()));
-        LedgerBalance updated = retryUpdateForTrade(balance,
-                                                    totalCost,
-                                                    reservedEntry.getUserId(),
-                                                    normalizedAsset,
-                                                    tradeId);
-        Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
-        Long tradeEntryId = idGenerator.newLong();
-        LedgerEntry tradeEntry = LedgerEntry.tradeSettlement(tradeEntryId,
-                                                             updated.getAccountId(),
-                                                             updated.getUserId(),
-                                                             normalizedAsset,
-                                                             totalCost,
-                                                             updated.getBalance(),
-                                                             tradeId,
-                                                             takerOrderId,
-                                                             instrumentId,
-                                                             entryEventTime);
-        ledgerEntryRepository.insert(tradeEntry);
-        return tradeEntry;
+
+        switch (order.intent()) {
+            case INCREASE:
+                processOpenPosition(event, order, isMaker, normalizedAsset, referenceId);
+                break;
+            case REDUCE:
+            case CLOSE:
+                processClosePosition(event, order, isMaker, normalizedAsset, referenceId);
+                break;
+            default:
+                throw new IllegalStateException("Unsupported order intent: " + order.intent());
+        }
     }
+
+    private void processOpenPosition(TradeExecutedEvent event, open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse order, boolean isMaker, AssetSymbol normalizedAsset, String referenceId) {
+        BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
+        BigDecimal tradeValue = event.price().multiply(event.quantity());
+        Long userId = isMaker ? event.makerUserId() : event.takerUserId();
+
+        // 1. Update SPOT_MAIN: Unreserve and decrease balance (for trade value and fee)
+        LedgerBalance spotBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
+        LedgerBalance updatedSpotBalance = unfreezeAndDebitSpotBalance(spotBalance, tradeValue.add(fee), userId, normalizedAsset, event.tradeId());
+
+        // 2. Update ISOLATED_MARGIN: Increase balance with trade value
+        LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
+        LedgerBalance updatedMarginBalance = retryUpdateForDeposit(marginBalance, tradeValue, userId, normalizedAsset);
+
+        // 3. Platform account for fee revenue
+        PlatformAccount feeRevenueAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.FEE_REVENUE, PlatformAccountCategory.REVENUE, PlatformAccountStatus.ACTIVE);
+        PlatformBalance feeRevenueBalance = platformBalanceRepository.getOrCreate(feeRevenueAccount.getAccountId(), feeRevenueAccount.getAccountCode(), normalizedAsset);
+        PlatformBalance updatedFeeRevenueBalance = retryUpdateForPlatformDeposit(feeRevenueBalance, fee, normalizedAsset);
+
+        // 4. Record ledger entries for user spot balance (debit for unreserve, credit for fee)
+        Long userSpotDebitEntryId = idGenerator.newLong();
+        Long userSpotCreditEntryId = idGenerator.newLong();
+        Long feeRevenueEntryId = idGenerator.newLong();
+        Long userMarginCreditEntryId = idGenerator.newLong();
+
+        // User SPOT_MAIN debit (unreserve trade value + fee)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotDebitEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, tradeValue.add(fee).negate(), userSpotCreditEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt()));
+
+        // User ISOLATED_MARGIN credit (trade value)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userMarginCreditEntryId, updatedMarginBalance.getAccountId(), userId, normalizedAsset, tradeValue, userSpotDebitEntryId, updatedMarginBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt()));
+
+        // Platform FEE_REVENUE credit (fee)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(feeRevenueEntryId, updatedFeeRevenueBalance.getAccountId(), null, normalizedAsset, fee, userSpotCreditEntryId, updatedFeeRevenueBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt()));
+
+        // Publish LedgerEntryCreated events
+        ledgerEventPublisher.publishLedgerEntryCreated(userSpotDebitEntryId, userId, normalizedAsset, tradeValue.negate(), BigDecimal.ZERO, updatedSpotBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT, event.instrumentId(), event.executedAt());
+        ledgerEventPublisher.publishLedgerEntryCreated(userMarginCreditEntryId, userId, normalizedAsset, tradeValue, BigDecimal.ZERO, updatedMarginBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT, event.instrumentId(), event.executedAt());
+        ledgerEventPublisher.publishLedgerEntryCreated(feeRevenueEntryId, null, normalizedAsset, fee, BigDecimal.ZERO, updatedFeeRevenueBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.FEE, event.instrumentId(), event.executedAt());
+    }
+
+    private void processClosePosition(TradeExecutedEvent event, open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse order, boolean isMaker, AssetSymbol normalizedAsset, String referenceId) {
+        BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
+        Long userId = isMaker ? event.makerUserId() : event.takerUserId();
+        BigDecimal realizedPnl = (event.price().subtract(order.closeCostPrice())).multiply(event.quantity());
+
+        // 1. Update ISOLATED_MARGIN: Decrease balance (cost basis + realized PnL)
+        LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
+        BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity());
+        BigDecimal totalDecreaseFromMargin = costBasis.add(realizedPnl);
+        LedgerBalance updatedMarginBalance = retryUpdateForWithdrawal(marginBalance, totalDecreaseFromMargin, userId, normalizedAsset);
+
+        // 2. Update SPOT_MAIN: Increase available balance with proceeds (cost basis + realized PnL - fee)
+        LedgerBalance spotBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
+        BigDecimal releaseAmountToSpot = totalDecreaseFromMargin.subtract(fee);
+        LedgerBalance updatedSpotBalance = retryUpdateForDeposit(spotBalance, releaseAmountToSpot, userId, normalizedAsset);
+
+        // 3. Platform account for fee revenue
+        PlatformAccount feeRevenueAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.FEE_REVENUE, PlatformAccountCategory.REVENUE, PlatformAccountStatus.ACTIVE);
+        PlatformBalance feeRevenueBalance = platformBalanceRepository.getOrCreate(feeRevenueAccount.getAccountId(), feeRevenueAccount.getAccountCode(), normalizedAsset);
+        PlatformBalance updatedFeeRevenueBalance = retryUpdateForPlatformDeposit(feeRevenueBalance, fee, normalizedAsset);
+
+        // 4. Record ledger entries
+        Long userMarginDebitEntryId = idGenerator.newLong();
+        Long userSpotCreditEntryId = idGenerator.newLong();
+        Long feeRevenueEntryId = idGenerator.newLong();
+
+        // User ISOLATED_MARGIN debit (cost basis + realized PnL)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userMarginDebitEntryId, updatedMarginBalance.getAccountId(), userId, normalizedAsset, totalDecreaseFromMargin.negate(), userSpotCreditEntryId, updatedMarginBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt()));
+
+        // User SPOT_MAIN credit (proceeds)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotCreditEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, releaseAmountToSpot, userMarginDebitEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt()));
+
+        // Platform FEE_REVENUE credit (fee)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(feeRevenueEntryId, updatedFeeRevenueBalance.getAccountId(), null, normalizedAsset, fee, userSpotCreditEntryId, updatedFeeRevenueBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt()));
+
+        // Publish LedgerEntryCreated events
+        ledgerEventPublisher.publishLedgerEntryCreated(userMarginDebitEntryId, userId, normalizedAsset, totalDecreaseFromMargin.negate(), BigDecimal.ZERO, updatedMarginBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT, event.instrumentId(), event.executedAt());
+        ledgerEventPublisher.publishLedgerEntryCreated(userSpotCreditEntryId, userId, normalizedAsset, releaseAmountToSpot, BigDecimal.ZERO, updatedSpotBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT, event.instrumentId(), event.executedAt());
+        ledgerEventPublisher.publishLedgerEntryCreated(feeRevenueEntryId, null, normalizedAsset, fee, BigDecimal.ZERO, updatedFeeRevenueBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.FEE, event.instrumentId(), event.executedAt());
+    }
+
+
 
     private LedgerBalance retryUpdateForFreeze(LedgerBalance balance,
                                                BigDecimal amount,
@@ -270,22 +330,27 @@ public class LedgerTransactionDomainService {
                 "Failed to freeze funds for user=" + userId + " order=" + orderId);
     }
 
-    private LedgerBalance retryUpdateForTrade(LedgerBalance balance,
-                                              BigDecimal amount,
-                                              Long userId,
-                                              AssetSymbol asset,
-                                              Long tradeId) {
+    private LedgerBalance unfreezeAndDebitSpotBalance(LedgerBalance balance,
+                                                      BigDecimal amount,
+                                                      Long userId,
+                                                      AssetSymbol asset,
+                                                      Long tradeId) {
         LedgerBalance current = balance;
         int attempts = 0;
         while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
             int expectedVersion = current.safeVersion();
+            BigDecimal available = safeDecimal(current.getAvailable());
             BigDecimal reserved = safeDecimal(current.getReserved());
+
+            // Ensure there are enough reserved funds to unfreeze, and enough available funds after unfreezing to cover the debit
             if (reserved.compareTo(amount) < 0) {
                 throw new IllegalStateException("Insufficient reserved balance for user=" + userId + ", trade=" + tradeId);
             }
-            BigDecimal totalBalance = safeDecimal(current.getBalance());
+            
+            // Unfreeze the amount from reserved, and debit from available/balance
             current.setReserved(reserved.subtract(amount));
-            current.setBalance(totalBalance.subtract(amount));
+            current.setAvailable(available.subtract(amount)); // This should already be covered by the initial freeze
+            current.setBalance(current.getBalance().subtract(amount));
             current.setVersion(expectedVersion + 1);
             boolean updated = ledgerBalanceRepository.updateSelectiveBy(
                     current,
@@ -299,7 +364,7 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadLedgerBalance(current.getAccountId(), asset);
         }
-        throw new OptimisticLockingFailureException("Failed to settle trade for user=" + userId + ", trade=" + tradeId);
+        throw new OptimisticLockingFailureException("Failed to unfreeze and debit spot balance for user=" + userId + ", trade=" + tradeId);
     }
 
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,

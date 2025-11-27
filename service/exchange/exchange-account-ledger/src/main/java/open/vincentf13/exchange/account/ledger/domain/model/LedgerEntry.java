@@ -2,12 +2,12 @@ package open.vincentf13.exchange.account.ledger.domain.model;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
 import java.math.BigDecimal;
@@ -29,14 +29,16 @@ public class LedgerEntry {
     @NotNull
     private AssetSymbol asset;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.ZERO, inclusive = true)
     private BigDecimal amount;
     @NotNull
     private Direction direction;
+    @NotNull
     private Long counterpartyEntryId;
+    @NotNull
     private BigDecimal balanceAfter;
     @NotNull
     private ReferenceType referenceType;
+    @NotNull
     private String referenceId;
     @NotNull
     private EntryType entryType;
@@ -248,6 +250,28 @@ public class LedgerEntry {
                 .entryType(EntryType.DEPOSIT)
                 .description(description)
                 .eventTime(eventTime)
+                .build();
+    }
+
+    public static LedgerEntry settlement(Long entryId, Long accountId, Long userId, AssetSymbol asset, BigDecimal amount,
+                                       Long counterpartyEntryId, BigDecimal balanceAfter, String referenceId,
+                                       Long orderId, Long instrumentId, Instant eventTime) {
+        return LedgerEntry.builder()
+                .entryId(entryId)
+                .ownerType(OwnerType.USER)
+                .accountId(accountId)
+                .userId(userId)
+                .asset(asset)
+                .amount(amount)
+                .direction(amount.compareTo(BigDecimal.ZERO) >= 0 ? Direction.DEBIT : Direction.CREDIT)
+                .counterpartyEntryId(counterpartyEntryId)
+                .balanceAfter(balanceAfter)
+                .referenceType(ReferenceType.TRADE)
+                .referenceId(referenceId)
+                .entryType(EntryType.TRADE_SETTLEMENT)
+                .description("Trade settlement for order " + orderId)
+                .eventTime(eventTime)
+                .createdAt(Instant.now())
                 .build();
     }
 }

@@ -1,8 +1,8 @@
 package open.vincentf13.exchange.order.sdk.rest.api;
 
 import jakarta.validation.Valid;
-import open.vincentf13.exchange.order.sdk.enums.OrderCreateRequest;
-import open.vincentf13.exchange.order.sdk.enums.OrderResponse;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.sdk.auth.auth.Jwt;
 import open.vincentf13.sdk.auth.auth.PrivateAPI;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;

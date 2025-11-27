@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.sdk.enums;
+package open.vincentf1e.exchange.order.sdk.rest.dto;
 
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderStatus;

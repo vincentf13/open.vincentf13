@@ -6,7 +6,7 @@ import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
-import open.vincentf13.exchange.order.sdk.enums.OrderResponse;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;

@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.order.sdk.enums;
+package open.vincentf13.exchange.order.sdk.rest.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;

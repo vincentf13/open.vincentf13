@@ -18,6 +18,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawal
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
+import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderClient;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class LedgerBalanceCommandService {
 
     private final LedgerTransactionDomainService ledgerTransactionDomainService;
     private final LedgerEventPublisher ledgerEventPublisher;
+    private final ExchangeOrderClient exchangeOrderClient;
 
     @Transactional
     public LedgerDepositResponse deposit(@NotNull @Valid LedgerDepositRequest request) {
@@ -90,16 +92,12 @@ public class LedgerBalanceCommandService {
 
     @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
-        ledgerTransactionDomainService.settleTrade(
-                event.tradeId(),
-                event.instrumentId(), event.quoteAsset(), event.counterpartyOrderId(), event.orderId(),
-                event.price(),
-                event.quantity(),
-                event.makerFee(),
-                event.takerFee(),
-                event.makerUserId(),
-                event.takerUserId(),
-                event.executedAt()
-        );
+        // Handle Maker Side
+        open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse makerOrder = exchangeOrderClient.getOrder(event.orderId());
+        ledgerTransactionDomainService.settleTrade(event, makerOrder, true);
+
+        // Handle Taker Side
+        open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse takerOrder = exchangeOrderClient.getOrder(event.counterpartyOrderId());
+        ledgerTransactionDomainService.settleTrade(event, takerOrder, false);
     }
 }
