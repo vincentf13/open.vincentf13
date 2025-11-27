@@ -1,5 +1,6 @@
-package open.vincentf13.sdk.auth.config;
+package open.vincentf13.sdk.auth.auth.config;
 
+import open.vincentf13.sdk.auth.apikey.config.ApiKeyAutoConfig;
 import open.vincentf13.sdk.auth.apikey.ApiKeyFilter;
 import open.vincentf13.sdk.auth.auth.AnnotationBasedAuthorizationManager;
 import open.vincentf13.sdk.auth.jwt.JwtFilter;

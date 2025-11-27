@@ -1,7 +1,6 @@
-package open.vincentf13.sdk.auth.config;
+package open.vincentf13.sdk.auth.apikey.config;
 
 import open.vincentf13.sdk.auth.apikey.ApiKeyFilter;
-import open.vincentf13.sdk.auth.apikey.ApiKeyProperties;
 import open.vincentf13.sdk.auth.apikey.ApiKeyValidator;
 import open.vincentf13.sdk.auth.apikey.ApiKeyValidatorImpl;
 import org.springframework.beans.factory.annotation.Qualifier;

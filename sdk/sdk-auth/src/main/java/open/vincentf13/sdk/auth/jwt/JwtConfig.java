@@ -1,9 +1,7 @@
-package open.vincentf13.sdk.auth.config;
+package open.vincentf13.sdk.auth.jwt;
 
-import open.vincentf13.sdk.auth.jwt.JwtFilter;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;

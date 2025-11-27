@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth.config;
+package open.vincentf13.sdk.auth.auth.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

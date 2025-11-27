@@ -1,5 +1,7 @@
 package open.vincentf13.sdk.auth.apikey;
 
+import open.vincentf13.sdk.auth.apikey.config.ApiKeyProperties;
+
 import java.util.Set;
 
 /**

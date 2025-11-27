@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth.apikey;
+package open.vincentf13.sdk.auth.apikey.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
