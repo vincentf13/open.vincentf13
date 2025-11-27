@@ -29,6 +29,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -185,7 +186,7 @@ public class LedgerTransactionDomainService {
     }
 
     @Transactional
-    public void settleTrade(@NotNull @Valid TradeExecutedEvent event, @NotNull @Valid open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse order, boolean isMaker) {
+    public void settleTrade(@NotNull @Valid TradeExecutedEvent event, @NotNull @Valid OrderResponse order, boolean isMaker) {
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(event.quoteAsset());
         String referenceId = event.tradeId() + ":" + (isMaker ? "maker" : "taker");
 
@@ -214,7 +215,7 @@ public class LedgerTransactionDomainService {
         }
     }
 
-    private void processOpenPosition(TradeExecutedEvent event, open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse order, boolean isMaker, AssetSymbol normalizedAsset, String referenceId) {
+    private void processOpenPosition(TradeExecutedEvent event, OrderResponse order, boolean isMaker, AssetSymbol normalizedAsset, String referenceId) {
         BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
         BigDecimal tradeValue = event.price().multiply(event.quantity());
         Long userId = isMaker ? event.makerUserId() : event.takerUserId();

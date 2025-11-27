@@ -24,7 +24,7 @@ public class OrderController implements OrderApi {
     }
 
     @Override
-    public OpenApiResponse<OrderResponse> get(Long orderId) {
+    public OpenApiResponse<OrderResponse> getOrder(Long orderId) {
         return OpenApiResponse.success(orderQueryService.get(orderId));
     }
 }

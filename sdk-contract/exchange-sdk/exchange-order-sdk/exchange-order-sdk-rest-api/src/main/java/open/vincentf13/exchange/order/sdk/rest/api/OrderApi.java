@@ -22,5 +22,5 @@ public interface OrderApi {
     @GetMapping("/{orderId}")
     @Jwt
     @PrivateAPI
-    OpenApiResponse<OrderResponse> get(@PathVariable("orderId") Long orderId);
+    OpenApiResponse<OrderResponse> getOrder(@PathVariable("orderId") Long orderId);
 }

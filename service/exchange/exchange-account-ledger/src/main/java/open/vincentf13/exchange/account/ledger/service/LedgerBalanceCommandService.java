@@ -19,6 +19,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawal
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderClient;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
@@ -93,11 +94,11 @@ public class LedgerBalanceCommandService {
     @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
         // Handle Maker Side
-        open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse makerOrder = exchangeOrderClient.getOrder(event.orderId());
+        OrderResponse makerOrder = exchangeOrderClient.getOrder(event.orderId());
         ledgerTransactionDomainService.settleTrade(event, makerOrder, true);
 
         // Handle Taker Side
-        open.vincentf1e.exchange.order.sdk.rest.dto.OrderResponse takerOrder = exchangeOrderClient.getOrder(event.counterpartyOrderId());
+        OrderResponse takerOrder = exchangeOrderClient.getOrder(event.counterpartyOrderId());
         ledgerTransactionDomainService.settleTrade(event, takerOrder, false);
     }
 }
