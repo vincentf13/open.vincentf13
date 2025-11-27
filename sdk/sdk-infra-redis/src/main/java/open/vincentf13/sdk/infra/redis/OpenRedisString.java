@@ -1,11 +1,17 @@
 package open.vincentf13.sdk.infra.redis;
 
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -46,6 +52,9 @@ public final class OpenRedisString {
 
     public static OpenRedisString getInstance() {
         return INSTANCE;
+    }
+
+    public record KeyValueTtl(String key, Object value, Duration ttl) {
     }
 
 
@@ -104,6 +113,74 @@ public final class OpenRedisString {
     }
 
     /*
+     * 批次非阻塞寫入，逐筆帶入 TTL 並加抖動。
+     * 例如：
+     *   List<KeyValueTtl> batch = List.of(
+     *       new KeyValueTtl("user:1", user1, Duration.ofMinutes(5)),
+     *       new KeyValueTtl("user:2", user2, Duration.ofMinutes(5))
+     *   );
+     *   OpenRedisString.setBatch(batch);
+     */
+    public static void setBatch(Collection<KeyValueTtl> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        StringRedisTemplate stringRedis = stringRedisTemplate();
+        SessionCallback<Object> callback = new SessionCallback<>() {
+            @Override
+            public <K, V> Object execute(RedisOperations<K, V> operations) {
+                @SuppressWarnings("unchecked")
+                RedisOperations<String, String> ops = (RedisOperations<String, String>) operations;
+                entries.stream()
+                    .filter(Objects::nonNull)
+                    .forEach(entry -> {
+                        Duration ttlWithJitter = withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
+                        ops.opsForValue().set(Objects.requireNonNull(entry.key(), "key is required"),
+                            OpenObjectMapper.toJson(entry.value()), ttlWithJitter);
+                    });
+                return null;
+            }
+        };
+        stringRedis.executePipelined(callback);
+    }
+
+    /*
+     * 批次讀取：所有 key 同型別。
+     * 例如：
+     *   Map<String, User> users = OpenRedisString.getBatch(List.of("user:1", "user:2"), User.class);
+     */
+    public static <T> Map<String, T> getBatch(Collection<String> keys, Class<T> targetType) {
+        Objects.requireNonNull(targetType, "type is required");
+        Map<String, Class<?>> mapping = new LinkedHashMap<>();
+        if (keys != null) {
+            keys.forEach(key -> mapping.put(Objects.requireNonNull(key, "key is required"), targetType));
+        }
+        Map<String, Object> raw = getBatchInternal(mapping);
+        Map<String, T> result = new LinkedHashMap<>();
+        raw.forEach((key, value) -> result.put(key, targetType.cast(value)));
+        return result;
+    }
+
+    /*
+     * 批次讀取：每個 key 對應不同型別。
+     * 例如：
+     *   Map<String, Object> data = OpenRedisString.getBatch(
+     *       List.of(Map.of("user:1", User.class, "profile:1", Profile.class))
+     *   );
+     */
+    public static Map<String, Object> getBatch(Collection<Map<String, Class<?>>> keyTypeMappings) {
+        Map<String, Class<?>> flattened = new LinkedHashMap<>();
+        if (keyTypeMappings != null) {
+            keyTypeMappings.stream()
+                .filter(Objects::nonNull)
+                .forEach(map -> map.forEach((key, type) -> flattened.put(
+                    Objects.requireNonNull(key, "key is required"),
+                    Objects.requireNonNull(type, "type is required"))));
+        }
+        return getBatchInternal(flattened);
+    }
+
+    /*
      * fire-and-forget 模式，不關心結果。
      * 例如：
      *   OpenRedisString.setAsyncFireAndForget("cache:foo", payload, Duration.ofSeconds(30));
@@ -129,6 +206,29 @@ public final class OpenRedisString {
     private static Duration withJitter(Duration ttl) {
         long jitterMs = (long) (Math.random() * Math.max(1, Duration.ofSeconds(30).toMillis()));
         return ttl.plus(Duration.ofMillis(jitterMs));
+    }
+
+    private static Map<String, Object> getBatchInternal(Map<String, Class<?>> keyTypeMapping) {
+        if (keyTypeMapping == null || keyTypeMapping.isEmpty()) {
+            return Map.of();
+        }
+        RedisTemplate<String, Object> redis = redisTemplate();
+        SessionCallback<Object> callback = new SessionCallback<>() {
+            @Override
+            public <K, V> Object execute(RedisOperations<K, V> operations) {
+                @SuppressWarnings("unchecked")
+                RedisOperations<String, Object> ops = (RedisOperations<String, Object>) operations;
+                keyTypeMapping.keySet().forEach(ops.opsForValue()::get);
+                return null;
+            }
+        };
+        Iterator<Object> values = redis.executePipelined(callback).iterator();
+        Map<String, Object> result = new LinkedHashMap<>();
+        keyTypeMapping.forEach((key, type) -> {
+            Object value = values.hasNext() ? values.next() : null;
+            result.put(key, OpenObjectMapper.convert(value, type));
+        });
+        return result;
     }
 
     private static RedisTemplate<String, Object> redisTemplate() {
