@@ -9,6 +9,8 @@ public enum MarketDataEvent implements OpenEvent {
     MARK_PRICE_CACHE_UPDATED("MarkPriceCacheUpdated", "Mark price updated in cache"),
     MARK_PRICE_OUTBOX_APPENDED("MarkPriceOutboxAppended", "MarkPriceUpdated appended to outbox"),
     ORDERBOOK_APPLY_FAILED("OrderBookApplyFailed", "Failed to apply OrderBookUpdated event"),
+    ORDERBOOK_PAYLOAD_INVALID("OrderBookPayloadInvalid", "Invalid OrderBookUpdated payload"),
+    TRADE_EVENT_PAYLOAD_INVALID("TradeEventPayloadInvalid", "Invalid TradeExecuted payload"),
     KLINE_CLEANUP_TRIGGERED("KlineCleanupTriggered", "Kline bucket cleanup triggered");
 
     private final String event;

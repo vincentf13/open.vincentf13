@@ -23,8 +23,8 @@ public class MatchingTradeEventListener {
     public void onTradeExecuted(@Payload TradeExecutedEvent event, Acknowledgment acknowledgment) {
         try {
             OpenValidator.validateOrThrow(event);
-        }catch (Exception e) {
-            OpenLog.warn(LedgerEvent.MATCHING_TRADE_PAYLOAD_MISSING, "event", event);
+        } catch (Exception e) {
+            OpenLog.warn(LedgerEvent.MATCHING_TRADE_PAYLOAD_MISSING, e, "event", event);
             acknowledgment.acknowledge();
             return;
         }

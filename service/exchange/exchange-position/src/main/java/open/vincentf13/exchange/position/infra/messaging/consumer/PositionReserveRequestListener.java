@@ -10,8 +10,9 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionCommandService.PositionReserveOutcome;
-import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.exchange.position.infra.PositionEvent;
+import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -33,7 +34,10 @@ public class PositionReserveRequestListener {
             groupId = "${exchange.position.reserve.consumer-group:exchange-position-reserve}"
     )
     public void handleReserveRequest(@Payload PositionReserveRequestedEvent event, Acknowledgment acknowledgment) {
-        if (event == null) {
+        try {
+            OpenValidator.validateOrThrow(event);
+        } catch (Exception e) {
+            OpenLog.warn(PositionEvent.POSITION_RESERVE_PAYLOAD_INVALID, e, "event", event);
             acknowledgment.acknowledge();
             return;
         }

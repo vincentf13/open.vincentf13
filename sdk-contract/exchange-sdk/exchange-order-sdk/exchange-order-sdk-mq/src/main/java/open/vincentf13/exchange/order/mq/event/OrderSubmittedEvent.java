@@ -13,7 +13,7 @@ import java.time.Instant;
 public record OrderSubmittedEvent(
         @NotNull Long orderId,
         @NotNull Long userId,
-        @org.jetbrains.annotations.NotNull Long instrumentId,
+        @NotNull Long instrumentId,
         @NotNull OrderSide side,
         @NotNull OrderType type,
         @NotNull OrderStatus status,

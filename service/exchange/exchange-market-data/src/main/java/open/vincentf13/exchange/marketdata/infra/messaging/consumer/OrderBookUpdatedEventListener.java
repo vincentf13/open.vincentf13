@@ -6,6 +6,7 @@ import open.vincentf13.exchange.marketdata.infra.cache.OrderBookCacheService;
 import open.vincentf13.exchange.marketdata.infra.MarketDataEvent;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
+import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
@@ -28,7 +29,10 @@ public class OrderBookUpdatedEventListener {
             groupId = "${open.vincentf13.exchange.marketdata.orderbook.consumer-group:exchange-market-data-orderbook}"
     )
     public void onOrderBookUpdated(@Payload OrderBookUpdatedEvent event, Acknowledgment acknowledgment) {
-        if (event == null) {
+        try {
+            OpenValidator.validateOrThrow(event);
+        } catch (Exception e) {
+            OpenLog.warn(MarketDataEvent.ORDERBOOK_PAYLOAD_INVALID, e, "event", event);
             acknowledgment.acknowledge();
             return;
         }

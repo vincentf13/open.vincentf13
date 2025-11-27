@@ -11,6 +11,7 @@ import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
+import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
@@ -34,7 +35,10 @@ public class PositionReserveEventListener {
             groupId = "${exchange.order.position.consumer-group:exchange-order-position}"
     )
     public void onPositionReserved(@Payload PositionReservedEvent event, Acknowledgment acknowledgment) {
-        if (event == null) {
+        try {
+            OpenValidator.validateOrThrow(event);
+        } catch (Exception e) {
+            OpenLog.warn(OrderEvent.ORDER_POSITION_PAYLOAD_INVALID, e, "event", event);
             acknowledgment.acknowledge();
             return;
         }
@@ -47,7 +51,10 @@ public class PositionReserveEventListener {
             groupId = "${exchange.order.position.consumer-group:exchange-order-position}"
     )
     public void onPositionReserveRejected(@Payload PositionReserveRejectedEvent event, Acknowledgment acknowledgment) {
-        if (event == null) {
+        try {
+            OpenValidator.validateOrThrow(event);
+        } catch (Exception e) {
+            OpenLog.warn(OrderEvent.ORDER_POSITION_PAYLOAD_INVALID, e, "event", event);
             acknowledgment.acknowledge();
             return;
         }

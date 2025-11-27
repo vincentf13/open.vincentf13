@@ -17,7 +17,10 @@ public enum OrderEvent implements OpenEvent {
     ORDER_MARK_ACCEPTED("OrderMarkAccepted", "Order marked ACCEPTED after funds frozen"),
     ORDER_FAILURE_SKIP_NOT_FOUND("OrderFailureSkipNotFound", "Skip failure event, order not found"),
     ORDER_FAILURE_OPTIMISTIC_LOCK("OrderFailureOptimisticLock", "Optimistic lock conflict while marking order failed"),
-    ORDER_MARK_FAILED("OrderMarkFailed", "Order marked FAILED");
+    ORDER_MARK_FAILED("OrderMarkFailed", "Order marked FAILED"),
+    ORDER_RISK_PAYLOAD_INVALID("OrderRiskPayloadInvalid", "Invalid risk event payload"),
+    ORDER_LEDGER_PAYLOAD_INVALID("OrderLedgerPayloadInvalid", "Invalid ledger event payload"),
+    ORDER_POSITION_PAYLOAD_INVALID("OrderPositionPayloadInvalid", "Invalid position event payload");
 
     private final String event;
     private final String message;

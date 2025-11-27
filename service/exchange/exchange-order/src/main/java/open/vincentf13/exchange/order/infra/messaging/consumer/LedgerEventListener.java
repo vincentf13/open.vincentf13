@@ -12,6 +12,7 @@ import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandle
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
+import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
@@ -36,7 +37,10 @@ public class LedgerEventListener {
             groupId = "${open.vincentf13.exchange.order.ledger.consumer-group:exchange-order-ledger}"
     )
     public void onFundsFrozen(@Payload FundsFrozenEvent event, Acknowledgment acknowledgment) {
-        if (event == null) {
+        try {
+            OpenValidator.validateOrThrow(event);
+        } catch (Exception e) {
+            OpenLog.warn(OrderEvent.ORDER_LEDGER_PAYLOAD_INVALID, e, "event", event);
             acknowledgment.acknowledge();
             return;
         }
@@ -58,7 +62,10 @@ public class LedgerEventListener {
             groupId = "${open.vincentf13.exchange.order.ledger.consumer-group:exchange-order-ledger}"
     )
     public void onFundsFreezeFailed(@Payload FundsFreezeFailedEvent event, Acknowledgment acknowledgment) {
-        if (event == null) {
+        try {
+            OpenValidator.validateOrThrow(event);
+        } catch (Exception e) {
+            OpenLog.warn(OrderEvent.ORDER_LEDGER_PAYLOAD_INVALID, e, "event", event);
             acknowledgment.acknowledge();
             return;
         }
