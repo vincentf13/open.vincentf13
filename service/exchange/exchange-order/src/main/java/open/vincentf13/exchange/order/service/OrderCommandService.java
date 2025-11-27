@@ -1,11 +1,13 @@
 package open.vincentf13.exchange.order.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
+import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.enums.OrderCreateRequest;
 import open.vincentf13.exchange.order.sdk.enums.OrderResponse;
@@ -61,10 +63,9 @@ public class OrderCommandService {
             OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
                     "userId", userId,
                     "clientOrderId", request.clientOrderId());
-            return orderRepository.findOne(Order.builder()
-                            .userId(userId)
-                            .clientOrderId(request.clientOrderId())
-                            .build())
+            return orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
+                            .eq(OrderPO::getUserId, userId)
+                            .eq(OrderPO::getClientOrderId, request.clientOrderId()))
                     .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
                     .orElseThrow(() -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                                         Map.of("userId", userId, "clientOrderId", request.clientOrderId())));

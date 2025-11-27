@@ -1,8 +1,10 @@
 package open.vincentf13.exchange.order.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
+import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.enums.OrderResponse;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -20,7 +22,8 @@ public class OrderQueryService {
 
     @Transactional(readOnly = true)
     public OrderResponse get(Long orderId) {
-        Order order = orderRepository.findOne(Order.builder().orderId(orderId).build())
+        Order order = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
+                        .eq(OrderPO::getOrderId, orderId))
                 .orElseThrow(() -> OpenException.of(OrderErrorCode.ORDER_NOT_FOUND,
                                                     Map.of("orderId", orderId)));
         return OpenObjectMapper.convert(order, OrderResponse.class);

@@ -1,15 +1,17 @@
 package open.vincentf13.exchange.order.infra.messaging.consumer;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
+import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
+import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.exchange.order.infra.OrderEvent;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -60,18 +62,18 @@ public class PositionReserveEventListener {
                 .submittedAt(now)
                 .closeCostPrice(event.avgOpenPrice())
                 .build();
-        boolean updated = orderRepository.updateSelectiveBy(
-                updateRecord,
-                event.orderId(),
-                event.userId(),
-                null,
-                OrderStatus.PENDING);
+        boolean updated = orderRepository.updateSelective(updateRecord,
+                Wrappers.<OrderPO>lambdaUpdate()
+                        .eq(OrderPO::getOrderId, event.orderId())
+                        .eq(OrderPO::getUserId, event.userId())
+                        .eq(OrderPO::getStatus, OrderStatus.PENDING));
         if (!updated) {
             OpenLog.warn( OrderEvent.ORDER_STATUS_CONFLICT, null,
                     "orderId", event.orderId());
             return;
         }
-        Optional<Order> optionalOrder = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
+        Optional<Order> optionalOrder = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
+                .eq(OrderPO::getOrderId, event.orderId()));
         if (optionalOrder.isEmpty()) {
             OpenLog.warn( OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, null,
                     "orderId", event.orderId());
@@ -90,18 +92,18 @@ public class PositionReserveEventListener {
         Order updateRecord = Order.builder()
                 .status(OrderStatus.FAILED)
                 .build();
-        boolean updated = orderRepository.updateSelectiveBy(
-                updateRecord,
-                event.orderId(),
-                event.userId(),
-                null,
-                OrderStatus.PENDING);
+        boolean updated = orderRepository.updateSelective(updateRecord,
+                Wrappers.<OrderPO>lambdaUpdate()
+                        .eq(OrderPO::getOrderId, event.orderId())
+                        .eq(OrderPO::getUserId, event.userId())
+                        .eq(OrderPO::getStatus, OrderStatus.PENDING));
         if (!updated) {
             OpenLog.warn( OrderEvent.ORDER_STATUS_CONFLICT, null,
                     "orderId", event.orderId());
             return;
         }
-        Optional<Order> optionalOrder = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
+        Optional<Order> optionalOrder = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
+                .eq(OrderPO::getOrderId, event.orderId()));
         if (optionalOrder.isPresent()) {
             Order order = optionalOrder.get();
             order.markStatus(OrderStatus.FAILED, now);

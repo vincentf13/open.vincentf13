@@ -1,20 +1,9 @@
 package open.vincentf13.exchange.order.infra.persistence.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
-import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
-import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Mapper;
 
-import java.util.List;
-
-public interface OrderMapper {
-
-    int insertSelective(OrderPO order);
-
-    List<OrderPO> findBy(OrderPO condition);
-
-    int updateSelectiveBy(@Param("record") OrderPO record,
-                          @Param("orderId") Long orderId,
-                          @Param("userId") Long userId,
-                          @Param("expectedVersion") Integer expectedVersion,
-                          @Param("currentStatus") OrderStatus currentStatus);
+@Mapper
+public interface OrderMapper extends BaseMapper<OrderPO> {
 }

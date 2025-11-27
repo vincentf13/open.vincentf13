@@ -1,5 +1,8 @@
 package open.vincentf13.exchange.order.infra.persistence.po;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,8 +19,11 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName("orders")
 public class OrderPO {
+    @TableId(value = "order_id", type = IdType.INPUT)
     private Long orderId;
+
     private Long userId;
     private Long instrumentId;
     private String clientOrderId;

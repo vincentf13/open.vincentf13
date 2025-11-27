@@ -1,15 +1,17 @@
 package open.vincentf13.exchange.order.infra.messaging.consumer;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
+import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
+import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
-import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
@@ -39,7 +41,8 @@ public class LedgerEventListener {
             return;
         }
         transactionTemplate.executeWithoutResult(status -> {
-            Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(event.orderId()).build());
+            Optional<Order> optional = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
+                    .eq(OrderPO::getOrderId, event.orderId()));
             if (optional.isEmpty()) {
                 OpenLog.warn(OrderEvent.ORDER_FUNDS_FROZEN_SKIP_NOT_FOUND,
                         "orderId", event.orderId());
@@ -71,7 +74,11 @@ public class LedgerEventListener {
                 .submittedAt(now)
                 .version(currentVersion + 1)
                 .build();
-        boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion, null);
+        boolean updated = orderRepository.updateSelective(updateRecord,
+                Wrappers.<OrderPO>lambdaUpdate()
+                        .eq(OrderPO::getOrderId, order.getOrderId())
+                        .eq(OrderPO::getUserId, order.getUserId())
+                        .eq(OrderPO::getVersion, currentVersion));
         if (!updated) {
             OpenLog.warn(OrderEvent.ORDER_FUNDS_FROZEN_LOCK_CONFLICT,
                     "orderId", order.getOrderId());

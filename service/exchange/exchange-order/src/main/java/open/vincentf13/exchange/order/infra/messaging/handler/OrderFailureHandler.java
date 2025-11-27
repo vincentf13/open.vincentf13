@@ -1,7 +1,9 @@
 package open.vincentf13.exchange.order.infra.messaging.handler;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
+import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.order.infra.OrderEvent;
@@ -24,7 +26,8 @@ public class OrderFailureHandler {
             return;
         }
         transactionTemplate.executeWithoutResult(status -> {
-            Optional<Order> optional = orderRepository.findOne(Order.builder().orderId(orderId).build());
+            Optional<Order> optional = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
+                    .eq(OrderPO::getOrderId, orderId));
             if (optional.isEmpty()) {
                 OpenLog.warn(OrderEvent.ORDER_FAILURE_SKIP_NOT_FOUND,
                         "stage", stage,
@@ -38,7 +41,11 @@ public class OrderFailureHandler {
                     .status(OrderStatus.FAILED)
                     .version(currentVersion + 1)
                     .build();
-            boolean updated = orderRepository.updateSelectiveBy(updateRecord, order.getOrderId(), order.getUserId(), currentVersion, null);
+            boolean updated = orderRepository.updateSelective(updateRecord,
+                    Wrappers.<OrderPO>lambdaUpdate()
+                            .eq(OrderPO::getOrderId, order.getOrderId())
+                            .eq(OrderPO::getUserId, order.getUserId())
+                            .eq(OrderPO::getVersion, currentVersion));
             if (!updated) {
                 OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK,
                         "orderId", orderId,
