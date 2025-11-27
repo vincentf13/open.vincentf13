@@ -4,7 +4,6 @@ import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionUtils;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Objects;
@@ -13,27 +12,31 @@ import java.util.function.BiConsumer;
 /**
  * 提供 MyBatis Batch Executor 工具。
  */
-@Component
-public class OpenMybatisBatchExecutor {
+public final class OpenMybatisBatchExecutor {
 
     public static final int DEFAULT_FLUSH_THRESHOLD = 1000;
 
-    private final SqlSessionFactory sqlSessionFactory;
+    private static volatile SqlSessionFactory sqlSessionFactory;
 
-    public OpenMybatisBatchExecutor(SqlSessionFactory sqlSessionFactory) {
-        this.sqlSessionFactory = Objects.requireNonNull(sqlSessionFactory, "sqlSessionFactory");
+    private OpenMybatisBatchExecutor() {
     }
 
-    public <Mapper, Record> void execute(Class<Mapper> mapperType,
-                                        List<Record> records,
-                                        BiConsumer<Mapper, Record> action) {
+    public static void register(SqlSessionFactory factory) {
+        Objects.requireNonNull(factory, "sqlSessionFactory");
+        sqlSessionFactory = factory;
+    }
+
+    public static <Mapper, Record> void execute(Class<Mapper> mapperType,
+                                                List<Record> records,
+                                                BiConsumer<Mapper, Record> action) {
         execute(mapperType, records, action, DEFAULT_FLUSH_THRESHOLD);
     }
 
-    public <Mapper, Record> void execute(Class<Mapper> mapperType,
-                                        List<Record> records,
-                                        BiConsumer<Mapper, Record> action,
-                                        int flushThreshold) {
+    public static <Mapper, Record> void execute(Class<Mapper> mapperType,
+                                                List<Record> records,
+                                                BiConsumer<Mapper, Record> action,
+                                                int flushThreshold) {
+        Objects.requireNonNull(sqlSessionFactory, "sqlSessionFactory");
         Objects.requireNonNull(mapperType, "mapperType");
         Objects.requireNonNull(records, "records");
         Objects.requireNonNull(action, "action");

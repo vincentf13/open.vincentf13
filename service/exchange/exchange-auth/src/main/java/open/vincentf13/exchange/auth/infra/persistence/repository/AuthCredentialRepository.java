@@ -27,7 +27,6 @@ public class AuthCredentialRepository {
 
     private final AuthCredentialMapper mapper;
     private final DefaultIdGenerator idGenerator;
-    private final OpenMybatisBatchExecutor batchExecutor;
 
     public Long insertSelective(@NotNull @Valid AuthCredential credential) {
         if (credential.getId() == null) {
@@ -64,6 +63,6 @@ public class AuthCredentialRepository {
                 .map(credential -> OpenObjectMapper.convert(credential, AuthCredentialPO.class))
                 .toList();
 
-        batchExecutor.execute(AuthCredentialMapper.class, records, AuthCredentialMapper::insert);
+        OpenMybatisBatchExecutor.execute(AuthCredentialMapper.class, records, AuthCredentialMapper::insert);
     }
 }

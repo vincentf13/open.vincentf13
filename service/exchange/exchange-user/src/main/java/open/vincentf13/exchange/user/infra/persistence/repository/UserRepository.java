@@ -25,7 +25,6 @@ public class UserRepository {
 
     private final UserMapper mapper;
     private final DefaultIdGenerator idGenerator;
-    private final OpenMybatisBatchExecutor batchExecutor;
 
     public void insertSelective(@NotNull @Valid User user) {
         if (user.getId() == null) {
@@ -59,7 +58,7 @@ public class UserRepository {
         List<UserPO> records = users.stream()
                 .map(user -> OpenObjectMapper.convert(user, UserPO.class))
                 .toList();
-        batchExecutor.execute(UserMapper.class, records, UserMapper::insert);
+        OpenMybatisBatchExecutor.execute(UserMapper.class, records, UserMapper::insert);
     }
 
 }
