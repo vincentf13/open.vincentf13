@@ -197,33 +197,6 @@ public class LedgerEntry {
                 .build();
     }
 
-    public static LedgerEntry tradeSettlement(Long entryId,
-                                              Long accountId,
-                                              Long userId,
-                                              AssetSymbol asset,
-                                              BigDecimal amount,
-                                              BigDecimal balanceAfter,
-                                              Long tradeId,
-                                              Long orderId,
-                                              Long instrumentId,
-                                              Instant eventTime) {
-        return LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(OwnerType.USER)
-                .accountId(accountId)
-                .userId(userId)
-                .asset(asset)
-                .amount(amount)
-                .direction(Direction.DEBIT)
-                .balanceAfter(balanceAfter)
-                .referenceType(EntryType.TRADE.referenceType())
-                .referenceId(tradeId == null ? null : tradeId.toString())
-                .entryType(EntryType.TRADE)
-                .description("Trade executed for order " + orderId + " instrument " + instrumentId)
-                .eventTime(eventTime)
-                .build();
-    }
-
     private static LedgerEntry deposit(Long entryId,
                                        OwnerType ownerType,
                                        Long accountId,
@@ -254,21 +227,21 @@ public class LedgerEntry {
     }
 
     public static LedgerEntry settlement(Long entryId, Long accountId, Long userId, AssetSymbol asset, BigDecimal amount,
-                                       Long counterpartyEntryId, BigDecimal balanceAfter, String referenceId,
-                                       Long orderId, Long instrumentId, Instant eventTime) {
+                                       Direction direction, Long counterpartyEntryId, BigDecimal balanceAfter, String referenceId,
+                                       Long orderId, Long instrumentId, Instant eventTime, EntryType entryType) {
         return LedgerEntry.builder()
                 .entryId(entryId)
-                .ownerType(OwnerType.USER)
+                .ownerType(userId == null ? OwnerType.PLATFORM : OwnerType.USER)
                 .accountId(accountId)
                 .userId(userId)
                 .asset(asset)
                 .amount(amount)
-                .direction(amount.compareTo(BigDecimal.ZERO) >= 0 ? Direction.DEBIT : Direction.CREDIT)
+                .direction(direction)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
                 .referenceType(ReferenceType.TRADE)
                 .referenceId(referenceId)
-                .entryType(EntryType.TRADE_SETTLEMENT)
+                .entryType(entryType)
                 .description("Trade settlement for order " + orderId)
                 .eventTime(eventTime)
                 .createdAt(Instant.now())
