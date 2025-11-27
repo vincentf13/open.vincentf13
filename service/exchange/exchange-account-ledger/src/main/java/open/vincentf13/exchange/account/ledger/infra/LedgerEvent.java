@@ -11,7 +11,8 @@ public enum LedgerEvent implements OpenEvent {
     MATCHING_TRADE_PAYLOAD_MISSING("MatchingTradePayloadMissing", "TradeExecuted payload missing"),
     RISK_MARGIN_IDENTIFIERS_MISSING("RiskMarginIdentifiersMissing", "MarginPreCheckPassed identifiers missing"),
     FUNDS_FROZEN_ENQUEUED("FundsFrozenEnqueued", "FundsFrozen event enqueued"),
-    FUNDS_FREEZE_FAILED_ENQUEUED("FundsFreezeFailedEnqueued", "FundsFreezeFailed event enqueued");
+    FUNDS_FREEZE_FAILED_ENQUEUED("FundsFreezeFailedEnqueued", "FundsFreezeFailed event enqueued"),
+    LEDGER_ENTRY_CREATED_ENQUEUED("LedgerEntryCreatedEnqueued", "LedgerEntryCreated event enqueued");
 
     private final String event;
     private final String message;

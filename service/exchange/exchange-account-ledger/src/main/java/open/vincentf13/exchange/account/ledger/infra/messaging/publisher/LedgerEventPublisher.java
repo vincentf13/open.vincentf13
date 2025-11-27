@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.account.ledger.infra.messaging.publisher;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.LedgerEntryCreatedEvent;
@@ -8,12 +9,12 @@ import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
+import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
@@ -39,7 +40,7 @@ public class LedgerEventPublisher {
                 "reason", reason);
     }
 
-    public void publishLedgerEntryCreated(Long entryId, Long userId, AssetSymbol asset, BigDecimal deltaAvailable, BigDecimal deltaReserved, BigDecimal balanceAfter, ReferenceType referenceType, String referenceId, EntryType entryType, Long instrumentId, Instant eventTime) {
+    public void publishLedgerEntryCreated(Long entryId, Long userId, AssetSymbol asset, BigDecimal deltaAvailable, BigDecimal deltaReserved, BigDecimal balanceAfter, ReferenceType referenceType, String referenceId, EntryType entryType, Long instrumentId) {
         LedgerEntryCreatedEvent event = new LedgerEntryCreatedEvent(
                 entryId,
                 userId,
@@ -51,7 +52,7 @@ public class LedgerEventPublisher {
                 referenceId,
                 entryType.name(),
                 instrumentId,
-                eventTime
+                Instant.now()
         );
         outboxRepository.append(LedgerTopics.LEDGER_ENTRY_CREATED.getTopic(), entryId, event, null);
         OpenLog.info(LedgerEvent.LEDGER_ENTRY_CREATED_ENQUEUED,
@@ -65,7 +66,7 @@ public class LedgerEventPublisher {
                 "referenceId", referenceId,
                 "entryType", entryType,
                 "instrumentId", instrumentId,
-                "eventTime", eventTime
+                "eventTime", event.eventTime()
         );
     }
 }
