@@ -181,10 +181,7 @@ public class LedgerTransactionDomainService {
     }
 
     public LedgerEntry settleTrade(@NotNull Long tradeId,
-                                   @NotNull Long makerOrderId,
-                                   @NotNull Long takerOrderId,
-                                   @NotNull Long instrumentId,
-                                   @NotNull AssetSymbol asset,
+                                   @NotNull Long instrumentId, @NotNull AssetSymbol asset, @NotNull Long takerOrderId, @NotNull Long makerOrderId,
                                    @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN) BigDecimal price,
                                    @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
                                    @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal makerFee,

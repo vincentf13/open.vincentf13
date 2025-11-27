@@ -92,10 +92,7 @@ public class LedgerBalanceCommandService {
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
         ledgerTransactionDomainService.settleTrade(
                 event.tradeId(),
-                event.orderId(),
-                event.counterpartyOrderId(),
-                event.instrumentId(),
-                event.quoteAsset(),
+                event.instrumentId(), event.quoteAsset(), event.counterpartyOrderId(), event.orderId(),
                 event.price(),
                 event.quantity(),
                 event.makerFee(),
