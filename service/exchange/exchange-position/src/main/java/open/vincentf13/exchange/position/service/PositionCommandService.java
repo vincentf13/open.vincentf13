@@ -17,6 +17,9 @@ import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.exchange.position.infra.PositionEvent;
+import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -40,11 +43,11 @@ public class PositionCommandService {
             @NotNull @DecimalMin(value = "0.00000001", inclusive = true) BigDecimal quantity,
             @NotNull PositionSide side
     ) {
-        Position position = positionRepository.findOne(Position.builder()
-                        .userId(userId)
-                        .instrumentId(instrumentId)
-                        .status("ACTIVE")
-                        .build())
+        Position position = positionRepository.findOne(
+                        Wrappers.lambdaQuery(PositionPO.class)
+                                .eq(PositionPO::getUserId, userId)
+                                .eq(PositionPO::getInstrumentId, instrumentId)
+                                .eq(PositionPO::getStatus, "ACTIVE"))
                 .orElse(null);
         if (position == null) {
             return PositionReserveOutcome.rejected("POSITION_NOT_FOUND");
@@ -59,12 +62,14 @@ public class PositionCommandService {
                 .build();
         boolean success = positionRepository.updateSelectiveBy(
                 updateRecord,
-                position.getPositionId(),
-                position.getUserId(),
-                position.getInstrumentId(),
-                side,
-                expectedVersion,
-                "ACTIVE");
+                new LambdaUpdateWrapper<PositionPO>()
+                        .eq(PositionPO::getPositionId, position.getPositionId())
+                        .eq(PositionPO::getUserId, position.getUserId())
+                        .eq(PositionPO::getInstrumentId, position.getInstrumentId())
+                        .eq(PositionPO::getSide, side)
+                        .eq(PositionPO::getStatus, "ACTIVE")
+                        .eq(PositionPO::getVersion, expectedVersion)
+        );
         if (!success) {
             return PositionReserveOutcome.rejected("RESERVE_FAILED");
         }
@@ -75,11 +80,11 @@ public class PositionCommandService {
     public PositionLeverageResponse adjustLeverage(@NotNull Long userId,
                                                    @NotNull Long instrumentId,
                                                    @Valid PositionLeverageRequest request) {
-        Position position = positionRepository.findOne(Position.builder()
-                        .userId(userId)
-                        .instrumentId(instrumentId)
-                        .status("ACTIVE")
-                        .build())
+        Position position = positionRepository.findOne(
+                        Wrappers.lambdaQuery(PositionPO.class)
+                                .eq(PositionPO::getUserId, userId)
+                                .eq(PositionPO::getInstrumentId, instrumentId)
+                                .eq(PositionPO::getStatus, "ACTIVE"))
                 .orElseGet(() -> positionRepository.createDefault(userId, instrumentId));
         if (position == null) {
             throw OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
@@ -110,12 +115,14 @@ public class PositionCommandService {
                 .build();
         boolean updated = positionRepository.updateSelectiveBy(
                 updateRecord,
-                position.getPositionId(),
-                position.getUserId(),
-                position.getInstrumentId(),
-                position.getSide(),
-                expectedVersion,
-                "ACTIVE");
+                new LambdaUpdateWrapper<PositionPO>()
+                        .eq(PositionPO::getPositionId, position.getPositionId())
+                        .eq(PositionPO::getUserId, position.getUserId())
+                        .eq(PositionPO::getInstrumentId, position.getInstrumentId())
+                        .eq(PositionPO::getSide, position.getSide())
+                        .eq(PositionPO::getStatus, "ACTIVE")
+                        .eq(PositionPO::getVersion, expectedVersion)
+        );
         if (!updated) {
             throw OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
                                    Map.of("positionId", position.getPositionId(), "instrumentId", instrumentId));

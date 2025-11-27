@@ -1,5 +1,8 @@
 package open.vincentf13.exchange.position.infra.persistence.po;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,8 +16,10 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName("positions")
 public class PositionPO {
 
+    @TableId(value = "position_id", type = IdType.INPUT)
     private Long positionId;
     private Long userId;
     private Long instrumentId;

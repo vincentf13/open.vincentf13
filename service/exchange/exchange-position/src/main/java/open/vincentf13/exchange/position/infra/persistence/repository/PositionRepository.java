@@ -1,13 +1,16 @@
 package open.vincentf13.exchange.position.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
-import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
@@ -29,15 +32,14 @@ public class PositionRepository {
         domain.setPositionId(idGenerator.newLong());
         PositionPO po = OpenObjectMapper.convert(domain, PositionPO.class);
         try {
-            mapper.insertSelective(po);
+            mapper.insert(po);
             return OpenObjectMapper.convert(po, Position.class);
         } catch (DuplicateKeyException duplicateKeyException) {
-            Position existing = Position.builder()
-                    .userId(userId)
-                    .instrumentId(instrumentId)
-                    .status("ACTIVE")
-                    .build();
-            return findOne(existing)
+            LambdaQueryWrapper<PositionPO> wrapper = Wrappers.lambdaQuery(PositionPO.class)
+                    .eq(PositionPO::getUserId, userId)
+                    .eq(PositionPO::getInstrumentId, instrumentId)
+                    .eq(PositionPO::getStatus, "ACTIVE");
+            return findOne(wrapper)
                     .orElseThrow(() -> duplicateKeyException);
         }
     }
@@ -47,36 +49,23 @@ public class PositionRepository {
             position.setPositionId(idGenerator.newLong());
         }
         PositionPO po = OpenObjectMapper.convert(position, PositionPO.class);
-        mapper.insertSelective(po);
+        mapper.insert(po);
     }
 
-    public List<Position> findBy(@NotNull Position condition) {
-        PositionPO probe = OpenObjectMapper.convert(condition, PositionPO.class);
-        return mapper.findBy(probe).stream()
+    public List<Position> findBy(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
+        return mapper.selectList(wrapper).stream()
                 .map(item -> OpenObjectMapper.convert(item, Position.class))
                 .toList();
     }
 
-    public Optional<Position> findOne(@NotNull Position condition) {
-        PositionPO probe = OpenObjectMapper.convert(condition, PositionPO.class);
-        var results = mapper.findBy(probe);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single position but found " + results.size());
-        }
-        return Optional.of(OpenObjectMapper.convert(results.get(0), Position.class));
+    public Optional<Position> findOne(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
+        PositionPO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(OpenObjectMapper.convert(po, Position.class));
     }
 
     public boolean updateSelectiveBy(@NotNull @Valid Position update,
-                                     @NotNull Long positionId,
-                                     Long userId,
-                                     Long instrumentId,
-                                     PositionSide side,
-                                     Integer expectedVersion,
-                                     String status) {
+                                     LambdaUpdateWrapper<PositionPO> updateWrapper) {
         PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);
-        return mapper.updateSelectiveBy(record, positionId, userId, instrumentId, side, expectedVersion, status) > 0;
+        return mapper.update(record, updateWrapper) > 0;
     }
 }
