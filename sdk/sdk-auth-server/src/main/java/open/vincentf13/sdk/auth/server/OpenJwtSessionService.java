@@ -1,12 +1,11 @@
-package open.vincentf13.sdk.auth.server.service;
+package open.vincentf13.sdk.auth.server;
 
-import open.vincentf13.sdk.auth.jwt.OpenJwtService;
-import open.vincentf13.sdk.auth.jwt.OpenJwtService.GenerateTokenInfo;
-import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
-import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
+import open.vincentf13.sdk.auth.jwt.token.OpenJwtService;
+import open.vincentf13.sdk.auth.jwt.token.OpenJwtService.GenerateTokenInfo;
+import open.vincentf13.sdk.auth.jwt.token.JwtToken;
+import open.vincentf13.sdk.auth.jwt.token.RefreshToken;
 import open.vincentf13.sdk.auth.jwt.session.JwtSession;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
-import open.vincentf13.sdk.auth.server.AuthServerEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -45,11 +44,11 @@ public class OpenJwtSessionService {
     }
 
     public Optional<IssueResult> refresh(String refreshTokenValue) {
-        Optional<RefreshTokenParseInfo> refreshToken = openJwtService.parseRefreshToken(refreshTokenValue);
+        Optional<RefreshToken> refreshToken = openJwtService.parseRefreshToken(refreshTokenValue);
         if (refreshToken.isEmpty()) {
             return Optional.empty();
         }
-        RefreshTokenParseInfo claims = refreshToken.get();
+        RefreshToken claims = refreshToken.get();
         String sessionId = claims.sessionId();
         if (sessionId == null) {
             OpenLog.warn( AuthServerEvent.REFRESH_MISSING_SESSION, "subject", claims.subject());
@@ -92,7 +91,7 @@ public class OpenJwtSessionService {
     }
 
     private Authentication buildAuthentication(JwtSession session, String refreshTokenValue) {
-        return new JwtParseInfo(
+        return new JwtToken(
                 session.getUsername(),
                 refreshTokenValue,
                 session.getAuthorities().stream()

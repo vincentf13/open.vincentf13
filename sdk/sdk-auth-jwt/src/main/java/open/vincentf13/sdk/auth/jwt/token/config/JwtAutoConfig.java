@@ -1,15 +1,15 @@
-package open.vincentf13.sdk.auth.jwt.config;
+package open.vincentf13.sdk.auth.jwt.token.config;
 
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.OctetSequenceKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
-import open.vincentf13.sdk.auth.jwt.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStore;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStoreInMemory;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionStoreRedis;
+import open.vincentf13.sdk.auth.jwt.token.OpenJwtService;
 import open.vincentf13.sdk.infra.redis.config.RedisAutoConfiguration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

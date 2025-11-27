@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.spring.cloud.gateway.jwt;
 
-import open.vincentf13.sdk.auth.jwt.OpenJwtService;
+import open.vincentf13.sdk.auth.jwt.token.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;

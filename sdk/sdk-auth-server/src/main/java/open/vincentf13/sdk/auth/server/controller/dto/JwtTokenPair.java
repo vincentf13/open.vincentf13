@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth.jwt.model;
+package open.vincentf13.sdk.auth.server.controller.dto;
 
 import java.time.Instant;
 

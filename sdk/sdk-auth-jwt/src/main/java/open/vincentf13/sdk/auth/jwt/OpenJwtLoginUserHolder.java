@@ -8,7 +8,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class OpenJwtLoginUserInfo {
+public class OpenJwtLoginUserHolder {
 
     public static OpenJwtLoginUserDetails currentAuthUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

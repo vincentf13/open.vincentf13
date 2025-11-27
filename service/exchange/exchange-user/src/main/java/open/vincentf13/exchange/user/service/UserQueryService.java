@@ -7,7 +7,7 @@ import open.vincentf13.exchange.user.infra.UserErrorCode;
 import open.vincentf13.exchange.user.infra.persistence.po.UserPO;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
-import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class UserQueryService {
 
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
-        Long userId = OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
+        Long userId = OpenJwtLoginUserHolder.currentUserIdOrThrow(() ->
                 OpenException.of(UserErrorCode.USER_NOT_FOUND, Map.of("reason", "No authenticated user in context")));
         return userRepository.findOne(Wrappers.<UserPO>lambdaQuery()
                         .eq(UserPO::getId, userId))

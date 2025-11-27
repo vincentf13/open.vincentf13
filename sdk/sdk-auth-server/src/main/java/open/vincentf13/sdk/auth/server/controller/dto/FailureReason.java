@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth.server.error;
+package open.vincentf13.sdk.auth.server.controller.dto;
 
 import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.http.HttpStatus;

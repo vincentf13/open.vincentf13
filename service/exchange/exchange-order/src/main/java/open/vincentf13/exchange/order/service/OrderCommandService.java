@@ -18,7 +18,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
-import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -73,7 +73,7 @@ public class OrderCommandService {
     }
 
     private Long currentUserId() {
-        return OpenJwtLoginUserInfo.currentUserIdOrThrow(() ->
+        return OpenJwtLoginUserHolder.currentUserIdOrThrow(() ->
                 OpenException.of(OrderErrorCode.ORDER_NOT_FOUND));
     }
 

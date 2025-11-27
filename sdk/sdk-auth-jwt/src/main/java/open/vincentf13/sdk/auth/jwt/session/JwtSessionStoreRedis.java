@@ -1,6 +1,6 @@
 package open.vincentf13.sdk.auth.jwt.session;
 
-import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
+import open.vincentf13.sdk.auth.jwt.token.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.JwtEvent;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;

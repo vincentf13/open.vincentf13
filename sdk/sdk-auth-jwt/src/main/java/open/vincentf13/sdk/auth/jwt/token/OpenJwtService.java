@@ -1,8 +1,8 @@
-package open.vincentf13.sdk.auth.jwt;
+package open.vincentf13.sdk.auth.jwt.token;
 
-import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
-import open.vincentf13.sdk.auth.jwt.model.RefreshTokenParseInfo;
+import open.vincentf13.sdk.auth.jwt.JwtEvent;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserDetails;
+import open.vincentf13.sdk.auth.jwt.token.config.JwtProperties;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
@@ -77,11 +77,11 @@ public class OpenJwtService {
 
         JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
         String tokenValue = encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
-        OpenLog.debug( JwtEvent.JWT_ACCESS_ISSUED,
-                "subject", authentication.getName(),
-                "userId", userId,
-                "email", email,
-                "sessionId", sessionId == null ? "<legacy>" : sessionId);
+        OpenLog.debug(JwtEvent.JWT_ACCESS_ISSUED,
+                      "subject", authentication.getName(),
+                      "userId", userId,
+                      "email", email,
+                      "sessionId", sessionId == null ? "<legacy>" : sessionId);
         return new GenerateTokenInfo(tokenValue, issuedAt, expiresAt, TokenType.ACCESS, sessionId);
     }
 
@@ -108,7 +108,7 @@ public class OpenJwtService {
         return new GenerateTokenInfo(tokenValue, issuedAt, expiresAt, TokenType.REFRESH, sessionId);
     }
 
-    public Optional<JwtParseInfo> parseAccessToken(String tokenValue) {
+    public Optional<JwtToken> parseAccessToken(String tokenValue) {
         try {
             Jwt jwt = jwtDecoder.decode(tokenValue);
             TokenType tokenType = resolveTokenType(jwt);
@@ -128,7 +128,7 @@ public class OpenJwtService {
 
             // Construct OpenJwtUser from JWT claims
             OpenJwtLoginUserDetails user = new OpenJwtLoginUserDetails(userId, email, granted);
-            JwtParseInfo authentication = new JwtParseInfo(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
+            JwtToken authentication = new JwtToken(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
             return Optional.of(authentication);
         } catch (JwtException ex) {
             OpenLog.warn( JwtEvent.JWT_INVALID, ex, "reason", ex.getMessage());
@@ -136,7 +136,7 @@ public class OpenJwtService {
         }
     }
 
-    public Optional<RefreshTokenParseInfo> parseRefreshToken(String tokenValue) {
+    public Optional<RefreshToken> parseRefreshToken(String tokenValue) {
         try {
             Jwt jwt = jwtDecoder.decode(tokenValue);
             TokenType tokenType = resolveTokenType(jwt);
@@ -145,7 +145,7 @@ public class OpenJwtService {
                 return Optional.empty();
             }
             String sessionId = jwt.getClaimAsString(SESSION_ID_CLAIM);
-            return Optional.of(new RefreshTokenParseInfo(jwt.getTokenValue(), jwt.getSubject(), sessionId, jwt.getIssuedAt(), jwt.getExpiresAt()));
+            return Optional.of(new RefreshToken(jwt.getTokenValue(), jwt.getSubject(), sessionId, jwt.getIssuedAt(), jwt.getExpiresAt()));
         } catch (JwtException ex) {
             OpenLog.warn( JwtEvent.JWT_INVALID, ex, "reason", ex.getMessage());
             return Optional.empty();

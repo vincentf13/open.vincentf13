@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.spring.cloud.gateway.jwt;
 
-import open.vincentf13.sdk.auth.jwt.OpenJwtService;
-import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
+import open.vincentf13.sdk.auth.jwt.token.OpenJwtService;
+import open.vincentf13.sdk.auth.jwt.token.JwtToken;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -48,13 +48,13 @@ public class JwtFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange); // 無 jwtToken 放行，由後端資源服務自行判定授權
         }
 
-        Optional<JwtParseInfo> authentication = openJwtService.parseAccessToken(tokenValue.get());
+        Optional<JwtToken> authentication = openJwtService.parseAccessToken(tokenValue.get());
         if (authentication.isEmpty()) {
             OpenLog.warn( GatewayEvent.JWT_INVALID, "jwtToken", "redacted");
             return unauthorized(exchange, "Invalid access jwtToken");
         }
 
-        JwtParseInfo auth = authentication.get();
+        JwtToken auth = authentication.get();
 
         if (!isSessionActive(auth)) {
             return unauthorized(exchange, "Session inactive");
@@ -77,7 +77,7 @@ public class JwtFilter implements GlobalFilter, Ordered {
         return permitPaths.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
-    private boolean isSessionActive(JwtParseInfo authentication) {
+    private boolean isSessionActive(JwtToken authentication) {
         JwtSessionService sessionService = sessionServiceProvider.getIfAvailable();
         if (sessionService == null) {
             return true;

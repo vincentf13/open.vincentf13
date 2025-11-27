@@ -1,1 +1,1 @@
-open.vincentf13.sdk.auth.server.config.AuthServerSecurityAutoConfiguration
+open.vincentf13.sdk.auth.server.security.AuthServerSecurityAutoConfiguration

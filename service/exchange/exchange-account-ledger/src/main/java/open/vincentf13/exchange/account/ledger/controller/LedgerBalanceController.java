@@ -9,7 +9,7 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawal
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
 import open.vincentf13.exchange.account.ledger.service.LedgerBalanceCommandService;
 import open.vincentf13.exchange.account.ledger.service.LedgerBalanceQueryService;
-import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,7 +26,7 @@ public class LedgerBalanceController implements LedgerAccountApi {
     public OpenApiResponse<LedgerBalanceResponse> getBalances(String asset, Long userId) {
         Long effectiveUserId = userId != null
                 ? userId
-                : OpenJwtLoginUserInfo.currentUserIdOrThrow(() -> new IllegalArgumentException("Missing user context"));
+                : OpenJwtLoginUserHolder.currentUserIdOrThrow(() -> new IllegalArgumentException("Missing user context"));
         return OpenApiResponse.success(ledgerBalanceQueryService.getBalances(effectiveUserId, asset));
     }
 

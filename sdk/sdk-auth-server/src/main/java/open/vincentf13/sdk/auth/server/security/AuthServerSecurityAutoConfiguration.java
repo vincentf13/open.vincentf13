@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.auth.server.config;
+package open.vincentf13.sdk.auth.server.security;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

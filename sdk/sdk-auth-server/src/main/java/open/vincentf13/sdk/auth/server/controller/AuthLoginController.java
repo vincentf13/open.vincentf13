@@ -2,11 +2,11 @@ package open.vincentf13.sdk.auth.server.controller;
 
 import jakarta.validation.Valid;
 import open.vincentf13.sdk.auth.auth.PublicAPI;
-import open.vincentf13.sdk.auth.jwt.model.JwtTokenPair;
+import open.vincentf13.sdk.auth.server.controller.dto.JwtTokenPair;
 import open.vincentf13.sdk.auth.server.AuthServerEvent;
 import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
-import open.vincentf13.sdk.auth.server.error.FailureReason;
-import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
+import open.vincentf13.sdk.auth.server.controller.dto.FailureReason;
+import open.vincentf13.sdk.auth.server.OpenJwtSessionService;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.context.MessageSource;

@@ -1,11 +1,11 @@
 
 package open.vincentf13.sdk.auth.server.controller;
 
-import open.vincentf13.sdk.auth.jwt.model.JwtTokenPair;
-import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
-import open.vincentf13.sdk.auth.server.error.FailureReason;
-import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService;
-import open.vincentf13.sdk.auth.server.service.OpenJwtSessionService.IssueResult;
+import open.vincentf13.sdk.auth.server.controller.dto.JwtTokenPair;
+import open.vincentf13.sdk.auth.jwt.token.JwtToken;
+import open.vincentf13.sdk.auth.server.controller.dto.FailureReason;
+import open.vincentf13.sdk.auth.server.OpenJwtSessionService;
+import open.vincentf13.sdk.auth.server.OpenJwtSessionService.IssueResult;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import open.vincentf13.sdk.auth.auth.Jwt;
 import open.vincentf13.sdk.auth.auth.PublicAPI;
@@ -45,7 +45,7 @@ public class SessionController {
     @PostMapping("/logout")
     @Jwt
     public ResponseEntity<OpenApiResponse<Void>> logout(Authentication authentication) {
-        if (authentication instanceof JwtParseInfo jwtAuth && jwtAuth.hasSessionId()) {
+        if (authentication instanceof JwtToken jwtAuth && jwtAuth.hasSessionId()) {
             sessionService.revoke(jwtAuth.getSessionId(), "logout");
         }
         return ResponseEntity.ok(OpenApiResponse.success(null));

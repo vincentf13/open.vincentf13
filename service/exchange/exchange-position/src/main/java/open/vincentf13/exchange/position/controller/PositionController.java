@@ -8,7 +8,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageReques
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
 import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionQueryService;
-import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserInfo;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,7 +29,7 @@ public class PositionController implements PositionApi {
     @Override
     public OpenApiResponse<PositionLeverageResponse> adjustLeverage(Long instrumentId,
                                                                     PositionLeverageRequest request) {
-        Long userId = OpenJwtLoginUserInfo.currentUserIdOrThrow(() -> new IllegalStateException("UserId missing"));
+        Long userId = OpenJwtLoginUserHolder.currentUserIdOrThrow(() -> new IllegalStateException("UserId missing"));
         return OpenApiResponse.success(positionCommandService.adjustLeverage(userId, instrumentId, request));
     }
 }

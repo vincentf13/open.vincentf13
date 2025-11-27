@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.auth.auth;
 
 import jakarta.servlet.http.HttpServletRequest;
-import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
+import open.vincentf13.sdk.auth.jwt.token.JwtToken;
 import org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -163,7 +163,7 @@ public class AnnotationBasedAuthorizationManager implements AuthorizationManager
         if (authentication != null && !(authentication instanceof AnonymousAuthenticationToken)) {
 
             // 在Jwt filter 注入 SecurityContextHolder
-            if (authentication instanceof JwtParseInfo) {
+            if (authentication instanceof JwtToken) {
                 available.add(AuthType.JWT);
             } else {
                 available.add(AuthType.SESSION);

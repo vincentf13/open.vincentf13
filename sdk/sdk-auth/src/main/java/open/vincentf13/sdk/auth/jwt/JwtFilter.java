@@ -5,9 +5,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.sdk.auth.JwtAuthEvent;
-import open.vincentf13.sdk.auth.jwt.config.JwtProperties;
-import open.vincentf13.sdk.auth.jwt.model.JwtParseInfo;
+import open.vincentf13.sdk.auth.jwt.token.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
+import open.vincentf13.sdk.auth.jwt.token.JwtToken;
+import open.vincentf13.sdk.auth.jwt.token.OpenJwtService;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenHttpUtils;
 import org.springframework.beans.factory.ObjectProvider;
@@ -46,7 +47,7 @@ public class JwtFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean isAllowed(JwtParseInfo authentication) {
+    private boolean isAllowed(JwtToken authentication) {
         if (!properties.isCheckSessionActive()) {
             return true;
         }
