@@ -50,7 +50,7 @@ public class OpenJwtService {
 
         Long userId = null;
         String email = null;
-        if (authentication.getPrincipal() instanceof OpenJwtLoginUser user) {
+        if (authentication.getPrincipal() instanceof OpenJwtLoginUserDetails user) {
             userId = user.getUserId();
             email = user.getUsername();
         }
@@ -127,7 +127,7 @@ public class OpenJwtService {
             String sessionId = jwt.getClaimAsString(SESSION_ID_CLAIM);
 
             // Construct OpenJwtUser from JWT claims
-            OpenJwtLoginUser user = new OpenJwtLoginUser(userId, email, granted);
+            OpenJwtLoginUserDetails user = new OpenJwtLoginUserDetails(userId, email, granted);
             JwtParseInfo authentication = new JwtParseInfo(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
             return Optional.of(authentication);
         } catch (JwtException ex) {

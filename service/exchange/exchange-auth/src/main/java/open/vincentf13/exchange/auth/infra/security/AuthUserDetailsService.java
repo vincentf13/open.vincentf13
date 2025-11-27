@@ -10,7 +10,7 @@ import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.sdk.rest.api.enums.UserStatus;
 import open.vincentf13.exchange.user.sdk.rest.client.ExchangeUserClient;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
-import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUser;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserDetails;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -68,12 +68,12 @@ public class AuthUserDetailsService implements UserDetailsService {
         }
 
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
-        return new OpenJwtLoginUser(userId,
-                                    user.email(),
-                                    credential.getSecretHash(),
-                                    credential.getSalt(),
-                                    true,
-                                    true,
-                                    authorities);
+        return new OpenJwtLoginUserDetails(userId,
+                                           user.email(),
+                                           credential.getSecretHash(),
+                                           credential.getSalt(),
+                                           true,
+                                           true,
+                                           authorities);
     }
 }

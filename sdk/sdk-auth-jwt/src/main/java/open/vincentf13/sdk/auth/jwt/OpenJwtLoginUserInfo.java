@@ -10,14 +10,14 @@ import java.util.function.Supplier;
 
 public class OpenJwtLoginUserInfo {
 
-    public static OpenJwtLoginUser currentAuthUser() {
+    public static OpenJwtLoginUserDetails currentAuthUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication instanceof UsernamePasswordAuthenticationToken token)) {
             return null;
         }
 
         Object principal = token.getPrincipal();
-        if (principal instanceof OpenJwtLoginUser details) {
+        if (principal instanceof OpenJwtLoginUserDetails details) {
             return details;
         }
         return null;
@@ -34,7 +34,7 @@ public class OpenJwtLoginUserInfo {
     }
 
     public static Long currentUserId() {
-        OpenJwtLoginUser user = currentAuthUser();
+        OpenJwtLoginUserDetails user = currentAuthUser();
         return user != null ? user.getUserId() : null;
     }
 

@@ -6,7 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.Collections;
 
-public class OpenJwtLoginUser implements UserDetails {
+public class OpenJwtLoginUserDetails implements UserDetails {
 
     private final Long userId;
     private final String email;
@@ -16,13 +16,13 @@ public class OpenJwtLoginUser implements UserDetails {
     private final boolean enabled;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public OpenJwtLoginUser(Long userId,
-                            String email,
-                            String secretHash,
-                            String salt,
-                            boolean enabled,
-                            boolean accountNonLocked,
-                            Collection<? extends GrantedAuthority> authorities) {
+    public OpenJwtLoginUserDetails(Long userId,
+                                   String email,
+                                   String secretHash,
+                                   String salt,
+                                   boolean enabled,
+                                   boolean accountNonLocked,
+                                   Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.email = email;
         this.secretHash = secretHash;
@@ -35,9 +35,9 @@ public class OpenJwtLoginUser implements UserDetails {
     /**
      * Constructor for JWT-based authentication (no password credentials needed)
      */
-    public OpenJwtLoginUser(Long userId,
-                            String email,
-                            Collection<? extends GrantedAuthority> authorities) {
+    public OpenJwtLoginUserDetails(Long userId,
+                                   String email,
+                                   Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.email = email;
         this.secretHash = "";

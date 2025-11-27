@@ -1,6 +1,4 @@
-package open.vincentf13.sdk.core;
-
-import open.vincentf13.sdk.core.log.OpenEvent;
+package open.vincentf13.sdk.core.log;
 
 /*
  * Core 模組事件。

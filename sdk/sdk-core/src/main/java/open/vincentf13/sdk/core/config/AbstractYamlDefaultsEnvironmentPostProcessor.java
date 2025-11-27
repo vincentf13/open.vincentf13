@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import open.vincentf13.sdk.core.CoreEvent;
+import open.vincentf13.sdk.core.log.CoreEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
