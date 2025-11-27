@@ -1,30 +1,28 @@
 package open.vincentf13.exchange.account.ledger.service;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeException;
-import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeFailureReason;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
-import open.vincentf13.exchange.account.ledger.infra.messaging.publisher.LedgerEventPublisher;
 import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
+import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeException;
+import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeFailureReason;
+import open.vincentf13.exchange.account.ledger.infra.messaging.publisher.LedgerEventPublisher;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalResponse;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
-import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.log.OpenLog;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-
-import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -92,15 +90,18 @@ public class LedgerBalanceCommandService {
 
     @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
-        AssetSymbol asset = LedgerBalance.normalizeAsset(event.quoteAsset());
-        BigDecimal tradeValue = event.price().multiply(event.quantity());
-        BigDecimal totalCost = tradeValue.add(event.takerFee());
         ledgerTransactionDomainService.settleTrade(
                 event.tradeId(),
+                event.orderId(),
                 event.counterpartyOrderId(),
                 event.instrumentId(),
-                asset,
-                totalCost,
+                event.quoteAsset(),
+                event.price(),
+                event.quantity(),
+                event.makerFee(),
+                event.takerFee(),
+                event.makerUserId(),
+                event.takerUserId(),
                 event.executedAt()
         );
     }

@@ -25,6 +25,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Plat
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -180,12 +181,18 @@ public class LedgerTransactionDomainService {
     }
 
     public LedgerEntry settleTrade(@NotNull Long tradeId,
-                                   @NotNull Long orderId,
+                                   @NotNull Long makerOrderId,
+                                   @NotNull Long takerOrderId,
                                    @NotNull Long instrumentId,
                                    @NotNull AssetSymbol asset,
-                                   @NotNull @DecimalMin(value = "0.00000000") BigDecimal totalCost,
-                                   @NotNull Instant eventTime) {
-        BigDecimal normalizedCost = totalCost;
+                                   @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN) BigDecimal price,
+                                   @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
+                                   @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal makerFee,
+                                   @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal takerFee,
+                                    @NotNull Long makerUserId,
+                                    @NotNull Long takerUserId,
+                                    @NotNull Instant eventTime) {
+        BigDecimal totalCost = price.multiply(quantity).add(takerFee);
         Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(
                 Wrappers.lambdaQuery(LedgerEntryPO.class)
                         .eq(LedgerEntryPO::getReferenceType, ReferenceType.TRADE)
@@ -197,9 +204,10 @@ public class LedgerTransactionDomainService {
         LedgerEntry reservedEntry = ledgerEntryRepository.findOne(
                         Wrappers.lambdaQuery(LedgerEntryPO.class)
                                 .eq(LedgerEntryPO::getReferenceType, ReferenceType.ORDER)
-                                .eq(LedgerEntryPO::getReferenceId, orderId.toString())
+                                .eq(LedgerEntryPO::getReferenceId, takerOrderId.toString())
                                 .eq(LedgerEntryPO::getEntryType, EntryType.RESERVED))
-                .orElseThrow(() -> new IllegalStateException("Reserved entry not found for order=" + orderId));
+                .orElseThrow(() -> new IllegalStateException(
+                        "Reserved entry not found for takerOrderId=" + takerOrderId + ", makerOrderId=" + makerOrderId));
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
         if (reservedEntry.getAsset() != null && normalizedAsset != null && reservedEntry.getAsset() != normalizedAsset) {
             throw new IllegalStateException("Asset mismatch for order=" + orderId + ", reserved=" + reservedEntry.getAsset()
@@ -211,7 +219,7 @@ public class LedgerTransactionDomainService {
                                 .eq(LedgerBalancePO::getAsset, normalizedAsset))
                 .orElseThrow(() -> new IllegalStateException("Ledger balance not found for account=" + reservedEntry.getAccountId()));
         LedgerBalance updated = retryUpdateForTrade(balance,
-                                                    normalizedCost,
+                                                    totalCost,
                                                     reservedEntry.getUserId(),
                                                     normalizedAsset,
                                                     tradeId);
@@ -221,10 +229,10 @@ public class LedgerTransactionDomainService {
                                                              updated.getAccountId(),
                                                              updated.getUserId(),
                                                              normalizedAsset,
-                                                             normalizedCost,
+                                                             totalCost,
                                                              updated.getBalance(),
                                                              tradeId,
-                                                             orderId,
+                                                             takerOrderId,
                                                              instrumentId,
                                                              entryEventTime);
         ledgerEntryRepository.insert(tradeEntry);
