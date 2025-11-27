@@ -6,7 +6,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -145,6 +147,40 @@ public final class OpenRedisString {
     }
 
     /*
+     * Cluster 版批次寫入，依槽位分批 pipeline。
+     * 例如：
+     *   OpenRedisString.setBatchCluster(List.of(new KeyValueTtl("user:1", user1, Duration.ofMinutes(5))));
+     */
+    public static void setBatchCluster(Collection<KeyValueTtl> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        StringRedisTemplate stringRedis = stringRedisTemplate();
+        Map<Integer, Collection<KeyValueTtl>> grouped = new LinkedHashMap<>();
+        entries.stream()
+            .filter(Objects::nonNull)
+            .forEach(entry -> {
+                String key = Objects.requireNonNull(entry.key(), "key is required");
+                grouped.computeIfAbsent(slot(key), k -> new ArrayList<>()).add(entry);
+            });
+        grouped.values().forEach(group -> {
+            SessionCallback<Object> callback = new SessionCallback<>() {
+                @Override
+                public <K, V> Object execute(RedisOperations<K, V> operations) {
+                    @SuppressWarnings("unchecked")
+                    RedisOperations<String, String> ops = (RedisOperations<String, String>) operations;
+                    group.forEach(entry -> {
+                        Duration ttlWithJitter = withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
+                        ops.opsForValue().set(entry.key(), OpenObjectMapper.toJson(entry.value()), ttlWithJitter);
+                    });
+                    return null;
+                }
+            };
+            stringRedis.executePipelined(callback);
+        });
+    }
+
+    /*
      * 批次讀取：所有 key 同型別。
      * 例如：
      *   Map<String, User> users = OpenRedisString.getBatch(List.of("user:1", "user:2"), User.class);
@@ -156,6 +192,23 @@ public final class OpenRedisString {
             keys.forEach(key -> mapping.put(Objects.requireNonNull(key, "key is required"), targetType));
         }
         Map<String, Object> raw = getBatchInternal(mapping);
+        Map<String, T> result = new LinkedHashMap<>();
+        raw.forEach((key, value) -> result.put(key, targetType.cast(value)));
+        return result;
+    }
+
+    /*
+     * Cluster 版批次讀取：所有 key 同型別。
+     * 例如：
+     *   Map<String, User> users = OpenRedisString.getBatchCluster(List.of("user:1", "user:2"), User.class);
+     */
+    public static <T> Map<String, T> getBatchCluster(Collection<String> keys, Class<T> targetType) {
+        Objects.requireNonNull(targetType, "type is required");
+        Map<String, Class<?>> mapping = new LinkedHashMap<>();
+        if (keys != null) {
+            keys.forEach(key -> mapping.put(Objects.requireNonNull(key, "key is required"), targetType));
+        }
+        Map<String, Object> raw = getBatchClusterInternal(mapping);
         Map<String, T> result = new LinkedHashMap<>();
         raw.forEach((key, value) -> result.put(key, targetType.cast(value)));
         return result;
@@ -178,6 +231,25 @@ public final class OpenRedisString {
                     Objects.requireNonNull(type, "type is required"))));
         }
         return getBatchInternal(flattened);
+    }
+
+    /*
+     * Cluster 版批次讀取：每個 key 對應不同型別。
+     * 例如：
+     *   Map<String, Object> data = OpenRedisString.getBatchCluster(
+     *       List.of(Map.of("user:1", User.class, "profile:1", Profile.class))
+     *   );
+     */
+    public static Map<String, Object> getBatchCluster(Collection<Map<String, Class<?>>> keyTypeMappings) {
+        Map<String, Class<?>> flattened = new LinkedHashMap<>();
+        if (keyTypeMappings != null) {
+            keyTypeMappings.stream()
+                .filter(Objects::nonNull)
+                .forEach(map -> map.forEach((key, type) -> flattened.put(
+                    Objects.requireNonNull(key, "key is required"),
+                    Objects.requireNonNull(type, "type is required"))));
+        }
+        return getBatchClusterInternal(flattened);
     }
 
     /*
@@ -229,6 +301,63 @@ public final class OpenRedisString {
             result.put(key, OpenObjectMapper.convert(value, type));
         });
         return result;
+    }
+
+    private static Map<String, Object> getBatchClusterInternal(Map<String, Class<?>> keyTypeMapping) {
+        if (keyTypeMapping == null || keyTypeMapping.isEmpty()) {
+            return Map.of();
+        }
+        RedisTemplate<String, Object> redis = redisTemplate();
+        Map<Integer, Collection<Map.Entry<String, Class<?>>>> grouped = new LinkedHashMap<>();
+        keyTypeMapping.entrySet().forEach(entry -> grouped
+            .computeIfAbsent(slot(entry.getKey()), k -> new ArrayList<>())
+            .add(entry));
+        Map<String, Object> result = new LinkedHashMap<>();
+        grouped.values().forEach(group -> {
+            SessionCallback<Object> callback = new SessionCallback<>() {
+                @Override
+                public <K, V> Object execute(RedisOperations<K, V> operations) {
+                    @SuppressWarnings("unchecked")
+                    RedisOperations<String, Object> ops = (RedisOperations<String, Object>) operations;
+                    group.forEach(e -> ops.opsForValue().get(e.getKey()));
+                    return null;
+                }
+            };
+            Iterator<Object> values = redis.executePipelined(callback).iterator();
+            group.forEach(e -> {
+                Object value = values.hasNext() ? values.next() : null;
+                result.put(e.getKey(), OpenObjectMapper.convert(value, e.getValue()));
+            });
+        });
+        return result;
+    }
+
+    private static int slot(String key) {
+        String hashtag = key;
+        int start = key.indexOf('{');
+        if (start >= 0) {
+            int end = key.indexOf('}', start + 1);
+            if (end > start + 1) {
+                hashtag = key.substring(start + 1, end);
+            }
+        }
+        return crc16(hashtag.getBytes(StandardCharsets.UTF_8)) % 16384;
+    }
+
+    private static int crc16(byte[] bytes) {
+        int crc = 0x0000;
+        for (byte b : bytes) {
+            crc ^= (b & 0xFF) << 8;
+            for (int i = 0; i < 8; i++) {
+                if ((crc & 0x8000) != 0) {
+                    crc = (crc << 1) ^ 0x1021;
+                } else {
+                    crc <<= 1;
+                }
+                crc &= 0xFFFF;
+            }
+        }
+        return crc & 0xFFFF;
     }
 
     private static RedisTemplate<String, Object> redisTemplate() {
