@@ -6,7 +6,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,7 +13,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Supplier;
@@ -72,7 +70,7 @@ public final class OpenRedisString {
         if (cached != null) {
             return OpenObjectMapper.convert(cached, type);
         }
-        synchronized (intern(key)) { // 簡易擊穿保護：單機級別
+        synchronized (RedisUtil.intern(key)) { // 簡易擊穿保護：單機級別
             Object again = redis.opsForValue().get(key);
             if (again != null) {
                 return OpenObjectMapper.convert(again, type);
@@ -94,7 +92,7 @@ public final class OpenRedisString {
      *   OpenRedisString.setAsync("user:1", user, Duration.ofMinutes(10), 3);
      */
     public static CompletableFuture<Boolean> setAsync(String key, Object value, Duration ttl, int retry) {
-        Duration ttlWithJitter = withJitter(ttl);
+        Duration ttlWithJitter = RedisUtil.withJitter(ttl);
         return CompletableFuture.supplyAsync(() -> {
             StringRedisTemplate stringRedis = stringRedisTemplate();
             for (int i = 0; i <= retry; i++) {
@@ -136,7 +134,7 @@ public final class OpenRedisString {
                 entries.stream()
                     .filter(Objects::nonNull)
                     .forEach(entry -> {
-                        Duration ttlWithJitter = withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
+                        Duration ttlWithJitter = RedisUtil.withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
                         ops.opsForValue().set(Objects.requireNonNull(entry.key(), "key is required"),
                             OpenObjectMapper.toJson(entry.value()), ttlWithJitter);
                     });
@@ -161,7 +159,7 @@ public final class OpenRedisString {
             .filter(Objects::nonNull)
             .forEach(entry -> {
                 String key = Objects.requireNonNull(entry.key(), "key is required");
-                grouped.computeIfAbsent(slot(key), k -> new ArrayList<>()).add(entry);
+                grouped.computeIfAbsent(RedisClusterUtil.slot(key), k -> new ArrayList<>()).add(entry);
             });
         grouped.values().forEach(group -> {
             SessionCallback<Object> callback = new SessionCallback<>() {
@@ -170,7 +168,7 @@ public final class OpenRedisString {
                     @SuppressWarnings("unchecked")
                     RedisOperations<String, String> ops = (RedisOperations<String, String>) operations;
                     group.forEach(entry -> {
-                        Duration ttlWithJitter = withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
+                        Duration ttlWithJitter = RedisUtil.withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
                         ops.opsForValue().set(entry.key(), OpenObjectMapper.toJson(entry.value()), ttlWithJitter);
                     });
                     return null;
@@ -222,15 +220,7 @@ public final class OpenRedisString {
      *   );
      */
     public static Map<String, Object> getBatch(Collection<Map<String, Class<?>>> keyTypeMappings) {
-        Map<String, Class<?>> flattened = new LinkedHashMap<>();
-        if (keyTypeMappings != null) {
-            keyTypeMappings.stream()
-                .filter(Objects::nonNull)
-                .forEach(map -> map.forEach((key, type) -> flattened.put(
-                    Objects.requireNonNull(key, "key is required"),
-                    Objects.requireNonNull(type, "type is required"))));
-        }
-        return getBatchInternal(flattened);
+        return getBatchInternal(flattenKeyTypeMappings(keyTypeMappings));
     }
 
     /*
@@ -241,15 +231,7 @@ public final class OpenRedisString {
      *   );
      */
     public static Map<String, Object> getBatchCluster(Collection<Map<String, Class<?>>> keyTypeMappings) {
-        Map<String, Class<?>> flattened = new LinkedHashMap<>();
-        if (keyTypeMappings != null) {
-            keyTypeMappings.stream()
-                .filter(Objects::nonNull)
-                .forEach(map -> map.forEach((key, type) -> flattened.put(
-                    Objects.requireNonNull(key, "key is required"),
-                    Objects.requireNonNull(type, "type is required"))));
-        }
-        return getBatchClusterInternal(flattened);
+        return getBatchClusterInternal(flattenKeyTypeMappings(keyTypeMappings));
     }
 
     /*
@@ -259,7 +241,7 @@ public final class OpenRedisString {
      */
     public static void setAsyncFireAndForget(String key, Object value, Duration ttl) {
         StringRedisTemplate stringRedis = stringRedisTemplate();
-        Duration ttlWithJitter = withJitter(ttl);
+        Duration ttlWithJitter = RedisUtil.withJitter(ttl);
         ForkJoinPool.commonPool().execute(() -> {
             try {
                 stringRedis.opsForValue().set(key, OpenObjectMapper.toJson(value), ttlWithJitter);
@@ -269,16 +251,6 @@ public final class OpenRedisString {
         });
     }
 
-    private static final Map<String, Object> INTERN = new WeakHashMap<>();
-
-    private static synchronized Object intern(String s) {
-        return INTERN.computeIfAbsent(s, k -> new Object());
-    }
-
-    private static Duration withJitter(Duration ttl) {
-        long jitterMs = (long) (Math.random() * Math.max(1, Duration.ofSeconds(30).toMillis()));
-        return ttl.plus(Duration.ofMillis(jitterMs));
-    }
 
     private static Map<String, Object> getBatchInternal(Map<String, Class<?>> keyTypeMapping) {
         if (keyTypeMapping == null || keyTypeMapping.isEmpty()) {
@@ -310,7 +282,7 @@ public final class OpenRedisString {
         RedisTemplate<String, Object> redis = redisTemplate();
         Map<Integer, Collection<Map.Entry<String, Class<?>>>> grouped = new LinkedHashMap<>();
         keyTypeMapping.entrySet().forEach(entry -> grouped
-            .computeIfAbsent(slot(entry.getKey()), k -> new ArrayList<>())
+            .computeIfAbsent(RedisClusterUtil.slot(entry.getKey()), k -> new ArrayList<>())
             .add(entry));
         Map<String, Object> result = new LinkedHashMap<>();
         grouped.values().forEach(group -> {
@@ -332,33 +304,18 @@ public final class OpenRedisString {
         return result;
     }
 
-    private static int slot(String key) {
-        String hashtag = key;
-        int start = key.indexOf('{');
-        if (start >= 0) {
-            int end = key.indexOf('}', start + 1);
-            if (end > start + 1) {
-                hashtag = key.substring(start + 1, end);
-            }
+    private static Map<String, Class<?>> flattenKeyTypeMappings(Collection<Map<String, Class<?>>> keyTypeMappings) {
+        Map<String, Class<?>> flattened = new LinkedHashMap<>();
+        if (keyTypeMappings != null) {
+            keyTypeMappings.stream()
+                .filter(Objects::nonNull)
+                .forEach(map -> map.forEach((key, type) -> flattened.put(
+                    Objects.requireNonNull(key, "key is required"),
+                    Objects.requireNonNull(type, "type is required"))));
         }
-        return crc16(hashtag.getBytes(StandardCharsets.UTF_8)) % 16384;
+        return flattened;
     }
 
-    private static int crc16(byte[] bytes) {
-        int crc = 0x0000;
-        for (byte b : bytes) {
-            crc ^= (b & 0xFF) << 8;
-            for (int i = 0; i < 8; i++) {
-                if ((crc & 0x8000) != 0) {
-                    crc = (crc << 1) ^ 0x1021;
-                } else {
-                    crc <<= 1;
-                }
-                crc &= 0xFFFF;
-            }
-        }
-        return crc & 0xFFFF;
-    }
 
     private static RedisTemplate<String, Object> redisTemplate() {
         if (redisTemplate == null) {
