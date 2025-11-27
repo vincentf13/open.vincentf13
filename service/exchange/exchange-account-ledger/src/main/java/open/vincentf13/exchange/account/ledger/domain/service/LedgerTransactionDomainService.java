@@ -140,7 +140,7 @@ public class LedgerTransactionDomainService {
     public LedgerEntry freezeForOrder(@NotNull Long orderId,
                                       @NotNull Long userId,
                                       @NotNull AssetSymbol asset,
-                                      @NotNull @DecimalMin(value = "0.00000000") BigDecimal requiredMargin,
+                                       @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal requiredMargin,
                                       Instant eventTime) {
         Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
@@ -189,9 +189,9 @@ public class LedgerTransactionDomainService {
                                    @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
                                    @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal makerFee,
                                    @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal takerFee,
-                                    @NotNull Long makerUserId,
-                                    @NotNull Long takerUserId,
-                                    @NotNull Instant eventTime) {
+                                   @NotNull Long makerUserId,
+                                   @NotNull Long takerUserId,
+                                   @NotNull Instant eventTime) {
         BigDecimal totalCost = price.multiply(quantity).add(takerFee);
         Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(
                 Wrappers.lambdaQuery(LedgerEntryPO.class)

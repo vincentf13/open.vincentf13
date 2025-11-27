@@ -2,6 +2,7 @@ package open.vincentf13.exchange.account.ledger.domain.model;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,7 +29,7 @@ public class LedgerEntry {
     @NotNull
     private AssetSymbol asset;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.ZERO, inclusive = true)
     private BigDecimal amount;
     @NotNull
     private Direction direction;

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,32 +36,32 @@ public class KlineBucket {
     private Instant bucketEnd;
 
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal openPrice;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal highPrice;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal lowPrice;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal closePrice;
 
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal volume;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal turnover;
     @NotNull
     @Min(0)
     private Integer tradeCount;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal takerBuyVolume;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal takerBuyTurnover;
 
     private Boolean closed;

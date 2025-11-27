@@ -3,6 +3,7 @@ package open.vincentf13.exchange.position.domain.model;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,36 +29,36 @@ public class Position {
     @Min(1)
     private Integer leverage;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal margin;
     @NotNull
     private PositionSide side;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal entryPrice;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
     private BigDecimal quantity;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal closingReservedQuantity;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal markPrice;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal marginRatio;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal unrealizedPnl;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal realizedPnl;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal liquidationPrice;
     @NotNull
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal bankruptcyPrice;
     @NotNull
     private String status;

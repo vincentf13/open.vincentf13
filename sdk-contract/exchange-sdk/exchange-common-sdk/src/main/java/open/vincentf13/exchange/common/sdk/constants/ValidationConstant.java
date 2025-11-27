@@ -7,7 +7,8 @@ public enum ValidationConstant {
     PRICE_MIN(Names.PRICE_MIN),
     QUANTITY_MIN(Names.QUANTITY_MIN),
     AMOUNT_MIN(Names.AMOUNT_MIN),
-    FEE_MIN(Names.FEE_MIN);
+    FEE_MIN(Names.FEE_MIN),
+    NON_NEGATIVE(Names.NON_NEGATIVE);
 
     private final String value;
 
@@ -24,6 +25,7 @@ public enum ValidationConstant {
         public static final String QUANTITY_MIN = "0.00000001";
         public static final String AMOUNT_MIN = "0.00000001";
         public static final String FEE_MIN = "0.00000000";
+        public static final String NON_NEGATIVE = "0.00000000";
 
         private Names() {
         }

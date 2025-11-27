@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 
 @Service
 @RequiredArgsConstructor
@@ -40,7 +41,7 @@ public class PositionCommandService {
             @NotNull Long orderId,
             @NotNull Long userId,
             @NotNull Long instrumentId,
-            @NotNull @DecimalMin(value = "0.00000001", inclusive = true) BigDecimal quantity,
+            @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true) BigDecimal quantity,
             @NotNull PositionSide side
     ) {
         Position position = positionRepository.findOne(

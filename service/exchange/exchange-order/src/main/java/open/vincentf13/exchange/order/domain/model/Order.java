@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.sdk.enums.OrderCreateRequest;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
@@ -34,25 +35,25 @@ public class Order {
     @NotNull
     private OrderSide side;
     private PositionIntentType intent;
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal closeCostPrice;
     @NotNull
     private OrderType type;
     @NotNull
     private OrderStatus status;
-    @DecimalMin(value = "0", inclusive = false)
+    @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false)
     private BigDecimal price;
     @NotNull
-    @DecimalMin(value = "0.00000001", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
     private BigDecimal quantity;
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal filledQuantity;
     
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal remainingQuantity;
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal avgFillPrice;
-    @DecimalMin(value = "0", inclusive = true)
+    @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true)
     private BigDecimal fee;
     private Integer version;
     private Instant createdAt;
