@@ -19,9 +19,9 @@ public class MatchingTradeEventListener {
     @KafkaListener(topics = MatchingTopics.Names.TRADE_EXECUTED,
             groupId = "${open.vincentf13.exchange.account-ledger.consumer-group:exchange-account-ledger}")
     public void onTradeExecuted(@Payload TradeExecutedEvent event) {
-        if (event == null || event.tradeId() == null || event.orderId() == null) {
+        if (event == null || event.tradeId() == null || event.orderId() == null || event.counterpartyOrderId() == null) {
             OpenLog.warn(LedgerEvent.MATCHING_TRADE_PAYLOAD_MISSING,
-                    "event", event);
+                         "event", event);
             return;
         }
         ledgerBalanceCommandService.handleTradeExecuted(event);

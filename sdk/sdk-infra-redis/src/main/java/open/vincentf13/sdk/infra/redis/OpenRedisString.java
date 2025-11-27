@@ -17,6 +17,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Supplier;
 
+import static open.vincentf13.sdk.infra.redis.RedisUtil.withJitter;
+
 /**
  * 封裝 RedisTemplate 與 StringRedisTemplate 的通用服務
  * - 同槽位檢查以保證 Cluster 下 Pipeline/MULTI/Lua 的可行性
@@ -92,7 +94,7 @@ public final class OpenRedisString {
      *   OpenRedisString.setAsync("user:1", user, Duration.ofMinutes(10), 3);
      */
     public static CompletableFuture<Boolean> setAsync(String key, Object value, Duration ttl, int retry) {
-        Duration ttlWithJitter = RedisUtil.withJitter(ttl);
+        Duration ttlWithJitter = withJitter(ttl);
         return CompletableFuture.supplyAsync(() -> {
             StringRedisTemplate stringRedis = stringRedisTemplate();
             for (int i = 0; i <= retry; i++) {
@@ -134,7 +136,7 @@ public final class OpenRedisString {
                 entries.stream()
                     .filter(Objects::nonNull)
                     .forEach(entry -> {
-                        Duration ttlWithJitter = RedisUtil.withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
+                        Duration ttlWithJitter = withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
                         ops.opsForValue().set(Objects.requireNonNull(entry.key(), "key is required"),
                             OpenObjectMapper.toJson(entry.value()), ttlWithJitter);
                     });
@@ -168,7 +170,7 @@ public final class OpenRedisString {
                     @SuppressWarnings("unchecked")
                     RedisOperations<String, String> ops = (RedisOperations<String, String>) operations;
                     group.forEach(entry -> {
-                        Duration ttlWithJitter = RedisUtil.withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
+                        Duration ttlWithJitter = withJitter(Objects.requireNonNull(entry.ttl(), "ttl is required"));
                         ops.opsForValue().set(entry.key(), OpenObjectMapper.toJson(entry.value()), ttlWithJitter);
                     });
                     return null;
@@ -241,7 +243,7 @@ public final class OpenRedisString {
      */
     public static void setAsyncFireAndForget(String key, Object value, Duration ttl) {
         StringRedisTemplate stringRedis = stringRedisTemplate();
-        Duration ttlWithJitter = RedisUtil.withJitter(ttl);
+        Duration ttlWithJitter = withJitter(ttl);
         ForkJoinPool.commonPool().execute(() -> {
             try {
                 stringRedis.opsForValue().set(key, OpenObjectMapper.toJson(value), ttlWithJitter);

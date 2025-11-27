@@ -94,10 +94,10 @@ public class LedgerBalanceCommandService {
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
         AssetSymbol asset = LedgerBalance.normalizeAsset(event.quoteAsset());
         BigDecimal tradeValue = event.price().multiply(event.quantity());
-        BigDecimal totalCost = tradeValue.add(event.fee());
+        BigDecimal totalCost = tradeValue.add(event.takerFee());
         ledgerTransactionDomainService.settleTrade(
                 event.tradeId(),
-                event.orderId(),
+                event.counterpartyOrderId(),
                 event.instrumentId(),
                 asset,
                 totalCost,

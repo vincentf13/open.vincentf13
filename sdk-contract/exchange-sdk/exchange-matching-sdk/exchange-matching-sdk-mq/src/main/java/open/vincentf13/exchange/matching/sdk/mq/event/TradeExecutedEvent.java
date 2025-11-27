@@ -9,13 +9,17 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public record TradeExecutedEvent(
-        @NotNull Long tradeId,
-        @NotNull Long orderId,
         @NotNull Long instrumentId,
         @NotNull AssetSymbol quoteAsset,
+        @NotNull Long tradeId,
+        @NotNull Long orderId,
+        @NotNull Long counterpartyOrderId,
         @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN) BigDecimal price,
         @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal fee,
+        @NotNull Long makerUserId,
+        @NotNull Long takerUserId,
+        @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal makerFee,
+        @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN) BigDecimal takerFee,
         @NotNull Instant executedAt
 ) {
 }
