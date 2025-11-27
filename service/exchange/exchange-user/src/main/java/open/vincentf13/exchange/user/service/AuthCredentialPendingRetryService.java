@@ -1,15 +1,17 @@
 package open.vincentf13.exchange.user.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
-import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.auth.sdk.rest.client.ExchangeAuthClient;
 import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
-import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 import open.vincentf13.exchange.user.infra.UserEvent;
+import open.vincentf13.exchange.user.infra.persistence.po.AuthCredentialPendingPO;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
+import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
+import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -29,7 +31,14 @@ public class AuthCredentialPendingRetryService {
     private final ExchangeAuthClient authClient;
 
     public void processPendingCredentials() {
-        List<AuthCredentialPending> pendings = authCredentialPendingRepository.findReady(DEFAULT_BATCH_SIZE, Instant.now());
+        LambdaQueryWrapper<AuthCredentialPendingPO> wrapper = Wrappers.<AuthCredentialPendingPO>lambdaQuery()
+                .eq(AuthCredentialPendingPO::getStatus, AuthCredentialPendingStatus.PENDING)
+                .and(w -> w.isNull(AuthCredentialPendingPO::getNextRetryAt)
+                        .or()
+                        .le(AuthCredentialPendingPO::getNextRetryAt, Instant.now()))
+                .orderByAsc(AuthCredentialPendingPO::getUpdatedAt)
+                .last("LIMIT " + DEFAULT_BATCH_SIZE);
+        List<AuthCredentialPending> pendings = authCredentialPendingRepository.findBy(wrapper);
         if (pendings.isEmpty()) {
             return;
         }
@@ -61,7 +70,16 @@ public class AuthCredentialPendingRetryService {
                     msg -> new IllegalStateException(
                             "Failed to create credential for user %s during retry: %s".formatted(pending.getUserId(), msg))
             );
-            authCredentialPendingRepository.markCompleted(pending.getUserId(), pending.getCredentialType(), Instant.now());
+            authCredentialPendingRepository.update(AuthCredentialPending.builder()
+                            .status(AuthCredentialPendingStatus.COMPLETED)
+                            .retryCount(0)
+                            .nextRetryAt(null)
+                            .lastError(null)
+                            .updatedAt(Instant.now())
+                            .build(),
+                    Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
+                            .eq(AuthCredentialPendingPO::getUserId, pending.getUserId())
+                            .eq(AuthCredentialPendingPO::getCredentialType, pending.getCredentialType()));
             OpenLog.info(UserEvent.AUTH_CREDENTIAL_RETRY_SUCCESS,
                     "userId", pending.getUserId());
         } catch (Exception ex) {
@@ -78,13 +96,16 @@ public class AuthCredentialPendingRetryService {
         Instant nextRetryAt = exceeded ? null : Instant.now().plus(calculateDelay(nextRetry));
         String sanitizedReason = sanitizeReason(reason);
 
-        authCredentialPendingRepository.markFailure(
-                pending.getUserId(),
-                pending.getCredentialType(),
-                sanitizedReason,
-                nextRetryAt,
-                nextStatus
-        );
+        authCredentialPendingRepository.update(AuthCredentialPending.builder()
+                        .status(nextStatus)
+                        .lastError(sanitizedReason)
+                        .nextRetryAt(nextRetryAt)
+                        .updatedAt(Instant.now())
+                        .build(),
+                Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
+                        .eq(AuthCredentialPendingPO::getUserId, pending.getUserId())
+                        .eq(AuthCredentialPendingPO::getCredentialType, pending.getCredentialType())
+                        .setSql("retry_count = retry_count + 1"));
 
         if (exceeded) {
             OpenLog.error(UserEvent.AUTH_CREDENTIAL_RETRY_EXCEEDED, null,

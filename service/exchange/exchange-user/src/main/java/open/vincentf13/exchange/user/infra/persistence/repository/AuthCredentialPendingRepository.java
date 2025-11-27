@@ -1,5 +1,8 @@
 package open.vincentf13.exchange.user.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
@@ -26,20 +29,14 @@ public class AuthCredentialPendingRepository {
         mapper.insert(OpenObjectMapper.convert(credential, AuthCredentialPendingPO.class));
     }
 
-    public void markCompleted(@NotNull Long userId, @NotNull AuthCredentialType credentialType, @NotNull Instant updatedAt) {
-        mapper.markCompleted(userId, credentialType, AuthCredentialPendingStatus.COMPLETED.name(), updatedAt);
+    public boolean update(@NotNull AuthCredentialPending update,
+                          @NotNull LambdaUpdateWrapper<AuthCredentialPendingPO> updateWrapper) {
+        AuthCredentialPendingPO record = OpenObjectMapper.convert(update, AuthCredentialPendingPO.class);
+        return mapper.update(record, updateWrapper) > 0;
     }
 
-    public void markFailure(@NotNull Long userId,
-                            @NotNull AuthCredentialType credentialType,
-                            String lastError,
-                            Instant nextRetryAt,
-                            @NotNull AuthCredentialPendingStatus status) {
-        mapper.markFailure(userId, credentialType, status.name(), lastError, nextRetryAt, Instant.now());
-    }
-
-    public List<AuthCredentialPending> findReady(int limit, @NotNull Instant now) {
-        return mapper.findReady(AuthCredentialPendingStatus.PENDING.name(), now, limit).stream()
+    public List<AuthCredentialPending> findBy(@NotNull LambdaQueryWrapper<AuthCredentialPendingPO> wrapper) {
+        return mapper.selectList(wrapper).stream()
                 .map(item -> OpenObjectMapper.convert(item, AuthCredentialPending.class))
                 .collect(Collectors.toList());
     }

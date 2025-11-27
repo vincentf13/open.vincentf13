@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.user.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -18,6 +19,7 @@ import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingSta
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.UserErrorCode;
 import open.vincentf13.exchange.user.infra.UserEvent;
+import open.vincentf13.exchange.user.infra.persistence.po.AuthCredentialPendingPO;
 import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -91,7 +93,16 @@ public class UserCommandService {
                     msg -> new IllegalStateException(
                             "Failed to create auth credential for user %s: %s".formatted(persistedUser.getId(), msg))
             );
-            authCredentialPendingRepository.markCompleted(persistedUser.getId(), AuthCredentialType.PASSWORD, Instant.now());
+            authCredentialPendingRepository.update(AuthCredentialPending.builder()
+                            .status(AuthCredentialPendingStatus.COMPLETED)
+                            .retryCount(0)
+                            .nextRetryAt(null)
+                            .lastError(null)
+                            .updatedAt(Instant.now())
+                            .build(),
+                    Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
+                            .eq(AuthCredentialPendingPO::getUserId, persistedUser.getId())
+                            .eq(AuthCredentialPendingPO::getCredentialType, AuthCredentialType.PASSWORD));
         } catch (Exception ex) {
             handleCredentialFailure(persistedUser.getId(), ex.getMessage());
         }
@@ -104,13 +115,16 @@ public class UserCommandService {
         OpenLog.warn(UserEvent.AUTH_CREDENTIAL_PERSIST_FAILED,
                 "userId", userId,
                 "reason", message);
-        authCredentialPendingRepository.markFailure(
-                userId,
-                AuthCredentialType.PASSWORD,
-                message,
-                Instant.now().plusSeconds(60),
-                AuthCredentialPendingStatus.PENDING
-        );
+        authCredentialPendingRepository.update(AuthCredentialPending.builder()
+                        .status(AuthCredentialPendingStatus.PENDING)
+                        .lastError(message)
+                        .nextRetryAt(Instant.now().plusSeconds(60))
+                        .updatedAt(Instant.now())
+                        .build(),
+                Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
+                        .eq(AuthCredentialPendingPO::getUserId, userId)
+                        .eq(AuthCredentialPendingPO::getCredentialType, AuthCredentialType.PASSWORD)
+                        .setSql("retry_count = retry_count + 1"));
     }
 
     private record RegistrationContext(User user, AuthCredentialPending pending) { }
