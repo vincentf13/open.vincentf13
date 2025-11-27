@@ -69,9 +69,9 @@ public final class OpenRedisString {
             T val = loader.get();
             if (val == null) {
                 // 穿透保護：空值短 TTL
-                setAsyncFireAndForget(key, "", Duration.ofSeconds(Math.max(30, Math.min(ttl.toSeconds() / 10, 300))));
+                setAsyncFireAndForget(key, "", withJitter(Duration.ofSeconds(Math.max(30, Math.min(ttl.toSeconds() / 10, 300)))));
             } else {
-                setAsyncFireAndForget(key, val, ttl.plus(randomJitter(Duration.ofSeconds(30))));
+                setAsyncFireAndForget(key, val, withJitter(ttl));
             }
             return val;
         }
@@ -83,11 +83,12 @@ public final class OpenRedisString {
      *   OpenRedisString.setAsync("user:1", user, Duration.ofMinutes(10), 3);
      */
     public static CompletableFuture<Boolean> setAsync(String key, Object value, Duration ttl, int retry) {
+        Duration ttlWithJitter = withJitter(ttl);
         return CompletableFuture.supplyAsync(() -> {
             StringRedisTemplate stringRedis = stringRedisTemplate();
             for (int i = 0; i <= retry; i++) {
                 try {
-                    stringRedis.opsForValue().set(key, OpenObjectMapper.toJson(value), ttl);
+                    stringRedis.opsForValue().set(key, OpenObjectMapper.toJson(value), ttlWithJitter);
                     return true;
                 } catch (Exception e) {
                     if (i == retry)
@@ -109,9 +110,10 @@ public final class OpenRedisString {
      */
     public static void setAsyncFireAndForget(String key, Object value, Duration ttl) {
         StringRedisTemplate stringRedis = stringRedisTemplate();
+        Duration ttlWithJitter = withJitter(ttl);
         ForkJoinPool.commonPool().execute(() -> {
             try {
-                stringRedis.opsForValue().set(key, OpenObjectMapper.toJson(value), ttl);
+                stringRedis.opsForValue().set(key, OpenObjectMapper.toJson(value), ttlWithJitter);
             } catch (Exception ignored) {
                 // 可選擇 log.warn("Redis async set failed", e)
             }
@@ -124,9 +126,9 @@ public final class OpenRedisString {
         return INTERN.computeIfAbsent(s, k -> new Object());
     }
 
-    private static Duration randomJitter(Duration max) {
-        long ms = (long) (Math.random() * Math.max(1, max.toMillis()));
-        return Duration.ofMillis(ms);
+    private static Duration withJitter(Duration ttl) {
+        long jitterMs = (long) (Math.random() * Math.max(1, Duration.ofSeconds(30).toMillis()));
+        return ttl.plus(Duration.ofMillis(jitterMs));
     }
 
     private static RedisTemplate<String, Object> redisTemplate() {
