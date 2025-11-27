@@ -278,10 +278,11 @@ public class LedgerTransactionDomainService {
         // 1. Update ISOLATED_MARGIN: Decrease balance (cost basis + realized PnL)
         LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
         BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity());
-        BigDecimal totalDecreaseFromMargin = costBasis.add(realizedPnl);
-        LedgerBalance updatedMarginBalance = retryUpdateForWithdrawal(marginBalance, totalDecreaseFromMargin, userId, normalizedAsset);
+
+        LedgerBalance updatedMarginBalance = retryUpdateForWithdrawal(marginBalance, costBasis, userId, normalizedAsset);
 
         // 2. Update SPOT_MAIN: Increase available balance with proceeds (cost basis + realized PnL - fee)
+        BigDecimal totalDecreaseFromMargin = costBasis.add(realizedPnl);
         LedgerBalance spotBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
         BigDecimal releaseAmountToSpot = totalDecreaseFromMargin.subtract(fee);
         LedgerBalance updatedSpotBalance = retryUpdateForDeposit(spotBalance, releaseAmountToSpot, userId, normalizedAsset);
