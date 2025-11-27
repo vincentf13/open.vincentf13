@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.marketdata.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -30,14 +32,18 @@ public class MarkPriceSnapshotRepository {
         if (record.getCalculatedAt() == null) {
             record.setCalculatedAt(Instant.now());
         }
-        mapper.insertSelective(record);
+        mapper.insert(record);
         snapshot.setSnapshotId(record.getSnapshotId());
         snapshot.setCalculatedAt(record.getCalculatedAt());
         return snapshot;
     }
 
     public Optional<MarkPriceSnapshot> findLatest(@NotNull Long instrumentId) {
-        return Optional.ofNullable(mapper.findLatest(instrumentId))
-                .map(po -> OpenObjectMapper.convert(po, MarkPriceSnapshot.class));
+        LambdaQueryWrapper<MarkPriceSnapshotPO> wrapper = Wrappers.lambdaQuery(MarkPriceSnapshotPO.class)
+                .eq(MarkPriceSnapshotPO::getInstrumentId, instrumentId)
+                .orderByDesc(MarkPriceSnapshotPO::getCalculatedAt)
+                .last("LIMIT 1");
+        MarkPriceSnapshotPO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(po).map(value -> OpenObjectMapper.convert(value, MarkPriceSnapshot.class));
     }
 }

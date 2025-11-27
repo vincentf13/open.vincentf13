@@ -1,11 +1,9 @@
 package open.vincentf13.exchange.marketdata.infra.persistence.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import open.vincentf13.exchange.marketdata.infra.persistence.po.MarkPriceSnapshotPO;
-import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Mapper;
 
-public interface MarkPriceSnapshotMapper {
-
-    void insertSelective(MarkPriceSnapshotPO record);
-
-    MarkPriceSnapshotPO findLatest(@Param("instrumentId") Long instrumentId);
+@Mapper
+public interface MarkPriceSnapshotMapper extends BaseMapper<MarkPriceSnapshotPO> {
 }

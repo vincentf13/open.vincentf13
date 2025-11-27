@@ -1,20 +1,23 @@
 package open.vincentf13.exchange.marketdata.infra.cache;
 
-import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
-import open.vincentf13.exchange.market.sdk.rest.api.enums.KlinePeriod;
-import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.market.sdk.rest.api.enums.KlinePeriod;
+import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
+import open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO;
+import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
+import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
@@ -78,15 +81,20 @@ public class KlineAggregationService {
         }
         bucket.setClosed(Boolean.TRUE);
         klineBucketRepository.updateSelectiveBy(bucket,
-                bucket.getBucketId(),
-                bucket.getInstrumentId(),
-                bucket.getPeriod(),
-                null);
+                Wrappers.<KlineBucketPO>lambdaUpdate()
+                        .eq(KlineBucketPO::getBucketId, bucket.getBucketId())
+                        .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
+                        .eq(KlineBucketPO::getPeriod, bucket.getPeriod()));
     }
 
     private BigDecimal findPreviousClose(KlineBucket bucket, KlinePeriod period) {
         Instant prevStart = bucket.getBucketStart().minus(period.getDuration());
-        return klineBucketRepository.findByStart(bucket.getInstrumentId(), period.getValue(), prevStart)
+        return klineBucketRepository.findOne(Wrappers.<KlineBucketPO>lambdaQuery()
+                        .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
+                        .eq(KlineBucketPO::getPeriod, period.getValue())
+                        .lt(KlineBucketPO::getBucketStart, prevStart)
+                        .orderByDesc(KlineBucketPO::getBucketStart)
+                        .last("LIMIT 1"))
                 .map(KlineBucket::getClosePrice)
                 .filter(Objects::nonNull)
                 .orElse(BigDecimal.ZERO);
@@ -100,7 +108,10 @@ public class KlineAggregationService {
             if (current != null && bucketStart.equals(current.getBucketStart())) {
                 return current;
             }
-            Optional<KlineBucket> persisted = klineBucketRepository.findByStart(instrumentId, period.getValue(), bucketStart);
+            Optional<KlineBucket> persisted = klineBucketRepository.findOne(Wrappers.<KlineBucketPO>lambdaQuery()
+                    .eq(KlineBucketPO::getInstrumentId, instrumentId)
+                    .eq(KlineBucketPO::getPeriod, period.getValue())
+                    .eq(KlineBucketPO::getBucketStart, bucketStart));
             return persisted.orElseGet(() -> createNewBucket(instrumentId, period, bucketStart, bucketEnd));
         });
     }
@@ -135,10 +146,10 @@ public class KlineAggregationService {
         }
         bucket.setClosed(Boolean.FALSE);
         klineBucketRepository.updateSelectiveBy(bucket,
-                bucket.getBucketId(),
-                bucket.getInstrumentId(),
-                bucket.getPeriod(),
-                null);
+                Wrappers.<KlineBucketPO>lambdaUpdate()
+                        .eq(KlineBucketPO::getBucketId, bucket.getBucketId())
+                        .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
+                        .eq(KlineBucketPO::getPeriod, bucket.getPeriod()));
     }
 
     private BigDecimal max(BigDecimal left, BigDecimal right) {

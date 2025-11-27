@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.marketdata.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -24,9 +26,13 @@ public class KlineBucketRepository {
     private final KlineBucketMapper mapper;
     private final DefaultIdGenerator idGenerator;
 
-    public Optional<KlineBucket> findByStart(@NotNull Long instrumentId, @NotBlank String period, @NotNull Instant bucketStart) {
-        return Optional.ofNullable(mapper.findByInstrumentPeriodAndStart(instrumentId, period, bucketStart))
-                .map(po -> OpenObjectMapper.convert(po, KlineBucket.class));
+    public Optional<KlineBucket> findOne(@NotNull LambdaQueryWrapper<KlineBucketPO> wrapper) {
+        KlineBucketPO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(OpenObjectMapper.convert(po, KlineBucket.class));
+    }
+
+    public List<KlineBucket> findBy(@NotNull LambdaQueryWrapper<KlineBucketPO> wrapper) {
+        return OpenObjectMapper.convertList(mapper.selectList(wrapper), KlineBucket.class);
     }
 
     public KlineBucket insertSelective(@NotNull @Valid KlineBucket bucket) {
@@ -37,33 +43,15 @@ public class KlineBucketRepository {
         if (record.getBucketId() == null) {
             record.setBucketId(idGenerator.newLong());
         }
-        mapper.insertSelective(record);
+        mapper.insert(record);
         bucket.setBucketId(record.getBucketId());
         bucket.setClosed(record.getClosed());
         return bucket;
     }
 
     public boolean updateSelectiveBy(@NotNull @Valid KlineBucket update,
-                                     @NotNull Long bucketId,
-                                     Long instrumentId,
-                                     String period,
-                                     Boolean closed) {
+                                     @NotNull LambdaUpdateWrapper<KlineBucketPO> updateWrapper) {
         KlineBucketPO record = OpenObjectMapper.convert(update, KlineBucketPO.class);
-        return mapper.updateSelectiveBy(record, bucketId, instrumentId, period, closed) > 0;
-    }
-
-    public List<KlineBucket> findBetween(@NotNull Long instrumentId, @NotBlank String period, @NotNull Instant start, @NotNull Instant end) {
-        List<KlineBucketPO> records = mapper.findBucketsBetween(instrumentId, period, start, end);
-        if (records == null || records.isEmpty()) {
-            return List.of();
-        }
-        return records.stream()
-                .map(po -> OpenObjectMapper.convert(po, KlineBucket.class))
-                .toList();
-    }
-
-    public Optional<KlineBucket> findLatestBefore(@NotNull Long instrumentId, @NotBlank String period, @NotNull Instant start) {
-        return Optional.ofNullable(mapper.findLatestBefore(instrumentId, period, start))
-                .map(po -> OpenObjectMapper.convert(po, KlineBucket.class));
+        return mapper.update(record, updateWrapper) > 0;
     }
 }

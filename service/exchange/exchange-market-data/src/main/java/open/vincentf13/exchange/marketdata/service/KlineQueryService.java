@@ -1,9 +1,11 @@
 package open.vincentf13.exchange.marketdata.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.KlineResponse;
 import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
 import open.vincentf13.exchange.market.sdk.rest.api.enums.KlinePeriod;
+import open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO;
 import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
@@ -39,13 +41,22 @@ public class KlineQueryService {
         Instant latestStart = alignBucketStart(Instant.now(), duration);
         Instant earliestStart = calculateEarliestStart(latestStart, duration, fetchSize);
 
-        List<KlineBucket> existing = klineBucketRepository.findBetween(instrumentId, period.getValue(), earliestStart, latestStart);
+        List<KlineBucket> existing = klineBucketRepository.findBy(Wrappers.<KlineBucketPO>lambdaQuery()
+                .eq(KlineBucketPO::getInstrumentId, instrumentId)
+                .eq(KlineBucketPO::getPeriod, period.getValue())
+                .between(KlineBucketPO::getBucketStart, earliestStart, latestStart)
+                .orderByAsc(KlineBucketPO::getBucketStart));
         Map<Instant, KlineBucket> bucketByStart = new HashMap<>();
         for (KlineBucket bucket : existing) {
             bucketByStart.put(bucket.getBucketStart(), bucket);
         }
 
-        BigDecimal previousClose = klineBucketRepository.findLatestBefore(instrumentId, period.getValue(), earliestStart)
+        BigDecimal previousClose = klineBucketRepository.findOne(Wrappers.<KlineBucketPO>lambdaQuery()
+                        .eq(KlineBucketPO::getInstrumentId, instrumentId)
+                        .eq(KlineBucketPO::getPeriod, period.getValue())
+                        .lt(KlineBucketPO::getBucketStart, earliestStart)
+                        .orderByDesc(KlineBucketPO::getBucketStart)
+                        .last("LIMIT 1"))
                 .map(KlineBucket::getClosePrice)
                 .orElse(null);
 
