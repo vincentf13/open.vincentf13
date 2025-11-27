@@ -17,4 +17,8 @@ public final class OpenBigDecimal {
     public static BigDecimal normalizeDecimal(BigDecimal value) {
         return value == null ? null : value.stripTrailingZeros();
     }
+
+    public static BigDecimal safeDecimal(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
 }

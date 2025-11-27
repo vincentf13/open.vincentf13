@@ -39,6 +39,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
 
+import open.vincentf13.sdk.core.OpenBigDecimal;
+
 @Service
 @Validated
 @RequiredArgsConstructor
@@ -243,7 +245,7 @@ public class LedgerTransactionDomainService {
 
         // 3. Update ISOLATED_MARGIN: Increase balance with trade value
         LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
-        LedgerBalance updatedMarginBalance = retryUpdateForDeposit(marginBalance, tradeValue, userId, normalizedAsset);
+        LedgerBalance updatedMarginBalance = retryUpdateForDepositWithPnl(marginBalance, tradeValue, BigDecimal.ZERO, userId, normalizedAsset);
 
         // 4. Platform account for fee revenue
         PlatformAccount feeRevenueAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.FEE_REVENUE, PlatformAccountCategory.REVENUE, PlatformAccountStatus.ACTIVE);
@@ -279,7 +281,7 @@ public class LedgerTransactionDomainService {
         LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
         BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity());
 
-        LedgerBalance updatedMarginBalance = retryUpdateForWithdrawal(marginBalance, costBasis, userId, normalizedAsset);
+        LedgerBalance updatedMarginBalance = retryUpdateForWithdrawalWithPnl(marginBalance, costBasis, realizedPnl, userId, normalizedAsset);
 
         // 2. Update SPOT_MAIN: Increase available balance with proceeds (cost basis + realized PnL - fee)
         BigDecimal totalDecreaseFromMargin = costBasis.add(realizedPnl);
@@ -323,12 +325,12 @@ public class LedgerTransactionDomainService {
         int attempts = 0;
         while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
             int expectedVersion = current.safeVersion();
-            BigDecimal available = safeDecimal(current.getAvailable());
+            BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
                 throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
                                                "Insufficient available balance for user=" + userId + " asset=" + asset.code());
             }
-            BigDecimal reserved = safeDecimal(current.getReserved());
+            BigDecimal reserved = OpenBigDecimal.safeDecimal(current.getReserved());
             current.setAvailable(available.subtract(amount));
             current.setReserved(reserved.add(amount));
             current.setVersion(expectedVersion + 1);
@@ -358,7 +360,7 @@ public class LedgerTransactionDomainService {
         int attempts = 0;
         while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
             int expectedVersion = current.safeVersion();
-            BigDecimal reserved = safeDecimal(current.getReserved());
+            BigDecimal reserved = OpenBigDecimal.safeDecimal(current.getReserved());
             BigDecimal cost = amountToDebit.subtract(amountToRefund);
             if (reserved.compareTo(amountToDebit) < 0) {
                 throw new IllegalStateException("Insufficient reserved balance for user=" + userId + ", trade=" + tradeId);
@@ -410,6 +412,35 @@ public class LedgerTransactionDomainService {
         throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
     }
 
+    private LedgerBalance retryUpdateForDepositWithPnl(LedgerBalance balance,
+                                                       BigDecimal amount,
+                                                       BigDecimal realizedPnl,
+                                                       Long userId,
+                                                       AssetSymbol asset) {
+        LedgerBalance current = balance;
+        int attempts = 0;
+        while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
+            int expectedVersion = current.safeVersion();
+            current.setBalance(current.getBalance().add(amount));
+            current.setAvailable(current.getAvailable().add(amount));
+            current.setTotalDeposited(current.getTotalDeposited().add(amount));
+            current.setTotalRealizedPnl(OpenBigDecimal.safeDecimal(current.getTotalRealizedPnl()).add(realizedPnl));
+            current.setVersion(expectedVersion + 1);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(
+                    current,
+                    new LambdaUpdateWrapper<LedgerBalancePO>()
+                            .eq(LedgerBalancePO::getId, current.getId())
+                            .eq(LedgerBalancePO::getVersion, expectedVersion)
+            );
+            if (updated) {
+                return current;
+            }
+            attempts++;
+            current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+    }
+
     private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance,
                                                    BigDecimal amount,
                                                    Long userId,
@@ -418,7 +449,7 @@ public class LedgerTransactionDomainService {
         int attempts = 0;
         while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
             int expectedVersion = current.safeVersion();
-            BigDecimal available = safeDecimal(current.getAvailable());
+            BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
                 throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
                         "Insufficient available balance for user=" + userId + " asset=" + asset.code());
@@ -426,6 +457,40 @@ public class LedgerTransactionDomainService {
             current.setAvailable(available.subtract(amount));
             current.setBalance(current.getBalance().subtract(amount));
             current.setTotalWithdrawn(current.getTotalWithdrawn().add(amount));
+            current.setVersion(expectedVersion + 1);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(
+                    current,
+                    new LambdaUpdateWrapper<LedgerBalancePO>()
+                            .eq(LedgerBalancePO::getId, current.getId())
+                            .eq(LedgerBalancePO::getVersion, expectedVersion)
+            );
+            if (updated) {
+                return current;
+            }
+            attempts++;
+            current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
+        }
+        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+    }
+
+    private LedgerBalance retryUpdateForWithdrawalWithPnl(LedgerBalance balance,
+                                                          BigDecimal amount,
+                                                          BigDecimal realizedPnl,
+                                                          Long userId,
+                                                          AssetSymbol asset) {
+        LedgerBalance current = balance;
+        int attempts = 0;
+        while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
+            int expectedVersion = current.safeVersion();
+            BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
+            if (available.compareTo(amount) < 0) {
+                throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
+                        "Insufficient available balance for user=" + userId + " asset=" + asset.code());
+            }
+            current.setAvailable(available.subtract(amount));
+            current.setBalance(current.getBalance().subtract(amount));
+            current.setTotalWithdrawn(current.getTotalWithdrawn().add(amount));
+            current.setTotalPnl(OpenBigDecimal.safeDecimal(current.getTotalPnl()).add(realizedPnl));
             current.setVersion(expectedVersion + 1);
             boolean updated = ledgerBalanceRepository.updateSelectiveBy(
                     current,
@@ -465,9 +530,7 @@ public class LedgerTransactionDomainService {
                         "Ledger balance not found for account=" + accountId + ", asset=" + asset.code()));
     }
 
-    private BigDecimal safeDecimal(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
-    }
+
 
     private PlatformBalance retryUpdateForPlatformDeposit(PlatformBalance platformBalance,
                                                           BigDecimal amount,
@@ -476,7 +539,7 @@ public class LedgerTransactionDomainService {
         int attempts = 0;
         while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
             int expectedVersion = current.safeVersion();
-            BigDecimal currentBalance = safeDecimal(current.getBalance());
+            BigDecimal currentBalance = OpenBigDecimal.safeDecimal(current.getBalance());
             current.setBalance(currentBalance.add(amount));
             current.setVersion(expectedVersion + 1);
             boolean updated = platformBalanceRepository.updateSelectiveBy(
@@ -501,7 +564,7 @@ public class LedgerTransactionDomainService {
         int attempts = 0;
         while (attempts < OPTIMISTIC_LOCK_MAX_RETRIES) {
             int expectedVersion = current.safeVersion();
-            BigDecimal currentBalance = safeDecimal(current.getBalance());
+            BigDecimal currentBalance = OpenBigDecimal.safeDecimal(current.getBalance());
             current.setBalance(currentBalance.subtract(amount));
             current.setVersion(expectedVersion + 1);
             boolean updated = platformBalanceRepository.updateSelectiveBy(
