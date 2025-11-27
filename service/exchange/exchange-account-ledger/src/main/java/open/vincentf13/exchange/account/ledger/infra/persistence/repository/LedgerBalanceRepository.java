@@ -1,5 +1,8 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -33,31 +36,24 @@ public class LedgerBalanceRepository {
             balance.setAccountId(idGenerator.newLong());
         }
         LedgerBalancePO po = OpenObjectMapper.convert(balance, LedgerBalancePO.class);
-        mapper.insertSelective(po);
+        mapper.insert(po);
         return balance;
     }
 
-    public boolean updateSelectiveBy(@NotNull @Valid LedgerBalance balance, @NotNull Long id, Integer expectedVersion) {
+    public boolean updateSelectiveBy(@NotNull @Valid LedgerBalance balance, LambdaUpdateWrapper<LedgerBalancePO> updateWrapper) {
         LedgerBalancePO po = OpenObjectMapper.convert(balance, LedgerBalancePO.class);
-        return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
+        return mapper.update(po, updateWrapper) > 0;
     }
 
-    public List<LedgerBalance> findBy(@NotNull LedgerBalance condition) {
-        LedgerBalancePO probe = OpenObjectMapper.convert(condition, LedgerBalancePO.class);
-        return mapper.findBy(probe).stream()
+    public List<LedgerBalance> findBy(@NotNull LambdaQueryWrapper<LedgerBalancePO> wrapper) {
+        return mapper.selectList(wrapper).stream()
                 .map(item -> OpenObjectMapper.convert(item, LedgerBalance.class))
                 .collect(Collectors.toList());
     }
 
-    public Optional<LedgerBalance> findOne(@NotNull LedgerBalance condition) {
-        List<LedgerBalance> results = findBy(condition);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single ledger balance but found " + results.size());
-        }
-        return Optional.of(results.get(0));
+    public Optional<LedgerBalance> findOne(@NotNull LambdaQueryWrapper<LedgerBalancePO> wrapper) {
+        LedgerBalancePO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(OpenObjectMapper.convert(po, LedgerBalance.class));
     }
 
     public LedgerBalance getOrCreate(@NotNull Long userId,
@@ -70,7 +66,7 @@ public class LedgerBalanceRepository {
                 .instrumentId(instrumentId)
                 .asset(asset)
                 .build();
-        return findOne(probe)
+        return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, LedgerBalancePO.class)))
                 .orElseGet(() -> insertSelective(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
     }
 }

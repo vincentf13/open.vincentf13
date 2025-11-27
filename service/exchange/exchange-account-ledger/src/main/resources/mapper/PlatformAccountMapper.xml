@@ -1,36 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="open.vincentf13.exchange.account.ledger.infra.persistence.mapper.PlatformAccountMapper">
-
-    <select id="findBy" parameterType="PlatformAccountPO"
-            resultType="PlatformAccountPO">
-        SELECT * FROM platform_accounts
-        <where>
-            <if test="accountId != null">AND account_id = #{accountId}</if>
-            <if test="accountCode != null">AND account_code = #{accountCode}</if>
-            <if test="category != null">AND category = #{category}</if>
-            <if test="name != null">AND name = #{name}</if>
-            <if test="status != null">AND status = #{status}</if>
-        </where>
-        ORDER BY account_code ASC
-    </select>
-
-    <insert id="insertSelective" parameterType="PlatformAccountPO">
-        INSERT INTO platform_accounts
-        <trim prefix="(" suffix=")" suffixOverrides=",">
-            <if test="accountId != null">account_id,</if>
-            <if test="accountCode != null">account_code,</if>
-            <if test="category != null">category,</if>
-            <if test="name != null">name,</if>
-            <if test="status != null">status,</if>
-        </trim>
-        VALUES
-        <trim prefix="(" suffix=")" suffixOverrides=",">
-            <if test="accountId != null">#{accountId},</if>
-            <if test="accountCode != null">#{accountCode},</if>
-            <if test="category != null">#{category},</if>
-            <if test="name != null">#{name},</if>
-            <if test="status != null">#{status},</if>
-        </trim>
-    </insert>
 </mapper>

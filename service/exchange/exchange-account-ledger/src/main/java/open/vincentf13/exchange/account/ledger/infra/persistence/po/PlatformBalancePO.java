@@ -1,5 +1,8 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.po;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,8 +17,10 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName("platform_balances")
 public class PlatformBalancePO {
 
+    @TableId(value = "id", type = IdType.INPUT)
     private Long id;
     private Long accountId;
     private PlatformAccountCode accountCode;

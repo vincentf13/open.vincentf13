@@ -1,33 +1,34 @@
 package open.vincentf13.exchange.account.ledger.domain.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeException;
-import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeFailureReason;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
+import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeException;
+import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeFailureReason;
+import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
+import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO;
+import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformBalancePO;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerBalanceRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.LedgerEntryRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import jakarta.validation.Valid;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
-
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -52,7 +53,10 @@ public class LedgerTransactionDomainService {
         LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(request.userId(), accountType, null, normalizedAsset);
         LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
 
-        PlatformAccount platformAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.USER_DEPOSIT);
+        PlatformAccount platformAccount = platformAccountRepository.getOrCreate(
+                PlatformAccountCode.USER_DEPOSIT,
+                PlatformAccountCategory.LIABILITY,
+                PlatformAccountStatus.ACTIVE);
         PlatformBalance platformBalance = platformBalanceRepository.getOrCreate(platformAccount.getAccountId(), platformAccount.getAccountCode(), normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, request.amount(), normalizedAsset);
 
@@ -94,7 +98,10 @@ public class LedgerTransactionDomainService {
 
         LedgerBalance balanceUpdated = retryUpdateForWithdrawal(userBalance, request.amount(), request.userId(), normalizedAsset);
 
-        PlatformAccount platformAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.USER_DEPOSIT);
+        PlatformAccount platformAccount = platformAccountRepository.getOrCreate(
+                PlatformAccountCode.USER_DEPOSIT,
+                PlatformAccountCategory.LIABILITY,
+                PlatformAccountStatus.ACTIVE);
         PlatformBalance platformBalance = platformBalanceRepository.getOrCreate(platformAccount.getAccountId(), platformAccount.getAccountCode(), normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformWithdrawal(platformBalance, request.amount(), normalizedAsset);
 
@@ -137,11 +144,11 @@ public class LedgerTransactionDomainService {
         Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
         String referenceId = orderId.toString();
-        Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(LedgerEntry.builder()
-                .referenceType(ReferenceType.ORDER)
-                .referenceId(referenceId)
-                .entryType(EntryType.FREEZE)
-                .build());
+        Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(
+                Wrappers.lambdaQuery(LedgerEntryPO.class)
+                        .eq(LedgerEntryPO::getReferenceType, ReferenceType.ORDER)
+                        .eq(LedgerEntryPO::getReferenceId, referenceId)
+                        .eq(LedgerEntryPO::getEntryType, EntryType.FREEZE));
         if (existing.isPresent()) {
             return existing.get();
         }
@@ -179,29 +186,29 @@ public class LedgerTransactionDomainService {
                                    @NotNull @DecimalMin(value = "0.00000000") BigDecimal totalCost,
                                    @NotNull Instant eventTime) {
         BigDecimal normalizedCost = totalCost;
-        Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(LedgerEntry.builder()
-                .referenceType(ReferenceType.TRADE)
-                .referenceId(tradeId.toString())
-                .entryType(EntryType.TRADE)
-                .build());
+        Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(
+                Wrappers.lambdaQuery(LedgerEntryPO.class)
+                        .eq(LedgerEntryPO::getReferenceType, ReferenceType.TRADE)
+                        .eq(LedgerEntryPO::getReferenceId, tradeId.toString())
+                        .eq(LedgerEntryPO::getEntryType, EntryType.TRADE));
         if (existing.isPresent()) {
             return existing.get();
         }
-        LedgerEntry reservedEntry = ledgerEntryRepository.findOne(LedgerEntry.builder()
-                        .referenceType(ReferenceType.ORDER)
-                        .referenceId(orderId.toString())
-                        .entryType(EntryType.RESERVED)
-                        .build())
+        LedgerEntry reservedEntry = ledgerEntryRepository.findOne(
+                        Wrappers.lambdaQuery(LedgerEntryPO.class)
+                                .eq(LedgerEntryPO::getReferenceType, ReferenceType.ORDER)
+                                .eq(LedgerEntryPO::getReferenceId, orderId.toString())
+                                .eq(LedgerEntryPO::getEntryType, EntryType.RESERVED))
                 .orElseThrow(() -> new IllegalStateException("Reserved entry not found for order=" + orderId));
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
         if (reservedEntry.getAsset() != null && normalizedAsset != null && reservedEntry.getAsset() != normalizedAsset) {
             throw new IllegalStateException("Asset mismatch for order=" + orderId + ", reserved=" + reservedEntry.getAsset()
                     + ", event=" + normalizedAsset);
         }
-        LedgerBalance balance = ledgerBalanceRepository.findOne(LedgerBalance.builder()
-                                                                     .accountId(reservedEntry.getAccountId())
-                                                                     .asset(normalizedAsset)
-                                                                     .build())
+        LedgerBalance balance = ledgerBalanceRepository.findOne(
+                        Wrappers.lambdaQuery(LedgerBalancePO.class)
+                                .eq(LedgerBalancePO::getAccountId, reservedEntry.getAccountId())
+                                .eq(LedgerBalancePO::getAsset, normalizedAsset))
                 .orElseThrow(() -> new IllegalStateException("Ledger balance not found for account=" + reservedEntry.getAccountId()));
         LedgerBalance updated = retryUpdateForTrade(balance,
                                                     normalizedCost,
@@ -242,7 +249,12 @@ public class LedgerTransactionDomainService {
             current.setAvailable(available.subtract(amount));
             current.setReserved(reserved.add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(
+                    current,
+                    new LambdaUpdateWrapper<LedgerBalancePO>()
+                            .eq(LedgerBalancePO::getId, current.getId())
+                            .eq(LedgerBalancePO::getVersion, expectedVersion)
+            );
             if (updated) {
                 return current;
             }
@@ -270,7 +282,12 @@ public class LedgerTransactionDomainService {
             current.setReserved(reserved.subtract(amount));
             current.setBalance(totalBalance.subtract(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(
+                    current,
+                    new LambdaUpdateWrapper<LedgerBalancePO>()
+                            .eq(LedgerBalancePO::getId, current.getId())
+                            .eq(LedgerBalancePO::getVersion, expectedVersion)
+            );
             if (updated) {
                 return current;
             }
@@ -292,7 +309,12 @@ public class LedgerTransactionDomainService {
             current.setAvailable(current.getAvailable().add(amount));
             current.setTotalDeposited(current.getTotalDeposited().add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(
+                    current,
+                    new LambdaUpdateWrapper<LedgerBalancePO>()
+                            .eq(LedgerBalancePO::getId, current.getId())
+                            .eq(LedgerBalancePO::getVersion, expectedVersion)
+            );
             if (updated) {
                 return current;
             }
@@ -319,7 +341,12 @@ public class LedgerTransactionDomainService {
             current.setBalance(current.getBalance().subtract(amount));
             current.setTotalWithdrawn(current.getTotalWithdrawn().add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = ledgerBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
+            boolean updated = ledgerBalanceRepository.updateSelectiveBy(
+                    current,
+                    new LambdaUpdateWrapper<LedgerBalancePO>()
+                            .eq(LedgerBalancePO::getId, current.getId())
+                            .eq(LedgerBalancePO::getVersion, expectedVersion)
+            );
             if (updated) {
                 return current;
             }
@@ -333,21 +360,21 @@ public class LedgerTransactionDomainService {
                                               AccountType accountType,
                                               Long instrumentId,
                                               AssetSymbol asset) {
-        return ledgerBalanceRepository.findOne(LedgerBalance.builder()
-                                                       .userId(userId)
-                                                       .accountType(accountType)
-                                                       .instrumentId(instrumentId)
-                                                       .asset(asset)
-                                                       .build())
+        return ledgerBalanceRepository.findOne(
+                        Wrappers.lambdaQuery(LedgerBalancePO.class)
+                                .eq(LedgerBalancePO::getUserId, userId)
+                                .eq(LedgerBalancePO::getAccountType, accountType)
+                                .eq(LedgerBalancePO::getInstrumentId, instrumentId)
+                                .eq(LedgerBalancePO::getAsset, asset))
                 .orElseThrow(() -> new IllegalStateException(
                         "Ledger balance not found for user=" + userId + ", asset=" + asset.code()));
     }
 
     private LedgerBalance reloadLedgerBalance(Long accountId, AssetSymbol asset) {
-        return ledgerBalanceRepository.findOne(LedgerBalance.builder()
-                                                       .accountId(accountId)
-                                                       .asset(asset)
-                                                       .build())
+        return ledgerBalanceRepository.findOne(
+                        Wrappers.lambdaQuery(LedgerBalancePO.class)
+                                .eq(LedgerBalancePO::getAccountId, accountId)
+                                .eq(LedgerBalancePO::getAsset, asset))
                 .orElseThrow(() -> new IllegalStateException(
                         "Ledger balance not found for account=" + accountId + ", asset=" + asset.code()));
     }
@@ -366,7 +393,12 @@ public class LedgerTransactionDomainService {
             BigDecimal currentBalance = safeDecimal(current.getBalance());
             current.setBalance(currentBalance.add(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = platformBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
+            boolean updated = platformBalanceRepository.updateSelectiveBy(
+                    current,
+                    new LambdaUpdateWrapper<PlatformBalancePO>()
+                            .eq(PlatformBalancePO::getId, current.getId())
+                            .eq(PlatformBalancePO::getVersion, expectedVersion)
+            );
             if (updated) {
                 return current;
             }
@@ -386,7 +418,12 @@ public class LedgerTransactionDomainService {
             BigDecimal currentBalance = safeDecimal(current.getBalance());
             current.setBalance(currentBalance.subtract(amount));
             current.setVersion(expectedVersion + 1);
-            boolean updated = platformBalanceRepository.updateSelectiveBy(current, current.getId(), expectedVersion);
+            boolean updated = platformBalanceRepository.updateSelectiveBy(
+                    current,
+                    new LambdaUpdateWrapper<PlatformBalancePO>()
+                            .eq(PlatformBalancePO::getId, current.getId())
+                            .eq(PlatformBalancePO::getVersion, expectedVersion)
+            );
             if (updated) {
                 return current;
             }
@@ -397,11 +434,11 @@ public class LedgerTransactionDomainService {
     }
 
     private PlatformBalance reloadPlatformBalance(Long accountId, PlatformAccountCode accountCode, AssetSymbol asset) {
-        return platformBalanceRepository.findOne(PlatformBalance.builder()
-                                                         .accountId(accountId)
-                                                         .accountCode(accountCode)
-                                                         .asset(asset)
-                                                         .build())
+        return platformBalanceRepository.findOne(
+                        Wrappers.lambdaQuery(PlatformBalancePO.class)
+                                .eq(PlatformBalancePO::getAccountId, accountId)
+                                .eq(PlatformBalancePO::getAccountCode, accountCode)
+                                .eq(PlatformBalancePO::getAsset, asset))
                 .orElseThrow(() -> new IllegalStateException("Platform balance not found for account=" + accountId + ", asset=" + asset.code()));
     }
 

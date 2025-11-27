@@ -1,5 +1,8 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.po;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,8 +20,10 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName("ledger_entries")
 public class LedgerEntryPO {
 
+    @TableId(value = "entry_id", type = IdType.INPUT)
     private Long entryId;
     private OwnerType ownerType;
     private Long accountId;

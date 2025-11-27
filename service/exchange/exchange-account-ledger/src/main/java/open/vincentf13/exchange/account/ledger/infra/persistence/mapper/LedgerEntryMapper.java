@@ -1,11 +1,7 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO;
-import java.util.List;
 
-public interface LedgerEntryMapper {
-
-    int insertSelective(LedgerEntryPO record);
-
-    List<LedgerEntryPO> findBy(LedgerEntryPO condition);
+public interface LedgerEntryMapper extends BaseMapper<LedgerEntryPO> {
 }

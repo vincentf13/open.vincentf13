@@ -1,17 +1,6 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
-
-public interface LedgerBalanceMapper {
-
-    List<LedgerBalancePO> findBy(LedgerBalancePO condition);
-
-    int insertSelective(LedgerBalancePO record);
-
-    int updateSelectiveBy(@Param("record") LedgerBalancePO record,
-                          @Param("id") Long id,
-                          @Param("expectedVersion") Integer expectedVersion);
+public interface LedgerBalanceMapper extends BaseMapper<LedgerBalancePO> {
 }

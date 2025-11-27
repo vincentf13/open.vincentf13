@@ -1,12 +1,7 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.PlatformAccountPO;
 
-import java.util.List;
-
-public interface PlatformAccountMapper {
-
-    List<PlatformAccountPO> findBy(PlatformAccountPO condition);
-
-    int insertSelective(PlatformAccountPO record);
+public interface PlatformAccountMapper extends BaseMapper<PlatformAccountPO> {
 }

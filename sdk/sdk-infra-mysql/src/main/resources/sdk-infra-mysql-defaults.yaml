@@ -114,6 +114,7 @@ mybatis-plus:
     db-config:
       logic-delete-value: 1
       logic-not-delete-value: 0
+      update-strategy: not_null
 
 open:
   vincentf13:

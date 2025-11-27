@@ -7,6 +7,8 @@ import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceIte
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerBalanceResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -29,11 +31,12 @@ public class LedgerBalanceQueryService {
     public LedgerBalanceResponse getBalances(@NotNull Long userId,
                                              @NotBlank String asset) {
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
-        List<LedgerBalance> balances = ledgerBalanceRepository.findBy(LedgerBalance.builder()
-                .userId(userId)
-                .accountType(AccountType.SPOT_MAIN)
-                .asset(normalizedAsset)
-                .build());
+        List<LedgerBalance> balances = ledgerBalanceRepository.findBy(
+                Wrappers.lambdaQuery(LedgerBalancePO.class)
+                        .eq(LedgerBalancePO::getUserId, userId)
+                        .eq(LedgerBalancePO::getAccountType, AccountType.SPOT_MAIN)
+                        .eq(LedgerBalancePO::getAsset, normalizedAsset)
+        );
         Instant snapshotAt = balances.stream()
                 .map(LedgerBalance::getUpdatedAt)
                 .filter(Objects::nonNull)

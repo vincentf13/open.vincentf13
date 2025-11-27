@@ -1,5 +1,8 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -34,45 +37,38 @@ public class PlatformBalanceRepository {
             platformBalance.setVersion(0);
         }
         PlatformBalancePO po = OpenObjectMapper.convert(platformBalance, PlatformBalancePO.class);
-        mapper.insertSelective(po);
+        mapper.insert(po);
         return platformBalance;
     }
 
-    public boolean updateSelectiveBy(@NotNull @Valid PlatformBalance platformBalance, @NotNull Long id, Integer expectedVersion) {
+    public boolean updateSelectiveBy(@NotNull @Valid PlatformBalance platformBalance,
+                                     LambdaUpdateWrapper<PlatformBalancePO> updateWrapper) {
         PlatformBalancePO po = OpenObjectMapper.convert(platformBalance, PlatformBalancePO.class);
-        return mapper.updateSelectiveBy(po, id, expectedVersion) > 0;
+        return mapper.update(po, updateWrapper) > 0;
     }
 
-    public List<PlatformBalance> findBy(@NotNull PlatformBalance condition) {
-        PlatformBalancePO probe = OpenObjectMapper.convert(condition, PlatformBalancePO.class);
-        return mapper.findBy(probe).stream()
+    public List<PlatformBalance> findBy(@NotNull LambdaQueryWrapper<PlatformBalancePO> wrapper) {
+        return mapper.selectList(wrapper).stream()
                 .map(item -> OpenObjectMapper.convert(item, PlatformBalance.class))
                 .collect(Collectors.toList());
     }
 
-    public Optional<PlatformBalance> findOne(@NotNull PlatformBalance condition) {
-        List<PlatformBalance> results = findBy(condition);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single platform balance but found " + results.size());
-        }
-        return Optional.of(results.get(0));
+    public Optional<PlatformBalance> findOne(@NotNull LambdaQueryWrapper<PlatformBalancePO> wrapper) {
+        PlatformBalancePO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(OpenObjectMapper.convert(po, PlatformBalance.class));
     }
 
     public PlatformBalance getOrCreate(@NotNull Long accountId, @NotNull PlatformAccountCode accountCode, @NotNull AssetSymbol asset) {
-        PlatformBalance probe = PlatformBalance.builder()
-                .accountId(accountId)
-                .accountCode(accountCode)
-                .asset(asset)
-                .build();
-        return findOne(probe)
+        LambdaQueryWrapper<PlatformBalancePO> wrapper = Wrappers.lambdaQuery(PlatformBalancePO.class)
+                .eq(PlatformBalancePO::getAccountId, accountId)
+                .eq(PlatformBalancePO::getAccountCode, accountCode)
+                .eq(PlatformBalancePO::getAsset, asset);
+        return findOne(wrapper)
                 .orElseGet(() -> {
                     try {
                         return insertSelective(PlatformBalance.createDefault(accountId, accountCode, asset));
                     } catch (DuplicateKeyException ex) {
-                        return findOne(probe)
+                        return findOne(wrapper)
                                 .orElseThrow(() -> ex);
                     }
                 });

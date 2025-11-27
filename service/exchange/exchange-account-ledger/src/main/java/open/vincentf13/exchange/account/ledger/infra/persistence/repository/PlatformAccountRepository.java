@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -35,42 +37,39 @@ public class PlatformAccountRepository {
         if (po.getName() == null && platformAccount.getAccountCode() != null) {
             po.setName(platformAccount.getAccountCode().displayName());
         }
-        mapper.insertSelective(po);
+        mapper.insert(po);
         return platformAccount;
     }
 
-    public List<PlatformAccount> findBy(@NotNull PlatformAccount condition) {
-        PlatformAccountPO probe = OpenObjectMapper.convert(condition, PlatformAccountPO.class);
-        return mapper.findBy(probe).stream()
+    public List<PlatformAccount> findBy(@NotNull LambdaQueryWrapper<PlatformAccountPO> wrapper) {
+        return mapper.selectList(wrapper).stream()
                 .map(item -> OpenObjectMapper.convert(item, PlatformAccount.class))
                 .collect(Collectors.toList());
     }
 
-    public Optional<PlatformAccount> findOne(@NotNull PlatformAccount condition) {
-        List<PlatformAccount> results = findBy(condition);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single platform account but found " + results.size());
-        }
-        return Optional.of(results.get(0));
+    public Optional<PlatformAccount> findOne(@NotNull LambdaQueryWrapper<PlatformAccountPO> wrapper) {
+        PlatformAccountPO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(OpenObjectMapper.convert(po, PlatformAccount.class));
     }
 
-    public PlatformAccount getOrCreate(@NotNull PlatformAccountCode code) {
+    public PlatformAccount getOrCreate(@NotNull PlatformAccountCode code,
+                                       @NotNull PlatformAccountCategory category,
+                                       @NotNull PlatformAccountStatus status) {
         PlatformAccount probe = PlatformAccount.builder()
                 .accountCode(code)
+                .category(category)
+                .status(status)
                 .build();
-        return findOne(probe)
+        return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, PlatformAccountPO.class)))
                 .orElseGet(() -> {
                     try {
                         return insertSelective(PlatformAccount.builder()
                                 .accountCode(code)
-                                .category(PlatformAccountCategory.LIABILITY)
-                                .status(PlatformAccountStatus.ACTIVE)
+                                .category(category)
+                                .status(status)
                                 .build());
                     } catch (DuplicateKeyException ex) {
-                        return findOne(probe)
+                        return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, PlatformAccountPO.class)))
                                 .orElseThrow(() -> ex);
                     }
                 });

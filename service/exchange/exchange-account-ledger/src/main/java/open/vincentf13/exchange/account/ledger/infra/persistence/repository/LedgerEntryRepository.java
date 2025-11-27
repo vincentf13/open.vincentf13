@@ -1,5 +1,8 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -22,26 +25,17 @@ public class LedgerEntryRepository {
 
     public void insert(@NotNull @Valid LedgerEntry entry) {
         LedgerEntryPO po = OpenObjectMapper.convert(entry, LedgerEntryPO.class);
-        mapper.insertSelective(po);
+        mapper.insert(po);
     }
 
-    public List<LedgerEntry> findBy(@NotNull LedgerEntry condition) {
-        LedgerEntryPO probe = OpenObjectMapper.convert(condition, LedgerEntryPO.class);
-        return mapper.findBy(probe).stream()
+    public List<LedgerEntry> findBy(@NotNull LambdaQueryWrapper<LedgerEntryPO> wrapper) {
+        return mapper.selectList(wrapper).stream()
                 .map(item -> OpenObjectMapper.convert(item, LedgerEntry.class))
                 .toList();
     }
 
-    public Optional<LedgerEntry> findOne(@NotNull LedgerEntry condition) {
-        LedgerEntryPO probe = OpenObjectMapper.convert(condition, LedgerEntryPO.class);
-        List<LedgerEntryPO> results = mapper.findBy(probe);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single ledger entry but found " + results.size());
-        }
-        return Optional.of(OpenObjectMapper.convert(results.get(0), LedgerEntry.class));
+    public Optional<LedgerEntry> findOne(@NotNull LambdaQueryWrapper<LedgerEntryPO> wrapper) {
+        LedgerEntryPO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(OpenObjectMapper.convert(po, LedgerEntry.class));
     }
-
 }
