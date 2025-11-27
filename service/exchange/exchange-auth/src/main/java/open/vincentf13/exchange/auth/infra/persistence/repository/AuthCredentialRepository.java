@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.auth.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -9,12 +11,14 @@ import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.infra.persistence.mapper.AuthCredentialMapper;
 import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -23,49 +27,43 @@ public class AuthCredentialRepository {
 
     private final AuthCredentialMapper mapper;
     private final DefaultIdGenerator idGenerator;
+    private final OpenMybatisBatchExecutor batchExecutor;
 
     public Long insertSelective(@NotNull @Valid AuthCredential credential) {
         if (credential.getId() == null) {
             credential.setId(idGenerator.newLong());
         }
         AuthCredentialPO po = OpenObjectMapper.convert(credential, AuthCredentialPO.class);
-        mapper.insertSelective(po);
-        return credential.getId();
+        mapper.insert(po);
+        return po.getId();
     }
 
-    public boolean updateSelectiveBy(@NotNull @Valid AuthCredential update,
-                                     @NotNull Long id,
-                                     Long userId,
-                                     Integer expectedVersion,
-                                     String currentStatus) {
+    public boolean updateSelective(@NotNull @Valid AuthCredential update,
+                                   @NotNull LambdaUpdateWrapper<AuthCredentialPO> updateWrapper) {
         AuthCredentialPO record = OpenObjectMapper.convert(update, AuthCredentialPO.class);
-        return mapper.updateSelectiveBy(record, id, userId, expectedVersion, currentStatus) > 0;
+        return mapper.update(record, updateWrapper) > 0;
     }
 
-    public Optional<AuthCredential> findOne(@NotNull AuthCredential probe) {
-        List<AuthCredential> results = findBy(probe);
-        if (results.isEmpty()) {
-            return Optional.empty();
-        }
-        if (results.size() > 1) {
-            throw new IllegalStateException("Expected single credential but found " + results.size());
-        }
-        return Optional.of(results.get(0));
+    public List<AuthCredential> findBy(@NotNull LambdaQueryWrapper<AuthCredentialPO> wrapper) {
+        return OpenObjectMapper.convertList(mapper.selectList(wrapper), AuthCredential.class);
     }
 
-    public List<AuthCredential> findBy(@NotNull AuthCredential probe) {
-        AuthCredentialPO poProbe = OpenObjectMapper.convert(probe, AuthCredentialPO.class);
-        return mapper.findBy(poProbe).stream()
-                .map(item -> OpenObjectMapper.convert(item, AuthCredential.class))
-                .collect(Collectors.toList());
+    public Optional<AuthCredential> findOne(@NotNull LambdaQueryWrapper<AuthCredentialPO> wrapper) {
+        AuthCredentialPO po = mapper.selectOne(wrapper);
+        return Optional.ofNullable(OpenObjectMapper.convert(po, AuthCredential.class));
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     public void batchInsert(@NotEmpty List<AuthCredential> credentials) {
-        credentials.stream()
-                .filter(credential -> credential.getId() == null)
-                .forEach(credential -> credential.setId(idGenerator.newLong()));
-        mapper.batchInsert(credentials.stream()
+        credentials.forEach(credential -> {
+            if (credential.getId() == null) {
+                credential.setId(idGenerator.newLong());
+            }
+        });
+        List<AuthCredentialPO> records = credentials.stream()
                 .map(credential -> OpenObjectMapper.convert(credential, AuthCredentialPO.class))
-                .collect(Collectors.toList()));
+                .toList();
+
+        batchExecutor.execute(AuthCredentialMapper.class, records, AuthCredentialMapper::insert);
     }
 }

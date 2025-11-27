@@ -1,7 +1,9 @@
 package open.vincentf13.exchange.auth.infra.security;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
+import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;
 import open.vincentf13.exchange.auth.infra.persistence.repository.AuthCredentialRepository;
 import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
@@ -52,10 +54,9 @@ public class AuthUserDetailsService implements UserDetailsService {
             throw new DisabledException("User is disabled");
         }
 
-        AuthCredential credential = authCredentialRepository.findOne(AuthCredential.builder()
-                                                                             .userId(userId)
-                                                                             .credentialType(AuthCredentialType.PASSWORD)
-                                                                             .build())
+        AuthCredential credential = authCredentialRepository.findOne(Wrappers.<AuthCredentialPO>lambdaQuery()
+                                                                            .eq(AuthCredentialPO::getUserId, userId)
+                                                                            .eq(AuthCredentialPO::getCredentialType, AuthCredentialType.PASSWORD))
                 .orElseThrow(() -> new UsernameNotFoundException("Credential not found for user " + email));
 
         if (!StringUtils.hasText(credential.getSecretHash()) || !StringUtils.hasText(credential.getSalt())) {

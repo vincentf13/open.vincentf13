@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.auth.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -7,6 +8,7 @@ import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateReques
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.infra.persistence.repository.AuthCredentialRepository;
+import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -20,11 +22,9 @@ public class AuthCredentialCommandService {
 
     @Transactional
     public AuthCredentialResponse create(@Valid AuthCredentialCreateRequest request) {
-        AuthCredential probe = AuthCredential.builder()
-                .userId(request.userId())
-                .credentialType(request.credentialType())
-                .build();
-        return repository.findOne(probe)
+        return repository.findOne(Wrappers.<AuthCredentialPO>lambdaQuery()
+                                            .eq(AuthCredentialPO::getUserId, request.userId())
+                                            .eq(AuthCredentialPO::getCredentialType, request.credentialType()))
                 .map(existing -> OpenObjectMapper.convert(existing, AuthCredentialResponse.class))
                 .orElseGet(() -> {
                     AuthCredential credential = AuthCredential.create(

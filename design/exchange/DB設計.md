@@ -22,6 +22,7 @@
 		- 特殊的 update 依場景，使用專用方法，方便了解具體改動的值
 	- 所有xml內，不需要寫 resultMap 因為已經會自動轉換
 	- 若已配置 `mybatis.type-aliases-package`，`parameterType` ,`resultType` 直接寫別名（例如 `PlatformBalancePO`），可省略全限定類名。
+- 批次 insert/update 必須透過 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor` 封裝的工具執行，統一的 flush/clear 策略可避免單筆處理導致的效能瓶頸。
 
 
 
