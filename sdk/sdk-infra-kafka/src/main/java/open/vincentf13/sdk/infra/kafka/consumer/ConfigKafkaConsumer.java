@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.kafka.config;
+package open.vincentf13.sdk.infra.kafka.consumer;
 
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.kafka.KafkaEvent;

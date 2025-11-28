@@ -53,6 +53,14 @@
 - Enum 新增時若需要存取欄位，優先使用 Lombok（例如 `@RequiredArgsConstructor` + `@Getter`）簡化建構子與 getter，維持一致風格。
 - Kafka Topic 定義統一改為 Enum（內含 topic 字串與事件類別），透過 `.getTopic()` append/outbox，避免裸字串重複；新 topic 需遵守此模式。
 - 若需在註解中引用 Topic 或 Base Package 這類值，Enum/常數定義時同步提供 `Names` 類或 `public static final` 常數，確保註解可引用編譯期常數並仍維持 Enum 封裝。
-- 多行註解統一使用 `/* ... */` 形式，不再使用 `/** ... */`。需要範例時沿用內部提供的模板或依實際內容撰寫。
+- 多行註解統一使用 `/* ... */` 形式，不再使用 `/** ... */`；格式規範：開頭 `/*` 後換行，每行內容前用兩個空格縮排（不使用 `*`），結尾 ` */` 與內容對齊。範例：
+  ```java
+  /*
+    方法說明
+    - 重點一
+    - 重點二
+   */
+  public void someMethod() {
+  ```
 - 若適合，盡量符合 Inline wrapper style / Fluent inline query / Expression-based repository call / Call-site query embedding 等風格，避免在呼叫端額外宣告 wrapper 變數。
 - 批次 insert/update 請統一透過 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor`（或其提供的工具）完成，避免自行管理 `SqlSession`，並保留每 1,000 筆的 flush/clear 邏輯。

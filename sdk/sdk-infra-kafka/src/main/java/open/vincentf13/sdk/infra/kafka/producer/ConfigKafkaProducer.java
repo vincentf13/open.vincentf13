@@ -1,8 +1,7 @@
-package open.vincentf13.sdk.infra.kafka.config;
+package open.vincentf13.sdk.infra.kafka.producer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import open.vincentf13.sdk.infra.kafka.OpenKafkaProducer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration;
