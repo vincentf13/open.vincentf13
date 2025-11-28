@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
@@ -26,7 +27,7 @@ public class PositionQueryService {
                 Wrappers.lambdaQuery(PositionPO.class)
                         .eq(PositionPO::getUserId, request.userId())
                         .eq(PositionPO::getInstrumentId, request.instrumentId())
-                        .eq(PositionPO::getStatus, "ACTIVE"));
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
         BigDecimal existing = activePosition
                 .map(position -> position.getQuantity())
                 .orElse(BigDecimal.ZERO);

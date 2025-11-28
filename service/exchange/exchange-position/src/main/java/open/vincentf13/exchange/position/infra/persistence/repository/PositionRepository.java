@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
@@ -38,7 +39,7 @@ public class PositionRepository {
             LambdaQueryWrapper<PositionPO> wrapper = Wrappers.lambdaQuery(PositionPO.class)
                     .eq(PositionPO::getUserId, userId)
                     .eq(PositionPO::getInstrumentId, instrumentId)
-                    .eq(PositionPO::getStatus, "ACTIVE");
+                    .eq(PositionPO::getStatus, PositionStatus.ACTIVE);
             return findOne(wrapper)
                     .orElseThrow(() -> duplicateKeyException);
         }

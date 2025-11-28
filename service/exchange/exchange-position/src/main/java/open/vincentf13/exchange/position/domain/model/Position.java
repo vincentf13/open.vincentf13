@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -59,7 +60,7 @@ public class Position {
     private BigDecimal liquidationPrice;
 
     @NotNull
-    private String status;
+    private PositionStatus status;
     private Integer version;
     private Instant createdAt;
     private Instant updatedAt;
@@ -110,7 +111,7 @@ public class Position {
                 .realizedPnl(BigDecimal.ZERO)
                 .liquidationPrice(BigDecimal.ZERO)
 
-                .status("ACTIVE")
+                .status(PositionStatus.ACTIVE)
                 .build();
     }
 }

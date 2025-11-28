@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,7 +36,7 @@ public class PositionPO {
     private BigDecimal realizedPnl;
     private BigDecimal liquidationPrice;
 
-    private String status;
+    private PositionStatus status;
     private Integer version;
     private Integer expectedVersion;
     private Instant createdAt;

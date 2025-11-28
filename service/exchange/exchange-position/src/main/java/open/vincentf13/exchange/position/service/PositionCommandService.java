@@ -10,6 +10,7 @@ import open.vincentf13.exchange.position.infra.persistence.repository.PositionRe
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
@@ -48,7 +49,7 @@ public class PositionCommandService {
                         Wrappers.lambdaQuery(PositionPO.class)
                                 .eq(PositionPO::getUserId, userId)
                                 .eq(PositionPO::getInstrumentId, instrumentId)
-                                .eq(PositionPO::getStatus, "ACTIVE"))
+                                .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
                 .orElse(null);
         if (position == null) {
             return PositionReserveOutcome.rejected("POSITION_NOT_FOUND");
@@ -68,7 +69,7 @@ public class PositionCommandService {
                         .eq(PositionPO::getUserId, position.getUserId())
                         .eq(PositionPO::getInstrumentId, position.getInstrumentId())
                         .eq(PositionPO::getSide, side)
-                        .eq(PositionPO::getStatus, "ACTIVE")
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE)
                         .eq(PositionPO::getVersion, expectedVersion)
         );
         if (!success) {
@@ -85,7 +86,7 @@ public class PositionCommandService {
                         Wrappers.lambdaQuery(PositionPO.class)
                                 .eq(PositionPO::getUserId, userId)
                                 .eq(PositionPO::getInstrumentId, instrumentId)
-                                .eq(PositionPO::getStatus, "ACTIVE"))
+                                .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
                 .orElseGet(() -> positionRepository.createDefault(userId, instrumentId));
         if (position == null) {
             throw OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
@@ -121,7 +122,7 @@ public class PositionCommandService {
                         .eq(PositionPO::getUserId, position.getUserId())
                         .eq(PositionPO::getInstrumentId, position.getInstrumentId())
                         .eq(PositionPO::getSide, position.getSide())
-                        .eq(PositionPO::getStatus, "ACTIVE")
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE)
                         .eq(PositionPO::getVersion, expectedVersion)
         );
         if (!updated) {
