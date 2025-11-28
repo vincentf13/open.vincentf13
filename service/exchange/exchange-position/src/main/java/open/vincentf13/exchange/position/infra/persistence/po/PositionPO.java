@@ -34,7 +34,7 @@ public class PositionPO {
     private BigDecimal unrealizedPnl;
     private BigDecimal realizedPnl;
     private BigDecimal liquidationPrice;
-    private BigDecimal bankruptcyPrice;
+
     private String status;
     private Integer version;
     private Integer expectedVersion;

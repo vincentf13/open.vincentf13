@@ -57,9 +57,7 @@ public class Position {
     @NotNull
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal liquidationPrice;
-    @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
-    private BigDecimal bankruptcyPrice;
+
     @NotNull
     private String status;
     private Integer version;
@@ -111,7 +109,7 @@ public class Position {
                 .unrealizedPnl(BigDecimal.ZERO)
                 .realizedPnl(BigDecimal.ZERO)
                 .liquidationPrice(BigDecimal.ZERO)
-                .bankruptcyPrice(BigDecimal.ZERO)
+
                 .status("ACTIVE")
                 .build();
     }
