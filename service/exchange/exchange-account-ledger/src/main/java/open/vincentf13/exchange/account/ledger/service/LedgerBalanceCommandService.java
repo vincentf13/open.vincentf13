@@ -8,9 +8,8 @@ import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
+import open.vincentf13.exchange.account.ledger.infra.LedgerErrorCode;
 import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
-import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeException;
-import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeFailureReason;
 import open.vincentf13.exchange.account.ledger.infra.messaging.publisher.LedgerEventPublisher;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
@@ -21,6 +20,7 @@ import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderClient;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
+import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
@@ -85,12 +85,10 @@ public class LedgerBalanceCommandService {
                     event.requiredMargin(),
                     event.checkedAt());
             ledgerEventPublisher.publishFundsFrozen(event.orderId(), event.userId(), normalizedAsset, entry.getAmount());
-        } catch (FundsFreezeException ex) {
-            ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), ex.getReason().name());
-            OpenLog.warn(LedgerEvent.FUNDS_FREEZE_FAILED, ex, "orderId", event.orderId(), "reason", ex.getReason());
-        } catch (IllegalArgumentException ex) {
-            ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), FundsFreezeFailureReason.INVALID_EVENT.name());
-            OpenLog.warn(LedgerEvent.INVALID_MARGIN_PRECHECK_EVENT, "orderId", event.orderId(), "message", ex.getMessage());
+        } catch (OpenException ex) {
+            String reason = ex.getErrorCode() != null ? ex.getErrorCode().code() : "UNKNOWN";
+            ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), reason);
+            OpenLog.warn(LedgerEvent.FUNDS_FREEZE_FAILED, ex, "orderId", event.orderId(), "reason", reason);
         }
     }
 

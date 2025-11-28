@@ -13,8 +13,7 @@ import open.vincentf13.exchange.account.ledger.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.ledger.domain.model.PlatformBalance;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
-import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeException;
-import open.vincentf13.exchange.account.ledger.infra.exception.FundsFreezeFailureReason;
+import open.vincentf13.exchange.account.ledger.infra.LedgerErrorCode;
 import open.vincentf13.exchange.account.ledger.infra.messaging.publisher.LedgerEventPublisher;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerEntryPO;
@@ -31,13 +30,14 @@ import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.sdk.core.OpenBigDecimal;
-import org.springframework.dao.OptimisticLockingFailureException;
+import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -200,7 +200,8 @@ public class LedgerTransactionDomainService {
         }
 
         if (order.intent() == null) {
-            throw new IllegalStateException("Order intent is null for orderId=" + order.orderId());
+            throw OpenException.of(LedgerErrorCode.ORDER_INTENT_NULL,
+                    Map.of("orderId", order.orderId()));
         }
 
         switch (order.intent()) {
@@ -212,7 +213,8 @@ public class LedgerTransactionDomainService {
                 processClosePosition(event, order, isMaker, normalizedAsset, referenceId);
                 break;
             default:
-                throw new IllegalStateException("Unsupported order intent: " + order.intent());
+                throw OpenException.of(LedgerErrorCode.UNSUPPORTED_ORDER_INTENT,
+                        Map.of("orderId", order.orderId(), "intent", order.intent()));
         }
     }
 
@@ -228,7 +230,8 @@ public class LedgerTransactionDomainService {
                         .eq(LedgerEntryPO::getReferenceType, ReferenceType.ORDER)
                         .eq(LedgerEntryPO::getReferenceId, order.orderId().toString())
                         .eq(LedgerEntryPO::getEntryType, EntryType.FREEZE))
-                .orElseThrow(() -> new IllegalStateException("Freeze entry not found for orderId=" + order.orderId()));
+                .orElseThrow(() -> OpenException.of(LedgerErrorCode.FREEZE_ENTRY_NOT_FOUND,
+                        Map.of("orderId", order.orderId())));
 
         BigDecimal frozenAmount = freezeEntry.getAmount();
         BigDecimal estimatedFee = frozenAmount.subtract(tradeValue);
@@ -329,8 +332,8 @@ public class LedgerTransactionDomainService {
             int expectedVersion = current.safeVersion();
             BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
-                throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
-                                               "Insufficient available balance for user=" + userId + " asset=" + asset.code());
+                throw OpenException.of(LedgerErrorCode.INSUFFICIENT_FUNDS,
+                        Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
             }
             BigDecimal reserved = OpenBigDecimal.safeDecimal(current.getReserved());
             current.setAvailable(available.subtract(amount));
@@ -348,8 +351,8 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
-        throw new OptimisticLockingFailureException(
-                "Failed to freeze funds for user=" + userId + " order=" + orderId);
+        throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
+                Map.of("userId", userId, "orderId", orderId, "operation", "freeze"));
     }
 
     private LedgerBalance unfreezeAndDebitSpotBalance(LedgerBalance balance,
@@ -365,7 +368,8 @@ public class LedgerTransactionDomainService {
             BigDecimal reserved = OpenBigDecimal.safeDecimal(current.getReserved());
             BigDecimal cost = amountToDebit.subtract(amountToRefund);
             if (reserved.compareTo(amountToDebit) < 0) {
-                throw new IllegalStateException("Insufficient reserved balance for user=" + userId + ", trade=" + tradeId);
+                throw OpenException.of(LedgerErrorCode.INSUFFICIENT_RESERVED_BALANCE,
+                        Map.of("userId", userId, "tradeId", tradeId, "reserved", reserved, "required", amountToDebit));
             }
             
             current.setReserved(reserved.subtract(amountToDebit));
@@ -384,7 +388,8 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadLedgerBalance(current.getAccountId(), asset);
         }
-        throw new OptimisticLockingFailureException("Failed to unfreeze and debit spot balance for user=" + userId + ", trade=" + tradeId);
+        throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
+                Map.of("userId", userId, "tradeId", tradeId, "operation", "unfreezeAndDebit"));
     }
 
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
@@ -411,7 +416,8 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
-        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+        throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
+                Map.of("userId", userId, "operation", "deposit"));
     }
 
     private LedgerBalance retryUpdateForDepositWithPnl(LedgerBalance balance,
@@ -439,7 +445,8 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
-        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+        throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
+                Map.of("userId", userId, "operation", "depositWithPnl"));
     }
 
     private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance,
@@ -452,8 +459,8 @@ public class LedgerTransactionDomainService {
             int expectedVersion = current.safeVersion();
             BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
-                throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
-                        "Insufficient available balance for user=" + userId + " asset=" + asset.code());
+                throw OpenException.of(LedgerErrorCode.INSUFFICIENT_FUNDS,
+                        Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
             }
             current.setAvailable(available.subtract(amount));
             current.setBalance(current.getBalance().subtract(amount));
@@ -471,7 +478,8 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
-        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+        throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
+                Map.of("userId", userId, "operation", "updateBalance"));
     }
 
     private LedgerBalance retryUpdateForWithdrawalWithPnl(LedgerBalance balance,
@@ -485,8 +493,8 @@ public class LedgerTransactionDomainService {
             int expectedVersion = current.safeVersion();
             BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
-                throw new FundsFreezeException(FundsFreezeFailureReason.INSUFFICIENT_FUNDS,
-                        "Insufficient available balance for user=" + userId + " asset=" + asset.code());
+                throw OpenException.of(LedgerErrorCode.INSUFFICIENT_FUNDS,
+                        Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
             }
             current.setAvailable(available.subtract(amount));
             current.setBalance(current.getBalance().subtract(amount));
@@ -505,7 +513,8 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
-        throw new OptimisticLockingFailureException("Failed to update ledger balance for user=" + userId);
+        throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
+                Map.of("userId", userId, "operation", "updateBalance"));
     }
 
     private LedgerBalance reloadLedgerBalance(Long userId,
@@ -518,8 +527,8 @@ public class LedgerTransactionDomainService {
                                 .eq(LedgerBalancePO::getAccountType, accountType)
                                 .eq(LedgerBalancePO::getInstrumentId, instrumentId)
                                 .eq(LedgerBalancePO::getAsset, asset))
-                .orElseThrow(() -> new IllegalStateException(
-                        "Ledger balance not found for user=" + userId + ", asset=" + asset.code()));
+                .orElseThrow(() -> OpenException.of(LedgerErrorCode.LEDGER_BALANCE_NOT_FOUND,
+                        Map.of("userId", userId, "asset", asset.code())));
     }
 
     private LedgerBalance reloadLedgerBalance(Long accountId, AssetSymbol asset) {
@@ -527,8 +536,8 @@ public class LedgerTransactionDomainService {
                         Wrappers.lambdaQuery(LedgerBalancePO.class)
                                 .eq(LedgerBalancePO::getAccountId, accountId)
                                 .eq(LedgerBalancePO::getAsset, asset))
-                .orElseThrow(() -> new IllegalStateException(
-                        "Ledger balance not found for account=" + accountId + ", asset=" + asset.code()));
+                .orElseThrow(() -> OpenException.of(LedgerErrorCode.LEDGER_BALANCE_NOT_FOUND,
+                        Map.of("accountId", accountId, "asset", asset.code())));
     }
 
 
@@ -555,7 +564,8 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadPlatformBalance(current.getAccountId(), current.getAccountCode(), asset);
         }
-        throw new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId());
+        throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
+                Map.of("accountId", platformBalance.getAccountId(), "operation", "updatePlatformBalance"));
     }
 
     private PlatformBalance retryUpdateForPlatformWithdrawal(PlatformBalance platformBalance,
@@ -580,7 +590,8 @@ public class LedgerTransactionDomainService {
             attempts++;
             current = reloadPlatformBalance(current.getAccountId(), current.getAccountCode(), asset);
         }
-        throw new OptimisticLockingFailureException("Failed to update platform balance for account=" + platformBalance.getAccountId());
+        throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
+                Map.of("accountId", platformBalance.getAccountId(), "operation", "updatePlatformBalance"));
     }
 
     private PlatformBalance reloadPlatformBalance(Long accountId, PlatformAccountCode accountCode, AssetSymbol asset) {
@@ -589,7 +600,8 @@ public class LedgerTransactionDomainService {
                                 .eq(PlatformBalancePO::getAccountId, accountId)
                                 .eq(PlatformBalancePO::getAccountCode, accountCode)
                                 .eq(PlatformBalancePO::getAsset, asset))
-                .orElseThrow(() -> new IllegalStateException("Platform balance not found for account=" + accountId + ", asset=" + asset.code()));
+                .orElseThrow(() -> OpenException.of(LedgerErrorCode.PLATFORM_BALANCE_NOT_FOUND,
+                        Map.of("accountId", accountId, "asset", asset.code())));
     }
 
 }

@@ -7,8 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.account.ledger.infra.LedgerErrorCode;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
+import open.vincentf13.sdk.core.exception.OpenException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -75,7 +77,7 @@ public class LedgerBalance {
 
     public static AssetSymbol normalizeAsset(AssetSymbol asset) {
         if (asset == null) {
-            throw new IllegalArgumentException("asset is required");
+            throw OpenException.of(LedgerErrorCode.ASSET_REQUIRED);
         }
         return asset;
     }
