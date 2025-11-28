@@ -7,8 +7,8 @@ import org.springframework.util.StringUtils;
 
 import java.util.Optional;
 
-/*
-  Web related helper utilities shared across MVC components.
+/**
+ * Web related helper utilities shared across MVC components.
  */
 public final class OpenHttpUtils {
 

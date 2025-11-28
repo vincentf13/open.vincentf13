@@ -2,14 +2,14 @@ package open.vincentf13.sdk.infra.redis;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
-/*
-  Redis infra events for logging.
+/**
+ * Redis infra events for logging.
  */
 public enum OpenRedisEvent implements OpenEvent {
 
-    /*
-  Unable to unlock because lock already expired or held by other thread.
- */
+    /**
+     * Unable to unlock because lock already expired or held by other thread.
+     */
     LOCK_UNLOCK_FAILED("redis.lock.unlock.failed", "Redisson unlock failed");
 
     private final String event;

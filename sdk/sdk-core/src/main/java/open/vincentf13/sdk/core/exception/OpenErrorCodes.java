@@ -1,9 +1,9 @@
 package open.vincentf13.sdk.core.exception;
 
 public enum OpenErrorCodes implements OpenErrorCode {
-    /*
-  後端統一錯誤碼定義，採 "ERR-<HTTP>-<序號>" 命名以利排查。
- */
+    /**
+     * 後端統一錯誤碼定義，採 "ERR-<HTTP>-<序號>" 命名以利排查。
+     */
 
     INTERNAL_ERROR("Common-500-0001", "Internal server error"),
     REQUEST_VALIDATION_FAILED("Common-400-0001", "Request validation failed"),

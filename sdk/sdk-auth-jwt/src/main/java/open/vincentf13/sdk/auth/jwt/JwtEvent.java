@@ -3,7 +3,7 @@ package open.vincentf13.sdk.auth.jwt;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
-  JWT 相關事件。
+ * JWT 相關事件。
  */
 public enum JwtEvent implements OpenEvent {
     JWT_ACCESS_ISSUED("JwtAccessIssued", "Access jwtToken issued"),

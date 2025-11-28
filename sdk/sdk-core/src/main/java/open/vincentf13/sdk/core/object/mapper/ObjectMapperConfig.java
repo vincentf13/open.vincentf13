@@ -46,10 +46,10 @@ public class ObjectMapperConfig {
         // 時間
         mapper.registerModule(new JavaTimeModule());                                    // 支持Java 8 時間序列化
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);                 // 預設情況下，Jackson 會將時間序列化輸出為「整數 timestamp」（例如 1696651325000）。 關閉此特性後，會改輸出為 ISO-8601 格式字串："2025-10-07T22:30:00"
-        /*
-  默認Jackson 會依據TimeZone、Locale、DateFormat、ZonedDateTime，輸出不同日期格式。  例如：2025-10-07T22:30:00+0800、2025-10-07T22:30:00+08:00、Tue Oct 07 22:30:00 CST 2025、"2025-10-07T22:00:00+08:00[Asia/Taipei]"
-  使其統一輸出： RFC 3339 標準日期格式  "2025-10-07T22:30:00+08:00"
- */
+        /**
+         * 默認Jackson 會依據TimeZone、Locale、DateFormat、ZonedDateTime，輸出不同日期格式。  例如：2025-10-07T22:30:00+0800、2025-10-07T22:30:00+08:00、Tue Oct 07 22:30:00 CST 2025、"2025-10-07T22:00:00+08:00[Asia/Taipei]"
+         * 使其統一輸出： RFC 3339 標準日期格式  "2025-10-07T22:30:00+08:00"
+         */
         mapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
         // 解析與輸出JSON時，時間戳由豪秒支持到奈秒
         mapper.configure(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS, true);

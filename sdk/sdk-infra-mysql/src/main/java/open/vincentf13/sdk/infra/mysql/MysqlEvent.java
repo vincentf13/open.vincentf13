@@ -3,7 +3,7 @@ package open.vincentf13.sdk.infra.mysql;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
-  MySQL 模組事件。
+ * MySQL 模組事件。
  */
 public enum MysqlEvent implements OpenEvent {
     MAPPER_SQL_DEBUG_ENABLED("MapperSqlDebugEnabled", "Enabled DEBUG logging for mapper package");

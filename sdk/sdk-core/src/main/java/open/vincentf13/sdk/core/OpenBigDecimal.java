@@ -2,8 +2,8 @@ package open.vincentf13.sdk.core;
 
 import java.math.BigDecimal;
 
-/*
-  Common BigDecimal helpers shared across services.
+/**
+ * Common BigDecimal helpers shared across services.
  */
 public final class OpenBigDecimal {
 

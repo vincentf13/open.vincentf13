@@ -3,7 +3,7 @@ package open.vincentf13.sdk.spring.cloud.gateway;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
-  Gateway 事件枚舉。
+ * Gateway 事件枚舉。
  */
 public enum GatewayEvent implements OpenEvent {
     REQUEST("GatewayRequest", "Forwarding request"),

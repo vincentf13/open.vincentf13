@@ -12,12 +12,9 @@ import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.StringUtils;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-
-/*
-  啟動時將所有 Mapper 所在套件的 log level 設為 DEBUG，方便追蹤 SQL。
-  可透過 open.vincentf13.mybatis.mapper-sql-logging.enabled 控制是否啟用。
+/**
+ * 啟動時將所有 Mapper 所在套件的 log level 設為 DEBUG，方便追蹤 SQL。
+ * 可透過 open.vincentf13.mybatis.mapper-sql-logging.enabled 控制是否啟用。
  */
 @AutoConfiguration(after = MysqlMapperScanAutoConfiguration.class)
 @ConditionalOnProperty(name = "open.vincentf13.mybatis.mapper-sql-logging.enabled", havingValue = "true")

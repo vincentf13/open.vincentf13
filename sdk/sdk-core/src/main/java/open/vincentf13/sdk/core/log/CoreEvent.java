@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.core.log;
 
 /*
-  Core 模組事件。
+ * Core 模組事件。
  */
 public enum CoreEvent implements OpenEvent {
     DEFAULTS_RESOURCE_MISSING("DefaultsResourceMissing", "Defaults resource not found"),

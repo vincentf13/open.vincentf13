@@ -17,9 +17,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/*
-  Bearer JWT filter that restores authentication from the Authorization header and (optionally)
-  validates session state through the shared session service.
+/**
+ * Bearer JWT filter that restores authentication from the Authorization header and (optionally)
+ * validates session state through the shared session service.
  */
 public class JwtFilter extends OncePerRequestFilter {
 

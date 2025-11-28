@@ -2,8 +2,8 @@ package open.vincentf13.sdk.auth.server;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
-/*
-  Auth Server 事件枚舉。
+/**
+ * Auth Server 事件枚舉。
  */
 public enum AuthServerEvent implements OpenEvent {
     JWT_SESSION_CREATED("JwtSessionCreated", "Session created"),

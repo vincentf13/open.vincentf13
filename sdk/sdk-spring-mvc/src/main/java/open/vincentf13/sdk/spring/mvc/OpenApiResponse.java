@@ -6,8 +6,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 
-/*
-  REST 統一回應封裝。預設 code=0、message=OK，錯誤時帶入自訂代碼與訊息。
+/**
+ * REST 統一回應封裝。預設 code=0、message=OK，錯誤時帶入自訂代碼與訊息。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OpenApiResponse<T>(

@@ -4,8 +4,8 @@ import open.vincentf13.sdk.auth.apikey.config.ApiKeyProperties;
 
 import java.util.Set;
 
-/*
-  Default implementation of {@link ApiKeyValidator} that uses a set of keys from configuration properties.
+/**
+ * Default implementation of {@link ApiKeyValidator} that uses a set of keys from configuration properties.
  */
 public class ApiKeyValidatorImpl implements ApiKeyValidator {
 

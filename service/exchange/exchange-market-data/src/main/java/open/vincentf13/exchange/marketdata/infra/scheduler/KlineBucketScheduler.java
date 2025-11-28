@@ -15,9 +15,9 @@ public class KlineBucketScheduler {
 
     private final KlineAggregationService klineAggregationService;
 
-    /*
-  Scan every minute to close buckets whose window already ended.
- */
+    /**
+     * Scan every minute to close buckets whose window already ended.
+     */
     @Scheduled(cron = "0 * * * * *")
     public void closeExpiredBuckets() {
         Instant now = Instant.now();

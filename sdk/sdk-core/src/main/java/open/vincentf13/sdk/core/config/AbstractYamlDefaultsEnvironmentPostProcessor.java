@@ -18,9 +18,9 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.util.StringUtils;
 
-/*
-  Base post-processor that loads YAML defaults from the classpath
-  and applies them with the lowest precedence so user overrides win.
+/**
+ * Base post-processor that loads YAML defaults from the classpath
+ * and applies them with the lowest precedence so user overrides win.
  */
 public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 

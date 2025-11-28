@@ -21,8 +21,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 import java.util.Collection;
 
-/*
-  對 REST 回應做統一包裝，避免每支 API 重複建立標準格式。
+/**
+ * 對 REST 回應做統一包裝，避免每支 API 重複建立標準格式。
  */
 @RestControllerAdvice
 @ConditionalOnClass(ResponseBodyAdvice.class)

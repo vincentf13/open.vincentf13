@@ -3,7 +3,7 @@ package open.vincentf13.sdk.infra.kafka;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
-  Kafka 事件枚舉。
+ * Kafka 事件枚舉。
  */
 public enum KafkaEvent implements OpenEvent {
     KAFKA_SEND("KafkaSend", "送出 Kafka 訊息"),

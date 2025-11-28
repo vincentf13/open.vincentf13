@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.common.sdk.constants;
 
 /*
-  共用驗證常數：依欄位語意提供對應的最小值定義，並提供 enum/Names 供註解引用。
+ * 共用驗證常數：依欄位語意提供對應的最小值定義，並提供 enum/Names 供註解引用。
  */
 public enum ValidationConstant {
     PRICE_MIN(Names.PRICE_MIN),

@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-/*
-  Fallback in-memory store mainly intended for tests; data is not persisted across nodes.
+/**
+ * Fallback in-memory store mainly intended for tests; data is not persisted across nodes.
  */
 public class JwtSessionStoreInMemory implements JwtSessionStore {
 

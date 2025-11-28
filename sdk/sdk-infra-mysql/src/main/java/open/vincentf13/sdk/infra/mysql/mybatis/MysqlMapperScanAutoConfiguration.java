@@ -4,8 +4,8 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 
-/*
-  自動配置 MyBatis Mapper 掃描，避免各服務重複宣告。
+/**
+ * 自動配置 MyBatis Mapper 掃描，避免各服務重複宣告。
  */
 @AutoConfiguration
 @ConditionalOnClass(MapperScan.class)

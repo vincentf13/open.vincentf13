@@ -11,8 +11,8 @@ import java.sql.Statement;
 import java.util.Locale;
 import java.util.UUID;
 
-/*
-  靜態 MySQL Testcontainer 工具：集中管理容器啟動與屬性註冊，並為每個測試方法建立隔離的 schema。
+/**
+ * 靜態 MySQL Testcontainer 工具：集中管理容器啟動與屬性註冊，並為每個測試方法建立隔離的 schema。
  */
 public final class OpenMySqlTestContainer {
 
@@ -44,9 +44,9 @@ public final class OpenMySqlTestContainer {
 
 
 
-    /*
-  為即將執行的測試方法建立隔離 schema，並將資料來源切換到該 schema。
- */
+    /**
+     * 為即將執行的測試方法建立隔離 schema，並將資料來源切換到該 schema。
+     */
     public static String prepareSchema() {
         String schema = "test_" + UUID.randomUUID().toString().replace('-', '_');
         createSchema(schema);

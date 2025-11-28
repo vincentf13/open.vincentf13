@@ -13,8 +13,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-/*
-  Domain representation of a single K-line bucket aggregated within a fixed period.
+/**
+ * Domain representation of a single K-line bucket aggregated within a fixed period.
  */
 @Data
 @Builder
@@ -25,9 +25,9 @@ public class KlineBucket {
     private Long bucketId;
     @NotNull
     private Long instrumentId;
-    /*
-  Period identifier such as 1m/5m/1h/1d.
- */
+    /**
+     * Period identifier such as 1m/5m/1h/1d.
+     */
     @NotBlank
     private String period;
     @NotNull

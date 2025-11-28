@@ -2,8 +2,8 @@ package open.vincentf13.exchange.user.infra;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
-/*
-  User 模組事件。
+/**
+ * User 模組事件。
  */
 public enum UserEvent implements OpenEvent {
     AUTH_CREDENTIAL_PERSIST_FAILED("UserAuthCredentialPersistFailed", "Failed to persist auth credential"),

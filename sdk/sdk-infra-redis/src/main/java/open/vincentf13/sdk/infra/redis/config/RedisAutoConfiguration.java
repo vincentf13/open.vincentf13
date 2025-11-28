@@ -38,14 +38,14 @@ public class RedisAutoConfiguration {
         template.setHashKeySerializer(keySerializer);
 
         /*
-  注意：此模板的泛型為 RedisTemplate<String, Object>，API 回傳值編譯期型別僅有 Object。
-  - 使用 GenericJackson2JsonRedisSerializer 等通用序列化時，物件會還原為 Map/List/值類型而非原類別。
-  - 若改用 Jackson2JsonRedisSerializer<Object> 並開啟 default typing，可寫入類別資訊以嘗試還原原型，但需考慮安全與相容性。
-  - 需要強型別時，優先建立針對目標類的 RedisTemplate (配置繁瑣)  或在讀取後再用 ObjectMapper.convertValue(..., Target.class) 轉型。
-  例如：
-  Human human = objectMapper.convertValue(redisTemplate.opsForValue().get("human:1"), Human.class);
-  Human h2 = objectMapper.convertValue(redisTemplate.opsForHash().get("human:hash", "h1"), Human.class);
- */
+         * 注意：此模板的泛型為 RedisTemplate<String, Object>，API 回傳值編譯期型別僅有 Object。
+         * - 使用 GenericJackson2JsonRedisSerializer 等通用序列化時，物件會還原為 Map/List/值類型而非原類別。
+         * - 若改用 Jackson2JsonRedisSerializer<Object> 並開啟 default typing，可寫入類別資訊以嘗試還原原型，但需考慮安全與相容性。
+         * - 需要強型別時，優先建立針對目標類的 RedisTemplate (配置繁瑣)  或在讀取後再用 ObjectMapper.convertValue(..., Target.class) 轉型。
+         *   例如：
+         *     Human human = objectMapper.convertValue(redisTemplate.opsForValue().get("human:1"), Human.class);
+         *     Human h2 = objectMapper.convertValue(redisTemplate.opsForHash().get("human:hash", "h1"), Human.class);
+         */
         template.setValueSerializer(redisValueSerializer);
         template.setHashValueSerializer(redisValueSerializer);
         template.afterPropertiesSet();

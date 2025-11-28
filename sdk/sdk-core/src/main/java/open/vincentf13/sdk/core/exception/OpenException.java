@@ -11,20 +11,20 @@ import java.util.Map;
 
 /*
 
-  統一的業務與介面例外，攜帶錯誤碼及 meta。
+統一的業務與介面例外，攜帶錯誤碼及 meta。
 
-  catch (Throwable t) {
-  log.error("系統錯誤", t);
-  }
+catch (Throwable t) {
+    log.error("系統錯誤", t);
+}
 
-  logger 會自動輸出：
-  - 例外類型
-  - message
-  - 完整 stack trace
-  - cause chain
-  - suppressed 例外
+logger 會自動輸出：
+- 例外類型
+- message
+- 完整 stack trace
+- cause chain
+- suppressed 例外
 
- */
+*/
 
 public class OpenException extends RuntimeException {
 

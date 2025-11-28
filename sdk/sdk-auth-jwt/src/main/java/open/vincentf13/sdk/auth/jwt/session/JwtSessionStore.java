@@ -3,8 +3,8 @@ package open.vincentf13.sdk.auth.jwt.session;
 import java.time.Instant;
 import java.util.Optional;
 
-/*
-  Read-only abstraction allowing services to query session metadata.
+/**
+ * Read-only abstraction allowing services to query session metadata.
  */
 public interface JwtSessionStore {
 

@@ -9,8 +9,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/*
-  Global enum handler that persists enums as their {@code name()} string.
+/**
+ * Global enum handler that persists enums as their {@code name()} string.
  */
 @MappedTypes(Enum.class)
 public class EnumToStringTypeHandler<E extends Enum<E>> extends BaseTypeHandler<E> {

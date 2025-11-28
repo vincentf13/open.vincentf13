@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
-/*
-  提供 MyBatis Batch Executor 工具。
+/**
+ * 提供 MyBatis Batch Executor 工具。
  */
 public final class OpenMybatisBatchExecutor {
 

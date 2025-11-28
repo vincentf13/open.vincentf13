@@ -12,7 +12,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class MvcLogServiceConfig {
 
-    /*
+    /**
      * 提供 MVC 請求/回應日誌服務。
      */
     @Bean
