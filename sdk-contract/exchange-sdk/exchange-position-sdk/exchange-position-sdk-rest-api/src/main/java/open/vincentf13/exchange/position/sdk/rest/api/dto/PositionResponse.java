@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.position.sdk.rest.api.dto;
 
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -10,7 +11,18 @@ public record PositionResponse(
         Long userId,
         Long instrumentId,
         PositionSide side,
+        Integer leverage,
+        BigDecimal margin,
+        BigDecimal entryPrice,
         BigDecimal quantity,
         BigDecimal closingReservedQuantity,
-        Instant updatedAt
+        BigDecimal markPrice,
+        BigDecimal marginRatio,
+        BigDecimal unrealizedPnl,
+        BigDecimal realizedPnl,
+        BigDecimal liquidationPrice,
+        PositionStatus status,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant closedAt
 ) { }

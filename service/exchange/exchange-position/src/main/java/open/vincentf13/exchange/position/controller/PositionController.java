@@ -6,6 +6,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.exchange.position.service.PositionQueryService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
@@ -24,6 +25,11 @@ public class PositionController implements PositionApi {
     @Override
     public OpenApiResponse<PositionIntentResponse> determineIntent(PositionIntentRequest request) {
         return OpenApiResponse.success(positionQueryService.determineIntent(request));
+    }
+
+    @Override
+    public OpenApiResponse<PositionResponse> getPosition(Long userId, Long instrumentId) {
+        return OpenApiResponse.success(positionQueryService.getPosition(userId, instrumentId));
     }
 
     @Override
