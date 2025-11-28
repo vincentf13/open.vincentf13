@@ -1,13 +1,14 @@
 package open.vincentf13.exchange.account.ledger.domain.model;
 
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.Direction;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.OwnerType;
+import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
 import java.math.BigDecimal;
@@ -111,7 +112,7 @@ public class LedgerEntry {
                 .amount(amount)
                 .direction(Direction.CREDIT)
                 .balanceAfter(balanceAfter)
-                .referenceType(EntryType.WITHDRAWAL.referenceType())
+                .referenceType(EntryType.WITHDRAWAL.getReferenceType())
                 .referenceId(referenceId)
                 .entryType(EntryType.WITHDRAWAL)
                 .description("User withdrawal")
@@ -137,7 +138,7 @@ public class LedgerEntry {
                 .direction(Direction.DEBIT)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
-                .referenceType(EntryType.WITHDRAWAL.referenceType())
+                .referenceType(EntryType.WITHDRAWAL.getReferenceType())
                 .referenceId(referenceId)
                 .entryType(EntryType.WITHDRAWAL)
                 .description("User withdrawal liability")
@@ -164,7 +165,7 @@ public class LedgerEntry {
                 .direction(Direction.CREDIT)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
-                .referenceType(EntryType.FREEZE.referenceType())
+                .referenceType(EntryType.FREEZE.getReferenceType())
                 .referenceId(orderId == null ? null : orderId.toString())
                 .entryType(EntryType.FREEZE)
                 .description("Funds frozen for order")
@@ -191,7 +192,7 @@ public class LedgerEntry {
                 .direction(Direction.DEBIT)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
-                .referenceType(EntryType.RESERVED.referenceType())
+                .referenceType(EntryType.RESERVED.getReferenceType())
                 .referenceId(orderId == null ? null : orderId.toString())
                 .entryType(EntryType.RESERVED)
                 .description("Reserved balance increased for order")
@@ -221,7 +222,7 @@ public class LedgerEntry {
                 .direction(direction)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
-                .referenceType(EntryType.DEPOSIT.referenceType())
+                .referenceType(EntryType.DEPOSIT.getReferenceType())
                 .referenceId(referenceId)
                 .entryType(EntryType.DEPOSIT)
                 .description(description)

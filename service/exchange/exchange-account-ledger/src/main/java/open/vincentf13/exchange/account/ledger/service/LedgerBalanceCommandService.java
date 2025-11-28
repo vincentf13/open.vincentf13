@@ -22,6 +22,7 @@ import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderClient;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -94,11 +95,11 @@ public class LedgerBalanceCommandService {
     @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
         // Handle Maker Side
-        OrderResponse makerOrder = exchangeOrderClient.getOrder(event.orderId());
+        OrderResponse makerOrder = OpenApiClientInvoker.call(()-> exchangeOrderClient.getOrder(event.orderId()));
         ledgerTransactionDomainService.settleTrade(event, makerOrder, true);
 
         // Handle Taker Side
-        OrderResponse takerOrder = exchangeOrderClient.getOrder(event.counterpartyOrderId());
+        OrderResponse takerOrder =  OpenApiClientInvoker.call(()->exchangeOrderClient.getOrder(event.counterpartyOrderId()));
         ledgerTransactionDomainService.settleTrade(event, takerOrder, false);
     }
 }
