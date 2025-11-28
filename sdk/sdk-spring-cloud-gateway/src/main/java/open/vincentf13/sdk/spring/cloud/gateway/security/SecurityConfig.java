@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.cloud.gateway.config;
+package open.vincentf13.sdk.spring.cloud.gateway.security;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

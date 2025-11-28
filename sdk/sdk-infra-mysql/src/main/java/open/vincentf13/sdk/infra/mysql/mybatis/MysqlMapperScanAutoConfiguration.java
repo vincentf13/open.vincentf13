@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.config;
+package open.vincentf13.sdk.infra.mysql.mybatis;
 
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

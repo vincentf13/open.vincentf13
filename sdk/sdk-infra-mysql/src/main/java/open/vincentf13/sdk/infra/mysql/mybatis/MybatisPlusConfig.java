@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.config;
+package open.vincentf13.sdk.infra.mysql.mybatis;
 
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.BlockAttackInnerInterceptor;

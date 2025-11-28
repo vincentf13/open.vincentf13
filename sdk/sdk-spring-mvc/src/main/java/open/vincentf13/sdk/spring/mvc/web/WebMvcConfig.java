@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.mvc.config;
+package open.vincentf13.sdk.spring.mvc.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -24,7 +24,7 @@ import java.util.List;
 @ConditionalOnClass(WebMvcConfigurer.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(MvcProperties.class)
-public class ConfigWebMvc {
+public class WebMvcConfig {
 
     /*
   - 根據回應內容計算 ETag（哈希摘要）

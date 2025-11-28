@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.spring.mvc.config.MvcProperties;
+import open.vincentf13.sdk.spring.mvc.web.MvcProperties;
 import org.slf4j.MDC;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;

@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.cloud.gateway.config;
+package open.vincentf13.sdk.spring.cloud.gateway.security;
 
 import open.vincentf13.sdk.core.OpenConstant;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

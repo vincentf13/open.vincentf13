@@ -1,6 +1,6 @@
-package open.vincentf13.sdk.infra.mysql.config;
+package open.vincentf13.sdk.infra.mysql.mybatis.typehandler;
 
-import open.vincentf13.sdk.infra.mysql.typehandler.EnumToStringTypeHandler;
+import open.vincentf13.sdk.infra.mysql.mybatis.MysqlMapperScanAutoConfiguration;
 import org.mybatis.spring.boot.autoconfigure.ConfigurationCustomizer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

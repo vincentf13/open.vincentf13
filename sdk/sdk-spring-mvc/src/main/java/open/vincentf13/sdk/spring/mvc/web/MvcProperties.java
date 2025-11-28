@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.mvc.config;
+package open.vincentf13.sdk.spring.mvc.web;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -30,7 +30,9 @@ public class MvcProperties {
     @Getter
     @Setter
     public static class Request {
-        /** 是否在請求缺少 header 時自動生成追蹤資訊。 */
+        /**
+         * 是否在請求缺少 header 時自動生成追蹤資訊。
+         */
         private boolean generateCorrelationIds = true;
         private boolean writeResponseHeader = true;
         /*

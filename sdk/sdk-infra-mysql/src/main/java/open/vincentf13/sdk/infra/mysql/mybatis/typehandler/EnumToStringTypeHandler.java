@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.typehandler;
+package open.vincentf13.sdk.infra.mysql.mybatis.typehandler;
 
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.MvcEvent;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
-import open.vincentf13.sdk.spring.mvc.config.MvcProperties;
+import open.vincentf13.sdk.spring.mvc.web.MvcProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.core.MethodParameter;

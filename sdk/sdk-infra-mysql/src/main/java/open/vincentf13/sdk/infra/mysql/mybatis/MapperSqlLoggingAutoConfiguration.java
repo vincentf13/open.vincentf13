@@ -1,19 +1,19 @@
-package open.vincentf13.sdk.infra.mysql.config;
+package open.vincentf13.sdk.infra.mysql.mybatis;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-
-import org.apache.ibatis.session.SqlSessionFactory;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.mysql.MysqlEvent;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.logging.LogLevel;
 import org.springframework.boot.logging.LoggingSystem;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.StringUtils;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /*
   啟動時將所有 Mapper 所在套件的 log level 設為 DEBUG，方便追蹤 SQL。

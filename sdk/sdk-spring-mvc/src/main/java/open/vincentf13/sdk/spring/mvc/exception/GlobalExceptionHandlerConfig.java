@@ -1,8 +1,5 @@
-package open.vincentf13.sdk.spring.mvc.config;
+package open.vincentf13.sdk.spring.mvc.exception;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.sdk.spring.mvc.response.AopResponseBody;
-import open.vincentf13.sdk.spring.mvc.exception.OpenRestExceptionAdvice;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -10,29 +7,17 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-
 @AutoConfiguration
 @ConditionalOnClass(WebMvcConfigurer.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-public class ConfigAop {
-
+public class GlobalExceptionHandlerConfig {
 
     /*
-  提供預設的 RestExceptionHandler，避免每個服務重複實作。
- */
+     * 提供預設的 RestExceptionHandler，避免每個服務重複實作。
+     */
     @Bean
     @ConditionalOnMissingBean
     public OpenRestExceptionAdvice restExceptionHandler() {
         return new OpenRestExceptionAdvice();
     }
-
-    /*
-  構建 ApiResponseBodyAdvice，統一包裝回應結果。
- */
-    @Bean
-    @ConditionalOnMissingBean
-    public AopResponseBody apiResponseBodyAdvice(ObjectMapper objectMapper, MvcProperties properties) {
-        return new AopResponseBody(objectMapper, properties);
-    }
-
 }
