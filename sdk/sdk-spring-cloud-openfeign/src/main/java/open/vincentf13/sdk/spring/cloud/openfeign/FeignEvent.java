@@ -3,7 +3,7 @@ package open.vincentf13.sdk.spring.cloud.openfeign;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
- * Feign 相關事件枚舉。
+  Feign 相關事件枚舉。
  */
 public enum FeignEvent implements OpenEvent {
     FEIGN_RETRYABLE_EXCEPTION("FeignRetryableException", "Retryable remote call failure"),

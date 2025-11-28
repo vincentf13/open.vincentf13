@@ -14,8 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * 建立 traceId/requestId，並同步至 request attribute 與 MDC，便於跨服務日誌追蹤。
+/*
+  建立 traceId/requestId，並同步至 request attribute 與 MDC，便於跨服務日誌追蹤。
  */
 @RequiredArgsConstructor
 public class RequestCorrelationFilter extends OncePerRequestFilter {

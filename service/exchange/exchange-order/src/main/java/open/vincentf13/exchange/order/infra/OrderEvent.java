@@ -3,7 +3,7 @@ package open.vincentf13.exchange.order.infra;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
- * Order 事件枚舉。
+  Order 事件枚舉。
  */
 public enum OrderEvent implements OpenEvent {
     ORDER_STATUS_CONFLICT("OrderStatusConflict", "Order status conflict"),

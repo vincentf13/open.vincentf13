@@ -19,8 +19,8 @@ import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.function.BiFunction;
 
-/**
- * Kafka Consumer 配置類
+/*
+  Kafka Consumer 配置類
  */
 @Configuration
 @EnableKafka
@@ -28,14 +28,14 @@ import java.util.function.BiFunction;
 public class ConfigKafkaConsumer {
 
 
-    /**
-     * 創建並配置 Kafka 監聽器容器工廠。
-     *
-     * @param consumerFactory Spring Boot 自動配置的 ConsumerFactory。
-     * @param kafkaTemplate   Spring Boot 自動配置的 KafkaTemplate，用於發送訊息到 DLQ。
-     * @param kafkaProperties Spring Boot 自動配置的 Kafka 屬性，用於日誌記錄。
-     * @return 配置好的 ConcurrentKafkaListenerContainerFactory。
-     */
+    /*
+  創建並配置 Kafka 監聽器容器工廠。
+
+  @param consumerFactory Spring Boot 自動配置的 ConsumerFactory。
+  @param kafkaTemplate   Spring Boot 自動配置的 KafkaTemplate，用於發送訊息到 DLQ。
+  @param kafkaProperties Spring Boot 自動配置的 Kafka 屬性，用於日誌記錄。
+  @return 配置好的 ConcurrentKafkaListenerContainerFactory。
+ */
     @Bean
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public ConcurrentKafkaListenerContainerFactory<Object, Object> kafkaListenerContainerFactory(

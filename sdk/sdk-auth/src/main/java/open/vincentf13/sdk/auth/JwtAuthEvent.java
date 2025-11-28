@@ -3,7 +3,7 @@ package open.vincentf13.sdk.auth;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
- * JWT Filter 相關事件。
+  JWT Filter 相關事件。
  */
 public enum JwtAuthEvent implements OpenEvent {
     JWT_SESSION_INACTIVE("JwtSessionInactive", "Session inactive, skip authentication");

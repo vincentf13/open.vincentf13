@@ -10,8 +10,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 
-/**
- * Redis-backed session store supporting read and write operations.
+/*
+  Redis-backed session store supporting read and write operations.
  */
 public class JwtSessionStoreRedis implements JwtSessionStore {
 

@@ -3,7 +3,7 @@ package open.vincentf13.exchange.account.ledger.infra;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
- * Account-Ledger 事件枚舉。
+  Account-Ledger 事件枚舉。
  */
 public enum LedgerEvent implements OpenEvent {
     FUNDS_FREEZE_FAILED("FundsFreezeFailed", "Funds freeze failed"),

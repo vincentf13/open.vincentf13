@@ -7,12 +7,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class ConfigCookie {
 
-    /**
-     * 僅在需要配置 cookie MaxAge 時開啟，
-     * 因為 spring session 的 maxAge 只能在這裡設定
-     *
-     * 此配置會覆蓋 servlet的 cookie配置，所有配置都需要重新設定
-     */
+    /*
+  僅在需要配置 cookie MaxAge 時開啟，
+  因為 spring session 的 maxAge 只能在這裡設定
+
+  此配置會覆蓋 servlet的 cookie配置，所有配置都需要重新設定
+ */
 //    @Bean
 //    CookieSerializer cookieSerializer() {
 //        DefaultCookieSerializer s = new DefaultCookieSerializer();

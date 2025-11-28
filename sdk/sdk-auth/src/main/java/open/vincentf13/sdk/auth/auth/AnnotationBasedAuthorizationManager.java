@@ -27,8 +27,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/**
- * 授權管理器：透過解析控制器處理器上的註解判斷請求需滿足的認證機制。
+/*
+  授權管理器：透過解析控制器處理器上的註解判斷請求需滿足的認證機制。
  */
 public class AnnotationBasedAuthorizationManager implements AuthorizationManager<RequestAuthorizationContext> {
 
@@ -39,9 +39,9 @@ public class AnnotationBasedAuthorizationManager implements AuthorizationManager
     }
 
     @Override
-    /**
-     * 核心邏輯：先找出對應 Handler 與其宣告的 {@link AuthRequirement}，再與當前請求可用的驗證方式比對。
-     */
+    /*
+  核心邏輯：先找出對應 Handler 與其宣告的 {@link AuthRequirement}，再與當前請求可用的驗證方式比對。
+ */
     public AuthorizationDecision check(Supplier<Authentication> authenticationSupplier, RequestAuthorizationContext object) {
         HttpServletRequest request = object.getRequest();
 
@@ -128,9 +128,9 @@ public class AnnotationBasedAuthorizationManager implements AuthorizationManager
         return null;
     }
 
-    /**
-     * 從方法與類別層級合併所有 {@link AuthRequirement} 設定，好讓類別註解能成為全域預設，方法註解可覆寫或補充。
-     */
+    /*
+  從方法與類別層級合併所有 {@link AuthRequirement} 設定，好讓類別註解能成為全域預設，方法註解可覆寫或補充。
+ */
     private List<AuthRequirement> resolveRequirements(HandlerMethod handlerMethod) {
         LinkedHashSet<AuthRequirement> merged = new LinkedHashSet<>();
         Method method = handlerMethod.getMethod();
@@ -145,9 +145,9 @@ public class AnnotationBasedAuthorizationManager implements AuthorizationManager
         return new ArrayList<>(merged);
     }
 
-    /**
-     * 將請求中已透過 Filter 標記的認證方式（例如 API Key）與 Spring Security 的登入狀態合併。
-     */
+    /*
+  將請求中已透過 Filter 標記的認證方式（例如 API Key）與 Spring Security 的登入狀態合併。
+ */
     private EnumSet<AuthType> resolveAvailableAuthTypes(HttpServletRequest request, Authentication authentication) {
         EnumSet<AuthType> available = EnumSet.noneOf(AuthType.class);
 

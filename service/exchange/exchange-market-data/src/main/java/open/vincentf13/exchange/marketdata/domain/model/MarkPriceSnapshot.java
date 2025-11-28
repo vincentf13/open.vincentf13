@@ -11,8 +11,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-/**
- * Domain entity describing the latest mark price derived from recent trades.
+/*
+  Domain entity describing the latest mark price derived from recent trades.
  */
 @Data
 @Builder

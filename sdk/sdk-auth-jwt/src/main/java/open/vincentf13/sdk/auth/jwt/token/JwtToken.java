@@ -6,8 +6,8 @@ import org.springframework.security.core.GrantedAuthority;
 import java.time.Instant;
 import java.util.Collection;
 
-/**
- * Access-jwtToken-backed Authentication that keeps track of the session id embedded in the JWT.
+/*
+  Access-jwtToken-backed Authentication that keeps track of the session id embedded in the JWT.
  */
 public class JwtToken extends UsernamePasswordAuthenticationToken {
 

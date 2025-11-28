@@ -10,8 +10,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 
-/**
- * Distributed lock helper backed by Redisson's {@link RLock} implementation.
+/*
+  Distributed lock helper backed by Redisson's {@link RLock} implementation.
  */
 public final class OpenRedissonLock {
 
@@ -31,15 +31,15 @@ public final class OpenRedissonLock {
     }
 
     /*
-     * Acquire lock and execute business logic, releasing after completion.
-     * Example:
-     *   OpenRedissonLock.withLock("order:123", Duration.ofSeconds(1), Duration.ofSeconds(30), () -> {
-     *       processOrder();
-     *       return Boolean.TRUE;
-     *   });
-     * waitTime：等待鎖的期限，超過立即返回 false；null 表示立即嘗試。實際是透過 Redisson 向 Redis 發出阻塞式命令等待，而非 busy waiting。
-     * leaseTime：鎖的租期，時間到自動釋放；null 表示不自動釋放；Redisson 會在 leaseTime 到期前啟動 watchdog 自動延長防止死鎖，合理時間請依業務執行長度估算。
-     */
+  Acquire lock and execute business logic, releasing after completion.
+  Example:
+  OpenRedissonLock.withLock("order:123", Duration.ofSeconds(1), Duration.ofSeconds(30), () -> {
+  processOrder();
+  return Boolean.TRUE;
+  });
+  waitTime：等待鎖的期限，超過立即返回 false；null 表示立即嘗試。實際是透過 Redisson 向 Redis 發出阻塞式命令等待，而非 busy waiting。
+  leaseTime：鎖的租期，時間到自動釋放；null 表示不自動釋放；Redisson 會在 leaseTime 到期前啟動 watchdog 自動延長防止死鎖，合理時間請依業務執行長度估算。
+ */
     public static <T> T withLock(String key, Duration waitTime, Duration leaseTime, Supplier<T> work) {
         Objects.requireNonNull(work, "work");
         boolean locked = false;
@@ -62,18 +62,18 @@ public final class OpenRedissonLock {
 
 
     /*
-     * Try acquiring lock within waitTime and optional leaseTime.
-     * Example:
-     *   if (OpenRedissonLock.tryLock("counter", Duration.ofMillis(500), Duration.ofSeconds(5))) {
-     *       try {
-     *           incrementCounter();
-     *       } finally {
-     *           OpenRedissonLock.unlock("counter");
-     *       }
-     *   }
-     * waitTime：等待鎖的期限，超過立即返回 false；null 表示立即嘗試。Redisson 將在 Redis 端進行阻塞/訂閱方式等待 (非 busy waiting)。
-     * leaseTime：鎖的租期，時間到自動釋放；null 表示不自動釋放；Redisson 會在 leaseTime 到期前啟動 watchdog 自動延長防止死鎖，合理時間依業務長度估算。
-     */
+  Try acquiring lock within waitTime and optional leaseTime.
+  Example:
+  if (OpenRedissonLock.tryLock("counter", Duration.ofMillis(500), Duration.ofSeconds(5))) {
+  try {
+  incrementCounter();
+  } finally {
+  OpenRedissonLock.unlock("counter");
+  }
+  }
+  waitTime：等待鎖的期限，超過立即返回 false；null 表示立即嘗試。Redisson 將在 Redis 端進行阻塞/訂閱方式等待 (非 busy waiting)。
+  leaseTime：鎖的租期，時間到自動釋放；null 表示不自動釋放；Redisson 會在 leaseTime 到期前啟動 watchdog 自動延長防止死鎖，合理時間依業務長度估算。
+ */
     public static boolean tryLock(String key, Duration waitTime, Duration leaseTime) throws InterruptedException {
         Objects.requireNonNull(key, "key");
         RLock lock = client().getLock(key);
@@ -89,8 +89,8 @@ public final class OpenRedissonLock {
     }
 
     /*
-     * Unlock only when held by current thread.
-     */
+  Unlock only when held by current thread.
+ */
     public static void unlock(String key) {
         Objects.requireNonNull(key, "key");
         RLock lock = client().getLock(key);

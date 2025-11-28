@@ -29,9 +29,9 @@ public class AuthUserDetailsService implements UserDetailsService {
     private final AuthCredentialRepository authCredentialRepository;
     private final ExchangeUserClient exchangeUserClient;
 
-    /**
-     * 拋出 AuthenticationException 的子類，會由錯誤處理器處理
-     */
+    /*
+  拋出 AuthenticationException 的子類，會由錯誤處理器處理
+ */
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         if (!StringUtils.hasText(email)) {

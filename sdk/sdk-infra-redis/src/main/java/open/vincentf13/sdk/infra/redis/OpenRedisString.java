@@ -19,11 +19,11 @@ import java.util.function.Supplier;
 
 import static open.vincentf13.sdk.infra.redis.RedisUtil.withJitter;
 
-/**
- * 封裝 RedisTemplate 與 StringRedisTemplate 的通用服務
- * - 同槽位檢查以保證 Cluster 下 Pipeline/MULTI/Lua 的可行性
- * - 單語句優先原子操作；多步操作提供 Lua 與 Pipeline 版本
- * - 提供 scan 全主節點遍歷（Cluster）與 cache-aside 模式
+/*
+  封裝 RedisTemplate 與 StringRedisTemplate 的通用服務
+  - 同槽位檢查以保證 Cluster 下 Pipeline/MULTI/Lua 的可行性
+  - 單語句優先原子操作；多步操作提供 Lua 與 Pipeline 版本
+  - 提供 scan 全主節點遍歷（Cluster）與 cache-aside 模式
  */
 
 public final class OpenRedisString {
@@ -37,10 +37,10 @@ public final class OpenRedisString {
     }
 
     /*
-     * 取得值並轉為指定型別。
-     * 例如：
-     *   Human human = OpenRedisString.get("human:1", Human.class);
-     */
+  取得值並轉為指定型別。
+  例如：
+  Human human = OpenRedisString.get("human:1", Human.class);
+ */
     public static <T> T get(String key, Class<T> targetType) {
         Object obj = redisTemplate().opsForValue().get(key);
         return OpenObjectMapper.convert(obj, targetType);
@@ -62,10 +62,10 @@ public final class OpenRedisString {
 
     // ===== Cache-Aside =====
     /*
-     * Cache-aside：命中則回傳，未命中載入並回填。
-     * 例如：
-     *   User user = OpenRedisString.getOrLoad("user:1", Duration.ofMinutes(5), User.class, () -> userRepo.findById(1L));
-     */
+  Cache-aside：命中則回傳，未命中載入並回填。
+  例如：
+  User user = OpenRedisString.getOrLoad("user:1", Duration.ofMinutes(5), User.class, () -> userRepo.findById(1L));
+ */
     public static <T> T getOrLoad(String key, Duration ttl, Class<T> type, Supplier<T> loader) {
         RedisTemplate<String, Object> redis = redisTemplate();
         Object cached = redis.opsForValue().get(key);
@@ -89,10 +89,10 @@ public final class OpenRedisString {
     }
 
     /*
-     * 非阻塞寫入，有重試機制。
-     * 例如：
-     *   OpenRedisString.setAsync("user:1", user, Duration.ofMinutes(10), 3);
-     */
+  非阻塞寫入，有重試機制。
+  例如：
+  OpenRedisString.setAsync("user:1", user, Duration.ofMinutes(10), 3);
+ */
     public static CompletableFuture<Boolean> setAsync(String key, Object value, Duration ttl, int retry) {
         Duration ttlWithJitter = withJitter(ttl);
         return CompletableFuture.supplyAsync(() -> {
@@ -115,14 +115,14 @@ public final class OpenRedisString {
     }
 
     /*
-     * 批次非阻塞寫入，逐筆帶入 TTL 並加抖動。
-     * 例如：
-     *   List<KeyValueTtl> batch = List.of(
-     *       new KeyValueTtl("user:1", user1, Duration.ofMinutes(5)),
-     *       new KeyValueTtl("user:2", user2, Duration.ofMinutes(5))
-     *   );
-     *   OpenRedisString.setBatch(batch);
-     */
+  批次非阻塞寫入，逐筆帶入 TTL 並加抖動。
+  例如：
+  List<KeyValueTtl> batch = List.of(
+  new KeyValueTtl("user:1", user1, Duration.ofMinutes(5)),
+  new KeyValueTtl("user:2", user2, Duration.ofMinutes(5))
+  );
+  OpenRedisString.setBatch(batch);
+ */
     public static void setBatch(Collection<KeyValueTtl> entries) {
         if (entries == null || entries.isEmpty()) {
             return;
@@ -147,10 +147,10 @@ public final class OpenRedisString {
     }
 
     /*
-     * Cluster 版批次寫入，依槽位分批 pipeline。
-     * 例如：
-     *   OpenRedisString.setBatchCluster(List.of(new KeyValueTtl("user:1", user1, Duration.ofMinutes(5))));
-     */
+  Cluster 版批次寫入，依槽位分批 pipeline。
+  例如：
+  OpenRedisString.setBatchCluster(List.of(new KeyValueTtl("user:1", user1, Duration.ofMinutes(5))));
+ */
     public static void setBatchCluster(Collection<KeyValueTtl> entries) {
         if (entries == null || entries.isEmpty()) {
             return;
@@ -181,10 +181,10 @@ public final class OpenRedisString {
     }
 
     /*
-     * 批次讀取：所有 key 同型別。
-     * 例如：
-     *   Map<String, User> users = OpenRedisString.getBatch(List.of("user:1", "user:2"), User.class);
-     */
+  批次讀取：所有 key 同型別。
+  例如：
+  Map<String, User> users = OpenRedisString.getBatch(List.of("user:1", "user:2"), User.class);
+ */
     public static <T> Map<String, T> getBatch(Collection<String> keys, Class<T> targetType) {
         Objects.requireNonNull(targetType, "type is required");
         Map<String, Class<?>> mapping = new LinkedHashMap<>();
@@ -198,10 +198,10 @@ public final class OpenRedisString {
     }
 
     /*
-     * Cluster 版批次讀取：所有 key 同型別。
-     * 例如：
-     *   Map<String, User> users = OpenRedisString.getBatchCluster(List.of("user:1", "user:2"), User.class);
-     */
+  Cluster 版批次讀取：所有 key 同型別。
+  例如：
+  Map<String, User> users = OpenRedisString.getBatchCluster(List.of("user:1", "user:2"), User.class);
+ */
     public static <T> Map<String, T> getBatchCluster(Collection<String> keys, Class<T> targetType) {
         Objects.requireNonNull(targetType, "type is required");
         Map<String, Class<?>> mapping = new LinkedHashMap<>();
@@ -215,32 +215,32 @@ public final class OpenRedisString {
     }
 
     /*
-     * 批次讀取：每個 key 對應不同型別。
-     * 例如：
-     *   Map<String, Object> data = OpenRedisString.getBatch(
-     *       List.of(Map.of("user:1", User.class, "profile:1", Profile.class))
-     *   );
-     */
+  批次讀取：每個 key 對應不同型別。
+  例如：
+  Map<String, Object> data = OpenRedisString.getBatch(
+  List.of(Map.of("user:1", User.class, "profile:1", Profile.class))
+  );
+ */
     public static Map<String, Object> getBatch(Collection<Map<String, Class<?>>> keyTypeMappings) {
         return getBatchInternal(flattenKeyTypeMappings(keyTypeMappings));
     }
 
     /*
-     * Cluster 版批次讀取：每個 key 對應不同型別。
-     * 例如：
-     *   Map<String, Object> data = OpenRedisString.getBatchCluster(
-     *       List.of(Map.of("user:1", User.class, "profile:1", Profile.class))
-     *   );
-     */
+  Cluster 版批次讀取：每個 key 對應不同型別。
+  例如：
+  Map<String, Object> data = OpenRedisString.getBatchCluster(
+  List.of(Map.of("user:1", User.class, "profile:1", Profile.class))
+  );
+ */
     public static Map<String, Object> getBatchCluster(Collection<Map<String, Class<?>>> keyTypeMappings) {
         return getBatchClusterInternal(flattenKeyTypeMappings(keyTypeMappings));
     }
 
     /*
-     * fire-and-forget 模式，不關心結果。
-     * 例如：
-     *   OpenRedisString.setAsyncFireAndForget("cache:foo", payload, Duration.ofSeconds(30));
-     */
+  fire-and-forget 模式，不關心結果。
+  例如：
+  OpenRedisString.setAsyncFireAndForget("cache:foo", payload, Duration.ofSeconds(30));
+ */
     public static void setAsyncFireAndForget(String key, Object value, Duration ttl) {
         StringRedisTemplate stringRedis = stringRedisTemplate();
         Duration ttlWithJitter = withJitter(ttl);

@@ -10,10 +10,10 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
 
-/**
- * Request/response logging filter that wraps the servlet request/response and delegates
- * detailed logging to {@link MvcLogService}. Executed once per request so even security
- * short-circuits (e.g. 403) will be logged.
+/*
+  Request/response logging filter that wraps the servlet request/response and delegates
+  detailed logging to {@link MvcLogService}. Executed once per request so even security
+  short-circuits (e.g. 403) will be logged.
  */
 public class RequestLoggingFilter extends OncePerRequestFilter {
 

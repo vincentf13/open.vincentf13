@@ -8,9 +8,9 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
 
-/**
- * Enumerates authentication-related failures so different entry points (login, refresh, etc.)
- * can present consistent error codes/messages.
+/*
+  Enumerates authentication-related failures so different entry points (login, refresh, etc.)
+  can present consistent error codes/messages.
  */
 public enum FailureReason {
 

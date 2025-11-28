@@ -3,7 +3,7 @@ package open.vincentf13.sdk.spring.mvc;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
- * MVC 事件枚舉。
+  MVC 事件枚舉。
  */
 public enum MvcEvent implements OpenEvent {
     HTTP_MESSAGE_UNREADABLE("HttpMessageUnreadable", "Request payload unreadable"),

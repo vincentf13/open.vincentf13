@@ -20,8 +20,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * 靜態 Kafka Testcontainer 工具，集中管理容器啟動與屬性註冊。
+/*
+  靜態 Kafka Testcontainer 工具，集中管理容器啟動與屬性註冊。
  */
 public final class OpenKafkaTestContainer {
 
@@ -48,9 +48,9 @@ public final class OpenKafkaTestContainer {
         return "kafka-test-" + UUID.randomUUID();
     }
 
-    /**
-     * 建立唯一 topic 並記錄於 ThreadLocal，讓同一測試執行緒能安全取得對應 topic。
-     */
+    /*
+  建立唯一 topic 並記錄於 ThreadLocal，讓同一測試執行緒能安全取得對應 topic。
+ */
     public static String prepareTopic() {
         KafkaAdmin admin = requireKafkaAdmin();
         String topic = newTopicName();
@@ -67,9 +67,9 @@ public final class OpenKafkaTestContainer {
         CURRENT_TOPIC.remove();
     }
 
-    /**
-     * 啟動簡單的 listener container，並等待分區就緒後再回傳。
-     */
+    /*
+  啟動簡單的 listener container，並等待分區就緒後再回傳。
+ */
     public static <K, V> KafkaMessageListenerContainer<K, V> startListener(
             String topic,
             MessageListener<K, V> listener) throws InterruptedException {
@@ -84,9 +84,9 @@ public final class OpenKafkaTestContainer {
         return container;
     }
 
-    /**
-     * 停用 listener，並等待執行緒完全結束以免污染後續測試。
-     */
+    /*
+  停用 listener，並等待執行緒完全結束以免污染後續測試。
+ */
     public static void stopListener(KafkaMessageListenerContainer<?, ?> container) throws InterruptedException {
         try {
             container.stop();

@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Session metadata persisted alongside JWTs so services can enforce logout/kick-offline semantics.
+/*
+  Session metadata persisted alongside JWTs so services can enforce logout/kick-offline semantics.
  */
 public class JwtSession {
 

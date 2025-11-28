@@ -15,11 +15,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class ConfigFilter {
 
 
-    /**
-     * 讓 PUT、PATCH、DELETE 等非 POST 請求
-     * 且 Content-Type = application/x-www-form-urlencoded
-     * 能透過 request.getParameter() 讀取表單欄位
-     */
+    /*
+  讓 PUT、PATCH、DELETE 等非 POST 請求
+  且 Content-Type = application/x-www-form-urlencoded
+  能透過 request.getParameter() 讀取表單欄位
+ */
 //    @Bean
 //    FormContentFilter formContentFilter() {
 //        return new FormContentFilter();

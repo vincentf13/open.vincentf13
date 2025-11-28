@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
 
-/**
- * Registers the global enum type handler so enums persist as strings.
+/*
+  Registers the global enum type handler so enums persist as strings.
  */
 @AutoConfiguration(after = MysqlMapperScanAutoConfiguration.class)
 @ConditionalOnClass(ConfigurationCustomizer.class)

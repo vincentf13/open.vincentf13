@@ -26,16 +26,16 @@ import java.util.List;
 @EnableConfigurationProperties(MvcProperties.class)
 public class ConfigWebMvc {
 
-    /**
-     * - 根據回應內容計算 ETag（哈希摘要）
-     * - 在回應頭新增
-     * ETag: "3f0a1c4b"
-     * - 若客戶端在下次請求時攜帶
-     * If-None-Match: "3f0a1c4b"
-     * 伺服器檢測內容未改變，直接回應：
-     * 304 Not Modified
-     * 無需重傳實體內容，節省頻寬與時間。
-     */
+    /*
+  - 根據回應內容計算 ETag（哈希摘要）
+  - 在回應頭新增
+  ETag: "3f0a1c4b"
+  - 若客戶端在下次請求時攜帶
+  If-None-Match: "3f0a1c4b"
+  伺服器檢測內容未改變，直接回應：
+  304 Not Modified
+  無需重傳實體內容，節省頻寬與時間。
+ */
     @Bean
     public ShallowEtagHeaderFilter shallowEtagHeaderFilter() {
         return new ShallowEtagHeaderFilter();
@@ -45,9 +45,9 @@ public class ConfigWebMvc {
 
 
 
-    /**
-     * 統一擴充 WebMvcConfigurer：提供格式化器與 MessageConverter 設定。
-     */
+    /*
+  統一擴充 WebMvcConfigurer：提供格式化器與 MessageConverter 設定。
+ */
     @Bean
     public WebMvcConfigurer baseWebMvcConfigurer(ObjectMapper objectMapper,
                                                  Validator validator) {

@@ -11,8 +11,8 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Duration;
 import java.util.Objects;
 
-/**
- * 靜態 Redis Testcontainer 工具，集中管理容器啟動與屬性註冊。
+/*
+  靜態 Redis Testcontainer 工具，集中管理容器啟動與屬性註冊。
  */
 public final class OpenRedisTestContainer {
 
@@ -40,9 +40,9 @@ public final class OpenRedisTestContainer {
         return REDIS;
     }
 
-    /**
-     * 等待 redis 連線工廠可用，確保容器或外部 Redis 已經就緒。
-     */
+    /*
+  等待 redis 連線工廠可用，確保容器或外部 Redis 已經就緒。
+ */
     public static void awaitReady(StringRedisTemplate redisTemplate) {
         awaitReady(redisTemplate, DEFAULT_READY_TIMEOUT);
     }

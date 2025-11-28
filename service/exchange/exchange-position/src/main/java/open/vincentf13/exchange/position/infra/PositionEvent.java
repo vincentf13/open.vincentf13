@@ -3,7 +3,7 @@ package open.vincentf13.exchange.position.infra;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /*
- * Position 事件枚舉。
+  Position 事件枚舉。
  */
 public enum PositionEvent implements OpenEvent {
     POSITION_RESERVED("PositionReserved", "Position reserved"),

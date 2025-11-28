@@ -32,9 +32,9 @@ public class OpenJwtLoginUserDetails implements UserDetails {
         this.authorities = authorities == null ? Collections.emptyList() : authorities;
     }
 
-    /**
-     * Constructor for JWT-based authentication (no password credentials needed)
-     */
+    /*
+  Constructor for JWT-based authentication (no password credentials needed)
+ */
     public OpenJwtLoginUserDetails(Long userId,
                                    String email,
                                    Collection<? extends GrantedAuthority> authorities) {

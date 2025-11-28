@@ -17,18 +17,18 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class ConfigAop {
 
 
-    /**
-     * 提供預設的 RestExceptionHandler，避免每個服務重複實作。
-     */
+    /*
+  提供預設的 RestExceptionHandler，避免每個服務重複實作。
+ */
     @Bean
     @ConditionalOnMissingBean
     public OpenRestExceptionAdvice restExceptionHandler() {
         return new OpenRestExceptionAdvice();
     }
 
-    /**
-     * 構建 ApiResponseBodyAdvice，統一包裝回應結果。
-     */
+    /*
+  構建 ApiResponseBodyAdvice，統一包裝回應結果。
+ */
     @Bean
     @ConditionalOnMissingBean
     public AopResponseBody apiResponseBodyAdvice(ObjectMapper objectMapper, MvcProperties properties) {

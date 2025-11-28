@@ -3,14 +3,14 @@ package open.vincentf13.sdk.core.test;
 import java.util.Locale;
 import open.vincentf13.sdk.core.OpenConstant;
 
-/**
- * 控制是否啟用測試容器的組態：
- * <ul>
- *   <li>全域旗標：system property {@code open.vincentf13.sdk.core.test.testcontainer.enabled}
- *   或環境變數 {@code OPEN_VINCENTF13_SDK_CORE_TEST_TESTCONTAINER_ENABLED}</li>
- *   <li>服務別旗標：system property {@code open.vincentf13.sdk.core.test.testcontainer.<name>.enabled}</li>
- * </ul>
- * 任一旗標設為 {@code false/0/off/no} 即視為停用；未設定則預設啟用。
+/*
+  控制是否啟用測試容器的組態：
+  <ul>
+  <li>全域旗標：system property {@code open.vincentf13.sdk.core.test.testcontainer.enabled}
+  或環境變數 {@code OPEN_VINCENTF13_SDK_CORE_TEST_TESTCONTAINER_ENABLED}</li>
+  <li>服務別旗標：system property {@code open.vincentf13.sdk.core.test.testcontainer.<name>.enabled}</li>
+  </ul>
+  任一旗標設為 {@code false/0/off/no} 即視為停用；未設定則預設啟用。
  */
 final class TestContainerSettings {
 
