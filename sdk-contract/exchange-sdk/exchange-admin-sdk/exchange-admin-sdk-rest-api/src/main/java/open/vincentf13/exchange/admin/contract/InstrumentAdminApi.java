@@ -18,17 +18,17 @@ import java.util.List;
 @Validated
 @RequestMapping("/api/admin/instruments")
 public interface InstrumentAdminApi {
-
+    
     @GetMapping
     @PublicAPI
     OpenApiResponse<List<InstrumentSummaryResponse>> list(
             @RequestParam(value = "status", required = false) InstrumentStatus status,
             @RequestParam(value = "instrumentType", required = false) InstrumentType instrumentType
-    );
-
+                                                         );
+    
     @GetMapping("/{instrumentId}")
     @PublicAPI
     OpenApiResponse<InstrumentDetailResponse> get(
             @PathVariable("instrumentId") @NotNull Long instrumentId
-    );
+                                                 );
 }

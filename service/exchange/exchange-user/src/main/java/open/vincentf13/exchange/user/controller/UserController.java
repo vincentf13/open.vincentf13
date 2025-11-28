@@ -14,23 +14,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
 public class UserController implements UserApi {
-
+    
     private final UserCommandService userCommandService;
     private final UserQueryService userQueryService;
-
+    
     @Override
     public OpenApiResponse<UserResponse> register(UserRegisterRequest request) {
         return OpenApiResponse.success(userCommandService.register(request));
     }
-
+    
     @Override
     public OpenApiResponse<UserResponse> getMe() {
         return OpenApiResponse.success(userQueryService.getCurrentUser());
     }
-
+    
     @Override
     public OpenApiResponse<UserResponse> findByEmail(String email) {
         return OpenApiResponse.success(userQueryService.getUserByEmail(email));
     }
-
+    
 }

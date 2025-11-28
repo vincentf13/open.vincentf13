@@ -10,7 +10,7 @@ public enum AssetSymbol {
     ETH,
     USDT,
     UNKNOWN;
-
+    
     @JsonCreator
     public static AssetSymbol fromValue(String value) {
         if (value == null) {
@@ -23,7 +23,7 @@ public enum AssetSymbol {
             return UNKNOWN;
         }
     }
-
+    
     @JsonValue
     public String code() {
         return name();

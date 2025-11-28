@@ -3,11 +3,11 @@ package open.vincentf13.exchange.position.domain.model;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
@@ -20,7 +20,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Position {
-
+    
     private Long positionId;
     @NotNull
     private Long userId;
@@ -58,18 +58,40 @@ public class Position {
     @NotNull
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal liquidationPrice;
-
+    
     @NotNull
     private PositionStatus status;
     private Integer version;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant closedAt;
-
+    
+    public static Position createDefault(Long userId,
+                                         Long instrumentId,
+                                         PositionSide side) {
+        return Position.builder()
+                       .userId(userId)
+                       .instrumentId(instrumentId)
+                       .leverage(40)
+                       .margin(BigDecimal.ZERO)
+                       .side(side == null ? PositionSide.LONG : side)
+                       .entryPrice(BigDecimal.ZERO)
+                       .quantity(BigDecimal.ZERO)
+                       .closingReservedQuantity(BigDecimal.ZERO)
+                       .markPrice(BigDecimal.ZERO)
+                       .marginRatio(BigDecimal.ZERO)
+                       .unrealizedPnl(BigDecimal.ZERO)
+                       .realizedPnl(BigDecimal.ZERO)
+                       .liquidationPrice(BigDecimal.ZERO)
+                       
+                       .status(PositionStatus.ACTIVE)
+                       .build();
+    }
+    
     public int safeVersion() {
         return version == null ? 0 : version;
     }
-
+    
     public BigDecimal availableToClose() {
         if (quantity == null) {
             return BigDecimal.ZERO;
@@ -78,40 +100,21 @@ public class Position {
         BigDecimal available = quantity.subtract(reserved);
         return available.max(BigDecimal.ZERO);
     }
-
+    
     public boolean isSameSide(PositionSide otherSide) {
         if (side == null || otherSide == null) {
             return true;
         }
         return side == otherSide;
     }
-
-    public PositionIntentType evaluateIntent(PositionSide requestSide, BigDecimal requestedQuantity) {
+    
+    public PositionIntentType evaluateIntent(PositionSide requestSide,
+                                             BigDecimal requestedQuantity) {
         BigDecimal requested = requestedQuantity == null ? BigDecimal.ZERO : requestedQuantity;
         if (isSameSide(requestSide)) {
             return PositionIntentType.INCREASE;
         }
         BigDecimal current = quantity == null ? BigDecimal.ZERO : quantity;
         return current.compareTo(requested) > 0 ? PositionIntentType.REDUCE : PositionIntentType.CLOSE;
-    }
-
-    public static Position createDefault(Long userId, Long instrumentId, PositionSide side) {
-        return Position.builder()
-                .userId(userId)
-                .instrumentId(instrumentId)
-                .leverage(40)
-                .margin(BigDecimal.ZERO)
-                .side(side == null ? PositionSide.LONG : side)
-                .entryPrice(BigDecimal.ZERO)
-                .quantity(BigDecimal.ZERO)
-                .closingReservedQuantity(BigDecimal.ZERO)
-                .markPrice(BigDecimal.ZERO)
-                .marginRatio(BigDecimal.ZERO)
-                .unrealizedPnl(BigDecimal.ZERO)
-                .realizedPnl(BigDecimal.ZERO)
-                .liquidationPrice(BigDecimal.ZERO)
-
-                .status(PositionStatus.ACTIVE)
-                .build();
     }
 }

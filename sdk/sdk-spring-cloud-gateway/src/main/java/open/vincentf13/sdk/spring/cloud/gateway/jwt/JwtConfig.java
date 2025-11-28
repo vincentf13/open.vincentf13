@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.spring.cloud.gateway.jwt;
 
-import open.vincentf13.sdk.auth.jwt.token.OpenJwtService;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
+import open.vincentf13.sdk.auth.jwt.token.OpenJwtService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(prefix = "open.vincentf13.security.gateway", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnBean(OpenJwtService.class)
 public class JwtConfig {
-
+    
     @Bean
     @ConditionalOnMissingBean
     public JwtFilter jwtGatewayFilter(OpenJwtService openJwtService,

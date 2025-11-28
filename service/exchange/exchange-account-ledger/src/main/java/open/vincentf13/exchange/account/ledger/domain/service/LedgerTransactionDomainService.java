@@ -44,32 +44,32 @@ import java.util.Optional;
 @Validated
 @RequiredArgsConstructor
 public class LedgerTransactionDomainService {
-
+    
     private static final int OPTIMISTIC_LOCK_MAX_RETRIES = 3;
-
+    
     private final LedgerBalanceRepository ledgerBalanceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final PlatformAccountRepository platformAccountRepository;
     private final PlatformBalanceRepository platformBalanceRepository;
     private final DefaultIdGenerator idGenerator;
     private final LedgerEventPublisher ledgerEventPublisher;
-
+    
     public LedgerDepositResult deposit(@NotNull @Valid LedgerDepositRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(request.userId(), accountType, null, normalizedAsset);
         LedgerBalance balanceUpdated = retryUpdateForDeposit(userBalance, request.amount(), request.userId(), normalizedAsset);
-
+        
         PlatformAccount platformAccount = platformAccountRepository.getOrCreate(
                 PlatformAccountCode.USER_DEPOSIT,
                 PlatformAccountCategory.LIABILITY,
                 PlatformAccountStatus.ACTIVE);
         PlatformBalance platformBalance = platformBalanceRepository.getOrCreate(platformAccount.getAccountId(), platformAccount.getAccountCode(), normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformDeposit(platformBalance, request.amount(), normalizedAsset);
-
+        
         Long userEntryId = idGenerator.newLong();
         Long platformEntryId = idGenerator.newLong();
-
+        
         LedgerEntry userEntry = LedgerEntry.userDeposit(
                 userEntryId,
                 balanceUpdated.getAccountId(),
@@ -82,7 +82,7 @@ public class LedgerTransactionDomainService {
                 request.creditedAt()
                                                        );
         ledgerEntryRepository.insert(userEntry);
-
+        
         LedgerEntry platformEntry = LedgerEntry.platformDeposit(
                 platformEntryId,
                 platformBalanceUpdated.getAccountId(),
@@ -94,27 +94,27 @@ public class LedgerTransactionDomainService {
                 request.creditedAt()
                                                                );
         ledgerEntryRepository.insert(platformEntry);
-
+        
         return new LedgerDepositResult(userEntry, platformEntry, balanceUpdated, platformBalanceUpdated);
     }
-
+    
     public LedgerWithdrawalResult withdraw(@NotNull @Valid LedgerWithdrawalRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(request.asset());
         LedgerBalance userBalance = ledgerBalanceRepository.getOrCreate(request.userId(), accountType, null, normalizedAsset);
-
+        
         LedgerBalance balanceUpdated = retryUpdateForWithdrawal(userBalance, request.amount(), request.userId(), normalizedAsset);
-
+        
         PlatformAccount platformAccount = platformAccountRepository.getOrCreate(
                 PlatformAccountCode.USER_DEPOSIT,
                 PlatformAccountCategory.LIABILITY,
                 PlatformAccountStatus.ACTIVE);
         PlatformBalance platformBalance = platformBalanceRepository.getOrCreate(platformAccount.getAccountId(), platformAccount.getAccountCode(), normalizedAsset);
         PlatformBalance platformBalanceUpdated = retryUpdateForPlatformWithdrawal(platformBalance, request.amount(), normalizedAsset);
-
+        
         Long userEntryId = idGenerator.newLong();
         Long platformEntryId = idGenerator.newLong();
-
+        
         LedgerEntry userEntry = LedgerEntry.userWithdrawal(
                 userEntryId,
                 balanceUpdated.getAccountId(),
@@ -127,7 +127,7 @@ public class LedgerTransactionDomainService {
                 request.creditedAt()
                                                           );
         ledgerEntryRepository.insert(userEntry);
-
+        
         LedgerEntry platformEntry = LedgerEntry.platformWithdrawal(
                 platformEntryId,
                 platformBalanceUpdated.getAccountId(),
@@ -137,16 +137,16 @@ public class LedgerTransactionDomainService {
                 platformBalanceUpdated.getBalance(),
                 request.txId(),
                 request.creditedAt()
-                                                                );
+                                                                  );
         ledgerEntryRepository.insert(platformEntry);
-
+        
         return new LedgerWithdrawalResult(userEntry, balanceUpdated);
     }
-
+    
     public LedgerEntry freezeForOrder(@NotNull Long orderId,
                                       @NotNull Long userId,
                                       @NotNull AssetSymbol asset,
-                                       @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal requiredMargin,
+                                      @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal requiredMargin,
                                       Instant eventTime) {
         Instant entryEventTime = eventTime == null ? Instant.now() : eventTime;
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(asset);
@@ -185,12 +185,14 @@ public class LedgerTransactionDomainService {
         ledgerEntryRepository.insert(reservedEntry);
         return freezeEntry;
     }
-
+    
     @Transactional
-    public void settleTrade(@NotNull @Valid TradeExecutedEvent event, @NotNull @Valid OrderResponse order, boolean isMaker) {
+    public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
+                            @NotNull @Valid OrderResponse order,
+                            boolean isMaker) {
         AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(event.quoteAsset());
         String referenceId = event.tradeId() + ":" + (isMaker ? "maker" : "taker");
-
+        
         Optional<LedgerEntry> existing = ledgerEntryRepository.findOne(
                 Wrappers.lambdaQuery(LedgerEntryPO.class)
                         .eq(LedgerEntryPO::getReferenceType, ReferenceType.TRADE)
@@ -198,12 +200,12 @@ public class LedgerTransactionDomainService {
         if (existing.isPresent()) {
             return;
         }
-
+        
         if (order.intent() == null) {
             throw OpenException.of(LedgerErrorCode.ORDER_INTENT_NULL,
-                    Map.of("orderId", order.orderId()));
+                                   Map.of("orderId", order.orderId()));
         }
-
+        
         switch (order.intent()) {
             case INCREASE:
                 processOpenPosition(event, order, isMaker, normalizedAsset, referenceId);
@@ -214,101 +216,109 @@ public class LedgerTransactionDomainService {
                 break;
             default:
                 throw OpenException.of(LedgerErrorCode.UNSUPPORTED_ORDER_INTENT,
-                        Map.of("orderId", order.orderId(), "intent", order.intent()));
+                                       Map.of("orderId", order.orderId(), "intent", order.intent()));
         }
     }
-
-    private void processOpenPosition(TradeExecutedEvent event, OrderResponse order, boolean isMaker, AssetSymbol normalizedAsset, String referenceId) {
+    
+    private void processOpenPosition(TradeExecutedEvent event,
+                                     OrderResponse order,
+                                     boolean isMaker,
+                                     AssetSymbol normalizedAsset,
+                                     String referenceId) {
         BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
         BigDecimal tradeValue = event.price().multiply(event.quantity());
         Long userId = isMaker ? event.makerUserId() : event.takerUserId();
-
+        
         // 1. Find original freeze entry to calculate fee difference
         // 下單預扣時， 手續費會以 taker fee (比較高來預收) ，實際成交時，要查當初 LedgerTransactionDomainService#freezeForOrder 扣的手續費是多少，把多收的退給用戶
         LedgerEntry freezeEntry = ledgerEntryRepository.findOne(
-                Wrappers.lambdaQuery(LedgerEntryPO.class)
-                        .eq(LedgerEntryPO::getReferenceType, ReferenceType.ORDER)
-                        .eq(LedgerEntryPO::getReferenceId, order.orderId().toString())
-                        .eq(LedgerEntryPO::getEntryType, EntryType.FREEZE))
-                .orElseThrow(() -> OpenException.of(LedgerErrorCode.FREEZE_ENTRY_NOT_FOUND,
-                        Map.of("orderId", order.orderId())));
-
+                                                               Wrappers.lambdaQuery(LedgerEntryPO.class)
+                                                                       .eq(LedgerEntryPO::getReferenceType, ReferenceType.ORDER)
+                                                                       .eq(LedgerEntryPO::getReferenceId, order.orderId().toString())
+                                                                       .eq(LedgerEntryPO::getEntryType, EntryType.FREEZE))
+                                                       .orElseThrow(() -> OpenException.of(LedgerErrorCode.FREEZE_ENTRY_NOT_FOUND,
+                                                                                           Map.of("orderId", order.orderId())));
+        
         BigDecimal frozenAmount = freezeEntry.getAmount();
         BigDecimal estimatedFee = frozenAmount.subtract(tradeValue);
         // 預扣手續費餘額 - 實收手續費，若為負則有超收手續費，代表下單通過後調高了手續費率，也退。
         BigDecimal feeRefund = estimatedFee.subtract(fee).abs();
         BigDecimal actualFee = fee.subtract(feeRefund);
-        BigDecimal cost  =  frozenAmount.subtract(feeRefund);
-
+        BigDecimal cost = frozenAmount.subtract(feeRefund);
+        
         // 2. Update SPOT_MAIN
         // 扣除預扣，並返還手續費
         LedgerBalance spotBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
         LedgerBalance updatedSpotBalance = unfreezeAndDebitSpotBalance(spotBalance, frozenAmount, feeRefund, userId, normalizedAsset, event.tradeId());
-
+        
         // 3. Update ISOLATED_MARGIN
         LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
-        LedgerBalance updatedMarginBalance = retryUpdateForDeposit(marginBalance, tradeValue,  userId, normalizedAsset);
-
+        LedgerBalance updatedMarginBalance = retryUpdateForDeposit(marginBalance, tradeValue, userId, normalizedAsset);
+        
         // 4. Platform account for fee revenue
         PlatformAccount feeRevenueAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.FEE_REVENUE, PlatformAccountCategory.REVENUE, PlatformAccountStatus.ACTIVE);
         PlatformBalance feeRevenueBalance = platformBalanceRepository.getOrCreate(feeRevenueAccount.getAccountId(), feeRevenueAccount.getAccountCode(), normalizedAsset);
         PlatformBalance updatedFeeRevenueBalance = retryUpdateForPlatformDeposit(feeRevenueBalance, actualFee, normalizedAsset);
-
+        
         // 5. Record ledger entries
         Long userSpotDebitEntryId = idGenerator.newLong();
         Long feeRevenueEntryId = idGenerator.newLong();
         Long userMarginCreditEntryId = idGenerator.newLong();
-
-
-        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotDebitEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, cost , Direction.CREDIT, feeRevenueEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN));
+        
+        
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotDebitEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, cost, Direction.CREDIT, feeRevenueEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN));
         ledgerEntryRepository.insert(LedgerEntry.settlement(userMarginCreditEntryId, updatedMarginBalance.getAccountId(), userId, normalizedAsset, tradeValue, Direction.DEBIT, userSpotDebitEntryId, updatedMarginBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN));
         ledgerEntryRepository.insert(LedgerEntry.settlement(feeRevenueEntryId, updatedFeeRevenueBalance.getAccountId(), null, normalizedAsset, actualFee, Direction.DEBIT, userSpotDebitEntryId, updatedFeeRevenueBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.FEE));
-
+        
         ledgerEventPublisher.publishLedgerEntryCreated(userSpotDebitEntryId, userId, normalizedAsset, cost.negate(), updatedSpotBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT_SPOT_MAIN, event.instrumentId());
-        ledgerEventPublisher.publishLedgerEntryCreated(userMarginCreditEntryId, userId, normalizedAsset, tradeValue,  updatedMarginBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN, event.instrumentId());
+        ledgerEventPublisher.publishLedgerEntryCreated(userMarginCreditEntryId, userId, normalizedAsset, tradeValue, updatedMarginBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN, event.instrumentId());
         ledgerEventPublisher.publishLedgerEntryCreated(feeRevenueEntryId, null, normalizedAsset, actualFee, updatedFeeRevenueBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.FEE, event.instrumentId());
     }
-
-    private void processClosePosition(TradeExecutedEvent event, OrderResponse order, boolean isMaker, AssetSymbol normalizedAsset, String referenceId) {
+    
+    private void processClosePosition(TradeExecutedEvent event,
+                                      OrderResponse order,
+                                      boolean isMaker,
+                                      AssetSymbol normalizedAsset,
+                                      String referenceId) {
         BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
         Long userId = isMaker ? event.makerUserId() : event.takerUserId();
         BigDecimal realizedPnl = (event.price().subtract(order.closeCostPrice())).multiply(event.quantity())
-                .subtract(fee);
-
+                                                                                 .subtract(fee);
+        
         // 1. Update ISOLATED_MARGIN
         LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
         BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity());
-
+        
         LedgerBalance updatedMarginBalance = retryUpdateForWithdrawalWithPnl(marginBalance, costBasis, realizedPnl, userId, normalizedAsset);
-
+        
         // 2. Update SPOT_MAIN
         BigDecimal totalDepositAmount = costBasis.add(realizedPnl);
         LedgerBalance spotBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
         LedgerBalance updatedSpotBalance = retryUpdateForDepositWithPnl(spotBalance, totalDepositAmount, realizedPnl, userId, normalizedAsset);
-
+        
         // 3. Platform account for fee revenue
         PlatformAccount feeRevenueAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.FEE_REVENUE, PlatformAccountCategory.REVENUE, PlatformAccountStatus.ACTIVE);
         PlatformBalance feeRevenueBalance = platformBalanceRepository.getOrCreate(feeRevenueAccount.getAccountId(), feeRevenueAccount.getAccountCode(), normalizedAsset);
         PlatformBalance updatedFeeRevenueBalance = retryUpdateForPlatformDeposit(feeRevenueBalance, fee, normalizedAsset);
-
+        
         // 4. Record ledger entries
         Long userMarginDebitEntryId = idGenerator.newLong();
         Long userSpotCreditEntryId = idGenerator.newLong();
         Long feeRevenueEntryId = idGenerator.newLong();
-
-
+        
+        
         ledgerEntryRepository.insert(LedgerEntry.settlement(userMarginDebitEntryId, updatedMarginBalance.getAccountId(), userId, normalizedAsset, costBasis, Direction.CREDIT, userSpotCreditEntryId, updatedMarginBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN));
         // 盈虧要另外一筆分錄，借貸才能平衡 (對應另一個用戶的損益)
         ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotCreditEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, costBasis, Direction.DEBIT, userMarginDebitEntryId,
                                                             updatedSpotBalance.getBalance().subtract(realizedPnl),
                                                             referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN));
         ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotCreditEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, realizedPnl,
-                                                            realizedPnl.compareTo(BigDecimal.ZERO) > 0 ?  Direction.DEBIT :  Direction.CREDIT ,
+                                                            realizedPnl.compareTo(BigDecimal.ZERO) > 0 ? Direction.DEBIT : Direction.CREDIT,
                                                             userMarginDebitEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN_PNL));
-
+        
         ledgerEntryRepository.insert(LedgerEntry.settlement(feeRevenueEntryId, updatedFeeRevenueBalance.getAccountId(), null, normalizedAsset, fee, Direction.DEBIT, userSpotCreditEntryId, updatedFeeRevenueBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.FEE));
-
-
+        
+        
         ledgerEventPublisher.publishLedgerEntryCreated(userMarginDebitEntryId, userId, normalizedAsset, costBasis.negate(), updatedMarginBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN, event.instrumentId());
         ledgerEventPublisher.publishLedgerEntryCreated(userSpotCreditEntryId, userId, normalizedAsset, costBasis,
                                                        updatedSpotBalance.getBalance().subtract(realizedPnl),
@@ -318,9 +328,8 @@ public class LedgerTransactionDomainService {
                                                        ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT_SPOT_MAIN_PNL, event.instrumentId());
         ledgerEventPublisher.publishLedgerEntryCreated(feeRevenueEntryId, null, normalizedAsset, fee, updatedFeeRevenueBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.FEE, event.instrumentId());
     }
-
-
-
+    
+    
     private LedgerBalance retryUpdateForFreeze(LedgerBalance balance,
                                                BigDecimal amount,
                                                Long userId,
@@ -333,7 +342,7 @@ public class LedgerTransactionDomainService {
             BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
                 throw OpenException.of(LedgerErrorCode.INSUFFICIENT_FUNDS,
-                        Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
+                                       Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
             }
             BigDecimal reserved = OpenBigDecimal.safeDecimal(current.getReserved());
             current.setAvailable(available.subtract(amount));
@@ -344,7 +353,7 @@ public class LedgerTransactionDomainService {
                     new LambdaUpdateWrapper<LedgerBalancePO>()
                             .eq(LedgerBalancePO::getId, current.getId())
                             .eq(LedgerBalancePO::getVersion, expectedVersion)
-            );
+                                                                       );
             if (updated) {
                 return current;
             }
@@ -352,9 +361,9 @@ public class LedgerTransactionDomainService {
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
         throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
-                Map.of("userId", userId, "orderId", orderId, "operation", "freeze"));
+                               Map.of("userId", userId, "orderId", orderId, "operation", "freeze"));
     }
-
+    
     private LedgerBalance unfreezeAndDebitSpotBalance(LedgerBalance balance,
                                                       BigDecimal amountToDebit,
                                                       BigDecimal amountToRefund,
@@ -369,7 +378,7 @@ public class LedgerTransactionDomainService {
             BigDecimal cost = amountToDebit.subtract(amountToRefund);
             if (reserved.compareTo(amountToDebit) < 0) {
                 throw OpenException.of(LedgerErrorCode.INSUFFICIENT_RESERVED_BALANCE,
-                        Map.of("userId", userId, "tradeId", tradeId, "reserved", reserved, "required", amountToDebit));
+                                       Map.of("userId", userId, "tradeId", tradeId, "reserved", reserved, "required", amountToDebit));
             }
             
             current.setReserved(reserved.subtract(amountToDebit));
@@ -381,7 +390,7 @@ public class LedgerTransactionDomainService {
                     new LambdaUpdateWrapper<LedgerBalancePO>()
                             .eq(LedgerBalancePO::getId, current.getId())
                             .eq(LedgerBalancePO::getVersion, expectedVersion)
-            );
+                                                                       );
             if (updated) {
                 return current;
             }
@@ -389,9 +398,9 @@ public class LedgerTransactionDomainService {
             current = reloadLedgerBalance(current.getAccountId(), asset);
         }
         throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
-                Map.of("userId", userId, "tradeId", tradeId, "operation", "unfreezeAndDebit"));
+                               Map.of("userId", userId, "tradeId", tradeId, "operation", "unfreezeAndDebit"));
     }
-
+    
     private LedgerBalance retryUpdateForDeposit(LedgerBalance balance,
                                                 BigDecimal amount,
                                                 Long userId,
@@ -409,7 +418,7 @@ public class LedgerTransactionDomainService {
                     new LambdaUpdateWrapper<LedgerBalancePO>()
                             .eq(LedgerBalancePO::getId, current.getId())
                             .eq(LedgerBalancePO::getVersion, expectedVersion)
-            );
+                                                                       );
             if (updated) {
                 return current;
             }
@@ -417,9 +426,9 @@ public class LedgerTransactionDomainService {
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
         throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
-                Map.of("userId", userId, "operation", "deposit"));
+                               Map.of("userId", userId, "operation", "deposit"));
     }
-
+    
     private LedgerBalance retryUpdateForDepositWithPnl(LedgerBalance balance,
                                                        BigDecimal amount,
                                                        BigDecimal realizedPnl,
@@ -438,7 +447,7 @@ public class LedgerTransactionDomainService {
                     new LambdaUpdateWrapper<LedgerBalancePO>()
                             .eq(LedgerBalancePO::getId, current.getId())
                             .eq(LedgerBalancePO::getVersion, expectedVersion)
-            );
+                                                                       );
             if (updated) {
                 return current;
             }
@@ -446,9 +455,9 @@ public class LedgerTransactionDomainService {
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
         throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
-                Map.of("userId", userId, "operation", "depositWithPnl"));
+                               Map.of("userId", userId, "operation", "depositWithPnl"));
     }
-
+    
     private LedgerBalance retryUpdateForWithdrawal(LedgerBalance balance,
                                                    BigDecimal amount,
                                                    Long userId,
@@ -460,7 +469,7 @@ public class LedgerTransactionDomainService {
             BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
                 throw OpenException.of(LedgerErrorCode.INSUFFICIENT_FUNDS,
-                        Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
+                                       Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
             }
             current.setAvailable(available.subtract(amount));
             current.setBalance(current.getBalance().subtract(amount));
@@ -471,7 +480,7 @@ public class LedgerTransactionDomainService {
                     new LambdaUpdateWrapper<LedgerBalancePO>()
                             .eq(LedgerBalancePO::getId, current.getId())
                             .eq(LedgerBalancePO::getVersion, expectedVersion)
-            );
+                                                                       );
             if (updated) {
                 return current;
             }
@@ -479,9 +488,9 @@ public class LedgerTransactionDomainService {
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
         throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
-                Map.of("userId", userId, "operation", "updateBalance"));
+                               Map.of("userId", userId, "operation", "updateBalance"));
     }
-
+    
     private LedgerBalance retryUpdateForWithdrawalWithPnl(LedgerBalance balance,
                                                           BigDecimal amount,
                                                           BigDecimal realizedPnl,
@@ -494,7 +503,7 @@ public class LedgerTransactionDomainService {
             BigDecimal available = OpenBigDecimal.safeDecimal(current.getAvailable());
             if (available.compareTo(amount) < 0) {
                 throw OpenException.of(LedgerErrorCode.INSUFFICIENT_FUNDS,
-                        Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
+                                       Map.of("userId", userId, "asset", asset.code(), "available", available, "required", amount));
             }
             current.setAvailable(available.subtract(amount));
             current.setBalance(current.getBalance().subtract(amount));
@@ -506,7 +515,7 @@ public class LedgerTransactionDomainService {
                     new LambdaUpdateWrapper<LedgerBalancePO>()
                             .eq(LedgerBalancePO::getId, current.getId())
                             .eq(LedgerBalancePO::getVersion, expectedVersion)
-            );
+                                                                       );
             if (updated) {
                 return current;
             }
@@ -514,34 +523,34 @@ public class LedgerTransactionDomainService {
             current = reloadLedgerBalance(current.getUserId(), current.getAccountType(), current.getInstrumentId(), asset);
         }
         throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
-                Map.of("userId", userId, "operation", "updateBalance"));
+                               Map.of("userId", userId, "operation", "updateBalance"));
     }
-
+    
     private LedgerBalance reloadLedgerBalance(Long userId,
                                               AccountType accountType,
                                               Long instrumentId,
                                               AssetSymbol asset) {
         return ledgerBalanceRepository.findOne(
-                        Wrappers.lambdaQuery(LedgerBalancePO.class)
-                                .eq(LedgerBalancePO::getUserId, userId)
-                                .eq(LedgerBalancePO::getAccountType, accountType)
-                                .eq(LedgerBalancePO::getInstrumentId, instrumentId)
-                                .eq(LedgerBalancePO::getAsset, asset))
-                .orElseThrow(() -> OpenException.of(LedgerErrorCode.LEDGER_BALANCE_NOT_FOUND,
-                        Map.of("userId", userId, "asset", asset.code())));
+                                              Wrappers.lambdaQuery(LedgerBalancePO.class)
+                                                      .eq(LedgerBalancePO::getUserId, userId)
+                                                      .eq(LedgerBalancePO::getAccountType, accountType)
+                                                      .eq(LedgerBalancePO::getInstrumentId, instrumentId)
+                                                      .eq(LedgerBalancePO::getAsset, asset))
+                                      .orElseThrow(() -> OpenException.of(LedgerErrorCode.LEDGER_BALANCE_NOT_FOUND,
+                                                                          Map.of("userId", userId, "asset", asset.code())));
     }
-
-    private LedgerBalance reloadLedgerBalance(Long accountId, AssetSymbol asset) {
+    
+    private LedgerBalance reloadLedgerBalance(Long accountId,
+                                              AssetSymbol asset) {
         return ledgerBalanceRepository.findOne(
-                        Wrappers.lambdaQuery(LedgerBalancePO.class)
-                                .eq(LedgerBalancePO::getAccountId, accountId)
-                                .eq(LedgerBalancePO::getAsset, asset))
-                .orElseThrow(() -> OpenException.of(LedgerErrorCode.LEDGER_BALANCE_NOT_FOUND,
-                        Map.of("accountId", accountId, "asset", asset.code())));
+                                              Wrappers.lambdaQuery(LedgerBalancePO.class)
+                                                      .eq(LedgerBalancePO::getAccountId, accountId)
+                                                      .eq(LedgerBalancePO::getAsset, asset))
+                                      .orElseThrow(() -> OpenException.of(LedgerErrorCode.LEDGER_BALANCE_NOT_FOUND,
+                                                                          Map.of("accountId", accountId, "asset", asset.code())));
     }
-
-
-
+    
+    
     private PlatformBalance retryUpdateForPlatformDeposit(PlatformBalance platformBalance,
                                                           BigDecimal amount,
                                                           AssetSymbol asset) {
@@ -557,7 +566,7 @@ public class LedgerTransactionDomainService {
                     new LambdaUpdateWrapper<PlatformBalancePO>()
                             .eq(PlatformBalancePO::getId, current.getId())
                             .eq(PlatformBalancePO::getVersion, expectedVersion)
-            );
+                                                                         );
             if (updated) {
                 return current;
             }
@@ -565,9 +574,9 @@ public class LedgerTransactionDomainService {
             current = reloadPlatformBalance(current.getAccountId(), current.getAccountCode(), asset);
         }
         throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
-                Map.of("accountId", platformBalance.getAccountId(), "operation", "updatePlatformBalance"));
+                               Map.of("accountId", platformBalance.getAccountId(), "operation", "updatePlatformBalance"));
     }
-
+    
     private PlatformBalance retryUpdateForPlatformWithdrawal(PlatformBalance platformBalance,
                                                              BigDecimal amount,
                                                              AssetSymbol asset) {
@@ -583,7 +592,7 @@ public class LedgerTransactionDomainService {
                     new LambdaUpdateWrapper<PlatformBalancePO>()
                             .eq(PlatformBalancePO::getId, current.getId())
                             .eq(PlatformBalancePO::getVersion, expectedVersion)
-            );
+                                                                         );
             if (updated) {
                 return current;
             }
@@ -591,17 +600,19 @@ public class LedgerTransactionDomainService {
             current = reloadPlatformBalance(current.getAccountId(), current.getAccountCode(), asset);
         }
         throw OpenException.of(LedgerErrorCode.OPTIMISTIC_LOCK_FAILURE,
-                Map.of("accountId", platformBalance.getAccountId(), "operation", "updatePlatformBalance"));
+                               Map.of("accountId", platformBalance.getAccountId(), "operation", "updatePlatformBalance"));
     }
-
-    private PlatformBalance reloadPlatformBalance(Long accountId, PlatformAccountCode accountCode, AssetSymbol asset) {
+    
+    private PlatformBalance reloadPlatformBalance(Long accountId,
+                                                  PlatformAccountCode accountCode,
+                                                  AssetSymbol asset) {
         return platformBalanceRepository.findOne(
-                        Wrappers.lambdaQuery(PlatformBalancePO.class)
-                                .eq(PlatformBalancePO::getAccountId, accountId)
-                                .eq(PlatformBalancePO::getAccountCode, accountCode)
-                                .eq(PlatformBalancePO::getAsset, asset))
-                .orElseThrow(() -> OpenException.of(LedgerErrorCode.PLATFORM_BALANCE_NOT_FOUND,
-                        Map.of("accountId", accountId, "asset", asset.code())));
+                                                Wrappers.lambdaQuery(PlatformBalancePO.class)
+                                                        .eq(PlatformBalancePO::getAccountId, accountId)
+                                                        .eq(PlatformBalancePO::getAccountCode, accountCode)
+                                                        .eq(PlatformBalancePO::getAsset, asset))
+                                        .orElseThrow(() -> OpenException.of(LedgerErrorCode.PLATFORM_BALANCE_NOT_FOUND,
+                                                                            Map.of("accountId", accountId, "asset", asset.code())));
     }
-
+    
 }

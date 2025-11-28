@@ -11,7 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class AuthSecurityConfiguration {
-
+    
     @Bean
     public PasswordChecker authCredentialAuthenticationProvider(AuthUserDetailsService userDetailsService,
                                                                 PasswordEncoder passwordEncoder) {
@@ -20,7 +20,7 @@ public class AuthSecurityConfiguration {
         provider.setHideUserNotFoundExceptions(false);
         return provider;
     }
-
+    
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http,
                                                        PasswordChecker passwordChecker) throws Exception {

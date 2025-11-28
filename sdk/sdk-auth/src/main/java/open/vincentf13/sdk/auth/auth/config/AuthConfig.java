@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.auth.auth.config;
 
-import open.vincentf13.sdk.auth.apikey.config.ApiKeyAutoConfig;
 import open.vincentf13.sdk.auth.apikey.ApiKeyFilter;
+import open.vincentf13.sdk.auth.apikey.config.ApiKeyAutoConfig;
 import open.vincentf13.sdk.auth.auth.AnnotationBasedAuthorizationManager;
 import open.vincentf13.sdk.auth.jwt.JwtFilter;
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,14 +27,14 @@ import java.util.List;
 @AutoConfigureAfter(ApiKeyAutoConfig.class)
 @EnableConfigurationProperties(SecurityPermitProperties.class)
 public class AuthConfig {
-
+    
     @Bean
     @ConditionalOnMissingBean
     public AnnotationBasedAuthorizationManager annotationBasedAuthorizationManager(
             @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping requestMappingHandlerMapping) {
         return new AnnotationBasedAuthorizationManager(requestMappingHandlerMapping);
     }
-
+    
     @Bean
     @Order(100)
     @ConditionalOnMissingBean(SecurityFilterChain.class)
@@ -51,25 +51,25 @@ public class AuthConfig {
             }
             auth.anyRequest().access(authorizationManager);
         });
-
+        
         http.formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .logout(AbstractHttpConfigurer::disable);
-
+            .httpBasic(AbstractHttpConfigurer::disable)
+            .logout(AbstractHttpConfigurer::disable);
+        
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(AbstractHttpConfigurer::disable);
-
+            .csrf(AbstractHttpConfigurer::disable);
+        
         JwtFilter jwtFilter = jwtFilterProvider.getIfAvailable();
         if (jwtFilter == null) {
             throw new IllegalStateException("JwtAuthenticationFilter bean not available");
         }
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
+        
         ApiKeyFilter apiKeyFilter = apiKeyFilterProvider.getIfAvailable();
         if (apiKeyFilter != null) {
             http.addFilterBefore(apiKeyFilter, jwtFilter.getClass());
         }
-
+        
         return http.build();
     }
 }

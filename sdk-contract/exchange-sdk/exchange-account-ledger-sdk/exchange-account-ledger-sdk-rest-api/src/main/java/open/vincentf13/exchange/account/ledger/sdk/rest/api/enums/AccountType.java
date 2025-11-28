@@ -5,7 +5,7 @@ import java.util.Locale;
 public enum AccountType {
     SPOT_MAIN,
     ISOLATED_MARGIN;
-
+    
     public static AccountType fromValue(String value) {
         if (value == null) {
             throw new IllegalArgumentException("accountType is required");
@@ -16,7 +16,7 @@ public enum AccountType {
             throw new IllegalArgumentException("Unknown account type: " + value, ex);
         }
     }
-
+    
     public String value() {
         return name();
     }

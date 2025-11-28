@@ -5,4 +5,5 @@ import java.time.Instant;
 public record PositionLeverageResponse(
         Integer appliedLeverage,
         Instant effectiveAt
-) { }
+) {
+}

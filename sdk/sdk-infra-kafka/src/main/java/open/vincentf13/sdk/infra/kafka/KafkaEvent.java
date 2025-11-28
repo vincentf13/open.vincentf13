@@ -13,20 +13,21 @@ public enum KafkaEvent implements OpenEvent {
     KAFKA_SEND_SUCCESS("KafkaSendSuccess", "Kafka 訊息送出成功"),
     KAFKA_CONSUME_RETRY("KafkaConsumeRetry", "Kafka 訊息消費重試"),
     KAFKA_CONSUMER_CONFIGURED("KafkaConsumerConfigured", "自定義 Kafka Consumer 配置已加載");
-
+    
     private final String event;
     private final String message;
-
-    KafkaEvent(String event, String message) {
+    
+    KafkaEvent(String event,
+               String message) {
         this.event = event;
         this.message = message;
     }
-
+    
     @Override
     public String event() {
         return event;
     }
-
+    
     @Override
     public String message() {
         return message;

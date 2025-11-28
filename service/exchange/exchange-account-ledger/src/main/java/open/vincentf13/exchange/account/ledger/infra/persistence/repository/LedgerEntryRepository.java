@@ -1,8 +1,6 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -20,20 +18,20 @@ import java.util.Optional;
 @Validated
 @RequiredArgsConstructor
 public class LedgerEntryRepository {
-
+    
     private final LedgerEntryMapper mapper;
-
+    
     public void insert(@NotNull @Valid LedgerEntry entry) {
         LedgerEntryPO po = OpenObjectMapper.convert(entry, LedgerEntryPO.class);
         mapper.insert(po);
     }
-
+    
     public List<LedgerEntry> findBy(@NotNull LambdaQueryWrapper<LedgerEntryPO> wrapper) {
         return mapper.selectList(wrapper).stream()
-                .map(item -> OpenObjectMapper.convert(item, LedgerEntry.class))
-                .toList();
+                     .map(item -> OpenObjectMapper.convert(item, LedgerEntry.class))
+                     .toList();
     }
-
+    
     public Optional<LedgerEntry> findOne(@NotNull LambdaQueryWrapper<LedgerEntryPO> wrapper) {
         LedgerEntryPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, LedgerEntry.class));

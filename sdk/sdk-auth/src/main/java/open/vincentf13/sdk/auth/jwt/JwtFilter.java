@@ -5,10 +5,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import open.vincentf13.sdk.auth.JwtAuthEvent;
-import open.vincentf13.sdk.auth.jwt.token.config.JwtProperties;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.token.JwtToken;
 import open.vincentf13.sdk.auth.jwt.token.OpenJwtService;
+import open.vincentf13.sdk.auth.jwt.token.config.JwtProperties;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.OpenHttpUtils;
 import org.springframework.beans.factory.ObjectProvider;
@@ -18,14 +18,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Bearer JWT filter that restores authentication from the Authorization header and (optionally)
- * validates session state through the shared session service.
+ Bearer JWT filter that restores authentication from the Authorization header and (optionally)
+ validates session state through the shared session service.
  */
 public class JwtFilter extends OncePerRequestFilter {
-
+    
     private final OpenJwtService openJwtService;
     private final ObjectProvider<JwtSessionService> sessionServiceProvider;
     private final JwtProperties properties;
+    
     public JwtFilter(OpenJwtService openJwtService,
                      ObjectProvider<JwtSessionService> sessionServiceProvider,
                      JwtProperties properties) {
@@ -33,20 +34,20 @@ public class JwtFilter extends OncePerRequestFilter {
         this.sessionServiceProvider = sessionServiceProvider;
         this.properties = properties;
     }
-
+    
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             OpenHttpUtils.resolveBearerToken(request)
-                .flatMap(openJwtService::parseAccessToken)
-                .filter(this::isAllowed)
-                .ifPresent(authentication -> SecurityContextHolder.getContext().setAuthentication(authentication));
+                         .flatMap(openJwtService::parseAccessToken)
+                         .filter(this::isAllowed)
+                         .ifPresent(authentication -> SecurityContextHolder.getContext().setAuthentication(authentication));
         }
         filterChain.doFilter(request, response);
     }
-
+    
     private boolean isAllowed(JwtToken authentication) {
         if (!properties.isCheckSessionActive()) {
             return true;
@@ -63,5 +64,5 @@ public class JwtFilter extends OncePerRequestFilter {
         }
         return active;
     }
-
+    
 }

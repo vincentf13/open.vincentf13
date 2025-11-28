@@ -14,9 +14,9 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor
 @Validated
 public class AuthCredentialQueryService {
-
+    
     private final AuthCredentialDomainService authCredentialDomainService;
-
+    
     @Transactional(readOnly = true)
     public AuthCredentialPrepareResponse prepare(@NotNull @Valid AuthCredentialPrepareRequest request) {
         AuthCredentialDomainService.PreparedCredential prepared =

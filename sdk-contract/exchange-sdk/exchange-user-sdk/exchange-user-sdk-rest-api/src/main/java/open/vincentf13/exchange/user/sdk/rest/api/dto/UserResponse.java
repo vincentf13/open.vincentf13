@@ -11,4 +11,5 @@ public record UserResponse(
         UserStatus status,
         Instant createdAt,
         Instant updatedAt
-) { }
+) {
+}

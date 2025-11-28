@@ -15,34 +15,34 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * 建立 traceId/requestId，並同步至 request attribute 與 MDC，便於跨服務日誌追蹤。
+ 建立 traceId/requestId，並同步至 request attribute 與 MDC，便於跨服務日誌追蹤。
  */
 @RequiredArgsConstructor
 public class RequestCorrelationFilter extends OncePerRequestFilter {
-
+    
     private final MvcProperties.Request properties;
-
+    
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String traceHeader = OpenConstant.HttpHeader.TRACE_ID.value();
         String requestHeader = OpenConstant.HttpHeader.REQUEST_ID.value();
-
+        
         String traceId = resolveOrGenerate(request, traceHeader);
         String requestId = resolveOrGenerate(request, requestHeader);
-
+        
         putIntoContext(traceHeader, traceId);
         putIntoContext(requestHeader, requestId);
-
+        
         request.setAttribute(traceHeader, traceId);
         request.setAttribute(requestHeader, requestId);
-
+        
         if (properties.isWriteResponseHeader()) {
             response.setHeader(traceHeader, traceId);
             response.setHeader(requestHeader, requestId);
         }
-
+        
         try {
             filterChain.doFilter(request, response);
         } finally {
@@ -50,14 +50,16 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
             MDC.remove(requestHeader);
         }
     }
-
-    private void putIntoContext(String key, String value) {
+    
+    private void putIntoContext(String key,
+                                String value) {
         if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
             MDC.put(key, value);
         }
     }
-
-    private String resolveOrGenerate(HttpServletRequest request, String headerName) {
+    
+    private String resolveOrGenerate(HttpServletRequest request,
+                                     String headerName) {
         if (!StringUtils.hasText(headerName)) {
             return "unknown";
         }

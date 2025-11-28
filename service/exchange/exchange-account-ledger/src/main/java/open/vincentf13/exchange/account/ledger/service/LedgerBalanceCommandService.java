@@ -8,7 +8,6 @@ import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
-import open.vincentf13.exchange.account.ledger.infra.LedgerErrorCode;
 import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
 import open.vincentf13.exchange.account.ledger.infra.messaging.publisher.LedgerEventPublisher;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
@@ -32,18 +31,18 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor
 @Validated
 public class LedgerBalanceCommandService {
-
+    
     private final LedgerTransactionDomainService ledgerTransactionDomainService;
     private final LedgerEventPublisher ledgerEventPublisher;
     private final ExchangeOrderClient exchangeOrderClient;
     private final TransactionTemplate transactionTemplate;
-
+    
     @Transactional
     public LedgerDepositResponse deposit(@NotNull @Valid LedgerDepositRequest request) {
         LedgerDepositResult result = ledgerTransactionDomainService.deposit(request);
         LedgerEntry userEntry = result.userEntry();
         LedgerBalance updatedBalance = result.userBalance();
-
+        
         return new LedgerDepositResponse(
                 userEntry.getEntryId(),
                 userEntry.getEntryId(),
@@ -55,13 +54,13 @@ public class LedgerBalanceCommandService {
                 request.txId()
         );
     }
-
+    
     @Transactional
     public LedgerWithdrawalResponse withdraw(@NotNull @Valid LedgerWithdrawalRequest request) {
         LedgerWithdrawalResult result = ledgerTransactionDomainService.withdraw(request);
         LedgerEntry entry = result.entry();
         LedgerBalance balance = result.userBalance();
-
+        
         return new LedgerWithdrawalResponse(
                 entry.getEntryId(),
                 entry.getEntryId(),
@@ -73,7 +72,7 @@ public class LedgerBalanceCommandService {
                 request.txId()
         );
     }
-
+    
     @Transactional
     public void handleMarginPreCheckPassed(@NotNull @Valid MarginPreCheckPassedEvent event) {
         try {
@@ -91,12 +90,12 @@ public class LedgerBalanceCommandService {
             OpenLog.warn(LedgerEvent.FUNDS_FREEZE_FAILED, ex, "orderId", event.orderId(), "reason", reason);
         }
     }
-
+    
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
-
-        OrderResponse makerOrder = OpenApiClientInvoker.call(()-> exchangeOrderClient.getOrder(event.orderId()));
-        OrderResponse takerOrder =  OpenApiClientInvoker.call(()->exchangeOrderClient.getOrder(event.counterpartyOrderId()));
-
+        
+        OrderResponse makerOrder = OpenApiClientInvoker.call(() -> exchangeOrderClient.getOrder(event.orderId()));
+        OrderResponse takerOrder = OpenApiClientInvoker.call(() -> exchangeOrderClient.getOrder(event.counterpartyOrderId()));
+        
         transactionTemplate.executeWithoutResult(status -> {
             // Handle Maker Side
             ledgerTransactionDomainService.settleTrade(event, makerOrder, true);

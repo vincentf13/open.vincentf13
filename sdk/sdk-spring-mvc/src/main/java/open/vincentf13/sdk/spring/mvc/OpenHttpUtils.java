@@ -8,13 +8,13 @@ import org.springframework.util.StringUtils;
 import java.util.Optional;
 
 /**
- * Web related helper utilities shared across MVC components.
+ Web related helper utilities shared across MVC components.
  */
 public final class OpenHttpUtils {
-
+    
     private OpenHttpUtils() {
     }
-
+    
     public static Optional<String> resolveBearerToken(HttpServletRequest request) {
         if (request == null) {
             return Optional.empty();

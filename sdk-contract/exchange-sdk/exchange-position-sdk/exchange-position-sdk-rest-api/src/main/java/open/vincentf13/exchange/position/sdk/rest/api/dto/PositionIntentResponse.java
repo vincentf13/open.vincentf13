@@ -8,7 +8,8 @@ public record PositionIntentResponse(
         PositionIntentType intentType,
         BigDecimal existingQuantity
 ) {
-    public static PositionIntentResponse of(PositionIntentType type, BigDecimal quantity) {
+    public static PositionIntentResponse of(PositionIntentType type,
+                                            BigDecimal quantity) {
         return new PositionIntentResponse(type, quantity);
     }
 }

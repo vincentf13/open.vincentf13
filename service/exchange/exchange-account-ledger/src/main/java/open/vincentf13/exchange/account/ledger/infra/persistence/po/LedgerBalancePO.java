@@ -1,14 +1,14 @@
 package open.vincentf13.exchange.account.ledger.infra.persistence.po;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.IdType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -19,7 +19,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("ledger_balances")
 public class LedgerBalancePO {
-
+    
     @TableId(value = "id", type = IdType.INPUT)
     private Long id;
     private Long accountId;

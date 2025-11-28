@@ -2,24 +2,24 @@ package open.vincentf13.exchange.marketdata.domain.model;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Domain entity describing the latest mark price derived from recent trades.
+ Domain entity describing the latest mark price derived from recent trades.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class MarkPriceSnapshot {
-
+    
     private Long snapshotId;
     @NotNull
     private Long instrumentId;

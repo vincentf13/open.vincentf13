@@ -17,10 +17,10 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("users")
 public class UserPO {
-
+    
     @TableId(value = "id", type = IdType.INPUT)
     private Long id;
-
+    
     private String externalId;
     private String email;
     private UserStatus status;

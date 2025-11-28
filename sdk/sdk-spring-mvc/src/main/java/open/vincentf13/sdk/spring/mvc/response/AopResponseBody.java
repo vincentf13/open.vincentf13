@@ -22,25 +22,31 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import java.util.Collection;
 
 /**
- * 對 REST 回應做統一包裝，避免每支 API 重複建立標準格式。
+ 對 REST 回應做統一包裝，避免每支 API 重複建立標準格式。
  */
 @RestControllerAdvice
 @ConditionalOnClass(ResponseBodyAdvice.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class AopResponseBody implements ResponseBodyAdvice<Object> {
-
-    /** ObjectMapper 供 String 包裝時進行 JSON 序列化。 */
+    
+    /**
+     ObjectMapper 供 String 包裝時進行 JSON 序列化。
+     */
     private final ObjectMapper objectMapper;
-    /** 自訂開關與忽略名單。 */
+    /**
+     自訂開關與忽略名單。
+     */
     private final MvcProperties properties;
-
-    public AopResponseBody(ObjectMapper objectMapper, MvcProperties properties) {
+    
+    public AopResponseBody(ObjectMapper objectMapper,
+                           MvcProperties properties) {
         this.objectMapper = objectMapper;
         this.properties = properties;
     }
-
+    
     @Override
-    public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+    public boolean supports(MethodParameter returnType,
+                            Class<? extends HttpMessageConverter<?>> converterType) {
         // 未開啟包裝或手動排除的 controller 直接跳過。
         if (!properties.getResponse().isWrapEnabled()) {
             return false;
@@ -58,7 +64,7 @@ public class AopResponseBody implements ResponseBodyAdvice<Object> {
         }
         return true;
     }
-
+    
     @Override
     public Object beforeBodyWrite(Object body,
                                   MethodParameter returnType,
@@ -92,8 +98,9 @@ public class AopResponseBody implements ResponseBodyAdvice<Object> {
         }
         return OpenApiResponse.success(body);
     }
-
-    private Object wrapString(String value, Class<? extends HttpMessageConverter<?>> converterType) {
+    
+    private Object wrapString(String value,
+                              Class<? extends HttpMessageConverter<?>> converterType) {
         // 只對 Spring 的 StringHttpMessageConverter 進行 JSON 包裝，其餘 converter 採預設行為。
         if (StringHttpMessageConverter.class.isAssignableFrom(converterType)) {
             try {

@@ -27,40 +27,46 @@ logger 會自動輸出：
 */
 
 public class OpenException extends RuntimeException {
-
+    
     private final OpenErrorCode code;
     private final Map<String, Object> meta;
-
-    private OpenException(OpenErrorCode error, Map<String, Object> meta, Throwable rootCause) {
+    
+    private OpenException(OpenErrorCode error,
+                          Map<String, Object> meta,
+                          Throwable rootCause) {
         super(error.message(), rootCause);
         this.code = error;
         this.meta = mergeMeta(meta);
     }
-
+    
     public static OpenException of(OpenErrorCode error) {
         return new OpenException(error, null, null);
     }
-
-    public static OpenException of(OpenErrorCode error, Throwable rootCause) {
+    
+    public static OpenException of(OpenErrorCode error,
+                                   Throwable rootCause) {
         return new OpenException(error, null, rootCause);
     }
-
-    public static OpenException of(OpenErrorCode error, Map<String, Object> meta) {
+    
+    public static OpenException of(OpenErrorCode error,
+                                   Map<String, Object> meta) {
         return new OpenException(error, meta, null);
     }
-
-    public static OpenException of(OpenErrorCode error, Map<String, Object> meta, Throwable rootCause) {
+    
+    public static OpenException of(OpenErrorCode error,
+                                   Map<String, Object> meta,
+                                   Throwable rootCause) {
         return new OpenException(error, meta, rootCause);
     }
-
+    
     public OpenErrorCode getCode() {
         return code;
     }
-
+    
     public Map<String, Object> getMeta() {
         return meta;
     }
-
+    
     private Map<String, Object> initMeta() {
         Map<String, Object> meta = new HashMap<>();
         String traceId = MDC.get(OpenConstant.HttpHeader.TRACE_ID.value());
@@ -73,7 +79,7 @@ public class OpenException extends RuntimeException {
         }
         return meta;
     }
-
+    
     private Map<String, Object> mergeMeta(Map<String, Object> additionalMeta) {
         Map<String, Object> merged = new HashMap<>(initMeta());
         if (additionalMeta != null) {

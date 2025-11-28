@@ -13,9 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class OrderBookCacheService {
-
+    
     private final Map<Long, OrderBookSnapshot> cache = new ConcurrentHashMap<>();
-
+    
     public void update(Long instrumentId,
                        List<OrderBookLevel> bids,
                        List<OrderBookLevel> asks,
@@ -27,49 +27,49 @@ public class OrderBookCacheService {
             return;
         }
         List<OrderBookLevel> sortedBids = bids == null ? List.of() : bids.stream()
-                .sorted(Comparator.comparing(OrderBookLevel::getPrice).reversed())
-                .toList();
+                                                                         .sorted(Comparator.comparing(OrderBookLevel::getPrice).reversed())
+                                                                         .toList();
         List<OrderBookLevel> sortedAsks = asks == null ? List.of() : asks.stream()
-                .sorted(Comparator.comparing(OrderBookLevel::getPrice))
-                .toList();
-
+                                                                         .sorted(Comparator.comparing(OrderBookLevel::getPrice))
+                                                                         .toList();
+        
         BigDecimal resolvedBestBid = bestBid != null
-                ? bestBid
-                : sortedBids.stream().findFirst().map(OrderBookLevel::getPrice).orElse(null);
+                                     ? bestBid
+                                     : sortedBids.stream().findFirst().map(OrderBookLevel::getPrice).orElse(null);
         BigDecimal resolvedBestAsk = bestAsk != null
-                ? bestAsk
-                : sortedAsks.stream().findFirst().map(OrderBookLevel::getPrice).orElse(null);
+                                     ? bestAsk
+                                     : sortedAsks.stream().findFirst().map(OrderBookLevel::getPrice).orElse(null);
         BigDecimal resolvedMid = midPrice;
         if (resolvedMid == null && resolvedBestBid != null && resolvedBestAsk != null) {
             resolvedMid = resolvedBestBid.add(resolvedBestAsk).divide(BigDecimal.valueOf(2));
         }
         Instant resolvedUpdatedAt = updatedAt != null ? updatedAt : Instant.now();
-
+        
         OrderBookSnapshot snapshot = OrderBookSnapshot.builder()
-                .instrumentId(instrumentId)
-                .bids(sortedBids)
-                .asks(sortedAsks)
-                .bestBid(resolvedBestBid)
-                .bestAsk(resolvedBestAsk)
-                .midPrice(resolvedMid)
-                .updatedAt(resolvedUpdatedAt)
-                .build();
+                                                      .instrumentId(instrumentId)
+                                                      .bids(sortedBids)
+                                                      .asks(sortedAsks)
+                                                      .bestBid(resolvedBestBid)
+                                                      .bestAsk(resolvedBestAsk)
+                                                      .midPrice(resolvedMid)
+                                                      .updatedAt(resolvedUpdatedAt)
+                                                      .build();
         cache.put(instrumentId, snapshot);
     }
-
+    
     public OrderBookSnapshot get(Long instrumentId) {
         if (instrumentId == null) {
             return null;
         }
         return cache.computeIfAbsent(instrumentId, this::createDefaultSnapshot);
     }
-
+    
     private OrderBookSnapshot createDefaultSnapshot(Long instrumentId) {
         return OrderBookSnapshot.builder()
-                .instrumentId(instrumentId)
-                .bids(List.of())
-                .asks(List.of())
-                .updatedAt(Instant.now())
-                .build();
+                                .instrumentId(instrumentId)
+                                .bids(List.of())
+                                .asks(List.of())
+                                .updatedAt(Instant.now())
+                                .build();
     }
 }

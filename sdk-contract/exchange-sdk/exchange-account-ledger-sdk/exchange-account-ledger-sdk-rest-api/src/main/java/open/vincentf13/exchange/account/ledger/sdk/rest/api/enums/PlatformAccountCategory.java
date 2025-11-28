@@ -6,7 +6,7 @@ public enum PlatformAccountCategory {
     REVENUE,
     EXPENSE,
     EQUITY;
-
+    
     public String code() {
         return name();
     }

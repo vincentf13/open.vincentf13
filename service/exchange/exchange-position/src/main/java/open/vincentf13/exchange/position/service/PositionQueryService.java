@@ -25,9 +25,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Validated
 public class PositionQueryService {
-
+    
     private final PositionRepository positionRepository;
-
+    
     public PositionIntentResponse determineIntent(@NotNull @Valid PositionIntentRequest request) {
         var activePosition = positionRepository.findOne(
                 Wrappers.lambdaQuery(PositionPO.class)
@@ -35,22 +35,23 @@ public class PositionQueryService {
                         .eq(PositionPO::getInstrumentId, request.instrumentId())
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
         BigDecimal existing = activePosition
-                .map(position -> position.getQuantity())
-                .orElse(BigDecimal.ZERO);
+                                      .map(position -> position.getQuantity())
+                                      .orElse(BigDecimal.ZERO);
         PositionIntentType intentType = activePosition
-                .map(position -> position.evaluateIntent(request.side(), request.quantity()))
-                .orElse(PositionIntentType.INCREASE);
+                                                .map(position -> position.evaluateIntent(request.side(), request.quantity()))
+                                                .orElse(PositionIntentType.INCREASE);
         return PositionIntentResponse.of(intentType, existing);
     }
-
-    public PositionResponse getPosition(@NotNull Long userId, @NotNull Long instrumentId) {
+    
+    public PositionResponse getPosition(@NotNull Long userId,
+                                        @NotNull Long instrumentId) {
         Position position = positionRepository.findOne(
-                        Wrappers.lambdaQuery(PositionPO.class)
-                                .eq(PositionPO::getUserId, userId)
-                                .eq(PositionPO::getInstrumentId, instrumentId)
-                                .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
-                        Map.of("userId", userId, "instrumentId", instrumentId)));
+                                                      Wrappers.lambdaQuery(PositionPO.class)
+                                                              .eq(PositionPO::getUserId, userId)
+                                                              .eq(PositionPO::getInstrumentId, instrumentId)
+                                                              .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                                              .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
+                                                                                  Map.of("userId", userId, "instrumentId", instrumentId)));
         return OpenObjectMapper.convert(position, PositionResponse.class);
     }
 }

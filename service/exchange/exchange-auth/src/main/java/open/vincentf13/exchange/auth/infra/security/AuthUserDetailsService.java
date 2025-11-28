@@ -9,8 +9,8 @@ import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.exchange.user.sdk.rest.api.enums.UserStatus;
 import open.vincentf13.exchange.user.sdk.rest.client.ExchangeUserClient;
-import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserDetails;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -25,23 +25,23 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class AuthUserDetailsService implements UserDetailsService {
-
+    
     private final AuthCredentialRepository authCredentialRepository;
     private final ExchangeUserClient exchangeUserClient;
-
+    
     /**
-     * 拋出 AuthenticationException 的子類，會由錯誤處理器處理
+     拋出 AuthenticationException 的子類，會由錯誤處理器處理
      */
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         if (!StringUtils.hasText(email)) {
             throw new UsernameNotFoundException("Email must not be blank");
         }
-
+        
         UserResponse user = OpenApiClientInvoker.call(
                 () -> exchangeUserClient.findByEmail(email),
                 msg -> new UsernameNotFoundException("Failed to query user service: " + msg));
-
+        
         Long userId = user.id();
         if (userId == null) {
             throw new UsernameNotFoundException("User id missing for email " + email);
@@ -53,20 +53,20 @@ public class AuthUserDetailsService implements UserDetailsService {
         if (status == UserStatus.DISABLED) {
             throw new DisabledException("User is disabled");
         }
-
+        
         AuthCredential credential = authCredentialRepository.findOne(Wrappers.<AuthCredentialPO>lambdaQuery()
-                                                                            .eq(AuthCredentialPO::getUserId, userId)
-                                                                            .eq(AuthCredentialPO::getCredentialType, AuthCredentialType.PASSWORD))
-                .orElseThrow(() -> new UsernameNotFoundException("Credential not found for user " + email));
-
+                                                                             .eq(AuthCredentialPO::getUserId, userId)
+                                                                             .eq(AuthCredentialPO::getCredentialType, AuthCredentialType.PASSWORD))
+                                                            .orElseThrow(() -> new UsernameNotFoundException("Credential not found for user " + email));
+        
         if (!StringUtils.hasText(credential.getSecretHash()) || !StringUtils.hasText(credential.getSalt())) {
             throw new UsernameNotFoundException("Credential incomplete for user " + email);
         }
-
+        
         if (!"ACTIVE".equalsIgnoreCase(credential.getStatus())) {
             throw new DisabledException("Credential is not active for user " + email);
         }
-
+        
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
         return new OpenJwtLoginUserDetails(userId,
                                            user.email(),

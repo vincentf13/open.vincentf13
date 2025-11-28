@@ -10,28 +10,28 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 
 /**
- * 提供 MyBatis Batch Executor 工具。
+ 提供 MyBatis Batch Executor 工具。
  */
 public final class OpenMybatisBatchExecutor {
-
+    
     public static final int DEFAULT_FLUSH_THRESHOLD = 1000;
-
+    
     private static volatile SqlSessionFactory sqlSessionFactory;
-
+    
     private OpenMybatisBatchExecutor() {
     }
-
+    
     public static void register(SqlSessionFactory factory) {
         Objects.requireNonNull(factory, "sqlSessionFactory");
         sqlSessionFactory = factory;
     }
-
+    
     public static <Mapper, Record> void execute(Class<Mapper> mapperType,
                                                 List<Record> records,
                                                 BiConsumer<Mapper, Record> action) {
         execute(mapperType, records, action, DEFAULT_FLUSH_THRESHOLD);
     }
-
+    
     public static <Mapper, Record> void execute(Class<Mapper> mapperType,
                                                 List<Record> records,
                                                 BiConsumer<Mapper, Record> action,
@@ -40,7 +40,7 @@ public final class OpenMybatisBatchExecutor {
         Objects.requireNonNull(mapperType, "mapperType");
         Objects.requireNonNull(records, "records");
         Objects.requireNonNull(action, "action");
-
+        
         SqlSession sqlSession = SqlSessionUtils.getSqlSession(sqlSessionFactory, ExecutorType.BATCH, null);
         try {
             Mapper mapper = sqlSession.getMapper(mapperType);

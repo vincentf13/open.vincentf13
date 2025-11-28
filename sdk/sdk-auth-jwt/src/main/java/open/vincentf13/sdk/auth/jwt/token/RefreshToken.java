@@ -7,7 +7,7 @@ public record RefreshToken(String tokenValue,
                            String sessionId,
                            Instant issuedAt,
                            Instant expiresAt) {
-
+    
     public boolean hasSessionId() {
         return sessionId != null;
     }

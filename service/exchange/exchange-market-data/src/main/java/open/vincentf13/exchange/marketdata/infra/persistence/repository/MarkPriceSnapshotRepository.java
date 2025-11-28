@@ -20,10 +20,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Validated
 public class MarkPriceSnapshotRepository {
-
+    
     private final MarkPriceSnapshotMapper mapper;
     private final DefaultIdGenerator idGenerator;
-
+    
     public MarkPriceSnapshot insertSelective(@NotNull @Valid MarkPriceSnapshot snapshot) {
         MarkPriceSnapshotPO record = OpenObjectMapper.convert(snapshot, MarkPriceSnapshotPO.class);
         if (record.getSnapshotId() == null) {
@@ -37,12 +37,12 @@ public class MarkPriceSnapshotRepository {
         snapshot.setCalculatedAt(record.getCalculatedAt());
         return snapshot;
     }
-
+    
     public Optional<MarkPriceSnapshot> findLatest(@NotNull Long instrumentId) {
         LambdaQueryWrapper<MarkPriceSnapshotPO> wrapper = Wrappers.lambdaQuery(MarkPriceSnapshotPO.class)
-                .eq(MarkPriceSnapshotPO::getInstrumentId, instrumentId)
-                .orderByDesc(MarkPriceSnapshotPO::getCalculatedAt)
-                .last("LIMIT 1");
+                                                                  .eq(MarkPriceSnapshotPO::getInstrumentId, instrumentId)
+                                                                  .orderByDesc(MarkPriceSnapshotPO::getCalculatedAt)
+                                                                  .last("LIMIT 1");
         MarkPriceSnapshotPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(po).map(value -> OpenObjectMapper.convert(value, MarkPriceSnapshot.class));
     }

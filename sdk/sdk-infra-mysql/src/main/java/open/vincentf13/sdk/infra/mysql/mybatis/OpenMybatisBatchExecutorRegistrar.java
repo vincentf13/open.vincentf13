@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OpenMybatisBatchExecutorRegistrar {
-
+    
     private final SqlSessionFactory sqlSessionFactory;
-
+    
     @PostConstruct
     public void register() {
         OpenMybatisBatchExecutor.register(sqlSessionFactory);

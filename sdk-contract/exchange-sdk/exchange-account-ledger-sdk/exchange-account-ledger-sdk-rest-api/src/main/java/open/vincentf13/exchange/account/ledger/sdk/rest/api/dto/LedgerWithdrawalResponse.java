@@ -14,4 +14,5 @@ public record LedgerWithdrawalResponse(
         AssetSymbol asset,
         BigDecimal amount,
         String txId
-) { }
+) {
+}

@@ -16,7 +16,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PlatformAccount {
-
+    
     private Long accountId;
     @NotNull
     private PlatformAccountCode accountCode;
@@ -25,12 +25,12 @@ public class PlatformAccount {
     @NotNull
     private PlatformAccountStatus status;
     private Instant createdAt;
-
+    
     public static PlatformAccount createUserDepositAccount() {
         return PlatformAccount.builder()
-                .accountCode(PlatformAccountCode.USER_DEPOSIT)
-                .category(PlatformAccountCategory.LIABILITY)
-                .status(PlatformAccountStatus.ACTIVE)
-                .build();
+                              .accountCode(PlatformAccountCode.USER_DEPOSIT)
+                              .category(PlatformAccountCategory.LIABILITY)
+                              .status(PlatformAccountStatus.ACTIVE)
+                              .build();
     }
 }

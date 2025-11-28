@@ -27,4 +27,5 @@ public record OrderResponse(
         Integer version,
         Instant createdAt,
         Instant updatedAt
-) { }
+) {
+}

@@ -15,14 +15,15 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 public class InstrumentAdminController implements InstrumentAdminApi {
-
+    
     private final InstrumentQueryService instrumentQueryService;
-
+    
     @Override
-    public OpenApiResponse<List<InstrumentSummaryResponse>> list(InstrumentStatus status, InstrumentType instrumentType) {
+    public OpenApiResponse<List<InstrumentSummaryResponse>> list(InstrumentStatus status,
+                                                                 InstrumentType instrumentType) {
         return OpenApiResponse.success(instrumentQueryService.list(status, instrumentType));
     }
-
+    
     @Override
     public OpenApiResponse<InstrumentDetailResponse> get(Long instrumentId) {
         return OpenApiResponse.success(instrumentQueryService.get(instrumentId));

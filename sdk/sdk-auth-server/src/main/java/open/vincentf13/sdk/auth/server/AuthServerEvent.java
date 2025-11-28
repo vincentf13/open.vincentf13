@@ -3,7 +3,7 @@ package open.vincentf13.sdk.auth.server;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /**
- * Auth Server 事件枚舉。
+ Auth Server 事件枚舉。
  */
 public enum AuthServerEvent implements OpenEvent {
     JWT_SESSION_CREATED("JwtSessionCreated", "Session created"),
@@ -15,20 +15,21 @@ public enum AuthServerEvent implements OpenEvent {
     JWT_SESSION_REVOKED("JwtSessionRevoked", "Session revoked"),
     LOGIN_SUCCESS("LoginSuccess", "User authenticated"),
     LOGIN_FAILURE("LoginFailure", "Authentication failed");
-
+    
     private final String event;
     private final String message;
-
-    AuthServerEvent(String event, String message) {
+    
+    AuthServerEvent(String event,
+                    String message) {
         this.event = event;
         this.message = message;
     }
-
+    
     @Override
     public String event() {
         return event;
     }
-
+    
     @Override
     public String message() {
         return message;

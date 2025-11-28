@@ -12,19 +12,18 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @ConditionalOnClass(WebMvcConfigurer.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class CorrelationFilterConfig {
-
-
-
+    
+    
     /**
-     * 建立 RequestCorrelationFilter，負責補足 traceId/requestId 與同步至 MDC。
+     建立 RequestCorrelationFilter，負責補足 traceId/requestId 與同步至 MDC。
      */
     @Bean
     public RequestCorrelationFilter requestCorrelationFilter(MvcProperties properties) {
         return new RequestCorrelationFilter(properties.getRequest());
     }
-
+    
     /**
-     * 將 RequestCorrelationFilter 以指定順序註冊到 Servlet Filter Chain。
+     將 RequestCorrelationFilter 以指定順序註冊到 Servlet Filter Chain。
      */
     @Bean
     public FilterRegistrationBean<RequestCorrelationFilter> requestCorrelationFilterRegistration(RequestCorrelationFilter filter,

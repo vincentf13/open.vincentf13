@@ -11,4 +11,5 @@ public record AuthCredentialResponse(
         String status,
         Instant expiresAt,
         Instant createdAt
-) { }
+) {
+}

@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class RiskMarginApp {
-
+    
     public static void main(String[] args) {
         SpringApplication.run(RiskMarginApp.class, args);
     }

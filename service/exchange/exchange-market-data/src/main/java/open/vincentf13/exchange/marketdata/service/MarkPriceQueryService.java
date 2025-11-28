@@ -11,14 +11,14 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class MarkPriceQueryService {
-
+    
     private final MarkPriceCacheService markPriceCacheService;
-
+    
     public Optional<MarkPriceResponse> getMarkPrice(Long instrumentId) {
         if (instrumentId == null) {
             return Optional.empty();
         }
         return markPriceCacheService.getLatest(instrumentId)
-                .map(snapshot -> OpenObjectMapper.convert(snapshot, MarkPriceResponse.class));
+                                    .map(snapshot -> OpenObjectMapper.convert(snapshot, MarkPriceResponse.class));
     }
 }

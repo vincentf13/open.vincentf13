@@ -19,7 +19,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LedgerEntry {
-
+    
     @NotNull
     private Long entryId;
     @NotNull
@@ -48,7 +48,7 @@ public class LedgerEntry {
     @NotNull
     private Instant eventTime;
     private Instant createdAt;
-
+    
     public static LedgerEntry userDeposit(Long entryId,
                                           Long accountId,
                                           Long userId,
@@ -59,19 +59,19 @@ public class LedgerEntry {
                                           String referenceId,
                                           Instant eventTime) {
         return deposit(entryId,
-                OwnerType.USER,
-                accountId,
-                userId,
-                asset,
-                amount,
-                Direction.DEBIT,
-                counterpartyEntryId,
-                balanceAfter,
-                referenceId,
-                "用戶充值",
-                eventTime);
+                       OwnerType.USER,
+                       accountId,
+                       userId,
+                       asset,
+                       amount,
+                       Direction.DEBIT,
+                       counterpartyEntryId,
+                       balanceAfter,
+                       referenceId,
+                       "用戶充值",
+                       eventTime);
     }
-
+    
     public static LedgerEntry platformDeposit(Long entryId,
                                               Long accountId,
                                               AssetSymbol asset,
@@ -81,19 +81,19 @@ public class LedgerEntry {
                                               String referenceId,
                                               Instant eventTime) {
         return deposit(entryId,
-                OwnerType.PLATFORM,
-                accountId,
-                null,
-                asset,
-                amount,
-                Direction.CREDIT,
-                counterpartyEntryId,
-                balanceAfter,
-                referenceId,
-                "User deposit liability",
-                eventTime);
+                       OwnerType.PLATFORM,
+                       accountId,
+                       null,
+                       asset,
+                       amount,
+                       Direction.CREDIT,
+                       counterpartyEntryId,
+                       balanceAfter,
+                       referenceId,
+                       "User deposit liability",
+                       eventTime);
     }
-
+    
     public static LedgerEntry userWithdrawal(Long entryId,
                                              Long accountId,
                                              Long userId,
@@ -104,23 +104,23 @@ public class LedgerEntry {
                                              String metadata,
                                              Instant eventTime) {
         return LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(OwnerType.USER)
-                .accountId(accountId)
-                .userId(userId)
-                .asset(asset)
-                .amount(amount)
-                .direction(Direction.CREDIT)
-                .balanceAfter(balanceAfter)
-                .referenceType(EntryType.WITHDRAWAL.getReferenceType())
-                .referenceId(referenceId)
-                .entryType(EntryType.WITHDRAWAL)
-                .description("User withdrawal")
-                .metadata(metadata)
-                .eventTime(eventTime)
-                .build();
+                          .entryId(entryId)
+                          .ownerType(OwnerType.USER)
+                          .accountId(accountId)
+                          .userId(userId)
+                          .asset(asset)
+                          .amount(amount)
+                          .direction(Direction.CREDIT)
+                          .balanceAfter(balanceAfter)
+                          .referenceType(EntryType.WITHDRAWAL.getReferenceType())
+                          .referenceId(referenceId)
+                          .entryType(EntryType.WITHDRAWAL)
+                          .description("User withdrawal")
+                          .metadata(metadata)
+                          .eventTime(eventTime)
+                          .build();
     }
-
+    
     public static LedgerEntry platformWithdrawal(Long entryId,
                                                  Long accountId,
                                                  AssetSymbol asset,
@@ -130,22 +130,22 @@ public class LedgerEntry {
                                                  String referenceId,
                                                  Instant eventTime) {
         return LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(OwnerType.PLATFORM)
-                .accountId(accountId)
-                .asset(asset)
-                .amount(amount)
-                .direction(Direction.DEBIT)
-                .counterpartyEntryId(counterpartyEntryId)
-                .balanceAfter(balanceAfter)
-                .referenceType(EntryType.WITHDRAWAL.getReferenceType())
-                .referenceId(referenceId)
-                .entryType(EntryType.WITHDRAWAL)
-                .description("User withdrawal liability")
-                .eventTime(eventTime)
-                .build();
+                          .entryId(entryId)
+                          .ownerType(OwnerType.PLATFORM)
+                          .accountId(accountId)
+                          .asset(asset)
+                          .amount(amount)
+                          .direction(Direction.DEBIT)
+                          .counterpartyEntryId(counterpartyEntryId)
+                          .balanceAfter(balanceAfter)
+                          .referenceType(EntryType.WITHDRAWAL.getReferenceType())
+                          .referenceId(referenceId)
+                          .entryType(EntryType.WITHDRAWAL)
+                          .description("User withdrawal liability")
+                          .eventTime(eventTime)
+                          .build();
     }
-
+    
     public static LedgerEntry userFundsFreeze(Long entryId,
                                               Long accountId,
                                               Long userId,
@@ -156,23 +156,23 @@ public class LedgerEntry {
                                               Long counterpartyEntryId,
                                               Instant eventTime) {
         return LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(OwnerType.USER)
-                .accountId(accountId)
-                .userId(userId)
-                .asset(asset)
-                .amount(amount)
-                .direction(Direction.CREDIT)
-                .counterpartyEntryId(counterpartyEntryId)
-                .balanceAfter(balanceAfter)
-                .referenceType(EntryType.FREEZE.getReferenceType())
-                .referenceId(orderId == null ? null : orderId.toString())
-                .entryType(EntryType.FREEZE)
-                .description("Funds frozen for order")
-                .eventTime(eventTime)
-                .build();
+                          .entryId(entryId)
+                          .ownerType(OwnerType.USER)
+                          .accountId(accountId)
+                          .userId(userId)
+                          .asset(asset)
+                          .amount(amount)
+                          .direction(Direction.CREDIT)
+                          .counterpartyEntryId(counterpartyEntryId)
+                          .balanceAfter(balanceAfter)
+                          .referenceType(EntryType.FREEZE.getReferenceType())
+                          .referenceId(orderId == null ? null : orderId.toString())
+                          .entryType(EntryType.FREEZE)
+                          .description("Funds frozen for order")
+                          .eventTime(eventTime)
+                          .build();
     }
-
+    
     public static LedgerEntry userFundsReserved(Long entryId,
                                                 Long accountId,
                                                 Long userId,
@@ -183,23 +183,23 @@ public class LedgerEntry {
                                                 Long counterpartyEntryId,
                                                 Instant eventTime) {
         return LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(OwnerType.USER)
-                .accountId(accountId)
-                .userId(userId)
-                .asset(asset)
-                .amount(amount)
-                .direction(Direction.DEBIT)
-                .counterpartyEntryId(counterpartyEntryId)
-                .balanceAfter(balanceAfter)
-                .referenceType(EntryType.RESERVED.getReferenceType())
-                .referenceId(orderId == null ? null : orderId.toString())
-                .entryType(EntryType.RESERVED)
-                .description("Reserved balance increased for order")
-                .eventTime(eventTime)
-                .build();
+                          .entryId(entryId)
+                          .ownerType(OwnerType.USER)
+                          .accountId(accountId)
+                          .userId(userId)
+                          .asset(asset)
+                          .amount(amount)
+                          .direction(Direction.DEBIT)
+                          .counterpartyEntryId(counterpartyEntryId)
+                          .balanceAfter(balanceAfter)
+                          .referenceType(EntryType.RESERVED.getReferenceType())
+                          .referenceId(orderId == null ? null : orderId.toString())
+                          .entryType(EntryType.RESERVED)
+                          .description("Reserved balance increased for order")
+                          .eventTime(eventTime)
+                          .build();
     }
-
+    
     private static LedgerEntry deposit(Long entryId,
                                        OwnerType ownerType,
                                        Long accountId,
@@ -213,42 +213,52 @@ public class LedgerEntry {
                                        String description,
                                        Instant eventTime) {
         return LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(ownerType)
-                .accountId(accountId)
-                .userId(userId)
-                .asset(asset)
-                .amount(amount)
-                .direction(direction)
-                .counterpartyEntryId(counterpartyEntryId)
-                .balanceAfter(balanceAfter)
-                .referenceType(EntryType.DEPOSIT.getReferenceType())
-                .referenceId(referenceId)
-                .entryType(EntryType.DEPOSIT)
-                .description(description)
-                .eventTime(eventTime)
-                .build();
+                          .entryId(entryId)
+                          .ownerType(ownerType)
+                          .accountId(accountId)
+                          .userId(userId)
+                          .asset(asset)
+                          .amount(amount)
+                          .direction(direction)
+                          .counterpartyEntryId(counterpartyEntryId)
+                          .balanceAfter(balanceAfter)
+                          .referenceType(EntryType.DEPOSIT.getReferenceType())
+                          .referenceId(referenceId)
+                          .entryType(EntryType.DEPOSIT)
+                          .description(description)
+                          .eventTime(eventTime)
+                          .build();
     }
-
-    public static LedgerEntry settlement(Long entryId, Long accountId, Long userId, AssetSymbol asset, BigDecimal amount,
-                                       Direction direction, Long counterpartyEntryId, BigDecimal balanceAfter, String referenceId,
-                                       Long orderId, Long instrumentId, Instant eventTime, EntryType entryType) {
+    
+    public static LedgerEntry settlement(Long entryId,
+                                         Long accountId,
+                                         Long userId,
+                                         AssetSymbol asset,
+                                         BigDecimal amount,
+                                         Direction direction,
+                                         Long counterpartyEntryId,
+                                         BigDecimal balanceAfter,
+                                         String referenceId,
+                                         Long orderId,
+                                         Long instrumentId,
+                                         Instant eventTime,
+                                         EntryType entryType) {
         return LedgerEntry.builder()
-                .entryId(entryId)
-                .ownerType(userId == null ? OwnerType.PLATFORM : OwnerType.USER)
-                .accountId(accountId)
-                .userId(userId)
-                .asset(asset)
-                .amount(amount)
-                .direction(direction)
-                .counterpartyEntryId(counterpartyEntryId)
-                .balanceAfter(balanceAfter)
-                .referenceType(ReferenceType.TRADE)
-                .referenceId(referenceId)
-                .entryType(entryType)
-                .description("Trade settlement for order " + orderId)
-                .eventTime(eventTime)
-                .createdAt(Instant.now())
-                .build();
+                          .entryId(entryId)
+                          .ownerType(userId == null ? OwnerType.PLATFORM : OwnerType.USER)
+                          .accountId(accountId)
+                          .userId(userId)
+                          .asset(asset)
+                          .amount(amount)
+                          .direction(direction)
+                          .counterpartyEntryId(counterpartyEntryId)
+                          .balanceAfter(balanceAfter)
+                          .referenceType(ReferenceType.TRADE)
+                          .referenceId(referenceId)
+                          .entryType(entryType)
+                          .description("Trade settlement for order " + orderId)
+                          .eventTime(eventTime)
+                          .createdAt(Instant.now())
+                          .build();
     }
 }

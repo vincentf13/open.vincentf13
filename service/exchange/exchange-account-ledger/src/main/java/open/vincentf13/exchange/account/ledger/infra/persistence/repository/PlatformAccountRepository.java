@@ -25,10 +25,10 @@ import java.util.stream.Collectors;
 @Validated
 @RequiredArgsConstructor
 public class PlatformAccountRepository {
-
+    
     private final PlatformAccountMapper mapper;
     private final DefaultIdGenerator idGenerator;
-
+    
     public PlatformAccount insertSelective(@NotNull @Valid PlatformAccount platformAccount) {
         if (platformAccount.getAccountId() == null) {
             platformAccount.setAccountId(idGenerator.newLong());
@@ -40,38 +40,38 @@ public class PlatformAccountRepository {
         mapper.insert(po);
         return platformAccount;
     }
-
+    
     public List<PlatformAccount> findBy(@NotNull LambdaQueryWrapper<PlatformAccountPO> wrapper) {
         return mapper.selectList(wrapper).stream()
-                .map(item -> OpenObjectMapper.convert(item, PlatformAccount.class))
-                .collect(Collectors.toList());
+                     .map(item -> OpenObjectMapper.convert(item, PlatformAccount.class))
+                     .collect(Collectors.toList());
     }
-
+    
     public Optional<PlatformAccount> findOne(@NotNull LambdaQueryWrapper<PlatformAccountPO> wrapper) {
         PlatformAccountPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, PlatformAccount.class));
     }
-
+    
     public PlatformAccount getOrCreate(@NotNull PlatformAccountCode code,
                                        @NotNull PlatformAccountCategory category,
                                        @NotNull PlatformAccountStatus status) {
         PlatformAccount probe = PlatformAccount.builder()
-                .accountCode(code)
-                .category(category)
-                .status(status)
-                .build();
+                                               .accountCode(code)
+                                               .category(category)
+                                               .status(status)
+                                               .build();
         return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, PlatformAccountPO.class)))
-                .orElseGet(() -> {
-                    try {
-                        return insertSelective(PlatformAccount.builder()
-                                .accountCode(code)
-                                .category(category)
-                                .status(status)
-                                .build());
-                    } catch (DuplicateKeyException ex) {
-                        return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, PlatformAccountPO.class)))
-                                .orElseThrow(() -> ex);
-                    }
-                });
+                       .orElseGet(() -> {
+                           try {
+                               return insertSelective(PlatformAccount.builder()
+                                                                     .accountCode(code)
+                                                                     .category(category)
+                                                                     .status(status)
+                                                                     .build());
+                           } catch (DuplicateKeyException ex) {
+                               return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, PlatformAccountPO.class)))
+                                              .orElseThrow(() -> ex);
+                           }
+                       });
     }
 }

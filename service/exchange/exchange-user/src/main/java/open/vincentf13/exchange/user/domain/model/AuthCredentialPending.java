@@ -14,7 +14,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthCredentialPending {
-
+    
     private Long id;
     private Long userId;
     private AuthCredentialType credentialType;

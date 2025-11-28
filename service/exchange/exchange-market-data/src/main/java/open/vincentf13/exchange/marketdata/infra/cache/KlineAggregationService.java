@@ -1,16 +1,5 @@
 package open.vincentf13.exchange.marketdata.infra.cache;
 
-import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.enums.KlinePeriod;
@@ -19,25 +8,31 @@ import open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO;
 import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Service
 @RequiredArgsConstructor
 public class KlineAggregationService {
-
+    
     private static final Set<KlinePeriod> SUPPORTED_PERIODS = EnumSet.of(
             KlinePeriod.ONE_MINUTE,
             KlinePeriod.FIVE_MINUTES,
             KlinePeriod.ONE_HOUR,
             KlinePeriod.ONE_DAY
-    );
-
+                                                                        );
+    
     private final KlineBucketRepository klineBucketRepository;
     private final Map<KlineKey, KlineBucket> activeBuckets = new ConcurrentHashMap<>();
-
+    
     public void recordTrade(Long instrumentId,
-                             BigDecimal price,
-                             BigDecimal quantity,
-                             Instant executedAt,
-                             Boolean takerIsBuyer) {
+                            BigDecimal price,
+                            BigDecimal quantity,
+                            Instant executedAt,
+                            Boolean takerIsBuyer) {
         if (instrumentId == null || price == null || quantity == null || executedAt == null) {
             return;
         }
@@ -47,7 +42,7 @@ public class KlineAggregationService {
             applyTrade(bucket, price, quantity, executedAt, takerIsBuyer);
         }
     }
-
+    
     public void closeExpiredBuckets(Instant now) {
         if (now == null) {
             now = Instant.now();
@@ -63,8 +58,9 @@ public class KlineAggregationService {
             finalizeBucket(entry.getKey(), bucket);
         }
     }
-
-    private void finalizeBucket(KlineKey key, KlineBucket bucket) {
+    
+    private void finalizeBucket(KlineKey key,
+                                KlineBucket bucket) {
         KlinePeriod period = KlinePeriod.fromValue(key.period());
         boolean emptyBucket = bucket.getTradeCount() == null || bucket.getTradeCount() == 0;
         if (emptyBucket) {
@@ -81,26 +77,29 @@ public class KlineAggregationService {
         }
         bucket.setClosed(Boolean.TRUE);
         klineBucketRepository.updateSelectiveBy(bucket,
-                Wrappers.<KlineBucketPO>lambdaUpdate()
-                        .eq(KlineBucketPO::getBucketId, bucket.getBucketId())
-                        .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
-                        .eq(KlineBucketPO::getPeriod, bucket.getPeriod()));
+                                                Wrappers.<KlineBucketPO>lambdaUpdate()
+                                                        .eq(KlineBucketPO::getBucketId, bucket.getBucketId())
+                                                        .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
+                                                        .eq(KlineBucketPO::getPeriod, bucket.getPeriod()));
     }
-
-    private BigDecimal findPreviousClose(KlineBucket bucket, KlinePeriod period) {
+    
+    private BigDecimal findPreviousClose(KlineBucket bucket,
+                                         KlinePeriod period) {
         Instant prevStart = bucket.getBucketStart().minus(period.getDuration());
         return klineBucketRepository.findOne(Wrappers.<KlineBucketPO>lambdaQuery()
-                        .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
-                        .eq(KlineBucketPO::getPeriod, period.getValue())
-                        .lt(KlineBucketPO::getBucketStart, prevStart)
-                        .orderByDesc(KlineBucketPO::getBucketStart)
-                        .last("LIMIT 1"))
-                .map(KlineBucket::getClosePrice)
-                .filter(Objects::nonNull)
-                .orElse(BigDecimal.ZERO);
+                                                     .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
+                                                     .eq(KlineBucketPO::getPeriod, period.getValue())
+                                                     .lt(KlineBucketPO::getBucketStart, prevStart)
+                                                     .orderByDesc(KlineBucketPO::getBucketStart)
+                                                     .last("LIMIT 1"))
+                                    .map(KlineBucket::getClosePrice)
+                                    .filter(Objects::nonNull)
+                                    .orElse(BigDecimal.ZERO);
     }
-
-    private KlineBucket getOrLoadBucket(Long instrumentId, KlinePeriod period, Instant bucketStart) {
+    
+    private KlineBucket getOrLoadBucket(Long instrumentId,
+                                        KlinePeriod period,
+                                        Instant bucketStart) {
         Instant bucketEnd = bucketStart.plus(period.getDuration());
         KlineKey key = new KlineKey(instrumentId, period.getValue());
         // 對指定 key 進行一次「讀取目前值 → 根據邏輯產生新值 → 寫回 Map」的整體操作
@@ -109,21 +108,24 @@ public class KlineAggregationService {
                 return current;
             }
             Optional<KlineBucket> persisted = klineBucketRepository.findOne(Wrappers.<KlineBucketPO>lambdaQuery()
-                    .eq(KlineBucketPO::getInstrumentId, instrumentId)
-                    .eq(KlineBucketPO::getPeriod, period.getValue())
-                    .eq(KlineBucketPO::getBucketStart, bucketStart));
+                                                                                    .eq(KlineBucketPO::getInstrumentId, instrumentId)
+                                                                                    .eq(KlineBucketPO::getPeriod, period.getValue())
+                                                                                    .eq(KlineBucketPO::getBucketStart, bucketStart));
             return persisted.orElseGet(() -> createNewBucket(instrumentId, period, bucketStart, bucketEnd));
         });
     }
-
-    private KlineBucket createNewBucket(Long instrumentId, KlinePeriod period, Instant bucketStart, Instant bucketEnd) {
+    
+    private KlineBucket createNewBucket(Long instrumentId,
+                                        KlinePeriod period,
+                                        Instant bucketStart,
+                                        Instant bucketEnd) {
         KlineBucket bucket = KlineBucket.createEmpty(instrumentId,
-                period.getValue(),
-                bucketStart,
-                bucketEnd);
+                                                     period.getValue(),
+                                                     bucketStart,
+                                                     bucketEnd);
         return klineBucketRepository.insertSelective(bucket);
     }
-
+    
     private void applyTrade(KlineBucket bucket,
                             BigDecimal price,
                             BigDecimal quantity,
@@ -146,42 +148,46 @@ public class KlineAggregationService {
         }
         bucket.setClosed(Boolean.FALSE);
         klineBucketRepository.updateSelectiveBy(bucket,
-                Wrappers.<KlineBucketPO>lambdaUpdate()
-                        .eq(KlineBucketPO::getBucketId, bucket.getBucketId())
-                        .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
-                        .eq(KlineBucketPO::getPeriod, bucket.getPeriod()));
+                                                Wrappers.<KlineBucketPO>lambdaUpdate()
+                                                        .eq(KlineBucketPO::getBucketId, bucket.getBucketId())
+                                                        .eq(KlineBucketPO::getInstrumentId, bucket.getInstrumentId())
+                                                        .eq(KlineBucketPO::getPeriod, bucket.getPeriod()));
     }
-
-    private BigDecimal max(BigDecimal left, BigDecimal right) {
+    
+    private BigDecimal max(BigDecimal left,
+                           BigDecimal right) {
         if (left == null) {
             return right;
         }
         return left.max(right);
     }
-
-    private BigDecimal min(BigDecimal left, BigDecimal right) {
+    
+    private BigDecimal min(BigDecimal left,
+                           BigDecimal right) {
         if (left == null) {
             return right;
         }
         return left.min(right);
     }
-
-    private BigDecimal safeAdd(BigDecimal base, BigDecimal delta) {
+    
+    private BigDecimal safeAdd(BigDecimal base,
+                               BigDecimal delta) {
         BigDecimal left = base == null ? BigDecimal.ZERO : base;
         BigDecimal right = delta == null ? BigDecimal.ZERO : delta;
         return left.add(right);
     }
-
+    
     private int safeInt(Integer value) {
         return value == null ? 0 : value;
     }
-
-    private Instant alignBucketStart(Instant source, Duration duration) {
+    
+    private Instant alignBucketStart(Instant source,
+                                     Duration duration) {
         long seconds = duration.getSeconds();
         long bucketStartEpoch = (source.getEpochSecond() / seconds) * seconds;
         return Instant.ofEpochSecond(bucketStartEpoch);
     }
-
+    
     private record KlineKey(Long instrumentId, String period) {
         @Override
         public boolean equals(Object obj) {
@@ -193,7 +199,7 @@ public class KlineAggregationService {
             }
             return Objects.equals(instrumentId, other.instrumentId) && Objects.equals(period, other.period);
         }
-
+        
         @Override
         public int hashCode() {
             return Objects.hash(instrumentId, period);

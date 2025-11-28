@@ -7,4 +7,5 @@ public record LedgerBalanceResponse(
         Long userId,
         Instant snapshotAt,
         List<LedgerBalanceItem> balances
-) { }
+) {
+}

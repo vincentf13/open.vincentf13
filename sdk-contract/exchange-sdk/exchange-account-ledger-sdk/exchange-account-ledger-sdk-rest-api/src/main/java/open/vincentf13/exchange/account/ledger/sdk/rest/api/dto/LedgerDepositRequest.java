@@ -14,4 +14,5 @@ public record LedgerDepositRequest(
         @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal amount,
         @NotNull String txId,
         @NotNull Instant creditedAt
-) { }
+) {
+}

@@ -14,20 +14,21 @@ public enum MvcEvent implements OpenEvent {
     MVC_REQUEST_COMPLETED("MvcRequestCompleted", "MVC request completed"),
     MVC_REQUEST_DETAIL("MvcRequestDetail", "MVC request detail"),
     CIRCUIT_BREAKER_OPEN("CircuitBreakerOpen", "Circuit breaker is open");
-
+    
     private final String event;
     private final String message;
-
-    MvcEvent(String event, String message) {
+    
+    MvcEvent(String event,
+             String message) {
         this.event = event;
         this.message = message;
     }
-
+    
     @Override
     public String event() {
         return event;
     }
-
+    
     @Override
     public String message() {
         return message;

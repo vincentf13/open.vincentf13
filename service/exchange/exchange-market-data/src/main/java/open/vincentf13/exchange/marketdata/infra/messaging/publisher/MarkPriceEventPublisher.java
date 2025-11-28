@@ -5,16 +5,16 @@ import open.vincentf13.exchange.market.mq.event.MarkPriceUpdatedEvent;
 import open.vincentf13.exchange.market.mq.topic.MarketTopics;
 import open.vincentf13.exchange.marketdata.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.marketdata.infra.MarketDataEvent;
-import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class MarkPriceEventPublisher {
-
+    
     private final MqOutboxRepository outboxRepository;
-
+    
     public void publishMarkPriceUpdated(MarkPriceSnapshot snapshot) {
         if (snapshot == null || snapshot.getInstrumentId() == null) {
             return;
@@ -27,11 +27,11 @@ public class MarkPriceEventPublisher {
                 snapshot.getCalculatedAt()
         );
         outboxRepository.append(MarketTopics.MARK_PRICE_UPDATED.getTopic(),
-                snapshot.getInstrumentId(),
-                event,
-                null);
+                                snapshot.getInstrumentId(),
+                                event,
+                                null);
         OpenLog.debug(MarketDataEvent.MARK_PRICE_OUTBOX_APPENDED,
-                "instrumentId", snapshot.getInstrumentId(),
-                "tradeId", snapshot.getTradeId());
+                      "instrumentId", snapshot.getInstrumentId(),
+                      "tradeId", snapshot.getTradeId());
     }
 }

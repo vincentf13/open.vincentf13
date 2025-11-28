@@ -24,10 +24,10 @@ import java.util.stream.Collectors;
 @Validated
 @RequiredArgsConstructor
 public class LedgerBalanceRepository {
-
+    
     private final LedgerBalanceMapper mapper;
     private final DefaultIdGenerator idGenerator;
-
+    
     public LedgerBalance insertSelective(@NotNull @Valid LedgerBalance balance) {
         if (balance.getId() == null) {
             balance.setId(idGenerator.newLong());
@@ -39,34 +39,35 @@ public class LedgerBalanceRepository {
         mapper.insert(po);
         return balance;
     }
-
-    public boolean updateSelectiveBy(@NotNull @Valid LedgerBalance balance, LambdaUpdateWrapper<LedgerBalancePO> updateWrapper) {
+    
+    public boolean updateSelectiveBy(@NotNull @Valid LedgerBalance balance,
+                                     LambdaUpdateWrapper<LedgerBalancePO> updateWrapper) {
         LedgerBalancePO po = OpenObjectMapper.convert(balance, LedgerBalancePO.class);
         return mapper.update(po, updateWrapper) > 0;
     }
-
+    
     public List<LedgerBalance> findBy(@NotNull LambdaQueryWrapper<LedgerBalancePO> wrapper) {
         return mapper.selectList(wrapper).stream()
-                .map(item -> OpenObjectMapper.convert(item, LedgerBalance.class))
-                .collect(Collectors.toList());
+                     .map(item -> OpenObjectMapper.convert(item, LedgerBalance.class))
+                     .collect(Collectors.toList());
     }
-
+    
     public Optional<LedgerBalance> findOne(@NotNull LambdaQueryWrapper<LedgerBalancePO> wrapper) {
         LedgerBalancePO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, LedgerBalance.class));
     }
-
+    
     public LedgerBalance getOrCreate(@NotNull Long userId,
                                      @NotNull AccountType accountType,
                                      Long instrumentId,
                                      @NotNull AssetSymbol asset) {
         LedgerBalance probe = LedgerBalance.builder()
-                .userId(userId)
-                .accountType(accountType)
-                .instrumentId(instrumentId)
-                .asset(asset)
-                .build();
+                                           .userId(userId)
+                                           .accountType(accountType)
+                                           .instrumentId(instrumentId)
+                                           .asset(asset)
+                                           .build();
         return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, LedgerBalancePO.class)))
-                .orElseGet(() -> insertSelective(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
+                       .orElseGet(() -> insertSelective(LedgerBalance.createDefault(userId, accountType, instrumentId, asset)));
     }
 }

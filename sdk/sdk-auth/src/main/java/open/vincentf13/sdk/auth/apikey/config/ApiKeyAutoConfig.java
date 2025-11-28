@@ -16,13 +16,13 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @EnableConfigurationProperties(ApiKeyProperties.class)
 @ConditionalOnProperty(name = "security.api-key.enabled", havingValue = "true")
 public class ApiKeyAutoConfig {
-
+    
     @Bean
     @ConditionalOnMissingBean
     public ApiKeyValidator apiKeyValidator(ApiKeyProperties properties) {
         return new ApiKeyValidatorImpl(properties);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(ApiKeyValidator.class)

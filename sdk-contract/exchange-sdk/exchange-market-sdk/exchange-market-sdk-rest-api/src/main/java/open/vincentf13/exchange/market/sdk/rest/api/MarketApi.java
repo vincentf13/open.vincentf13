@@ -18,21 +18,21 @@ import java.util.List;
 
 @Validated
 public interface MarketApi {
-
+    
     @GetMapping("/tickers/{instrumentId}")
     @PublicAPI
     OpenApiResponse<TickerResponse> getTicker(@PathVariable("instrumentId") @NotNull Long instrumentId);
-
+    
     @GetMapping("/orderbook/{instrumentId}")
     @PublicAPI
     OpenApiResponse<OrderBookResponse> getOrderBook(@PathVariable("instrumentId") @NotNull Long instrumentId);
-
+    
     @GetMapping("/kline")
     @PublicAPI
     OpenApiResponse<List<KlineResponse>> getKlines(@RequestParam("instrumentId") @NotNull Long instrumentId,
                                                    @RequestParam("period") @NotBlank String period,
                                                    @RequestParam(value = "limit", required = false) @Min(1) Integer limit);
-
+    
     @GetMapping("/mark-price/{instrumentId}")
     @PublicAPI
     OpenApiResponse<MarkPriceResponse> getMarkPrice(@PathVariable("instrumentId") @NotNull Long instrumentId);

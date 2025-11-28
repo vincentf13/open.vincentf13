@@ -3,8 +3,8 @@ package open.vincentf13.sdk.spring.cloud.openfeign.interceptor;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.spring.cloud.openfeign.interceptor.jwt.FeignAuthorizationProvider;
 import open.vincentf13.sdk.spring.cloud.openfeign.interceptor.apikey.FeignApiKeyProvider;
+import open.vincentf13.sdk.spring.cloud.openfeign.interceptor.jwt.FeignAuthorizationProvider;
 import org.slf4j.MDC;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
@@ -17,16 +17,16 @@ import java.util.Locale;
 import java.util.Optional;
 
 public class DefaultFeignRequestInterceptor implements RequestInterceptor {
-
+    
     private final FeignAuthorizationProvider authorizationProvider;
     private final FeignApiKeyProvider apiKeyProvider;
-
+    
     public DefaultFeignRequestInterceptor(FeignAuthorizationProvider authorizationProvider,
                                           FeignApiKeyProvider apiKeyProvider) {
         this.authorizationProvider = authorizationProvider;
         this.apiKeyProvider = apiKeyProvider;
     }
-
+    
     @Override
     public void apply(RequestTemplate template) {
         attachAuthorization(template);
@@ -34,25 +34,25 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
         attachTraceHeaders(template);
         attachLocale(template);
     }
-
+    
     private void attachApiKey(RequestTemplate template) {
         if (template.headers().containsKey(OpenConstant.HttpHeader.API_KEY.value())) {
             return;
         }
         apiKeyProvider.apiKey()
-                .filter(StringUtils::hasText)
-                .ifPresent(value -> template.header(OpenConstant.HttpHeader.API_KEY.value(), value));
+                      .filter(StringUtils::hasText)
+                      .ifPresent(value -> template.header(OpenConstant.HttpHeader.API_KEY.value(), value));
     }
-
+    
     private void attachAuthorization(RequestTemplate template) {
         Optional<String> header = authorizationProvider.authorizationHeader();
         if (template.headers().containsKey(HttpHeaders.AUTHORIZATION)) {
             return;
         }
         header.filter(StringUtils::hasText)
-                .ifPresent(value -> template.header(HttpHeaders.AUTHORIZATION, value));
+              .ifPresent(value -> template.header(HttpHeaders.AUTHORIZATION, value));
     }
-
+    
     private void attachTraceHeaders(RequestTemplate template) {
         String traceId = resolveAttribute(OpenConstant.HttpHeader.TRACE_ID.value());
         if (!template.headers().containsKey(OpenConstant.HttpHeader.TRACE_ID.value()) && StringUtils.hasText(traceId)) {
@@ -63,7 +63,7 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
             template.header(OpenConstant.HttpHeader.REQUEST_ID.value(), requestId);
         }
     }
-
+    
     private void attachLocale(RequestTemplate template) {
         if (template.headers().containsKey(HttpHeaders.ACCEPT_LANGUAGE)) {
             return;
@@ -78,7 +78,7 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
         }
         template.header(HttpHeaders.ACCEPT_LANGUAGE, locale.toLanguageTag());
     }
-
+    
     private String resolveAttribute(String headerName) {
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
         if (attributes instanceof ServletRequestAttributes servletAttributes) {

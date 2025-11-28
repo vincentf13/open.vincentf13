@@ -3,8 +3,8 @@ package open.vincentf13.exchange.marketdata.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.KlineResponse;
-import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
 import open.vincentf13.exchange.market.sdk.rest.api.enums.KlinePeriod;
+import open.vincentf13.exchange.marketdata.domain.model.KlineBucket;
 import open.vincentf13.exchange.marketdata.infra.persistence.po.KlineBucketPO;
 import open.vincentf13.exchange.marketdata.infra.persistence.repository.KlineBucketRepository;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -21,13 +21,15 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class KlineQueryService {
-
+    
     private static final int DEFAULT_LIMIT = 200;
     private static final int MAX_LIMIT = 1000;
-
+    
     private final KlineBucketRepository klineBucketRepository;
-
-    public List<KlineResponse> getKlines(Long instrumentId, String periodValue, Integer limit) {
+    
+    public List<KlineResponse> getKlines(Long instrumentId,
+                                         String periodValue,
+                                         Integer limit) {
         if (instrumentId == null || periodValue == null) {
             return List.of();
         }
@@ -40,26 +42,26 @@ public class KlineQueryService {
         Duration duration = period.getDuration();
         Instant latestStart = alignBucketStart(Instant.now(), duration);
         Instant earliestStart = calculateEarliestStart(latestStart, duration, fetchSize);
-
+        
         List<KlineBucket> existing = klineBucketRepository.findBy(Wrappers.<KlineBucketPO>lambdaQuery()
-                .eq(KlineBucketPO::getInstrumentId, instrumentId)
-                .eq(KlineBucketPO::getPeriod, period.getValue())
-                .between(KlineBucketPO::getBucketStart, earliestStart, latestStart)
-                .orderByAsc(KlineBucketPO::getBucketStart));
+                                                                          .eq(KlineBucketPO::getInstrumentId, instrumentId)
+                                                                          .eq(KlineBucketPO::getPeriod, period.getValue())
+                                                                          .between(KlineBucketPO::getBucketStart, earliestStart, latestStart)
+                                                                          .orderByAsc(KlineBucketPO::getBucketStart));
         Map<Instant, KlineBucket> bucketByStart = new HashMap<>();
         for (KlineBucket bucket : existing) {
             bucketByStart.put(bucket.getBucketStart(), bucket);
         }
-
+        
         BigDecimal previousClose = klineBucketRepository.findOne(Wrappers.<KlineBucketPO>lambdaQuery()
-                        .eq(KlineBucketPO::getInstrumentId, instrumentId)
-                        .eq(KlineBucketPO::getPeriod, period.getValue())
-                        .lt(KlineBucketPO::getBucketStart, earliestStart)
-                        .orderByDesc(KlineBucketPO::getBucketStart)
-                        .last("LIMIT 1"))
-                .map(KlineBucket::getClosePrice)
-                .orElse(null);
-
+                                                                         .eq(KlineBucketPO::getInstrumentId, instrumentId)
+                                                                         .eq(KlineBucketPO::getPeriod, period.getValue())
+                                                                         .lt(KlineBucketPO::getBucketStart, earliestStart)
+                                                                         .orderByDesc(KlineBucketPO::getBucketStart)
+                                                                         .last("LIMIT 1"))
+                                                        .map(KlineBucket::getClosePrice)
+                                                        .orElse(null);
+        
         List<KlineBucket> normalized = new ArrayList<>(fetchSize);
         Instant cursor = earliestStart;
         for (int i = 0; i < fetchSize; i++) {
@@ -75,7 +77,7 @@ public class KlineQueryService {
         }
         return OpenObjectMapper.convertList(normalized, KlineResponse.class);
     }
-
+    
     private int resolveLimit(Integer limit) {
         int resolved = limit == null ? DEFAULT_LIMIT : limit;
         if (resolved <= 0) {
@@ -83,16 +85,19 @@ public class KlineQueryService {
         }
         return Math.min(resolved, MAX_LIMIT);
     }
-
-    private Instant calculateEarliestStart(Instant latestStart, Duration duration, int fetchSize) {
+    
+    private Instant calculateEarliestStart(Instant latestStart,
+                                           Duration duration,
+                                           int fetchSize) {
         if (fetchSize <= 1) {
             return latestStart;
         }
         long offsetSeconds = duration.getSeconds() * (fetchSize - 1L);
         return latestStart.minusSeconds(offsetSeconds);
     }
-
-    private Instant alignBucketStart(Instant source, Duration duration) {
+    
+    private Instant alignBucketStart(Instant source,
+                                     Duration duration) {
         long seconds = duration.getSeconds();
         if (seconds <= 0) {
             return source;
@@ -101,29 +106,29 @@ public class KlineQueryService {
         long start = (epoch / seconds) * seconds;
         return Instant.ofEpochSecond(start);
     }
-
+    
     private KlineBucket createSyntheticBucket(Long instrumentId,
-                                             KlinePeriod period,
-                                             Instant bucketStart,
-                                             Duration duration,
-                                             BigDecimal previousClose) {
+                                              KlinePeriod period,
+                                              Instant bucketStart,
+                                              Duration duration,
+                                              BigDecimal previousClose) {
         BigDecimal price = previousClose == null ? BigDecimal.ZERO : previousClose;
         Instant bucketEnd = bucketStart.plus(duration);
         return KlineBucket.builder()
-                .instrumentId(instrumentId)
-                .period(period.getValue())
-                .bucketStart(bucketStart)
-                .bucketEnd(bucketEnd)
-                .openPrice(price)
-                .highPrice(price)
-                .lowPrice(price)
-                .closePrice(price)
-                .volume(BigDecimal.ZERO)
-                .turnover(BigDecimal.ZERO)
-                .tradeCount(0)
-                .takerBuyVolume(BigDecimal.ZERO)
-                .takerBuyTurnover(BigDecimal.ZERO)
-                .closed(Boolean.TRUE)
-                .build();
+                          .instrumentId(instrumentId)
+                          .period(period.getValue())
+                          .bucketStart(bucketStart)
+                          .bucketEnd(bucketEnd)
+                          .openPrice(price)
+                          .highPrice(price)
+                          .lowPrice(price)
+                          .closePrice(price)
+                          .volume(BigDecimal.ZERO)
+                          .turnover(BigDecimal.ZERO)
+                          .tradeCount(0)
+                          .takerBuyVolume(BigDecimal.ZERO)
+                          .takerBuyTurnover(BigDecimal.ZERO)
+                          .closed(Boolean.TRUE)
+                          .build();
     }
 }

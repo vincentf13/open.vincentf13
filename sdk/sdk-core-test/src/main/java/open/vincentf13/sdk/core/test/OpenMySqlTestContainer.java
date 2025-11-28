@@ -12,22 +12,22 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * 靜態 MySQL Testcontainer 工具：集中管理容器啟動與屬性註冊，並為每個測試方法建立隔離的 schema。
+ 靜態 MySQL Testcontainer 工具：集中管理容器啟動與屬性註冊，並為每個測試方法建立隔離的 schema。
  */
 public final class OpenMySqlTestContainer {
-
+    
     private static final ToggleableMySqlContainer MYSQL =
             new ToggleableMySqlContainer()
                     .withUsername("root")
                     .withPassword("test")
                     .withDatabaseName("test");
-
+    
     private static final ThreadLocal<String> CURRENT_SCHEMA = new ThreadLocal<>();
     private static final ThreadLocal<Connection> ADMIN_CONNECTION = new ThreadLocal<>();
-
+    
     private OpenMySqlTestContainer() {
     }
-
+    
     public static void register(DynamicPropertyRegistry registry) {
         if (!TestContainerSettings.mysqlEnabled()) {
             return;
@@ -41,11 +41,10 @@ public final class OpenMySqlTestContainer {
         registry.add("spring.datasource.hikari.maximum-pool-size", () -> "1");
         registry.add("spring.datasource.hikari.minimum-idle", () -> "1");
     }
-
-
-
+    
+    
     /**
-     * 為即將執行的測試方法建立隔離 schema，並將資料來源切換到該 schema。
+     為即將執行的測試方法建立隔離 schema，並將資料來源切換到該 schema。
      */
     public static String prepareSchema() {
         String schema = "test_" + UUID.randomUUID().toString().replace('-', '_');
@@ -54,17 +53,17 @@ public final class OpenMySqlTestContainer {
         switchSchema(schema);
         return schema;
     }
-
-
+    
+    
     private static void createSchema(String schema) {
         execute("CREATE DATABASE IF NOT EXISTS `" + schema + "`");
     }
-
-
+    
+    
     private static void switchSchema(String schema) {
         execute("USE " + schema);
     }
-
+    
     private static void execute(String sql) {
         try (Statement statement = adminConnection().createStatement()) {
             statement.execute(sql);
@@ -72,7 +71,7 @@ public final class OpenMySqlTestContainer {
             throw new IllegalStateException("Failed to execute SQL on MySQL test container", ex);
         }
     }
-
+    
     private static String buildJdbcUrl(String schema) {
         String original = MYSQL.getJdbcUrl();
         int lastSlash = original.lastIndexOf('/');
@@ -85,15 +84,15 @@ public final class OpenMySqlTestContainer {
         }
         return original.substring(0, lastSlash + 1) + schema + original.substring(queryIndex);
     }
-
+    
     private static String rootUser() {
         return "root";
     }
-
+    
     private static String rootPassword() {
         return MYSQL.getPassword();
     }
-
+    
     private static Connection adminConnection() {
         Connection connection = ADMIN_CONNECTION.get();
         if (connection == null || isConnectionInvalid(connection)) {
@@ -102,7 +101,7 @@ public final class OpenMySqlTestContainer {
         }
         return connection;
     }
-
+    
     private static Connection createAdminConnection() {
         try {
             if (!TestContainerSettings.mysqlEnabled()) {
@@ -115,7 +114,7 @@ public final class OpenMySqlTestContainer {
             throw new IllegalStateException("Failed to obtain admin connection for MySQL test container", ex);
         }
     }
-
+    
     private static Connection realDatabaseConnection() throws SQLException {
         String url = resolveConfig("spring.datasource.url");
         if (isBlank(url)) {
@@ -130,7 +129,7 @@ public final class OpenMySqlTestContainer {
         connection.setAutoCommit(true);
         return connection;
     }
-
+    
     private static boolean isConnectionInvalid(Connection connection) {
         try {
             return connection.isClosed() || !connection.isValid(1);
@@ -138,11 +137,11 @@ public final class OpenMySqlTestContainer {
             return true;
         }
     }
-
+    
     private static boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
-
+    
     private static String resolveConfig(String key) {
         String value = System.getProperty(key);
         if (!isBlank(value)) {
@@ -152,7 +151,7 @@ public final class OpenMySqlTestContainer {
         value = System.getenv(envKey);
         return isBlank(value) ? null : value;
     }
-
+    
     public static void clearAdminConnection() {
         Connection connection = ADMIN_CONNECTION.get();
         if (connection != null) {
@@ -165,13 +164,13 @@ public final class OpenMySqlTestContainer {
             ADMIN_CONNECTION.remove();
         }
     }
-
+    
     private static final class ToggleableMySqlContainer extends MySQLContainer<ToggleableMySqlContainer> {
-
+        
         private ToggleableMySqlContainer() {
             super(DockerImageName.parse("mysql:8.4"));
         }
-
+        
         @Override
         public void start() {
             if (!TestContainerSettings.mysqlEnabled() || isRunning()) {
@@ -179,7 +178,7 @@ public final class OpenMySqlTestContainer {
             }
             super.start();
         }
-
+        
         @Override
         public void stop() {
             if (!TestContainerSettings.mysqlEnabled()) {

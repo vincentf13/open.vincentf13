@@ -1,12 +1,12 @@
 package open.vincentf13.exchange.gateway;
 
+import open.vincentf13.sdk.core.OpenConstant;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import open.vincentf13.sdk.core.OpenConstant;
 
 @SpringBootApplication(scanBasePackages = OpenConstant.Package.Names.BASE_PACKAGE)
 public class GatewayApp {
-
+    
     public static void main(String[] args) {
         SpringApplication.run(GatewayApp.class, args);
     }

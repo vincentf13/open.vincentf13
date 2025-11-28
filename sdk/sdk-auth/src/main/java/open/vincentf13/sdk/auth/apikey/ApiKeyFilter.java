@@ -4,10 +4,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.auth.auth.AuthAttributes;
 import open.vincentf13.sdk.auth.auth.AuthType;
 import open.vincentf13.sdk.auth.auth.PrivateAPI;
+import open.vincentf13.sdk.core.OpenConstant;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.method.HandlerMethod;
@@ -18,19 +18,22 @@ import java.io.IOException;
 import java.util.EnumSet;
 
 public class ApiKeyFilter extends OncePerRequestFilter {
-
+    
     private final ApiKeyValidator apiKeyValidator;
     private final RequestMappingHandlerMapping handlerMapping;
-
-    public ApiKeyFilter(ApiKeyValidator apiKeyValidator, RequestMappingHandlerMapping handlerMapping) {
+    
+    public ApiKeyFilter(ApiKeyValidator apiKeyValidator,
+                        RequestMappingHandlerMapping handlerMapping) {
         this.apiKeyValidator = apiKeyValidator;
         this.handlerMapping = handlerMapping;
     }
-
+    
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
             throws ServletException, IOException {
-
+        
         HandlerMethod handlerMethod;
         try {
             // Note: This might not work perfectly with WebFlux, but is fine for MVC.
@@ -48,9 +51,9 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-
+        
         PrivateAPI privateApiAnnotation = findPrivateApiAnnotation(handlerMethod);
-
+        
         if (privateApiAnnotation != null) {
             String apiKey = request.getHeader(OpenConstant.HttpHeader.API_KEY.value());
             if (apiKey == null || !apiKeyValidator.isValid(apiKey)) {
@@ -60,10 +63,10 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             }
             markAuthenticatedWithApiKey(request);
         }
-
+        
         filterChain.doFilter(request, response);
     }
-
+    
     private void markAuthenticatedWithApiKey(HttpServletRequest request) {
         Object attr = request.getAttribute(AuthAttributes.AUTH_TYPES);
         EnumSet<AuthType> types;
@@ -76,7 +79,7 @@ public class ApiKeyFilter extends OncePerRequestFilter {
         types.add(AuthType.API_KEY);
         request.setAttribute(AuthAttributes.AUTH_TYPES, types);
     }
-
+    
     private PrivateAPI findPrivateApiAnnotation(HandlerMethod handlerMethod) {
         PrivateAPI annotation = AnnotationUtils.findAnnotation(handlerMethod.getMethod(), PrivateAPI.class);
         if (annotation == null) {

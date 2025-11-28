@@ -25,10 +25,10 @@ import java.util.stream.Collectors;
 @Validated
 @RequiredArgsConstructor
 public class PlatformBalanceRepository {
-
+    
     private final PlatformBalanceMapper mapper;
     private final DefaultIdGenerator idGenerator;
-
+    
     public PlatformBalance insertSelective(@NotNull @Valid PlatformBalance platformBalance) {
         if (platformBalance.getId() == null) {
             platformBalance.setId(idGenerator.newLong());
@@ -40,37 +40,39 @@ public class PlatformBalanceRepository {
         mapper.insert(po);
         return platformBalance;
     }
-
+    
     public boolean updateSelectiveBy(@NotNull @Valid PlatformBalance platformBalance,
                                      LambdaUpdateWrapper<PlatformBalancePO> updateWrapper) {
         PlatformBalancePO po = OpenObjectMapper.convert(platformBalance, PlatformBalancePO.class);
         return mapper.update(po, updateWrapper) > 0;
     }
-
+    
     public List<PlatformBalance> findBy(@NotNull LambdaQueryWrapper<PlatformBalancePO> wrapper) {
         return mapper.selectList(wrapper).stream()
-                .map(item -> OpenObjectMapper.convert(item, PlatformBalance.class))
-                .collect(Collectors.toList());
+                     .map(item -> OpenObjectMapper.convert(item, PlatformBalance.class))
+                     .collect(Collectors.toList());
     }
-
+    
     public Optional<PlatformBalance> findOne(@NotNull LambdaQueryWrapper<PlatformBalancePO> wrapper) {
         PlatformBalancePO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, PlatformBalance.class));
     }
-
-    public PlatformBalance getOrCreate(@NotNull Long accountId, @NotNull PlatformAccountCode accountCode, @NotNull AssetSymbol asset) {
+    
+    public PlatformBalance getOrCreate(@NotNull Long accountId,
+                                       @NotNull PlatformAccountCode accountCode,
+                                       @NotNull AssetSymbol asset) {
         LambdaQueryWrapper<PlatformBalancePO> wrapper = Wrappers.lambdaQuery(PlatformBalancePO.class)
-                .eq(PlatformBalancePO::getAccountId, accountId)
-                .eq(PlatformBalancePO::getAccountCode, accountCode)
-                .eq(PlatformBalancePO::getAsset, asset);
+                                                                .eq(PlatformBalancePO::getAccountId, accountId)
+                                                                .eq(PlatformBalancePO::getAccountCode, accountCode)
+                                                                .eq(PlatformBalancePO::getAsset, asset);
         return findOne(wrapper)
-                .orElseGet(() -> {
-                    try {
-                        return insertSelective(PlatformBalance.createDefault(accountId, accountCode, asset));
-                    } catch (DuplicateKeyException ex) {
-                        return findOne(wrapper)
-                                .orElseThrow(() -> ex);
-                    }
-                });
+                       .orElseGet(() -> {
+                           try {
+                               return insertSelective(PlatformBalance.createDefault(accountId, accountCode, asset));
+                           } catch (DuplicateKeyException ex) {
+                               return findOne(wrapper)
+                                              .orElseThrow(() -> ex);
+                           }
+                       });
     }
 }

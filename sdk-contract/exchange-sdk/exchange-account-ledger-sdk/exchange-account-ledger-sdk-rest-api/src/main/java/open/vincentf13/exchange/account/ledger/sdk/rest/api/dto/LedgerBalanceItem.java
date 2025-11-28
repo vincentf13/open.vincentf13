@@ -20,4 +20,5 @@ public record LedgerBalanceItem(
         Long lastEntryId,
         Integer version,
         Instant updatedAt
-) { }
+) {
+}

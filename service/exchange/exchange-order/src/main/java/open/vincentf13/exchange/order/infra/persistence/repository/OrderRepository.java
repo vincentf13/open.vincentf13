@@ -20,10 +20,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Validated
 public class OrderRepository {
-
+    
     private final OrderMapper mapper;
     private final DefaultIdGenerator idGenerator;
-
+    
     public void insertSelective(@NotNull @Valid Order order) {
         if (order.getOrderId() == null) {
             order.setOrderId(idGenerator.newLong());
@@ -31,16 +31,16 @@ public class OrderRepository {
         OrderPO po = OpenObjectMapper.convert(order, OrderPO.class);
         mapper.insert(po);
     }
-
+    
     public List<Order> findBy(@NotNull LambdaQueryWrapper<OrderPO> wrapper) {
         return OpenObjectMapper.convertList(mapper.selectList(wrapper), Order.class);
     }
-
+    
     public Optional<Order> findOne(@NotNull LambdaQueryWrapper<OrderPO> wrapper) {
         OrderPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, Order.class));
     }
-
+    
     public boolean updateSelective(@NotNull @Valid Order update,
                                    @NotNull LambdaUpdateWrapper<OrderPO> updateWrapper) {
         OrderPO record = OpenObjectMapper.convert(update, OrderPO.class);

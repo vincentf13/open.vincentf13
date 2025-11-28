@@ -13,7 +13,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RiskLimit {
-
+    
     private Long riskLimitId;
     private Long instrumentId;
     private BigDecimal initialMarginRate;

@@ -17,12 +17,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class MvcLogService {
-
+    
     private static final int MAX_BODY_PREVIEW_LENGTH = 4096;
     private static final Set<String> TEXT_SUB_TYPES = Set.of(
             "json", "xml", "javascript", "x-www-form-urlencoded", "html", "plain", "css", "csv"
-    );
-
+                                                            );
+    
     public void logCompletion(HttpServletRequest request,
                               HttpServletResponse response,
                               Object handler,
@@ -30,13 +30,13 @@ public class MvcLogService {
                               long durationMs) {
         ContentCachingRequestWrapper requestWrapper = WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
         ContentCachingResponseWrapper responseWrapper = WebUtils.getNativeResponse(response, ContentCachingResponseWrapper.class);
-
+        
         BodySnippet requestBody = extractRequestBody(requestWrapper, request);
         BodySnippet responseBody = extractResponseBody(responseWrapper, response);
-
+        
         Map<String, String> requestHeaders = extractRequestHeaders(request);
         Map<String, String> responseHeaders = extractResponseHeaders(response);
-
+        
         String method = request.getMethod();
         String uri = buildRequestUri(request);
         Object handlerRef = resolveHandler(handler, request);
@@ -45,7 +45,7 @@ public class MvcLogService {
         String matchingPattern = resolvePattern(request);
         String clientIp = request.getRemoteAddr();
         int status = response.getStatus();
-
+        
         if (ex != null) {
             OpenLog.error(MvcEvent.MVC_REQUEST_FAILED, ex,
                           "method", method,
@@ -58,34 +58,34 @@ public class MvcLogService {
                           "requestBytes", requestBody.length(),
                           "responseBytes", responseBody.length());
         } else {
-            OpenLog.info( MvcEvent.MVC_REQUEST_COMPLETED,
-                    "method", method,
-                    "uri", uri,
-                    "status", status,
-                    "durationMs", durationMs,
-                    "handler", handlerDisplay,
-                    "pattern", matchingPattern,
-                    "clientIp", clientIp,
-                    "requestBytes", requestBody.length(),
-                    "responseBytes", responseBody.length());
+            OpenLog.info(MvcEvent.MVC_REQUEST_COMPLETED,
+                         "method", method,
+                         "uri", uri,
+                         "status", status,
+                         "durationMs", durationMs,
+                         "handler", handlerDisplay,
+                         "pattern", matchingPattern,
+                         "clientIp", clientIp,
+                         "requestBytes", requestBody.length(),
+                         "responseBytes", responseBody.length());
         }
-
-        OpenLog.debug( MvcEvent.MVC_REQUEST_DETAIL,
-                "status", status,
-                "durationMs", durationMs,
-                "requestBytes", requestBody.length(),
-                "responseBytes", responseBody.length(),
-                "detail", buildVerboseLog(method, uri, clientIp, handlerDisplay,
-                        matchingPattern, handlerRaw, status, durationMs, requestHeaders, requestBody.preview(),
-                        responseHeaders, responseBody.preview()));
+        
+        OpenLog.debug(MvcEvent.MVC_REQUEST_DETAIL,
+                      "status", status,
+                      "durationMs", durationMs,
+                      "requestBytes", requestBody.length(),
+                      "responseBytes", responseBody.length(),
+                      "detail", buildVerboseLog(method, uri, clientIp, handlerDisplay,
+                                                matchingPattern, handlerRaw, status, durationMs, requestHeaders, requestBody.preview(),
+                                                responseHeaders, responseBody.preview()));
     }
-
+    
     private String buildRequestUri(HttpServletRequest request) {
         String uri = request.getRequestURI();
         String query = request.getQueryString();
         return query != null ? uri + '?' + query : uri;
     }
-
+    
     private Map<String, String> extractRequestHeaders(HttpServletRequest request) {
         List<String> names = Collections.list(request.getHeaderNames());
         Map<String, String> headers = new LinkedHashMap<>();
@@ -95,7 +95,7 @@ public class MvcLogService {
         }
         return headers;
     }
-
+    
     private Map<String, String> extractResponseHeaders(HttpServletResponse response) {
         Map<String, String> headers = new LinkedHashMap<>();
         for (String name : response.getHeaderNames()) {
@@ -104,8 +104,9 @@ public class MvcLogService {
         }
         return headers;
     }
-
-    private BodySnippet extractRequestBody(ContentCachingRequestWrapper wrapper, HttpServletRequest request) {
+    
+    private BodySnippet extractRequestBody(ContentCachingRequestWrapper wrapper,
+                                           HttpServletRequest request) {
         if (wrapper == null) {
             return BodySnippet.unavailable();
         }
@@ -114,8 +115,9 @@ public class MvcLogService {
         String encoding = wrapper.getCharacterEncoding();
         return toBodySnippet(content, contentType, encoding);
     }
-
-    private BodySnippet extractResponseBody(ContentCachingResponseWrapper wrapper, HttpServletResponse response) {
+    
+    private BodySnippet extractResponseBody(ContentCachingResponseWrapper wrapper,
+                                            HttpServletResponse response) {
         if (wrapper == null) {
             return BodySnippet.unavailable();
         }
@@ -130,8 +132,10 @@ public class MvcLogService {
         }
         return toBodySnippet(content, contentType, encoding);
     }
-
-    private BodySnippet toBodySnippet(byte[] content, String contentType, String encoding) {
+    
+    private BodySnippet toBodySnippet(byte[] content,
+                                      String contentType,
+                                      String encoding) {
         if (content == null || content.length == 0) {
             return new BodySnippet("", 0);
         }
@@ -144,7 +148,7 @@ public class MvcLogService {
         String preview = abbreviate(text, MAX_BODY_PREVIEW_LENGTH);
         return new BodySnippet(preview, content.length);
     }
-
+    
     private Charset resolveCharset(String encoding) {
         if (!StringUtils.hasText(encoding)) {
             return StandardCharsets.UTF_8;
@@ -155,7 +159,7 @@ public class MvcLogService {
             return StandardCharsets.UTF_8;
         }
     }
-
+    
     private boolean isTextContent(String contentType) {
         if (!StringUtils.hasText(contentType)) {
             return true;
@@ -171,14 +175,15 @@ public class MvcLogService {
         }
         return false;
     }
-
-    private String abbreviate(String text, int maxChars) {
+    
+    private String abbreviate(String text,
+                              int maxChars) {
         if (text.length() <= maxChars) {
             return text;
         }
         return text.substring(0, maxChars) + "...(truncated)";
     }
-
+    
     private String buildVerboseLog(String method,
                                    String uri,
                                    String clientIp,
@@ -208,36 +213,37 @@ public class MvcLogService {
         sb.append("Raw Handler: ").append(handlerRaw);
         return sb.toString();
     }
-
+    
     private String formatHeadersForDebug(Map<String, String> headers) {
         if (headers.isEmpty()) {
             return " (none)";
         }
         String newline = System.lineSeparator();
         return headers.entrySet().stream()
-                .map(entry -> entry.getKey() + ": " + entry.getValue())
-                .collect(Collectors.joining(newline + "  ", "" + newline + "  ", ""));
+                      .map(entry -> entry.getKey() + ": " + entry.getValue())
+                      .collect(Collectors.joining(newline + "  ", "" + newline + "  ", ""));
     }
-
-    private Object resolveHandler(Object handler, HttpServletRequest request) {
+    
+    private Object resolveHandler(Object handler,
+                                  HttpServletRequest request) {
         if (handler != null) {
             return handler;
         }
         return request.getAttribute(HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE);
     }
-
+    
     private String resolvePattern(HttpServletRequest request) {
         Object pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
         return pattern != null ? pattern.toString() : "<unknown>";
     }
-
+    
     private String formatHandler(Object handler) {
         if (handler instanceof HandlerMethod handlerMethod) {
             return handlerMethod.getBeanType().getSimpleName() + '#' + handlerMethod.getMethod().getName();
         }
         return handler != null ? handler.toString() : "<unknown>";
     }
-
+    
     private record BodySnippet(String preview, int length) {
         private static BodySnippet unavailable() {
             return new BodySnippet("<unavailable>", 0);

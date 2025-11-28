@@ -15,7 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderBookSnapshot {
-
+    
     private Long instrumentId;
     private List<OrderBookLevel> bids;
     private List<OrderBookLevel> asks;
@@ -23,5 +23,5 @@ public class OrderBookSnapshot {
     private BigDecimal bestAsk;
     private BigDecimal midPrice;
     private Instant updatedAt;
-
+    
 }

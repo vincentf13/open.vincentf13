@@ -14,20 +14,21 @@ public enum JwtEvent implements OpenEvent {
     REDIS_SESSION_REVOKED("RedisSessionRevoked", "Session revoked in redis"),
     IN_MEMORY_SESSION_REVOKED("InMemorySessionRevoked", "Session revoked in memory"),
     JWT_SESSION_INACTIVE("JwtSessionInactive", "Session inactive, skip authentication");
-
+    
     private final String event;
     private final String message;
-
-    JwtEvent(String event, String message) {
+    
+    JwtEvent(String event,
+             String message) {
         this.event = event;
         this.message = message;
     }
-
+    
     @Override
     public String event() {
         return event;
     }
-
+    
     @Override
     public String message() {
         return message;

@@ -5,4 +5,5 @@ import jakarta.validation.constraints.NotNull;
 
 public record PositionLeverageRequest(
         @NotNull @Min(1) Integer targetLeverage
-) { }
+) {
+}

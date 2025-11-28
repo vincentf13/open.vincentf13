@@ -11,25 +11,25 @@ import java.util.function.Supplier;
 
 
 /**
- * Distributed lock helper backed by Redisson's {@link RLock} implementation.
+ Distributed lock helper backed by Redisson's {@link RLock} implementation.
  */
 public final class OpenRedissonLock {
-
+    
     private static final OpenRedissonLock INSTANCE = new OpenRedissonLock();
-
+    
     private static RedissonClient redissonClient;
-
+    
     private OpenRedissonLock() {
     }
-
+    
     public static void register(RedissonClient client) {
         redissonClient = Objects.requireNonNull(client, "redissonClient");
     }
-
+    
     public static OpenRedissonLock getInstance() {
         return INSTANCE;
     }
-
+    
     /*
      * Acquire lock and execute business logic, releasing after completion.
      * Example:
@@ -40,7 +40,10 @@ public final class OpenRedissonLock {
      * waitTime：等待鎖的期限，超過立即返回 false；null 表示立即嘗試。實際是透過 Redisson 向 Redis 發出阻塞式命令等待，而非 busy waiting。
      * leaseTime：鎖的租期，時間到自動釋放；null 表示不自動釋放；Redisson 會在 leaseTime 到期前啟動 watchdog 自動延長防止死鎖，合理時間請依業務執行長度估算。
      */
-    public static <T> T withLock(String key, Duration waitTime, Duration leaseTime, Supplier<T> work) {
+    public static <T> T withLock(String key,
+                                 Duration waitTime,
+                                 Duration leaseTime,
+                                 Supplier<T> work) {
         Objects.requireNonNull(work, "work");
         boolean locked = false;
         try {
@@ -59,8 +62,8 @@ public final class OpenRedissonLock {
             }
         }
     }
-
-
+    
+    
     /*
      * Try acquiring lock within waitTime and optional leaseTime.
      * Example:
@@ -74,7 +77,9 @@ public final class OpenRedissonLock {
      * waitTime：等待鎖的期限，超過立即返回 false；null 表示立即嘗試。Redisson 將在 Redis 端進行阻塞/訂閱方式等待 (非 busy waiting)。
      * leaseTime：鎖的租期，時間到自動釋放；null 表示不自動釋放；Redisson 會在 leaseTime 到期前啟動 watchdog 自動延長防止死鎖，合理時間依業務長度估算。
      */
-    public static boolean tryLock(String key, Duration waitTime, Duration leaseTime) throws InterruptedException {
+    public static boolean tryLock(String key,
+                                  Duration waitTime,
+                                  Duration leaseTime) throws InterruptedException {
         Objects.requireNonNull(key, "key");
         RLock lock = client().getLock(key);
         long wait = waitTime == null ? 0 : waitTime.toMillis();
@@ -87,7 +92,7 @@ public final class OpenRedissonLock {
         }
         return lock.tryLock(wait, lease, TimeUnit.MILLISECONDS);
     }
-
+    
     /*
      * Unlock only when held by current thread.
      */
@@ -99,11 +104,11 @@ public final class OpenRedissonLock {
         } catch (IllegalMonitorStateException ignore) {
             // 鎖已過期或非本執行緒持有
             OpenLog.warn(OpenRedisEvent.LOCK_UNLOCK_FAILED,
-                    "lockKey", lock.getName(),
-                    "threadId", Thread.currentThread().getId());
+                         "lockKey", lock.getName(),
+                         "threadId", Thread.currentThread().getId());
         }
     }
-
+    
     private static RedissonClient client() {
         if (redissonClient == null) {
             throw new IllegalStateException("OpenRedissonLock not initialized");

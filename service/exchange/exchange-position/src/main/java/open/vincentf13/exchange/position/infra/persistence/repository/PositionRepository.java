@@ -24,11 +24,12 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Validated
 public class PositionRepository {
-
+    
     private final PositionMapper mapper;
     private final DefaultIdGenerator idGenerator;
-
-    public Position createDefault(@NotNull Long userId, @NotNull Long instrumentId) {
+    
+    public Position createDefault(@NotNull Long userId,
+                                  @NotNull Long instrumentId) {
         Position domain = Position.createDefault(userId, instrumentId, PositionSide.LONG);
         domain.setPositionId(idGenerator.newLong());
         PositionPO po = OpenObjectMapper.convert(domain, PositionPO.class);
@@ -37,14 +38,14 @@ public class PositionRepository {
             return OpenObjectMapper.convert(po, Position.class);
         } catch (DuplicateKeyException duplicateKeyException) {
             LambdaQueryWrapper<PositionPO> wrapper = Wrappers.lambdaQuery(PositionPO.class)
-                    .eq(PositionPO::getUserId, userId)
-                    .eq(PositionPO::getInstrumentId, instrumentId)
-                    .eq(PositionPO::getStatus, PositionStatus.ACTIVE);
+                                                             .eq(PositionPO::getUserId, userId)
+                                                             .eq(PositionPO::getInstrumentId, instrumentId)
+                                                             .eq(PositionPO::getStatus, PositionStatus.ACTIVE);
             return findOne(wrapper)
-                    .orElseThrow(() -> duplicateKeyException);
+                           .orElseThrow(() -> duplicateKeyException);
         }
     }
-
+    
     public void insertSelective(@NotNull @Valid Position position) {
         if (position.getPositionId() == null) {
             position.setPositionId(idGenerator.newLong());
@@ -52,18 +53,18 @@ public class PositionRepository {
         PositionPO po = OpenObjectMapper.convert(position, PositionPO.class);
         mapper.insert(po);
     }
-
+    
     public List<Position> findBy(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
         return mapper.selectList(wrapper).stream()
-                .map(item -> OpenObjectMapper.convert(item, Position.class))
-                .toList();
+                     .map(item -> OpenObjectMapper.convert(item, Position.class))
+                     .toList();
     }
-
+    
     public Optional<Position> findOne(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
         PositionPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, Position.class));
     }
-
+    
     public boolean updateSelectiveBy(@NotNull @Valid Position update,
                                      LambdaUpdateWrapper<PositionPO> updateWrapper) {
         PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);

@@ -1,18 +1,18 @@
 package open.vincentf13.exchange.order.domain.model;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
-import open.vincentf13.exchange.order.infra.OrderErrorCode;
-import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.order.infra.OrderErrorCode;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 import open.vincentf13.sdk.core.exception.OpenException;
 
@@ -25,7 +25,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
-
+    
     private Long orderId;
     @NotNull
     private Long userId;
@@ -60,21 +60,9 @@ public class Order {
     private Instant updatedAt;
     private Instant submittedAt;
     private Instant filledAt;
-
-    public void markStatus(OrderStatus newStatus, Instant updatedAt) {
-        this.status = newStatus;
-        this.updatedAt = updatedAt;
-    }
-
-    public void incrementVersion() {
-        if (version == null) {
-            version = 0;
-        }
-        this.version = this.version + 1;
-    }
-
-
-    public static Order createNew(Long userId, OrderCreateRequest request) {
+    
+    public static Order createNew(Long userId,
+                                  OrderCreateRequest request) {
         if (userId == null) {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "userId"));
         }
@@ -83,28 +71,26 @@ public class Order {
         BigDecimal normalizedQty = OpenBigDecimal.normalizeDecimal(request.quantity());
         BigDecimal normalizedPrice = OpenBigDecimal.normalizeDecimal(request.price());
         return Order.builder()
-                .userId(userId)
-                .instrumentId(request.instrumentId())
-                .clientOrderId(trimToNull(request.clientOrderId()))
-                .side(request.side())
-                .intent(null)
-                .closeCostPrice(null)
-                .type(request.type())
-                .status(OrderStatus.PENDING)
-                .price(normalizedPrice)
-                .quantity(normalizedQty)
-                .filledQuantity(BigDecimal.ZERO)
-                .remainingQuantity(normalizedQty)
-                .avgFillPrice(null)
-                .fee(BigDecimal.ZERO)
-                .version(0)
-                .submittedAt(null)
-                .filledAt(null)
-                .build();
+                    .userId(userId)
+                    .instrumentId(request.instrumentId())
+                    .clientOrderId(trimToNull(request.clientOrderId()))
+                    .side(request.side())
+                    .intent(null)
+                    .closeCostPrice(null)
+                    .type(request.type())
+                    .status(OrderStatus.PENDING)
+                    .price(normalizedPrice)
+                    .quantity(normalizedQty)
+                    .filledQuantity(BigDecimal.ZERO)
+                    .remainingQuantity(normalizedQty)
+                    .avgFillPrice(null)
+                    .fee(BigDecimal.ZERO)
+                    .version(0)
+                    .submittedAt(null)
+                    .filledAt(null)
+                    .build();
     }
-
-
-
+    
     private static void validateRequest(OrderCreateRequest request) {
         if (request == null) {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "request"));
@@ -120,16 +106,29 @@ public class Order {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "price"));
         }
     }
-
+    
     private static boolean requiresPrice(OrderType type) {
         return type == OrderType.LIMIT || type == OrderType.STOP_LIMIT;
     }
-
+    
     private static String trimToNull(String value) {
         if (value == null) {
             return null;
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+    
+    public void markStatus(OrderStatus newStatus,
+                           Instant updatedAt) {
+        this.status = newStatus;
+        this.updatedAt = updatedAt;
+    }
+    
+    public void incrementVersion() {
+        if (version == null) {
+            version = 0;
+        }
+        this.version = this.version + 1;
     }
 }

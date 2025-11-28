@@ -18,10 +18,10 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("auth_credentials_pending")
 public class AuthCredentialPendingPO {
-
+    
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
-
+    
     private Long userId;
     private AuthCredentialType credentialType;
     private String secretHash;

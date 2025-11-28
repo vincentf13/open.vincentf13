@@ -17,10 +17,10 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("mark_price_snapshots")
 public class MarkPriceSnapshotPO {
-
+    
     @TableId(value = "snapshot_id", type = IdType.INPUT)
     private Long snapshotId;
-
+    
     private Long instrumentId;
     private BigDecimal markPrice;
     private Long tradeId;

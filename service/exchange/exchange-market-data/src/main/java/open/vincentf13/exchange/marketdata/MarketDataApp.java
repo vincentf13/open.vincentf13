@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication(scanBasePackages = OpenConstant.Package.Names.BASE_PACKAGE)
 @EnableScheduling
 public class MarketDataApp {
-
+    
     public static void main(String[] args) {
         SpringApplication.run(MarketDataApp.class, args);
     }

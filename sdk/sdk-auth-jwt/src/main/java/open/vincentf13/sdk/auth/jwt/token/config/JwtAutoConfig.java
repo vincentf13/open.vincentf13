@@ -30,15 +30,16 @@ import javax.crypto.spec.SecretKeySpec;
 @AutoConfiguration(after = RedisAutoConfiguration.class)
 @EnableConfigurationProperties(JwtProperties.class)
 public class JwtAutoConfig {
-
-
+    
+    
     @Bean
     @ConditionalOnMissingBean
-    public OpenJwtService openJwtToken(JwtProperties properties, ObjectProvider<JwtEncoder> encoderProvider,
+    public OpenJwtService openJwtToken(JwtProperties properties,
+                                       ObjectProvider<JwtEncoder> encoderProvider,
                                        ObjectProvider<JwtDecoder> decoderProvider) {
         return new OpenJwtService(properties, encoderProvider, decoderProvider);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public JwtEncoder jwtEncoder(JwtProperties properties) {
@@ -46,13 +47,14 @@ public class JwtAutoConfig {
         JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(new JWKSet(new OctetSequenceKey.Builder(secretKey).build()));
         return new NimbusJwtEncoder(jwkSource);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public JwtDecoder jwtDecoder(JwtProperties properties) {
         SecretKey secretKey = new SecretKeySpec(properties.getSecret().getBytes(), "HMACSHA256");
         return NimbusJwtDecoder.withSecretKey(secretKey).build();
     }
+    
     @Bean
     @ConditionalOnBean(RedisTemplate.class)
     @Primary
@@ -60,17 +62,17 @@ public class JwtAutoConfig {
                                                 JwtProperties properties) {
         return new JwtSessionStoreRedis(redisTemplate, properties);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public JwtSessionService jwtSessionService(JwtSessionStore sessionStore) {
         return new JwtSessionService(sessionStore);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean(JwtSessionStore.class)
     public JwtSessionStore inMemoryJwtSessionStore() {
         return new JwtSessionStoreInMemory();
     }
-
+    
 }

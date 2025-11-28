@@ -13,7 +13,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TickerStats {
-
+    
     private Long instrumentId;
     private BigDecimal lastPrice;
     private BigDecimal volume24h;

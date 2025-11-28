@@ -12,9 +12,9 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class OrderBookQueryService {
-
+    
     private final OrderBookCacheService orderBookCacheService;
-
+    
     public Optional<OrderBookResponse> getOrderBook(Long instrumentId) {
         if (instrumentId == null) {
             return Optional.empty();

@@ -3,10 +3,10 @@ package open.vincentf13.sdk.infra.redis;
 import java.nio.charset.StandardCharsets;
 
 final class RedisClusterUtil {
-
+    
     private RedisClusterUtil() {
     }
-
+    
     static int slot(String key) {
         String hashtag = key;
         int start = key.indexOf('{');
@@ -18,7 +18,7 @@ final class RedisClusterUtil {
         }
         return crc16(hashtag.getBytes(StandardCharsets.UTF_8)) % 16384;
     }
-
+    
     static int crc16(byte[] bytes) {
         int crc = 0x0000;
         for (byte b : bytes) {

@@ -15,11 +15,11 @@ public enum EntryType {
     TRADE_SETTLEMENT_ISOLATED_MARGIN(ReferenceType.TRADE),
     FEE(ReferenceType.TRADE),
     TRADE(ReferenceType.TRADE);
-
+    
     private final ReferenceType referenceType;
-
+    
     public String code() {
         return name();
     }
-
+    
 }

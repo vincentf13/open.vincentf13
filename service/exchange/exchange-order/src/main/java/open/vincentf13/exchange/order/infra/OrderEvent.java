@@ -21,20 +21,21 @@ public enum OrderEvent implements OpenEvent {
     ORDER_RISK_PAYLOAD_INVALID("OrderRiskPayloadInvalid", "Invalid risk event payload"),
     ORDER_LEDGER_PAYLOAD_INVALID("OrderLedgerPayloadInvalid", "Invalid ledger event payload"),
     ORDER_POSITION_PAYLOAD_INVALID("OrderPositionPayloadInvalid", "Invalid position event payload");
-
+    
     private final String event;
     private final String message;
-
-    OrderEvent(String event, String message) {
+    
+    OrderEvent(String event,
+               String message) {
         this.event = event;
         this.message = message;
     }
-
+    
     @Override
     public String event() {
         return event;
     }
-
+    
     @Override
     public String message() {
         return message;

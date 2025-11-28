@@ -13,4 +13,5 @@ public record PositionReserveRejectedEvent(
         @NotNull PositionIntentType intentType,
         @NotBlank String reason,
         @NotNull Instant rejectedAt
-) { }
+) {
+}

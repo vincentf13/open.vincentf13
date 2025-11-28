@@ -3,7 +3,7 @@ package open.vincentf13.exchange.user.infra;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /**
- * User 模組事件。
+ User 模組事件。
  */
 public enum UserEvent implements OpenEvent {
     AUTH_CREDENTIAL_PERSIST_FAILED("UserAuthCredentialPersistFailed", "Failed to persist auth credential"),
@@ -12,20 +12,21 @@ public enum UserEvent implements OpenEvent {
     AUTH_CREDENTIAL_RETRY_EXCEEDED("UserAuthCredentialRetryExceeded", "Exceeded retry attempts"),
     AUTH_CREDENTIAL_RETRY_SCHEDULED("UserAuthCredentialRetryScheduled", "Scheduled credential retry"),
     AUTH_CREDENTIAL_RETRY_JOB_FAILED("UserAuthCredentialRetryJobFailed", "Retry job failed");
-
+    
     private final String event;
     private final String message;
-
-    UserEvent(String event, String message) {
+    
+    UserEvent(String event,
+              String message) {
         this.event = event;
         this.message = message;
     }
-
+    
     @Override
     public String event() {
         return event;
     }
-
+    
     @Override
     public String message() {
         return message;

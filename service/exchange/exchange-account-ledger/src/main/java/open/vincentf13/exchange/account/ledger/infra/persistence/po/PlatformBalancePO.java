@@ -19,7 +19,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("platform_balances")
 public class PlatformBalancePO {
-
+    
     @TableId(value = "id", type = IdType.INPUT)
     private Long id;
     private Long accountId;

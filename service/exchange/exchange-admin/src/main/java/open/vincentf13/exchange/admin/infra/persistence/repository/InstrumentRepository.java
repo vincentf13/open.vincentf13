@@ -17,13 +17,13 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Validated
 public class InstrumentRepository {
-
+    
     private final InstrumentMapper instrumentMapper;
-
+    
     public List<Instrument> findBy(@NotNull LambdaQueryWrapper<InstrumentPO> wrapper) {
         return OpenObjectMapper.convertList(instrumentMapper.selectList(wrapper), Instrument.class);
     }
-
+    
     public Optional<Instrument> findOne(@NotNull LambdaQueryWrapper<InstrumentPO> wrapper) {
         InstrumentPO po = instrumentMapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, Instrument.class));

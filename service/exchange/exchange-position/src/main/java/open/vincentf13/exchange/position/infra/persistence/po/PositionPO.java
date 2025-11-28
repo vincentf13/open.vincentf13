@@ -19,7 +19,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("positions")
 public class PositionPO {
-
+    
     @TableId(value = "position_id", type = IdType.INPUT)
     private Long positionId;
     private Long userId;
@@ -35,7 +35,7 @@ public class PositionPO {
     private BigDecimal unrealizedPnl;
     private BigDecimal realizedPnl;
     private BigDecimal liquidationPrice;
-
+    
     private PositionStatus status;
     private Integer version;
     private Integer expectedVersion;

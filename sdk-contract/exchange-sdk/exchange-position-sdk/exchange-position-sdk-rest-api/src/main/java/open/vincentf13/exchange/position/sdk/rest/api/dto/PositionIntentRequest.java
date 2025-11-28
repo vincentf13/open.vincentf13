@@ -12,4 +12,5 @@ public record PositionIntentRequest(
         @NotNull Long instrumentId,
         @NotNull PositionSide side,
         @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true) BigDecimal quantity
-) { }
+) {
+}

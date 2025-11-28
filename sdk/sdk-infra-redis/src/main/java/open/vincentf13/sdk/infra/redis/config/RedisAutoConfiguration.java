@@ -21,8 +21,8 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @ConditionalOnClass(RedisTemplate.class)
 @ConditionalOnBean(RedisConnectionFactory.class)
 public class RedisAutoConfiguration {
-
-
+    
+    
     @Bean
     @Primary
     @ConditionalOnMissingBean(name = "stringObjectRedisTemplate")
@@ -32,11 +32,11 @@ public class RedisAutoConfiguration {
                                                                   ) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory);
-
+        
         StringRedisSerializer keySerializer = new StringRedisSerializer();
         template.setKeySerializer(keySerializer);
         template.setHashKeySerializer(keySerializer);
-
+        
         /*
          * 注意：此模板的泛型為 RedisTemplate<String, Object>，API 回傳值編譯期型別僅有 Object。
          * - 使用 GenericJackson2JsonRedisSerializer 等通用序列化時，物件會還原為 Map/List/值類型而非原類別。
@@ -51,15 +51,15 @@ public class RedisAutoConfiguration {
         template.afterPropertiesSet();
         return template;
     }
-
+    
     @Bean
     @ConditionalOnMissingBean(name = "redisValueSerializer")
     public RedisSerializer<Object> redisValueSerializer(ObjectMapper objectMapper) {
-
+        
         return new GenericJackson2JsonRedisSerializer(objectMapper);
     }
-
-
+    
+    
     @Bean
     @ConditionalOnBean({RedisTemplate.class, StringRedisTemplate.class})
     @ConditionalOnMissingBean
@@ -68,7 +68,7 @@ public class RedisAutoConfiguration {
         OpenRedisString.register(redisTemplate, stringRedisTemplate);
         return OpenRedisString.getInstance();
     }
-
+    
     @Bean
     @ConditionalOnBean(RedissonClient.class)
     @ConditionalOnMissingBean
@@ -76,5 +76,5 @@ public class RedisAutoConfiguration {
         OpenRedissonLock.register(redissonClient);
         return OpenRedissonLock.getInstance();
     }
-
+    
 }

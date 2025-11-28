@@ -17,4 +17,5 @@ public record PositionReserveRequestedEvent(
         @NotNull PositionIntentType intentType,
         @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
         @NotNull Instant requestedAt
-) { }
+) {
+}

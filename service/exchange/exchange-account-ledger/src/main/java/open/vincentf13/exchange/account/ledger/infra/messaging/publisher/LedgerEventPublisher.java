@@ -19,28 +19,40 @@ import java.time.Instant;
 @Component
 @RequiredArgsConstructor
 public class LedgerEventPublisher {
-
+    
     private final MqOutboxRepository outboxRepository;
-
-    public void publishFundsFrozen(Long orderId, Long userId, AssetSymbol asset, BigDecimal frozenAmount) {
+    
+    public void publishFundsFrozen(Long orderId,
+                                   Long userId,
+                                   AssetSymbol asset,
+                                   BigDecimal frozenAmount) {
         FundsFrozenEvent event = new FundsFrozenEvent(orderId, userId, asset.code(), frozenAmount);
         outboxRepository.append(LedgerTopics.FUNDS_FROZEN.getTopic(), orderId, event, null);
         OpenLog.info(LedgerEvent.FUNDS_FROZEN_ENQUEUED,
-                "orderId", orderId,
-                "userId", userId,
-                "asset", asset,
-                "amount", frozenAmount);
+                     "orderId", orderId,
+                     "userId", userId,
+                     "asset", asset,
+                     "amount", frozenAmount);
     }
-
-    public void publishFundsFreezeFailed(Long orderId, String reason) {
+    
+    public void publishFundsFreezeFailed(Long orderId,
+                                         String reason) {
         FundsFreezeFailedEvent event = new FundsFreezeFailedEvent(orderId, reason);
         outboxRepository.append(LedgerTopics.FUNDS_FREEZE_FAILED.getTopic(), orderId, event, null);
         OpenLog.warn(LedgerEvent.FUNDS_FREEZE_FAILED_ENQUEUED,
-                "orderId", orderId,
-                "reason", reason);
+                     "orderId", orderId,
+                     "reason", reason);
     }
-
-    public void publishLedgerEntryCreated(Long entryId, Long userId, AssetSymbol asset, BigDecimal deltaBalance, BigDecimal balanceAfter, ReferenceType referenceType, String referenceId, EntryType entryType, Long instrumentId) {
+    
+    public void publishLedgerEntryCreated(Long entryId,
+                                          Long userId,
+                                          AssetSymbol asset,
+                                          BigDecimal deltaBalance,
+                                          BigDecimal balanceAfter,
+                                          ReferenceType referenceType,
+                                          String referenceId,
+                                          EntryType entryType,
+                                          Long instrumentId) {
         LedgerEntryCreatedEvent event = new LedgerEntryCreatedEvent(
                 entryId,
                 userId,
@@ -55,16 +67,16 @@ public class LedgerEventPublisher {
         );
         outboxRepository.append(LedgerTopics.LEDGER_ENTRY_CREATED.getTopic(), entryId, event, null);
         OpenLog.info(LedgerEvent.LEDGER_ENTRY_CREATED_ENQUEUED,
-                "entryId", entryId,
-                "userId", userId,
-                "asset", asset,
-                "deltaBalance", deltaBalance,
-                "balanceAfter", balanceAfter,
-                "referenceType", referenceType,
-                "referenceId", referenceId,
-                "entryType", entryType,
-                "instrumentId", instrumentId,
-                "eventTime", event.eventTime()
-        );
+                     "entryId", entryId,
+                     "userId", userId,
+                     "asset", asset,
+                     "deltaBalance", deltaBalance,
+                     "balanceAfter", balanceAfter,
+                     "referenceType", referenceType,
+                     "referenceId", referenceId,
+                     "entryType", entryType,
+                     "instrumentId", instrumentId,
+                     "eventTime", event.eventTime()
+                    );
     }
 }

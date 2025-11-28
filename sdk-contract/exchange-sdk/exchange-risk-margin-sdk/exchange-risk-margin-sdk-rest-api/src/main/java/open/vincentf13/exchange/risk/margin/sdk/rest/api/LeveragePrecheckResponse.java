@@ -7,4 +7,5 @@ public record LeveragePrecheckResponse(
         BigDecimal deficit,
         Integer suggestedLeverage,
         String reason
-) {}
+) {
+}

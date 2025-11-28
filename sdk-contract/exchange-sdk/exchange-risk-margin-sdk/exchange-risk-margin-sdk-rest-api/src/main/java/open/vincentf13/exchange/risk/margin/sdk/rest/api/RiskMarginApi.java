@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @Validated
 public interface RiskMarginApi {
-
+    
     @PostMapping("/precheck/leverage")
     OpenApiResponse<LeveragePrecheckResponse> precheckLeverage(@Valid @RequestBody LeveragePrecheckRequest request);
 }

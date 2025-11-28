@@ -12,15 +12,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @ConditionalOnClass(WebMvcConfigurer.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class RequestLoggingFilterConfig {
-
+    
     @Bean
     public RequestLoggingFilter requestLoggingFilter(MvcLogService mvcLogService) {
         return new RequestLoggingFilter(mvcLogService);
     }
-
+    
     @Bean
     public FilterRegistrationBean<RequestLoggingFilter> requestLoggingFilterRegistration(RequestLoggingFilter filter,
-                                                                                        MvcProperties properties) {
+                                                                                         MvcProperties properties) {
         FilterRegistrationBean<RequestLoggingFilter> registration = new FilterRegistrationBean<>(filter);
         int order = properties.getRequest().getFilterOrder();
         // stay slightly after correlation filters if enabled while remaining early in the chain

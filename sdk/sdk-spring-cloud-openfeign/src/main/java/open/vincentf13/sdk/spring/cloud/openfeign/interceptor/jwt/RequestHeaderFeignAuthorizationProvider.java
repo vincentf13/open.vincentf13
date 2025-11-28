@@ -11,10 +11,10 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.Optional;
 
 /**
- * Propagates the current HTTP request's bearer token to downstream Feign calls.
+ Propagates the current HTTP request's bearer token to downstream Feign calls.
  */
 public class RequestHeaderFeignAuthorizationProvider implements FeignAuthorizationProvider {
-
+    
     @Override
     public Optional<String> authorizationHeader() {
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();

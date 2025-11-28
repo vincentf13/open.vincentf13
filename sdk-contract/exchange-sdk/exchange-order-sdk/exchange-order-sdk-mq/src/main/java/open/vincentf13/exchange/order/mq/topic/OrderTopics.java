@@ -14,16 +14,16 @@ public enum OrderTopics {
     ORDER_CANCEL_REQUESTED(Names.ORDER_CANCEL_REQUESTED, OrderCancelRequestedEvent.class),
     ORDER_CREATED(Names.ORDER_CREATED, OrderCreatedEvent.class),
     POSITION_RESERVE_REQUESTED(Names.POSITION_RESERVE_REQUESTED, PositionReserveRequestedEvent.class);
-
+    
     private final String topic;
     private final Class<?> eventType;
-
+    
     public static final class Names {
         public static final String ORDER_SUBMITTED = "order.submitted";
         public static final String ORDER_CANCEL_REQUESTED = "order.cancel-requested";
         public static final String ORDER_CREATED = "order.created";
         public static final String POSITION_RESERVE_REQUESTED = "order.position-reserve-requested";
-
+        
         private Names() {
         }
     }

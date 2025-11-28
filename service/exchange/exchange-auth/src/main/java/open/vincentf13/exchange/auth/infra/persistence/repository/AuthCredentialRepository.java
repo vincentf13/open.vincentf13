@@ -24,10 +24,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Validated
 public class AuthCredentialRepository {
-
+    
     private final AuthCredentialMapper mapper;
     private final DefaultIdGenerator idGenerator;
-
+    
     public Long insertSelective(@NotNull @Valid AuthCredential credential) {
         if (credential.getId() == null) {
             credential.setId(idGenerator.newLong());
@@ -36,22 +36,22 @@ public class AuthCredentialRepository {
         mapper.insert(po);
         return po.getId();
     }
-
+    
     public boolean updateSelective(@NotNull @Valid AuthCredential update,
                                    @NotNull LambdaUpdateWrapper<AuthCredentialPO> updateWrapper) {
         AuthCredentialPO record = OpenObjectMapper.convert(update, AuthCredentialPO.class);
         return mapper.update(record, updateWrapper) > 0;
     }
-
+    
     public List<AuthCredential> findBy(@NotNull LambdaQueryWrapper<AuthCredentialPO> wrapper) {
         return OpenObjectMapper.convertList(mapper.selectList(wrapper), AuthCredential.class);
     }
-
+    
     public Optional<AuthCredential> findOne(@NotNull LambdaQueryWrapper<AuthCredentialPO> wrapper) {
         AuthCredentialPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, AuthCredential.class));
     }
-
+    
     @Transactional(propagation = Propagation.MANDATORY)
     public void batchInsert(@NotEmpty List<AuthCredential> credentials) {
         credentials.forEach(credential -> {
@@ -60,9 +60,9 @@ public class AuthCredentialRepository {
             }
         });
         List<AuthCredentialPO> records = credentials.stream()
-                .map(credential -> OpenObjectMapper.convert(credential, AuthCredentialPO.class))
-                .toList();
-
+                                                    .map(credential -> OpenObjectMapper.convert(credential, AuthCredentialPO.class))
+                                                    .toList();
+        
         OpenMybatisBatchExecutor.execute(AuthCredentialMapper.class, records, AuthCredentialMapper::insert);
     }
 }

@@ -14,4 +14,5 @@ public record LedgerDepositResponse(
         AssetSymbol asset,
         BigDecimal amount,
         String txId
-) { }
+) {
+}

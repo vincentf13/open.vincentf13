@@ -17,10 +17,10 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("auth_credentials")
 public class AuthCredentialPO {
-
+    
     @TableId(value = "id", type = IdType.INPUT)
     private Long id;
-
+    
     private Long userId;
     private AuthCredentialType credentialType;
     private String secretHash;

@@ -9,22 +9,24 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class AuthCredentialDomainService {
-
+    
     private final PasswordEncoder passwordEncoder;
-
+    
     public PreparedCredential prepareCredential(String secret) {
         String salt = generateSalt();
         String secretHash = hashSecret(secret, salt);
         return new PreparedCredential(secretHash, salt);
     }
-
+    
     private String generateSalt() {
         return UUID.randomUUID().toString();
     }
-
-    private String hashSecret(String secret, String salt) {
+    
+    private String hashSecret(String secret,
+                              String salt) {
         return passwordEncoder.encode(secret + ':' + salt);
     }
-
-    public record PreparedCredential(String secretHash, String salt) { }
+    
+    public record PreparedCredential(String secretHash, String salt) {
+    }
 }

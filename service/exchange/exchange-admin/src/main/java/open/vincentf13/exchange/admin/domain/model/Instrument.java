@@ -15,7 +15,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Instrument {
-
+    
     private Long instrumentId;
     private String symbol;
     private String baseAsset;

@@ -2,5 +2,6 @@ package open.vincentf13.exchange.account.ledger.infra.persistence.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import open.vincentf13.exchange.account.ledger.infra.persistence.po.LedgerBalancePO;
+
 public interface LedgerBalanceMapper extends BaseMapper<LedgerBalancePO> {
 }

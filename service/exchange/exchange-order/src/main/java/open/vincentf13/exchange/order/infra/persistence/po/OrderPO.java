@@ -23,7 +23,7 @@ import java.time.Instant;
 public class OrderPO {
     @TableId(value = "order_id", type = IdType.INPUT)
     private Long orderId;
-
+    
     private Long userId;
     private Long instrumentId;
     private String clientOrderId;

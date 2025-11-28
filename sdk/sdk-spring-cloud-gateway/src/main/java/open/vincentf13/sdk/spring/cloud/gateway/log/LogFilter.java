@@ -9,26 +9,27 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class LogFilter implements GlobalFilter, Ordered {
-
+    
     private final LogService logService;
-
+    
     public LogFilter(LogService logService) {
         this.logService = logService;
     }
-
+    
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public Mono<Void> filter(ServerWebExchange exchange,
+                             GatewayFilterChain chain) {
         logService.logRequest(exchange);
         long startTime = System.currentTimeMillis();
-
+        
         return chain.filter(exchange)
-                .doOnError(ex -> logService.logForwardFailure(exchange, ex))
-                .then(Mono.fromRunnable(() -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    logService.logResponse(exchange, duration);
-                }));
+                    .doOnError(ex -> logService.logForwardFailure(exchange, ex))
+                    .then(Mono.fromRunnable(() -> {
+                        long duration = System.currentTimeMillis() - startTime;
+                        logService.logResponse(exchange, duration);
+                    }));
     }
-
+    
     @Override
     public int getOrder() {
         return -1;

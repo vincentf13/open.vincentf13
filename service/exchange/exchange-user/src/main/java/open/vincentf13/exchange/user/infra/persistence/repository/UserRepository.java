@@ -22,10 +22,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Validated
 public class UserRepository {
-
+    
     private final UserMapper mapper;
     private final DefaultIdGenerator idGenerator;
-
+    
     public void insertSelective(@NotNull @Valid User user) {
         if (user.getId() == null) {
             user.setId(idGenerator.newLong());
@@ -33,22 +33,22 @@ public class UserRepository {
         UserPO po = OpenObjectMapper.convert(user, UserPO.class);
         mapper.insert(po);
     }
-
+    
     public boolean updateSelective(@NotNull @Valid User update,
                                    @NotNull LambdaUpdateWrapper<UserPO> updateWrapper) {
         UserPO record = OpenObjectMapper.convert(update, UserPO.class);
         return mapper.update(record, updateWrapper) > 0;
     }
-
+    
     public List<User> findBy(@NotNull LambdaQueryWrapper<UserPO> wrapper) {
         return OpenObjectMapper.convertList(mapper.selectList(wrapper), User.class);
     }
-
+    
     public Optional<User> findOne(@NotNull LambdaQueryWrapper<UserPO> wrapper) {
         UserPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, User.class));
     }
-
+    
     public void batchInsert(@NotEmpty List<User> users) {
         users.forEach(user -> {
             if (user.getId() == null) {
@@ -56,9 +56,9 @@ public class UserRepository {
             }
         });
         List<UserPO> records = users.stream()
-                .map(user -> OpenObjectMapper.convert(user, UserPO.class))
-                .toList();
+                                    .map(user -> OpenObjectMapper.convert(user, UserPO.class))
+                                    .toList();
         OpenMybatisBatchExecutor.execute(UserMapper.class, records, UserMapper::insert);
     }
-
+    
 }

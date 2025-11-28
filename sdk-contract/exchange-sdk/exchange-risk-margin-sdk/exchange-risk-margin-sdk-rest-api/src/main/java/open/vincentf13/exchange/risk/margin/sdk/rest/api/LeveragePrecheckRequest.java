@@ -13,4 +13,5 @@ public record LeveragePrecheckRequest(
         BigDecimal quantity,
         BigDecimal margin,
         BigDecimal markPrice
-) {}
+) {
+}

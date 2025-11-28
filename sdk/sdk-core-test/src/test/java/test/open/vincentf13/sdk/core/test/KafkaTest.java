@@ -19,11 +19,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 
 /**
- * Kafka 容器整合測試
- * 使用 dokcer Kafka 容器運行 Kafka 測試
- * 各測試方法前後 動態建立 隨機topic，各測試互相隔離，可使用平行測試，提升效能。
- * 若配置 open.vincentf13.sdk.core.test.testcontainer.kafka.enabled=false
- * 則連到真實數據庫，不啟用 kafka 容器
+ Kafka 容器整合測試
+ 使用 dokcer Kafka 容器運行 Kafka 測試
+ 各測試方法前後 動態建立 隨機topic，各測試互相隔離，可使用平行測試，提升效能。
+ 若配置 open.vincentf13.sdk.core.test.testcontainer.kafka.enabled=false
+ 則連到真實數據庫，不啟用 kafka 容器
  */
 @SpringBootTest(
         classes = KafkaTest.KafkaTestConfig.class,
@@ -33,31 +33,31 @@ import java.util.concurrent.atomic.AtomicReference;
         webEnvironment = SpringBootTest.WebEnvironment.NONE
 )
 class KafkaTest {
-
+    
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;
+    
     @DynamicPropertySource
     static void registerKafkaProperties(DynamicPropertyRegistry registry) {
         OpenKafkaTestContainer.register(registry);
     }
-
-    @Autowired
-    private KafkaTemplate<String, String> kafkaTemplate;
-
+    
     @BeforeEach
     void prepareTopic() {
         // 為每個測試建立隔離的 topic，避免平行測試互相干擾
         OpenKafkaTestContainer.prepareTopic();
     }
-
+    
     @AfterEach
     void clearTopic() {
         OpenKafkaTestContainer.clearTopic();
     }
-
+    
     @Test
     void sendAndReceive() throws Exception {
         AtomicReference<String> payload = new AtomicReference<>(null);
         CountDownLatch latch = new CountDownLatch(1);
-
+        
         KafkaMessageListenerContainer<String, String> container = OpenKafkaTestContainer.startListener(
                 OpenKafkaTestContainer.currentTopic(),
                 OpenKafkaTestContainer.buildListener(payload, latch));
@@ -71,7 +71,7 @@ class KafkaTest {
             OpenKafkaTestContainer.stopListener(container);
         }
     }
-
+    
     @TestConfiguration
     @EnableAutoConfiguration
     @Import(OpenKafkaTestContainer.DependencyInitializer.class)

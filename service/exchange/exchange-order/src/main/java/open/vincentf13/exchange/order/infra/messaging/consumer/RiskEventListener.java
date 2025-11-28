@@ -1,8 +1,8 @@
 package open.vincentf13.exchange.order.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
 import open.vincentf13.exchange.order.infra.OrderEvent;
+import open.vincentf13.exchange.order.infra.messaging.handler.OrderFailureHandler;
 import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckFailedEvent;
 import open.vincentf13.exchange.risk.margin.sdk.mq.topic.RiskTopics;
 import open.vincentf13.sdk.core.OpenValidator;
@@ -15,14 +15,15 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class RiskEventListener {
-
+    
     private final OrderFailureHandler orderFailureHandler;
-
+    
     @KafkaListener(
             topics = RiskTopics.Names.MARGIN_PRECHECK_FAILED,
             groupId = "${open.vincentf13.exchange.order.risk.consumer-group:exchange-order-risk}"
     )
-    public void onMarginPreCheckFailed(@Payload MarginPreCheckFailedEvent event, Acknowledgment acknowledgment) {
+    public void onMarginPreCheckFailed(@Payload MarginPreCheckFailedEvent event,
+                                       Acknowledgment acknowledgment) {
         try {
             OpenValidator.validateOrThrow(event);
         } catch (Exception e) {

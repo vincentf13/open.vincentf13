@@ -14,15 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
 public class OrderController implements OrderApi {
-
+    
     private final OrderCommandService orderCommandService;
     private final OrderQueryService orderQueryService;
-
+    
     @Override
     public OpenApiResponse<OrderResponse> create(OrderCreateRequest request) {
         return OpenApiResponse.success(orderCommandService.createOrder(request));
     }
-
+    
     @Override
     public OpenApiResponse<OrderResponse> getOrder(Long orderId) {
         return OpenApiResponse.success(orderQueryService.get(orderId));

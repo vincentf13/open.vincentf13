@@ -14,11 +14,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @Validated
 public interface OrderApi {
-
+    
     @PostMapping
     @Jwt
     OpenApiResponse<OrderResponse> create(@Valid @RequestBody OrderCreateRequest request);
-
+    
     @GetMapping("/{orderId}")
     @Jwt
     @PrivateAPI

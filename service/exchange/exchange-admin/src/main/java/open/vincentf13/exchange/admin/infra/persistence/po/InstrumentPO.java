@@ -19,10 +19,10 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("instrument")
 public class InstrumentPO {
-
+    
     @TableId(value = "instrument_id", type = IdType.INPUT)
     private Long instrumentId;
-
+    
     private String symbol;
     private String baseAsset;
     private String quoteAsset;

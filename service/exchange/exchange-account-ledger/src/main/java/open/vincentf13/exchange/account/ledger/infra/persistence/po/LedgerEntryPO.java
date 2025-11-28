@@ -22,7 +22,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("ledger_entries")
 public class LedgerEntryPO {
-
+    
     @TableId(value = "entry_id", type = IdType.INPUT)
     private Long entryId;
     private OwnerType ownerType;

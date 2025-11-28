@@ -1,12 +1,12 @@
 package open.vincentf13.exchange.order.infra.messaging.publisher;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
-import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
-import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.stereotype.Component;
@@ -17,18 +17,19 @@ import java.time.Instant;
 @Component
 @RequiredArgsConstructor
 public class OrderEventPublisher {
-
+    
     private final MqOutboxRepository outboxRepository;
-
+    
     public void publishOrderSubmitted(Order order) {
         OrderSubmittedEvent payload = OpenObjectMapper.convert(order, OrderSubmittedEvent.class);
         outboxRepository.append(OrderTopics.ORDER_SUBMITTED.getTopic(),
-                order.getOrderId(),
-                payload,
-                null);
+                                order.getOrderId(),
+                                payload,
+                                null);
     }
-
-    public void publishPositionReserveRequested(Order order, PositionIntentType intentType) {
+    
+    public void publishPositionReserveRequested(Order order,
+                                                PositionIntentType intentType) {
         PositionReserveRequestedEvent event = new PositionReserveRequestedEvent(
                 order.getOrderId(),
                 order.getUserId(),
@@ -39,12 +40,14 @@ public class OrderEventPublisher {
                 Instant.now()
         );
         outboxRepository.append(OrderTopics.POSITION_RESERVE_REQUESTED.getTopic(),
-                order.getOrderId(),
-                event,
-                null);
+                                order.getOrderId(),
+                                event,
+                                null);
     }
-
-    public void publishOrderCreated(Order order, String frozenAsset, BigDecimal frozenAmount) {
+    
+    public void publishOrderCreated(Order order,
+                                    String frozenAsset,
+                                    BigDecimal frozenAmount) {
         OrderCreatedEvent payload = new OrderCreatedEvent(
                 order.getOrderId(),
                 order.getUserId(),
@@ -59,8 +62,8 @@ public class OrderEventPublisher {
                 Instant.now()
         );
         outboxRepository.append(OrderTopics.ORDER_CREATED.getTopic(),
-                order.getOrderId(),
-                payload,
-                null);
+                                order.getOrderId(),
+                                payload,
+                                null);
     }
 }

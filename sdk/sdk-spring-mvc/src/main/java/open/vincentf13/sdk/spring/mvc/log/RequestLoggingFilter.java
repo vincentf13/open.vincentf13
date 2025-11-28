@@ -11,18 +11,18 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 import java.io.IOException;
 
 /**
- * Request/response logging filter that wraps the servlet request/response and delegates
- * detailed logging to {@link MvcLogService}. Executed once per request so even security
- * short-circuits (e.g. 403) will be logged.
+ Request/response logging filter that wraps the servlet request/response and delegates
+ detailed logging to {@link MvcLogService}. Executed once per request so even security
+ short-circuits (e.g. 403) will be logged.
  */
 public class RequestLoggingFilter extends OncePerRequestFilter {
-
+    
     private final MvcLogService logService;
-
+    
     public RequestLoggingFilter(MvcLogService logService) {
         this.logService = logService;
     }
-
+    
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -45,14 +45,14 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             }
         }
     }
-
+    
     private ContentCachingRequestWrapper wrapRequest(HttpServletRequest request) {
         if (request instanceof ContentCachingRequestWrapper wrapper) {
             return wrapper;
         }
         return new ContentCachingRequestWrapper(request);
     }
-
+    
     private ContentCachingResponseWrapper wrapResponse(HttpServletResponse response) {
         if (response instanceof ContentCachingResponseWrapper wrapper) {
             return wrapper;

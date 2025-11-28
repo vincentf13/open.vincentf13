@@ -20,40 +20,40 @@ import java.util.List;
 @RequestMapping("/api/market")
 @RequiredArgsConstructor
 public class MarketController implements MarketApi {
-
+    
     private final TickerQueryService tickerQueryService;
     private final OrderBookQueryService orderBookQueryService;
     private final KlineQueryService klineQueryService;
     private final MarkPriceQueryService markPriceQueryService;
-
+    
     @Override
     public OpenApiResponse<TickerResponse> getTicker(Long instrumentId) {
         return OpenApiResponse.success(tickerQueryService.getTicker(instrumentId));
     }
-
+    
     @Override
     public OpenApiResponse<OrderBookResponse> getOrderBook(Long instrumentId) {
         return orderBookQueryService.getOrderBook(instrumentId)
-                .map(OpenApiResponse::success)
-                .orElseGet(() -> OpenApiResponse.success(OrderBookResponse.builder()
-                        .instrumentId(instrumentId)
-                        .build()));
+                                    .map(OpenApiResponse::success)
+                                    .orElseGet(() -> OpenApiResponse.success(OrderBookResponse.builder()
+                                                                                              .instrumentId(instrumentId)
+                                                                                              .build()));
     }
-
+    
     @Override
     public OpenApiResponse<List<KlineResponse>> getKlines(Long instrumentId,
                                                           String period,
                                                           Integer limit) {
         return OpenApiResponse.success(klineQueryService.getKlines(instrumentId, period, limit));
     }
-
+    
     @Override
     public OpenApiResponse<MarkPriceResponse> getMarkPrice(Long instrumentId) {
         return markPriceQueryService.getMarkPrice(instrumentId)
-                .map(OpenApiResponse::success)
-                .orElseGet(() -> OpenApiResponse.success(MarkPriceResponse.builder()
-                        .instrumentId(instrumentId)
-                        .markPrice(null)
-                        .build()));
+                                    .map(OpenApiResponse::success)
+                                    .orElseGet(() -> OpenApiResponse.success(MarkPriceResponse.builder()
+                                                                                              .instrumentId(instrumentId)
+                                                                                              .markPrice(null)
+                                                                                              .build()));
     }
 }

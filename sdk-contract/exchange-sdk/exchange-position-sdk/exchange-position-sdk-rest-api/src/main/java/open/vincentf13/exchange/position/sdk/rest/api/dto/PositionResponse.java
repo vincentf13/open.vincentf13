@@ -25,4 +25,5 @@ public record PositionResponse(
         Instant createdAt,
         Instant updatedAt,
         Instant closedAt
-) { }
+) {
+}

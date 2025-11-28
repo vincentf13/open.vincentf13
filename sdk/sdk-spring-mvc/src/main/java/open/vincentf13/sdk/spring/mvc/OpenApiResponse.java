@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * REST 統一回應封裝。預設 code=0、message=OK，錯誤時帶入自訂代碼與訊息。
+ REST 統一回應封裝。預設 code=0、message=OK，錯誤時帶入自訂代碼與訊息。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OpenApiResponse<T>(
@@ -19,32 +19,32 @@ public record OpenApiResponse<T>(
 ) {
     private static final String SUCCESS_CODE = "0";
     private static final String SUCCESS_MESSAGE = "OK";
-
+    
     public static <T> OpenApiResponse<T> success(T payload) {
         return new OpenApiResponse<>(SUCCESS_CODE, SUCCESS_MESSAGE, payload, Instant.now(), null);
     }
-
+    
     public static OpenApiResponse<Void> success() {
         return new OpenApiResponse<>(SUCCESS_CODE, SUCCESS_MESSAGE, null, Instant.now(), null);
     }
-
-    public static <T> OpenApiResponse<T> failure(String code, String message) {
+    
+    public static <T> OpenApiResponse<T> failure(String code,
+                                                 String message) {
         return new OpenApiResponse<>(code, message, null, Instant.now(), null);
     }
-
-    public static <T> OpenApiResponse<T> failure(String code, String message, Map<String, Object> meta) {
+    
+    public static <T> OpenApiResponse<T> failure(String code,
+                                                 String message,
+                                                 Map<String, Object> meta) {
         return new OpenApiResponse<>(code, message, null, Instant.now(), normalize(meta));
     }
-
-    public OpenApiResponse<T> withMeta(Map<String, Object> additional) {
-        return new OpenApiResponse<>(code, message, data, timestamp, merge(meta, additional));
-    }
-
+    
     private static Map<String, Object> normalize(Map<String, Object> source) {
         return copyWithoutNull(source);
     }
-
-    private static Map<String, Object> merge(Map<String, Object> current, Map<String, Object> incoming) {
+    
+    private static Map<String, Object> merge(Map<String, Object> current,
+                                             Map<String, Object> incoming) {
         if ((current == null || current.isEmpty()) && (incoming == null || incoming.isEmpty())) {
             return null;
         }
@@ -60,7 +60,7 @@ public record OpenApiResponse<T>(
         merged.putAll(incoming);
         return copyWithoutNull(merged);
     }
-
+    
     private static Map<String, Object> copyWithoutNull(Map<String, Object> source) {
         if (source == null || source.isEmpty()) {
             return null;
@@ -76,7 +76,11 @@ public record OpenApiResponse<T>(
         }
         return Map.copyOf(cleaned);
     }
-
+    
+    public OpenApiResponse<T> withMeta(Map<String, Object> additional) {
+        return new OpenApiResponse<>(code, message, data, timestamp, merge(meta, additional));
+    }
+    
     public boolean isSuccess() {
         return Objects.equals(SUCCESS_CODE, code);
     }

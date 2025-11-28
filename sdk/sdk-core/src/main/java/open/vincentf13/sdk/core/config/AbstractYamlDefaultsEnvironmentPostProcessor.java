@@ -1,9 +1,5 @@
 package open.vincentf13.sdk.core.config;
 
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import open.vincentf13.sdk.core.log.CoreEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.boot.SpringApplication;
@@ -18,26 +14,31 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
- * Base post-processor that loads YAML defaults from the classpath
- * and applies them with the lowest precedence so user overrides win.
+ Base post-processor that loads YAML defaults from the classpath
+ and applies them with the lowest precedence so user overrides win.
  */
 public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
-
+    
     private final YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
-
+    
     @Override
-    public final void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+    public final void postProcessEnvironment(ConfigurableEnvironment environment,
+                                             SpringApplication application) {
         Resource resource = resolveResource();
         if (resource == null || !resource.exists()) {
             OpenLog.debug(CoreEvent.DEFAULTS_RESOURCE_MISSING, "resource", getResourceLocation());
             return;
         }
-
+        
         try {
             var loadedSources = loader.load(getPropertySourceName(), resource);
             Map<String, Object> defaults = new LinkedHashMap<>();
-
+            
             for (PropertySource<?> source : loadedSources) {
                 if (source instanceof EnumerablePropertySource<?> enumerable) {
                     for (String name : enumerable.getPropertyNames()) {
@@ -47,7 +48,7 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements En
                     }
                 }
             }
-
+            
             if (!defaults.isEmpty()) {
                 OpenLog.debug(CoreEvent.DEFAULTS_APPLIED, "resource", getResourceLocation(), "keys", defaults.keySet());
                 environment.getPropertySources().addLast(new MapPropertySource(getPropertySourceName(), defaults));
@@ -56,8 +57,9 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements En
             throw new IllegalStateException("Failed to load defaults from " + getResourceLocation(), ex);
         }
     }
-
-    protected boolean hasUserValue(ConfigurableEnvironment environment, String name) {
+    
+    protected boolean hasUserValue(ConfigurableEnvironment environment,
+                                   String name) {
         for (PropertySource<?> propertySource : environment.getPropertySources()) {
             if (propertySource == null) {
                 continue;
@@ -78,17 +80,17 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements En
         }
         return false;
     }
-
+    
     protected Resource resolveResource() {
         return new ClassPathResource(getResourceLocation());
     }
-
+    
     protected abstract String getResourceLocation();
-
+    
     protected String getPropertySourceName() {
         return getClass().getName();
     }
-
+    
     @Override
     public int getOrder() {
         return Ordered.LOWEST_PRECEDENCE;
