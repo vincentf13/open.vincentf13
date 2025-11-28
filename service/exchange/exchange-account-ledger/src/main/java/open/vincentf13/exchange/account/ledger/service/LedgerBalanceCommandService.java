@@ -25,6 +25,7 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
 @Service
@@ -35,6 +36,7 @@ public class LedgerBalanceCommandService {
     private final LedgerTransactionDomainService ledgerTransactionDomainService;
     private final LedgerEventPublisher ledgerEventPublisher;
     private final ExchangeOrderClient exchangeOrderClient;
+    private final TransactionTemplate transactionTemplate;
 
     @Transactional
     public LedgerDepositResponse deposit(@NotNull @Valid LedgerDepositRequest request) {
@@ -92,14 +94,16 @@ public class LedgerBalanceCommandService {
         }
     }
 
-    @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
-        // Handle Maker Side
-        OrderResponse makerOrder = OpenApiClientInvoker.call(()-> exchangeOrderClient.getOrder(event.orderId()));
-        ledgerTransactionDomainService.settleTrade(event, makerOrder, true);
 
-        // Handle Taker Side
+        OrderResponse makerOrder = OpenApiClientInvoker.call(()-> exchangeOrderClient.getOrder(event.orderId()));
         OrderResponse takerOrder =  OpenApiClientInvoker.call(()->exchangeOrderClient.getOrder(event.counterpartyOrderId()));
-        ledgerTransactionDomainService.settleTrade(event, takerOrder, false);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            // Handle Maker Side
+            ledgerTransactionDomainService.settleTrade(event, makerOrder, true);
+            // Handle Taker Side
+            ledgerTransactionDomainService.settleTrade(event, takerOrder, false);
+        });
     }
 }
