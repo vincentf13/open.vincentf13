@@ -85,7 +85,7 @@ public class LedgerBalanceCommandService {
                     event.checkedAt());
             ledgerEventPublisher.publishFundsFrozen(event.orderId(), event.userId(), normalizedAsset, entry.getAmount());
         } catch (OpenException ex) {
-            String reason = ex.getErrorCode() != null ? ex.getErrorCode().code() : "UNKNOWN";
+            String reason = ex.getCode() != null ? ex.getCode().code() : "UNKNOWN";
             ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), reason);
             OpenLog.warn(LedgerEvent.FUNDS_FREEZE_FAILED, ex, "orderId", event.orderId(), "reason", reason);
         }
