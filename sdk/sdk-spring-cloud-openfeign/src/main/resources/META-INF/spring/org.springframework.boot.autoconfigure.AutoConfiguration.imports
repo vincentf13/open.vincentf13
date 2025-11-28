@@ -1,2 +1,6 @@
-open.vincentf13.sdk.spring.cloud.openfeign.config.OpenFeignAutoConfiguration
+open.vincentf13.sdk.spring.cloud.openfeign.config.RestTemplateAutoConfiguration
+open.vincentf13.sdk.spring.cloud.openfeign.log.config.FeignLogAutoConfiguration
+open.vincentf13.sdk.spring.cloud.openfeign.retry.config.FeignRetryAutoConfiguration
+open.vincentf13.sdk.spring.cloud.openfeign.config.FeignInterceptorAutoConfiguration
+open.vincentf13.sdk.spring.cloud.openfeign.exception.OpenFeignExceptionAdviceConfig
 open.vincentf13.sdk.spring.cloud.openfeign.config.OpenFeignClientsAutoConfiguration

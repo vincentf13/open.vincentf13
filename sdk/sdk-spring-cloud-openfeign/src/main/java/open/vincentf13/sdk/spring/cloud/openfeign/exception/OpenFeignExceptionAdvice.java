@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.spring.cloud.openfeign;
+package open.vincentf13.sdk.spring.cloud.openfeign.exception;
 
 import feign.FeignException;
 import feign.RetryableException;
@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.exception.OpenErrorCodes;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.spring.cloud.openfeign.FeignEvent;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.MessageSource;
