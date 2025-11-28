@@ -35,7 +35,7 @@ public class OpenFeignExceptionAdvice implements MessageSourceAware {
 
     private MessageSourceAccessor messageAccessor;
 
-    /*
+    /**
       注入 MessageSource 用於國際化訊息解析
      */
     @Override
@@ -43,7 +43,7 @@ public class OpenFeignExceptionAdvice implements MessageSourceAware {
         this.messageAccessor = new MessageSourceAccessor(messageSource);
     }
 
-    /*
+    /**
       處理可重試的 Feign 例外
       - 因網路逾時或暫時性故障等原因導致的、經過內部重試後依然失敗的 Feign 例外
       - 記錄目標 URL 到日誌
@@ -61,7 +61,7 @@ public class OpenFeignExceptionAdvice implements MessageSourceAware {
                 additionalMeta);
     }
 
-    /*
+    /**
       處理一般 Feign 例外（HTTP 錯誤等）
       - 從例外中解析遠端服務回傳的 HTTP 狀態碼
       - 記錄狀態碼和目標 URL 到日誌

@@ -2,7 +2,7 @@ package open.vincentf13.exchange.marketdata.infra;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
-/*
+/**
  * Market Data 事件枚舉。
  */
 public enum MarketDataEvent implements OpenEvent {

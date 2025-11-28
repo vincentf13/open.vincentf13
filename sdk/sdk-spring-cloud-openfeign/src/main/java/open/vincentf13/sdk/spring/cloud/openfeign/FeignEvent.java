@@ -2,7 +2,7 @@ package open.vincentf13.sdk.spring.cloud.openfeign;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
-/*
+/**
  * Feign 相關事件枚舉。
  */
 public enum FeignEvent implements OpenEvent {
