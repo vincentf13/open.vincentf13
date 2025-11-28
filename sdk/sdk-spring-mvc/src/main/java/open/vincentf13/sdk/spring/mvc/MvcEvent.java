@@ -12,7 +12,8 @@ public enum MvcEvent implements OpenEvent {
     WRAP_STRING_RESPONSE_FAILED("WrapStringResponseFailed", "Failed to wrap String response body"),
     MVC_REQUEST_FAILED("MvcRequestFailed", "MVC request failed"),
     MVC_REQUEST_COMPLETED("MvcRequestCompleted", "MVC request completed"),
-    MVC_REQUEST_DETAIL("MvcRequestDetail", "MVC request detail");
+    MVC_REQUEST_DETAIL("MvcRequestDetail", "MVC request detail"),
+    CIRCUIT_BREAKER_OPEN("CircuitBreakerOpen", "Circuit breaker is open");
 
     private final String event;
     private final String message;

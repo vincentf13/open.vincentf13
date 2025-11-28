@@ -1,5 +1,6 @@
 package open.vincentf13.sdk.spring.mvc.exception;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -21,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -41,7 +43,7 @@ import java.util.stream.Collectors;
  */
 @RestControllerAdvice
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-public class AopRestException implements MessageSourceAware {
+public class OpenRestExceptionAdvice implements MessageSourceAware {
 
     private MessageSourceAccessor messageAccessor;
 
@@ -135,13 +137,34 @@ public class AopRestException implements MessageSourceAware {
     public ResponseEntity<Object> handleConstraintViolation(ConstraintViolationException ex,
                                                              HttpServletRequest request) {
         Map<String, String> errors = ex.getConstraintViolations().stream()
-                .collect(Collectors.toMap(AopRestException::violationPath,
-                        this::violationMessage,
-                        (left, right) -> right,
-                        LinkedHashMap::new));
+                .collect(Collectors.toMap(OpenRestExceptionAdvice::violationPath,
+                                          this::violationMessage,
+                                          (left, right) -> right,
+                                          LinkedHashMap::new));
         return buildErrorResponse(request, HttpStatus.BAD_REQUEST,
                 OpenErrorCodes.REQUEST_VALIDATION_FAILED, "error.validation",
                 Map.of("errors", errors));
+    }
+
+    /*
+      處理斷路器開啟的例外（Resilience4j）
+      - 當服務斷路器開啟，拒絕呼叫時觸發
+      - 記錄斷路器名稱到日誌
+      - 回傳 503 SERVICE_UNAVAILABLE
+      - metadata 中包含斷路器名稱
+     */
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<Object> handleCallNotPermitted(CallNotPermittedException ex,
+                                                          HttpServletRequest request) {
+        String breakerName = resolveCircuitBreakerName(ex);
+        OpenLog.warn(MvcEvent.CIRCUIT_BREAKER_OPEN, ex, "circuitBreaker", breakerName);
+        Map<String, Object> additionalMeta = new LinkedHashMap<>();
+        if (StringUtils.hasText(breakerName)) {
+            additionalMeta.put("circuitBreaker", breakerName);
+        }
+        return buildErrorResponse(request, HttpStatus.SERVICE_UNAVAILABLE,
+                OpenErrorCodes.REMOTE_SERVICE_UNAVAILABLE, "error.remote.unavailable",
+                additionalMeta);
     }
 
     /*
@@ -330,5 +353,20 @@ public class AopRestException implements MessageSourceAware {
      */
     private static String violationPath(ConstraintViolation<?> violation) {
         return violation.getPropertyPath() == null ? "" : violation.getPropertyPath().toString();
+    }
+
+    /*
+      解析斷路器名稱
+      - 透過反射取得 Resilience4j 斷路器名稱
+      - 若反射失敗則回傳例外訊息
+     */
+    private String resolveCircuitBreakerName(CallNotPermittedException ex) {
+        try {
+            var method = CallNotPermittedException.class.getMethod("getCircuitBreakerName");
+            Object value = method.invoke(ex);
+            return value instanceof String ? (String) value : null;
+        } catch (ReflectiveOperationException ignored) {
+            return ex.getMessage();
+        }
     }
 }

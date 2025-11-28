@@ -2,7 +2,7 @@ package open.vincentf13.sdk.spring.mvc.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.sdk.spring.mvc.response.AopResponseBody;
-import open.vincentf13.sdk.spring.mvc.exception.AopRestException;
+import open.vincentf13.sdk.spring.mvc.exception.OpenRestExceptionAdvice;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -22,8 +22,8 @@ public class ConfigAop {
      */
     @Bean
     @ConditionalOnMissingBean
-    public AopRestException restExceptionHandler() {
-        return new AopRestException();
+    public OpenRestExceptionAdvice restExceptionHandler() {
+        return new OpenRestExceptionAdvice();
     }
 
     /**
