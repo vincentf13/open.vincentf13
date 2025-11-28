@@ -63,6 +63,7 @@ public class LedgerEntry {
                 userId,
                 asset,
                 amount,
+                Direction.DEBIT,
                 counterpartyEntryId,
                 balanceAfter,
                 referenceId,
@@ -84,6 +85,7 @@ public class LedgerEntry {
                 null,
                 asset,
                 amount,
+                Direction.CREDIT,
                 counterpartyEntryId,
                 balanceAfter,
                 referenceId,
@@ -107,7 +109,7 @@ public class LedgerEntry {
                 .userId(userId)
                 .asset(asset)
                 .amount(amount)
-                .direction(Direction.DEBIT)
+                .direction(Direction.CREDIT)
                 .balanceAfter(balanceAfter)
                 .referenceType(EntryType.WITHDRAWAL.referenceType())
                 .referenceId(referenceId)
@@ -159,7 +161,7 @@ public class LedgerEntry {
                 .userId(userId)
                 .asset(asset)
                 .amount(amount)
-                .direction(Direction.DEBIT)
+                .direction(Direction.CREDIT)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
                 .referenceType(EntryType.FREEZE.referenceType())
@@ -186,7 +188,7 @@ public class LedgerEntry {
                 .userId(userId)
                 .asset(asset)
                 .amount(amount)
-                .direction(Direction.CREDIT)
+                .direction(Direction.DEBIT)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
                 .referenceType(EntryType.RESERVED.referenceType())
@@ -203,6 +205,7 @@ public class LedgerEntry {
                                        Long userId,
                                        AssetSymbol asset,
                                        BigDecimal amount,
+                                       Direction direction,
                                        Long counterpartyEntryId,
                                        BigDecimal balanceAfter,
                                        String referenceId,
@@ -215,7 +218,7 @@ public class LedgerEntry {
                 .userId(userId)
                 .asset(asset)
                 .amount(amount)
-                .direction(Direction.CREDIT)
+                .direction(direction)
                 .counterpartyEntryId(counterpartyEntryId)
                 .balanceAfter(balanceAfter)
                 .referenceType(EntryType.DEPOSIT.referenceType())

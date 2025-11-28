@@ -245,7 +245,7 @@ public class LedgerTransactionDomainService {
 
         // 3. Update ISOLATED_MARGIN: Increase balance with trade value
         LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
-        LedgerBalance updatedMarginBalance = retryUpdateForDepositWithPnl(marginBalance, tradeValue, BigDecimal.ZERO, userId, normalizedAsset);
+        LedgerBalance updatedMarginBalance = retryUpdateForDeposit(marginBalance, tradeValue,  userId, normalizedAsset);
 
         // 4. Platform account for fee revenue
         PlatformAccount feeRevenueAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.FEE_REVENUE, PlatformAccountCategory.REVENUE, PlatformAccountStatus.ACTIVE);
@@ -257,14 +257,14 @@ public class LedgerTransactionDomainService {
         Long feeRevenueEntryId = idGenerator.newLong();
         Long userMarginCreditEntryId = idGenerator.newLong();
 
-        // User SPOT_MAIN debit (trade value + actual fee)
-        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotDebitEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, cost , Direction.DEBIT, feeRevenueEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN));
+        // User SPOT_MAIN  (trade value + actual fee)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotDebitEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, cost , Direction.CREDIT, feeRevenueEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN));
 
-        // User ISOLATED_MARGIN credit (trade value)
-        ledgerEntryRepository.insert(LedgerEntry.settlement(userMarginCreditEntryId, updatedMarginBalance.getAccountId(), userId, normalizedAsset, tradeValue, Direction.CREDIT, userSpotDebitEntryId, updatedMarginBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN));
+        // User ISOLATED_MARGIN  (trade value)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userMarginCreditEntryId, updatedMarginBalance.getAccountId(), userId, normalizedAsset, tradeValue, Direction.DEBIT, userSpotDebitEntryId, updatedMarginBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN));
 
-        // Platform FEE_REVENUE credit (actual fee)
-        ledgerEntryRepository.insert(LedgerEntry.settlement(feeRevenueEntryId, updatedFeeRevenueBalance.getAccountId(), null, normalizedAsset, actualFee, Direction.CREDIT, userSpotDebitEntryId, updatedFeeRevenueBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.FEE));
+        // Platform FEE_REVENUE  (actual fee)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(feeRevenueEntryId, updatedFeeRevenueBalance.getAccountId(), null, normalizedAsset, actualFee, Direction.DEBIT, userSpotDebitEntryId, updatedFeeRevenueBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.FEE));
 
         // Publish LedgerEntryCreated events
         ledgerEventPublisher.publishLedgerEntryCreated(userSpotDebitEntryId, userId, normalizedAsset, cost.negate(), updatedSpotBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT_SPOT_MAIN, event.instrumentId());
@@ -275,7 +275,8 @@ public class LedgerTransactionDomainService {
     private void processClosePosition(TradeExecutedEvent event, OrderResponse order, boolean isMaker, AssetSymbol normalizedAsset, String referenceId) {
         BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
         Long userId = isMaker ? event.makerUserId() : event.takerUserId();
-        BigDecimal realizedPnl = (event.price().subtract(order.closeCostPrice())).multiply(event.quantity());
+        BigDecimal realizedPnl = (event.price().subtract(order.closeCostPrice())).multiply(event.quantity())
+                .subtract(fee);
 
         // 1. Update ISOLATED_MARGIN: Decrease balance (cost basis + realized PnL)
         LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
@@ -284,10 +285,9 @@ public class LedgerTransactionDomainService {
         LedgerBalance updatedMarginBalance = retryUpdateForWithdrawalWithPnl(marginBalance, costBasis, realizedPnl, userId, normalizedAsset);
 
         // 2. Update SPOT_MAIN: Increase available balance with proceeds (cost basis + realized PnL - fee)
-        BigDecimal totalDecreaseFromMargin = costBasis.add(realizedPnl);
+        BigDecimal totalDepositAmount = costBasis.add(realizedPnl);
         LedgerBalance spotBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
-        BigDecimal releaseAmountToSpot = totalDecreaseFromMargin.subtract(fee);
-        LedgerBalance updatedSpotBalance = retryUpdateForDeposit(spotBalance, releaseAmountToSpot, userId, normalizedAsset);
+        LedgerBalance updatedSpotBalance = retryUpdateForDepositWithPnl(spotBalance, totalDepositAmount, realizedPnl, userId, normalizedAsset);
 
         // 3. Platform account for fee revenue
         PlatformAccount feeRevenueAccount = platformAccountRepository.getOrCreate(PlatformAccountCode.FEE_REVENUE, PlatformAccountCategory.REVENUE, PlatformAccountStatus.ACTIVE);
@@ -299,14 +299,17 @@ public class LedgerTransactionDomainService {
         Long userSpotCreditEntryId = idGenerator.newLong();
         Long feeRevenueEntryId = idGenerator.newLong();
 
-        // User ISOLATED_MARGIN debit (cost basis + realized PnL)
-        ledgerEntryRepository.insert(LedgerEntry.settlement(userMarginDebitEntryId, updatedMarginBalance.getAccountId(), userId, normalizedAsset, totalDecreaseFromMargin.negate(), userSpotCreditEntryId, updatedMarginBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN));
+        // User ISOLATED_MARGIN  (cost basis + realized PnL)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userMarginDebitEntryId, updatedMarginBalance.getAccountId(), userId, normalizedAsset, costBasis, Direction.CREDIT, userSpotCreditEntryId, updatedMarginBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN));
 
-        // User SPOT_MAIN credit (proceeds)
-        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotCreditEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, releaseAmountToSpot, userMarginDebitEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN));
+        // User SPOT_MAIN  (proceeds)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotCreditEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, costBasis, Direction.DEBIT, userMarginDebitEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN));
+        ledgerEntryRepository.insert(LedgerEntry.settlement(userSpotCreditEntryId, updatedSpotBalance.getAccountId(), userId, normalizedAsset, realizedPnl,
+                                                            realizedPnl.compareTo(BigDecimal.ZERO) > 0 ?  Direction.DEBIT :  Direction.CREDIT ,
+                                                            userMarginDebitEntryId, updatedSpotBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.TRADE_SETTLEMENT_SPOT_MAIN));
 
-        // Platform FEE_REVENUE credit (fee)
-        ledgerEntryRepository.insert(LedgerEntry.settlement(feeRevenueEntryId, updatedFeeRevenueBalance.getAccountId(), null, normalizedAsset, fee, userSpotCreditEntryId, updatedFeeRevenueBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.FEE));
+        // Platform FEE_REVENUE  (fee)
+        ledgerEntryRepository.insert(LedgerEntry.settlement(feeRevenueEntryId, updatedFeeRevenueBalance.getAccountId(), null, normalizedAsset, fee, Direction.DEBIT, userSpotCreditEntryId, updatedFeeRevenueBalance.getBalance(), referenceId, order.orderId(), event.instrumentId(), event.executedAt(), EntryType.FEE));
 
         // Publish LedgerEntryCreated events
         ledgerEventPublisher.publishLedgerEntryCreated(userMarginDebitEntryId, userId, normalizedAsset, totalDecreaseFromMargin.negate(), BigDecimal.ZERO, updatedMarginBalance.getBalance(), ReferenceType.TRADE, referenceId, EntryType.TRADE_SETTLEMENT_ISOLATED_MARGIN, event.instrumentId());
@@ -423,8 +426,7 @@ public class LedgerTransactionDomainService {
             int expectedVersion = current.safeVersion();
             current.setBalance(current.getBalance().add(amount));
             current.setAvailable(current.getAvailable().add(amount));
-            current.setTotalDeposited(current.getTotalDeposited().add(amount));
-            current.setTotalRealizedPnl(OpenBigDecimal.safeDecimal(current.getTotalRealizedPnl()).add(realizedPnl));
+            current.setTotalPnl(OpenBigDecimal.safeDecimal(current.getTotalPnl()).add(realizedPnl));
             current.setVersion(expectedVersion + 1);
             boolean updated = ledgerBalanceRepository.updateSelectiveBy(
                     current,
