@@ -18,6 +18,7 @@ import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -30,7 +31,7 @@ import java.util.Map;
  */
 @RestControllerAdvice
 @ConditionalOnClass(FeignException.class)
-public class FeignExceptionHandler implements MessageSourceAware {
+public class OpenFeignExceptionAdvice implements MessageSourceAware {
 
     private MessageSourceAccessor messageAccessor;
 

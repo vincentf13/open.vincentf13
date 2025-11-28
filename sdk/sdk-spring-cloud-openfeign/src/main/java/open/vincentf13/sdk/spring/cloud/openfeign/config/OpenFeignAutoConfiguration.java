@@ -6,7 +6,7 @@ import feign.RequestInterceptor;
 import feign.Retryer;
 import feign.slf4j.Slf4jLogger;
 import open.vincentf13.sdk.core.OpenConstant;
-import open.vincentf13.sdk.spring.cloud.openfeign.FeignExceptionHandler;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenFeignExceptionAdvice;
 import open.vincentf13.sdk.spring.cloud.openfeign.interceptor.apikey.FeignApiKeyProperties;
 import open.vincentf13.sdk.spring.cloud.openfeign.interceptor.apikey.FeignApiKeyProvider;
 import open.vincentf13.sdk.spring.cloud.openfeign.interceptor.apikey.PropertiesFeignApiKeyProvider;
@@ -28,7 +28,7 @@ import org.springframework.web.client.RestTemplate;
 @ConditionalOnProperty(prefix = "spring.cloud.openfeign", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(FeignApiKeyProperties.class)
 @EnableFeignClients(basePackages = OpenConstant.Package.Names.BASE_PACKAGE)
-@Import(FeignExceptionHandler.class)
+@Import(OpenFeignExceptionAdvice.class)
 public class OpenFeignAutoConfiguration {
 
     @Bean
