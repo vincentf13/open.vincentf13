@@ -24,10 +24,10 @@ public class PositionEventPublisher {
     }
 
     public void publishUpdated(PositionUpdatedEvent event) {
-        outboxRepository.append(PositionTopics.POSITION_UPDATED, String.valueOf(event.userId()), event, null);
+        outboxRepository.append(PositionTopics.POSITION_UPDATED, event.userId(), event, null);
     }
 
     public void publishClosed(PositionClosedEvent event) {
-        outboxRepository.append(PositionTopics.POSITION_CLOSED, String.valueOf(event.userId()), event, null);
+        outboxRepository.append(PositionTopics.POSITION_CLOSED, event.userId(), event, null);
     }
 }

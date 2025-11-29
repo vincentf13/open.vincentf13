@@ -3,8 +3,10 @@ package open.vincentf13.exchange.position.domain.model;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
@@ -12,8 +14,10 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceTyp
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@Getter
+@Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PositionEvent {
     @NotNull
     private Long eventId;
