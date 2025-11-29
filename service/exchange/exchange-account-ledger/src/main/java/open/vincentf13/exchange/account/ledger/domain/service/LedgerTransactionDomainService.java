@@ -282,17 +282,17 @@ public class LedgerTransactionDomainService {
                                       String referenceId) {
         BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
         Long userId = isMaker ? event.makerUserId() : event.takerUserId();
+        BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity());
         BigDecimal realizedPnl = (event.price().subtract(order.closeCostPrice())).multiply(event.quantity())
                                                                                  .subtract(fee);
+        // 手續費扣完可能是負的，帳戶不夠付手續費，就以負餘額表示。
+        BigDecimal totalDepositAmount = costBasis.add(realizedPnl);
         
         // 1. Update ISOLATED_MARGIN
         LedgerBalance marginBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.ISOLATED_MARGIN, event.instrumentId(), normalizedAsset);
-        BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity());
-        
         LedgerBalance updatedMarginBalance = retryUpdateForWithdrawalWithPnl(marginBalance, costBasis, realizedPnl, userId, normalizedAsset);
         
         // 2. Update SPOT_MAIN
-        BigDecimal totalDepositAmount = costBasis.add(realizedPnl);
         LedgerBalance spotBalance = ledgerBalanceRepository.getOrCreate(userId, AccountType.SPOT_MAIN, null, normalizedAsset);
         LedgerBalance updatedSpotBalance = retryUpdateForDepositWithPnl(spotBalance, totalDepositAmount, realizedPnl, userId, normalizedAsset);
         
