@@ -131,9 +131,6 @@ public class PositionDomainService {
             position.setLiquidationPrice(BigDecimal.ZERO);
         }
 
-        position.setUpdatedAt(executedAt);
-        position.setVersion(position.safeVersion() + 1);
-
         return new TradeExecutionResult(
                 eventType,
                 isIncrease ? deltaQuantity : deltaQuantity.negate(),
@@ -154,7 +151,7 @@ public class PositionDomainService {
         return new TradeSplit(closeQty, flipQty);
     }
 
-    private PositionSide toPositionSide(OrderSide orderSide) {
+    public PositionSide toPositionSide(OrderSide orderSide) {
         if (orderSide == null) return null;
         return orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
     }

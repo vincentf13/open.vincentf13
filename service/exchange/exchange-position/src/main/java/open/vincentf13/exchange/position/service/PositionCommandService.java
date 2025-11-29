@@ -25,7 +25,6 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionClosedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
@@ -162,7 +161,7 @@ public class PositionCommandService {
 
     private void processTradeForUser(Long userId, Long instrumentId, OrderSide orderSide,
                                      BigDecimal price, BigDecimal quantity, Long tradeId, Instant executedAt) {
-        PositionSide side = toPositionSide(orderSide);
+        PositionSide side = positionDomainService.toPositionSide(orderSide);
 
         Position position = positionRepository.findOne(
                 Wrappers.lambdaQuery(PositionPO.class)
@@ -232,11 +231,6 @@ public class PositionCommandService {
         }
     }
 
-    private PositionSide toPositionSide(OrderSide orderSide) {
-        if (orderSide == null) return null;
-        return orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
-    }
-    
     private LeveragePrecheckRequest buildPrecheckRequest(Position position,
                                                          Integer targetLeverage) {
         return new LeveragePrecheckRequest(

@@ -1,10 +1,9 @@
 package open.vincentf13.exchange.position.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.OrderSide;
-import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
+import open.vincentf13.exchange.position.domain.service.PositionDomainService;
 import open.vincentf13.exchange.position.infra.PositionLogEvent;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
@@ -27,6 +26,7 @@ public class PositionReserveRequestListener {
     
     private final PositionCommandService positionCommandService;
     private final PositionEventPublisher positionEventPublisher;
+    private final PositionDomainService positionDomainService;
     private final TransactionTemplate transactionTemplate;
     
     @KafkaListener(
@@ -52,7 +52,7 @@ public class PositionReserveRequestListener {
                 event.userId(),
                 event.instrumentId(),
                 event.quantity(),
-                toPositionSide(event.orderSide())
+                positionDomainService.toPositionSide(event.orderSide())
                                                                                );
         if (outcome.result().success()) {
             PositionReservedEvent reservedEvent = new PositionReservedEvent(
@@ -80,14 +80,5 @@ public class PositionReserveRequestListener {
         OpenLog.warn(PositionLogEvent.POSITION_RESERVE_REJECTED,
                      "orderId", event.orderId(),
                      "reason", outcome.result().reason());
-    }
-    
-    private PositionSide toPositionSide(OrderSide orderSide) {
-        if (orderSide == null) {
-            return null;
-        }
-        return orderSide == OrderSide.BUY
-               ? PositionSide.LONG
-               : PositionSide.SHORT;
     }
 }
