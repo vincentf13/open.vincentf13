@@ -1,12 +1,13 @@
 package open.vincentf13.exchange.position.domain.model;
 
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Builder;
 import lombok.Getter;
-import open.vincentf13.exchange.position.sdk.enums.PositionEventType;
-import open.vincentf13.exchange.position.sdk.enums.PositionReferenceType;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

@@ -2,7 +2,6 @@ package open.vincentf13.exchange.common.sdk.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.ReferenceType;
 
 @Getter
 @RequiredArgsConstructor

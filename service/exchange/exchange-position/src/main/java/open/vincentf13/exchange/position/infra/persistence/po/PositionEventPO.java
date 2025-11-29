@@ -1,10 +1,11 @@
 package open.vincentf13.exchange.position.infra.persistence.po;
 
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import open.vincentf13.exchange.position.sdk.enums.PositionEventType;
-import open.vincentf13.exchange.position.sdk.enums.PositionReferenceType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 
 import java.math.BigDecimal;
 import java.time.Instant;

@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.order.infra.messaging.publisher;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
