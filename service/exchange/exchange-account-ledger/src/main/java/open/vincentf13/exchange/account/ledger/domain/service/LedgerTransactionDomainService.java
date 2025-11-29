@@ -24,7 +24,7 @@ import open.vincentf13.exchange.account.ledger.infra.persistence.repository.Plat
 import open.vincentf13.exchange.account.ledger.infra.persistence.repository.PlatformBalanceRepository;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.*;
+import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;

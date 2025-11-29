@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.account.ledger.sdk.rest.api.enums;
+package open.vincentf13.exchange.common.sdk.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -10,7 +10,7 @@ public enum ReferenceType {
     WITHDRAWAL,
     ORDER,
     TRADE;
-    
+
     @JsonCreator
     public static ReferenceType fromValue(String value) {
         if (value == null) {
@@ -18,7 +18,7 @@ public enum ReferenceType {
         }
         return ReferenceType.valueOf(value.toUpperCase(Locale.ROOT));
     }
-    
+
     @JsonValue
     public String code() {
         return name();

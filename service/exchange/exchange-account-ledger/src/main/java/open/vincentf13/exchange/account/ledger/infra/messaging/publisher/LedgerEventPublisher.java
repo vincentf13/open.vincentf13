@@ -6,8 +6,8 @@ import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEve
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.LedgerEntryCreatedEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
+import open.vincentf13.exchange.common.sdk.enums.EntryType;
+import open.vincentf13.exchange.common.sdk.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
@@ -26,7 +26,7 @@ public class LedgerEventPublisher {
                                    Long userId,
                                    AssetSymbol asset,
                                    BigDecimal frozenAmount) {
-        FundsFrozenEvent event = new FundsFrozenEvent(orderId, userId, asset.code(), frozenAmount);
+        FundsFrozenEvent event = new FundsFrozenEvent(orderId, userId, asset, frozenAmount);
         outboxRepository.append(LedgerTopics.FUNDS_FROZEN.getTopic(), orderId, event, null);
         OpenLog.info(LedgerEvent.FUNDS_FROZEN_ENQUEUED,
                      "orderId", orderId,
@@ -56,12 +56,12 @@ public class LedgerEventPublisher {
         LedgerEntryCreatedEvent event = new LedgerEntryCreatedEvent(
                 entryId,
                 userId,
-                asset.code(),
+                asset,
                 deltaBalance,
                 balanceAfter,
-                referenceType.name(),
+                referenceType,
                 referenceId,
-                entryType.name(),
+                entryType,
                 instrumentId,
                 Instant.now()
         );

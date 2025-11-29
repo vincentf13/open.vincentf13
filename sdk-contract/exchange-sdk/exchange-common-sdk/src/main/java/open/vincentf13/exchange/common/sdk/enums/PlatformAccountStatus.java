@@ -1,9 +1,9 @@
-package open.vincentf13.exchange.account.ledger.sdk.rest.api.enums;
+package open.vincentf13.exchange.common.sdk.enums;
 
 public enum PlatformAccountStatus {
     ACTIVE,
     INACTIVE;
-    
+
     public String code() {
         return name();
     }

@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.common.sdk.enums.PlatformAccountCode;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 

@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.AccountType;
+import open.vincentf13.exchange.common.sdk.enums.AccountType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
 import java.math.BigDecimal;

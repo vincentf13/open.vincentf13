@@ -1,7 +1,8 @@
-package open.vincentf13.exchange.account.ledger.sdk.rest.api.enums;
+package open.vincentf13.exchange.common.sdk.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.common.sdk.enums.ReferenceType;
 
 @Getter
 @RequiredArgsConstructor
@@ -15,11 +16,10 @@ public enum EntryType {
     TRADE_SETTLEMENT_ISOLATED_MARGIN(ReferenceType.TRADE),
     FEE(ReferenceType.TRADE),
     TRADE(ReferenceType.TRADE);
-    
+
     private final ReferenceType referenceType;
-    
+
     public String code() {
         return name();
     }
-    
 }

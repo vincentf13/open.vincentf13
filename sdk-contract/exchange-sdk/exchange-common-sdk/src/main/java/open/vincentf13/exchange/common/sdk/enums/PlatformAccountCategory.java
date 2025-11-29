@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.account.ledger.sdk.rest.api.enums;
+package open.vincentf13.exchange.common.sdk.enums;
 
 public enum PlatformAccountCategory {
     ASSET,
@@ -6,7 +6,7 @@ public enum PlatformAccountCategory {
     REVENUE,
     EXPENSE,
     EQUITY;
-    
+
     public String code() {
         return name();
     }

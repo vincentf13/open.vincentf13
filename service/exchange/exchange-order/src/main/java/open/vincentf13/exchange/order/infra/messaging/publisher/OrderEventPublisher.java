@@ -46,7 +46,7 @@ public class OrderEventPublisher {
     }
     
     public void publishOrderCreated(Order order,
-                                    String frozenAsset,
+                                    AssetSymbol frozenAsset,
                                     BigDecimal frozenAmount) {
         OrderCreatedEvent payload = new OrderCreatedEvent(
                 order.getOrderId(),

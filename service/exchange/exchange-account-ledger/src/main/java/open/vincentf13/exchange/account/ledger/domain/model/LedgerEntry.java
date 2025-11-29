@@ -5,10 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.Direction;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.EntryType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.OwnerType;
-import open.vincentf13.exchange.account.ledger.sdk.rest.api.enums.ReferenceType;
+import open.vincentf13.exchange.common.sdk.enums.Direction;
+import open.vincentf13.exchange.common.sdk.enums.EntryType;
+import open.vincentf13.exchange.common.sdk.enums.OwnerType;
+import open.vincentf13.exchange.common.sdk.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
 import java.math.BigDecimal;

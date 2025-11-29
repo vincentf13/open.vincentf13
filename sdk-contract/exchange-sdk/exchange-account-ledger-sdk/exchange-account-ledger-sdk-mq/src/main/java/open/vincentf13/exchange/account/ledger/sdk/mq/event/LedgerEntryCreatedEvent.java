@@ -1,17 +1,21 @@
 package open.vincentf13.exchange.account.ledger.sdk.mq.event;
 
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.EntryType;
+import open.vincentf13.exchange.common.sdk.enums.ReferenceType;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
 public record LedgerEntryCreatedEvent(
         Long entryId,
         Long userId,
-        String asset,
+        AssetSymbol asset,
         BigDecimal deltaBalance,
         BigDecimal balanceAfter,
-        String referenceType,
+        ReferenceType referenceType,
         String referenceId,
-        String entryType,
+        EntryType entryType,
         Long instrumentId,
         Instant eventTime
 ) {
