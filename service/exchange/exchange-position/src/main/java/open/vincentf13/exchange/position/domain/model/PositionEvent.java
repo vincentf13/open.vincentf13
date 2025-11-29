@@ -1,0 +1,64 @@
+package open.vincentf13.exchange.position.domain.model;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.Builder;
+import lombok.Getter;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+@Getter
+@Builder
+public class PositionEvent {
+    @NotNull
+    private Long eventId;
+
+    @NotNull
+    private Long positionId;
+
+    @NotNull
+    private Long userId;
+
+    @NotNull
+    private Long instrumentId;
+
+    @NotNull
+    private PositionEventType eventType;
+
+    @NotNull
+    private BigDecimal deltaQuantity;
+
+    @NotNull
+    private BigDecimal deltaPnl;
+
+    @NotNull
+    @DecimalMin("0")
+    private BigDecimal newQuantity;
+
+    @NotNull
+    @DecimalMin("0")
+    private BigDecimal newReservedQuantity;
+
+    @NotNull
+    @Positive
+    private BigDecimal newEntryPrice;
+
+    @NotNull
+    private BigDecimal newUnrealizedPnl;
+
+    private Long referenceId;
+    @NotNull
+    private PositionReferenceType referenceType;
+
+    private String metadata; // JSON string
+
+    @NotNull
+    private Instant occurredAt;
+
+    @NotNull
+    private Instant createdAt;
+}
