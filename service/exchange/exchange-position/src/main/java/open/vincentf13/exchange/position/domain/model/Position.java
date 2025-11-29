@@ -83,7 +83,7 @@ public class Position {
                        .unrealizedPnl(BigDecimal.ZERO)
                        .realizedPnl(BigDecimal.ZERO)
                        .liquidationPrice(BigDecimal.ZERO)
-                       
+                       .version(0)
                        .status(PositionStatus.ACTIVE)
                        .build();
     }

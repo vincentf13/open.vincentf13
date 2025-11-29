@@ -195,12 +195,12 @@ public class PositionCommandService {
         if (position.getPositionId() == null) {
             positionRepository.insertSelective(position);
         } else {
+            position.setVersion(position.getVersion() + 1);
             boolean updated = positionRepository.updateSelectiveBy(
                     position,
                     new LambdaUpdateWrapper<PositionPO>()
                             .eq(PositionPO::getPositionId, position.getPositionId())
-                            .eq(PositionPO::getVersion, position.getVersion() - 1)
-                                                                  );
+                            .eq(PositionPO::getVersion, position.getVersion()));
             if (!updated) {
                 throw new RuntimeException("Concurrent update on position " + position.getPositionId());
             }
@@ -227,13 +227,14 @@ public class PositionCommandService {
         
         if (position.getStatus() == PositionStatus.CLOSED) {
             positionEventPublisher.publishClosed(new PositionClosedEvent(userId, instrumentId, executedAt));
-        } else {
-            positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
-                    userId, instrumentId, position.getSide(), position.getQuantity(),
-                    position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
-                    position.getLiquidationPrice(), executedAt
-            ));
         }
+        
+        positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
+                userId, instrumentId, position.getSide(), position.getQuantity(),
+                position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
+                position.getLiquidationPrice(), executedAt
+        ));
+        
     }
     
     private LeveragePrecheckRequest buildPrecheckRequest(Position position,
