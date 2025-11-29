@@ -6,23 +6,21 @@
 - Service implementations reside in `services/<service>/src`, each with its own `pom.xml`, `Dockerfile`, and resources (`src/main/resources`, `src/test/java`).
 - Kubernetes assets live in `k8s/`; per-service manifests sit under `k8s/<service>/`, while cross-cutting resources stay at the top level (e.g., `k8s/ingress.yaml`).
 
-## Build & Test Commands
-- 使用系統 Maven (`mvn`) 進行構建與測試。
-- Full pipeline: `mvn clean verify` 會編譯、執行單元測試並在 `target/` 下產出制品。
-- Targeted build: `mvn -pl <module> -am verify`（例如：`mvn -pl common-sdk/exchange/matching/rest-api -am verify`）。
+## Build Commands
+- **(Overridden)** 本專案採用 Agent 自動化開發流程，**不再執行 Maven 構建或測試指令**。
+- 若需驗證編譯，可針對特定模組執行 `mvn clean compile`。
 - Local service run: `mvn -pl services/<service> spring-boot:run`（預設監聽 8080，可在各服務自行覆寫）。
 
 ## Coding Style
 - Java sources are UTF-8 with 4-space indentation; use PascalCase for classes, camelCase for members, and UPPER_SNAKE_CASE for constants.
 - Prefer constructor injection, isolate config in dedicated classes, and remove transient debug output (`System.out.printf`, etc.) before committing.
 - Name components by responsibility (e.g., `UserController`, `OrderService`).
-- 開發 exchange 模組時，目錄／類別分層、命名與責任切分、規則必須遵照 `design/exchange/整體設計.md` 及 `Domain設計.md` / `Controller 設計.md` / `Service 設計.md` / `DB設計.md` / `Kafka設計.md` 的規範（如 domain/infra/service/controller、聚合邊界等），任何新服務或重構都需先比對設計文件再實作。
+- 開發 exchange 模組時，目錄／類別分層、命名與責任切分、規則必須遵照 `design/exchange/整體設計.md` 及 `Domain設計.md` / `Controller_Design.md` / `Service 設計.md` / `DB設計.md` / `Kafka設計.md` 的規範（如 domain/infra/service/controller、聚合邊界等），任何新服務或重構都需先比對設計文件再實作。
 - 文件與程式的 API 命名需一致：即使為內部呼叫，統一以 `/api/...` 為前綴；Endpoint 表的 `授權` 欄內部介面填 `private`，`服務調用` 僅記錄「呼叫了哪個服務與接口」，不要描述回傳內容；`補償機制` 用來標註調用失敗時會在哪段程式碼重試或補償。
 
 ## Testing Expectations
-- Mirror packages under `src/test/java`; suffix test classes with `*Tests`.
-- Reserve `@SpringBootTest` for full-context cases—favor slices, mocks, or plain unit tests otherwise.
-- Cover success and failure paths; keep the suite green under `mvn verify`. Document any intentionally skipped scenarios in PR notes.
+- **(Overridden)** 根據專案新政策，**不再編寫或更新任何測試程式碼**。
+- 既有的測試程式碼可被忽略，且不需要維持 `mvn verify` 通過。
 
 ## Git & Review Workflow
 - Commit messages: concise, present tense (`fix ingress host mapping`); first line < 50 characters, further detail in the body if needed. Chinese summaries are acceptable.
