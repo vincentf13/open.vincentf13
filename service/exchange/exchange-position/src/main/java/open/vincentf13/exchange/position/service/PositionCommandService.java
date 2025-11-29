@@ -66,14 +66,14 @@ public class PositionCommandService {
                                                               .eq(PositionPO::getInstrumentId, instrumentId)
                                                               .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
                                               .orElse(null);
-
+        
         PositionDomainService.ReserveForCloseResult result =
                 positionDomainService.calculateReserveForClose(position, quantity);
-
+        
         if (!result.success()) {
             return PositionReserveOutcome.rejected(result.reason());
         }
-
+        
         int expectedVersion = position.safeVersion();
         Position updateRecord = Position.builder()
                                         .closingReservedQuantity(result.newReservedQuantity())
@@ -92,7 +92,7 @@ public class PositionCommandService {
         if (!success) {
             return PositionReserveOutcome.rejected("RESERVE_FAILED");
         }
-
+        
         return PositionReserveOutcome.accepted(quantity, result.avgOpenPrice());
     }
     
@@ -149,44 +149,49 @@ public class PositionCommandService {
         OpenLog.info(PositionLogEvent.POSITION_LEVERAGE_UPDATED, "positionId", position.getPositionId(), "userId", position.getUserId(), "instrumentId", instrumentId, "fromLeverage", position.getLeverage(), "toLeverage", targetLeverage);
         return new PositionLeverageResponse(targetLeverage, Instant.now());
     }
-
+    
     @Transactional
     public void handleTradeExecuted(@NotNull TradeExecutedEvent event) {
         processTradeForUser(event.makerUserId(), event.instrumentId(), event.orderSide(),
-                event.price(), event.quantity(), event.tradeId(), event.executedAt());
-
+                            event.price(), event.quantity(), event.tradeId(), event.executedAt());
+        
         processTradeForUser(event.takerUserId(), event.instrumentId(), event.counterpartyOrderSide(),
-                event.price(), event.quantity(), event.tradeId(), event.executedAt());
+                            event.price(), event.quantity(), event.tradeId(), event.executedAt());
     }
-
-    private void processTradeForUser(Long userId, Long instrumentId, OrderSide orderSide,
-                                     BigDecimal price, BigDecimal quantity, Long tradeId, Instant executedAt) {
+    
+    private void processTradeForUser(Long userId,
+                                     Long instrumentId,
+                                     OrderSide orderSide,
+                                     BigDecimal price,
+                                     BigDecimal quantity,
+                                     Long tradeId,
+                                     Instant executedAt) {
         PositionSide side = positionDomainService.toPositionSide(orderSide);
-
+        
         Position position = positionRepository.findOne(
-                Wrappers.lambdaQuery(PositionPO.class)
-                        .eq(PositionPO::getUserId, userId)
-                        .eq(PositionPO::getInstrumentId, instrumentId)
-                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                .orElse(null);
-
+                                                      Wrappers.lambdaQuery(PositionPO.class)
+                                                              .eq(PositionPO::getUserId, userId)
+                                                              .eq(PositionPO::getInstrumentId, instrumentId)
+                                                              .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                                              .orElse(null);
+        
         if (positionDomainService.shouldSplitTrade(position, side, quantity)) {
             PositionDomainService.TradeSplit split = positionDomainService.calculateTradeSplit(position, quantity);
-
+            
             processTradeForUser(userId, instrumentId, orderSide, price, split.closeQuantity(), tradeId, executedAt);
             processTradeForUser(userId, instrumentId, orderSide, price, split.flipQuantity(), tradeId, executedAt);
             return;
         }
-
+        
         if (position == null) {
             position = Position.createDefault(userId, instrumentId, side);
         }
-
+        
         BigDecimal cachedMarkPrice = markPriceCache.get(instrumentId).orElse(null);
-
+        
         PositionDomainService.TradeExecutionResult executionResult =
                 positionDomainService.processTradeExecution(position, orderSide, price, quantity, cachedMarkPrice, executedAt);
-
+        
         if (position.getPositionId() == null) {
             positionRepository.insertSelective(position);
         } else {
@@ -195,31 +200,31 @@ public class PositionCommandService {
                     new LambdaUpdateWrapper<PositionPO>()
                             .eq(PositionPO::getPositionId, position.getPositionId())
                             .eq(PositionPO::getVersion, position.getVersion() - 1)
-            );
+                                                                  );
             if (!updated) {
                 throw new RuntimeException("Concurrent update on position " + position.getPositionId());
             }
         }
-
+        
         PositionEvent event = PositionEvent.builder()
-                .positionId(position.getPositionId())
-                .userId(userId)
-                .instrumentId(instrumentId)
-                .eventType(executionResult.eventType())
-                .deltaQuantity(executionResult.deltaQuantity())
-                .deltaPnl(executionResult.deltaPnl())
-                .newQuantity(position.getQuantity())
-                .newReservedQuantity(position.getClosingReservedQuantity())
-                .newEntryPrice(position.getEntryPrice())
-                .newUnrealizedPnl(position.getUnrealizedPnl())
-                .referenceId(tradeId)
-                .referenceType(PositionReferenceType.TRADE)
-                .metadata("")
-                .occurredAt(executedAt)
-                .createdAt(Instant.now())
-                .build();
+                                           .positionId(position.getPositionId())
+                                           .userId(userId)
+                                           .instrumentId(instrumentId)
+                                           .eventType(executionResult.eventType())
+                                           .deltaQuantity(executionResult.deltaQuantity())
+                                           .deltaPnl(executionResult.deltaPnl())
+                                           .newQuantity(position.getQuantity())
+                                           .newReservedQuantity(position.getClosingReservedQuantity())
+                                           .newEntryPrice(position.getEntryPrice())
+                                           .newUnrealizedPnl(position.getUnrealizedPnl())
+                                           .referenceId(tradeId)
+                                           .referenceType(PositionReferenceType.TRADE)
+                                           .metadata("")
+                                           .occurredAt(executedAt)
+                                           .createdAt(Instant.now())
+                                           .build();
         positionEventRepository.insert(event);
-
+        
         if (position.getStatus() == PositionStatus.CLOSED) {
             positionEventPublisher.publishClosed(new PositionClosedEvent(userId, instrumentId, executedAt));
         } else {
@@ -230,7 +235,7 @@ public class PositionCommandService {
             ));
         }
     }
-
+    
     private LeveragePrecheckRequest buildPrecheckRequest(Position position,
                                                          Integer targetLeverage) {
         return new LeveragePrecheckRequest(
