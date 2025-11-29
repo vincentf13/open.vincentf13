@@ -5,7 +5,7 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
-import open.vincentf13.exchange.position.infra.PositionEvent;
+import open.vincentf13.exchange.position.infra.PositionLogEvent;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
@@ -38,7 +38,7 @@ public class PositionReserveRequestListener {
         try {
             OpenValidator.validateOrThrow(event);
         } catch (Exception e) {
-            OpenLog.warn(PositionEvent.POSITION_RESERVE_PAYLOAD_INVALID, e, "event", event);
+            OpenLog.warn(PositionLogEvent.POSITION_RESERVE_PAYLOAD_INVALID, e, "event", event);
             acknowledgment.acknowledge();
             return;
         }
@@ -65,7 +65,7 @@ public class PositionReserveRequestListener {
                     Instant.now()
             );
             positionEventPublisher.publishReserved(reservedEvent);
-            OpenLog.info(PositionEvent.POSITION_RESERVED, "orderId", event.orderId());
+            OpenLog.info(PositionLogEvent.POSITION_RESERVED, "orderId", event.orderId());
             return;
         }
         PositionReserveRejectedEvent rejectedEvent = new PositionReserveRejectedEvent(
@@ -77,7 +77,7 @@ public class PositionReserveRequestListener {
                 Instant.now()
         );
         positionEventPublisher.publishRejected(rejectedEvent);
-        OpenLog.warn(PositionEvent.POSITION_RESERVE_REJECTED,
+        OpenLog.warn(PositionLogEvent.POSITION_RESERVE_REJECTED,
                      "orderId", event.orderId(),
                      "reason", outcome.result().reason());
     }
