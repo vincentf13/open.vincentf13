@@ -13,8 +13,7 @@ public enum EntryType {
     TRADE_SETTLEMENT_SPOT_MAIN(ReferenceType.TRADE),
     TRADE_SETTLEMENT_SPOT_MAIN_PNL(ReferenceType.TRADE),
     TRADE_SETTLEMENT_ISOLATED_MARGIN(ReferenceType.TRADE),
-    FEE(ReferenceType.TRADE),
-    TRADE(ReferenceType.TRADE);
+    FEE(ReferenceType.TRADE);
 
     private final ReferenceType referenceType;
 
