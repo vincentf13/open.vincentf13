@@ -53,6 +53,12 @@ public class PositionEvent {
     private BigDecimal newEntryPrice;
 
     @NotNull
+    private BigDecimal newLeverage;
+
+    @NotNull
+    private BigDecimal newMargin;
+
+    @NotNull
     private BigDecimal newUnrealizedPnl;
 
     private Long referenceId;
