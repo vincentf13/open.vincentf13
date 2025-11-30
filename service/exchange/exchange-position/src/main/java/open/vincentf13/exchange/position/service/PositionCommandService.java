@@ -165,14 +165,14 @@ public class PositionCommandService {
                 userId, instrumentId, orderSide, price, quantity, tradeId, executedAt);
 
         for (Position position : positions) {
+            positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
+                    userId, instrumentId, position.getSide(), position.getQuantity(),
+                    position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
+                    position.getLiquidationPrice(), executedAt
+            ));
+
             if (position.getStatus() == PositionStatus.CLOSED) {
                 positionEventPublisher.publishClosed(new PositionClosedEvent(userId, instrumentId, executedAt));
-            } else {
-                positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
-                        userId, instrumentId, position.getSide(), position.getQuantity(),
-                        position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
-                        position.getLiquidationPrice(), executedAt
-                ));
             }
         }
     }
