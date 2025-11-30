@@ -31,6 +31,7 @@ public class PositionDomainService {
     private final MarkPriceCache markPriceCache;
 
     private static final BigDecimal MAINTENANCE_MARGIN_RATE_DEFAULT = BigDecimal.valueOf(0.005);
+    private static final BigDecimal CONTRACT_MULTIPLIER = BigDecimal.ONE;
 
     public PositionSide toPositionSide(OrderSide orderSide) {
         if (orderSide == null) {
@@ -140,17 +141,17 @@ public class PositionDomainService {
 
         Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
 
-        markPriceCache.get(updatedPosition.getInstrumentId())
+        markPriceCache.get(position.getInstrumentId())
                       .ifPresent(updatedPosition::setMarkPrice);
 
         PositionEventType eventType;
         boolean isIncrease;
 
-        if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
+        if (position.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
             eventType = PositionEventType.POSITION_OPENED;
             updatedPosition.setSide(side);
             isIncrease = true;
-        } else if (updatedPosition.getSide() == side) {
+        } else if (position.getSide() == side) {
             eventType = PositionEventType.POSITION_INCREASED;
             isIncrease = true;
         } else {
@@ -160,16 +161,16 @@ public class PositionDomainService {
 
         // 增持
         if (isIncrease) {
+            updatedPosition.setQuantity(position.getQuantity().add(quantity));
             updatedPosition.setEntryPrice(
-                    updatedPosition.getEntryPrice().multiply(updatedPosition.getQuantity())
+                    position.getEntryPrice().multiply(position.getQuantity())
                             .add(price.multiply(quantity))
-                            .divide(updatedPosition.getQuantity().add(quantity), 12, RoundingMode.HALF_UP)
+                            .divide(updatedPosition.getQuantity(), 12, RoundingMode.HALF_UP)
             );
-            updatedPosition.setQuantity(updatedPosition.getQuantity().add(quantity));
         } else {
             // 平倉
-            updatedPosition.setQuantity(updatedPosition.getQuantity().subtract(quantity.min(updatedPosition.getQuantity())));
-            updatedPosition.setClosingReservedQuantity(updatedPosition.getClosingReservedQuantity().subtract(quantity.min(updatedPosition.getQuantity())).max(BigDecimal.ZERO));
+            updatedPosition.setQuantity(position.getQuantity().subtract(quantity.min(position.getQuantity())));
+            updatedPosition.setClosingReservedQuantity(position.getClosingReservedQuantity().subtract(quantity.min(position.getQuantity())).max(BigDecimal.ZERO));
 
             if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
                 updatedPosition.setStatus(PositionStatus.CLOSED);
@@ -179,12 +180,16 @@ public class PositionDomainService {
         }
 
         updatedPosition.setMargin(updatedPosition.getEntryPrice().multiply(updatedPosition.getQuantity()).abs()
-                .divide(BigDecimal.valueOf(updatedPosition.getLeverage()), 12, RoundingMode.HALF_UP));
+                .divide(BigDecimal.valueOf(position.getLeverage()), 12, RoundingMode.HALF_UP));
 
         if (updatedPosition.getSide() == PositionSide.LONG) {
-            updatedPosition.setUnrealizedPnl(updatedPosition.getMarkPrice().subtract(updatedPosition.getEntryPrice()).multiply(updatedPosition.getQuantity()));
+            updatedPosition.setUnrealizedPnl(updatedPosition.getMarkPrice().subtract(updatedPosition.getEntryPrice())
+                    .multiply(updatedPosition.getQuantity())
+                    .multiply(CONTRACT_MULTIPLIER));
         } else {
-            updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(updatedPosition.getMarkPrice()).multiply(updatedPosition.getQuantity()));
+            updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(updatedPosition.getMarkPrice())
+                    .multiply(updatedPosition.getQuantity())
+                    .multiply(CONTRACT_MULTIPLIER));
         }
 
         if (updatedPosition.getMarkPrice().multiply(updatedPosition.getQuantity()).abs().compareTo(BigDecimal.ZERO) == 0) {
