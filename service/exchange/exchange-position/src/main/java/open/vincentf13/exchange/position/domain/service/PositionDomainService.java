@@ -167,6 +167,7 @@ public class PositionDomainService {
             );
             updatedPosition.setQuantity(updatedPosition.getQuantity().add(quantity));
         } else {
+            // 平倉
             updatedPosition.setQuantity(updatedPosition.getQuantity().subtract(quantity.min(updatedPosition.getQuantity())));
             updatedPosition.setClosingReservedQuantity(updatedPosition.getClosingReservedQuantity().subtract(quantity.min(updatedPosition.getQuantity())).max(BigDecimal.ZERO));
 
