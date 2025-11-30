@@ -6,9 +6,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.account.ledger.sdk.mq.event.LedgerEntryCreatedEvent;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
-import open.vincentf13.exchange.account.ledger.sdk.mq.event.LedgerEntryCreatedEvent;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
@@ -160,6 +160,7 @@ public class PositionCommandService {
         if (event.userId() == null) {
             return;
         }
+        
         Position position = positionDomainService.processLedgerEntry(event);
         if (position != null) {
             positionEventPublisher.publishUpdated(new PositionUpdatedEvent(

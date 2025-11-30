@@ -283,8 +283,14 @@ public class LedgerTransactionDomainService {
         BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
         Long userId = isMaker ? event.makerUserId() : event.takerUserId();
         BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity());
-        BigDecimal realizedPnl = (event.price().subtract(order.closeCostPrice())).multiply(event.quantity())
-                                                                                 .subtract(fee);
+        BigDecimal grossRealizedPnl;
+        if (order.side() == OrderSide.BUY) { // Closing a SHORT position
+            grossRealizedPnl = order.closeCostPrice().subtract(event.price()).multiply(event.quantity());
+        } else { // Closing a LONG position (order.side() == OrderSide.SELL)
+            grossRealizedPnl = event.price().subtract(order.closeCostPrice()).multiply(event.quantity());
+        }
+        BigDecimal realizedPnl = grossRealizedPnl.subtract(fee);
+        
         // 手續費扣完可能是負的，帳戶不夠付手續費，就以負餘額表示。
         BigDecimal totalDepositAmount = costBasis.add(realizedPnl);
         

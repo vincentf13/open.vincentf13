@@ -1,22 +1,25 @@
 package open.vincentf13.exchange.account.ledger.sdk.mq.event;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.EntryType;
 import open.vincentf13.exchange.common.sdk.enums.ReferenceType;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 public record LedgerEntryCreatedEvent(
-        Long entryId,
+        @NotNull Long entryId,
         Long userId,
-        AssetSymbol asset,
-        BigDecimal deltaBalance,
-        BigDecimal balanceAfter,
-        ReferenceType referenceType,
-        String referenceId,
-        EntryType entryType,
-        Long instrumentId,
-        Instant eventTime
+        @NotNull AssetSymbol asset,
+        @NotNull BigDecimal deltaBalance,
+        @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal balanceAfter,
+        @NotNull ReferenceType referenceType,
+        @NotNull String referenceId,
+        @NotNull EntryType entryType,
+        @NotNull Long instrumentId,
+        @NotNull Instant eventTime
 ) {
 }
