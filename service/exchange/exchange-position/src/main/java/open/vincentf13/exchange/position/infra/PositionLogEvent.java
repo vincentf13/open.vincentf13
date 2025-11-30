@@ -12,6 +12,7 @@ public enum PositionLogEvent implements OpenEvent {
     POSITION_LEVERAGE_UPDATED("PositionLeverageUpdated", "Position leverage updated"),
     POSITION_RESERVE_PAYLOAD_INVALID("PositionReservePayloadInvalid", "Invalid PositionReserveRequested payload"),
     POSITION_TRADE_PAYLOAD_INVALID("PositionTradePayloadInvalid", "Invalid TradeExecuted payload"),
+    POSITION_LEDGER_PAYLOAD_INVALID("PositionLedgerPayloadInvalid", "Invalid LedgerEntryCreated payload"),
     STARTUP_CACHE_LOADING("StartupCacheLoading", "Starting cache loading"),
     STARTUP_CACHE_LOADED("StartupCacheLoaded", "Cache loaded successfully"),
     STARTUP_CACHE_LOAD_FAILED("StartupCacheLoadFailed", "Cache loading failed"),

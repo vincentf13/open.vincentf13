@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.account.ledger.sdk.mq.event.LedgerEntryCreatedEvent;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
@@ -152,6 +153,21 @@ public class PositionCommandService {
         
         processTradeForUser(event.takerUserId(), event.instrumentId(), event.counterpartyOrderSide(),
                             event.price(), event.quantity(), event.tradeId(), event.executedAt());
+    }
+
+    @Transactional
+    public void handleLedgerEntryCreated(@NotNull LedgerEntryCreatedEvent event) {
+        if (event.userId() == null) {
+            return;
+        }
+        Position position = positionDomainService.processLedgerEntry(event);
+        if (position != null) {
+            positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
+                    event.userId(), event.instrumentId(), position.getSide(), position.getQuantity(),
+                    position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
+                    position.getLiquidationPrice(), event.eventTime()
+            ));
+        }
     }
     
     private void processTradeForUser(@NotNull Long userId,
