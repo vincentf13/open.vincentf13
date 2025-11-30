@@ -53,7 +53,7 @@ public class PositionEvent {
     private BigDecimal newEntryPrice;
 
     @NotNull
-    private BigDecimal newLeverage;
+    private Integer newLeverage;
 
     @NotNull
     private BigDecimal newMargin;
@@ -80,7 +80,7 @@ public class PositionEvent {
                                                   BigDecimal newQuantity,
                                                   BigDecimal newReservedQuantity,
                                                   BigDecimal newEntryPrice,
-                                                  BigDecimal newLeverage,
+                                                  Integer newLeverage,
                                                   BigDecimal newMargin,
                                                   BigDecimal newUnrealizedPnl,
                                                   Long tradeId,

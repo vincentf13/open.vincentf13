@@ -24,6 +24,8 @@ public class PositionEventPO {
     private BigDecimal newQuantity;
     private BigDecimal newReservedQuantity;
     private BigDecimal newEntryPrice;
+    private Integer newLeverage;
+    private BigDecimal newMargin;
     private BigDecimal newUnrealizedPnl;
     private Long referenceId;
     private PositionReferenceType referenceType;

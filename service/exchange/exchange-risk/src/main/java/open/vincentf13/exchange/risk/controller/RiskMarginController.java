@@ -2,6 +2,8 @@ package open.vincentf13.exchange.risk.controller;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
+import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
+import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.RiskLimitResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.RiskMarginApi;
 import open.vincentf13.exchange.risk.service.RiskLimitQueryService;
@@ -16,6 +18,12 @@ public class RiskMarginController implements RiskMarginApi {
 
     private final RiskLimitQueryService riskLimitQueryService;
 
+    
+   @Override
+    public OpenApiResponse<LeveragePrecheckResponse> precheckLeverage(LeveragePrecheckRequest request) {
+        // TODO
+        return OpenApiResponse.success(null);
+    }
     @Override
     public OpenApiResponse<RiskLimitResponse> getRiskLimit(Long instrumentId) {
         RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(instrumentId);
