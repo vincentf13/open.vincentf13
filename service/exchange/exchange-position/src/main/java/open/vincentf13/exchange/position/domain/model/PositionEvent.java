@@ -63,8 +63,7 @@ public class PositionEvent {
 
     @NotNull
     private Instant occurredAt;
-
-    @NotNull
+    
     private Instant createdAt;
 
     public static PositionEvent createTradeEvent(Long positionId,
@@ -93,7 +92,6 @@ public class PositionEvent {
                 .referenceType(PositionReferenceType.TRADE)
                 .metadata("")
                 .occurredAt(occurredAt)
-                .createdAt(Instant.now())
                 .build();
     }
 }
