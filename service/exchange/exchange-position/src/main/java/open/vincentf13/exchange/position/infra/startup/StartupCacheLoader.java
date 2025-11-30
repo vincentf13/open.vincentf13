@@ -35,25 +35,22 @@ public class StartupCacheLoader {
      * @throws RuntimeException if loading fails after max retry attempts
      */
     public void loadCaches() {
-        OpenLog.info(PositionLogEvent.STARTUP_CACHE_LOADING, "Starting cache loading for instruments and risk limits");
+        OpenLog.info(PositionLogEvent.STARTUP_CACHE_LOADING);
 
         int attempt = 0;
         while (attempt < MAX_RETRY_ATTEMPTS) {
             try {
                 attempt++;
-                OpenLog.info(PositionLogEvent.STARTUP_CACHE_LOADING,
-                        "Cache loading attempt {}/{}", attempt, MAX_RETRY_ATTEMPTS);
+                OpenLog.info(PositionLogEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
 
                 loadInstruments();
                 loadRiskLimits();
 
-                OpenLog.info(PositionLogEvent.STARTUP_CACHE_LOADED,
-                        "Cache loading completed successfully. Instruments: {}, RiskLimits: {}",
-                        instrumentCache.size(), riskLimitCache.size());
+                OpenLog.info(PositionLogEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size(), "riskLimits", riskLimitCache.size());
                 return;
 
             } catch (Exception e) {
-                OpenLog.error(PositionLogEvent.STARTUP_CACHE_LOAD_FAILED, e, attempt, MAX_RETRY_ATTEMPTS);
+                OpenLog.error(PositionLogEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
 
                 if (attempt >= MAX_RETRY_ATTEMPTS) {
                     throw new RuntimeException("Failed to load caches after " + MAX_RETRY_ATTEMPTS + " attempts", e);
@@ -73,25 +70,20 @@ public class StartupCacheLoader {
      * Loads all instruments from Admin service and stores them in the cache.
      */
     private void loadInstruments() {
-        OpenLog.info(PositionLogEvent.STARTUP_LOADING_INSTRUMENTS, "Fetching instruments from Admin service");
+        OpenLog.info(PositionLogEvent.STARTUP_LOADING_INSTRUMENTS);
 
         List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
 
-        OpenLog.info(PositionLogEvent.STARTUP_LOADING_INSTRUMENTS,
-                "Fetched {} instruments from Admin service", instruments.size());
-
         instrumentCache.putAll(instruments);
 
-        OpenLog.info(PositionLogEvent.STARTUP_INSTRUMENTS_LOADED,
-                "Loaded {} instruments into cache", instruments.size());
+        OpenLog.info(PositionLogEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
     }
 
     /**
      * Loads risk limits for all instruments from Risk service and stores them in the cache.
      */
     private void loadRiskLimits() {
-        OpenLog.info(PositionLogEvent.STARTUP_LOADING_RISK_LIMITS,
-                "Fetching risk limits from Risk service for {} instruments", instrumentCache.size());
+        OpenLog.info(PositionLogEvent.STARTUP_LOADING_RISK_LIMITS, "instrumentCount", instrumentCache.size());
 
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failureCount = new AtomicInteger(0);
@@ -104,19 +96,14 @@ public class StartupCacheLoader {
                 successCount.incrementAndGet();
             } catch (Exception e) {
                 failureCount.incrementAndGet();
-                OpenLog.warn(PositionLogEvent.STARTUP_RISK_LIMIT_FETCH_FAILED,
-                        "Failed to fetch risk limit for instrumentId: {}", e, instrumentId);
+                OpenLog.warn(PositionLogEvent.STARTUP_RISK_LIMIT_FETCH_FAILED, e, "instrumentId", instrumentId);
             }
         });
 
-        OpenLog.info(PositionLogEvent.STARTUP_RISK_LIMITS_LOADED,
-                "Loaded {} risk limits into cache ({} succeeded, {} failed)",
-                successCount.get(), successCount.get(), failureCount.get());
+        OpenLog.info(PositionLogEvent.STARTUP_RISK_LIMITS_LOADED, "succeeded", successCount.get(), "failed", failureCount.get());
 
         if (failureCount.get() > 0) {
-            OpenLog.warn(PositionLogEvent.STARTUP_RISK_LIMIT_LOAD_PARTIAL,
-                    "Some risk limits failed to load: {}/{} failed",
-                    failureCount.get(), instrumentCache.size());
+            OpenLog.warn(PositionLogEvent.STARTUP_RISK_LIMIT_LOAD_PARTIAL, "failed", failureCount.get(), "total", instrumentCache.size());
         }
     }
 }
