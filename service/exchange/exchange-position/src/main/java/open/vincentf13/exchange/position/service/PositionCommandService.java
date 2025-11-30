@@ -154,13 +154,13 @@ public class PositionCommandService {
                             event.price(), event.quantity(), event.tradeId(), event.executedAt());
     }
     
-    private void processTradeForUser(Long userId,
-                                     Long instrumentId,
-                                     OrderSide orderSide,
-                                     BigDecimal price,
-                                     BigDecimal quantity,
-                                     Long tradeId,
-                                     Instant executedAt) {
+    private void processTradeForUser(@NotNull Long userId,
+                                     @NotNull Long instrumentId,
+                                     @NotNull OrderSide orderSide,
+                                     @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false) BigDecimal price,
+                                     @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
+                                     @NotNull Long tradeId,
+                                     @NotNull Instant executedAt) {
         Collection<Position> positions = positionDomainService.processTradeForUser(
                 userId, instrumentId, orderSide, price, quantity, tradeId, executedAt);
 

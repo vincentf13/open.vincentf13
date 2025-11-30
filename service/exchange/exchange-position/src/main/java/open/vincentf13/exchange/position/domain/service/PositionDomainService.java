@@ -1,7 +1,10 @@
 package open.vincentf13.exchange.position.domain.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
@@ -72,13 +75,13 @@ public class PositionDomainService {
         return ReserveForCloseResult.accepted(newReservedQuantity, avgOpenPrice);
     }
     
-    public Collection<Position> processTradeForUser(Long userId,
-                                                     Long instrumentId,
-                                                     OrderSide orderSide,
-                                                     BigDecimal price,
-                                                     BigDecimal quantity,
-                                                     Long tradeId,
-                                                     Instant executedAt) {
+    public Collection<Position> processTradeForUser(@NotNull Long userId,
+                                                     @NotNull Long instrumentId,
+                                                     @NotNull OrderSide orderSide,
+                                                     @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false) BigDecimal price,
+                                                     @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
+                                                     @NotNull Long tradeId,
+                                                     @NotNull Instant executedAt) {
         PositionSide side = toPositionSide(orderSide);
 
         Position position = positionRepository.findOne(
@@ -139,11 +142,11 @@ public class PositionDomainService {
         return Collections.singletonList(updatedPosition);
     }
 
-    private TradeExecutionData processTradeExecution(Position position,
-                                                     PositionSide side,
-                                                     BigDecimal price,
-                                                     BigDecimal quantity,
-                                                     Instant executedAt) {
+    private TradeExecutionData processTradeExecution(@NotNull Position position,
+                                                     @NotNull PositionSide side,
+                                                     @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false) BigDecimal price,
+                                                     @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
+                                                     @NotNull Instant executedAt) {
 
         Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
 
@@ -179,7 +182,7 @@ public class PositionDomainService {
             updatedPosition.setEntryPrice(
                     position.getEntryPrice().multiply(position.getQuantity())
                             .add(price.multiply(quantity))
-                            .divide(updatedPosition.getQuantity(), 12, RoundingMode.HALF_UP)
+                            .divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
             );
         } else {
             // 平倉
@@ -194,7 +197,7 @@ public class PositionDomainService {
         }
 
         updatedPosition.setMargin(updatedPosition.getEntryPrice().multiply(updatedPosition.getQuantity()).abs()
-                .divide(BigDecimal.valueOf(position.getLeverage()), 12, RoundingMode.HALF_UP));
+                .divide(BigDecimal.valueOf(position.getLeverage()), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP));
 
         if (updatedPosition.getSide() == PositionSide.LONG) {
             updatedPosition.setUnrealizedPnl(updatedPosition.getMarkPrice().subtract(updatedPosition.getEntryPrice())
@@ -210,21 +213,21 @@ public class PositionDomainService {
             updatedPosition.setMarginRatio(BigDecimal.ZERO);
         } else {
             updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
-                    .divide(updatedPosition.getMarkPrice().multiply(updatedPosition.getQuantity()).abs(), 4, RoundingMode.HALF_UP));
+                    .divide(updatedPosition.getMarkPrice().multiply(updatedPosition.getQuantity()).abs(), ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
         }
 
         if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
             if (updatedPosition.getSide() == PositionSide.LONG) {
                 updatedPosition.setLiquidationPrice(
                         updatedPosition.getEntryPrice()
-                                .subtract(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), 12, RoundingMode.HALF_UP))
-                                .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), 12, RoundingMode.HALF_UP)
+                                .subtract(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
                 );
             } else {
                 updatedPosition.setLiquidationPrice(
                         updatedPosition.getEntryPrice()
-                                .add(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), 12, RoundingMode.HALF_UP))
-                                .divide(BigDecimal.ONE.add(maintenanceMarginRate), 12, RoundingMode.HALF_UP)
+                                .add(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
                 );
             }
         } else {
