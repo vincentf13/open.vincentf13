@@ -72,7 +72,6 @@ public class PositionEvent {
                                                   Long instrumentId,
                                                   PositionEventType eventType,
                                                   BigDecimal deltaQuantity,
-                                                  BigDecimal deltaPnl,
                                                   BigDecimal newQuantity,
                                                   BigDecimal newReservedQuantity,
                                                   BigDecimal newEntryPrice,
@@ -85,7 +84,7 @@ public class PositionEvent {
                 .instrumentId(instrumentId)
                 .eventType(eventType)
                 .deltaQuantity(deltaQuantity)
-                .deltaPnl(deltaPnl)
+                .deltaPnl(BigDecimal.ZERO)
                 .newQuantity(newQuantity)
                 .newReservedQuantity(newReservedQuantity)
                 .newEntryPrice(newEntryPrice)

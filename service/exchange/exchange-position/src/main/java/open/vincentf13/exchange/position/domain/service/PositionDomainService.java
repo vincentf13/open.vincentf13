@@ -120,7 +120,6 @@ public class PositionDomainService {
                 instrumentId,
                 execData.eventType(),
                 execData.deltaQuantity(),
-                execData.deltaPnl(),
                 updatedPosition.getQuantity(),
                 updatedPosition.getClosingReservedQuantity(),
                 updatedPosition.getEntryPrice(),
@@ -146,7 +145,6 @@ public class PositionDomainService {
 
         PositionEventType eventType;
         boolean isIncrease;
-        BigDecimal deltaPnl = BigDecimal.ZERO;
 
         if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
             eventType = PositionEventType.POSITION_OPENED;
@@ -169,12 +167,6 @@ public class PositionDomainService {
             );
             updatedPosition.setQuantity(updatedPosition.getQuantity().add(quantity));
         } else {
-            if (updatedPosition.getSide() == PositionSide.LONG) {
-                deltaPnl = price.subtract(updatedPosition.getEntryPrice()).multiply(quantity.min(updatedPosition.getQuantity()));
-            } else {
-                deltaPnl = updatedPosition.getEntryPrice().subtract(price).multiply(quantity.min(updatedPosition.getQuantity()));
-            }
-            updatedPosition.setRealizedPnl(updatedPosition.getRealizedPnl().add(deltaPnl));
             updatedPosition.setQuantity(updatedPosition.getQuantity().subtract(quantity.min(updatedPosition.getQuantity())));
             updatedPosition.setClosingReservedQuantity(updatedPosition.getClosingReservedQuantity().subtract(quantity.min(updatedPosition.getQuantity())).max(BigDecimal.ZERO));
 
@@ -219,7 +211,7 @@ public class PositionDomainService {
             updatedPosition.setLiquidationPrice(BigDecimal.ZERO);
         }
 
-        return new TradeExecutionData(eventType, isIncrease ? quantity : quantity.negate(), deltaPnl, updatedPosition);
+        return new TradeExecutionData(eventType, isIncrease ? quantity : quantity.negate(), updatedPosition);
     }
 
     public record ReserveForCloseResult(boolean success, BigDecimal newReservedQuantity, BigDecimal avgOpenPrice,
@@ -237,7 +229,7 @@ public class PositionDomainService {
     public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
     }
 
-    private record TradeExecutionData(PositionEventType eventType, BigDecimal deltaQuantity, BigDecimal deltaPnl,
+    private record TradeExecutionData(PositionEventType eventType, BigDecimal deltaQuantity,
                                       Position updatedPosition) {
     }
 }
