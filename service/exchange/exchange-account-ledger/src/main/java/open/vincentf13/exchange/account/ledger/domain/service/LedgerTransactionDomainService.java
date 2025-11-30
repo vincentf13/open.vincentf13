@@ -29,6 +29,7 @@ import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
+import open.vincentf13.exchange.account.ledger.infra.cache.InstrumentCache;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,9 @@ public class LedgerTransactionDomainService {
     private final PlatformBalanceRepository platformBalanceRepository;
     private final DefaultIdGenerator idGenerator;
     private final LedgerEventPublisher ledgerEventPublisher;
+    private final InstrumentCache instrumentCache;
+
+    private static final BigDecimal CONTRACT_MULTIPLIER = BigDecimal.ONE;
     
     public LedgerDepositResult deposit(@NotNull @Valid LedgerDepositRequest request) {
         AccountType accountType = AccountType.SPOT_MAIN;
@@ -282,12 +286,17 @@ public class LedgerTransactionDomainService {
                                       String referenceId) {
         BigDecimal fee = isMaker ? event.makerFee() : event.takerFee();
         Long userId = isMaker ? event.makerUserId() : event.takerUserId();
-        BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity());
+
+        BigDecimal contractMultiplier = instrumentCache.get(event.instrumentId())
+                .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
+                .orElse(CONTRACT_MULTIPLIER);
+
+        BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity()).multiply(contractMultiplier);
         BigDecimal grossRealizedPnl;
         if (order.side() == OrderSide.BUY) { // Closing a SHORT position
-            grossRealizedPnl = order.closeCostPrice().subtract(event.price()).multiply(event.quantity());
+            grossRealizedPnl = order.closeCostPrice().subtract(event.price()).multiply(event.quantity()).multiply(contractMultiplier);
         } else { // Closing a LONG position (order.side() == OrderSide.SELL)
-            grossRealizedPnl = event.price().subtract(order.closeCostPrice()).multiply(event.quantity());
+            grossRealizedPnl = event.price().subtract(order.closeCostPrice()).multiply(event.quantity()).multiply(contractMultiplier);
         }
         BigDecimal realizedPnl = grossRealizedPnl.subtract(fee);
         
