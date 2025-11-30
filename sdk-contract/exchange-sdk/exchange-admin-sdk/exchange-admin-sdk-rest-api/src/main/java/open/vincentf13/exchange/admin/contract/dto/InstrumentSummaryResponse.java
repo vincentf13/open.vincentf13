@@ -14,6 +14,7 @@ public record InstrumentSummaryResponse(
         InstrumentStatus status,
         BigDecimal tickSize,
         BigDecimal lotSize,
+        BigDecimal contractSize,
         Integer displayOrder,
         Boolean tradable,
         Boolean visible

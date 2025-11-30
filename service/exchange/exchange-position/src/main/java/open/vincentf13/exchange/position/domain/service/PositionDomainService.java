@@ -8,7 +8,9 @@ import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.model.PositionEvent;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
+import open.vincentf13.exchange.position.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.position.infra.cache.MarkPriceCache;
+import open.vincentf13.exchange.position.infra.cache.RiskLimitCache;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
@@ -29,6 +31,8 @@ public class PositionDomainService {
     private final PositionRepository positionRepository;
     private final PositionEventRepository positionEventRepository;
     private final MarkPriceCache markPriceCache;
+    private final RiskLimitCache riskLimitCache;
+    private final InstrumentCache instrumentCache;
 
     private static final BigDecimal MAINTENANCE_MARGIN_RATE_DEFAULT = BigDecimal.valueOf(0.005);
     private static final BigDecimal CONTRACT_MULTIPLIER = BigDecimal.ONE;
@@ -144,6 +148,14 @@ public class PositionDomainService {
         markPriceCache.get(position.getInstrumentId())
                       .ifPresent(updatedPosition::setMarkPrice);
 
+        BigDecimal contractMultiplier = instrumentCache.get(position.getInstrumentId())
+                .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
+                .orElse(CONTRACT_MULTIPLIER);
+
+        BigDecimal maintenanceMarginRate = riskLimitCache.get(position.getInstrumentId())
+                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
+                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
+
         PositionEventType eventType;
         boolean isIncrease;
 
@@ -185,11 +197,11 @@ public class PositionDomainService {
         if (updatedPosition.getSide() == PositionSide.LONG) {
             updatedPosition.setUnrealizedPnl(updatedPosition.getMarkPrice().subtract(updatedPosition.getEntryPrice())
                     .multiply(updatedPosition.getQuantity())
-                    .multiply(CONTRACT_MULTIPLIER));
+                    .multiply(contractMultiplier));
         } else {
             updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(updatedPosition.getMarkPrice())
                     .multiply(updatedPosition.getQuantity())
-                    .multiply(CONTRACT_MULTIPLIER));
+                    .multiply(contractMultiplier));
         }
 
         if (updatedPosition.getMarkPrice().multiply(updatedPosition.getQuantity()).abs().compareTo(BigDecimal.ZERO) == 0) {
@@ -204,13 +216,13 @@ public class PositionDomainService {
                 updatedPosition.setLiquidationPrice(
                         updatedPosition.getEntryPrice()
                                 .subtract(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), 12, RoundingMode.HALF_UP))
-                                .divide(BigDecimal.ONE.subtract(MAINTENANCE_MARGIN_RATE_DEFAULT), 12, RoundingMode.HALF_UP)
+                                .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), 12, RoundingMode.HALF_UP)
                 );
             } else {
                 updatedPosition.setLiquidationPrice(
                         updatedPosition.getEntryPrice()
                                 .add(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), 12, RoundingMode.HALF_UP))
-                                .divide(BigDecimal.ONE.add(MAINTENANCE_MARGIN_RATE_DEFAULT), 12, RoundingMode.HALF_UP)
+                                .divide(BigDecimal.ONE.add(maintenanceMarginRate), 12, RoundingMode.HALF_UP)
                 );
             }
         } else {
