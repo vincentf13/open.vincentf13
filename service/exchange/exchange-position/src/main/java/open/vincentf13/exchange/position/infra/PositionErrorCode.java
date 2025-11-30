@@ -3,10 +3,11 @@ package open.vincentf13.exchange.position.infra;
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
 
 public enum PositionErrorCode implements OpenErrorCode {
-    
+
     POSITION_NOT_FOUND("Position-404-1001", "Position not found"),
     INVALID_LEVERAGE_REQUEST("Position-400-1001", "Invalid leverage request"),
-    LEVERAGE_PRECHECK_FAILED("Position-422-1001", "Leverage pre-check failed");
+    LEVERAGE_PRECHECK_FAILED("Position-422-1001", "Leverage pre-check failed"),
+    POSITION_CONCURRENT_UPDATE("Position-409-1001", "Concurrent update on position");
     
     private final String code;
     private final String message;

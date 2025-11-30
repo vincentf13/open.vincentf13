@@ -12,20 +12,16 @@ import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.domain.model.Position;
-import open.vincentf13.exchange.position.domain.model.PositionEvent;
 import open.vincentf13.exchange.position.domain.service.PositionDomainService;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.PositionLogEvent;
-import open.vincentf13.exchange.position.infra.cache.MarkPriceCache;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
-import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionClosedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionLeverageResponse;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckRequest;
 import open.vincentf13.exchange.risk.margin.sdk.rest.api.LeveragePrecheckResponse;
 import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
@@ -38,6 +34,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,9 +45,7 @@ public class PositionCommandService {
     
     private final PositionRepository positionRepository;
     private final ExchangeRiskMarginClient riskMarginClient;
-    private final PositionEventRepository positionEventRepository;
     private final PositionEventPublisher positionEventPublisher;
-    private final MarkPriceCache markPriceCache;
     private final PositionDomainService positionDomainService;
     
     public PositionReserveOutcome reserveForClose(
@@ -166,75 +161,20 @@ public class PositionCommandService {
                                      BigDecimal quantity,
                                      Long tradeId,
                                      Instant executedAt) {
-        PositionSide side = positionDomainService.toPositionSide(orderSide);
-        
-        Position position = positionRepository.findOne(
-                                                      Wrappers.lambdaQuery(PositionPO.class)
-                                                              .eq(PositionPO::getUserId, userId)
-                                                              .eq(PositionPO::getInstrumentId, instrumentId)
-                                                              .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                                              .orElse(null);
-        
-        if (positionDomainService.shouldSplitTrade(position, side, quantity)) {
-            PositionDomainService.TradeSplit split = positionDomainService.calculateTradeSplit(position, quantity);
-            
-            processTradeForUser(userId, instrumentId, orderSide, price, split.closeQuantity(), tradeId, executedAt);
-            processTradeForUser(userId, instrumentId, orderSide, price, split.flipQuantity(), tradeId, executedAt);
-            return;
-        }
-        
-        if (position == null) {
-            position = Position.createDefault(userId, instrumentId, side);
-        }
-        
-        BigDecimal cachedMarkPrice = markPriceCache.get(instrumentId).orElse(null);
-        
-        PositionDomainService.TradeExecutionResult executionResult =
-                positionDomainService.processTradeExecution(position, orderSide, price, quantity, cachedMarkPrice, executedAt);
-        
-        if (position.getPositionId() == null) {
-            positionRepository.insertSelective(position);
-        } else {
-            position.setVersion(position.getVersion() + 1);
-            boolean updated = positionRepository.updateSelectiveBy(
-                    position,
-                    new LambdaUpdateWrapper<PositionPO>()
-                            .eq(PositionPO::getPositionId, position.getPositionId())
-                            .eq(PositionPO::getVersion, position.getVersion()));
-            if (!updated) {
-                throw new RuntimeException("Concurrent update on position " + position.getPositionId());
+        Collection<Position> positions = positionDomainService.processTradeForUser(
+                userId, instrumentId, orderSide, price, quantity, tradeId, executedAt);
+
+        for (Position position : positions) {
+            if (position.getStatus() == PositionStatus.CLOSED) {
+                positionEventPublisher.publishClosed(new PositionClosedEvent(userId, instrumentId, executedAt));
+            } else {
+                positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
+                        userId, instrumentId, position.getSide(), position.getQuantity(),
+                        position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
+                        position.getLiquidationPrice(), executedAt
+                ));
             }
         }
-        
-        PositionEvent event = PositionEvent.builder()
-                                           .positionId(position.getPositionId())
-                                           .userId(userId)
-                                           .instrumentId(instrumentId)
-                                           .eventType(executionResult.eventType())
-                                           .deltaQuantity(executionResult.deltaQuantity())
-                                           .deltaPnl(executionResult.deltaPnl())
-                                           .newQuantity(position.getQuantity())
-                                           .newReservedQuantity(position.getClosingReservedQuantity())
-                                           .newEntryPrice(position.getEntryPrice())
-                                           .newUnrealizedPnl(position.getUnrealizedPnl())
-                                           .referenceId(tradeId)
-                                           .referenceType(PositionReferenceType.TRADE)
-                                           .metadata("")
-                                           .occurredAt(executedAt)
-                                           .createdAt(Instant.now())
-                                           .build();
-        positionEventRepository.insert(event);
-        
-        if (position.getStatus() == PositionStatus.CLOSED) {
-            positionEventPublisher.publishClosed(new PositionClosedEvent(userId, instrumentId, executedAt));
-        }
-        
-        positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
-                userId, instrumentId, position.getSide(), position.getQuantity(),
-                position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
-                position.getLiquidationPrice(), executedAt
-        ));
-        
     }
     
     private LeveragePrecheckRequest buildPrecheckRequest(Position position,

@@ -66,4 +66,35 @@ public class PositionEvent {
 
     @NotNull
     private Instant createdAt;
+
+    public static PositionEvent createTradeEvent(Long positionId,
+                                                  Long userId,
+                                                  Long instrumentId,
+                                                  PositionEventType eventType,
+                                                  BigDecimal deltaQuantity,
+                                                  BigDecimal deltaPnl,
+                                                  BigDecimal newQuantity,
+                                                  BigDecimal newReservedQuantity,
+                                                  BigDecimal newEntryPrice,
+                                                  BigDecimal newUnrealizedPnl,
+                                                  Long tradeId,
+                                                  Instant occurredAt) {
+        return PositionEvent.builder()
+                .positionId(positionId)
+                .userId(userId)
+                .instrumentId(instrumentId)
+                .eventType(eventType)
+                .deltaQuantity(deltaQuantity)
+                .deltaPnl(deltaPnl)
+                .newQuantity(newQuantity)
+                .newReservedQuantity(newReservedQuantity)
+                .newEntryPrice(newEntryPrice)
+                .newUnrealizedPnl(newUnrealizedPnl)
+                .referenceId(tradeId)
+                .referenceType(PositionReferenceType.TRADE)
+                .metadata("")
+                .occurredAt(occurredAt)
+                .createdAt(Instant.now())
+                .build();
+    }
 }

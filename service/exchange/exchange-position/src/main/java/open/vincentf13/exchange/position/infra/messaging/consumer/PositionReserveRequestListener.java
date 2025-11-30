@@ -23,7 +23,7 @@ import java.time.Instant;
 @Component
 @RequiredArgsConstructor
 public class PositionReserveRequestListener {
-    
+
     private final PositionCommandService positionCommandService;
     private final PositionEventPublisher positionEventPublisher;
     private final PositionDomainService positionDomainService;
