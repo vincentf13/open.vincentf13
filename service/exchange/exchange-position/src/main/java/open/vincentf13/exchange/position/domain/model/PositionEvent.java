@@ -80,6 +80,8 @@ public class PositionEvent {
                                                   BigDecimal newQuantity,
                                                   BigDecimal newReservedQuantity,
                                                   BigDecimal newEntryPrice,
+                                                  BigDecimal newLeverage,
+                                                  BigDecimal newMargin,
                                                   BigDecimal newUnrealizedPnl,
                                                   Long tradeId,
                                                   Instant occurredAt) {
@@ -93,6 +95,8 @@ public class PositionEvent {
                 .newQuantity(newQuantity)
                 .newReservedQuantity(newReservedQuantity)
                 .newEntryPrice(newEntryPrice)
+                .newLeverage(newLeverage)
+                .newMargin(newMargin)
                 .newUnrealizedPnl(newUnrealizedPnl)
                 .referenceId(tradeId)
                 .referenceType(PositionReferenceType.TRADE)

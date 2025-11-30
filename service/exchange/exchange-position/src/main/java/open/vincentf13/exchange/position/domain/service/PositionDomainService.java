@@ -128,6 +128,8 @@ public class PositionDomainService {
                 updatedPosition.getQuantity(),
                 updatedPosition.getClosingReservedQuantity(),
                 updatedPosition.getEntryPrice(),
+                updatedPosition.getLeverage(),
+                updatedPosition.getMargin(),
                 updatedPosition.getUnrealizedPnl(),
                 tradeId,
                 executedAt
