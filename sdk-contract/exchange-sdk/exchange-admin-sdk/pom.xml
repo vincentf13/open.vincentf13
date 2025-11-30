@@ -18,5 +18,6 @@
 
     <modules>
         <module>exchange-admin-sdk-rest-api</module>
+        <module>exchange-admin-sdk-rest-client</module>
     </modules>
 </project>

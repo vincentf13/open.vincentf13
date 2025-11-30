@@ -10,13 +10,11 @@ import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
 @Validated
-@RequestMapping("/api/admin/instruments")
 public interface InstrumentAdminApi {
     
     @GetMapping

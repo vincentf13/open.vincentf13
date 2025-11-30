@@ -8,12 +8,14 @@ import open.vincentf13.exchange.admin.contract.enums.InstrumentStatus;
 import open.vincentf13.exchange.admin.contract.enums.InstrumentType;
 import open.vincentf13.exchange.admin.service.InstrumentQueryService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/admin/instruments")
 public class InstrumentAdminController implements InstrumentAdminApi {
     
     private final InstrumentQueryService instrumentQueryService;
