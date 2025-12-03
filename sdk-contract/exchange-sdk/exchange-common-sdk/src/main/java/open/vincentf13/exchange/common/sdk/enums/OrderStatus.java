@@ -1,14 +1,15 @@
 package open.vincentf13.exchange.common.sdk.enums;
 
 public enum OrderStatus {
-    PENDING,
-    SUBMITTED,
-    ACCEPTED,
-    PARTIAL_FILLED,
+    CREATED,
+    FREEZING_MARGIN,
+    LOCKING_POSITION,
+    FLIP_CALCULATING,
+    FLIP_LOCKING_ASSETS,
+    NEW,
+    PARTIALLY_FILLED,
     FILLED,
-    CANCEL_REQUESTED,
+    CANCELLING,
     CANCELLED,
-    REJECTED,
-    FAILED,
-    EXPIRED
+    REJECTED
 }

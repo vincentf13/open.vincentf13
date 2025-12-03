@@ -78,7 +78,7 @@ public class Order {
                     .intent(null)
                     .closingEntryPrice(null)
                     .type(request.type())
-                    .status(OrderStatus.PENDING)
+                    .status(OrderStatus.CREATED)
                     .price(normalizedPrice)
                     .quantity(normalizedQty)
                     .filledQuantity(BigDecimal.ZERO)

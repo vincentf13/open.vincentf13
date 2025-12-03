@@ -80,7 +80,7 @@ public class LedgerEventListener {
         Instant now = Instant.now();
         int currentVersion = Optional.ofNullable(order.getVersion()).orElse(0);
         Order updateRecord = Order.builder()
-                                  .status(OrderStatus.ACCEPTED)
+                                  .status(OrderStatus.NEW)
                                   .submittedAt(now)
                                   .version(currentVersion + 1)
                                   .build();
@@ -94,7 +94,7 @@ public class LedgerEventListener {
                          "orderId", order.getOrderId());
             return;
         }
-        order.markStatus(OrderStatus.ACCEPTED, now);
+        order.markStatus(OrderStatus.NEW, now);
         order.setSubmittedAt(now);
         order.incrementVersion();
         orderEventPublisher.publishOrderCreated(order, event.asset(), event.frozenAmount());

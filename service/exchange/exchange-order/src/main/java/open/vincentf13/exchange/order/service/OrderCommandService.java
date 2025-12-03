@@ -47,6 +47,9 @@ public class OrderCommandService {
             Order order = Order.createNew(userId, request);
             PositionIntentType intentType = determineIntent(userId, request);
             order.setIntent(intentType);
+            order.setStatus(intentType.requiresPositionReservation()
+                                     ? OrderStatus.LOCKING_POSITION
+                                     : OrderStatus.FREEZING_MARGIN);
             // TODO 平倉寫入寫入entry price
             
             transactionTemplate.executeWithoutResult(status -> {
@@ -104,7 +107,7 @@ public class OrderCommandService {
     
     private void markSubmitted(Order order) {
         Instant now = Instant.now();
-        order.markStatus(OrderStatus.SUBMITTED, now);
+        order.markStatus(OrderStatus.FREEZING_MARGIN, now);
         order.incrementVersion();
     }
 }

@@ -40,7 +40,7 @@ public class OrderFailureHandler {
             Instant now = Instant.now();
             int currentVersion = Optional.ofNullable(order.getVersion()).orElse(0);
             Order updateRecord = Order.builder()
-                                      .status(OrderStatus.FAILED)
+                                      .status(OrderStatus.REJECTED)
                                       .version(currentVersion + 1)
                                       .build();
             boolean updated = orderRepository.updateSelective(updateRecord,
@@ -54,7 +54,7 @@ public class OrderFailureHandler {
                              "stage", stage);
                 return;
             }
-            order.markStatus(OrderStatus.FAILED, now);
+            order.markStatus(OrderStatus.REJECTED, now);
             order.incrementVersion();
             OpenLog.warn(OrderEvent.ORDER_MARK_FAILED,
                          "orderId", orderId,

@@ -67,7 +67,7 @@ public class PositionReserveEventListener {
     private void handleReservationSuccess(PositionReservedEvent event) {
         Instant now = Instant.now();
         Order updateRecord = Order.builder()
-                                  .status(OrderStatus.SUBMITTED)
+                                  .status(OrderStatus.FREEZING_MARGIN)
                                   .submittedAt(now)
                                   .closingEntryPrice(event.avgOpenPrice())
                                   .build();
@@ -75,7 +75,7 @@ public class PositionReserveEventListener {
                                                           Wrappers.<OrderPO>lambdaUpdate()
                                                                   .eq(OrderPO::getOrderId, event.orderId())
                                                                   .eq(OrderPO::getUserId, event.userId())
-                                                                  .eq(OrderPO::getStatus, OrderStatus.PENDING));
+                                                                  .eq(OrderPO::getStatus, OrderStatus.LOCKING_POSITION));
         if (!updated) {
             OpenLog.warn(OrderEvent.ORDER_STATUS_CONFLICT, null,
                          "orderId", event.orderId());
@@ -89,7 +89,7 @@ public class PositionReserveEventListener {
             return;
         }
         Order order = optionalOrder.get();
-        order.markStatus(OrderStatus.SUBMITTED, now);
+        order.markStatus(OrderStatus.FREEZING_MARGIN, now);
         order.setSubmittedAt(now);
         order.setClosingEntryPrice(event.avgOpenPrice());
         orderEventPublisher.publishOrderSubmitted(order);
@@ -99,13 +99,13 @@ public class PositionReserveEventListener {
     private void handleReservationFailure(PositionReserveRejectedEvent event) {
         Instant now = Instant.now();
         Order updateRecord = Order.builder()
-                                  .status(OrderStatus.FAILED)
+                                  .status(OrderStatus.REJECTED)
                                   .build();
         boolean updated = orderRepository.updateSelective(updateRecord,
                                                           Wrappers.<OrderPO>lambdaUpdate()
                                                                   .eq(OrderPO::getOrderId, event.orderId())
                                                                   .eq(OrderPO::getUserId, event.userId())
-                                                                  .eq(OrderPO::getStatus, OrderStatus.PENDING));
+                                                                  .eq(OrderPO::getStatus, OrderStatus.LOCKING_POSITION));
         if (!updated) {
             OpenLog.warn(OrderEvent.ORDER_STATUS_CONFLICT, null,
                          "orderId", event.orderId());
@@ -115,7 +115,7 @@ public class PositionReserveEventListener {
                                                                         .eq(OrderPO::getOrderId, event.orderId()));
         if (optionalOrder.isPresent()) {
             Order order = optionalOrder.get();
-            order.markStatus(OrderStatus.FAILED, now);
+            order.markStatus(OrderStatus.REJECTED, now);
             OpenLog.warn(OrderEvent.ORDER_POSITION_RESERVE_REJECTED, null,
                          "orderId", order.getOrderId(),
                          "reason", event.reason());
