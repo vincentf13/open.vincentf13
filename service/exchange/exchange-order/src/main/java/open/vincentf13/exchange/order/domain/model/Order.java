@@ -36,7 +36,7 @@ public class Order {
     private OrderSide side;
     private PositionIntentType intent;
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
-    private BigDecimal closeCostPrice;
+    private BigDecimal closingEntryPrice;
     @NotNull
     private OrderType type;
     @NotNull
@@ -76,7 +76,7 @@ public class Order {
                     .clientOrderId(trimToNull(request.clientOrderId()))
                     .side(request.side())
                     .intent(null)
-                    .closeCostPrice(null)
+                    .closingEntryPrice(null)
                     .type(request.type())
                     .status(OrderStatus.PENDING)
                     .price(normalizedPrice)

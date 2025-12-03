@@ -69,7 +69,7 @@ public class PositionReserveEventListener {
         Order updateRecord = Order.builder()
                                   .status(OrderStatus.SUBMITTED)
                                   .submittedAt(now)
-                                  .closeCostPrice(event.avgOpenPrice())
+                                  .closingEntryPrice(event.avgOpenPrice())
                                   .build();
         boolean updated = orderRepository.updateSelective(updateRecord,
                                                           Wrappers.<OrderPO>lambdaUpdate()
@@ -91,7 +91,7 @@ public class PositionReserveEventListener {
         Order order = optionalOrder.get();
         order.markStatus(OrderStatus.SUBMITTED, now);
         order.setSubmittedAt(now);
-        order.setCloseCostPrice(event.avgOpenPrice());
+        order.setClosingEntryPrice(event.avgOpenPrice());
         orderEventPublisher.publishOrderSubmitted(order);
         OpenLog.info(OrderEvent.ORDER_POSITION_RESERVED, "orderId", order.getOrderId());
     }

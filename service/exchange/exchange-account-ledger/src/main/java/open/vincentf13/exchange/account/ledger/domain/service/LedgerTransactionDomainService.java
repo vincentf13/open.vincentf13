@@ -291,12 +291,12 @@ public class LedgerTransactionDomainService {
                 .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
                 .orElse(CONTRACT_MULTIPLIER);
 
-        BigDecimal costBasis = order.closeCostPrice().multiply(event.quantity()).multiply(contractMultiplier);
+        BigDecimal costBasis = order.closingEntryPrice().multiply(event.quantity()).multiply(contractMultiplier);
         BigDecimal grossRealizedPnl;
         if (order.side() == OrderSide.BUY) { // Closing a SHORT position
-            grossRealizedPnl = order.closeCostPrice().subtract(event.price()).multiply(event.quantity()).multiply(contractMultiplier);
+            grossRealizedPnl = order.closingEntryPrice().subtract(event.price()).multiply(event.quantity()).multiply(contractMultiplier);
         } else { // Closing a LONG position (order.side() == OrderSide.SELL)
-            grossRealizedPnl = event.price().subtract(order.closeCostPrice()).multiply(event.quantity()).multiply(contractMultiplier);
+            grossRealizedPnl = event.price().subtract(order.closingEntryPrice()).multiply(event.quantity()).multiply(contractMultiplier);
         }
         BigDecimal realizedPnl = grossRealizedPnl.subtract(fee);
         

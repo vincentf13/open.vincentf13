@@ -47,6 +47,7 @@ public class OrderCommandService {
             Order order = Order.createNew(userId, request);
             PositionIntentType intentType = determineIntent(userId, request);
             order.setIntent(intentType);
+            // TODO 平倉寫入寫入entry price
             
             transactionTemplate.executeWithoutResult(status -> {
                 if (order.getIntent() != null && order.getIntent().requiresPositionReservation()) {

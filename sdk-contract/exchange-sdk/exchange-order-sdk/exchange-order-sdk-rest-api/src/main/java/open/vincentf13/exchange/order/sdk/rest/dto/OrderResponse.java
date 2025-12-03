@@ -15,7 +15,7 @@ public record OrderResponse(
         Long instrumentId,
         OrderSide side,
         PositionIntentType intent,
-        BigDecimal closeCostPrice,
+        BigDecimal closingEntryPrice,
         OrderType type,
         OrderStatus status,
         BigDecimal price,
