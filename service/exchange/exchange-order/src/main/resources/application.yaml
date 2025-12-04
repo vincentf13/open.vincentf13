@@ -27,3 +27,6 @@ open:
           consumer-group: exchange-order-risk
         matching:
           consumer-group: exchange-order-matching
+    pending-task:
+      rescue:
+        enabled: true

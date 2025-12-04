@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.pending;
+package open.vincentf13.sdk.infra.mysql.pending.task;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

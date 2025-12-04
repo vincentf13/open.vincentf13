@@ -18,6 +18,9 @@ open:
         worker-id: 9
     mybatis:
       mapper-base-packages: open.vincentf13.exchange.risk.infra.persistence.mapper
+    pending-task:
+      rescue:
+        enabled: true
 
 exchange:
   risk:

@@ -17,3 +17,6 @@ open:
     id-generator:
       snowflake:
         worker-id: 7
+    pending-task:
+      rescue:
+        enabled: true

@@ -38,3 +38,6 @@ open:
     id-generator:
       snowflake:
         worker-id: 3
+    pending-task:
+      rescue:
+        enabled: true

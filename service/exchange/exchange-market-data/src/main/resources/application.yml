@@ -23,3 +23,6 @@ open:
           consumer-group: exchange-market-data-orderbook
         trade:
           consumer-group: exchange-market-data-trade
+    pending-task:
+      rescue:
+        enabled: true

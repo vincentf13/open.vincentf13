@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.pending;
+package open.vincentf13.sdk.infra.mysql.pending.task;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
