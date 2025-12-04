@@ -18,8 +18,4 @@ public interface PositionApi {
     @GetMapping("/{userId}/{instrumentId}")
     OpenApiResponse<PositionResponse> getPosition(@PathVariable("userId") Long userId,
                                                   @PathVariable("instrumentId") Long instrumentId);
-    
-    @PostMapping("/{instrumentId}/leverage")
-    OpenApiResponse<PositionLeverageResponse> adjustLeverage(@PathVariable("instrumentId") Long instrumentId,
-                                                             @Valid @RequestBody PositionLeverageRequest request);
 }
