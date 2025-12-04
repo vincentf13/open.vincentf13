@@ -11,7 +11,7 @@ CREATE TABLE sys_pending_tasks (
     biz_key VARCHAR(100) NOT NULL COMMENT '業務唯一鍵 (如: 訂單號, 用戶ID)，用於冪等檢查',
     
     -- 2. 核心狀態控制
-    status TINYINT NOT NULL DEFAULT 0 COMMENT '狀態: 0-待處理, 1-處理中, 2-成功, 3-失敗, 4-永久失敗',
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '狀態: PENDING, PROCESSING, SUCCESS, FAIL_RETRY, FAIL_TERMINAL',
     priority TINYINT NOT NULL DEFAULT 10 COMMENT '優先級: 數值越小優先級越高',
     
     -- 3. 業務數據 (核心通用部分)
@@ -82,14 +82,14 @@ CREATE TABLE sys_pending_tasks (
 
 ### 狀態流轉圖
 - 初始路徑
-    PENDING (0) → PROCESSING (1)
+    PENDING → PROCESSING
 - 成功路徑
-    PROCESSING (1) → SUCCESS (2)
+    PROCESSING → SUCCESS
 - 可重試失敗路徑
-    PROCESSING (1) → FAIL_RETRY (3)
+    PROCESSING → FAIL_RETRY
     - _注意：通常會有一個排程將 `FAIL_RETRY` 且 `next_run_time < NOW()` 的任務改回 `PENDING`，或者 Worker 直接查詢 `PENDING + FAIL_RETRY` 的任務。_
 - 永久失敗路徑
-    PROCESSING (1) → FAIL_TERMINAL (4)
+    PROCESSING → FAIL_TERMINAL
     
 ---
 
@@ -109,7 +109,7 @@ SQL
 ```
 SELECT id, biz_type, payload, version 
 FROM sys_pending_tasks 
-WHERE status IN (0, 3) -- 0:待處理, 3:失敗可重試
+WHERE status IN ('PENDING', 'FAIL_RETRY')
   AND next_run_time <= NOW() 
 ORDER BY priority ASC 
 LIMIT 10;
@@ -125,7 +125,7 @@ SQL
 ```
 UPDATE sys_pending_tasks 
 SET 
-    status = 1,           -- 改為處理中
+    status = 'PROCESSING',           -- 改為處理中
     version = version + 1 -- 版本號遞增
 WHERE 
     id = 100 
@@ -156,7 +156,7 @@ payload
 ```
 UPDATE sys_pending_tasks 
 SET 
-    status = 2,           -- SUCCESS
+    status = 'SUCCESS',           -- SUCCESS
     result_msg = 'OK',
     updated_at = NOW()
 WHERE id = 100  AND version = {version};     
@@ -168,7 +168,7 @@ WHERE id = 100  AND version = {version};
 ```
 UPDATE sys_pending_tasks 
 SET 
-    status = 3, -- FAIL_RETRY (或直接設回 0 PENDING)
+    status = 'FAIL_RETRY', -- (或直接設回 PENDING)
     retry_count = retry_count + 1,
     next_run_time = DATE_ADD(NOW(), INTERVAL {nextRuntTime} MINUTE),
     result_msg = {error msg},
@@ -180,7 +180,7 @@ WHERE id = 100  AND version = {version};
 ```
 UPDATE sys_pending_tasks 
 SET 
-    status = 4, -- FAIL_TERMINAL
+    status = 'FAIL_TERMINAL',
     result_msg = 'Max retries exceeded: {error msg}',
     updated_at = NOW()
 WHERE id = 100  AND version = 5;     
@@ -213,14 +213,14 @@ SQL
 ```
 UPDATE sys_pending_tasks
 SET 
-    status = 3, -- 改為 FAIL_RETRY (失敗待重試)
+    status = 'FAIL_RETRY', -- 改為 FAIL_RETRY (失敗待重試)
     retry_count = retry_count + 1, -- 消耗一次重試機會
     result_msg = 'Task timed out (Worker crashed?)',
     version = version + 1, -- 重要：增加版本號
     next_run_time = NOW(), -- 立即或稍後重試
     updated_at = NOW()
 WHERE 
-    status = 1 -- 找出處於「處理中」的任務
+    status = 'PROCESSING' -- 找出處於「處理中」的任務
     AND updated_at <= DATE_SUB(NOW(), INTERVAL 10 MINUTE); -- 條件：超過 10 分鐘沒更新
 ```
 

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.sdk.infra.mysql.pending.task.SysPendingTaskMapper">
+
+    <insert id="insert"
+            parameterType="open.vincentf13.sdk.infra.mysql.pending.task.SysPendingTaskPO"
+            useGeneratedKeys="true"
+            keyProperty="id">
+        INSERT INTO sys_pending_tasks (
+            biz_type, biz_key, status, priority, payload, result_msg,
+            retry_count, max_retries, next_run_time, version
+        )
+        VALUES (
+            #{bizType}, #{bizKey}, #{status}, #{priority}, #{payload}, #{resultMsg},
+            #{retryCount}, #{maxRetries}, #{nextRunTime}, #{version}
+        )
+    </insert>
+
+    <select id="fetchRunnable" resultType="open.vincentf13.sdk.infra.mysql.pending.task.SysPendingTaskPO">
+        SELECT id, biz_type, biz_key, status, priority, payload, result_msg, retry_count, max_retries,
+               next_run_time, version, created_at, updated_at
+        FROM sys_pending_tasks
+        WHERE status IN ('PENDING', 'FAIL_RETRY')
+          AND next_run_time <= NOW()
+        ORDER BY priority ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="markProcessing">
+        UPDATE sys_pending_tasks
+        SET status = 'PROCESSING',
+            version = version + 1
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="markSuccess">
+        UPDATE sys_pending_tasks
+        SET status = 'SUCCESS',
+            result_msg = #{resultMsg},
+            version = version + 1
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="markFailRetry">
+        UPDATE sys_pending_tasks
+        SET status = 'FAIL_RETRY',
+            retry_count = retry_count + 1,
+            next_run_time = #{nextRunTime},
+            result_msg = #{resultMsg},
+            version = version + 1
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="markFailTerminal">
+        UPDATE sys_pending_tasks
+        SET status = 'FAIL_TERMINAL',
+            result_msg = #{resultMsg},
+            version = version + 1
+        WHERE id = #{id}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="rescueStuck">
+        UPDATE sys_pending_tasks
+        SET status = 'FAIL_RETRY',
+            retry_count = retry_count + 1,
+            result_msg = #{resultMsg},
+            version = version + 1,
+            next_run_time = NOW()
+        WHERE status = 'PROCESSING'
+          AND updated_at <= #{timeoutThreshold}
+    </update>
+</mapper>
