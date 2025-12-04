@@ -2,8 +2,6 @@ package open.vincentf13.exchange.account.ledger.infra.messaging.publisher;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
-import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFreezeFailedEvent;
-import open.vincentf13.exchange.account.ledger.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.event.LedgerEntryCreatedEvent;
 import open.vincentf13.exchange.account.ledger.sdk.mq.topic.LedgerTopics;
 import open.vincentf13.exchange.common.sdk.enums.EntryType;
@@ -21,28 +19,6 @@ import java.time.Instant;
 public class LedgerEventPublisher {
     
     private final MqOutboxRepository outboxRepository;
-    
-    public void publishFundsFrozen(Long orderId,
-                                   Long userId,
-                                   AssetSymbol asset,
-                                   BigDecimal frozenAmount) {
-        FundsFrozenEvent event = new FundsFrozenEvent(orderId, userId, asset, frozenAmount);
-        outboxRepository.append(LedgerTopics.FUNDS_FROZEN.getTopic(), orderId, event, null);
-        OpenLog.info(LedgerEvent.FUNDS_FROZEN_ENQUEUED,
-                     "orderId", orderId,
-                     "userId", userId,
-                     "asset", asset,
-                     "amount", frozenAmount);
-    }
-    
-    public void publishFundsFreezeFailed(Long orderId,
-                                         String reason) {
-        FundsFreezeFailedEvent event = new FundsFreezeFailedEvent(orderId, reason);
-        outboxRepository.append(LedgerTopics.FUNDS_FREEZE_FAILED.getTopic(), orderId, event, null);
-        OpenLog.warn(LedgerEvent.FUNDS_FREEZE_FAILED_ENQUEUED,
-                     "orderId", orderId,
-                     "reason", reason);
-    }
     
     public void publishLedgerEntryCreated(Long entryId,
                                           Long userId,

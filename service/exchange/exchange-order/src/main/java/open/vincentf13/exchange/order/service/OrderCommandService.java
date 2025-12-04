@@ -47,18 +47,12 @@ public class OrderCommandService {
             Order order = Order.createNew(userId, request);
             PositionIntentType intentType = determineIntent(userId, request);
             order.setIntent(intentType);
-            order.setStatus(intentType.requiresPositionReservation()
-                                     ? OrderStatus.LOCKING_POSITION
-                                     : OrderStatus.FREEZING_MARGIN);
+            order.setStatus(OrderStatus.FREEZING_MARGIN);
             // TODO 平倉寫入寫入entry price
             
             transactionTemplate.executeWithoutResult(status -> {
-                if (order.getIntent() != null && order.getIntent().requiresPositionReservation()) {
-                    orderEventPublisher.publishPositionReserveRequested(order, order.getIntent());
-                } else {
-                    markSubmitted(order);
-                    orderEventPublisher.publishOrderSubmitted(order);
-                }
+                markSubmitted(order);
+                orderEventPublisher.publishOrderSubmitted(order);
                 orderRepository.insertSelective(order);
             });
             

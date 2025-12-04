@@ -2,11 +2,9 @@ package open.vincentf13.exchange.order.infra.messaging.publisher;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderSubmittedEvent;
-import open.vincentf13.exchange.order.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
@@ -26,23 +24,6 @@ public class OrderEventPublisher {
         outboxRepository.append(OrderTopics.ORDER_SUBMITTED.getTopic(),
                                 order.getOrderId(),
                                 payload,
-                                null);
-    }
-    
-    public void publishPositionReserveRequested(Order order,
-                                                PositionIntentType intentType) {
-        PositionReserveRequestedEvent event = new PositionReserveRequestedEvent(
-                order.getOrderId(),
-                order.getUserId(),
-                order.getInstrumentId(),
-                order.getSide(),
-                intentType,
-                order.getQuantity(),
-                Instant.now()
-        );
-        outboxRepository.append(OrderTopics.POSITION_RESERVE_REQUESTED.getTopic(),
-                                order.getOrderId(),
-                                event,
                                 null);
     }
     

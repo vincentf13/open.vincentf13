@@ -8,8 +8,6 @@ import open.vincentf13.exchange.account.ledger.domain.model.LedgerEntry;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerDepositResult;
 import open.vincentf13.exchange.account.ledger.domain.model.transaction.LedgerWithdrawalResult;
 import open.vincentf13.exchange.account.ledger.domain.service.LedgerTransactionDomainService;
-import open.vincentf13.exchange.account.ledger.infra.LedgerEvent;
-import open.vincentf13.exchange.account.ledger.infra.messaging.publisher.LedgerEventPublisher;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositRequest;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerDepositResponse;
 import open.vincentf13.exchange.account.ledger.sdk.rest.api.dto.LedgerWithdrawalRequest;
@@ -18,9 +16,6 @@ import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderClient;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
-import open.vincentf13.exchange.risk.margin.sdk.mq.event.MarginPreCheckPassedEvent;
-import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,9 +28,8 @@ import org.springframework.validation.annotation.Validated;
 public class LedgerBalanceCommandService {
     
     private final LedgerTransactionDomainService ledgerTransactionDomainService;
-    private final LedgerEventPublisher ledgerEventPublisher;
-    private final ExchangeOrderClient exchangeOrderClient;
     private final TransactionTemplate transactionTemplate;
+    private final ExchangeOrderClient exchangeOrderClient;
     
     @Transactional
     public LedgerDepositResponse deposit(@NotNull @Valid LedgerDepositRequest request) {
@@ -73,33 +67,12 @@ public class LedgerBalanceCommandService {
         );
     }
     
-    @Transactional
-    public void handleMarginPreCheckPassed(@NotNull @Valid MarginPreCheckPassedEvent event) {
-        try {
-            AssetSymbol normalizedAsset = LedgerBalance.normalizeAsset(event.asset());
-            LedgerEntry entry = ledgerTransactionDomainService.freezeForOrder(
-                    event.orderId(),
-                    event.userId(),
-                    normalizedAsset,
-                    event.requiredMargin(),
-                    event.checkedAt());
-            ledgerEventPublisher.publishFundsFrozen(event.orderId(), event.userId(), normalizedAsset, entry.getAmount());
-        } catch (OpenException ex) {
-            String reason = ex.getCode() != null ? ex.getCode().code() : "UNKNOWN";
-            ledgerEventPublisher.publishFundsFreezeFailed(event.orderId(), reason);
-            OpenLog.warn(LedgerEvent.FUNDS_FREEZE_FAILED, ex, "orderId", event.orderId(), "reason", reason);
-        }
-    }
-    
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
-        
         OrderResponse makerOrder = OpenApiClientInvoker.call(() -> exchangeOrderClient.getOrder(event.orderId()));
         OrderResponse takerOrder = OpenApiClientInvoker.call(() -> exchangeOrderClient.getOrder(event.counterpartyOrderId()));
         
         transactionTemplate.executeWithoutResult(status -> {
-            // Handle Maker Side
             ledgerTransactionDomainService.settleTrade(event, makerOrder, true);
-            // Handle Taker Side
             ledgerTransactionDomainService.settleTrade(event, takerOrder, false);
         });
     }

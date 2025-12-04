@@ -23,5 +23,3 @@ open:
 
 exchange:
   position:
-    reserve:
-      consumer-group: exchange-position-reserve
