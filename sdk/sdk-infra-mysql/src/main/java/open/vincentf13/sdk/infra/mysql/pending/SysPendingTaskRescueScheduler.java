@@ -1,0 +1,23 @@
+package open.vincentf13.sdk.infra.mysql.pending;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import java.time.Duration;
+
+@Slf4j
+@RequiredArgsConstructor
+public class SysPendingTaskRescueScheduler {
+    
+    private final SysPendingTaskRescueService rescueService;
+    private final Duration timeout;
+    
+    @Scheduled(fixedDelayString = "${open.vincentf13.pending-task.rescue.fixed-delay:60000}")
+    public void rescue() {
+        int rescued = rescueService.rescueProcessing(timeout, null);
+        if (rescued > 0 && log.isInfoEnabled()) {
+            log.info("SysPendingTask rescue: {} tasks moved back to FAIL_RETRY", rescued);
+        }
+    }
+}
