@@ -44,5 +44,9 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-common-sdk</artifactId>
+        </dependency>
     </dependencies>
 </project>
