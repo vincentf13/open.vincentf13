@@ -21,6 +21,7 @@ import open.vincentf13.exchange.account.sdk.mq.event.TradeMarginSettledEvent;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
@@ -215,7 +216,7 @@ public class AccountTransactionDomainService {
     private UserJournal buildUserJournal(UserAccount account,
                                          Direction direction,
                                          BigDecimal amount,
-                                         String referenceType,
+                                         ReferenceType referenceType,
                                          String referenceId,
                                          String description,
                                          Instant eventTime) {
@@ -238,7 +239,7 @@ public class AccountTransactionDomainService {
     private PlatformJournal buildPlatformJournal(PlatformAccount account,
                                                  Direction direction,
                                                  BigDecimal amount,
-                                                 String referenceType,
+                                                 ReferenceType referenceType,
                                                  String referenceId,
                                                  String description,
                                                  Instant eventTime) {
@@ -332,7 +333,7 @@ public class AccountTransactionDomainService {
         
         // 用order id 查分錄查出凍結時到底凍結多少錢，再去算要退多少手續費，因為凍結後可能調整費率，導致撮合時收的手續費不一樣
         BigDecimal totalReserved = userJournalRepository.findLatestByReference(
-                        order.userId(), asset, "FUNDS_FREEZE_REQUESTED", order.orderId().toString())
+                        order.userId(), asset, ReferenceType.FUNDS_FREEZE_REQUESTED, order.orderId().toString())
                                                         .map(UserJournal::getAmount)
                                                         .orElseThrow(() -> OpenException.of(AccountErrorCode.FREEZE_ENTRY_NOT_FOUND,
                                                                                             Map.of("orderId", order.orderId(), "userId", order.userId())));
@@ -377,7 +378,7 @@ public class AccountTransactionDomainService {
                 updatedMargin,
                 Direction.DEBIT,
                 marginUsed,
-                "TRADE_MARGIN_SETTLED",
+                ReferenceType.TRADE_MARGIN_SETTLED,
                 event.tradeId().toString(),
                 "Margin allocated to isolated account",
                 event.executedAt());
@@ -385,7 +386,7 @@ public class AccountTransactionDomainService {
                 settledAccount,
                 Direction.CREDIT,
                 marginUsed,
-                "TRADE_MARGIN_SETTLED",
+                ReferenceType.TRADE_MARGIN_SETTLED,
                 event.tradeId().toString(),
                 "Margin transferred from spot",
                 event.executedAt());
@@ -393,7 +394,7 @@ public class AccountTransactionDomainService {
                 settledAccount,
                 Direction.CREDIT,
                 actualFee,
-                "TRADE_FEE",
+                ReferenceType.TRADE_FEE,
                 event.tradeId().toString(),
                 "Trading fee deducted",
                 event.executedAt());
@@ -401,7 +402,7 @@ public class AccountTransactionDomainService {
                 updatedFeeExpense,
                 Direction.DEBIT,
                 actualFee,
-                "TRADE_FEE_EXPENSE",
+                ReferenceType.TRADE_FEE_EXPENSE,
                 event.tradeId().toString(),
                 "Trading fee expense",
                 event.executedAt());
@@ -410,7 +411,7 @@ public class AccountTransactionDomainService {
                     settledAccount,
                     Direction.DEBIT,
                     feeRefund,
-                    "TRADE_FEE_REFUND",
+                    ReferenceType.TRADE_FEE_REFUND,
                     event.tradeId().toString(),
                     "Maker fee refund",
                     event.executedAt());
@@ -422,7 +423,7 @@ public class AccountTransactionDomainService {
                 updatedPlatformAsset,
                 Direction.DEBIT,
                 actualFee,
-                "TRADE_FEE",
+                ReferenceType.TRADE_FEE,
                 event.tradeId().toString(),
                 "Trading fee received",
                 event.executedAt());
@@ -430,7 +431,7 @@ public class AccountTransactionDomainService {
                 updatedRevenue,
                 Direction.CREDIT,
                 actualFee,
-                "TRADING_FEE",
+                ReferenceType.TRADE_FEE,
                 event.tradeId().toString(),
                 "Trading fee revenue",
                 event.executedAt());

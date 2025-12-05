@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
 
@@ -30,7 +31,7 @@ public class UserJournalPO {
     private BigDecimal amount;
     private Direction direction;
     private BigDecimal balanceAfter;
-    private String referenceType;
+    private ReferenceType referenceType;
     private String referenceId;
     private String description;
     private Instant eventTime;

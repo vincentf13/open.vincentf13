@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
 
@@ -33,7 +34,7 @@ public class PlatformJournal {
     @NotNull
     private BigDecimal balanceAfter;
     @NotNull
-    private String referenceType;
+    private ReferenceType referenceType;
     @NotNull
     private String referenceId;
     private String description;

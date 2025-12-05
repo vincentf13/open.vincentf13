@@ -7,9 +7,10 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.infra.persistence.mapper.UserJournalMapper;
 import open.vincentf13.exchange.account.infra.persistence.po.UserJournalPO;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -51,7 +52,7 @@ public class UserJournalRepository {
     
     public Optional<UserJournal> findLatestByReference(@NotNull Long userId,
                                                        @NotNull AssetSymbol asset,
-                                                       @NotNull String referenceType,
+                                                       @NotNull ReferenceType referenceType,
                                                        @NotNull String referenceId) {
         var wrapper = com.baomidou.mybatisplus.core.toolkit.Wrappers.<UserJournalPO>lambdaQuery()
                 .eq(UserJournalPO::getUserId, userId)
