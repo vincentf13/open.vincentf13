@@ -9,7 +9,6 @@ import open.vincentf13.exchange.account.infra.messaging.publisher.FundsFreezeEve
 import open.vincentf13.exchange.account.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.sdk.core.OpenValidator;
@@ -42,9 +41,7 @@ public class FundsFreezeRequestedEventListener {
             OpenValidator.validateOrThrow(event);
             var instrument = instrumentCache.get(event.instrumentId())
                                             .orElseThrow(() -> OpenException.of(AccountErrorCode.INVALID_EVENT, Map.of("orderId", event.orderId(), "reason", "Instrument not found")));
-            asset = event.side() == OrderSide.BUY
-                    ? AssetSymbol.fromValue(instrument.quoteAsset())
-                    : AssetSymbol.fromValue(instrument.baseAsset());
+            asset = AssetSymbol.fromValue(instrument.quoteAsset());
             if (event.price() != null && event.quantity() != null) {
                 amount = event.price().multiply(event.quantity());
             }
@@ -52,13 +49,13 @@ public class FundsFreezeRequestedEventListener {
             fundsFreezeEventPublisher.publishFrozen(
                     new FundsFrozenEvent(event.orderId(), event.userId(), event.instrumentId(), result.asset(), result.amount(), Instant.now())
             );
+            acknowledgment.acknowledge();
         } catch (Exception e) {
             fundsFreezeEventPublisher.publishFreezeFailed(
                     new FundsFreezeFailedEvent(event.orderId(), event.userId(), event.instrumentId(),
                             asset, amount, e.getMessage(), Instant.now()));
             OpenLog.warn(AccountEvent.FUNDS_FREEZE_REQUEST_PAYLOAD_INVALID, e, "event", event);
-        } finally {
-            acknowledgment.acknowledge();
+            throw e;
         }
     }
 }
