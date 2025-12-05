@@ -15,6 +15,8 @@ import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAcc
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
+import open.vincentf13.exchange.account.infra.messaging.publisher.TradeSettlementEventPublisher;
+import open.vincentf13.exchange.account.sdk.mq.event.TradeMarginSettledEvent;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
@@ -22,6 +24,8 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
@@ -45,6 +49,7 @@ public class AccountTransactionDomainService {
     private final PlatformAccountRepository platformAccountRepository;
     private final UserJournalRepository userJournalRepository;
     private final PlatformJournalRepository platformJournalRepository;
+    private final TradeSettlementEventPublisher tradeSettlementEventPublisher;
     private final DefaultIdGenerator idGenerator;
     
     public record FundsFreezeResult(AssetSymbol asset, BigDecimal amount) {
@@ -105,7 +110,7 @@ public class AccountTransactionDomainService {
                                             @NotNull InstrumentSummaryResponse instrument) {
         OpenValidator.validateOrThrow(event);
         AssetSymbol asset = instrument.quoteAsset();
-        BigDecimal amount =  event.requiredMargin().add( event.fee());
+        BigDecimal amount = event.requiredMargin().add(event.fee());
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "amount", amount));
         }
@@ -274,12 +279,116 @@ public class AccountTransactionDomainService {
                           .updatedAt(Instant.now())
                           .build();
     }
+    
+    private UserAccount applyTradeSettlement(UserAccount current,
+                                             BigDecimal totalReserved,
+                                             BigDecimal totalUsed,
+                                             BigDecimal feeRefund) {
+        BigDecimal newReserved = current.getReserved().subtract(totalReserved);
+        if (newReserved.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
+                                   Map.of("userId", current.getUserId(), "reserved", current.getReserved(), "required", totalReserved));
+        }
+        BigDecimal newBalance = current.getBalance().subtract(totalUsed);
+        BigDecimal newAvailable = current.getAvailable().add(feeRefund);
+        if (newAvailable.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
+                                   Map.of("userId", current.getUserId(), "available", current.getAvailable(), "required", totalUsed));
+        }
+        return UserAccount.builder()
+                          .accountId(current.getAccountId())
+                          .userId(current.getUserId())
+                          .accountCode(current.getAccountCode())
+                          .accountName(current.getAccountName())
+                          .instrumentId(current.getInstrumentId())
+                          .category(current.getCategory())
+                          .asset(current.getAsset())
+                          .balance(newBalance)
+                          .available(newAvailable)
+                          .reserved(newReserved)
+                          .version(current.safeVersion() + 1)
+                          .createdAt(current.getCreatedAt())
+                          .updatedAt(Instant.now())
+                          .build();
+    }
 
     @Transactional
     public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
                             @NotNull @Valid OrderResponse order,
                             boolean isMaker) {
-        throw OpenException.of(AccountErrorCode.INVALID_EVENT,
-                               Map.of("tradeId", event.tradeId(), "orderId", order.orderId(), "message", "Trade settlement not implemented for new account schema yet"));
+        if (order.intent() == null) {
+            throw OpenException.of(AccountErrorCode.ORDER_INTENT_NULL, Map.of("orderId", order.orderId()));
+        }
+        if (order.intent() != PositionIntentType.INCREASE) {
+            throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
+                                   Map.of("orderId", order.orderId(), "intent", order.intent()));
+        }
+        AssetSymbol asset = event.quoteAsset();
+        OrderSide side = isMaker ? event.orderSide() : event.counterpartyOrderSide();
+        BigDecimal marginUsed = event.price().multiply(event.quantity());
+        BigDecimal precollectedFee = event.takerFee();
+        BigDecimal actualFee = isMaker ? event.makerFee() : event.takerFee();
+        BigDecimal totalReserved = marginUsed.add(precollectedFee);
+        BigDecimal feeRefund = precollectedFee.subtract(actualFee);
+        if (feeRefund.signum() < 0) {
+            feeRefund = BigDecimal.ZERO;
+        }
+        UserAccount userSpot = userAccountRepository.getOrCreate(order.userId(), UserAccountCode.SPOT, null, asset);
+        if (userSpot.getReserved().compareTo(totalReserved) < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
+                                   Map.of("userId", order.userId(), "reserved", userSpot.getReserved(), "required", totalReserved));
+        }
+        BigDecimal totalUsed = marginUsed.add(actualFee);
+        UserAccount settledAccount = applyTradeSettlement(userSpot, totalReserved, totalUsed, feeRefund);
+        userAccountRepository.updateSelectiveBatch(
+                List.of(settledAccount),
+                List.of(userSpot.safeVersion()),
+                "trade-settle");
+        UserJournal marginJournal = buildUserJournal(
+                settledAccount,
+                Direction.CREDIT,
+                marginUsed,
+                "TRADE_MARGIN_SETTLED",
+                event.tradeId().toString(),
+                "Margin converted from reserved",
+                event.executedAt());
+        UserJournal feeJournal = buildUserJournal(
+                settledAccount,
+                Direction.CREDIT,
+                actualFee,
+                "TRADE_FEE",
+                event.tradeId().toString(),
+                "Trading fee deducted",
+                event.executedAt());
+        if (feeRefund.signum() > 0) {
+            UserJournal refundJournal = buildUserJournal(
+                    settledAccount,
+                    Direction.DEBIT,
+                    feeRefund,
+                    "TRADE_FEE_REFUND",
+                    event.tradeId().toString(),
+                    "Maker fee refund",
+                    event.executedAt());
+            userJournalRepository.insertBatch(List.of(marginJournal, feeJournal, refundJournal));
+        } else {
+            userJournalRepository.insertBatch(List.of(marginJournal, feeJournal));
+        }
+        tradeSettlementEventPublisher.publishTradeMarginSettled(
+                new TradeMarginSettledEvent(
+                        event.tradeId(),
+                        order.orderId(),
+                        order.userId(),
+                        order.instrumentId(),
+                        asset,
+                        side,
+                        event.price(),
+                        event.quantity(),
+                        marginUsed,
+                        actualFee,
+                        feeRefund,
+                        event.executedAt(),
+                        Instant.now()
+                )
+        );
     }
 }
