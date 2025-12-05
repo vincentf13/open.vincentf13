@@ -76,12 +76,11 @@ public class UserAccount {
     }
     
     public UserAccount apply(Direction direction,
-                             BigDecimal amount,
-                             boolean affectAvailable) {
+                             BigDecimal amount) {
         BigDecimal delta = AccountCategory.delta(category, direction, amount);
         BigDecimal newBalance = balance.add(delta);
-        BigDecimal newAvailable = affectAvailable ? available.add(delta) : available;
-        if (affectAvailable && newAvailable.signum() < 0) {
+        BigDecimal newAvailable = category.affectsAvailable() ? available.add(delta) : available;
+        if (category.affectsAvailable() && newAvailable.signum() < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS);
         }
         return UserAccount.builder()

@@ -3,6 +3,7 @@ package open.vincentf13.exchange.account.service;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.account.domain.service.AccountPositionDomainService;
 import open.vincentf13.exchange.account.domain.service.AccountTransactionDomainService;
 import open.vincentf13.exchange.account.domain.service.result.AccountDepositResult;
 import open.vincentf13.exchange.account.domain.service.result.AccountWithdrawalResult;
@@ -13,6 +14,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRespon
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderClient;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ import org.springframework.validation.annotation.Validated;
 public class AccountCommandService {
     
     private final AccountTransactionDomainService accountTransactionDomainService;
+    private final AccountPositionDomainService accountPositionDomainService;
     private final TransactionTemplate transactionTemplate;
     private final ExchangeOrderClient exchangeOrderClient;
     
@@ -69,8 +72,13 @@ public class AccountCommandService {
         OrderResponse takerOrder = OpenApiClientInvoker.call(() -> exchangeOrderClient.getOrder(event.counterpartyOrderId()));
         
         transactionTemplate.executeWithoutResult(status -> {
-            accountTransactionDomainService.settleTrade(event, makerOrder, true);
-            accountTransactionDomainService.settleTrade(event, takerOrder, false);
+            accountTransactionDomainService.settleTrade(event, makerOrder, makerOrder.userId().equals(event.makerUserId()));
+            accountTransactionDomainService.settleTrade(event, takerOrder, takerOrder.userId().equals(event.makerUserId()));
         });
+    }
+
+    @Transactional
+    public void handlePositionMarginReleased(@NotNull @Valid PositionMarginReleasedEvent event) {
+        accountPositionDomainService.releaseMargin(event);
     }
 }

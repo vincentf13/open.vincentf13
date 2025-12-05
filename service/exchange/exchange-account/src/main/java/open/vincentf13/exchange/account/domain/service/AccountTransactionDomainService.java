@@ -203,7 +203,7 @@ public class AccountTransactionDomainService {
     private UserAccount applyUserUpdate(UserAccount current,
                                         Direction direction,
                                         BigDecimal amount) {
-        return current.apply(direction, amount, current.getCategory().affectsAvailable());
+        return current.apply(direction, amount);
     }
     
     private PlatformAccount applyPlatformUpdate(PlatformAccount current,
