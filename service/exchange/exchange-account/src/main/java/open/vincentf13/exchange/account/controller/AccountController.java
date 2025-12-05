@@ -21,9 +21,13 @@ public class AccountController implements AccountApi {
     @Override
     public OpenApiResponse<AccountBalanceResponse> getBalances(String asset,
                                                                Long userId) {
-        Long effectiveUserId = userId != null
-                               ? userId
-                               : OpenJwtLoginUserHolder.currentUserIdOrThrow(() -> new IllegalArgumentException("Missing user context"));
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        Long effectiveUserId = jwtUserId != null
+                               ? jwtUserId
+                               : userId;
+        if (effectiveUserId == null) {
+            throw new IllegalArgumentException("Missing user context");
+        }
         return OpenApiResponse.success(accountQueryService.getBalances(effectiveUserId, asset));
     }
     
