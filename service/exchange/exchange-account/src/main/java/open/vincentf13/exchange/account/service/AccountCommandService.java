@@ -3,9 +3,9 @@ package open.vincentf13.exchange.account.service;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.domain.model.transaction.AccountDepositResult;
-import open.vincentf13.exchange.account.domain.model.transaction.AccountWithdrawalResult;
 import open.vincentf13.exchange.account.domain.service.AccountTransactionDomainService;
+import open.vincentf13.exchange.account.domain.service.transaction.AccountDepositResult;
+import open.vincentf13.exchange.account.domain.service.transaction.AccountWithdrawalResult;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRequest;
@@ -35,10 +35,10 @@ public class AccountCommandService {
         var updatedUserAsset = result.userAssetAccount();
         
         return new AccountDepositResponse(
-                userAssetJournal.journalId(),
-                result.platformAssetJournal().journalId(),
+                userAssetJournal.getJournalId(),
+                result.platformAssetJournal().getJournalId(),
                 updatedUserAsset.getAvailable(),
-                userAssetJournal.eventTime(),
+                userAssetJournal.getEventTime(),
                 updatedUserAsset.getUserId(),
                 updatedUserAsset.getAsset(),
                 request.amount(),
@@ -53,10 +53,10 @@ public class AccountCommandService {
         var userAsset = result.userAssetAccount();
         
         return new AccountWithdrawalResponse(
-                userAssetJournal.journalId(),
-                result.platformAssetJournal().journalId(),
+                userAssetJournal.getJournalId(),
+                result.platformAssetJournal().getJournalId(),
                 userAsset.getAvailable(),
-                userAssetJournal.eventTime(),
+                userAssetJournal.getEventTime(),
                 userAsset.getUserId(),
                 userAsset.getAsset(),
                 request.amount(),

@@ -1,11 +1,11 @@
-package open.vincentf13.exchange.account.domain.model.transaction;
+package open.vincentf13.exchange.account.domain.service.transaction;
 
 import open.vincentf13.exchange.account.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.domain.model.PlatformJournal;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
 import open.vincentf13.exchange.account.domain.model.UserJournal;
 
-public record AccountWithdrawalResult(
+public record AccountDepositResult(
         UserAccount userAssetAccount,
         UserAccount userEquityAccount,
         PlatformAccount platformAssetAccount,
