@@ -253,10 +253,7 @@ public class AccountTransactionDomainService {
 
     private AssetSymbol resolveAssetForOrder(FundsFreezeRequestedEvent event,
                                              InstrumentSummaryResponse instrument) {
-        return switch (event.side()) {
-            case BUY -> AssetSymbol.fromValue(instrument.quoteAsset());
-            case SELL -> AssetSymbol.fromValue(instrument.baseAsset());
-        };
+        return instrument.quoteAsset();
     }
 
     private BigDecimal calculateRequiredFunds(FundsFreezeRequestedEvent event) {

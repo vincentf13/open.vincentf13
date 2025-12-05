@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.admin.contract.enums.InstrumentStatus;
 import open.vincentf13.exchange.admin.contract.enums.InstrumentType;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -24,8 +25,8 @@ public class InstrumentPO {
     private Long instrumentId;
     
     private String symbol;
-    private String baseAsset;
-    private String quoteAsset;
+    private AssetSymbol baseAsset;
+    private AssetSymbol quoteAsset;
     private InstrumentType instrumentType;
     private InstrumentStatus status;
     private BigDecimal tickSize;
@@ -38,7 +39,7 @@ public class InstrumentPO {
     private BigDecimal makerFeeRate;
     private BigDecimal takerFeeRate;
     private BigDecimal contractSize;
-    private String settlementAsset;
+    private AssetSymbol settlementAsset;
     private Integer maxLeverage;
     private BigDecimal maintenanceMargin;
     private Instant launchAt;

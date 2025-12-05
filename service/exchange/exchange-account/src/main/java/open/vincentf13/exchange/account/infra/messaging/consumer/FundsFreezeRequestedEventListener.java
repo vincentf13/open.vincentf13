@@ -41,7 +41,7 @@ public class FundsFreezeRequestedEventListener {
             OpenValidator.validateOrThrow(event);
             var instrument = instrumentCache.get(event.instrumentId())
                                             .orElseThrow(() -> OpenException.of(AccountErrorCode.INVALID_EVENT, Map.of("orderId", event.orderId(), "reason", "Instrument not found")));
-            asset = AssetSymbol.fromValue(instrument.quoteAsset());
+            asset = instrument.quoteAsset();
             if (event.price() != null && event.quantity() != null) {
                 amount = event.price().multiply(event.quantity());
             }
