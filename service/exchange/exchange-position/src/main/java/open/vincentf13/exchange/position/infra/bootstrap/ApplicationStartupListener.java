@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.position.infra.startup;
+package open.vincentf13.exchange.position.infra.bootstrap;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.infra.PositionLogEvent;

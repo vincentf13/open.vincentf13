@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.account.infra.startup;
+package open.vincentf13.exchange.account.infra.bootstrap;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.infra.AccountLogEvent;
