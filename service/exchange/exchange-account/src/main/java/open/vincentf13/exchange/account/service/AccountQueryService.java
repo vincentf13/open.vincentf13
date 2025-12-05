@@ -4,12 +4,11 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.domain.model.AccountBalance;
-import open.vincentf13.exchange.account.infra.persistence.po.AccountBalancePO;
-import open.vincentf13.exchange.account.infra.persistence.repository.AccountBalanceRepository;
+import open.vincentf13.exchange.account.domain.model.UserAccount;
+import open.vincentf13.exchange.account.infra.persistence.po.UserAccountPO;
+import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceResponse;
-import open.vincentf13.exchange.common.sdk.enums.AccountType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
@@ -25,20 +24,21 @@ import java.util.Objects;
 @Validated
 public class AccountQueryService {
     
-    private final AccountBalanceRepository accountBalanceRepository;
+    private final UserAccountRepository userAccountRepository;
     
     @Transactional(readOnly = true)
     public AccountBalanceResponse getBalances(@NotNull Long userId,
                                               @NotBlank String asset) {
-        AssetSymbol normalizedAsset = AccountBalance.normalizeAsset(asset);
-        List<AccountBalance> balances = accountBalanceRepository.findBy(
-                Wrappers.lambdaQuery(AccountBalancePO.class)
-                        .eq(AccountBalancePO::getUserId, userId)
-                        .eq(AccountBalancePO::getAccountType, AccountType.SPOT_MAIN)
-                        .eq(AccountBalancePO::getAsset, normalizedAsset)
-                                                                     );
+        AssetSymbol normalizedAsset = UserAccount.normalizeAsset(asset);
+        List<UserAccount> balances = userAccountRepository.findBy(
+                Wrappers.lambdaQuery(UserAccountPO.class)
+                        .eq(UserAccountPO::getUserId, userId)
+                        .eq(UserAccountPO::getAccountCode, UserAccount.Codes.SPOT)
+                        .eq(UserAccountPO::getCategory, open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory.ASSET)
+                        .eq(UserAccountPO::getAsset, normalizedAsset)
+                                                                    );
         Instant snapshotAt = balances.stream()
-                                     .map(AccountBalance::getUpdatedAt)
+                                     .map(UserAccount::getUpdatedAt)
                                      .filter(Objects::nonNull)
                                      .max(Instant::compareTo)
                                      .orElseGet(() -> null);

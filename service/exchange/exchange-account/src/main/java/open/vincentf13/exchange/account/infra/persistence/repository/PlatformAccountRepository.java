@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.account.infra.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
@@ -9,9 +10,8 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.infra.persistence.mapper.PlatformAccountMapper;
 import open.vincentf13.exchange.account.infra.persistence.po.PlatformAccountPO;
-import open.vincentf13.exchange.common.sdk.enums.PlatformAccountCategory;
-import open.vincentf13.exchange.common.sdk.enums.PlatformAccountCode;
-import open.vincentf13.exchange.common.sdk.enums.PlatformAccountStatus;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
@@ -19,7 +19,6 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Repository
 @Validated
@@ -34,17 +33,20 @@ public class PlatformAccountRepository {
             platformAccount.setAccountId(idGenerator.newLong());
         }
         PlatformAccountPO po = OpenObjectMapper.convert(platformAccount, PlatformAccountPO.class);
-        if (po.getName() == null && platformAccount.getAccountCode() != null) {
-            po.setName(platformAccount.getAccountCode().displayName());
-        }
         mapper.insert(po);
         return platformAccount;
+    }
+    
+    public boolean updateSelectiveBy(@NotNull @Valid PlatformAccount account,
+                                     LambdaUpdateWrapper<PlatformAccountPO> updateWrapper) {
+        PlatformAccountPO po = OpenObjectMapper.convert(account, PlatformAccountPO.class);
+        return mapper.update(po, updateWrapper) > 0;
     }
     
     public List<PlatformAccount> findBy(@NotNull LambdaQueryWrapper<PlatformAccountPO> wrapper) {
         return mapper.selectList(wrapper).stream()
                      .map(item -> OpenObjectMapper.convert(item, PlatformAccount.class))
-                     .collect(Collectors.toList());
+                     .toList();
     }
     
     public Optional<PlatformAccount> findOne(@NotNull LambdaQueryWrapper<PlatformAccountPO> wrapper) {
@@ -52,21 +54,24 @@ public class PlatformAccountRepository {
         return Optional.ofNullable(OpenObjectMapper.convert(po, PlatformAccount.class));
     }
     
-    public PlatformAccount getOrCreate(@NotNull PlatformAccountCode code,
-                                       @NotNull PlatformAccountCategory category,
-                                       @NotNull PlatformAccountStatus status) {
+    public PlatformAccount getOrCreate(@NotNull String code,
+                                       @NotNull String name,
+                                       @NotNull AccountCategory category,
+                                       @NotNull AssetSymbol asset) {
         PlatformAccount probe = PlatformAccount.builder()
                                                .accountCode(code)
+                                               .accountName(name)
                                                .category(category)
-                                               .status(status)
+                                               .asset(asset)
                                                .build();
         return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, PlatformAccountPO.class)))
                        .orElseGet(() -> {
                            try {
                                return insertSelective(PlatformAccount.builder()
                                                                      .accountCode(code)
+                                                                     .accountName(name)
                                                                      .category(category)
-                                                                     .status(status)
+                                                                     .asset(asset)
                                                                      .build());
                            } catch (DuplicateKeyException ex) {
                                return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, PlatformAccountPO.class)))

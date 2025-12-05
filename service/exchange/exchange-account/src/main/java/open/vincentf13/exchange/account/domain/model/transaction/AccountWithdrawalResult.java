@@ -1,10 +1,18 @@
 package open.vincentf13.exchange.account.domain.model.transaction;
 
-import open.vincentf13.exchange.account.domain.model.AccountBalance;
-import open.vincentf13.exchange.account.domain.model.AccountEntry;
+import open.vincentf13.exchange.account.domain.model.PlatformAccount;
+import open.vincentf13.exchange.account.domain.model.PlatformJournal;
+import open.vincentf13.exchange.account.domain.model.UserAccount;
+import open.vincentf13.exchange.account.domain.model.UserJournal;
 
 public record AccountWithdrawalResult(
-        AccountEntry entry,
-        AccountBalance userBalance
+        UserAccount userAssetAccount,
+        UserAccount userEquityAccount,
+        PlatformAccount platformAssetAccount,
+        PlatformAccount platformLiabilityAccount,
+        UserJournal userAssetJournal,
+        UserJournal userEquityJournal,
+        PlatformJournal platformAssetJournal,
+        PlatformJournal platformLiabilityJournal
 ) {
 }

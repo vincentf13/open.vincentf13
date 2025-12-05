@@ -7,8 +7,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.AccountType;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.Direction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -17,24 +18,20 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("ledger_balances")
-public class AccountBalancePO {
+@TableName("platform_journal")
+public class PlatformJournalPO {
     
-    @TableId(value = "id", type = IdType.INPUT)
-    private Long id;
+    @TableId(value = "journal_id", type = IdType.INPUT)
+    private Long journalId;
     private Long accountId;
-    private Long userId;
-    private AccountType accountType;
-    private Long instrumentId;
+    private AccountCategory category;
     private AssetSymbol asset;
-    private BigDecimal balance;
-    private BigDecimal available;
-    private BigDecimal reserved;
-    private BigDecimal totalDeposited;
-    private BigDecimal totalWithdrawn;
-    private BigDecimal totalPnl;
-    private Integer version;
-    private Long lastEntryId;
+    private BigDecimal amount;
+    private Direction direction;
+    private BigDecimal balanceAfter;
+    private String referenceType;
+    private String referenceId;
+    private String description;
+    private Instant eventTime;
     private Instant createdAt;
-    private Instant updatedAt;
 }

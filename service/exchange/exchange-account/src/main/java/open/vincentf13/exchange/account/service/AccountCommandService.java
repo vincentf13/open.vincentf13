@@ -3,8 +3,6 @@ package open.vincentf13.exchange.account.service;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.domain.model.AccountBalance;
-import open.vincentf13.exchange.account.domain.model.AccountEntry;
 import open.vincentf13.exchange.account.domain.model.transaction.AccountDepositResult;
 import open.vincentf13.exchange.account.domain.model.transaction.AccountWithdrawalResult;
 import open.vincentf13.exchange.account.domain.service.AccountTransactionDomainService;
@@ -33,16 +31,16 @@ public class AccountCommandService {
     @Transactional
     public AccountDepositResponse deposit(@NotNull @Valid AccountDepositRequest request) {
         AccountDepositResult result = accountTransactionDomainService.deposit(request);
-        AccountEntry userEntry = result.userEntry();
-        AccountBalance updatedBalance = result.userBalance();
+        var userAssetJournal = result.userAssetJournal();
+        var updatedUserAsset = result.userAssetAccount();
         
         return new AccountDepositResponse(
-                userEntry.getEntryId(),
-                userEntry.getEntryId(),
-                updatedBalance.getAvailable(),
-                userEntry.getCreatedAt(),
-                updatedBalance.getUserId(),
-                updatedBalance.getAsset(),
+                userAssetJournal.journalId(),
+                result.platformAssetJournal().journalId(),
+                updatedUserAsset.getAvailable(),
+                userAssetJournal.eventTime(),
+                updatedUserAsset.getUserId(),
+                updatedUserAsset.getAsset(),
                 request.amount(),
                 request.txId()
         );
@@ -51,16 +49,16 @@ public class AccountCommandService {
     @Transactional
     public AccountWithdrawalResponse withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
         AccountWithdrawalResult result = accountTransactionDomainService.withdraw(request);
-        AccountEntry entry = result.entry();
-        AccountBalance balance = result.userBalance();
+        var userAssetJournal = result.userAssetJournal();
+        var userAsset = result.userAssetAccount();
         
         return new AccountWithdrawalResponse(
-                entry.getEntryId(),
-                entry.getEntryId(),
-                balance.getAvailable(),
-                entry.getCreatedAt(),
-                balance.getUserId(),
-                balance.getAsset(),
+                userAssetJournal.journalId(),
+                result.platformAssetJournal().journalId(),
+                userAsset.getAvailable(),
+                userAssetJournal.eventTime(),
+                userAsset.getUserId(),
+                userAsset.getAsset(),
                 request.amount(),
                 request.txId()
         );

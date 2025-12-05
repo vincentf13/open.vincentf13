@@ -7,11 +7,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.PlatformAccountCategory;
-import open.vincentf13.exchange.common.sdk.enums.PlatformAccountCode;
-import open.vincentf13.exchange.common.sdk.enums.PlatformAccountStatus;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 
 @Data
 @Builder
@@ -22,9 +22,12 @@ public class PlatformAccountPO {
     
     @TableId(value = "account_id", type = IdType.INPUT)
     private Long accountId;
-    private PlatformAccountCode accountCode;
-    private PlatformAccountCategory category;
-    private String name;
-    private PlatformAccountStatus status;
+    private String accountCode;
+    private String accountName;
+    private AccountCategory category;
+    private AssetSymbol asset;
+    private BigDecimal balance;
+    private Integer version;
+    private Instant updatedAt;
     private Instant createdAt;
 }
