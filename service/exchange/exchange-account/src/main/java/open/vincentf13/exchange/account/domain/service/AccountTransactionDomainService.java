@@ -11,6 +11,7 @@ import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.domain.service.result.AccountDepositResult;
 import open.vincentf13.exchange.account.domain.service.result.AccountWithdrawalResult;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
+import open.vincentf13.exchange.account.infra.AccountEvent;
 import open.vincentf13.exchange.account.infra.messaging.publisher.TradeSettlementEventPublisher;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
@@ -30,6 +31,7 @@ import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -289,6 +291,10 @@ public class AccountTransactionDomainService {
                                    Map.of("userId", current.getUserId(), "reserved", current.getReserved(), "required", totalReserved));
         }
         BigDecimal newBalance = current.getBalance().subtract(totalUsed);
+        if (newBalance.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
+                                   Map.of("userId", current.getUserId(), "balance", current.getBalance(), "required", totalUsed));
+        }
         BigDecimal newAvailable = current.getAvailable().add(feeRefund);
         if (newAvailable.signum() < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
@@ -330,13 +336,19 @@ public class AccountTransactionDomainService {
                                                         .map(UserJournal::getAmount)
                                                         .orElseThrow(() -> OpenException.of(AccountErrorCode.FREEZE_ENTRY_NOT_FOUND,
                                                                                             Map.of("orderId", order.orderId(), "userId", order.userId())));
-        BigDecimal precollectedFee = totalReserved.subtract(marginUsed);
-        if (precollectedFee.signum() < 0) {
-            throw OpenException.of(AccountErrorCode.INVALID_AMOUNT,
-                                   Map.of("orderId", order.orderId(), "reserved", totalReserved, "marginUsed", marginUsed));
+        BigDecimal totalUsed = marginUsed.add(actualFee);
+        if (totalReserved.compareTo(totalUsed) < 0) {
+            // 人工排查: 可能是 BUG 預扣扣不夠。 也可能是 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
+            OpenLog.warn(AccountEvent.INSUFFICIENT_RESERVED_BALANCE,
+                         "userId", order.userId(),
+                         "orderId", order.orderId(),
+                         "reserved", totalReserved,
+                         "marginUsed", marginUsed,
+                         "actualFee", actualFee);
         }
-        BigDecimal feeRefund = precollectedFee.subtract(actualFee);
-        if (feeRefund.signum() < 0) {
+        BigDecimal feeRefund = totalReserved.subtract(totalUsed);
+        if(feeRefund.signum() < 0) {
+            // 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
             feeRefund = BigDecimal.ZERO;
         }
         UserAccount userSpot = userAccountRepository.getOrCreate(order.userId(), UserAccountCode.SPOT, null, asset);
@@ -344,7 +356,6 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
                                    Map.of("userId", order.userId(), "reserved", userSpot.getReserved(), "required", totalReserved));
         }
-        BigDecimal totalUsed = marginUsed.add(actualFee);
         UserAccount settledAccount = applyTradeSettlement(userSpot, totalReserved, totalUsed, feeRefund);
         userAccountRepository.updateSelectiveBatch(
                 List.of(settledAccount),
