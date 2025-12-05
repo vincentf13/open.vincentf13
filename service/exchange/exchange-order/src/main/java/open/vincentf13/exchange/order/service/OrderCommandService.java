@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
-import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.order.domain.model.Order;
@@ -28,7 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
-import java.time.Instant;
 import java.util.Map;
 
 @Service
@@ -47,16 +45,9 @@ public class OrderCommandService {
             Order order = Order.createNew(userId, request);
             PositionIntentType intentType = determineIntent(userId, request);
             order.setIntent(intentType);
-            order.setStatus(OrderStatus.FREEZING_MARGIN);
-            // TODO 平倉寫入寫入entry price
+ 
             
-            transactionTemplate.executeWithoutResult(status -> {
-                markSubmitted(order);
-                orderEventPublisher.publishOrderSubmitted(order);
-                orderRepository.insertSelective(order);
-            });
-            
-            return OpenObjectMapper.convert(order, OrderResponse.class);
+            return null;
         } catch (DuplicateKeyException ex) {
             OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
                          "userId", userId,
@@ -99,9 +90,5 @@ public class OrderCommandService {
                : PositionSide.SHORT;
     }
     
-    private void markSubmitted(Order order) {
-        Instant now = Instant.now();
-        order.markStatus(OrderStatus.FREEZING_MARGIN, now);
-        order.incrementVersion();
-    }
+  
 }

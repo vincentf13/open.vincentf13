@@ -17,10 +17,6 @@ open:
         worker-id: 3
     mybatis:
       mapper-base-packages: open.vincentf13.exchange.order.infra.persistence.mapper
-    exchange:
-      order:
-        matching:
-          consumer-group: exchange-order-matching
     pending-task:
       rescue:
         enabled: true
