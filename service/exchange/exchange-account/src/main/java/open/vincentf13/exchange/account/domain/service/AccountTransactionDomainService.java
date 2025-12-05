@@ -81,8 +81,8 @@ public class AccountTransactionDomainService {
                 PlatformAccountCode.USER_LIABILITY,
                 asset);
         
-        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.DEBIT, request.amount(), true);
-        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.CREDIT, request.amount(), false);
+        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.DEBIT, request.amount());
+        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.CREDIT, request.amount());
         PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.DEBIT, request.amount());
         PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.CREDIT, request.amount());
         
@@ -174,8 +174,8 @@ public class AccountTransactionDomainService {
                 PlatformAccountCode.USER_LIABILITY,
                 asset);
         
-        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.CREDIT, request.amount(), true);
-        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.DEBIT, request.amount(), false);
+        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.CREDIT, request.amount());
+        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.DEBIT, request.amount());
         PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.CREDIT, request.amount());
         PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.DEBIT, request.amount());
         
@@ -202,9 +202,8 @@ public class AccountTransactionDomainService {
     
     private UserAccount applyUserUpdate(UserAccount current,
                                         Direction direction,
-                                        BigDecimal amount,
-                                        boolean affectAvailable) {
-        return current.apply(direction, amount, affectAvailable);
+                                        BigDecimal amount) {
+        return current.apply(direction, amount, current.getCategory().affectsAvailable());
     }
     
     private PlatformAccount applyPlatformUpdate(PlatformAccount current,
@@ -362,8 +361,8 @@ public class AccountTransactionDomainService {
                                    Map.of("userId", order.userId(), "reserved", userSpot.getReserved(), "required", totalReserved));
         }
         UserAccount settledAccount = applyTradeSettlement(userSpot, totalReserved, totalUsed, feeRefund);
-        UserAccount updatedMargin = applyUserUpdate(userMargin, Direction.DEBIT, marginUsed, true);
-        UserAccount updatedFeeExpense = applyUserUpdate(userFeeExpense, Direction.DEBIT, actualFee, false);
+        UserAccount updatedMargin = applyUserUpdate(userMargin, Direction.DEBIT, marginUsed);
+        UserAccount updatedFeeExpense = applyUserUpdate(userFeeExpense, Direction.DEBIT, actualFee);
         userAccountRepository.updateSelectiveBatch(
                 List.of(settledAccount, updatedMargin, updatedFeeExpense),
                 List.of(userSpot.safeVersion(), userMargin.safeVersion(), userFeeExpense.safeVersion()),

@@ -9,13 +9,14 @@ import java.math.BigDecimal;
 @Getter
 @RequiredArgsConstructor
 public enum AccountCategory {
-    ASSET(true),
-    LIABILITY(false),
-    EQUITY(false),
-    REVENUE(false),
-    EXPENSE(true);
+    ASSET(true, true),
+    LIABILITY(false, true),
+    EQUITY(false, false),
+    REVENUE(false, true),
+    EXPENSE(true, true);
     
     private final boolean debitPositive;
+    private final boolean affectsAvailable;
     
     public static BigDecimal delta(AccountCategory category,
                                    Direction direction,
@@ -24,5 +25,9 @@ public enum AccountCategory {
         boolean positive = (category.debitPositive && direction == Direction.DEBIT)
                            || (!category.debitPositive && direction == Direction.CREDIT);
         return positive ? value : value.negate();
+    }
+    
+    public boolean affectsAvailable() {
+        return affectsAvailable;
     }
 }
