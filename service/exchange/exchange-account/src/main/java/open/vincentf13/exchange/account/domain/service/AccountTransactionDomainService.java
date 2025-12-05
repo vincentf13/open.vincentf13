@@ -105,7 +105,7 @@ public class AccountTransactionDomainService {
                                             @NotNull InstrumentSummaryResponse instrument) {
         OpenValidator.validateOrThrow(event);
         AssetSymbol asset = instrument.quoteAsset();
-        BigDecimal amount = calculateRequiredFunds(event);
+        BigDecimal amount =  event.requiredMargin().add( event.fee());
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "amount", amount));
         }
@@ -251,15 +251,6 @@ public class AccountTransactionDomainService {
                           .build();
     }
     
-    private BigDecimal calculateRequiredFunds(FundsFreezeRequestedEvent event) {
-        BigDecimal requiredMargin = event.requiredMargin();
-        BigDecimal fee = event.fee();
-        if (requiredMargin == null || fee == null) {
-            throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "message", "requiredMargin or fee missing"));
-        }
-        return requiredMargin.add(fee);
-    }
-
     private UserAccount applyUserFreeze(UserAccount current,
                                         BigDecimal amount) {
         BigDecimal available = current.getAvailable();
