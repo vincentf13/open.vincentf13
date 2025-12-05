@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.account.domain.service;
 
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -12,8 +11,6 @@ import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.domain.service.result.AccountDepositResult;
 import open.vincentf13.exchange.account.domain.service.result.AccountWithdrawalResult;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
-import open.vincentf13.exchange.account.infra.persistence.po.PlatformAccountPO;
-import open.vincentf13.exchange.account.infra.persistence.po.UserAccountPO;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
@@ -34,6 +31,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -71,20 +69,27 @@ public class AccountTransactionDomainService {
                 PlatformAccountCode.USER_LIABILITY,
                 asset);
         
-        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.DEBIT, request.amount(), true, "deposit");
-        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.CREDIT, request.amount(), false, "deposit");
-        PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.DEBIT, request.amount(), "deposit");
-        PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.CREDIT, request.amount(), "deposit");
+        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.DEBIT, request.amount(), true);
+        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.CREDIT, request.amount(), false);
+        PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.DEBIT, request.amount());
+        PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.CREDIT, request.amount());
         
         UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.DEBIT, request.amount(), "DEPOSIT", request.txId(), "User deposit", eventTime);
         UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.CREDIT, request.amount(), "DEPOSIT", request.txId(), "User equity increase", eventTime);
         PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.DEBIT, request.amount(), "DEPOSIT", request.txId(), "Platform asset increase", eventTime);
         PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.CREDIT, request.amount(), "DEPOSIT", request.txId(), "Platform liability increase", eventTime);
         
-        userJournalRepository.insert(userAssetJournal);
-        userJournalRepository.insert(userEquityJournal);
-        platformJournalRepository.insert(platformAssetJournal);
-        platformJournalRepository.insert(platformLiabilityJournal);
+        userAccountRepository.updateSelectiveBatch(
+                List.of(updatedUserAsset, updatedUserEquity),
+                List.of(userAssetAccount.safeVersion(), userEquityAccount.safeVersion()),
+                "deposit");
+        platformAccountRepository.updateSelectiveBatch(
+                List.of(updatedPlatformAsset, updatedPlatformLiability),
+                List.of(platformAssetAccount.safeVersion(), platformLiabilityAccount.safeVersion()),
+                "deposit");
+        
+        userJournalRepository.insertBatch(List.of(userAssetJournal, userEquityJournal));
+        platformJournalRepository.insertBatch(List.of(platformAssetJournal, platformLiabilityJournal));
         
         return new AccountDepositResult(updatedUserAsset, updatedUserEquity, updatedPlatformAsset, updatedPlatformLiability,
                 userAssetJournal, userEquityJournal, platformAssetJournal, platformLiabilityJournal);
@@ -119,20 +124,27 @@ public class AccountTransactionDomainService {
                 PlatformAccountCode.USER_LIABILITY,
                 asset);
         
-        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.CREDIT, request.amount(), true, "withdrawal");
-        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.DEBIT, request.amount(), false, "withdrawal");
-        PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.CREDIT, request.amount(), "withdrawal");
-        PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.DEBIT, request.amount(), "withdrawal");
+        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.CREDIT, request.amount(), true);
+        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.DEBIT, request.amount(), false);
+        PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.CREDIT, request.amount());
+        PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.DEBIT, request.amount());
         
         UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.CREDIT, request.amount(), "WITHDRAWAL", request.txId(), "User withdrawal", eventTime);
         UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.DEBIT, request.amount(), "WITHDRAWAL", request.txId(), "User equity decrease", eventTime);
         PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.CREDIT, request.amount(), "WITHDRAWAL", request.txId(), "Platform payout", eventTime);
         PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.DEBIT, request.amount(), "WITHDRAWAL", request.txId(), "Platform liability decrease", eventTime);
         
-        userJournalRepository.insert(userAssetJournal);
-        userJournalRepository.insert(userEquityJournal);
-        platformJournalRepository.insert(platformAssetJournal);
-        platformJournalRepository.insert(platformLiabilityJournal);
+        userAccountRepository.updateSelectiveBatch(
+                List.of(updatedUserAsset, updatedUserEquity),
+                List.of(userAssetAccount.safeVersion(), userEquityAccount.safeVersion()),
+                "withdrawal");
+        platformAccountRepository.updateSelectiveBatch(
+                List.of(updatedPlatformAsset, updatedPlatformLiability),
+                List.of(platformAssetAccount.safeVersion(), platformLiabilityAccount.safeVersion()),
+                "withdrawal");
+        
+        userJournalRepository.insertBatch(List.of(userAssetJournal, userEquityJournal));
+        platformJournalRepository.insertBatch(List.of(platformAssetJournal, platformLiabilityJournal));
         
         return new AccountWithdrawalResult(updatedUserAsset, updatedUserEquity, updatedPlatformAsset, updatedPlatformLiability,
                 userAssetJournal, userEquityJournal, platformAssetJournal, platformLiabilityJournal);
@@ -141,34 +153,14 @@ public class AccountTransactionDomainService {
     private UserAccount applyUserUpdate(UserAccount current,
                                         Direction direction,
                                         BigDecimal amount,
-                                        boolean affectAvailable,
-                                        String action) {
-        UserAccount updated = current.apply(direction, amount, affectAvailable);
-        boolean updatedRows = userAccountRepository.updateSelectiveBy(
-                updated,
-                new LambdaUpdateWrapper<UserAccountPO>()
-                        .eq(UserAccountPO::getAccountId, current.getAccountId())
-                        .eq(UserAccountPO::getVersion, current.safeVersion()));
-        if (!updatedRows) {
-            throw OpenException.of(AccountErrorCode.OPTIMISTIC_LOCK_FAILURE, Map.of("action", action, "accountId", current.getAccountId()));
-        }
-        return updated;
+                                        boolean affectAvailable) {
+        return current.apply(direction, amount, affectAvailable);
     }
     
     private PlatformAccount applyPlatformUpdate(PlatformAccount current,
                                                 Direction direction,
-                                                BigDecimal amount,
-                                                String action) {
-        PlatformAccount updated = current.apply(direction, amount);
-        boolean updatedRows = platformAccountRepository.updateSelectiveBy(
-                updated,
-                new LambdaUpdateWrapper<PlatformAccountPO>()
-                        .eq(PlatformAccountPO::getAccountId, current.getAccountId())
-                        .eq(PlatformAccountPO::getVersion, current.safeVersion()));
-        if (!updatedRows) {
-            throw OpenException.of(AccountErrorCode.OPTIMISTIC_LOCK_FAILURE, Map.of("action", action, "accountId", current.getAccountId()));
-        }
-        return updated;
+                                                BigDecimal amount) {
+        return current.apply(direction, amount);
     }
     
     private UserJournal buildUserJournal(UserAccount account,
