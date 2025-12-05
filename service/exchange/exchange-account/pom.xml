@@ -54,6 +54,10 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-order-sdk-mq</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
             <artifactId>exchange-order-sdk-rest-client</artifactId>
         </dependency>
         <dependency>
