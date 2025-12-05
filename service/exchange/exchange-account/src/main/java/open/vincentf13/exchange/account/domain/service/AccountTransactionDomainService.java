@@ -23,7 +23,6 @@ import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
-import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,7 +96,6 @@ public class AccountTransactionDomainService {
     
     @Transactional
     public AccountWithdrawalResult withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
-        OpenValidator.validateOrThrow(request);
         AssetSymbol asset = UserAccount.normalizeAsset(request.asset());
         Instant eventTime = request.creditedAt() == null ? Instant.now() : request.creditedAt();
         

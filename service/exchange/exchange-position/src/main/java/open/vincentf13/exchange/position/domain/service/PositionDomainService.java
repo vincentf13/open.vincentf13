@@ -4,13 +4,10 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.sdk.mq.event.AccountEntryCreatedEvent;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
-import open.vincentf13.exchange.common.sdk.enums.EntryType;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
-import open.vincentf13.exchange.common.sdk.enums.ReferenceType;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.model.PositionEvent;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
@@ -21,7 +18,6 @@ import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
@@ -29,7 +25,11 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -258,90 +258,5 @@ public class PositionDomainService {
 
     private record TradeExecutionData(PositionEventType eventType, BigDecimal deltaQuantity,
                                       Position updatedPosition) {
-    }
-
-    public Position processAccountEntry(@NotNull AccountEntryCreatedEvent event) {
-        if (!isPnlRelated(event)) {
-            return null;
-        }
-
-        Position position = positionRepository.findOne(
-                        Wrappers.lambdaQuery(PositionPO.class)
-                                .eq(PositionPO::getUserId, event.userId())
-                                .eq(PositionPO::getInstrumentId, event.instrumentId())
-                                .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                .orElse(null);
-
-        if (position == null) {
-            return null;
-        }
-
-        BigDecimal deltaPnl = event.deltaBalance();
-        position.setRealizedPnl(position.getRealizedPnl().add(deltaPnl));
-        int currentVersion = position.getVersion();
-        position.setVersion(currentVersion + 1);
-
-        boolean updated = positionRepository.updateSelectiveBy(
-                position,
-                Wrappers.<PositionPO>lambdaUpdate()
-                        .eq(PositionPO::getPositionId, position.getPositionId())
-                        .eq(PositionPO::getVersion, currentVersion));
-
-        if (!updated) {
-            throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE,
-                    Map.of("positionId", position.getPositionId()));
-        }
-
-        PositionReferenceType refType = mapReferenceType(event.referenceType());
-        Long refId = parseLongSafely(event.referenceId());
-
-        PositionEvent posEvent = PositionEvent.builder()
-                .positionId(position.getPositionId())
-                .userId(position.getUserId())
-                .instrumentId(position.getInstrumentId())
-                .eventType(PositionEventType.REALIZED_PNL_ADJUSTED)
-                .deltaQuantity(BigDecimal.ZERO)
-                .deltaPnl(deltaPnl)
-                .newQuantity(position.getQuantity())
-                .newReservedQuantity(position.getClosingReservedQuantity())
-                .newEntryPrice(position.getEntryPrice())
-                .newLeverage(position.getLeverage())
-                .newMargin(position.getMargin())
-                .newUnrealizedPnl(position.getUnrealizedPnl())
-                .referenceId(refId)
-                .referenceType(refType != null ? refType : PositionReferenceType.TRADE)
-                .metadata("")
-                .occurredAt(event.eventTime())
-                .build();
-
-        positionEventRepository.insert(posEvent);
-
-        return position;
-    }
-
-    private boolean isPnlRelated(AccountEntryCreatedEvent event) {
-        ReferenceType ref = event.referenceType();
-        if (ref == ReferenceType.TRADE) {
-            return event.entryType() == EntryType.TRADE_SETTLEMENT_SPOT_MAIN_PNL;
-        }
-        return false;
-    }
-
-    private PositionReferenceType mapReferenceType(ReferenceType type) {
-        if (type == null) return null;
-        try {
-            return PositionReferenceType.valueOf(type.name());
-        } catch (IllegalArgumentException e) {
-            return PositionReferenceType.TRADE;
-        }
-    }
-
-    private Long parseLongSafely(String str) {
-        if (str == null) return null;
-        try {
-            return Long.parseLong(str);
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 }

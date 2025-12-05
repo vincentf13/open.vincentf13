@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.sdk.mq.event.AccountEntryCreatedEvent;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
@@ -85,22 +84,6 @@ public class PositionCommandService {
         
         processTradeForUser(event.takerUserId(), event.instrumentId(), event.counterpartyOrderSide(),
                             event.price(), event.quantity(), event.tradeId(), event.executedAt());
-    }
-
-    @Transactional
-    public void handleAccountEntryCreated(@NotNull AccountEntryCreatedEvent event) {
-        if (event.userId() == null) {
-            return;
-        }
-        
-        Position position = positionDomainService.processAccountEntry(event);
-        if (position != null) {
-            positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
-                    event.userId(), event.instrumentId(), position.getSide(), position.getQuantity(),
-                    position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
-                    position.getLiquidationPrice(), event.eventTime()
-            ));
-        }
     }
     
     private void processTradeForUser(@NotNull Long userId,

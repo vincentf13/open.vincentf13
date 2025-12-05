@@ -3,11 +3,10 @@ package open.vincentf13.exchange.account.infra;
 import open.vincentf13.sdk.core.log.OpenEvent;
 
 /**
-  Account 事件枚舉。
+ Account 事件枚舉。
  */
 public enum AccountEvent implements OpenEvent {
-    MATCHING_TRADE_PAYLOAD_MISSING("MatchingTradePayloadMissing", "TradeExecuted payload missing"),
-    ACCOUNT_ENTRY_CREATED_ENQUEUED("AccountEntryCreatedEnqueued", "AccountEntryCreated event enqueued");
+    MATCHING_TRADE_PAYLOAD_MISSING("MatchingTradePayloadMissing", "TradeExecuted payload missing");
     
     private final String event;
     private final String message;

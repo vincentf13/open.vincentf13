@@ -9,7 +9,6 @@ public enum PositionLogEvent implements OpenEvent {
     POSITION_RESERVED("PositionReserved", "Position reserved"),
     POSITION_RESERVE_REJECTED("PositionReserveRejected", "Position reserve rejected"),
     POSITION_TRADE_PAYLOAD_INVALID("PositionTradePayloadInvalid", "Invalid TradeExecuted payload"),
-    POSITION_ACCOUNT_PAYLOAD_INVALID("PositionAccountPayloadInvalid", "Invalid AccountEntryCreated payload"),
     STARTUP_CACHE_LOADING("StartupCacheLoading", "Starting cache loading"),
     STARTUP_CACHE_LOADED("StartupCacheLoaded", "Cache loaded successfully"),
     STARTUP_CACHE_LOAD_FAILED("StartupCacheLoadFailed", "Cache loading failed"),
