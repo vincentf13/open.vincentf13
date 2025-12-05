@@ -1,6 +1,6 @@
 package open.vincentf13.exchange.position.infra.cache;
 
-import open.vincentf13.exchange.risk.margin.sdk.rest.api.RiskLimitResponse;
+import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;

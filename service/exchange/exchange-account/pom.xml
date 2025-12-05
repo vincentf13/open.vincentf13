@@ -46,7 +46,7 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-risk-margin-sdk-mq</artifactId>
+            <artifactId>exchange-risk-sdk-mq</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>

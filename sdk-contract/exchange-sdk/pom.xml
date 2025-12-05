@@ -24,7 +24,7 @@
         <module>exchange-order-sdk</module>
         <module>exchange-position-sdk</module>
         <module>exchange-account-sdk</module>
-        <module>exchange-risk-margin-sdk</module>
+        <module>exchange-risk-sdk</module>
         <module>exchange-matching-sdk</module>
         <module>exchange-market-sdk</module>
         <module>exchange-admin-sdk</module>

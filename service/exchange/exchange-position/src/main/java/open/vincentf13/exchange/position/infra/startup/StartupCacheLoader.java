@@ -6,8 +6,8 @@ import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.position.infra.PositionLogEvent;
 import open.vincentf13.exchange.position.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.position.infra.cache.RiskLimitCache;
-import open.vincentf13.exchange.risk.margin.sdk.rest.api.RiskLimitResponse;
-import open.vincentf13.exchange.risk.margin.sdk.rest.client.ExchangeRiskMarginClient;
+import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
+import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +25,7 @@ public class StartupCacheLoader {
     private static final long RETRY_DELAY_MS = 2000;
 
     private final ExchangeAdminClient adminClient;
-    private final ExchangeRiskMarginClient riskMarginClient;
+    private final ExchangeRiskClient riskClient;
     private final InstrumentCache instrumentCache;
     private final RiskLimitCache riskLimitCache;
 
@@ -91,7 +91,7 @@ public class StartupCacheLoader {
         instrumentCache.getAll().forEach(instrument -> {
             Long instrumentId = instrument.instrumentId();
             try {
-                RiskLimitResponse riskLimit = riskMarginClient.getRiskLimit(instrumentId).data();
+                RiskLimitResponse riskLimit = riskClient.getRiskLimit(instrumentId).data();
                 riskLimitCache.put(instrumentId, riskLimit);
                 successCount.incrementAndGet();
             } catch (Exception e) {
