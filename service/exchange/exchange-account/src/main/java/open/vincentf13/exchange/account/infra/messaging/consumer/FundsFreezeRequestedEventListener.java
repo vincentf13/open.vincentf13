@@ -42,9 +42,7 @@ public class FundsFreezeRequestedEventListener {
             var instrument = instrumentCache.get(event.instrumentId())
                                             .orElseThrow(() -> OpenException.of(AccountErrorCode.INVALID_EVENT, Map.of("orderId", event.orderId(), "reason", "Instrument not found")));
             asset = instrument.quoteAsset();
-            if (event.price() != null && event.quantity() != null) {
-                amount = event.price().multiply(event.quantity());
-            }
+            amount = event.requiredMargin().add(event.fee());
             AccountTransactionDomainService.FundsFreezeResult result = accountTransactionDomainService.freezeForOrder(event, instrument);
             fundsFreezeEventPublisher.publishFrozen(
                     new FundsFrozenEvent(event.orderId(), event.userId(), event.instrumentId(), result.asset(), result.amount(), Instant.now())
