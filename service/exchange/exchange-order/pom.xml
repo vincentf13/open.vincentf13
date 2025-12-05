@@ -50,7 +50,7 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-account-ledger-sdk-mq</artifactId>
+            <artifactId>exchange-account-sdk-mq</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>

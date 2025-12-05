@@ -11,9 +11,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>exchange-position</artifactId>
-    <name>exchange-position</name>
-    <description>Position service for exchange</description>
+    <artifactId>exchange-account</artifactId>
+    <name>exchange-account</name>
+    <description>Account persistence/domain module</description>
 
     <dependencies>
         <dependency>
@@ -22,15 +22,11 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>sdk-spring-mvc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-infra-mysql</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>sdk-infra-kafka</artifactId>
+            <artifactId>sdk-spring-mvc</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
@@ -38,36 +34,19 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-position-sdk-rest-api</artifactId>
+            <artifactId>sdk-infra-kafka</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-risk-margin-sdk-rest-client</artifactId>
+            <artifactId>exchange-account-sdk-rest-api</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-admin-sdk-rest-client</artifactId>
+            <artifactId>exchange-account-sdk-mq</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-position-sdk-mq</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-order-sdk-mq</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-order-sdk-rest-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
+            <artifactId>exchange-risk-margin-sdk-mq</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
@@ -75,7 +54,15 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
-            <artifactId>exchange-account-sdk-mq</artifactId>
+            <artifactId>exchange-order-sdk-rest-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-admin-sdk-rest-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-admin-sdk-rest-client</artifactId>
         </dependency>
     </dependencies>
 </project>

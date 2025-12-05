@@ -23,7 +23,7 @@
         <module>exchange-auth-sdk</module>
         <module>exchange-order-sdk</module>
         <module>exchange-position-sdk</module>
-        <module>exchange-account-ledger-sdk</module>
+        <module>exchange-account-sdk</module>
         <module>exchange-risk-margin-sdk</module>
         <module>exchange-matching-sdk</module>
         <module>exchange-market-sdk</module>

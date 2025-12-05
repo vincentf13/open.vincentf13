@@ -25,7 +25,7 @@
         <module>exchange-order</module>
         <module>exchange-position</module>
         <module>exchange-risk</module>
-        <module>exchange-account-ledger</module>
+        <module>exchange-account</module>
         <module>exchange-market-data</module>
         <module>exchange-admin</module>
     </modules>

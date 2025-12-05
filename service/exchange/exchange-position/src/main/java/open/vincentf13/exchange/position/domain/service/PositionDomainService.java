@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.ledger.sdk.mq.event.LedgerEntryCreatedEvent;
+import open.vincentf13.exchange.account.sdk.mq.event.AccountEntryCreatedEvent;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.EntryType;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
@@ -260,7 +260,7 @@ public class PositionDomainService {
                                       Position updatedPosition) {
     }
 
-    public Position processLedgerEntry(@NotNull LedgerEntryCreatedEvent event) {
+    public Position processAccountEntry(@NotNull AccountEntryCreatedEvent event) {
         if (!isPnlRelated(event)) {
             return null;
         }
@@ -319,7 +319,7 @@ public class PositionDomainService {
         return position;
     }
 
-    private boolean isPnlRelated(LedgerEntryCreatedEvent event) {
+    private boolean isPnlRelated(AccountEntryCreatedEvent event) {
         ReferenceType ref = event.referenceType();
         if (ref == ReferenceType.TRADE) {
             return event.entryType() == EntryType.TRADE_SETTLEMENT_SPOT_MAIN_PNL;

@@ -13,7 +13,7 @@ public enum OrderEvent implements OpenEvent {
     ORDER_FAILURE_OPTIMISTIC_LOCK("OrderFailureOptimisticLock", "Optimistic lock conflict while marking order rejected"),
     ORDER_MARK_FAILED("OrderMarkFailed", "Order marked REJECTED"),
     ORDER_RISK_PAYLOAD_INVALID("OrderRiskPayloadInvalid", "Invalid risk event payload"),
-    ORDER_LEDGER_PAYLOAD_INVALID("OrderLedgerPayloadInvalid", "Invalid ledger event payload");
+    ORDER_ACCOUNT_PAYLOAD_INVALID("OrderAccountPayloadInvalid", "Invalid account event payload");
     
     private final String event;
     private final String message;
