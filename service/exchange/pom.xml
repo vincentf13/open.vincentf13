@@ -26,7 +26,7 @@
         <module>exchange-position</module>
         <module>exchange-risk</module>
         <module>exchange-account</module>
-        <module>exchange-market-data</module>
+        <module>exchange-market</module>
         <module>exchange-admin</module>
     </modules>
 </project>

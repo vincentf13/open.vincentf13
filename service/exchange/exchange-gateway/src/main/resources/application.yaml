@@ -27,7 +27,7 @@ spring:
           filters:
             - StripPrefix=1
         - id: exchange-market-route
-          uri: lb://exchange-market-data
+          uri: lb://exchange-market
           predicates:
             - Path=/market/**
           filters:
