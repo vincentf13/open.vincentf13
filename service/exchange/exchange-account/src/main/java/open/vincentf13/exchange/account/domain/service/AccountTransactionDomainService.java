@@ -316,9 +316,7 @@ public class AccountTransactionDomainService {
     public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
                             @NotNull @Valid OrderResponse order,
                             boolean isMaker) {
-        if (order.intent() == null) {
-            throw OpenException.of(AccountErrorCode.ORDER_INTENT_NULL, Map.of("orderId", order.orderId()));
-        }
+        OpenValidator.validateOrThrow(order);
         if (order.intent() != PositionIntentType.INCREASE) {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
                                    Map.of("orderId", order.orderId(), "intent", order.intent()));
@@ -326,10 +324,9 @@ public class AccountTransactionDomainService {
         AssetSymbol asset = event.quoteAsset();
         OrderSide side = isMaker ? event.orderSide() : event.counterpartyOrderSide();
         BigDecimal marginUsed = event.price().multiply(event.quantity());
-        BigDecimal precollectedFee = event.takerFee();
         BigDecimal actualFee = isMaker ? event.makerFee() : event.takerFee();
-        BigDecimal totalReserved = marginUsed.add(precollectedFee);
-        BigDecimal feeRefund = precollectedFee.subtract(actualFee);
+        BigDecimal totalReserved = marginUsed.add(event.takerFee());
+        BigDecimal feeRefund = event.takerFee().subtract(actualFee);
         if (feeRefund.signum() < 0) {
             feeRefund = BigDecimal.ZERO;
         }

@@ -69,8 +69,8 @@ public class AccountCommandService {
         OrderResponse takerOrder = OpenApiClientInvoker.call(() -> exchangeOrderClient.getOrder(event.counterpartyOrderId()));
         
         transactionTemplate.executeWithoutResult(status -> {
-            accountTransactionDomainService.settleTrade(event, makerOrder, makerOrder.userId().equals(event.makerUserId()));
-            accountTransactionDomainService.settleTrade(event, takerOrder, takerOrder.userId().equals(event.makerUserId()));
+            accountTransactionDomainService.settleTrade(event, makerOrder, true);
+            accountTransactionDomainService.settleTrade(event, takerOrder, false);
         });
     }
 }
