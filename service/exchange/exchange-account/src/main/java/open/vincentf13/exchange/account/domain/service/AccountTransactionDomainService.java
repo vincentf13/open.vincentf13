@@ -86,10 +86,10 @@ public class AccountTransactionDomainService {
         PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.DEBIT, request.amount());
         PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.CREDIT, request.amount());
         
-        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.DEBIT, request.amount(), "DEPOSIT", request.txId(), "User deposit", eventTime);
-        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.CREDIT, request.amount(), "DEPOSIT", request.txId(), "User equity increase", eventTime);
-        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.DEBIT, request.amount(), "DEPOSIT", request.txId(), "Platform asset increase", eventTime);
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.CREDIT, request.amount(), "DEPOSIT", request.txId(), "Platform liability increase", eventTime);
+        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.DEBIT, request.amount(), ReferenceType.DEPOSIT, request.txId(), "User deposit", eventTime);
+        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.CREDIT, request.amount(), ReferenceType.DEPOSIT, request.txId(), "User equity increase", eventTime);
+        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.DEBIT, request.amount(), ReferenceType.DEPOSIT, request.txId(), "Platform asset increase", eventTime);
+        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.CREDIT, request.amount(), ReferenceType.DEPOSIT, request.txId(), "Platform liability increase", eventTime);
         
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedUserAsset, updatedUserEquity),
@@ -130,7 +130,7 @@ public class AccountTransactionDomainService {
                 frozenAccount,
                 Direction.DEBIT,
                 amount,
-                "FUNDS_FREEZE_REQUESTED",
+                ReferenceType.FUNDS_FREEZE_REQUESTED,
                 event.orderId().toString(),
                 "Funds reserved for order",
                 event.createdAt());
@@ -138,7 +138,7 @@ public class AccountTransactionDomainService {
                 frozenAccount,
                 Direction.CREDIT,
                 amount,
-                "FUNDS_FREEZE_REQUESTED",
+                ReferenceType.FUNDS_FREEZE_REQUESTED,
                 event.orderId().toString(),
                 "Funds moved from available",
                 event.createdAt());
@@ -179,10 +179,10 @@ public class AccountTransactionDomainService {
         PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.CREDIT, request.amount());
         PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.DEBIT, request.amount());
         
-        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.CREDIT, request.amount(), "WITHDRAWAL", request.txId(), "User withdrawal", eventTime);
-        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.DEBIT, request.amount(), "WITHDRAWAL", request.txId(), "User equity decrease", eventTime);
-        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.CREDIT, request.amount(), "WITHDRAWAL", request.txId(), "Platform payout", eventTime);
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.DEBIT, request.amount(), "WITHDRAWAL", request.txId(), "Platform liability decrease", eventTime);
+        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.CREDIT, request.amount(), ReferenceType.WITHDRAWAL, request.txId(), "User withdrawal", eventTime);
+        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.DEBIT, request.amount(), ReferenceType.WITHDRAWAL, request.txId(), "User equity decrease", eventTime);
+        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.CREDIT, request.amount(), ReferenceType.WITHDRAWAL, request.txId(), "Platform payout", eventTime);
+        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.DEBIT, request.amount(), ReferenceType.WITHDRAWAL, request.txId(), "Platform liability decrease", eventTime);
         
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedUserAsset, updatedUserEquity),
