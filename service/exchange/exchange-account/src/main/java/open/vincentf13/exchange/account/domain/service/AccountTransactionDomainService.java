@@ -5,7 +5,10 @@ import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.domain.model.*;
+import open.vincentf13.exchange.account.domain.model.PlatformAccount;
+import open.vincentf13.exchange.account.domain.model.PlatformJournal;
+import open.vincentf13.exchange.account.domain.model.UserAccount;
+import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.domain.service.result.AccountDepositResult;
 import open.vincentf13.exchange.account.domain.service.result.AccountWithdrawalResult;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
@@ -15,11 +18,10 @@ import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAcc
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
-import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
-import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
-import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRequest;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
@@ -47,34 +49,26 @@ public class AccountTransactionDomainService {
     
     @Transactional
     public AccountDepositResult deposit(@NotNull @Valid AccountDepositRequest request) {
-        OpenValidator.validateOrThrow(request);
+        
         AssetSymbol asset = UserAccount.normalizeAsset(request.asset());
         Instant eventTime = request.creditedAt() == null ? Instant.now() : request.creditedAt();
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
                 request.userId(),
                 UserAccountCode.SPOT,
-                UserAccountCode.SPOT.getDisplayName(),
                 null,
-                AccountCategory.ASSET,
                 asset);
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
                 request.userId(),
                 UserAccountCode.SPOT_EQUITY,
-                UserAccountCode.SPOT_EQUITY.getDisplayName(),
                 null,
-                AccountCategory.EQUITY,
                 asset);
         
         PlatformAccount platformAssetAccount = platformAccountRepository.getOrCreate(
                 PlatformAccountCode.HOT_WALLET,
-                PlatformAccountCode.HOT_WALLET.getDisplayName(),
-                AccountCategory.ASSET,
                 asset);
         PlatformAccount platformLiabilityAccount = platformAccountRepository.getOrCreate(
                 PlatformAccountCode.USER_LIABILITY,
-                PlatformAccountCode.USER_LIABILITY.getDisplayName(),
-                AccountCategory.LIABILITY,
                 asset);
         
         UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.DEBIT, request.amount(), true, "deposit");
@@ -105,16 +99,12 @@ public class AccountTransactionDomainService {
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
                 request.userId(),
                 UserAccountCode.SPOT,
-                UserAccountCode.SPOT.getDisplayName(),
                 null,
-                AccountCategory.ASSET,
                 asset);
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
                 request.userId(),
                 UserAccountCode.SPOT_EQUITY,
-                UserAccountCode.SPOT_EQUITY.getDisplayName(),
                 null,
-                AccountCategory.EQUITY,
                 asset);
         
         if (!userAssetAccount.hasEnoughAvailable(request.amount())) {
@@ -124,13 +114,9 @@ public class AccountTransactionDomainService {
         
         PlatformAccount platformAssetAccount = platformAccountRepository.getOrCreate(
                 PlatformAccountCode.HOT_WALLET,
-                PlatformAccountCode.HOT_WALLET.getDisplayName(),
-                AccountCategory.ASSET,
                 asset);
         PlatformAccount platformLiabilityAccount = platformAccountRepository.getOrCreate(
                 PlatformAccountCode.USER_LIABILITY,
-                PlatformAccountCode.USER_LIABILITY.getDisplayName(),
-                AccountCategory.LIABILITY,
                 asset);
         
         UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.CREDIT, request.amount(), true, "withdrawal");

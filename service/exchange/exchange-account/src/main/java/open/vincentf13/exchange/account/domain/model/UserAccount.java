@@ -45,14 +45,13 @@ public class UserAccount {
     public static UserAccount createDefault(Long userId,
                                             UserAccountCode accountCode,
                                             Long instrumentId,
-                                            AccountCategory category,
                                             AssetSymbol asset) {
         return UserAccount.builder()
                           .userId(userId)
                           .accountCode(accountCode)
                           .accountName(accountCode.getDisplayName())
                           .instrumentId(instrumentId)
-                          .category(category)
+                          .category(accountCode.getCategory())
                           .asset(asset)
                           .balance(BigDecimal.ZERO)
                           .available(BigDecimal.ZERO)

@@ -66,9 +66,9 @@ public class PlatformAccountRepository {
     }
     
     public PlatformAccount getOrCreate(@NotNull PlatformAccountCode code,
-                                       @NotNull String name,
-                                       @NotNull AccountCategory category,
                                        @NotNull AssetSymbol asset) {
+        AccountCategory category = code.getCategory();
+        String name = code.getDisplayName();
         return findOne(Wrappers.lambdaQuery(PlatformAccountPO.class)
                                .eq(PlatformAccountPO::getAccountCode, code)
                                .eq(PlatformAccountPO::getCategory, category)
@@ -81,7 +81,7 @@ public class PlatformAccountRepository {
                 })
                 .orElseGet(() -> {
                     try {
-                        return insertSelective(PlatformAccount.createDefault(code, name, category, asset));
+                        return insertSelective(PlatformAccount.createDefault(code, asset));
                     } catch (DuplicateKeyException ex) {
                         return findOne(Wrappers.lambdaQuery(PlatformAccountPO.class)
                                                .eq(PlatformAccountPO::getAccountCode, code)

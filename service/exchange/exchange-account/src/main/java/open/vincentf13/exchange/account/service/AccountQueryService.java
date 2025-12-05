@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
 import open.vincentf13.exchange.account.infra.persistence.po.UserAccountPO;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
-import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceResponse;
@@ -32,11 +31,12 @@ public class AccountQueryService {
     public AccountBalanceResponse getBalances(@NotNull Long userId,
                                               @NotBlank String asset) {
         AssetSymbol normalizedAsset = UserAccount.normalizeAsset(asset);
+        var accountCode = UserAccountCode.SPOT;
         List<UserAccount> balances = userAccountRepository.findBy(
                 Wrappers.lambdaQuery(UserAccountPO.class)
                         .eq(UserAccountPO::getUserId, userId)
-                        .eq(UserAccountPO::getAccountCode, UserAccountCode.SPOT)
-                        .eq(UserAccountPO::getCategory, AccountCategory.ASSET)
+                        .eq(UserAccountPO::getAccountCode, accountCode)
+                        .eq(UserAccountPO::getCategory, accountCode.getCategory())
                         .eq(UserAccountPO::getAsset, normalizedAsset)
                                                                     );
         Instant snapshotAt = balances.stream()

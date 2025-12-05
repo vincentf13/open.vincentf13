@@ -72,10 +72,10 @@ public class UserAccountRepository {
     
     public UserAccount getOrCreate(@NotNull Long userId,
                                    @NotNull UserAccountCode accountCode,
-                                   @NotNull String accountName,
                                    Long instrumentId,
-                                   @NotNull AccountCategory category,
                                    @NotNull AssetSymbol asset) {
+        String accountName = accountCode.getDisplayName();
+        AccountCategory category = accountCode.getCategory();
         return findOne(Wrappers.lambdaQuery(UserAccountPO.class)
                                .eq(UserAccountPO::getUserId, userId)
                                .eq(UserAccountPO::getAccountCode, accountCode)
@@ -88,6 +88,6 @@ public class UserAccountRepository {
                     }
                     return account;
                 })
-                .orElseGet(() -> insertSelective(UserAccount.createDefault(userId, accountCode, instrumentId, category, asset)));
+                .orElseGet(() -> insertSelective(UserAccount.createDefault(userId, accountCode, instrumentId, asset)));
     }
 }

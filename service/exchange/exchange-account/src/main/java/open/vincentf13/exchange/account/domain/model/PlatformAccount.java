@@ -34,13 +34,11 @@ public class PlatformAccount {
     private Instant updatedAt;
 
     public static PlatformAccount createDefault(PlatformAccountCode accountCode,
-                                                String accountName,
-                                                AccountCategory category,
                                                 AssetSymbol asset) {
         return PlatformAccount.builder()
                               .accountCode(accountCode)
-                              .accountName(accountName)
-                              .category(category)
+                              .accountName(accountCode.getDisplayName())
+                              .category(accountCode.getCategory())
                               .asset(asset)
                               .balance(BigDecimal.ZERO)
                               .version(0)
