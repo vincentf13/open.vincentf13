@@ -7,7 +7,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
  */
 public enum AccountEvent implements OpenEvent {
     MATCHING_TRADE_PAYLOAD_MISSING("MatchingTradePayloadMissing", "TradeExecuted payload missing"),
-    ORDER_SUBMITTED_PAYLOAD_INVALID("OrderSubmittedPayloadInvalid", "OrderSubmitted payload invalid");
+    FUNDS_FREEZE_REQUEST_PAYLOAD_INVALID("FundsFreezeRequestPayloadInvalid", "Funds freeze request payload invalid");
     
     private final String event;
     private final String message;

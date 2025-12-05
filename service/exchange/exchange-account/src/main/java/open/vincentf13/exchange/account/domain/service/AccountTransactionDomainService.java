@@ -19,10 +19,13 @@ import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
+import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
+import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
+import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +46,9 @@ public class AccountTransactionDomainService {
     private final UserJournalRepository userJournalRepository;
     private final PlatformJournalRepository platformJournalRepository;
     private final DefaultIdGenerator idGenerator;
+    
+    public record FundsFreezeResult(AssetSymbol asset, BigDecimal amount) {
+    }
     
     @Transactional
     public AccountDepositResult deposit(@NotNull @Valid AccountDepositRequest request) {
@@ -92,6 +98,45 @@ public class AccountTransactionDomainService {
         
         return new AccountDepositResult(updatedUserAsset, updatedUserEquity, updatedPlatformAsset, updatedPlatformLiability,
                 userAssetJournal, userEquityJournal, platformAssetJournal, platformLiabilityJournal);
+    }
+
+    @Transactional
+    public FundsFreezeResult freezeForOrder(@NotNull @Valid FundsFreezeRequestedEvent event,
+                                            @NotNull InstrumentSummaryResponse instrument) {
+        OpenValidator.validateOrThrow(event);
+        AssetSymbol asset = resolveAssetForOrder(event, instrument);
+        BigDecimal amount = calculateRequiredFunds(event);
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "amount", amount));
+        }
+        UserAccount userSpot = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
+        if (!userSpot.hasEnoughAvailable(amount)) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
+                                   Map.of("userId", event.userId(), "asset", asset, "available", userSpot.getAvailable(), "amount", amount));
+        }
+        UserAccount frozenAccount = applyUserFreeze(userSpot, amount);
+        userAccountRepository.updateSelectiveBatch(
+                List.of(frozenAccount),
+                List.of(userSpot.safeVersion()),
+                "order-freeze");
+        UserJournal reserveJournal = buildUserJournal(
+                frozenAccount,
+                Direction.DEBIT,
+                amount,
+                "FUNDS_FREEZE_REQUESTED",
+                event.orderId().toString(),
+                "Funds reserved for order",
+                event.createdAt());
+        UserJournal availableJournal = buildUserJournal(
+                frozenAccount,
+                Direction.CREDIT,
+                amount,
+                "FUNDS_FREEZE_REQUESTED",
+                event.orderId().toString(),
+                "Funds moved from available",
+                event.createdAt());
+        userJournalRepository.insertBatch(List.of(reserveJournal, availableJournal));
+        return new FundsFreezeResult(asset, amount);
     }
     
     @Transactional
@@ -203,6 +248,45 @@ public class AccountTransactionDomainService {
                               .referenceId(referenceId)
                           .description(description)
                           .eventTime(eventTime)
+                          .build();
+    }
+
+    private AssetSymbol resolveAssetForOrder(FundsFreezeRequestedEvent event,
+                                             InstrumentSummaryResponse instrument) {
+        return switch (event.side()) {
+            case BUY -> AssetSymbol.fromValue(instrument.quoteAsset());
+            case SELL -> AssetSymbol.fromValue(instrument.baseAsset());
+        };
+    }
+
+    private BigDecimal calculateRequiredFunds(FundsFreezeRequestedEvent event) {
+        if (event.price() == null || event.quantity() == null) {
+            throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "message", "price or quantity missing"));
+        }
+        return event.price().multiply(event.quantity());
+    }
+
+    private UserAccount applyUserFreeze(UserAccount current,
+                                        BigDecimal amount) {
+        BigDecimal available = current.getAvailable();
+        if (available.compareTo(amount) < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
+                                   Map.of("userId", current.getUserId(), "asset", current.getAsset(), "available", available, "amount", amount));
+        }
+        return UserAccount.builder()
+                          .accountId(current.getAccountId())
+                          .userId(current.getUserId())
+                          .accountCode(current.getAccountCode())
+                          .accountName(current.getAccountName())
+                          .instrumentId(current.getInstrumentId())
+                          .category(current.getCategory())
+                          .asset(current.getAsset())
+                          .balance(current.getBalance())
+                          .available(current.getAvailable().subtract(amount))
+                          .reserved(current.getReserved().add(amount))
+                          .version(current.safeVersion() + 1)
+                          .createdAt(current.getCreatedAt())
+                          .updatedAt(Instant.now())
                           .build();
     }
 
