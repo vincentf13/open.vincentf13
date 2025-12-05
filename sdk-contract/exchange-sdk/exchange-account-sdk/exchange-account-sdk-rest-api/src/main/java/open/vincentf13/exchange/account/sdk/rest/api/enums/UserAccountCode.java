@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum UserAccountCode {
     SPOT("SPOT", "現貨資產", AccountCategory.ASSET),
-    SPOT_EQUITY("SPOT_EQUITY", "現貨權益", AccountCategory.EQUITY);
+    SPOT_EQUITY("SPOT_EQUITY", "現貨權益", AccountCategory.EQUITY),
+    MARGIN("MARGIN", "逐倉保證金", AccountCategory.ASSET),
+    FEE_EXPENSE("FEE_EXPENSE", "交易手續費支出", AccountCategory.EXPENSE);
     
     private final String code;
     private final String displayName;
