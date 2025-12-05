@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
@@ -24,8 +25,7 @@ public class UserAccount {
     @NotNull
     private Long userId;
     @NotNull
-    private String accountCode;
-    @NotNull
+    private UserAccountCode accountCode;
     private String accountName;
     private Long instrumentId;
     @NotNull
@@ -43,15 +43,14 @@ public class UserAccount {
     private Instant updatedAt;
     
     public static UserAccount createDefault(Long userId,
-                                            String accountCode,
-                                            String accountName,
+                                            UserAccountCode accountCode,
                                             Long instrumentId,
                                             AccountCategory category,
                                             AssetSymbol asset) {
         return UserAccount.builder()
                           .userId(userId)
                           .accountCode(accountCode)
-                          .accountName(accountName)
+                          .accountName(accountCode.getDisplayName())
                           .instrumentId(instrumentId)
                           .category(category)
                           .asset(asset)
@@ -107,11 +106,4 @@ public class UserAccount {
         return available.compareTo(amount) >= 0;
     }
     
-    public static final class Codes {
-        public static final String SPOT = "SPOT";
-        public static final String SPOT_EQUITY = "SPOT_EQUITY";
-        
-        private Codes() {
-        }
-    }
 }

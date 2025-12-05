@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.account.infra.persistence.mapper.UserAccountMapper;
 import open.vincentf13.exchange.account.infra.persistence.po.UserAccountPO;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
@@ -16,6 +17,7 @@ import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +32,21 @@ public class UserAccountRepository {
     public UserAccount insertSelective(@NotNull @Valid UserAccount balance) {
         if (balance.getAccountId() == null) {
             balance.setAccountId(idGenerator.newLong());
+        }
+        if (balance.getAccountName() == null && balance.getAccountCode() != null) {
+            balance.setAccountName(balance.getAccountCode().getDisplayName());
+        }
+        if (balance.getBalance() == null) {
+            balance.setBalance(BigDecimal.ZERO);
+        }
+        if (balance.getAvailable() == null) {
+            balance.setAvailable(BigDecimal.ZERO);
+        }
+        if (balance.getReserved() == null) {
+            balance.setReserved(BigDecimal.ZERO);
+        }
+        if (balance.getVersion() == null) {
+            balance.setVersion(0);
         }
         UserAccountPO po = OpenObjectMapper.convert(balance, UserAccountPO.class);
         mapper.insert(po);
@@ -54,20 +71,23 @@ public class UserAccountRepository {
     }
     
     public UserAccount getOrCreate(@NotNull Long userId,
-                                   @NotNull String accountCode,
+                                   @NotNull UserAccountCode accountCode,
                                    @NotNull String accountName,
                                    Long instrumentId,
                                    @NotNull AccountCategory category,
                                    @NotNull AssetSymbol asset) {
-        UserAccount probe = UserAccount.builder()
-                                       .userId(userId)
-                                       .accountCode(accountCode)
-                                       .accountName(accountName)
-                                       .instrumentId(instrumentId)
-                                       .category(category)
-                                       .asset(asset)
-                                       .build();
-        return findOne(Wrappers.lambdaQuery(OpenObjectMapper.convert(probe, UserAccountPO.class)))
-                .orElseGet(() -> insertSelective(UserAccount.createDefault(userId, accountCode, accountName, instrumentId, category, asset)));
+        return findOne(Wrappers.lambdaQuery(UserAccountPO.class)
+                               .eq(UserAccountPO::getUserId, userId)
+                               .eq(UserAccountPO::getAccountCode, accountCode)
+                               .eq(UserAccountPO::getCategory, category)
+                               .eq(UserAccountPO::getAsset, asset)
+                               .eq(UserAccountPO::getInstrumentId, instrumentId))
+                .map(account -> {
+                    if (account.getAccountName() == null) {
+                        account.setAccountName(accountName);
+                    }
+                    return account;
+                })
+                .orElseGet(() -> insertSelective(UserAccount.createDefault(userId, accountCode, instrumentId, category, asset)));
     }
 }

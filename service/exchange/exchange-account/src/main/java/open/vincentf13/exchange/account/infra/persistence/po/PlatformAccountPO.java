@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
 import java.time.Instant;
@@ -22,7 +23,7 @@ public class PlatformAccountPO {
     
     @TableId(value = "account_id", type = IdType.INPUT)
     private Long accountId;
-    private String accountCode;
+    private PlatformAccountCode accountCode;
     private String accountName;
     private AccountCategory category;
     private AssetSymbol asset;

@@ -15,10 +15,15 @@ import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAcc
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRequest;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
+import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
@@ -48,27 +53,27 @@ public class AccountTransactionDomainService {
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
                 request.userId(),
-                UserAccount.Codes.SPOT,
-                "現貨資產",
+                UserAccountCode.SPOT,
+                UserAccountCode.SPOT.getDisplayName(),
                 null,
                 AccountCategory.ASSET,
                 asset);
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
                 request.userId(),
-                UserAccount.Codes.SPOT_EQUITY,
-                "現貨權益",
+                UserAccountCode.SPOT_EQUITY,
+                UserAccountCode.SPOT_EQUITY.getDisplayName(),
                 null,
                 AccountCategory.EQUITY,
                 asset);
         
         PlatformAccount platformAssetAccount = platformAccountRepository.getOrCreate(
-                PlatformAccount.Codes.HOT_WALLET,
-                "熱錢包",
+                PlatformAccountCode.HOT_WALLET,
+                PlatformAccountCode.HOT_WALLET.getDisplayName(),
                 AccountCategory.ASSET,
                 asset);
         PlatformAccount platformLiabilityAccount = platformAccountRepository.getOrCreate(
-                PlatformAccount.Codes.USER_LIABILITY,
-                "用戶存款負債",
+                PlatformAccountCode.USER_LIABILITY,
+                PlatformAccountCode.USER_LIABILITY.getDisplayName(),
                 AccountCategory.LIABILITY,
                 asset);
         
@@ -99,15 +104,15 @@ public class AccountTransactionDomainService {
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
                 request.userId(),
-                UserAccount.Codes.SPOT,
-                "現貨資產",
+                UserAccountCode.SPOT,
+                UserAccountCode.SPOT.getDisplayName(),
                 null,
                 AccountCategory.ASSET,
                 asset);
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
                 request.userId(),
-                UserAccount.Codes.SPOT_EQUITY,
-                "現貨權益",
+                UserAccountCode.SPOT_EQUITY,
+                UserAccountCode.SPOT_EQUITY.getDisplayName(),
                 null,
                 AccountCategory.EQUITY,
                 asset);
@@ -118,13 +123,13 @@ public class AccountTransactionDomainService {
         }
         
         PlatformAccount platformAssetAccount = platformAccountRepository.getOrCreate(
-                PlatformAccount.Codes.HOT_WALLET,
-                "熱錢包",
+                PlatformAccountCode.HOT_WALLET,
+                PlatformAccountCode.HOT_WALLET.getDisplayName(),
                 AccountCategory.ASSET,
                 asset);
         PlatformAccount platformLiabilityAccount = platformAccountRepository.getOrCreate(
-                PlatformAccount.Codes.USER_LIABILITY,
-                "用戶存款負債",
+                PlatformAccountCode.USER_LIABILITY,
+                PlatformAccountCode.USER_LIABILITY.getDisplayName(),
                 AccountCategory.LIABILITY,
                 asset);
         
@@ -220,8 +225,16 @@ public class AccountTransactionDomainService {
                               .balanceAfter(account.getBalance())
                               .referenceType(referenceType)
                               .referenceId(referenceId)
-                              .description(description)
-                              .eventTime(eventTime)
-                              .build();
+                          .description(description)
+                          .eventTime(eventTime)
+                          .build();
+    }
+
+    @Transactional
+    public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
+                            @NotNull @Valid OrderResponse order,
+                            boolean isMaker) {
+        throw OpenException.of(AccountErrorCode.INVALID_EVENT,
+                               Map.of("tradeId", event.tradeId(), "orderId", order.orderId(), "message", "Trade settlement not implemented for new account schema yet"));
     }
 }

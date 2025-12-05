@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
 
@@ -20,8 +21,7 @@ public class PlatformAccount {
     
     private Long accountId;
     @NotNull
-    private String accountCode;
-    @NotNull
+    private PlatformAccountCode accountCode;
     private String accountName;
     @NotNull
     private AccountCategory category;
@@ -32,6 +32,20 @@ public class PlatformAccount {
     private Integer version;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static PlatformAccount createDefault(PlatformAccountCode accountCode,
+                                                String accountName,
+                                                AccountCategory category,
+                                                AssetSymbol asset) {
+        return PlatformAccount.builder()
+                              .accountCode(accountCode)
+                              .accountName(accountName)
+                              .category(category)
+                              .asset(asset)
+                              .balance(BigDecimal.ZERO)
+                              .version(0)
+                              .build();
+    }
     
     public PlatformAccount apply(Direction direction,
                                  BigDecimal amount) {
@@ -53,11 +67,4 @@ public class PlatformAccount {
         return version == null ? 0 : version;
     }
     
-    public static final class Codes {
-        public static final String HOT_WALLET = "HOT_WALLET";
-        public static final String USER_LIABILITY = "USER_LIABILITY";
-        
-        private Codes() {
-        }
-    }
 }
