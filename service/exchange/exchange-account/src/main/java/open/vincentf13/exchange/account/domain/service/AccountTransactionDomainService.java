@@ -11,11 +11,11 @@ import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.domain.service.result.AccountDepositResult;
 import open.vincentf13.exchange.account.domain.service.result.AccountWithdrawalResult;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
+import open.vincentf13.exchange.account.infra.messaging.publisher.TradeSettlementEventPublisher;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
-import open.vincentf13.exchange.account.infra.messaging.publisher.TradeSettlementEventPublisher;
 import open.vincentf13.exchange.account.sdk.mq.event.TradeMarginSettledEvent;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRequest;
@@ -24,11 +24,10 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
-import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
-import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
@@ -322,11 +321,21 @@ public class AccountTransactionDomainService {
                                    Map.of("orderId", order.orderId(), "intent", order.intent()));
         }
         AssetSymbol asset = event.quoteAsset();
-        OrderSide side = isMaker ? event.orderSide() : event.counterpartyOrderSide();
         BigDecimal marginUsed = event.price().multiply(event.quantity());
         BigDecimal actualFee = isMaker ? event.makerFee() : event.takerFee();
-        BigDecimal totalReserved = marginUsed.add(event.takerFee());
-        BigDecimal feeRefund = event.takerFee().subtract(actualFee);
+        
+        // 用order id 查分錄查出凍結時到底凍結多少錢，再去算要退多少手續費，因為凍結後可能調整費率，導致撮合時收的手續費不一樣
+        BigDecimal totalReserved = userJournalRepository.findLatestByReference(
+                        order.userId(), asset, "FUNDS_FREEZE_REQUESTED", order.orderId().toString())
+                                                        .map(UserJournal::getAmount)
+                                                        .orElseThrow(() -> OpenException.of(AccountErrorCode.FREEZE_ENTRY_NOT_FOUND,
+                                                                                            Map.of("orderId", order.orderId(), "userId", order.userId())));
+        BigDecimal precollectedFee = totalReserved.subtract(marginUsed);
+        if (precollectedFee.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_AMOUNT,
+                                   Map.of("orderId", order.orderId(), "reserved", totalReserved, "marginUsed", marginUsed));
+        }
+        BigDecimal feeRefund = precollectedFee.subtract(actualFee);
         if (feeRefund.signum() < 0) {
             feeRefund = BigDecimal.ZERO;
         }
@@ -377,7 +386,7 @@ public class AccountTransactionDomainService {
                         order.userId(),
                         order.instrumentId(),
                         asset,
-                        side,
+                        isMaker ? event.orderSide() : event.counterpartyOrderSide(),
                         event.price(),
                         event.quantity(),
                         marginUsed,

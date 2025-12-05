@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.infra.persistence.mapper.UserJournalMapper;
 import open.vincentf13.exchange.account.infra.persistence.po.UserJournalPO;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
@@ -14,6 +15,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @Validated
@@ -45,5 +47,22 @@ public class UserJournalRepository {
         }
         OpenMybatisBatchExecutor.execute(UserJournalMapper.class, pos, UserJournalMapper::insert);
         return journals;
+    }
+    
+    public Optional<UserJournal> findLatestByReference(@NotNull Long userId,
+                                                       @NotNull AssetSymbol asset,
+                                                       @NotNull String referenceType,
+                                                       @NotNull String referenceId) {
+        var wrapper = com.baomidou.mybatisplus.core.toolkit.Wrappers.<UserJournalPO>lambdaQuery()
+                .eq(UserJournalPO::getUserId, userId)
+                .eq(UserJournalPO::getAsset, asset)
+                .eq(UserJournalPO::getReferenceType, referenceType)
+                .eq(UserJournalPO::getReferenceId, referenceId)
+                .orderByDesc(UserJournalPO::getEventTime)
+                .last("LIMIT 1");
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .findFirst()
+                     .map(po -> OpenObjectMapper.convert(po, UserJournal.class));
     }
 }
