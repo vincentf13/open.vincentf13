@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 /*
  * Position 事件枚舉。
  */
-public enum PositionLogEvent implements OpenEvent {
+public enum PositionEvent implements OpenEvent {
     POSITION_RESERVED("PositionReserved", "Position reserved"),
     POSITION_RESERVE_REJECTED("PositionReserveRejected", "Position reserve rejected"),
     POSITION_TRADE_PAYLOAD_INVALID("PositionTradePayloadInvalid", "Invalid TradeExecuted payload"),
@@ -22,7 +22,7 @@ public enum PositionLogEvent implements OpenEvent {
     private final String event;
     private final String message;
     
-    PositionLogEvent(String event,
+    PositionEvent(String event,
                   String message) {
         this.event = event;
         this.message = message;

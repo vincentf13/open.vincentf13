@@ -1,7 +1,7 @@
 package open.vincentf13.exchange.position.infra.bootstrap;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.position.infra.PositionLogEvent;
+import open.vincentf13.exchange.position.infra.PositionEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -23,14 +23,14 @@ public class ApplicationStartupListener {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady(ApplicationReadyEvent event) {
-        OpenLog.info(PositionLogEvent.STARTUP_CACHE_LOADING,
-                "Application ready, starting cache initialization");
+        OpenLog.info(PositionEvent.STARTUP_CACHE_LOADING,
+                     "Application ready, starting cache initialization");
 
         try {
             startupCacheLoader.loadCaches();
-            OpenLog.info(PositionLogEvent.STARTUP_CACHE_LOADED);
+            OpenLog.info(PositionEvent.STARTUP_CACHE_LOADED);
         } catch (Exception e) {
-            OpenLog.error(PositionLogEvent.STARTUP_CACHE_LOAD_FAILED, e);
+            OpenLog.error(PositionEvent.STARTUP_CACHE_LOAD_FAILED, e);
             throw e;
         }
     }
