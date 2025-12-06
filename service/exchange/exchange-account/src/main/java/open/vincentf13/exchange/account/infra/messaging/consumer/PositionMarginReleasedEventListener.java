@@ -18,7 +18,7 @@ public class PositionMarginReleasedEventListener {
 
     private final AccountCommandService accountCommandService;
 
-    @KafkaListener(topics = PositionTopics.POSITION_MARGIN_RELEASED,
+    @KafkaListener(topics = PositionTopics.Names.POSITION_MARGIN_RELEASED,
                    groupId = "${open.vincentf13.exchange.account.consumer-group:exchange-account}")
     public void onPositionMarginReleased(@Payload PositionMarginReleasedEvent event,
                                          Acknowledgment acknowledgment) {
