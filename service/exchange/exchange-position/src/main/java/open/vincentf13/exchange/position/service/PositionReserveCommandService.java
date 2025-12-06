@@ -40,7 +40,7 @@ public class PositionReserveCommandService {
                 .orElse(null);
 
         if (position == null) {
-            publishRejected(event, "POSITION_NOT_FOUND", null);
+            publishRejected(event, "POSITION_NOT_FOUND", event.side());
             return;
         }
 

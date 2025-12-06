@@ -18,6 +18,7 @@ import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
@@ -130,6 +131,150 @@ public class PositionDomainService {
                 updatedPosition.getUnrealizedPnl(),
                 updatedPosition.getLiquidationPrice(),
                 tradeId,
+                executedAt
+        );
+        positionEventRepository.insert(event);
+
+        return Collections.singletonList(updatedPosition);
+    }
+
+    public Collection<Position> processMarginSettled(@NotNull Long userId,
+                                                     @NotNull Long instrumentId,
+                                                     @NotNull OrderSide orderSide,
+                                                     @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false) BigDecimal price,
+                                                     @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
+                                                     @NotNull BigDecimal marginUsed,
+                                                     @NotNull BigDecimal feeCharged,
+                                                     @NotNull BigDecimal feeRefund,
+                                                     @NotNull Long referenceId,
+                                                     @NotNull Instant executedAt) {
+        if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
+            return positionRepository.findOne(
+                            Wrappers.lambdaQuery(PositionPO.class)
+                                    .eq(PositionPO::getUserId, userId)
+                                    .eq(PositionPO::getInstrumentId, instrumentId)
+                                    .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                    .map(Collections::singletonList)
+                    .orElse(Collections.emptyList());
+        }
+
+        PositionSide side = toPositionSide(orderSide);
+        Position position = positionRepository.findOne(
+                Wrappers.lambdaQuery(PositionPO.class)
+                        .eq(PositionPO::getUserId, userId)
+                        .eq(PositionPO::getInstrumentId, instrumentId)
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                .orElse(Position.createDefault(userId, instrumentId, side));
+
+        Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
+        updatedPosition.setSide(side);
+
+        markPriceCache.get(instrumentId)
+                      .ifPresent(updatedPosition::setMarkPrice);
+
+        BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
+                .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
+                .orElse(CONTRACT_MULTIPLIER);
+
+        BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
+                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
+                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
+
+        BigDecimal existingQuantity = safe(position.getQuantity());
+        BigDecimal existingEntryPrice = safe(position.getEntryPrice());
+        BigDecimal existingMargin = safe(position.getMargin());
+        BigDecimal existingCumFee = safe(position.getCumFee());
+
+        BigDecimal newQuantity = existingQuantity.add(quantity);
+        BigDecimal newEntryPrice = existingQuantity.compareTo(BigDecimal.ZERO) == 0
+                ? price
+                : existingEntryPrice.multiply(existingQuantity)
+                                    .add(price.multiply(quantity))
+                                    .divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+
+        updatedPosition.setQuantity(newQuantity);
+        updatedPosition.setEntryPrice(newEntryPrice);
+        updatedPosition.setClosingReservedQuantity(safe(position.getClosingReservedQuantity()));
+        updatedPosition.setMargin(existingMargin.add(marginUsed));
+        BigDecimal feeDelta = feeCharged.subtract(feeRefund);
+        updatedPosition.setCumFee(existingCumFee.add(feeDelta));
+
+        BigDecimal effectiveMarkPrice = updatedPosition.getMarkPrice();
+        if (effectiveMarkPrice == null || effectiveMarkPrice.compareTo(BigDecimal.ZERO) == 0) {
+            effectiveMarkPrice = price;
+            updatedPosition.setMarkPrice(price);
+        }
+
+        if (updatedPosition.getSide() == PositionSide.LONG) {
+            updatedPosition.setUnrealizedPnl(effectiveMarkPrice.subtract(updatedPosition.getEntryPrice())
+                    .multiply(updatedPosition.getQuantity())
+                    .multiply(contractMultiplier));
+        } else {
+            updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(effectiveMarkPrice)
+                    .multiply(updatedPosition.getQuantity())
+                    .multiply(contractMultiplier));
+        }
+
+        BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).abs();
+        if (notional.compareTo(BigDecimal.ZERO) == 0) {
+            updatedPosition.setMarginRatio(BigDecimal.ZERO);
+        } else {
+            updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
+                    .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
+        }
+
+        if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            if (updatedPosition.getSide() == PositionSide.LONG) {
+                updatedPosition.setLiquidationPrice(
+                        updatedPosition.getEntryPrice()
+                                .subtract(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
+                );
+            } else {
+                updatedPosition.setLiquidationPrice(
+                        updatedPosition.getEntryPrice()
+                                .add(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
+                );
+            }
+        } else {
+            updatedPosition.setLiquidationPrice(BigDecimal.ZERO);
+        }
+
+        if (position.getPositionId() == null || position.getStatus() != PositionStatus.ACTIVE) {
+            positionRepository.insertSelective(updatedPosition);
+        } else {
+            int expectedVersion = position.safeVersion();
+            updatedPosition.setVersion(expectedVersion + 1);
+            boolean updated = positionRepository.updateSelectiveBy(
+                    updatedPosition,
+                    Wrappers.<PositionPO>lambdaUpdate()
+                            .eq(PositionPO::getPositionId, updatedPosition.getPositionId())
+                            .eq(PositionPO::getVersion, expectedVersion));
+            if (!updated) {
+                throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE,
+                        Map.of("positionId", updatedPosition.getPositionId()));
+            }
+        }
+
+        PositionEvent event = PositionEvent.createTradeEvent(
+                updatedPosition.getPositionId(),
+                userId,
+                instrumentId,
+                existingQuantity.compareTo(BigDecimal.ZERO) == 0 ? PositionEventType.POSITION_OPENED : PositionEventType.POSITION_INCREASED,
+                quantity,
+                marginUsed,
+                BigDecimal.ZERO,
+                feeDelta,
+                BigDecimal.ZERO,
+                updatedPosition.getQuantity(),
+                updatedPosition.getClosingReservedQuantity(),
+                updatedPosition.getEntryPrice(),
+                updatedPosition.getLeverage(),
+                updatedPosition.getMargin(),
+                updatedPosition.getUnrealizedPnl(),
+                updatedPosition.getLiquidationPrice(),
+                referenceId,
                 executedAt
         );
         positionEventRepository.insert(event);
