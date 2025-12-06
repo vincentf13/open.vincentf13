@@ -1,13 +1,10 @@
 package open.vincentf13.exchange.position.domain.model;
 
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 
@@ -19,7 +16,6 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PositionEvent {
-    @NotNull
     private Long eventId;
 
     @NotNull
@@ -38,18 +34,24 @@ public class PositionEvent {
     private BigDecimal deltaQuantity;
 
     @NotNull
-    private BigDecimal deltaPnl;
+    private BigDecimal deltaMargin;
 
     @NotNull
-    @DecimalMin(ValidationConstant.Names.NON_NEGATIVE)
+    private BigDecimal realizedPnl;
+
+    @NotNull
+    private BigDecimal tradeFee;
+
+    @NotNull
+    private BigDecimal fundingFee;
+
+    @NotNull
     private BigDecimal newQuantity;
 
     @NotNull
-    @DecimalMin(ValidationConstant.Names.NON_NEGATIVE)
     private BigDecimal newReservedQuantity;
 
     @NotNull
-    @Positive
     private BigDecimal newEntryPrice;
 
     @NotNull
@@ -60,6 +62,9 @@ public class PositionEvent {
 
     @NotNull
     private BigDecimal newUnrealizedPnl;
+
+    @NotNull
+    private BigDecimal newLiquidationPrice;
 
     private Long referenceId;
     @NotNull
@@ -77,12 +82,17 @@ public class PositionEvent {
                                                   Long instrumentId,
                                                   PositionEventType eventType,
                                                   BigDecimal deltaQuantity,
+                                                  BigDecimal deltaMargin,
+                                                  BigDecimal realizedPnl,
+                                                  BigDecimal tradeFee,
+                                                  BigDecimal fundingFee,
                                                   BigDecimal newQuantity,
                                                   BigDecimal newReservedQuantity,
                                                   BigDecimal newEntryPrice,
                                                   Integer newLeverage,
                                                   BigDecimal newMargin,
                                                   BigDecimal newUnrealizedPnl,
+                                                  BigDecimal newLiquidationPrice,
                                                   Long tradeId,
                                                   Instant occurredAt) {
         return PositionEvent.builder()
@@ -91,13 +101,17 @@ public class PositionEvent {
                 .instrumentId(instrumentId)
                 .eventType(eventType)
                 .deltaQuantity(deltaQuantity)
-                .deltaPnl(BigDecimal.ZERO)
+                .deltaMargin(deltaMargin)
+                .realizedPnl(realizedPnl)
+                .tradeFee(tradeFee)
+                .fundingFee(fundingFee)
                 .newQuantity(newQuantity)
                 .newReservedQuantity(newReservedQuantity)
                 .newEntryPrice(newEntryPrice)
                 .newLeverage(newLeverage)
                 .newMargin(newMargin)
                 .newUnrealizedPnl(newUnrealizedPnl)
+                .newLiquidationPrice(newLiquidationPrice)
                 .referenceId(tradeId)
                 .referenceType(PositionReferenceType.TRADE)
                 .metadata("")

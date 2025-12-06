@@ -33,12 +33,13 @@ public class PositionPO {
     private BigDecimal markPrice;
     private BigDecimal marginRatio;
     private BigDecimal unrealizedPnl;
-    private BigDecimal realizedPnl;
     private BigDecimal liquidationPrice;
+    private BigDecimal cumRealizedPnl;
+    private BigDecimal cumFee;
+    private BigDecimal cumFundingFee;
     
     private PositionStatus status;
     private Integer version;
-    private Integer expectedVersion;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant closedAt;

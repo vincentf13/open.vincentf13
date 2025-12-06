@@ -20,13 +20,17 @@ public class PositionEventPO {
     private Long instrumentId;
     private PositionEventType eventType;
     private BigDecimal deltaQuantity;
-    private BigDecimal deltaPnl;
+    private BigDecimal deltaMargin;
+    private BigDecimal realizedPnl;
+    private BigDecimal tradeFee;
+    private BigDecimal fundingFee;
     private BigDecimal newQuantity;
     private BigDecimal newReservedQuantity;
     private BigDecimal newEntryPrice;
     private Integer newLeverage;
     private BigDecimal newMargin;
     private BigDecimal newUnrealizedPnl;
+    private BigDecimal newLiquidationPrice;
     private Long referenceId;
     private PositionReferenceType referenceType;
     private String metadata; // JSON

@@ -17,6 +17,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,7 +36,7 @@ public class PositionRepository {
         PositionPO po = OpenObjectMapper.convert(domain, PositionPO.class);
         try {
             mapper.insert(po);
-            return OpenObjectMapper.convert(po, Position.class);
+            return normalize(OpenObjectMapper.convert(po, Position.class));
         } catch (DuplicateKeyException duplicateKeyException) {
             LambdaQueryWrapper<PositionPO> wrapper = Wrappers.lambdaQuery(PositionPO.class)
                                                              .eq(PositionPO::getUserId, userId)
@@ -56,18 +57,41 @@ public class PositionRepository {
     
     public List<Position> findBy(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
         return mapper.selectList(wrapper).stream()
-                     .map(item -> OpenObjectMapper.convert(item, Position.class))
+                     .map(item -> normalize(OpenObjectMapper.convert(item, Position.class)))
                      .toList();
     }
     
     public Optional<Position> findOne(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
         PositionPO po = mapper.selectOne(wrapper);
-        return Optional.ofNullable(OpenObjectMapper.convert(po, Position.class));
+        return Optional.ofNullable(normalize(OpenObjectMapper.convert(po, Position.class)));
     }
     
     public boolean updateSelectiveBy(@NotNull @Valid Position update,
                                      LambdaUpdateWrapper<PositionPO> updateWrapper) {
         PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);
         return mapper.update(record, updateWrapper) > 0;
+    }
+
+    private Position normalize(Position position) {
+        if (position == null) {
+            return null;
+        }
+        position.setLeverage(position.getLeverage() == null ? 1 : position.getLeverage());
+        position.setMargin(safe(position.getMargin()));
+        position.setEntryPrice(safe(position.getEntryPrice()));
+        position.setQuantity(safe(position.getQuantity()));
+        position.setClosingReservedQuantity(safe(position.getClosingReservedQuantity()));
+        position.setMarkPrice(safe(position.getMarkPrice()));
+        position.setMarginRatio(safe(position.getMarginRatio()));
+        position.setUnrealizedPnl(safe(position.getUnrealizedPnl()));
+        position.setLiquidationPrice(safe(position.getLiquidationPrice()));
+        position.setCumRealizedPnl(safe(position.getCumRealizedPnl()));
+        position.setCumFee(safe(position.getCumFee()));
+        position.setCumFundingFee(safe(position.getCumFundingFee()));
+        return position;
+    }
+
+    private BigDecimal safe(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

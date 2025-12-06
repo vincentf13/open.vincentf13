@@ -1,13 +1,10 @@
 package open.vincentf13.exchange.position.domain.model;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
@@ -27,37 +24,31 @@ public class Position {
     @NotNull
     private Long instrumentId;
     @NotNull
-    @Min(1)
     private Integer leverage;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal margin;
     @NotNull
     private PositionSide side;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal entryPrice;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
     private BigDecimal quantity;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal closingReservedQuantity;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal markPrice;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal marginRatio;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal unrealizedPnl;
     @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
-    private BigDecimal realizedPnl;
-    @NotNull
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal liquidationPrice;
+    @NotNull
+    private BigDecimal cumRealizedPnl;
+    @NotNull
+    private BigDecimal cumFee;
+    @NotNull
+    private BigDecimal cumFundingFee;
     
     @NotNull
     private PositionStatus status;
@@ -72,7 +63,7 @@ public class Position {
         return Position.builder()
                        .userId(userId)
                        .instrumentId(instrumentId)
-                       .leverage(40)
+                       .leverage(1)
                        .margin(BigDecimal.ZERO)
                        .side(side == null ? PositionSide.LONG : side)
                        .entryPrice(BigDecimal.ZERO)
@@ -81,8 +72,10 @@ public class Position {
                        .markPrice(BigDecimal.ZERO)
                        .marginRatio(BigDecimal.ZERO)
                        .unrealizedPnl(BigDecimal.ZERO)
-                       .realizedPnl(BigDecimal.ZERO)
                        .liquidationPrice(BigDecimal.ZERO)
+                       .cumRealizedPnl(BigDecimal.ZERO)
+                       .cumFee(BigDecimal.ZERO)
+                       .cumFundingFee(BigDecimal.ZERO)
                        .version(0)
                        .status(PositionStatus.ACTIVE)
                        .build();
@@ -92,14 +85,6 @@ public class Position {
         return version == null ? 0 : version;
     }
     
-    public BigDecimal availableToClose() {
-        if (quantity == null) {
-            return BigDecimal.ZERO;
-        }
-        BigDecimal reserved = closingReservedQuantity == null ? BigDecimal.ZERO : closingReservedQuantity;
-        BigDecimal available = quantity.subtract(reserved);
-        return available.max(BigDecimal.ZERO);
-    }
     
     public boolean isSameSide(PositionSide otherSide) {
         if (side == null || otherSide == null) {
