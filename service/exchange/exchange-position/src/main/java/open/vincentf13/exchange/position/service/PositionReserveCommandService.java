@@ -15,7 +15,6 @@ import open.vincentf13.exchange.position.infra.persistence.repository.PositionRe
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
-import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
@@ -33,8 +32,6 @@ public class PositionReserveCommandService {
     private final PositionEventPublisher positionEventPublisher;
 
     public void handlePositionReserveRequested(@NotNull @Valid PositionReserveRequestedEvent event) {
-        OpenValidator.validateOrThrow(event);
-
         Position position = positionRepository.findOne(
                         Wrappers.lambdaQuery(PositionPO.class)
                                 .eq(PositionPO::getUserId, event.userId())
