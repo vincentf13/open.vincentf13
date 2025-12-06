@@ -84,6 +84,7 @@ public class AccountTransactionDomainService {
         
         AssetSymbol asset = UserAccount.normalizeAsset(request.asset());
         Instant eventTime = request.creditedAt() == null ? Instant.now() : request.creditedAt();
+        assertNoDuplicateJournal(request.userId(), asset, ReferenceType.DEPOSIT, request.txId());
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
                 request.userId(),
@@ -172,6 +173,7 @@ public class AccountTransactionDomainService {
     public AccountWithdrawalResult withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
         AssetSymbol asset = UserAccount.normalizeAsset(request.asset());
         Instant eventTime = request.creditedAt() == null ? Instant.now() : request.creditedAt();
+        assertNoDuplicateJournal(request.userId(), asset, ReferenceType.WITHDRAWAL, request.txId());
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
                 request.userId(),
@@ -277,6 +279,17 @@ public class AccountTransactionDomainService {
                           .description(description)
                           .eventTime(eventTime)
                           .build();
+    }
+
+    private void assertNoDuplicateJournal(Long userId,
+                                          AssetSymbol asset,
+                                          ReferenceType referenceType,
+                                          String referenceId) {
+        boolean exists = userJournalRepository.findLatestByReference(userId, asset, referenceType, referenceId).isPresent();
+        if (exists) {
+            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("userId", userId, "asset", asset, "referenceType", referenceType, "referenceId", referenceId));
+        }
     }
     
     private UserAccount applyUserFreeze(UserAccount current,
