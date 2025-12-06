@@ -34,6 +34,7 @@ public class AccountPositionDomainService {
     @Transactional
     public void releaseMargin(@NotNull @Valid PositionMarginReleasedEvent event) {
         AssetSymbol asset = event.asset();
+        assertNoDuplicateJournal(event.userId(), asset, ReferenceType.POSITION_MARGIN_RELEASED, event.tradeId().toString());
         UserAccount marginAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.MARGIN, event.instrumentId(), asset);
         if (marginAccount.getBalance().compareTo(event.marginReleased()) < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
@@ -104,5 +105,16 @@ public class AccountPositionDomainService {
                           .description(description)
                           .eventTime(eventTime)
                           .build();
+    }
+
+    private void assertNoDuplicateJournal(Long userId,
+                                          AssetSymbol asset,
+                                          ReferenceType referenceType,
+                                          String referenceId) {
+        boolean exists = userJournalRepository.findLatestByReference(userId, asset, referenceType, referenceId).isPresent();
+        if (exists) {
+            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("userId", userId, "asset", asset, "referenceType", referenceType, "referenceId", referenceId));
+        }
     }
 }

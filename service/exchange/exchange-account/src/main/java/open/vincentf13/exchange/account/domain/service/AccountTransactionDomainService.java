@@ -136,6 +136,7 @@ public class AccountTransactionDomainService {
         OpenValidator.validateOrThrow(event);
         AssetSymbol asset = instrument.quoteAsset();
         BigDecimal amount = event.requiredMargin().add(event.fee());
+        assertNoDuplicateJournal(event.userId(), asset, ReferenceType.FUNDS_FREEZE_REQUESTED, event.orderId().toString());
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "amount", amount));
         }
@@ -357,11 +358,12 @@ public class AccountTransactionDomainService {
                             @NotNull @Valid OrderResponse order,
                             boolean isMaker) {
         OpenValidator.validateOrThrow(order);
+        AssetSymbol asset = event.quoteAsset();
+        assertNoDuplicateJournal(order.userId(), asset, ReferenceType.TRADE_MARGIN_SETTLED, event.tradeId().toString());
         if (order.intent() != PositionIntentType.INCREASE) {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
                                    Map.of("orderId", order.orderId(), "intent", order.intent()));
         }
-        AssetSymbol asset = event.quoteAsset();
         BigDecimal marginUsed = event.price().multiply(event.quantity());
         BigDecimal actualFee = isMaker ? event.makerFee() : event.takerFee();
         
