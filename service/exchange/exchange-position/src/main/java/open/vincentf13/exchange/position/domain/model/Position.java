@@ -85,6 +85,13 @@ public class Position {
         return version == null ? 0 : version;
     }
     
+    public BigDecimal availableToClose() {
+        BigDecimal reserved = closingReservedQuantity == null ? BigDecimal.ZERO : closingReservedQuantity;
+        BigDecimal currentQuantity = quantity == null ? BigDecimal.ZERO : quantity;
+        BigDecimal available = currentQuantity.subtract(reserved);
+        return available.max(BigDecimal.ZERO);
+    }
+    
     
     public boolean isSameSide(PositionSide otherSide) {
         if (side == null || otherSide == null) {
