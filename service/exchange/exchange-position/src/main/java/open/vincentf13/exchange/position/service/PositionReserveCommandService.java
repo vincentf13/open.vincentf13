@@ -15,8 +15,10 @@ import open.vincentf13.exchange.position.infra.persistence.repository.PositionRe
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRejectedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReserveRequestedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionReservedEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
@@ -31,7 +33,13 @@ public class PositionReserveCommandService {
     private final PositionRepository positionRepository;
     private final PositionEventPublisher positionEventPublisher;
 
+    @Transactional
     public void handlePositionReserveRequested(@NotNull @Valid PositionReserveRequestedEvent event) {
+        if (positionEventPublisher.hasEvent(PositionTopics.POSITION_RESERVED.getTopic(), event.orderId())
+                || positionEventPublisher.hasEvent(PositionTopics.POSITION_RESERVE_REJECTED.getTopic(), event.orderId())) {
+            return;
+        }
+
         Position position = positionRepository.findOne(
                         Wrappers.lambdaQuery(PositionPO.class)
                                 .eq(PositionPO::getUserId, event.userId())

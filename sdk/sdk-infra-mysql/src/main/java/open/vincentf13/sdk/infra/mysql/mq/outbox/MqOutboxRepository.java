@@ -40,6 +40,16 @@ public class MqOutboxRepository {
         
         mapper.insertWithAutoSeq(record);
     }
+
+    public boolean exists(String topic, Long key) {
+        Assert.hasText(topic, "topic must not be blank");
+        Assert.notNull(key, "key must not be null");
+        MqOutboxPO criteria = MqOutboxPO.builder()
+                                        .aggregateType(topic)
+                                        .aggregateId(key)
+                                        .build();
+        return !mapper.findBy(criteria).isEmpty();
+    }
     
     private String writeHeaders(Map<String, Object> headers) {
         if (headers == null || headers.isEmpty()) {
