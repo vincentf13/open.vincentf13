@@ -6,24 +6,17 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
-import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
-import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.service.PositionDomainService;
-import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
-import open.vincentf13.exchange.position.sdk.mq.event.PositionClosedEvent;
-import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Collection;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +24,6 @@ import java.util.Collection;
 public class PositionCommandService {
     
     private final PositionRepository positionRepository;
-    private final PositionEventPublisher positionEventPublisher;
     private final PositionDomainService positionDomainService;
     
     public PositionReserveOutcome reserveForClose(
@@ -75,38 +67,6 @@ public class PositionCommandService {
         }
         
         return PositionReserveOutcome.accepted(quantity, result.avgOpenPrice());
-    }
-    
-    @Transactional
-    public void handleTradeExecuted(@NotNull TradeExecutedEvent event) {
-        processTradeForUser(event.makerUserId(), event.instrumentId(), event.orderSide(),
-                            event.price(), event.quantity(), event.tradeId(), event.executedAt());
-        
-        processTradeForUser(event.takerUserId(), event.instrumentId(), event.counterpartyOrderSide(),
-                            event.price(), event.quantity(), event.tradeId(), event.executedAt());
-    }
-    
-    private void processTradeForUser(@NotNull Long userId,
-                                     @NotNull Long instrumentId,
-                                     @NotNull OrderSide orderSide,
-                                     @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false) BigDecimal price,
-                                     @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
-                                     @NotNull Long tradeId,
-                                     @NotNull Instant executedAt) {
-        Collection<Position> positions = positionDomainService.processTradeForUser(
-                userId, instrumentId, orderSide, price, quantity, tradeId, executedAt);
-
-        for (Position position : positions) {
-            positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
-                    userId, instrumentId, position.getSide(), position.getQuantity(),
-                    position.getEntryPrice(), position.getMarkPrice(), position.getUnrealizedPnl(),
-                    position.getLiquidationPrice(), executedAt
-            ));
-
-            if (position.getStatus() == PositionStatus.CLOSED) {
-                positionEventPublisher.publishClosed(new PositionClosedEvent(userId, instrumentId, executedAt));
-            }
-        }
     }
     
     public record PositionReserveResult(boolean success, BigDecimal reservedQuantity, String reason,
