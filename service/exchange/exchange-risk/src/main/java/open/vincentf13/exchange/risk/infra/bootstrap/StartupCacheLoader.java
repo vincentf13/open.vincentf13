@@ -6,6 +6,8 @@ import open.vincentf13.exchange.admin.contract.client.ExchangeAdminClient;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.risk.infra.RiskLogEvent;
 import open.vincentf13.exchange.risk.infra.cache.InstrumentCache;
+import open.vincentf13.exchange.risk.infra.cache.MarkPriceCache;
+import open.vincentf13.exchange.risk.infra.client.ExchangeMarketClient;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
@@ -21,7 +23,9 @@ public class StartupCacheLoader implements CommandLineRunner {
     private static final long RETRY_DELAY_MS = 2000;
 
     private final ExchangeAdminClient adminClient;
+    private final ExchangeMarketClient marketClient;
     private final InstrumentCache instrumentCache;
+    private final MarkPriceCache markPriceCache;
 
     @Override
     public void run(String... args) {
@@ -38,6 +42,7 @@ public class StartupCacheLoader implements CommandLineRunner {
                 OpenLog.info(RiskLogEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
 
                 loadInstruments();
+                loadMarkPrices();
 
                 OpenLog.info(RiskLogEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size());
                 return;
@@ -67,5 +72,18 @@ public class StartupCacheLoader implements CommandLineRunner {
         instrumentCache.putAll(instruments);
 
         OpenLog.info(RiskLogEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
+    }
+
+    private void loadMarkPrices() {
+        instrumentCache.getAll().forEach(instrument -> {
+            try {
+                var response = marketClient.getMarkPrice(instrument.instrumentId());
+                if (response.isSuccess() && response.data() != null) {
+                    markPriceCache.put(instrument.instrumentId(), response.data().getMarkPrice());
+                }
+            } catch (Exception e) {
+                OpenLog.warn(RiskLogEvent.STARTUP_MARK_PRICE_LOAD_FAILED, e, "instrumentId", instrument.instrumentId());
+            }
+        });
     }
 }
