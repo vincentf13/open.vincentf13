@@ -22,6 +22,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceTyp
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -586,6 +587,91 @@ public class PositionDomainService {
     }
 
     public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
+    }
+
+    public void updateMarkPrice(@NotNull Long instrumentId, @NotNull BigDecimal markPrice) {
+        List<Position> positions = positionRepository.findBy(
+                Wrappers.lambdaQuery(PositionPO.class)
+                        .eq(PositionPO::getInstrumentId, instrumentId)
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
+
+        if (positions.isEmpty()) {
+            return;
+        }
+
+        BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
+                .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
+                .orElse(CONTRACT_MULTIPLIER);
+
+        BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
+                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
+                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
+
+        for (Position position : positions) {
+            Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
+            updatedPosition.setMarkPrice(markPrice);
+
+            BigDecimal existingQuantity = safe(position.getQuantity());
+
+            if (existingQuantity.compareTo(BigDecimal.ZERO) > 0) {
+                if (updatedPosition.getSide() == PositionSide.LONG) {
+                    updatedPosition.setUnrealizedPnl(markPrice.subtract(updatedPosition.getEntryPrice())
+                            .multiply(existingQuantity)
+                            .multiply(contractMultiplier));
+                } else {
+                    updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(markPrice)
+                            .multiply(existingQuantity)
+                            .multiply(contractMultiplier));
+                }
+
+                BigDecimal notional = markPrice.multiply(existingQuantity).abs();
+                if (notional.compareTo(BigDecimal.ZERO) == 0) {
+                    updatedPosition.setMarginRatio(BigDecimal.ZERO);
+                } else {
+                    updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
+                            .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
+                }
+
+                // Liquidation Price = Entry Price - (Margin / Quantity / Multiplier) / (1 - Maintenance Margin Rate) [Long]
+                // Liquidation Price = Entry Price + (Margin / Quantity / Multiplier) / (1 + Maintenance Margin Rate) [Short]
+                // Note: The original code in other methods seemed to miss contractMultiplier or implied Quantity is contracts?
+                // The UPNL calculation explicitly multiplies by contractMultiplier.
+                // Assuming standard futures formula: Margin = Notional / Leverage = Price * Quantity * Multiplier / Leverage
+                // Liquidation logic usually involves Price where Margin Balance = Maintenance Margin.
+                // Here we stick to fixing the dimensional error pointed out in review: Margin / (Quantity * Multiplier).
+
+                BigDecimal quantityTimesMultiplier = existingQuantity.multiply(contractMultiplier);
+                if (quantityTimesMultiplier.compareTo(BigDecimal.ZERO) == 0) {
+                     updatedPosition.setLiquidationPrice(BigDecimal.ZERO);
+                } else {
+                    if (updatedPosition.getSide() == PositionSide.LONG) {
+                        updatedPosition.setLiquidationPrice(
+                                updatedPosition.getEntryPrice()
+                                        .subtract(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                        .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
+                        );
+                    } else {
+                        updatedPosition.setLiquidationPrice(
+                                updatedPosition.getEntryPrice()
+                                        .add(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                        .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
+                        );
+                    }
+                }
+            } else {
+                updatedPosition.setUnrealizedPnl(BigDecimal.ZERO);
+                updatedPosition.setMarginRatio(BigDecimal.ZERO);
+                updatedPosition.setLiquidationPrice(BigDecimal.ZERO);
+            }
+
+            int expectedVersion = position.safeVersion();
+            updatedPosition.setVersion(expectedVersion + 1);
+            positionRepository.updateSelectiveBy(
+                    updatedPosition,
+                    Wrappers.<PositionPO>lambdaUpdate()
+                            .eq(PositionPO::getPositionId, updatedPosition.getPositionId())
+                            .eq(PositionPO::getVersion, expectedVersion));
+        }
     }
 
     public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased) {
