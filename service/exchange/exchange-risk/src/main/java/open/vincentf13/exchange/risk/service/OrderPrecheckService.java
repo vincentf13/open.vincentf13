@@ -33,11 +33,7 @@ public class OrderPrecheckService {
         if (!Boolean.TRUE.equals(instrument.tradable())) {
             return response(false, null, null, "Instrument is not tradable");
         }
-
-        if (request.getQuantity().remainder(instrument.lotSize()).compareTo(BigDecimal.ZERO) != 0) {
-            return response(false, null, null, "Quantity must be a multiple of lot size");
-        }
-
+        
         try {
             RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(request.getInstrumentId());
             OrderPrecheckRequest.PositionSnapshot snapshot = request.getPositionSnapshot();
@@ -50,9 +46,7 @@ public class OrderPrecheckService {
 
             BigDecimal orderNotional = request.getQuantity().multiply(price).multiply(multiplier);
 
-            if (riskLimit.getMaxOrderValue() != null && orderNotional.compareTo(riskLimit.getMaxOrderValue()) > 0) {
-                return response(false, null, null, "Order value exceeds limit");
-            }
+         
 
             BigDecimal requiredMargin = BigDecimal.ZERO;
             BigDecimal fee = orderNotional.multiply(instrument.takerFeeRate());

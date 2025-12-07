@@ -30,10 +30,6 @@ public class RiskController implements RiskApi {
                 riskLimit.getMaxLeverage(),
                 riskLimit.getMaintenanceMarginRate(),
                 riskLimit.getLiquidationFeeRate(),
-                riskLimit.getPositionSizeMin(),
-                riskLimit.getPositionSizeMax(),
-                riskLimit.getMaxPositionValue(),
-                riskLimit.getMaxOrderValue(),
                 riskLimit.getActive(),
                 riskLimit.getUpdatedAt()
         ));
