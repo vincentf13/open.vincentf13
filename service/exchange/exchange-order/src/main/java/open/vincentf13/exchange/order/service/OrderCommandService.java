@@ -43,8 +43,16 @@ public class OrderCommandService {
         Long userId = currentUserId();
         try {
             Order order = Order.createNew(userId, request);
-            PositionIntentType intentType = determineIntent(userId, request);
+            PositionIntentResponse intentResponse = determineIntent(userId, request);
+            PositionIntentType intentType = intentResponse.intentType();
             order.setIntent(intentType);
+            if (isClosingIntent(intentType)) {
+                if (intentResponse.closingEntryPrice() == null) {
+                    throw OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                                           Map.of("instrumentId", request.instrumentId(), "reason", "closingEntryPriceMissing"));
+                }
+                order.setClosingEntryPrice(intentResponse.closingEntryPrice());
+            }
  
             
             return null;
@@ -66,19 +74,22 @@ public class OrderCommandService {
                                                                    OpenException.of(OrderErrorCode.ORDER_NOT_FOUND));
     }
     
-    private PositionIntentType determineIntent(Long userId,
-                                               OrderCreateRequest request) {
+    private PositionIntentResponse determineIntent(Long userId,
+                                                   OrderCreateRequest request) {
         PositionIntentResponse response = OpenApiClientInvoker.call(
                 () -> exchangePositionClient.determineIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity())),
                 msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                         Map.of("userId", userId, "instrumentId", request.instrumentId(), "remoteMessage", msg))
                                                                    );
-        PositionIntentType intentType = response.intentType();
-        if (intentType == null) {
+        if (response == null || response.intentType() == null) {
             throw OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                    Map.of("instrumentId", request.instrumentId()));
         }
-        return intentType;
+        if (response.rejectReason() != null) {
+            throw OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                                   Map.of("instrumentId", request.instrumentId(), "reason", response.rejectReason()));
+        }
+        return response;
     }
     
     private PositionSide toPositionSide(OrderSide orderSide) {
@@ -88,6 +99,10 @@ public class OrderCommandService {
         return orderSide == OrderSide.BUY
                ? PositionSide.LONG
                : PositionSide.SHORT;
+    }
+    
+    private boolean isClosingIntent(PositionIntentType intentType) {
+        return intentType == PositionIntentType.REDUCE || intentType == PositionIntentType.CLOSE;
     }
     
   

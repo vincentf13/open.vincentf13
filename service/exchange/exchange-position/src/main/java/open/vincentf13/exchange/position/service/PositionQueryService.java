@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.position.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -19,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,13 +34,39 @@ public class PositionQueryService {
                         .eq(PositionPO::getUserId, request.userId())
                         .eq(PositionPO::getInstrumentId, request.instrumentId())
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
-        BigDecimal existing = activePosition
-                                      .map(position -> position.getQuantity())
-                                      .orElse(BigDecimal.ZERO);
-        PositionIntentType intentType = activePosition
-                                                .map(position -> position.evaluateIntent(request.side(), request.quantity()))
-                                                .orElse(PositionIntentType.INCREASE);
-        return PositionIntentResponse.of(intentType, existing);
+        if (activePosition.isEmpty()) {
+            return PositionIntentResponse.of(PositionIntentType.INCREASE, BigDecimal.ZERO);
+        }
+        Position position = activePosition.get();
+        BigDecimal existing = position.getQuantity();
+        PositionIntentType intentType = position.evaluateIntent(request.side(), request.quantity());
+        if (intentType == PositionIntentType.INCREASE) {
+            return PositionIntentResponse.of(intentType, existing);
+        }
+        BigDecimal availableToClose = position.availableToClose();
+        if (availableToClose.compareTo(request.quantity()) < 0) {
+            return PositionIntentResponse.ofRejected(intentType, existing,
+                                                     PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE.code());
+        }
+        int expectedVersion = position.safeVersion();
+        Position updateRecord = Position.builder()
+                                        .positionId(position.getPositionId())
+                                        .closingReservedQuantity(position.getClosingReservedQuantity().add(request.quantity()))
+                                        .version(expectedVersion + 1)
+                                        .build();
+        boolean updated = positionRepository.updateSelectiveBy(
+                updateRecord,
+                new LambdaUpdateWrapper<PositionPO>()
+                        .eq(PositionPO::getPositionId, position.getPositionId())
+                        .eq(PositionPO::getUserId, position.getUserId())
+                        .eq(PositionPO::getInstrumentId, position.getInstrumentId())
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE)
+                        .eq(PositionPO::getVersion, expectedVersion));
+        if (!updated) {
+            return PositionIntentResponse.ofRejected(intentType, existing,
+                                                     PositionErrorCode.POSITION_CONCURRENT_UPDATE.code());
+        }
+        return PositionIntentResponse.of(intentType, existing, position.getEntryPrice());
     }
     
     public PositionResponse getPosition(@NotNull Long userId,

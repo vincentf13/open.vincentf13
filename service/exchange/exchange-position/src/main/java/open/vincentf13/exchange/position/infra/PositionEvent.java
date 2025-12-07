@@ -6,8 +6,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
  * Position 事件枚舉。
  */
 public enum PositionEvent implements OpenEvent {
-    POSITION_RESERVED("PositionReserved", "Position reserved"),
-    POSITION_RESERVE_REJECTED("PositionReserveRejected", "Position reserve rejected"),
+    POSITION_TRADE_SETTLEMENT_FAILED("PositionTradeSettlementFailed", "Trade settlement handling failed"),
     POSITION_TRADE_PAYLOAD_INVALID("PositionTradePayloadInvalid", "Invalid TradeExecuted payload"),
     STARTUP_CACHE_LOADING("StartupCacheLoading", "Starting cache loading"),
     STARTUP_CACHE_LOADED("StartupCacheLoaded", "Cache loaded successfully"),

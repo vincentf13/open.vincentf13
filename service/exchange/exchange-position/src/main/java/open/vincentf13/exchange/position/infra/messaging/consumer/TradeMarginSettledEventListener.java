@@ -25,7 +25,7 @@ public class TradeMarginSettledEventListener {
             positionTradeSettlementService.handleTradeMarginSettled(event);
             acknowledgment.acknowledge();
         } catch (Exception e) {
-            OpenLog.error(PositionEvent.POSITION_RESERVED, e, "event", event);
+            OpenLog.error(PositionEvent.POSITION_TRADE_SETTLEMENT_FAILED, e, "event", event);
             throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
         }
     }

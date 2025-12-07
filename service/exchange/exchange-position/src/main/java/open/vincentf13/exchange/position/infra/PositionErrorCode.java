@@ -5,6 +5,7 @@ import open.vincentf13.sdk.core.exception.OpenErrorCode;
 public enum PositionErrorCode implements OpenErrorCode {
 
     POSITION_NOT_FOUND("Position-404-1001", "Position not found"),
+    POSITION_INSUFFICIENT_AVAILABLE("Position-409-1002", "Insufficient available position quantity"),
     POSITION_CONCURRENT_UPDATE("Position-409-1001", "Concurrent update on position");
     
     private final String code;
