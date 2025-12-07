@@ -14,6 +14,7 @@ import open.vincentf13.exchange.account.infra.messaging.publisher.TradeSettlemen
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
+import open.vincentf13.exchange.account.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
 import open.vincentf13.exchange.account.sdk.mq.event.TradeMarginSettledEvent;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
@@ -50,6 +51,7 @@ public class AccountTransactionDomainService {
     private final PlatformJournalRepository platformJournalRepository;
     private final TradeSettlementEventPublisher tradeSettlementEventPublisher;
     private final DefaultIdGenerator idGenerator;
+    private final InstrumentCache instrumentCache;
     
     public record FundsFreezeResult(AssetSymbol asset, BigDecimal amount) {
     }
@@ -364,7 +366,12 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
                                    Map.of("orderId", orderId, "intent", intent));
         }
-        BigDecimal marginUsed = event.price().multiply(event.quantity());
+
+        BigDecimal contractMultiplier = instrumentCache.get(event.instrumentId())
+                .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : BigDecimal.ONE)
+                .orElse(BigDecimal.ONE);
+
+        BigDecimal marginUsed = event.price().multiply(event.quantity()).multiply(contractMultiplier);
         BigDecimal actualFee = isMaker ? event.makerFee() : event.takerFee();
         
         // 用order id 查分錄查出凍結時到底凍結多少錢，再去算要退多少手續費，因為凍結後可能調整費率，導致撮合時收的手續費不一樣
