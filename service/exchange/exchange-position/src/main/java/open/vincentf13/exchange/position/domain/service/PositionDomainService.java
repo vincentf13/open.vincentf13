@@ -513,7 +513,7 @@ public class PositionDomainService {
             updatedPosition.setEntryPrice(existingEntryPrice);
             updatedPosition.setClosingReservedQuantity(existingReserved.subtract(closeQuantity).max(BigDecimal.ZERO));
             BigDecimal direction = position.getSide() == PositionSide.SHORT ? BigDecimal.ONE.negate() : BigDecimal.ONE;
-            realizedPnl = price.subtract(existingEntryPrice).multiply(closeQuantity).multiply(direction);
+            realizedPnl = price.subtract(existingEntryPrice).multiply(closeQuantity).multiply(contractMultiplier).multiply(direction);
             updatedPosition.setCumRealizedPnl(existingCumRealized.add(realizedPnl));
             deltaQuantity = closeQuantity.negate();
 
@@ -635,14 +635,6 @@ public class PositionDomainService {
                     updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
                             .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
                 }
-
-                // Liquidation Price = Entry Price - (Margin / Quantity / Multiplier) / (1 - Maintenance Margin Rate) [Long]
-                // Liquidation Price = Entry Price + (Margin / Quantity / Multiplier) / (1 + Maintenance Margin Rate) [Short]
-                // Note: The original code in other methods seemed to miss contractMultiplier or implied Quantity is contracts?
-                // The UPNL calculation explicitly multiplies by contractMultiplier.
-                // Assuming standard futures formula: Margin = Notional / Leverage = Price * Quantity * Multiplier / Leverage
-                // Liquidation logic usually involves Price where Margin Balance = Maintenance Margin.
-                // Here we stick to fixing the dimensional error pointed out in review: Margin / (Quantity * Multiplier).
 
                 BigDecimal quantityTimesMultiplier = existingQuantity.multiply(contractMultiplier);
                 if (quantityTimesMultiplier.compareTo(BigDecimal.ZERO) == 0) {
