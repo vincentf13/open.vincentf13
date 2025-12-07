@@ -64,7 +64,7 @@ public class OrderPrecheckService {
     
     // --- 提取出的輔助方法 (Private Helpers) ---
     
-    private BigDecimal resolvePrice(String instrumentId,
+    private BigDecimal resolvePrice(Long instrumentId,
                                     BigDecimal snapshotPrice) {
         return markPriceCache.get(instrumentId)
                              .orElse(snapshotPrice != null ? snapshotPrice : BigDecimal.ZERO);
