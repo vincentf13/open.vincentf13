@@ -236,7 +236,7 @@ public class PositionDomainService {
                                                                 .multiply(contractMultiplier));
             }
             
-            BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).abs();
+            BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).multiply(contractMultiplier).abs();
             if (notional.compareTo(BigDecimal.ZERO) == 0) {
                 updatedPosition.setMarginRatio(BigDecimal.ZERO);
             } else {
@@ -244,17 +244,18 @@ public class PositionDomainService {
                                                               .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
             }
             
-            if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal quantityTimesMultiplier = updatedPosition.getQuantity().multiply(contractMultiplier);
+            if (quantityTimesMultiplier.compareTo(BigDecimal.ZERO) > 0) {
                 if (updatedPosition.getSide() == PositionSide.LONG) {
                     updatedPosition.setLiquidationPrice(
                             updatedPosition.getEntryPrice()
-                                           .subtract(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                           .subtract(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
                                            .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
                                                        );
                 } else {
                     updatedPosition.setLiquidationPrice(
                             updatedPosition.getEntryPrice()
-                                           .add(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                           .add(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
                                            .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
                                                        );
                 }
@@ -380,7 +381,7 @@ public class PositionDomainService {
         }
 
         if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).abs();
+            BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).multiply(contractMultiplier).abs();
             if (notional.compareTo(BigDecimal.ZERO) == 0) {
                 updatedPosition.setMarginRatio(BigDecimal.ZERO);
             } else {
@@ -388,16 +389,17 @@ public class PositionDomainService {
                         .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
             }
 
+            BigDecimal quantityTimesMultiplier = updatedPosition.getQuantity().multiply(contractMultiplier);
             if (updatedPosition.getSide() == PositionSide.LONG) {
                 updatedPosition.setLiquidationPrice(
                         updatedPosition.getEntryPrice()
-                                .subtract(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .subtract(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
                                 .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
                 );
             } else {
                 updatedPosition.setLiquidationPrice(
                         updatedPosition.getEntryPrice()
-                                .add(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .add(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
                                 .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
                 );
             }
@@ -523,7 +525,7 @@ public class PositionDomainService {
         }
 
         int leverage = position.getLeverage() == null ? 1 : position.getLeverage();
-        BigDecimal newMargin = updatedPosition.getEntryPrice().multiply(updatedPosition.getQuantity()).abs()
+        BigDecimal newMargin = updatedPosition.getEntryPrice().multiply(updatedPosition.getQuantity()).multiply(contractMultiplier).abs()
                 .divide(BigDecimal.valueOf(leverage), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
         updatedPosition.setMargin(newMargin);
         updatedPosition.setCumFee(existingCumFee);
@@ -551,7 +553,7 @@ public class PositionDomainService {
         }
 
         if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).abs();
+            BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).multiply(contractMultiplier).abs();
             if (notional.compareTo(BigDecimal.ZERO) == 0) {
                 updatedPosition.setMarginRatio(BigDecimal.ZERO);
             } else {
@@ -559,16 +561,17 @@ public class PositionDomainService {
                         .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
             }
 
+            BigDecimal quantityTimesMultiplier = updatedPosition.getQuantity().multiply(contractMultiplier);
             if (updatedPosition.getSide() == PositionSide.LONG) {
                 updatedPosition.setLiquidationPrice(
                         updatedPosition.getEntryPrice()
-                                .subtract(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .subtract(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
                                 .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
                 );
             } else {
                 updatedPosition.setLiquidationPrice(
                         updatedPosition.getEntryPrice()
-                                .add(updatedPosition.getMargin().divide(updatedPosition.getQuantity(), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .add(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
                                 .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
                 );
             }
@@ -589,6 +592,7 @@ public class PositionDomainService {
     public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
     }
 
+    @Transactional
     public void updateMarkPrice(@NotNull Long instrumentId, @NotNull BigDecimal markPrice) {
         List<Position> positions = positionRepository.findBy(
                 Wrappers.lambdaQuery(PositionPO.class)
@@ -624,7 +628,7 @@ public class PositionDomainService {
                             .multiply(contractMultiplier));
                 }
 
-                BigDecimal notional = markPrice.multiply(existingQuantity).abs();
+                BigDecimal notional = markPrice.multiply(existingQuantity).multiply(contractMultiplier).abs();
                 if (notional.compareTo(BigDecimal.ZERO) == 0) {
                     updatedPosition.setMarginRatio(BigDecimal.ZERO);
                 } else {
