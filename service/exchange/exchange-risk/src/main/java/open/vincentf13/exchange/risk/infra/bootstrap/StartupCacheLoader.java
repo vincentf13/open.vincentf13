@@ -1,0 +1,71 @@
+package open.vincentf13.exchange.risk.infra.bootstrap;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.exchange.admin.contract.client.ExchangeAdminClient;
+import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
+import open.vincentf13.exchange.risk.infra.RiskLogEvent;
+import open.vincentf13.exchange.risk.infra.cache.InstrumentCache;
+import open.vincentf13.sdk.core.log.OpenLog;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class StartupCacheLoader implements CommandLineRunner {
+
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long RETRY_DELAY_MS = 2000;
+
+    private final ExchangeAdminClient adminClient;
+    private final InstrumentCache instrumentCache;
+
+    @Override
+    public void run(String... args) {
+        loadCaches();
+    }
+
+    public void loadCaches() {
+        OpenLog.info(RiskLogEvent.STARTUP_CACHE_LOADING);
+
+        int attempt = 0;
+        while (attempt < MAX_RETRY_ATTEMPTS) {
+            try {
+                attempt++;
+                OpenLog.info(RiskLogEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
+
+                loadInstruments();
+
+                OpenLog.info(RiskLogEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size());
+                return;
+
+            } catch (Exception e) {
+                OpenLog.error(RiskLogEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
+
+                if (attempt >= MAX_RETRY_ATTEMPTS) {
+                    throw new RuntimeException("Failed to load caches after " + MAX_RETRY_ATTEMPTS + " attempts", e);
+                }
+
+                try {
+                    Thread.sleep(RETRY_DELAY_MS);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Cache loading interrupted", ie);
+                }
+            }
+        }
+    }
+
+    private void loadInstruments() {
+        OpenLog.info(RiskLogEvent.STARTUP_LOADING_INSTRUMENTS);
+
+        List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
+
+        instrumentCache.putAll(instruments);
+
+        OpenLog.info(RiskLogEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
+    }
+}
