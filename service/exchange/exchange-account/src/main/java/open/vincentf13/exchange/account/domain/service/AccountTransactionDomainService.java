@@ -27,6 +27,7 @@ import open.vincentf13.exchange.common.sdk.enums.Direction;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
+import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
@@ -374,7 +375,8 @@ public class AccountTransactionDomainService {
                                                                                             Map.of("orderId", orderId, "userId", userId)));
         BigDecimal totalUsed = marginUsed.add(actualFee);
         if (totalReserved.compareTo(totalUsed) < 0) {
-            // 人工排查: 可能是 BUG 預扣扣不夠。 也可能是 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
+            // 人工排查: 可能是 BUG 預扣扣不夠。
+            // 也可能是 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
             OpenLog.warn(AccountEvent.INSUFFICIENT_RESERVED_BALANCE,
                          "userId", userId,
                          "orderId", orderId,
