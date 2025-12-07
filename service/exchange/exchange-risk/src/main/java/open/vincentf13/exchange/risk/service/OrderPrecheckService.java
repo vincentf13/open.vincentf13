@@ -38,7 +38,7 @@ public class OrderPrecheckService {
             RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(request.getInstrumentId());
             OrderPrecheckRequest.PositionSnapshot snapshot = request.getPositionSnapshot();
 
-            BigDecimal multiplier = instrument.contractSize() != null ? instrument.contractSize() : BigDecimal.ONE;
+            BigDecimal multiplier = instrument.contractSize();
             BigDecimal markPrice = markPriceCache.get(request.getInstrumentId())
                     .orElse(snapshot.getMarkPrice() != null ? snapshot.getMarkPrice() : BigDecimal.ZERO);
 
@@ -52,7 +52,7 @@ public class OrderPrecheckService {
             BigDecimal fee = orderNotional.multiply(instrument.takerFeeRate());
 
             if (request.getIntent() == PositionIntentType.INCREASE) {
-                Integer leverage = snapshot.getLeverage() != null ? snapshot.getLeverage() : riskLimit.getMaxLeverage();
+                Integer leverage =  snapshot.getLeverage();
                 if (leverage > riskLimit.getMaxLeverage()) {
                     return response(false, null, null, "Leverage exceeds limit");
                 }
