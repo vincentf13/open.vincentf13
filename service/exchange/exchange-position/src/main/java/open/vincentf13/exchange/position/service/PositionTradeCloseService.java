@@ -57,6 +57,7 @@ public class PositionTradeCloseService {
                            event.quantity(),
                            event.quoteAsset(),
                            event.instrumentId(),
+                           event.makerFee(),
                            event.executedAt());
         processParticipant(event.tradeId(),
                            event.counterpartyOrderId(),
@@ -67,6 +68,7 @@ public class PositionTradeCloseService {
                            event.quantity(),
                            event.quoteAsset(),
                            event.instrumentId(),
+                           event.takerFee(),
                            event.executedAt());
     }
     
@@ -79,6 +81,7 @@ public class PositionTradeCloseService {
                                     BigDecimal quantity,
                                     AssetSymbol asset,
                                     Long instrumentId,
+                                    BigDecimal fee,
                                     Instant executedAt) {
         if (intentType == null || intentType == PositionIntentType.INCREASE) {
             return;
@@ -116,7 +119,7 @@ public class PositionTradeCloseService {
                        .multiply(quantity);
         }
         BigDecimal newQuantity = existingQty.subtract(quantity);
-        BigDecimal newReserved = reserved.subtract(quantity);
+        BigDecimal newReserved = reserved.subtract(quantity).max(BigDecimal.ZERO);
         BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
                                                        .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER_DEFAULT)
                                                        .orElse(CONTRACT_MULTIPLIER_DEFAULT);
@@ -129,7 +132,8 @@ public class PositionTradeCloseService {
         BigDecimal marginRatio = position.getMarginRatio();
         BigDecimal liquidationPrice = position.getLiquidationPrice();
         BigDecimal remainingMargin = position.getMargin().subtract(marginToRelease);
-        BigDecimal feeDelta = safe(position.getCumFee()).add(isMaker ? event.makerFee() : event.takerFee());
+        BigDecimal tradeFee = safe(fee);
+        BigDecimal feeDelta = safe(position.getCumFee()).add(tradeFee);
         if (markPrice != null && newQuantity.compareTo(BigDecimal.ZERO) > 0) {
             unrealizedPnl = position.getSide() == PositionSide.LONG
                             ? markPrice.subtract(position.getEntryPrice()).multiply(newQuantity).multiply(contractMultiplier)
@@ -185,7 +189,7 @@ public class PositionTradeCloseService {
                 quantity.negate(),
                 marginToRelease.negate(),
                 pnl,
-                isMaker ? event.makerFee() : event.takerFee(),
+                tradeFee,
                 BigDecimal.ZERO,
                 newQuantity,
                 newReserved,
