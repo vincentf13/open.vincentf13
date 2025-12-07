@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.position.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -43,5 +44,14 @@ public class PositionEventRepository {
         } catch (DataAccessException e) {
             throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE, Map.of("referenceId", referenceId), e);
         }
+    }
+    
+    public boolean existsByReferenceAndUser(@NotNull PositionReferenceType referenceType,
+                                            @NotNull Long referenceId,
+                                            @NotNull Long userId) {
+        return mapper.selectCount(Wrappers.lambdaQuery(PositionEventPO.class)
+                                          .eq(PositionEventPO::getReferenceType, referenceType)
+                                          .eq(PositionEventPO::getReferenceId, referenceId)
+                                          .eq(PositionEventPO::getUserId, userId)) > 0;
     }
 }

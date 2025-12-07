@@ -8,11 +8,18 @@ import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.domain.model.Position;
+import open.vincentf13.exchange.position.domain.model.PositionEvent;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
+import open.vincentf13.exchange.position.infra.cache.InstrumentCache;
+import open.vincentf13.exchange.position.infra.cache.MarkPriceCache;
+import open.vincentf13.exchange.position.infra.cache.RiskLimitCache;
+import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
+import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
@@ -30,6 +37,13 @@ public class PositionTradeCloseService {
     
     private final PositionRepository positionRepository;
     private final PositionEventPublisher positionEventPublisher;
+    private final MarkPriceCache markPriceCache;
+    private final RiskLimitCache riskLimitCache;
+    private final InstrumentCache instrumentCache;
+    private final PositionEventRepository positionEventRepository;
+    
+    private static final BigDecimal MAINTENANCE_MARGIN_RATE_DEFAULT = BigDecimal.valueOf(0.005);
+    private static final BigDecimal CONTRACT_MULTIPLIER_DEFAULT = BigDecimal.ONE;
     
     @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
@@ -69,6 +83,9 @@ public class PositionTradeCloseService {
         if (intentType == null || intentType == PositionIntentType.INCREASE) {
             return;
         }
+        if (positionEventRepository.existsByReferenceAndUser(PositionReferenceType.TRADE, tradeId, userId)) {
+            return;
+        }
         PositionSide side = toPositionSide(orderSide);
         Optional<Position> optional = positionRepository.findOne(
                 Wrappers.lambdaQuery(PositionPO.class)
@@ -100,6 +117,38 @@ public class PositionTradeCloseService {
         }
         BigDecimal newQuantity = existingQty.subtract(quantity);
         BigDecimal newReserved = reserved.subtract(quantity);
+        BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
+                                                       .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER_DEFAULT)
+                                                       .orElse(CONTRACT_MULTIPLIER_DEFAULT);
+        BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
+                                                         .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
+                                                         .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
+        Optional<BigDecimal> latestMark = markPriceCache.get(instrumentId);
+        BigDecimal markPrice = latestMark.orElse(price);
+        BigDecimal unrealizedPnl = position.getUnrealizedPnl();
+        BigDecimal marginRatio = position.getMarginRatio();
+        BigDecimal liquidationPrice = position.getLiquidationPrice();
+        BigDecimal remainingMargin = position.getMargin().subtract(marginToRelease);
+        if (markPrice != null && newQuantity.compareTo(BigDecimal.ZERO) > 0) {
+            unrealizedPnl = position.getSide() == PositionSide.LONG
+                            ? markPrice.subtract(position.getEntryPrice()).multiply(newQuantity).multiply(contractMultiplier)
+                            : position.getEntryPrice().subtract(markPrice).multiply(newQuantity).multiply(contractMultiplier);
+            BigDecimal notional = markPrice.multiply(newQuantity).abs();
+            marginRatio = notional.compareTo(BigDecimal.ZERO) == 0
+                          ? BigDecimal.ZERO
+                          : remainingMargin.add(unrealizedPnl)
+                                            .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP);
+            BigDecimal marginPerUnit = remainingMargin.divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            if (position.getSide() == PositionSide.LONG) {
+                liquidationPrice = position.getEntryPrice()
+                                           .subtract(marginPerUnit)
+                                           .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            } else {
+                liquidationPrice = position.getEntryPrice()
+                                           .add(marginPerUnit)
+                                           .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            }
+        }
         int expectedVersion = position.safeVersion();
         Position update = Position.builder()
                                   .positionId(position.getPositionId())
@@ -107,6 +156,10 @@ public class PositionTradeCloseService {
                                   .closingReservedQuantity(newReserved)
                                   .margin(position.getMargin().subtract(marginToRelease))
                                   .cumRealizedPnl(safe(position.getCumRealizedPnl()).add(pnl))
+                                  .markPrice(markPrice)
+                                  .unrealizedPnl(unrealizedPnl)
+                                  .marginRatio(marginRatio)
+                                  .liquidationPrice(liquidationPrice)
                                   .status(newQuantity.compareTo(BigDecimal.ZERO) == 0 ? PositionStatus.CLOSED : position.getStatus())
                                   .version(expectedVersion + 1)
                                   .build();
@@ -122,6 +175,26 @@ public class PositionTradeCloseService {
             throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE,
                                    Map.of("positionId", position.getPositionId()));
         }
+        positionEventRepository.insert(PositionEvent.createTradeEvent(
+                position.getPositionId(),
+                userId,
+                instrumentId,
+                newQuantity.compareTo(BigDecimal.ZERO) == 0 ? PositionEventType.POSITION_CLOSED : PositionEventType.POSITION_DECREASED,
+                quantity.negate(),
+                marginToRelease.negate(),
+                pnl,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                newQuantity,
+                newReserved,
+                position.getEntryPrice(),
+                position.getLeverage(),
+                update.getMargin(),
+                unrealizedPnl,
+                liquidationPrice,
+                tradeId,
+                executedAt == null ? Instant.now() : executedAt
+        ));
         positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
                 tradeId,
                 orderId,
