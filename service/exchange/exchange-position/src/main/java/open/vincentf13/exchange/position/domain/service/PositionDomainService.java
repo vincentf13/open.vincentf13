@@ -138,16 +138,16 @@ public class PositionDomainService {
         return Collections.singletonList(updatedPosition);
     }
 
-    public Collection<Position> processMarginSettled(@NotNull Long userId,
-                                                     @NotNull Long instrumentId,
-                                                     @NotNull OrderSide orderSide,
-                                                     @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false) BigDecimal price,
-                                                     @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
-                                                     @NotNull BigDecimal marginUsed,
-                                                     @NotNull BigDecimal feeCharged,
-                                                     @NotNull BigDecimal feeRefund,
-                                                     @NotNull Long referenceId,
-                                                     @NotNull Instant executedAt) {
+    public Collection<Position> openPosition(@NotNull Long userId,
+                                             @NotNull Long instrumentId,
+                                             @NotNull OrderSide orderSide,
+                                             @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false) BigDecimal price,
+                                             @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
+                                             @NotNull BigDecimal marginUsed,
+                                             @NotNull BigDecimal feeCharged,
+                                             @NotNull BigDecimal feeRefund,
+                                             @NotNull Long referenceId,
+                                             @NotNull Instant executedAt) {
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
             return positionRepository.findOne(
                             Wrappers.lambdaQuery(PositionPO.class)
@@ -181,8 +181,8 @@ public class PositionDomainService {
                 BigDecimal closeFeeRefund = feeRefund.subtract(flipFeeRefund);
 
                 List<Position> results = new ArrayList<>();
-                results.addAll(processMarginSettled(userId, instrumentId, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, referenceId, executedAt));
-                results.addAll(processMarginSettled(userId, instrumentId, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, referenceId, executedAt));
+                results.addAll(openPosition(userId, instrumentId, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, referenceId, executedAt));
+                results.addAll(openPosition(userId, instrumentId, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, referenceId, executedAt));
                 return results;
             }
 

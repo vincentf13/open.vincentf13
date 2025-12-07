@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.domain.model.Position;
@@ -38,41 +37,41 @@ public class PositionTradeCloseService {
     @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
         OpenValidator.validateOrThrow(event);
-        processParticipant(event.tradeId(),
-                           event.orderId(),
-                           event.makerUserId(),
-                           event.orderSide(),
-                           event.makerIntent(),
-                           event.price(),
-                           event.quantity(),
-                           event.quoteAsset(),
-                           event.instrumentId(),
-                           event.makerFee(),
-                           event.executedAt());
-        processParticipant(event.tradeId(),
-                           event.counterpartyOrderId(),
-                           event.takerUserId(),
-                           event.counterpartyOrderSide(),
-                           event.takerIntent(),
-                           event.price(),
-                           event.quantity(),
-                           event.quoteAsset(),
-                           event.instrumentId(),
-                           event.takerFee(),
-                           event.executedAt());
+        processClose(event.tradeId(),
+                     event.orderId(),
+                     event.makerUserId(),
+                     event.orderSide(),
+                     event.makerIntent(),
+                     event.price(),
+                     event.quantity(),
+                     event.quoteAsset(),
+                     event.instrumentId(),
+                     event.makerFee(),
+                     event.executedAt());
+        processClose(event.tradeId(),
+                     event.counterpartyOrderId(),
+                     event.takerUserId(),
+                     event.counterpartyOrderSide(),
+                     event.takerIntent(),
+                     event.price(),
+                     event.quantity(),
+                     event.quoteAsset(),
+                     event.instrumentId(),
+                     event.takerFee(),
+                     event.executedAt());
     }
     
-    private void processParticipant(Long tradeId,
-                                    Long orderId,
-                                    Long userId,
-                                    OrderSide orderSide,
-                                    PositionIntentType intentType,
-                                    BigDecimal price,
-                                    BigDecimal quantity,
-                                    AssetSymbol asset,
-                                    Long instrumentId,
-                                    BigDecimal fee,
-                                    Instant executedAt) {
+    private void processClose(Long tradeId,
+                              Long orderId,
+                              Long userId,
+                              OrderSide orderSide,
+                              PositionIntentType intentType,
+                              BigDecimal price,
+                              BigDecimal quantity,
+                              AssetSymbol asset,
+                              Long instrumentId,
+                              BigDecimal fee,
+                              Instant executedAt) {
         if (intentType == null || intentType == PositionIntentType.INCREASE) {
             return;
         }

@@ -24,7 +24,7 @@ public class PositionTradeSettlementService {
 
     @Transactional(rollbackFor = Exception.class)
     public void handleTradeMarginSettled(@NotNull @Valid TradeMarginSettledEvent event) {
-        Collection<Position> positions = positionDomainService.processMarginSettled(
+        Collection<Position> positions = positionDomainService.openPosition(
                 event.userId(),
                 event.instrumentId(),
                 event.side(),
