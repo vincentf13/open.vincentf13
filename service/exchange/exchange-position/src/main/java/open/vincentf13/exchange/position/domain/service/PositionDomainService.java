@@ -186,7 +186,8 @@ public class PositionDomainService {
                 return results;
             }
 
-            return processPositionClose(position, userId, instrumentId, price, quantity, feeCharged, feeRefund, referenceId, executedAt);
+            PositionCloseResult result = closePosition(position, userId, instrumentId, price, quantity, feeCharged, feeRefund, referenceId, executedAt, false);
+            return Collections.singletonList(result.position());
         } else {
             Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
             
@@ -302,10 +303,11 @@ public class PositionDomainService {
         }
     }
 
-    private List<Position> processPositionClose(Position position, Long userId, Long instrumentId,
-                                                BigDecimal price, BigDecimal quantity,
-                                                BigDecimal feeCharged, BigDecimal feeRefund,
-                                                Long referenceId, Instant executedAt) {
+    public PositionCloseResult closePosition(Position position, Long userId, Long instrumentId,
+                                             BigDecimal price, BigDecimal quantity,
+                                             BigDecimal feeCharged, BigDecimal feeRefund,
+                                             Long referenceId, Instant executedAt,
+                                             boolean reduceReserved) {
         Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
 
         markPriceCache.get(instrumentId)
@@ -342,6 +344,11 @@ public class PositionDomainService {
         updatedPosition.setQuantity(newQuantity);
         updatedPosition.setMargin(existingMargin.subtract(marginToRelease));
         updatedPosition.setCumRealizedPnl(existingCumRealized.add(pnl));
+
+        if (reduceReserved) {
+            BigDecimal existingReserved = safe(position.getClosingReservedQuantity());
+            updatedPosition.setClosingReservedQuantity(existingReserved.subtract(quantity).max(BigDecimal.ZERO));
+        }
 
         BigDecimal feeDelta = feeCharged.subtract(feeRefund);
         updatedPosition.setCumFee(existingCumFee.add(feeDelta));
@@ -436,7 +443,7 @@ public class PositionDomainService {
         );
         positionEventRepository.insert(event);
 
-        return Collections.singletonList(updatedPosition);
+        return new PositionCloseResult(updatedPosition, pnl, marginToRelease);
     }
 
     private TradeExecutionData processTradeExecution(@NotNull Position position,
@@ -579,6 +586,9 @@ public class PositionDomainService {
     }
 
     public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
+    }
+
+    public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased) {
     }
 
     private BigDecimal safe(BigDecimal value) {
