@@ -13,10 +13,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalReques
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalResponse;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
-import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderClient;
-import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
-import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -30,7 +27,6 @@ public class AccountCommandService {
     private final AccountTransactionDomainService accountTransactionDomainService;
     private final AccountPositionDomainService accountPositionDomainService;
     private final TransactionTemplate transactionTemplate;
-    private final ExchangeOrderClient exchangeOrderClient;
     
     @Transactional
     public AccountDepositResponse deposit(@NotNull @Valid AccountDepositRequest request) {
@@ -69,19 +65,20 @@ public class AccountCommandService {
     }
     
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
-        OrderResponse makerOrder = event.makerIntent() == PositionIntentType.INCREASE
-                                   ? OpenApiClientInvoker.call(() -> exchangeOrderClient.getOrder(event.orderId()))
-                                   : null;
-        OrderResponse takerOrder = event.takerIntent() == PositionIntentType.INCREASE
-                                   ? OpenApiClientInvoker.call(() -> exchangeOrderClient.getOrder(event.counterpartyOrderId()))
-                                   : null;
-        
         transactionTemplate.executeWithoutResult(status -> {
             if (event.makerIntent() == PositionIntentType.INCREASE) {
-                accountTransactionDomainService.settleTrade(event, makerOrder, makerOrder.userId().equals(event.makerUserId()));
+                accountTransactionDomainService.settleTrade(event,
+                                                            event.orderId(),
+                                                            event.makerUserId(),
+                                                            event.makerIntent(),
+                                                            true);
             }
             if (event.takerIntent() == PositionIntentType.INCREASE) {
-                accountTransactionDomainService.settleTrade(event, takerOrder, takerOrder.userId().equals(event.makerUserId()));
+                accountTransactionDomainService.settleTrade(event,
+                                                            event.counterpartyOrderId(),
+                                                            event.takerUserId(),
+                                                            event.takerIntent(),
+                                                            false);
             }
         });
     }

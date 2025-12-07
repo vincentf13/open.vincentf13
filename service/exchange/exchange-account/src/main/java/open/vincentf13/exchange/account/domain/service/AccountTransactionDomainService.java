@@ -27,8 +27,6 @@ import open.vincentf13.exchange.common.sdk.enums.Direction;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
-import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
-import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
@@ -355,30 +353,31 @@ public class AccountTransactionDomainService {
 
     @Transactional
     public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
-                            @NotNull @Valid OrderResponse order,
+                            @NotNull Long orderId,
+                            @NotNull Long userId,
+                            @NotNull PositionIntentType intent,
                             boolean isMaker) {
-        OpenValidator.validateOrThrow(order);
         AssetSymbol asset = event.quoteAsset();
-        assertNoDuplicateJournal(order.userId(), asset, ReferenceType.TRADE_MARGIN_SETTLED, event.tradeId().toString());
-        if (order.intent() != PositionIntentType.INCREASE) {
+        assertNoDuplicateJournal(userId, asset, ReferenceType.TRADE_MARGIN_SETTLED, event.tradeId().toString());
+        if (intent != PositionIntentType.INCREASE) {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
-                                   Map.of("orderId", order.orderId(), "intent", order.intent()));
+                                   Map.of("orderId", orderId, "intent", intent));
         }
         BigDecimal marginUsed = event.price().multiply(event.quantity());
         BigDecimal actualFee = isMaker ? event.makerFee() : event.takerFee();
         
         // 用order id 查分錄查出凍結時到底凍結多少錢，再去算要退多少手續費，因為凍結後可能調整費率，導致撮合時收的手續費不一樣
         BigDecimal totalReserved = userJournalRepository.findLatestByReference(
-                        order.userId(), asset, ReferenceType.FUNDS_FREEZE_REQUESTED, order.orderId().toString())
+                        userId, asset, ReferenceType.FUNDS_FREEZE_REQUESTED, orderId.toString())
                                                         .map(UserJournal::getAmount)
                                                         .orElseThrow(() -> OpenException.of(AccountErrorCode.FREEZE_ENTRY_NOT_FOUND,
-                                                                                            Map.of("orderId", order.orderId(), "userId", order.userId())));
+                                                                                            Map.of("orderId", orderId, "userId", userId)));
         BigDecimal totalUsed = marginUsed.add(actualFee);
         if (totalReserved.compareTo(totalUsed) < 0) {
             // 人工排查: 可能是 BUG 預扣扣不夠。 也可能是 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
             OpenLog.warn(AccountEvent.INSUFFICIENT_RESERVED_BALANCE,
-                         "userId", order.userId(),
-                         "orderId", order.orderId(),
+                         "userId", userId,
+                         "orderId", orderId,
                          "reserved", totalReserved,
                          "marginUsed", marginUsed,
                          "actualFee", actualFee);
@@ -388,14 +387,14 @@ public class AccountTransactionDomainService {
             // 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
             feeRefund = BigDecimal.ZERO;
         }
-        UserAccount userSpot = userAccountRepository.getOrCreate(order.userId(), UserAccountCode.SPOT, null, asset);
-        UserAccount userMargin = userAccountRepository.getOrCreate(order.userId(), UserAccountCode.MARGIN, event.instrumentId(), asset);
-        UserAccount userFeeExpense = userAccountRepository.getOrCreate(order.userId(), UserAccountCode.FEE_EXPENSE, null, asset);
+        UserAccount userSpot = userAccountRepository.getOrCreate(userId, UserAccountCode.SPOT, null, asset);
+        UserAccount userMargin = userAccountRepository.getOrCreate(userId, UserAccountCode.MARGIN, event.instrumentId(), asset);
+        UserAccount userFeeExpense = userAccountRepository.getOrCreate(userId, UserAccountCode.FEE_EXPENSE, null, asset);
         PlatformAccount platformAsset = platformAccountRepository.getOrCreate(PlatformAccountCode.HOT_WALLET, asset);
         PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
         if (userSpot.getReserved().compareTo(totalReserved) < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
-                                   Map.of("userId", order.userId(), "reserved", userSpot.getReserved(), "required", totalReserved));
+                                   Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReserved));
         }
         UserAccount settledAccount = applyTradeSettlement(userSpot, totalReserved, totalUsed, feeRefund);
         UserAccount updatedMargin = applyUserUpdate(userMargin, Direction.DEBIT, marginUsed);
@@ -475,9 +474,9 @@ public class AccountTransactionDomainService {
         tradeSettlementEventPublisher.publishTradeMarginSettled(
                 new TradeMarginSettledEvent(
                         event.tradeId(),
-                        order.orderId(),
-                        order.userId(),
-                        order.instrumentId(),
+                        orderId,
+                        userId,
+                        event.instrumentId(),
                         asset,
                         isMaker ? event.orderSide() : event.counterpartyOrderSide(),
                         event.price(),
