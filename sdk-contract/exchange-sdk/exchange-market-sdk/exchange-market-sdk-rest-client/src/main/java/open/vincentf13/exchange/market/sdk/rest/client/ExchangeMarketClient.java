@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.risk.infra.client;
+package open.vincentf13.exchange.market.sdk.rest.client;
 
 import open.vincentf13.exchange.market.sdk.rest.api.MarketApi;
 import org.springframework.cloud.openfeign.FeignClient;

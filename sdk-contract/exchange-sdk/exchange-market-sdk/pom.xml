@@ -19,6 +19,7 @@
     <modules>
         <module>exchange-market-sdk-mq</module>
         <module>exchange-market-sdk-rest-api</module>
+        <module>exchange-market-sdk-rest-client</module>
     </modules>
 
 </project>
