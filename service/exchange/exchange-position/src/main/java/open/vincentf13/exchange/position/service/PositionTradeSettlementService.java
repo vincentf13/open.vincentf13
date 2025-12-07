@@ -22,7 +22,7 @@ public class PositionTradeSettlementService {
     private final PositionDomainService positionDomainService;
     private final PositionEventPublisher positionEventPublisher;
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void handleTradeMarginSettled(@NotNull @Valid TradeMarginSettledEvent event) {
         Collection<Position> positions = positionDomainService.processMarginSettled(
                 event.userId(),

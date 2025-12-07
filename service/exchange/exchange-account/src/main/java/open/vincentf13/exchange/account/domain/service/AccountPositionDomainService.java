@@ -31,7 +31,7 @@ public class AccountPositionDomainService {
     private final UserAccountRepository userAccountRepository;
     private final UserJournalRepository userJournalRepository;
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void releaseMargin(@NotNull @Valid PositionMarginReleasedEvent event) {
         AssetSymbol asset = event.asset();
         assertNoDuplicateJournal(event.userId(), asset, ReferenceType.POSITION_MARGIN_RELEASED, event.tradeId().toString());

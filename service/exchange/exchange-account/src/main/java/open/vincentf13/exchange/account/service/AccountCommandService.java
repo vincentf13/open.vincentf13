@@ -28,7 +28,7 @@ public class AccountCommandService {
     private final AccountPositionDomainService accountPositionDomainService;
     private final TransactionTemplate transactionTemplate;
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AccountDepositResponse deposit(@NotNull @Valid AccountDepositRequest request) {
         AccountDepositResult result = accountTransactionDomainService.deposit(request);
         var userAssetJournal = result.userAssetJournal();
@@ -46,7 +46,7 @@ public class AccountCommandService {
         );
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AccountWithdrawalResponse withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
         AccountWithdrawalResult result = accountTransactionDomainService.withdraw(request);
         var userAssetJournal = result.userAssetJournal();
@@ -83,7 +83,7 @@ public class AccountCommandService {
         });
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void handlePositionMarginReleased(@NotNull @Valid PositionMarginReleasedEvent event) {
         accountPositionDomainService.releaseMargin(event);
     }

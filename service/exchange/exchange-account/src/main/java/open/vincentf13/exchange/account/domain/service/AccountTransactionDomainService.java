@@ -78,7 +78,7 @@ public class AccountTransactionDomainService {
     ) {
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AccountDepositResult deposit(@NotNull @Valid AccountDepositRequest request) {
         
         AssetSymbol asset = UserAccount.normalizeAsset(request.asset());
@@ -129,7 +129,7 @@ public class AccountTransactionDomainService {
                 userAssetJournal, userEquityJournal, platformAssetJournal, platformLiabilityJournal);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public FundsFreezeResult freezeForOrder(@NotNull @Valid FundsFreezeRequestedEvent event,
                                             @NotNull InstrumentSummaryResponse instrument) {
         OpenValidator.validateOrThrow(event);
@@ -169,7 +169,7 @@ public class AccountTransactionDomainService {
         return new FundsFreezeResult(asset, amount);
     }
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AccountWithdrawalResult withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
         AssetSymbol asset = UserAccount.normalizeAsset(request.asset());
         Instant eventTime = request.creditedAt() == null ? Instant.now() : request.creditedAt();
@@ -352,7 +352,7 @@ public class AccountTransactionDomainService {
                           .build();
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
                             @NotNull Long orderId,
                             @NotNull Long userId,

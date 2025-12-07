@@ -20,7 +20,7 @@ public class AuthCredentialCommandService {
     
     private final AuthCredentialRepository repository;
     
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public AuthCredentialResponse create(@Valid AuthCredentialCreateRequest request) {
         return repository.findOne(Wrappers.<AuthCredentialPO>lambdaQuery()
                                           .eq(AuthCredentialPO::getUserId, request.userId())
