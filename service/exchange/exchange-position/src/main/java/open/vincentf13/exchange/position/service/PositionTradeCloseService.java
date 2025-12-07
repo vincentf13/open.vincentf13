@@ -14,6 +14,7 @@ import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
@@ -99,6 +100,7 @@ public class PositionTradeCloseService {
                                           "positionQuantity", existingQty));
         }
 
+        Instant eventTime = executedAt == null ? Instant.now() : executedAt;
         PositionDomainService.PositionCloseResult result = positionDomainService.closePosition(
                 position,
                 userId,
@@ -108,9 +110,22 @@ public class PositionTradeCloseService {
                 safe(fee),
                 BigDecimal.ZERO,
                 tradeId,
-                executedAt == null ? Instant.now() : executedAt,
+                eventTime,
                 true
         );
+
+        Position updatedPosition = result.position();
+        positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
+                updatedPosition.getUserId(),
+                updatedPosition.getInstrumentId(),
+                updatedPosition.getSide(),
+                updatedPosition.getQuantity(),
+                updatedPosition.getEntryPrice(),
+                updatedPosition.getMarkPrice(),
+                updatedPosition.getUnrealizedPnl(),
+                updatedPosition.getLiquidationPrice(),
+                eventTime
+        ));
 
         positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
                 tradeId,
@@ -121,7 +136,7 @@ public class PositionTradeCloseService {
                 position.getSide(),
                 result.marginReleased(),
                 result.pnl(),
-                executedAt == null ? Instant.now() : executedAt
+                eventTime
         ));
     }
     
