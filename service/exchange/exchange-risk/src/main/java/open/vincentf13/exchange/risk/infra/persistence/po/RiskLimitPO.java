@@ -25,10 +25,6 @@ public class RiskLimitPO {
     private Integer maxLeverage;
     private BigDecimal maintenanceMarginRate;
     private BigDecimal liquidationFeeRate;
-    private BigDecimal positionSizeMin;
-    private BigDecimal positionSizeMax;
-    private BigDecimal maxPositionValue;
-    private BigDecimal maxOrderValue;
     private Boolean isActive;
     private Instant createdAt;
     private Instant updatedAt;

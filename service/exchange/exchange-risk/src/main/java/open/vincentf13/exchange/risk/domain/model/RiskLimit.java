@@ -20,10 +20,6 @@ public class RiskLimit {
     private Integer maxLeverage;
     private BigDecimal maintenanceMarginRate;
     private BigDecimal liquidationFeeRate;
-    private BigDecimal positionSizeMin;
-    private BigDecimal positionSizeMax;
-    private BigDecimal maxPositionValue;
-    private BigDecimal maxOrderValue;
     private Boolean active;
     private Instant createdAt;
     private Instant updatedAt;

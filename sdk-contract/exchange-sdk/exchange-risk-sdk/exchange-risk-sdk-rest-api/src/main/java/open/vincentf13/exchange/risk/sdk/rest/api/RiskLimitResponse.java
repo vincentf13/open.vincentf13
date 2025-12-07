@@ -9,10 +9,6 @@ public record RiskLimitResponse(
         Integer maxLeverage,
         BigDecimal maintenanceMarginRate,
         BigDecimal liquidationFeeRate,
-        BigDecimal positionSizeMin,
-        BigDecimal positionSizeMax,
-        BigDecimal maxPositionValue,
-        BigDecimal maxOrderValue,
         Boolean isActive,
         Instant updatedAt
 ) {

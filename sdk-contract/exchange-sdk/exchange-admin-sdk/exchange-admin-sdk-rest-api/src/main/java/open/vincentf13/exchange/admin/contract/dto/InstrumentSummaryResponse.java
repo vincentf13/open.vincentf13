@@ -13,8 +13,6 @@ public record InstrumentSummaryResponse(
         AssetSymbol quoteAsset,
         InstrumentType instrumentType,
         InstrumentStatus status,
-        BigDecimal tickSize,
-        BigDecimal lotSize,
         BigDecimal contractSize,
         Integer displayOrder,
         Boolean tradable,
