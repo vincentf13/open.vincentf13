@@ -18,7 +18,6 @@ public record InstrumentSummaryResponse(
         BigDecimal contractSize,
         Integer displayOrder,
         Boolean tradable,
-        Boolean visible,
-        BigDecimal takerFeeRate
+        Boolean visible
 ) {
 }
