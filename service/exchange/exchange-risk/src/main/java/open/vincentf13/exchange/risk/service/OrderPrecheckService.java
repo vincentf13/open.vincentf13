@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.risk.service;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
 import open.vincentf13.exchange.risk.infra.cache.InstrumentCache;
@@ -12,98 +11,130 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class OrderPrecheckService {
-
+    
     private final InstrumentCache instrumentCache;
     private final MarkPriceCache markPriceCache;
     private final RiskLimitQueryService riskLimitQueryService;
-
+    
     private static final BigDecimal BUFFER = BigDecimal.ZERO;
-
+    
     public OrderPrecheckResponse precheck(OrderPrecheckRequest request) {
-        Optional<InstrumentSummaryResponse> instrumentOpt = instrumentCache.get(request.getInstrumentId());
-        if (instrumentOpt.isEmpty()) {
-            return response(false, null, null, "Instrument not found");
-        }
-        InstrumentSummaryResponse instrument = instrumentOpt.get();
-        if (!Boolean.TRUE.equals(instrument.tradable())) {
-            return response(false, null, null, "Instrument is not tradable");
-        }
+        // 1. 基礎校驗 (Fail Fast)
+        var instrumentOpt = instrumentCache.get(request.getInstrumentId());
+        if (instrumentOpt.isEmpty())
+            return error("Instrument not found");
+        
+        var instrument = instrumentOpt.get();
+        if (!Boolean.TRUE.equals(instrument.tradable()))
+            return error("Instrument is not tradable");
         
         try {
-            RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(request.getInstrumentId());
-            OrderPrecheckRequest.PositionSnapshot snapshot = request.getPositionSnapshot();
-
+            // 2. 數據上下文準備
+            var riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(request.getInstrumentId());
+            var snapshot = request.getPositionSnapshot();
+            
+            BigDecimal markPrice = resolvePrice(request.getInstrumentId(), snapshot.getMarkPrice());
+            BigDecimal execPrice = request.getPrice() != null ? request.getPrice() : markPrice;
             BigDecimal multiplier = instrument.contractSize();
-            BigDecimal markPrice = markPriceCache.get(request.getInstrumentId())
-                    .orElse(snapshot.getMarkPrice() != null ? snapshot.getMarkPrice() : BigDecimal.ZERO);
-
-            BigDecimal price = request.getPrice() != null ? request.getPrice() : markPrice;
-
-            BigDecimal orderNotional = request.getQuantity().multiply(price).multiply(multiplier);
-
-         
-
-            BigDecimal requiredMargin = BigDecimal.ZERO;
+            
+            // 3. 計算訂單維度數據
+            BigDecimal orderNotional = request.getQuantity().multiply(execPrice).multiply(multiplier);
             BigDecimal fee = orderNotional.multiply(instrument.takerFeeRate());
-
+            
+            // 4. 初始保證金與槓桿檢查 (Initial Margin Check)
+            BigDecimal requiredMargin = BigDecimal.ZERO;
             if (request.getIntent() == PositionIntentType.INCREASE) {
-                Integer leverage =  snapshot.getLeverage();
-                if (leverage > riskLimit.getMaxLeverage()) {
-                    return response(false, null, null, "Leverage exceeds limit");
+                if (snapshot.getLeverage() > riskLimit.getMaxLeverage()) {
+                    return error("Leverage exceeds limit");
                 }
-
-                BigDecimal leverageBd = BigDecimal.valueOf(leverage);
-                // initial margin = orderNotional / leverage
-                BigDecimal marginByLeverage = orderNotional.divide(leverageBd, 8, RoundingMode.HALF_UP);
-                // initial margin rate check
-                BigDecimal marginByRate = orderNotional.multiply(riskLimit.getInitialMarginRate());
-
-                requiredMargin = marginByLeverage.max(marginByRate);
+                requiredMargin = calculateInitialMargin(orderNotional, snapshot.getLeverage(), riskLimit);
             }
-
-            BigDecimal margin = snapshot.getMargin() != null ? snapshot.getMargin() : BigDecimal.ZERO;
-            BigDecimal upnl = snapshot.getUnrealizedPnl() != null ? snapshot.getUnrealizedPnl() : BigDecimal.ZERO;
-            BigDecimal currentEquity = margin.add(upnl);
-
-            BigDecimal simulatedEquity = currentEquity.add(requiredMargin).subtract(fee);
-
-            BigDecimal currentQty = snapshot.getQuantity() != null ? snapshot.getQuantity() : BigDecimal.ZERO;
-            BigDecimal currentNotional = currentQty.abs().multiply(markPrice).multiply(multiplier);
-            BigDecimal simulatedNotional;
-
-            if (request.getIntent() == PositionIntentType.INCREASE) {
-                simulatedNotional = currentNotional.add(orderNotional);
-            } else {
-                simulatedNotional = currentNotional.subtract(orderNotional);
-                if (simulatedNotional.compareTo(BigDecimal.ZERO) < 0) simulatedNotional = BigDecimal.ZERO;
-            }
-
-            if (simulatedNotional.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal simulatedMarginRatio = simulatedEquity.divide(simulatedNotional, 8, RoundingMode.HALF_UP);
-                BigDecimal mmr = riskLimit.getMaintenanceMarginRate().add(BUFFER);
-
-                if (simulatedMarginRatio.compareTo(mmr) < 0) {
-                     return response(false, requiredMargin, fee, "Insufficient margin: Risk of immediate liquidation");
-                }
-            } else {
-                 if (simulatedEquity.compareTo(BigDecimal.ZERO) < 0) {
-                     return response(false, requiredMargin, fee, "Insufficient margin: Bankruptcy risk");
-                 }
-            }
-
-            return response(true, requiredMargin, fee, null);
-
+            
+            // 5. 模擬交易後狀態 (Post-Trade Simulation)
+            return validateLiquidationRisk(snapshot, requiredMargin, fee, orderNotional, markPrice, multiplier, riskLimit, request.getIntent());
+            
         } catch (Exception e) {
-            return response(false, null, null, "Risk check error: " + e.getMessage());
+            return error("Risk check error: " + e.getMessage());
         }
     }
-
-    private OrderPrecheckResponse response(boolean allow, BigDecimal reqMargin, BigDecimal fee, String reason) {
+    
+    // --- 提取出的輔助方法 (Private Helpers) ---
+    
+    private BigDecimal resolvePrice(String instrumentId,
+                                    BigDecimal snapshotPrice) {
+        return markPriceCache.get(instrumentId)
+                             .orElse(snapshotPrice != null ? snapshotPrice : BigDecimal.ZERO);
+    }
+    
+    private BigDecimal calculateInitialMargin(BigDecimal notional,
+                                              Integer leverage,
+                                              RiskLimit riskLimit) {
+        BigDecimal leverageBd = BigDecimal.valueOf(leverage);
+        BigDecimal marginByLeverage = notional.divide(leverageBd, 8, RoundingMode.HALF_UP);
+        BigDecimal marginByRate = notional.multiply(riskLimit.getInitialMarginRate());
+        return marginByLeverage.max(marginByRate);
+    }
+    
+    private OrderPrecheckResponse validateLiquidationRisk(
+            OrderPrecheckRequest.PositionSnapshot snapshot,
+            BigDecimal requiredMargin,
+            BigDecimal fee,
+            BigDecimal orderNotional,
+            BigDecimal markPrice,
+            BigDecimal multiplier,
+            RiskLimit riskLimit,
+            PositionIntentType intent) {
+        
+        BigDecimal currentMargin = snapshot.getMargin() != null ? snapshot.getMargin() : BigDecimal.ZERO;
+        BigDecimal upnl = snapshot.getUnrealizedPnl() != null ? snapshot.getUnrealizedPnl() : BigDecimal.ZERO;
+        
+        // 計算模擬權益
+        BigDecimal simulatedEquity = currentMargin.add(upnl).add(requiredMargin).subtract(fee);
+        
+        // 計算模擬名義價值
+        BigDecimal currentQty = snapshot.getQuantity() != null ? snapshot.getQuantity() : BigDecimal.ZERO;
+        BigDecimal currentNotional = currentQty.abs().multiply(markPrice).multiply(multiplier);
+        
+        BigDecimal simulatedNotional;
+        if (intent == PositionIntentType.INCREASE) {
+            simulatedNotional = currentNotional.add(orderNotional);
+        } else {
+            simulatedNotional = currentNotional.subtract(orderNotional).max(BigDecimal.ZERO);
+        }
+        
+        // 強平風險檢查邏輯
+        if (simulatedNotional.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal simulatedMarginRatio = simulatedEquity.divide(simulatedNotional, 8, RoundingMode.HALF_UP);
+            BigDecimal mmrRequirement = riskLimit.getMaintenanceMarginRate().add(BUFFER);
+            
+            // 成交就爆倉 -> 拒絕
+            if (simulatedMarginRatio.compareTo(mmrRequirement) < 0) {
+                return response(false, requiredMargin, fee, "Insufficient margin: Risk of immediate liquidation");
+            }
+        } else {
+            // 完全平倉
+            
+            // 若虧損到不夠付手續費，不讓平倉
+            if (simulatedEquity.compareTo(BigDecimal.ZERO) < 0) {
+                return response(false, requiredMargin, fee, "Insufficient margin: Bankruptcy risk");
+            }
+        }
+        
+        return response(true, requiredMargin, fee, null);
+    }
+    
+    private OrderPrecheckResponse error(String msg) {
+        return response(false, null, null, msg);
+    }
+    
+    private OrderPrecheckResponse response(boolean allow,
+                                           BigDecimal reqMargin,
+                                           BigDecimal fee,
+                                           String reason) {
         return new OrderPrecheckResponse(allow, reqMargin, fee, reason);
     }
 }
