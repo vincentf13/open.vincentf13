@@ -8,7 +8,6 @@ import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.service.PositionDomainService;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
-import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -25,8 +24,6 @@ public class PositionTradeSettlementService {
 
     @Transactional
     public void handleTradeMarginSettled(@NotNull @Valid TradeMarginSettledEvent event) {
-        OpenValidator.validateOrThrow(event);
-
         Collection<Position> positions = positionDomainService.processMarginSettled(
                 event.userId(),
                 event.instrumentId(),
