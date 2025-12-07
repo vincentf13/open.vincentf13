@@ -129,6 +129,7 @@ public class PositionTradeCloseService {
         BigDecimal marginRatio = position.getMarginRatio();
         BigDecimal liquidationPrice = position.getLiquidationPrice();
         BigDecimal remainingMargin = position.getMargin().subtract(marginToRelease);
+        BigDecimal feeDelta = safe(position.getCumFee()).add(isMaker ? event.makerFee() : event.takerFee());
         if (markPrice != null && newQuantity.compareTo(BigDecimal.ZERO) > 0) {
             unrealizedPnl = position.getSide() == PositionSide.LONG
                             ? markPrice.subtract(position.getEntryPrice()).multiply(newQuantity).multiply(contractMultiplier)
@@ -156,6 +157,7 @@ public class PositionTradeCloseService {
                                   .closingReservedQuantity(newReserved)
                                   .margin(position.getMargin().subtract(marginToRelease))
                                   .cumRealizedPnl(safe(position.getCumRealizedPnl()).add(pnl))
+                                  .cumFee(feeDelta)
                                   .markPrice(markPrice)
                                   .unrealizedPnl(unrealizedPnl)
                                   .marginRatio(marginRatio)
