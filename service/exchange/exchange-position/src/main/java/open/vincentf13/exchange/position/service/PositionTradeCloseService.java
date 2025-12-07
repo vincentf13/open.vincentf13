@@ -185,7 +185,7 @@ public class PositionTradeCloseService {
                 quantity.negate(),
                 marginToRelease.negate(),
                 pnl,
-                BigDecimal.ZERO,
+                isMaker ? event.makerFee() : event.takerFee(),
                 BigDecimal.ZERO,
                 newQuantity,
                 newReserved,
