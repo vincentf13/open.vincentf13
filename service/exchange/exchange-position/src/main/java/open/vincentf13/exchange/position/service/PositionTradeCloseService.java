@@ -77,18 +77,15 @@ public class PositionTradeCloseService {
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
         Position position = optional.orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
                                                                         Map.of("userId", userId, "instrumentId", instrumentId)));
-        BigDecimal availableToClose = position.availableToClose();
-        if (availableToClose.compareTo(quantity) < 0) {
+        BigDecimal reserved = safe(position.getClosingReservedQuantity());
+        BigDecimal existingQty = safe(position.getQuantity());
+        if (quantity.compareTo(reserved) > 0 || quantity.compareTo(existingQty) > 0) {
             throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
                                    Map.of("userId", userId,
                                           "instrumentId", instrumentId,
                                           "requestedQuantity", quantity,
-                                          "availableToClose", availableToClose));
-        }
-        BigDecimal existingQty = position.getQuantity();
-        if (existingQty.compareTo(BigDecimal.ZERO) <= 0) {
-            throw OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
-                                   Map.of("userId", userId, "instrumentId", instrumentId, "orderId", orderId));
+                                          "closingReservedQuantity", reserved,
+                                          "positionQuantity", existingQty));
         }
         BigDecimal marginToRelease = position.getMargin()
                                              .multiply(quantity)
@@ -102,7 +99,7 @@ public class PositionTradeCloseService {
                        .multiply(quantity);
         }
         BigDecimal newQuantity = existingQty.subtract(quantity);
-        BigDecimal newReserved = safe(position.getClosingReservedQuantity()).subtract(quantity).max(BigDecimal.ZERO);
+        BigDecimal newReserved = reserved.subtract(quantity);
         int expectedVersion = position.safeVersion();
         Position update = Position.builder()
                                   .positionId(position.getPositionId())
