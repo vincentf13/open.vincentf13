@@ -166,7 +166,7 @@ public class PositionDomainService {
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
                 .orElse(Position.createDefault(userId, instrumentId, side));
 
-        // 開倉 因併發訂單，變為平倉，需釋放保證金
+        // 開倉 因併發訂單，變為平倉，需釋放保證金，並處理flip的情況
         if(position.getSide() != side){
         
         } else {

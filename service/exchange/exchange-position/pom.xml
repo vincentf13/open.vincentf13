@@ -65,5 +65,9 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-matching-sdk-mq</artifactId>
+        </dependency>
     </dependencies>
 </project>
