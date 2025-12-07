@@ -16,7 +16,8 @@ public enum PositionEvent implements OpenEvent {
     STARTUP_LOADING_RISK_LIMITS("StartupLoadingRiskLimits", "Loading risk limits from Risk service"),
     STARTUP_RISK_LIMITS_LOADED("StartupRiskLimitsLoaded", "Risk limits loaded successfully"),
     STARTUP_RISK_LIMIT_FETCH_FAILED("StartupRiskLimitFetchFailed", "Failed to fetch risk limit for instrument"),
-    STARTUP_RISK_LIMIT_LOAD_PARTIAL("StartupRiskLimitLoadPartial", "Partial risk limit loading");
+    STARTUP_RISK_LIMIT_LOAD_PARTIAL("StartupRiskLimitLoadPartial", "Partial risk limit loading"),
+    STARTUP_CACHE_LOAD_PARTIAL("StartupCacheLoadPartial", "Partial cache loading during startup");
     
     private final String event;
     private final String message;

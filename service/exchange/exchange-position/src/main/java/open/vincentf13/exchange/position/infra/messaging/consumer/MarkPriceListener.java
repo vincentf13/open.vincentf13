@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.position.application.listener;
+package open.vincentf13.exchange.position.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.mq.event.MarkPriceUpdatedEvent;
