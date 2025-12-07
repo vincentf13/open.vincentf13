@@ -5,6 +5,7 @@ import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
 import open.vincentf13.exchange.risk.infra.cache.InstrumentCache;
+import open.vincentf13.exchange.risk.infra.cache.MarkPriceCache;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckResponse;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.util.Optional;
 public class OrderPrecheckService {
 
     private final InstrumentCache instrumentCache;
+    private final MarkPriceCache markPriceCache;
     private final RiskLimitQueryService riskLimitQueryService;
 
     private static final BigDecimal BUFFER = BigDecimal.ZERO;
@@ -41,7 +43,8 @@ public class OrderPrecheckService {
             OrderPrecheckRequest.PositionSnapshot snapshot = request.getPositionSnapshot();
 
             BigDecimal multiplier = instrument.contractSize() != null ? instrument.contractSize() : BigDecimal.ONE;
-            BigDecimal markPrice = snapshot.getMarkPrice() != null ? snapshot.getMarkPrice() : BigDecimal.ZERO;
+            BigDecimal markPrice = markPriceCache.get(request.getInstrumentId())
+                    .orElse(snapshot.getMarkPrice() != null ? snapshot.getMarkPrice() : BigDecimal.ZERO);
 
             BigDecimal price = request.getPrice() != null ? request.getPrice() : markPrice;
 

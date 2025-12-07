@@ -66,5 +66,13 @@
             <groupId>open.vincentf13</groupId>
             <artifactId>exchange-admin-sdk-rest-client</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-market-sdk-rest-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-market-sdk-mq</artifactId>
+        </dependency>
     </dependencies>
 </project>
