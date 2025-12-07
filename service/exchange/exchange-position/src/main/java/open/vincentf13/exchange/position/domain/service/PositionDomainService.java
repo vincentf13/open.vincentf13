@@ -166,7 +166,7 @@ public class PositionDomainService {
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
                 .orElse(Position.createDefault(userId, instrumentId, side));
 
-        if(position.getSide() == PositionSide){
+        if(position.getSide() == side){
         
         }
         
