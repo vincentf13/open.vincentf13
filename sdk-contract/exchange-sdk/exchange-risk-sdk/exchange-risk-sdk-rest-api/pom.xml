@@ -24,5 +24,9 @@
             <groupId>open.vincentf13</groupId>
             <artifactId>sdk-spring-mvc</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-common-sdk</artifactId>
+        </dependency>
     </dependencies>
 </project>
