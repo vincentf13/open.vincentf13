@@ -82,7 +82,7 @@ public class Order {
                     .filledQuantity(BigDecimal.ZERO)
                     .remainingQuantity(normalizedQty)
                     .avgFillPrice(null)
-                    .fee(BigDecimal.ZERO)
+                    .fee(null)
                     .rejectedReason(null)
                     .version(0)
                     .submittedAt(null)

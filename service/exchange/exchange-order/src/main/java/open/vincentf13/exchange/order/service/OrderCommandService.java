@@ -65,18 +65,14 @@ public class OrderCommandService {
                 return rejectOrder(order, intentResponse.rejectReason());
             }
             
+            
+            OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, intentResponse.positionSnapshot());
+            if (!precheck.isAllow()) {
+                return rejectOrder(order, Optional.ofNullable(precheck.getReason()).orElse("riskRejected"));
+            }
+            
             Instant now = Instant.now();
-            PositionResponse positionSnapshot = intentResponse.positionSnapshot();
-
             if (intentType == PositionIntentType.INCREASE) {
-                OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, positionSnapshot);
-                if (!precheck.isAllow()) {
-                    return rejectOrder(order,
-                                       Optional.ofNullable(precheck.getReason()).orElse("riskRejected"));
-                }
-                BigDecimal fee = Optional.ofNullable(precheck.getFee()).orElse(BigDecimal.ZERO);
-                BigDecimal requiredMargin = Optional.ofNullable(precheck.getRequiredMargin()).orElse(BigDecimal.ZERO);
-                order.setFee(fee);
                 order.setStatus(OrderStatus.FREEZING_MARGIN);
                 Instant eventTime = now;
                 transactionTemplate.executeWithoutResult(status -> {
@@ -85,8 +81,8 @@ public class OrderCommandService {
                             order.getOrderId(),
                             userId,
                             request.instrumentId(),
-                            requiredMargin,
-                            fee,
+                            precheck.getRequiredMargin(),
+                            precheck.getFee(),
                             eventTime
                     ));
                 });
@@ -113,8 +109,8 @@ public class OrderCommandService {
             }
             
             return loadPersistedOrder(order.getOrderId())
-                    .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
-                    .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
+                           .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
+                           .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
         } catch (DuplicateKeyException ex) {
             OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
                          "userId", userId,
@@ -158,7 +154,7 @@ public class OrderCommandService {
                 () -> exchangeRiskClient.precheckOrder(precheckRequest),
                 msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                         Map.of("instrumentId", order.getInstrumentId(), "reason", msg))
-        );
+                                        );
     }
     
     private Optional<Order> loadPersistedOrder(Long orderId) {
@@ -166,7 +162,7 @@ public class OrderCommandService {
             return Optional.empty();
         }
         return orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
-                                                .eq(OrderPO::getOrderId, orderId));
+                                               .eq(OrderPO::getOrderId, orderId));
     }
     
     private PositionSide toPositionSide(OrderSide orderSide) {
@@ -177,15 +173,15 @@ public class OrderCommandService {
                ? PositionSide.LONG
                : PositionSide.SHORT;
     }
-
+    
     private OrderResponse rejectOrder(Order order,
                                       String reason) {
         order.setStatus(OrderStatus.REJECTED);
         order.setRejectedReason(reason);
         transactionTemplate.executeWithoutResult(status -> orderRepository.insertSelective(order));
         return loadPersistedOrder(order.getOrderId())
-                .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
-                .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
+                       .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
+                       .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
     }
-  
+    
 }

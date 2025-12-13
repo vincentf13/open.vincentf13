@@ -134,7 +134,7 @@ public class OrderPrecheckService {
                 return new OrderPrecheckResponse(false, requiredMargin, fee, "Insufficient margin: Risk of immediate liquidation");
             }
         } else {
-            // 完全平倉
+            // 平倉
             
             // 若虧損到不夠付手續費，不讓平倉
             if (simulatedEquity.compareTo(BigDecimal.ZERO) < 0) {
