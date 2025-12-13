@@ -56,15 +56,17 @@ public class OrderCommandService {
                     msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                             Map.of("userId", userId, "instrumentId", request.instrumentId(), "remoteMessage", msg))
                                                                              );
-            PositionIntentType intentType = intentResponse.intentType();
-            order.setIntent(intentType);
-            Instant now = Instant.now();
-            if (intentType == null) {
+            if (intentResponse.intentType() == null) {
                 return rejectOrder(order, "intentMissing");
             }
             if (intentResponse.rejectReason() != null) {
                 return rejectOrder(order, intentResponse.rejectReason());
             }
+            
+            PositionIntentType intentType = intentResponse.intentType();
+            order.setIntent(intentType);
+            Instant now = Instant.now();
+            
             PositionResponse positionSnapshot = intentResponse.positionSnapshot();
 
             if (intentType == PositionIntentType.INCREASE) {
