@@ -27,11 +27,11 @@ public class OrderPrecheckService {
         // 1. 基礎校驗 (Fail Fast)
         var instrumentOpt = instrumentCache.get(request.getInstrumentId());
         if (instrumentOpt.isEmpty())
-            return error("Instrument not found");
+            return new OrderPrecheckResponse(false, null, null, "Instrument not found");
         
         var instrument = instrumentOpt.get();
         if (!Boolean.TRUE.equals(instrument.tradable()))
-            return error("Instrument is not tradable");
+            return new OrderPrecheckResponse(false, null, null, "Instrument is not tradable");
         
         try {
             // 2. 數據上下文準備
@@ -47,19 +47,19 @@ public class OrderPrecheckService {
             BigDecimal fee = orderNotional.multiply(instrument.takerFeeRate());
             
             // 4. 初始保證金與槓桿檢查 (Initial Margin Check)
-        BigDecimal requiredMargin = BigDecimal.ZERO;
-        if (request.getIntent() == PositionIntentType.INCREASE) {
-            if (Objects.compare(snapshot.getLeverage(), riskLimit.getMaxLeverage(), Integer::compare) > 0) {
-                return error("Leverage exceeds limit");
+            BigDecimal requiredMargin = BigDecimal.ZERO;
+            if (request.getIntent() == PositionIntentType.INCREASE) {
+                if (Objects.compare(snapshot.getLeverage(), riskLimit.getMaxLeverage(), Integer::compare) > 0) {
+                    return new OrderPrecheckResponse(false, null, null, "Leverage exceeds limit");
+                }
+                requiredMargin = calculateInitialMargin(orderNotional, snapshot.getLeverage(), riskLimit);
             }
-            requiredMargin = calculateInitialMargin(orderNotional, snapshot.getLeverage(), riskLimit);
-        }
             
             // 5. 模擬交易後狀態 (Post-Trade Simulation)
             return validateLiquidationRisk(snapshot, requiredMargin, fee, orderNotional, markPrice, multiplier, riskLimit, request.getIntent());
             
         } catch (Exception e) {
-            return error("Risk check error: " + e.getMessage());
+            return new OrderPrecheckResponse(false, null, null, "Risk check error: " + e.getMessage());
         }
     }
     
@@ -67,8 +67,8 @@ public class OrderPrecheckService {
     private OrderPrecheckRequest.PositionSnapshot normalizeSnapshot(OrderPrecheckRequest.PositionSnapshot snapshot,
                                                                     Long instrumentId) {
         OrderPrecheckRequest.PositionSnapshot normalized = snapshot != null
-                ? snapshot
-                : new OrderPrecheckRequest.PositionSnapshot();
+                                                           ? snapshot
+                                                           : new OrderPrecheckRequest.PositionSnapshot();
         if (normalized.getLeverage() == null || normalized.getLeverage() <= 0) {
             normalized.setLeverage(1);
         }
@@ -113,9 +113,9 @@ public class OrderPrecheckService {
         
         // 計算模擬名義價值
         BigDecimal currentNotional = snapshot.getQuantity()
-                                            .abs()
-                                            .multiply(markPrice)
-                                            .multiply(multiplier);
+                                             .abs()
+                                             .multiply(markPrice)
+                                             .multiply(multiplier);
         
         BigDecimal simulatedNotional;
         if (intent == PositionIntentType.INCREASE) {
@@ -131,28 +131,18 @@ public class OrderPrecheckService {
             
             // 成交就爆倉 -> 拒絕
             if (simulatedMarginRatio.compareTo(mmrRequirement) < 0) {
-                return response(false, requiredMargin, fee, "Insufficient margin: Risk of immediate liquidation");
+                return new OrderPrecheckResponse(false, requiredMargin, fee, "Insufficient margin: Risk of immediate liquidation");
             }
         } else {
             // 完全平倉
             
             // 若虧損到不夠付手續費，不讓平倉
             if (simulatedEquity.compareTo(BigDecimal.ZERO) < 0) {
-                return response(false, requiredMargin, fee, "Insufficient margin: Bankruptcy risk");
+                return new OrderPrecheckResponse(false, requiredMargin, fee, "Insufficient margin: Bankruptcy risk");
             }
         }
         
-        return response(true, requiredMargin, fee, null);
+        return new OrderPrecheckResponse(true, requiredMargin, fee, null);
     }
     
-    private OrderPrecheckResponse error(String msg) {
-        return response(false, null, null, msg);
-    }
-    
-    private OrderPrecheckResponse response(boolean allow,
-                                           BigDecimal reqMargin,
-                                           BigDecimal fee,
-                                           String reason) {
-        return new OrderPrecheckResponse(allow, reqMargin, fee, reason);
-    }
 }
