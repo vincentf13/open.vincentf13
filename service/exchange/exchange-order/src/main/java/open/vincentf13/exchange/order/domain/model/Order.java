@@ -53,6 +53,7 @@ public class Order {
     private BigDecimal avgFillPrice;
     @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true)
     private BigDecimal fee;
+    private String rejectedReason;
     private Integer version;
     private Instant createdAt;
     private Instant updatedAt;
@@ -82,6 +83,7 @@ public class Order {
                     .remainingQuantity(normalizedQty)
                     .avgFillPrice(null)
                     .fee(BigDecimal.ZERO)
+                    .rejectedReason(null)
                     .version(0)
                     .submittedAt(null)
                     .filledAt(null)

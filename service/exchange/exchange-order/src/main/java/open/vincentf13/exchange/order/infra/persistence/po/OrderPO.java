@@ -37,6 +37,7 @@ public class OrderPO {
     private BigDecimal remainingQuantity;
     private BigDecimal avgFillPrice;
     private BigDecimal fee;
+    private String rejectedReason;
     private Integer version;
     private Integer expectedVersion;
     private Instant createdAt;

@@ -26,6 +26,7 @@ public record OrderResponse(
         @NotNull BigDecimal remainingQuantity,
         BigDecimal avgFillPrice,
         @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true) BigDecimal fee,
+        String rejectedReason,
         Integer version,
         @NotNull Instant createdAt,
         Instant updatedAt
