@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +36,7 @@ public class OrderPrecheckService {
         try {
             // 2. 數據上下文準備
             var riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(request.getInstrumentId());
-            var snapshot = request.getPositionSnapshot();
+            var snapshot = normalizeSnapshot(request.getPositionSnapshot());
             
             BigDecimal markPrice = resolvePrice(request.getInstrumentId(), snapshot.getMarkPrice());
             BigDecimal execPrice = request.getPrice() != null ? request.getPrice() : markPrice;
@@ -48,10 +49,13 @@ public class OrderPrecheckService {
             // 4. 初始保證金與槓桿檢查 (Initial Margin Check)
             BigDecimal requiredMargin = BigDecimal.ZERO;
             if (request.getIntent() == PositionIntentType.INCREASE) {
-                if (snapshot.getLeverage() > riskLimit.getMaxLeverage()) {
+                Integer leverage = snapshot.getLeverage() != null && snapshot.getLeverage() > 0
+                        ? snapshot.getLeverage()
+                        : riskLimit.getMaxLeverage();
+                if (Objects.compare(leverage, riskLimit.getMaxLeverage(), Integer::compare) > 0) {
                     return error("Leverage exceeds limit");
                 }
-                requiredMargin = calculateInitialMargin(orderNotional, snapshot.getLeverage(), riskLimit);
+                requiredMargin = calculateInitialMargin(orderNotional, leverage, riskLimit);
             }
             
             // 5. 模擬交易後狀態 (Post-Trade Simulation)
@@ -67,6 +71,25 @@ public class OrderPrecheckService {
                                     BigDecimal snapshotPrice) {
         return markPriceCache.get(instrumentId)
                              .orElse(snapshotPrice != null ? snapshotPrice : BigDecimal.ZERO);
+    }
+    
+    private OrderPrecheckRequest.PositionSnapshot normalizeSnapshot(OrderPrecheckRequest.PositionSnapshot snapshot) {
+        OrderPrecheckRequest.PositionSnapshot normalized = snapshot != null
+                ? snapshot
+                : new OrderPrecheckRequest.PositionSnapshot();
+        if (normalized.getLeverage() == null || normalized.getLeverage() <= 0) {
+            normalized.setLeverage(1);
+        }
+        if (normalized.getMargin() == null) {
+            normalized.setMargin(BigDecimal.ZERO);
+        }
+        if (normalized.getQuantity() == null) {
+            normalized.setQuantity(BigDecimal.ZERO);
+        }
+        if (normalized.getUnrealizedPnl() == null) {
+            normalized.setUnrealizedPnl(BigDecimal.ZERO);
+        }
+        return normalized;
     }
     
     private BigDecimal calculateInitialMargin(BigDecimal notional,
