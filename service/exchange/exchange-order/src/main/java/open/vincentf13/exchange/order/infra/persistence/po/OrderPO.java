@@ -28,10 +28,10 @@ public class OrderPO {
     private Long instrumentId;
     private String clientOrderId;
     private OrderSide side;
-    private PositionIntentType intent;
     private OrderType type;
     private BigDecimal price;
     private BigDecimal quantity;
+    private PositionIntentType intent;
     private BigDecimal filledQuantity;
     private BigDecimal remainingQuantity;
     private BigDecimal avgFillPrice;

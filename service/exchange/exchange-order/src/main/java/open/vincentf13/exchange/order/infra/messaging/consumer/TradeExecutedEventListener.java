@@ -11,17 +11,20 @@ import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
+import open.vincentf13.exchange.order.infra.persistence.repository.OrderEventRepository;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,6 +33,10 @@ import java.util.Set;
 public class TradeExecutedEventListener {
 
     private final OrderRepository orderRepository;
+    private final OrderEventRepository orderEventRepository;
+    private final TransactionTemplate transactionTemplate;
+    private static final String REFERENCE_TRADE = "TRADE";
+    private static final String ACTOR_MATCHING = "MATCHING_ENGINE";
     private static final Set<OrderStatus> UPDATABLE_STATUSES =
             EnumSet.of(OrderStatus.NEW,
                        OrderStatus.PARTIALLY_FILLED,
@@ -42,54 +49,97 @@ public class TradeExecutedEventListener {
     public void onTradeExecuted(@Payload TradeExecutedEvent event,
                                 Acknowledgment acknowledgment) {
         OpenValidator.validateOrThrow(event);
-        applyFill(event.orderId(), event.price(), event.quantity(), event.makerFee(), event.executedAt());
-        applyFill(event.counterpartyOrderId(), event.price(), event.quantity(), event.takerFee(), event.executedAt());
+        applyFill(event.tradeId(),
+                  event.orderId(),
+                  event.price(),
+                  event.quantity(),
+                  event.makerFee(),
+                  event.executedAt());
+        applyFill(event.tradeId(),
+                  event.counterpartyOrderId(),
+                  event.price(),
+                  event.quantity(),
+                  event.takerFee(),
+                  event.executedAt());
         acknowledgment.acknowledge();
     }
 
-    private void applyFill(Long targetOrderId,
+    private void applyFill(Long tradeId,
+                           Long targetOrderId,
                            BigDecimal price,
                            BigDecimal filledQuantity,
                            BigDecimal feeDelta,
                            Instant executedAt) {
-        Order order = orderRepository.findOne(
-                        Wrappers.<OrderPO>lambdaQuery()
-                                .eq(OrderPO::getOrderId, targetOrderId))
-                .orElse(null);
-        if (order == null) {
-            OpenLog.warn(OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", targetOrderId));
-            return;
-        }
-        if (!UPDATABLE_STATUSES.contains(order.getStatus())) {
-            return;
-        }
-        BigDecimal previousFilled = order.getFilledQuantity();
-        BigDecimal newFilled = previousFilled.add(filledQuantity);
-        if (newFilled.compareTo(order.getQuantity()) > 0) {
-            newFilled = order.getQuantity();
-        }
-        BigDecimal newRemaining = order.getQuantity().subtract(newFilled).max(BigDecimal.ZERO);
-        BigDecimal totalValueBefore = order.getAvgFillPrice() == null
-                                      ? BigDecimal.ZERO
-                                      : order.getAvgFillPrice().multiply(previousFilled);
-        BigDecimal totalValueAfter = totalValueBefore.add(price.multiply(filledQuantity));
-        BigDecimal newAvgPrice = newFilled.compareTo(BigDecimal.ZERO) == 0
-                                 ? order.getAvgFillPrice()
-                                 : totalValueAfter.divide(newFilled, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
-        order.setFilledQuantity(newFilled);
-        order.setRemainingQuantity(newRemaining);
-        order.setAvgFillPrice(newAvgPrice);
-        order.setFee(order.getFee() == null ? feeDelta : order.getFee().add(feeDelta));
-        order.setStatus(newRemaining.compareTo(BigDecimal.ZERO) == 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED);
-        order.setFilledAt(newRemaining.compareTo(BigDecimal.ZERO) == 0 ? executedAt : null);
-        int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
-        order.setVersion(expectedVersion + 1);
-        LambdaUpdateWrapper<OrderPO> updateWrapper = Wrappers.<OrderPO>lambdaUpdate()
-                                                             .eq(OrderPO::getOrderId, targetOrderId)
-                                                             .eq(OrderPO::getVersion, expectedVersion);
-        boolean updated = orderRepository.updateSelective(order, updateWrapper);
-        if (!updated) {
-            OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", targetOrderId));
-        }
+        transactionTemplate.executeWithoutResult(status -> {
+            if (orderEventRepository.existsByReference(targetOrderId, REFERENCE_TRADE, tradeId)) {
+                return;
+            }
+            Order order = orderRepository.findOne(
+                            Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, targetOrderId))
+                    .orElse(null);
+            if (order == null) {
+                OpenLog.warn(OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE,
+                             Map.of("orderId", targetOrderId,
+                                    "tradeId", tradeId));
+                return;
+            }
+            if (!UPDATABLE_STATUSES.contains(order.getStatus())) {
+                return;
+            }
+            BigDecimal previousFilled = order.getFilledQuantity() == null ? BigDecimal.ZERO : order.getFilledQuantity();
+            BigDecimal orderQuantity = order.getQuantity();
+            BigDecimal newFilled = previousFilled.add(filledQuantity);
+            if (newFilled.compareTo(orderQuantity) > 0) {
+                newFilled = orderQuantity;
+            }
+            BigDecimal newRemaining = orderQuantity.subtract(newFilled);
+            if (newRemaining.compareTo(BigDecimal.ZERO) < 0) {
+                newRemaining = BigDecimal.ZERO;
+            }
+            BigDecimal totalValueBefore = order.getAvgFillPrice() == null
+                                          ? BigDecimal.ZERO
+                                          : order.getAvgFillPrice().multiply(previousFilled);
+            BigDecimal totalValueAfter = totalValueBefore.add(price.multiply(filledQuantity));
+            BigDecimal newAvgPrice = newFilled.compareTo(BigDecimal.ZERO) == 0
+                                     ? order.getAvgFillPrice()
+                                     : totalValueAfter.divide(newFilled, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            order.setFilledQuantity(newFilled);
+            order.setRemainingQuantity(newRemaining);
+            order.setAvgFillPrice(newAvgPrice);
+            order.setFee(order.getFee() == null ? feeDelta : order.getFee().add(feeDelta));
+            boolean orderFilled = newRemaining.compareTo(BigDecimal.ZERO) == 0;
+            order.setStatus(orderFilled ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED);
+            if (orderFilled && order.getFilledAt() == null) {
+                order.setFilledAt(executedAt);
+            }
+            int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
+            order.setVersion(expectedVersion + 1);
+            LambdaUpdateWrapper<OrderPO> updateWrapper = Wrappers.<OrderPO>lambdaUpdate()
+                                                                 .eq(OrderPO::getOrderId, targetOrderId)
+                                                                 .eq(OrderPO::getVersion, expectedVersion);
+            boolean updated = orderRepository.updateSelective(order, updateWrapper);
+            if (!updated) {
+                OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK,
+                             Map.of("orderId", targetOrderId,
+                                    "tradeId", tradeId));
+                status.setRollbackOnly();
+                return;
+            }
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("tradeId", tradeId);
+            payload.put("fillPrice", price);
+            payload.put("fillQuantity", filledQuantity);
+            payload.put("feeDelta", feeDelta);
+            payload.put("filledQuantity", order.getFilledQuantity());
+            payload.put("remainingQuantity", order.getRemainingQuantity());
+            payload.put("status", order.getStatus().name());
+            orderEventRepository.append(order,
+                                        "ORDER_TRADE_FILLED",
+                                        ACTOR_MATCHING,
+                                        executedAt,
+                                        payload,
+                                        REFERENCE_TRADE,
+                                        tradeId);
+        });
     }
 }

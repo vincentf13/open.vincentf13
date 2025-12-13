@@ -13,6 +13,7 @@ import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
+import open.vincentf13.exchange.order.infra.persistence.repository.OrderEventRepository;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
@@ -35,6 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -45,6 +47,7 @@ public class OrderCommandService {
     
     private final OrderRepository orderRepository;
     private final OrderEventPublisher orderEventPublisher;
+    private final OrderEventRepository orderEventRepository;
     private final ExchangePositionClient exchangePositionClient;
     private final ExchangeRiskClient exchangeRiskClient;
     private final TransactionTemplate transactionTemplate;
@@ -78,6 +81,13 @@ public class OrderCommandService {
                 Instant eventTime = Instant.now();
                 transactionTemplate.executeWithoutResult(status -> {
                     orderRepository.insertSelective(order);
+                    recordOrderEvent(order,
+                                     "ORDER_CREATED",
+                                     actorFromUser(userId),
+                                     Instant.now(),
+                                     orderCreatedPayload(order),
+                                     "REQUEST",
+                                     null);
                     orderEventPublisher.publishFundsFreezeRequested(new FundsFreezeRequestedEvent(
                             order.getOrderId(),
                             userId,
@@ -93,6 +103,13 @@ public class OrderCommandService {
                 order.setSubmittedAt(submittedAt);
                 transactionTemplate.executeWithoutResult(status -> {
                     orderRepository.insertSelective(order);
+                    recordOrderEvent(order,
+                                     "ORDER_CREATED",
+                                     actorFromUser(userId),
+                                     submittedAt,
+                                     orderCreatedPayload(order),
+                                     "REQUEST",
+                                     null);
                     orderEventPublisher.publishOrderCreated(new OrderCreatedEvent(
                             order.getOrderId(),
                             userId,
@@ -178,10 +195,47 @@ public class OrderCommandService {
                                       String reason) {
         order.setStatus(OrderStatus.REJECTED);
         order.setRejectedReason(reason);
-        transactionTemplate.executeWithoutResult(status -> orderRepository.insertSelective(order));
+        transactionTemplate.executeWithoutResult(status -> {
+            orderRepository.insertSelective(order);
+            recordOrderEvent(order,
+                             "ORDER_REJECTED",
+                             actorFromUser(order.getUserId()),
+                             Instant.now(),
+                             Map.of("reason", reason),
+                             "RISK_CHECK",
+                             null);
+        });
         return loadPersistedOrder(order.getOrderId())
                        .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
                        .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
     }
     
+    private String actorFromUser(Long userId) {
+        return "USER:" + userId;
+    }
+
+    private Map<String, Object> orderCreatedPayload(Order order) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("status", order.getStatus() != null ? order.getStatus().name() : null);
+        payload.put("userId", order.getUserId());
+        payload.put("instrumentId", order.getInstrumentId());
+        payload.put("side", order.getSide() != null ? order.getSide().name() : null);
+        payload.put("type", order.getType() != null ? order.getType().name() : null);
+        payload.put("price", order.getPrice());
+        payload.put("quantity", order.getQuantity());
+        payload.put("intent", order.getIntent() != null ? order.getIntent().name() : null);
+        payload.put("clientOrderId", order.getClientOrderId());
+        payload.put("submittedAt", order.getSubmittedAt());
+        return payload;
+    }
+
+    private void recordOrderEvent(Order order,
+                                  String eventType,
+                                  String actor,
+                                  Instant occurredAt,
+                                  Object payload,
+                                  String referenceType,
+                                  Long referenceId) {
+        orderEventRepository.append(order, eventType, actor, occurredAt, payload, referenceType, referenceId);
+    }
 }
