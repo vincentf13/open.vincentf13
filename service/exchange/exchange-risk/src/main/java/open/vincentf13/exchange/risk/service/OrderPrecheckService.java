@@ -36,9 +36,9 @@ public class OrderPrecheckService {
         try {
             // 2. 數據上下文準備
             var riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(request.getInstrumentId());
-            var snapshot = normalizeSnapshot(request.getPositionSnapshot());
+            var snapshot = normalizeSnapshot(request.getPositionSnapshot(), request.getInstrumentId());
             
-            BigDecimal markPrice = resolvePrice(request.getInstrumentId(), snapshot.getMarkPrice());
+            BigDecimal markPrice = snapshot.getMarkPrice();
             BigDecimal execPrice = request.getPrice() != null ? request.getPrice() : markPrice;
             BigDecimal multiplier = instrument.contractSize();
             
@@ -47,16 +47,13 @@ public class OrderPrecheckService {
             BigDecimal fee = orderNotional.multiply(instrument.takerFeeRate());
             
             // 4. 初始保證金與槓桿檢查 (Initial Margin Check)
-            BigDecimal requiredMargin = BigDecimal.ZERO;
-            if (request.getIntent() == PositionIntentType.INCREASE) {
-                Integer leverage = snapshot.getLeverage() != null && snapshot.getLeverage() > 0
-                        ? snapshot.getLeverage()
-                        : riskLimit.getMaxLeverage();
-                if (Objects.compare(leverage, riskLimit.getMaxLeverage(), Integer::compare) > 0) {
-                    return error("Leverage exceeds limit");
-                }
-                requiredMargin = calculateInitialMargin(orderNotional, leverage, riskLimit);
+        BigDecimal requiredMargin = BigDecimal.ZERO;
+        if (request.getIntent() == PositionIntentType.INCREASE) {
+            if (Objects.compare(snapshot.getLeverage(), riskLimit.getMaxLeverage(), Integer::compare) > 0) {
+                return error("Leverage exceeds limit");
             }
+            requiredMargin = calculateInitialMargin(orderNotional, snapshot.getLeverage(), riskLimit);
+        }
             
             // 5. 模擬交易後狀態 (Post-Trade Simulation)
             return validateLiquidationRisk(snapshot, requiredMargin, fee, orderNotional, markPrice, multiplier, riskLimit, request.getIntent());
@@ -67,13 +64,8 @@ public class OrderPrecheckService {
     }
     
     
-    private BigDecimal resolvePrice(Long instrumentId,
-                                    BigDecimal snapshotPrice) {
-        return markPriceCache.get(instrumentId)
-                             .orElse(snapshotPrice != null ? snapshotPrice : BigDecimal.ZERO);
-    }
-    
-    private OrderPrecheckRequest.PositionSnapshot normalizeSnapshot(OrderPrecheckRequest.PositionSnapshot snapshot) {
+    private OrderPrecheckRequest.PositionSnapshot normalizeSnapshot(OrderPrecheckRequest.PositionSnapshot snapshot,
+                                                                    Long instrumentId) {
         OrderPrecheckRequest.PositionSnapshot normalized = snapshot != null
                 ? snapshot
                 : new OrderPrecheckRequest.PositionSnapshot();
@@ -89,6 +81,9 @@ public class OrderPrecheckService {
         if (normalized.getUnrealizedPnl() == null) {
             normalized.setUnrealizedPnl(BigDecimal.ZERO);
         }
+        if (normalized.getMarkPrice() == null || normalized.getMarkPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            normalized.setMarkPrice(markPriceCache.get(instrumentId).orElse(BigDecimal.ZERO));
+        }
         return normalized;
     }
     
@@ -101,25 +96,26 @@ public class OrderPrecheckService {
         return marginByLeverage.max(marginByRate);
     }
     
-    private OrderPrecheckResponse validateLiquidationRisk(
-            OrderPrecheckRequest.PositionSnapshot snapshot,
-            BigDecimal requiredMargin,
-            BigDecimal fee,
-            BigDecimal orderNotional,
-            BigDecimal markPrice,
-            BigDecimal multiplier,
-            RiskLimit riskLimit,
-            PositionIntentType intent) {
-        
-        BigDecimal currentMargin = snapshot.getMargin() != null ? snapshot.getMargin() : BigDecimal.ZERO;
-        BigDecimal upnl = snapshot.getUnrealizedPnl() != null ? snapshot.getUnrealizedPnl() : BigDecimal.ZERO;
+    private OrderPrecheckResponse validateLiquidationRisk(OrderPrecheckRequest.PositionSnapshot snapshot,
+                                                          BigDecimal requiredMargin,
+                                                          BigDecimal fee,
+                                                          BigDecimal orderNotional,
+                                                          BigDecimal markPrice,
+                                                          BigDecimal multiplier,
+                                                          RiskLimit riskLimit,
+                                                          PositionIntentType intent) {
         
         // 計算模擬權益
-        BigDecimal simulatedEquity = currentMargin.add(upnl).add(requiredMargin).subtract(fee);
+        BigDecimal simulatedEquity = snapshot.getMargin()
+                                             .add(snapshot.getUnrealizedPnl())
+                                             .add(requiredMargin)
+                                             .subtract(fee);
         
         // 計算模擬名義價值
-        BigDecimal currentQty = snapshot.getQuantity() != null ? snapshot.getQuantity() : BigDecimal.ZERO;
-        BigDecimal currentNotional = currentQty.abs().multiply(markPrice).multiply(multiplier);
+        BigDecimal currentNotional = snapshot.getQuantity()
+                                            .abs()
+                                            .multiply(markPrice)
+                                            .multiply(multiplier);
         
         BigDecimal simulatedNotional;
         if (intent == PositionIntentType.INCREASE) {
