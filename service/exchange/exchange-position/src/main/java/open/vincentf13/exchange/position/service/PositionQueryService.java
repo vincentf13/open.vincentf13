@@ -29,7 +29,7 @@ public class PositionQueryService {
     
     private final PositionRepository positionRepository;
     
-    public PositionIntentResponse determineIntent(@NotNull @Valid PositionIntentRequest request) {
+    public PositionIntentResponse prepareIntent(@NotNull @Valid PositionIntentRequest request) {
         var activePosition = positionRepository.findOne(
                 Wrappers.lambdaQuery(PositionPO.class)
                         .eq(PositionPO::getUserId, request.userId())

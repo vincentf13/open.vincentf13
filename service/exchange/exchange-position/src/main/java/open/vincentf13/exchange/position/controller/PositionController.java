@@ -19,7 +19,7 @@ public class PositionController implements PositionApi {
     
     @Override
     public OpenApiResponse<PositionIntentResponse> prepareIntent(PositionIntentRequest request) {
-        return OpenApiResponse.success(positionQueryService.determineIntent(request));
+        return OpenApiResponse.success(positionQueryService.prepareIntent(request));
     }
     
     @Override
