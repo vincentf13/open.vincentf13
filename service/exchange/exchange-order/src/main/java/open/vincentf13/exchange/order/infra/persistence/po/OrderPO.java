@@ -29,7 +29,6 @@ public class OrderPO {
     private String clientOrderId;
     private OrderSide side;
     private PositionIntentType intent;
-    private BigDecimal closingEntryPrice;
     private OrderType type;
     private OrderStatus status;
     private BigDecimal price;

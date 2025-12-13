@@ -67,7 +67,7 @@ public class PositionQueryService {
             return PositionIntentResponse.ofRejected(intentType, existing,
                                                      PositionErrorCode.POSITION_CONCURRENT_UPDATE.code());
         }
-        return PositionIntentResponse.of(intentType, existing, position.getEntryPrice());
+        return PositionIntentResponse.of(intentType, existing);
     }
     
     public PositionResponse getPosition(@NotNull Long userId,

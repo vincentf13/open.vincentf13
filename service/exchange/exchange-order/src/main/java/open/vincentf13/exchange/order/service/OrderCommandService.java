@@ -46,14 +46,7 @@ public class OrderCommandService {
             PositionIntentResponse intentResponse = determineIntent(userId, request);
             PositionIntentType intentType = intentResponse.intentType();
             order.setIntent(intentType);
-            if (isClosingIntent(intentType)) {
-                if (intentResponse.closingEntryPrice() == null) {
-                    throw OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
-                                           Map.of("instrumentId", request.instrumentId(), "reason", "closingEntryPriceMissing"));
-                }
-                order.setClosingEntryPrice(intentResponse.closingEntryPrice());
-            }
- 
+
             
             return null;
         } catch (DuplicateKeyException ex) {
@@ -100,10 +93,5 @@ public class OrderCommandService {
                ? PositionSide.LONG
                : PositionSide.SHORT;
     }
-    
-    private boolean isClosingIntent(PositionIntentType intentType) {
-        return intentType == PositionIntentType.REDUCE || intentType == PositionIntentType.CLOSE;
-    }
-    
   
 }

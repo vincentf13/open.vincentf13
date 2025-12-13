@@ -35,8 +35,6 @@ public class Order {
     @NotNull
     private OrderSide side;
     private PositionIntentType intent;
-    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
-    private BigDecimal closingEntryPrice;
     @NotNull
     private OrderType type;
     @NotNull
@@ -76,7 +74,6 @@ public class Order {
                     .clientOrderId(trimToNull(request.clientOrderId()))
                     .side(request.side())
                     .intent(null)
-                    .closingEntryPrice(null)
                     .type(request.type())
                     .status(OrderStatus.CREATED)
                     .price(normalizedPrice)

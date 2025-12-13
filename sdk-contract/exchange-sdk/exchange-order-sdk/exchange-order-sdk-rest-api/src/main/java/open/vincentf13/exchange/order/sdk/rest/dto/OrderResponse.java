@@ -18,7 +18,6 @@ public record OrderResponse(
         @NotNull Long instrumentId,
         @NotNull OrderSide side,
         @NotNull PositionIntentType intent,
-        BigDecimal closingEntryPrice,
         @NotNull OrderType type,
         @NotNull OrderStatus status,
         @DecimalMin(value = ValidationConstant.Names.PRICE_MIN) BigDecimal price,
