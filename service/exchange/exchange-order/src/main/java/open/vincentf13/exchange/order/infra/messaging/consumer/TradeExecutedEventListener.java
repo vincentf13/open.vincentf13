@@ -12,6 +12,8 @@ import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderEventRepository;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventReferenceType;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventType;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -35,7 +37,6 @@ public class TradeExecutedEventListener {
     private final OrderRepository orderRepository;
     private final OrderEventRepository orderEventRepository;
     private final TransactionTemplate transactionTemplate;
-    private static final String REFERENCE_TRADE = "TRADE";
     private static final String ACTOR_MATCHING = "MATCHING_ENGINE";
     private static final Set<OrderStatus> UPDATABLE_STATUSES =
             EnumSet.of(OrderStatus.NEW,
@@ -71,7 +72,7 @@ public class TradeExecutedEventListener {
                            BigDecimal feeDelta,
                            Instant executedAt) {
         transactionTemplate.executeWithoutResult(status -> {
-            if (orderEventRepository.existsByReference(targetOrderId, REFERENCE_TRADE, tradeId)) {
+            if (orderEventRepository.existsByReference(targetOrderId, OrderEventReferenceType.TRADE, tradeId)) {
                 return;
             }
             Order order = orderRepository.findOne(
@@ -134,11 +135,11 @@ public class TradeExecutedEventListener {
             payload.put("remainingQuantity", order.getRemainingQuantity());
             payload.put("status", order.getStatus().name());
             orderEventRepository.append(order,
-                                        "ORDER_TRADE_FILLED",
+                                        OrderEventType.ORDER_TRADE_FILLED,
                                         ACTOR_MATCHING,
                                         executedAt,
                                         payload,
-                                        REFERENCE_TRADE,
+                                        OrderEventReferenceType.TRADE,
                                         tradeId);
         });
     }

@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventReferenceType;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventType;
 
 import java.time.Instant;
 
@@ -22,10 +24,10 @@ public class OrderEventPO {
     private Long userId;
     private Long instrumentId;
     private Long orderId;
-    private String eventType;
+    private OrderEventType eventType;
     private Long sequenceNumber;
     private String payload;
-    private String referenceType;
+    private OrderEventReferenceType referenceType;
     private Long referenceId;
     private String actor;
     private Instant occurredAt;

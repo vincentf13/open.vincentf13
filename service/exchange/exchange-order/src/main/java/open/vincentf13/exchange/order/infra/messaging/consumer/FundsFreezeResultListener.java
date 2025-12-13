@@ -13,6 +13,8 @@ import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderEventRepository;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventReferenceType;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventType;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -94,12 +96,12 @@ public class FundsFreezeResultListener {
                     order.getSubmittedAt()
             ));
             orderEventRepository.append(order,
-                                        "ORDER_SUBMITTED",
+                                        OrderEventType.ORDER_SUBMITTED,
                                         ACTOR_ACCOUNT,
                                         event.eventTime(),
                                         Map.of("status", order.getStatus().name(),
                                                "submittedAt", order.getSubmittedAt()),
-                                        "ACCOUNT_EVENT",
+                                        OrderEventReferenceType.ACCOUNT_EVENT,
                                         null);
         });
     }
@@ -134,12 +136,12 @@ public class FundsFreezeResultListener {
                 return;
             }
             orderEventRepository.append(order,
-                                        "ORDER_REJECTED",
+                                        OrderEventType.ORDER_REJECTED,
                                         ACTOR_ACCOUNT,
                                         event.eventTime(),
                                         Map.of("status", order.getStatus().name(),
                                                "reason", order.getRejectedReason()),
-                                        "ACCOUNT_EVENT",
+                                        OrderEventReferenceType.ACCOUNT_EVENT,
                                         null);
         });
     }

@@ -16,6 +16,8 @@ import open.vincentf13.exchange.order.infra.persistence.repository.OrderReposito
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderEventRepository;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventReferenceType;
+import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventType;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
@@ -82,11 +84,11 @@ public class OrderCommandService {
                 transactionTemplate.executeWithoutResult(status -> {
                     orderRepository.insertSelective(order);
                     recordOrderEvent(order,
-                                     "ORDER_CREATED",
+                                     OrderEventType.ORDER_CREATED,
                                      actorFromUser(userId),
                                      Instant.now(),
                                      orderCreatedPayload(order),
-                                     "REQUEST",
+                                     OrderEventReferenceType.REQUEST,
                                      null);
                     orderEventPublisher.publishFundsFreezeRequested(new FundsFreezeRequestedEvent(
                             order.getOrderId(),
@@ -104,11 +106,11 @@ public class OrderCommandService {
                 transactionTemplate.executeWithoutResult(status -> {
                     orderRepository.insertSelective(order);
                     recordOrderEvent(order,
-                                     "ORDER_CREATED",
+                                     OrderEventType.ORDER_CREATED,
                                      actorFromUser(userId),
                                      submittedAt,
                                      orderCreatedPayload(order),
-                                     "REQUEST",
+                                     OrderEventReferenceType.REQUEST,
                                      null);
                     orderEventPublisher.publishOrderCreated(new OrderCreatedEvent(
                             order.getOrderId(),
@@ -198,11 +200,11 @@ public class OrderCommandService {
         transactionTemplate.executeWithoutResult(status -> {
             orderRepository.insertSelective(order);
             recordOrderEvent(order,
-                             "ORDER_REJECTED",
+                             OrderEventType.ORDER_REJECTED,
                              actorFromUser(order.getUserId()),
                              Instant.now(),
                              Map.of("reason", reason),
-                             "RISK_CHECK",
+                             OrderEventReferenceType.RISK_CHECK,
                              null);
         });
         return loadPersistedOrder(order.getOrderId())
@@ -230,11 +232,11 @@ public class OrderCommandService {
     }
 
     private void recordOrderEvent(Order order,
-                                  String eventType,
+                                  OrderEventType eventType,
                                   String actor,
                                   Instant occurredAt,
                                   Object payload,
-                                  String referenceType,
+                                  OrderEventReferenceType referenceType,
                                   Long referenceId) {
         orderEventRepository.append(order, eventType, actor, occurredAt, payload, referenceType, referenceId);
     }
