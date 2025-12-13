@@ -97,6 +97,7 @@ public class OrderCommandService {
                             request.instrumentId(),
                             request.side(),
                             request.type(),
+                            order.getIntent(),
                             order.getPrice(),
                             order.getQuantity(),
                             order.getClientOrderId(),
