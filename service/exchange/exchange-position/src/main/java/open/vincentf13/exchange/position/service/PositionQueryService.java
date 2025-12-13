@@ -36,13 +36,13 @@ public class PositionQueryService {
                         .eq(PositionPO::getInstrumentId, request.instrumentId())
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
         if (activePosition.isEmpty()) {
-            return PositionIntentResponse.of(PositionIntentType.INCREASE, BigDecimal.ZERO);
+            return PositionIntentResponse.of(PositionIntentType.INCREASE, BigDecimal.ZERO, null);
         }
         Position position = activePosition.get();
         BigDecimal existing = position.getQuantity();
         PositionIntentType intentType = position.evaluateIntent(request.side(), request.quantity());
         if (intentType == PositionIntentType.INCREASE) {
-            return PositionIntentResponse.of(intentType, existing);
+            return PositionIntentResponse.of(intentType, existing, OpenObjectMapper.convert(position, PositionResponse.class));
         }
         BigDecimal availableToClose = position.availableToClose();
         if (availableToClose.compareTo(request.quantity()) < 0) {
@@ -67,7 +67,9 @@ public class PositionQueryService {
             return PositionIntentResponse.ofRejected(intentType, existing,
                                                      PositionErrorCode.POSITION_CONCURRENT_UPDATE.code());
         }
-        return PositionIntentResponse.of(intentType, existing);
+        return PositionIntentResponse.of(intentType,
+                                         existing,
+                                         OpenObjectMapper.convert(position, PositionResponse.class));
     }
     
     public PositionResponse getPosition(@NotNull Long userId,

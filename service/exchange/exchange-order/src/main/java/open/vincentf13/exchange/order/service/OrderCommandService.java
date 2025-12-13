@@ -3,11 +3,7 @@ package open.vincentf13.exchange.order.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.exchange.common.sdk.enums.OrderSide;
-import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
-import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
-import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
@@ -26,7 +22,6 @@ import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckResponse;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
-import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -53,15 +48,14 @@ public class OrderCommandService {
     private final TransactionTemplate transactionTemplate;
     
     public OrderResponse createOrder(@Valid OrderCreateRequest request) {
-        OpenValidator.validateOrThrow(request);
         Long userId = currentUserId();
         try {
             Order order = Order.createNew(userId, request);
             PositionIntentResponse intentResponse = OpenApiClientInvoker.call(
-                    () -> exchangePositionClient.determineIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity())),
+                    () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity())),
                     msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                             Map.of("userId", userId, "instrumentId", request.instrumentId(), "remoteMessage", msg))
-                                                                       );
+                                                                             );
             PositionIntentType intentType = intentResponse.intentType();
             order.setIntent(intentType);
             Instant now = Instant.now();
@@ -71,9 +65,9 @@ public class OrderCommandService {
             if (intentResponse.rejectReason() != null) {
                 return rejectOrder(order, intentResponse.rejectReason());
             }
+            PositionResponse positionSnapshot = intentResponse.positionSnapshot();
 
             if (intentType == PositionIntentType.INCREASE) {
-                PositionResponse positionSnapshot = loadPositionSnapshot(userId, request.instrumentId());
                 OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, positionSnapshot);
                 if (!precheck.isAllow()) {
                     return rejectOrder(order,
@@ -136,15 +130,6 @@ public class OrderCommandService {
     private Long currentUserId() {
         return OpenJwtLoginUserHolder.currentUserIdOrThrow(() ->
                                                                    OpenException.of(OrderErrorCode.ORDER_NOT_FOUND));
-    }
-    
-    private PositionResponse loadPositionSnapshot(Long userId,
-                                                  Long instrumentId) {
-        try {
-            return OpenApiClientInvoker.call(() -> exchangePositionClient.getPosition(userId, instrumentId));
-        } catch (RuntimeException e) {
-            return null;
-        }
     }
     
     private OrderPrecheckResponse precheckOrder(Long userId,

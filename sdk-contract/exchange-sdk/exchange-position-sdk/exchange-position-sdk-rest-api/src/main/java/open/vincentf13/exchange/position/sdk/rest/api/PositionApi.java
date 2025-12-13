@@ -18,7 +18,7 @@ public interface PositionApi {
     
     @PostMapping("/intent")
     @PrivateAPI
-    OpenApiResponse<PositionIntentResponse> determineIntent(@Valid @RequestBody PositionIntentRequest request);
+    OpenApiResponse<PositionIntentResponse> prepareIntent(@Valid @RequestBody PositionIntentRequest request);
     
     @GetMapping("/{userId}/{instrumentId}")
     @PrivateAPI
