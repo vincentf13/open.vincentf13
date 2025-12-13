@@ -21,13 +21,21 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
 public class TradeExecutedEventListener {
 
     private final OrderRepository orderRepository;
+    private static final Set<OrderStatus> UPDATABLE_STATUSES =
+            EnumSet.of(OrderStatus.NEW,
+                       OrderStatus.PARTIALLY_FILLED,
+                       OrderStatus.FILLED,
+                       OrderStatus.CANCELLING,
+                       OrderStatus.CANCELLED);
 
     @KafkaListener(topics = MatchingTopics.Names.TRADE_EXECUTED,
                    groupId = "${open.vincentf13.exchange.order.consumer-group:exchange-order}")
@@ -50,6 +58,9 @@ public class TradeExecutedEventListener {
                 .orElse(null);
         if (order == null) {
             OpenLog.warn(OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", targetOrderId));
+            return;
+        }
+        if (!UPDATABLE_STATUSES.contains(order.getStatus())) {
             return;
         }
         BigDecimal previousFilled = order.getFilledQuantity();
