@@ -67,24 +67,27 @@ public class Order {
         BigDecimal normalizedQty = OpenBigDecimal.normalizeDecimal(request.quantity());
         BigDecimal normalizedPrice = OpenBigDecimal.normalizeDecimal(request.price());
         return Order.builder()
+                    .orderId(null)
                     .userId(userId)
                     .instrumentId(request.instrumentId())
                     .clientOrderId(trimToNull(request.clientOrderId()))
                     .side(request.side())
-                    .intent(null)
                     .type(request.type())
-                    .status(OrderStatus.CREATED)
                     .price(normalizedPrice)
                     .quantity(normalizedQty)
+                    .intent(null)
                     .filledQuantity(BigDecimal.ZERO)
                     .remainingQuantity(normalizedQty)
                     .avgFillPrice(null)
                     .fee(null)
+                    .status(OrderStatus.CREATED)
                     .rejectedReason(null)
-                    .version(0)
+                    .createdAt(null)
+                    .updatedAt(null)
                     .submittedAt(null)
                     .filledAt(null)
                     .cancelledAt(null)
+                    .version(0)
                     .build();
     }
     
