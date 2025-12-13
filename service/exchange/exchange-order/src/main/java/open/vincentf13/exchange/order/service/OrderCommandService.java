@@ -71,10 +71,9 @@ public class OrderCommandService {
                 return rejectOrder(order, Optional.ofNullable(precheck.getReason()).orElse("riskRejected"));
             }
             
-            Instant now = Instant.now();
             if (intentType == PositionIntentType.INCREASE) {
                 order.setStatus(OrderStatus.FREEZING_MARGIN);
-                Instant eventTime = now;
+                Instant eventTime = Instant.now();
                 transactionTemplate.executeWithoutResult(status -> {
                     orderRepository.insertSelective(order);
                     orderEventPublisher.publishFundsFreezeRequested(new FundsFreezeRequestedEvent(
@@ -88,7 +87,7 @@ public class OrderCommandService {
                 });
             } else {
                 order.setStatus(OrderStatus.NEW);
-                Instant submittedAt = now;
+                Instant submittedAt = Instant.now();
                 order.setSubmittedAt(submittedAt);
                 transactionTemplate.executeWithoutResult(status -> {
                     orderRepository.insertSelective(order);
