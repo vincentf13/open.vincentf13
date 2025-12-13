@@ -27,6 +27,8 @@ public class PositionTradeSettlementService {
         Collection<Position> positions = positionDomainService.openPosition(
                 event.userId(),
                 event.instrumentId(),
+                event.orderId(),
+                event.asset(),
                 event.side(),
                 event.price(),
                 event.quantity(),

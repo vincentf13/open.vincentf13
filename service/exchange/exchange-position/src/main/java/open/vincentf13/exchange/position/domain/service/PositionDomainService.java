@@ -5,6 +5,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
@@ -14,9 +15,11 @@ import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.position.infra.cache.MarkPriceCache;
 import open.vincentf13.exchange.position.infra.cache.RiskLimitCache;
+import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
@@ -27,11 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor
@@ -39,6 +38,7 @@ public class PositionDomainService {
 
     private final PositionRepository positionRepository;
     private final PositionEventRepository positionEventRepository;
+    private final PositionEventPublisher positionEventPublisher;
     private final MarkPriceCache markPriceCache;
     private final RiskLimitCache riskLimitCache;
     private final InstrumentCache instrumentCache;
@@ -141,6 +141,8 @@ public class PositionDomainService {
 
     public Collection<Position> openPosition(@NotNull Long userId,
                                              @NotNull Long instrumentId,
+                                             @NotNull Long orderId,
+                                             @NotNull AssetSymbol asset,
                                              @NotNull OrderSide orderSide,
                                              @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false) BigDecimal price,
                                              @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
@@ -182,12 +184,24 @@ public class PositionDomainService {
                 BigDecimal closeFeeRefund = feeRefund.subtract(flipFeeRefund);
 
                 List<Position> results = new ArrayList<>();
-                results.addAll(openPosition(userId, instrumentId, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, referenceId, executedAt));
-                results.addAll(openPosition(userId, instrumentId, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, referenceId, executedAt));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, referenceId, executedAt));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, referenceId, executedAt));
                 return results;
             }
 
             PositionCloseResult result = closePosition(position, userId, instrumentId, price, quantity, feeCharged, feeRefund, referenceId, executedAt, false);
+            positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
+                    referenceId,
+                    orderId,
+                    userId,
+                    instrumentId,
+                    asset,
+                    position.getSide(),
+                    result.marginReleased(),
+                    result.pnl(),
+                    executedAt
+            ));
+    
             return Collections.singletonList(result.position());
         } else {
             Position updatedPosition = OpenObjectMapper.convert(position, Position.class);

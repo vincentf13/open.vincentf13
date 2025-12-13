@@ -42,16 +42,15 @@ public class AccountPositionDomainService {
         }
         UserAccount spotAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
         UserAccount equityAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT_EQUITY, null, asset);
-
-        UserAccount updatedMargin = applyUserUpdate(marginAccount, Direction.CREDIT, event.marginReleased());
-        UserAccount updatedSpot = applyUserUpdate(spotAccount, Direction.DEBIT, event.marginReleased());
-        UserAccount updatedEquity = applyUserUpdate(equityAccount,
-                                                    event.realizedPnl().signum() >= 0 ? Direction.CREDIT : Direction.DEBIT,
-                                                    event.realizedPnl().abs());
+        
+        UserAccount updatedMargin = marginAccount.apply(Direction.CREDIT, event.marginReleased());
+        UserAccount updatedSpot = spotAccount.apply(Direction.DEBIT, event.marginReleased());
+        Direction direction = event.realizedPnl().signum() >= 0 ? Direction.CREDIT : Direction.DEBIT;
+        UserAccount updatedEquity = equityAccount.apply(direction, event.realizedPnl().abs());
         if (event.realizedPnl().signum() >= 0) {
-            updatedSpot = applyUserUpdate(updatedSpot, Direction.DEBIT, event.realizedPnl());
+            updatedSpot = updatedSpot.apply(Direction.DEBIT, event.realizedPnl());
         } else {
-            updatedSpot = applyUserUpdate(updatedSpot, Direction.CREDIT, event.realizedPnl().abs());
+            updatedSpot = updatedSpot.apply(Direction.CREDIT, event.realizedPnl().abs());
         }
 
         userAccountRepository.updateSelectiveBatch(
@@ -77,13 +76,7 @@ public class AccountPositionDomainService {
                                                      event.releasedAt());
         userJournalRepository.insertBatch(List.of(marginOut, marginIn, pnlJournal, equityJournal));
     }
-
-    private UserAccount applyUserUpdate(UserAccount current,
-                                        Direction direction,
-                                        BigDecimal amount) {
-        return current.apply(direction, amount);
-    }
-
+    
     private UserJournal buildUserJournal(UserAccount account,
                                          Direction direction,
                                          BigDecimal amount,
