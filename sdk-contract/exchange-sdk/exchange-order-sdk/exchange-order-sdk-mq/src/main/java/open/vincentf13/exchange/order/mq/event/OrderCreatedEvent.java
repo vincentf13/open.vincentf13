@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.order.mq.event;
 
-import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
@@ -18,8 +17,6 @@ public record OrderCreatedEvent(
         BigDecimal price,
         BigDecimal quantity,
         String clientOrderId,
-        AssetSymbol frozenAsset,
-        BigDecimal frozenAmount,
         Instant submittedAt
 ) {
 }

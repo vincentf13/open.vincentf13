@@ -30,18 +30,18 @@ public class OrderPO {
     private OrderSide side;
     private PositionIntentType intent;
     private OrderType type;
-    private OrderStatus status;
     private BigDecimal price;
     private BigDecimal quantity;
     private BigDecimal filledQuantity;
     private BigDecimal remainingQuantity;
     private BigDecimal avgFillPrice;
     private BigDecimal fee;
+    private OrderStatus status;
     private String rejectedReason;
-    private Integer version;
-    private Integer expectedVersion;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant submittedAt;
     private Instant filledAt;
+    private Instant cancelledAt;
+    private Integer version;
 }

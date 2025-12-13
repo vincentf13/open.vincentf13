@@ -3,7 +3,10 @@ package open.vincentf13.exchange.order.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.*;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
@@ -31,7 +34,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -101,8 +103,6 @@ public class OrderCommandService {
                             order.getPrice(),
                             order.getQuantity(),
                             order.getClientOrderId(),
-                            AssetSymbol.UNKNOWN,
-                            BigDecimal.ZERO,
                             submittedAt
                     ));
                 });

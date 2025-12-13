@@ -13,22 +13,25 @@ import java.time.Instant;
 
 public record OrderResponse(
         @NotNull Long orderId,
-        String clientOrderId,
         @NotNull Long userId,
         @NotNull Long instrumentId,
+        String clientOrderId,
         @NotNull OrderSide side,
-        @NotNull PositionIntentType intent,
         @NotNull OrderType type,
-        @NotNull OrderStatus status,
-        @DecimalMin(value = ValidationConstant.Names.PRICE_MIN) BigDecimal price,
+        BigDecimal price,
         @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
+        PositionIntentType intent,
         @NotNull BigDecimal filledQuantity,
         @NotNull BigDecimal remainingQuantity,
         BigDecimal avgFillPrice,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true) BigDecimal fee,
+        BigDecimal fee,
+        @NotNull OrderStatus status,
         String rejectedReason,
         Integer version,
         @NotNull Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        Instant submittedAt,
+        Instant filledAt,
+        Instant cancelledAt
 ) {
 }

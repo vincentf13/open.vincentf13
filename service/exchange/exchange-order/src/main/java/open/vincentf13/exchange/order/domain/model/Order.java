@@ -25,7 +25,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
-    
+
     private Long orderId;
     @NotNull
     private Long userId;
@@ -34,31 +34,29 @@ public class Order {
     private String clientOrderId;
     @NotNull
     private OrderSide side;
-    private PositionIntentType intent;
     @NotNull
     private OrderType type;
-    @NotNull
-    private OrderStatus status;
-    @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = false)
     private BigDecimal price;
     @NotNull
     @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
     private BigDecimal quantity;
+    private PositionIntentType intent;
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal filledQuantity;
-    
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal remainingQuantity;
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal avgFillPrice;
-    @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true)
     private BigDecimal fee;
+    @NotNull
+    private OrderStatus status;
     private String rejectedReason;
-    private Integer version;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant submittedAt;
     private Instant filledAt;
+    private Instant cancelledAt;
+    private Integer version;
     
     public static Order createNew(Long userId,
                                   OrderCreateRequest request) {
@@ -66,7 +64,6 @@ public class Order {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "userId"));
         }
         validateRequest(request);
-        Instant now = Instant.now();
         BigDecimal normalizedQty = OpenBigDecimal.normalizeDecimal(request.quantity());
         BigDecimal normalizedPrice = OpenBigDecimal.normalizeDecimal(request.price());
         return Order.builder()
@@ -87,6 +84,7 @@ public class Order {
                     .version(0)
                     .submittedAt(null)
                     .filledAt(null)
+                    .cancelledAt(null)
                     .build();
     }
     

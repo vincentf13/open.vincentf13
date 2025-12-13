@@ -63,3 +63,4 @@
   ```
 - 若適合，盡量符合 Inline wrapper style / Fluent inline query / Expression-based repository call / Call-site query embedding 等風格，避免在呼叫端額外宣告 wrapper 變數。
 - 批次 insert/update 請統一透過 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor`（或其提供的工具）完成，避免自行管理 `SqlSession`，並保留每 1,000 筆的 flush/clear 邏輯。
+- 採用 **Intent-Centric Style**：入參可直接使用、不重新宣告局部變數，且對於不可能為 `null` 的值不做多餘判斷，減少噪音型防禦式程式碼。
