@@ -9,7 +9,6 @@ import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
-import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
@@ -35,7 +34,6 @@ import java.util.Map;
 public class OrderCommandService {
     
     private final OrderRepository orderRepository;
-    private final OrderEventPublisher orderEventPublisher;
     private final ExchangePositionClient exchangePositionClient;
     private final TransactionTemplate transactionTemplate;
     
