@@ -24,7 +24,7 @@ public class SnapshotService {
     private final AtomicLong lastSnapshotSeq = new AtomicLong(0L);
     private static final long SNAPSHOT_INTERVAL = 1_000L;
     
-    public synchronized SnapshotState load() {
+    public SnapshotState load() {
         if (!Files.exists(SNAPSHOT_PATH)) {
             return null;
         }
@@ -41,18 +41,18 @@ public class SnapshotService {
         }
     }
     
-    public synchronized void maybeSnapshot(long currentSeq,
-                                           OrderBook orderBook,
-                                           Map<Integer, Long> partitionOffsets) {
+    public void maybeSnapshot(long currentSeq,
+                              OrderBook orderBook,
+                              Map<Integer, Long> partitionOffsets) {
         if (currentSeq - lastSnapshotSeq.get() < SNAPSHOT_INTERVAL) {
             return;
         }
         writeSnapshot(currentSeq, orderBook, partitionOffsets);
     }
     
-    public synchronized void writeSnapshot(long currentSeq,
-                                           OrderBook orderBook,
-                                           Map<Integer, Long> partitionOffsets) {
+    public void writeSnapshot(long currentSeq,
+                              OrderBook orderBook,
+                              Map<Integer, Long> partitionOffsets) {
         List<Order> openOrders = orderBook.dumpOpenOrders();
         SnapshotState state = SnapshotState.builder()
                                            .lastSeq(currentSeq)

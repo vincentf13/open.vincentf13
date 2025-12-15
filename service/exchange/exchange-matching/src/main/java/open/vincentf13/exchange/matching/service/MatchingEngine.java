@@ -15,8 +15,8 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class MatchingEngine {
     private final OrderBook orderBook = new OrderBook();
     private final WalService walService;
     private final SnapshotService snapshotService;
-    private final Map<Integer, Long> partitionOffsets = new ConcurrentHashMap<>();
+    private final Map<Integer, Long> partitionOffsets = new HashMap<>();
     
     private SnapshotState snapshotState;
     
