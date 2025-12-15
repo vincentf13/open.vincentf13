@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.matching.infra.wal;
+package open.vincentf13.exchange.matching.infra.snapshot;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.order.book.OrderBook;
