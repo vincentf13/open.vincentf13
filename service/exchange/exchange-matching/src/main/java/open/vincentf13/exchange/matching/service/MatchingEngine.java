@@ -40,6 +40,11 @@ public class MatchingEngine {
         if (batch == null || batch.isEmpty()) {
             return;
         }
+        
+        // TODO 應該按 instrument_id 一一對應分配給對應的order book。
+        // 這裡先簡化，只處理單一 instrument_id
+        
+        
         List<WalAppendRequest> walRequests = new ArrayList<>(batch.size());
         List<MatchResult> matchResults = new ArrayList<>(batch.size());
         for (OrderWithOffset item : batch) {
