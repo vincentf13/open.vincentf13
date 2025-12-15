@@ -17,7 +17,6 @@ import java.util.Map;
 public class SnapshotState {
     private long lastSeq;
     private List<Order> openOrders;
-    private Map<Long, Order> orderMap;
     private Map<Integer, Long> partitionOffsets;
     private Instant createdAt;
 }

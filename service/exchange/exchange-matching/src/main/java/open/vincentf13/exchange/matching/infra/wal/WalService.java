@@ -26,7 +26,7 @@ public class WalService {
     
     private static final Path WAL_PATH = Path.of("data/matching/engine.wal");
     @Getter
-    private final List<WalEntry> entries = Collections.synchronizedList(new ArrayList<>());
+    private final List<WalEntry> entries = new ArrayList<>();
     private final AtomicLong lastSeq = new AtomicLong(0L);
     
     public synchronized void loadExisting() {
@@ -63,12 +63,10 @@ public class WalService {
         return entry;
     }
     
-    public List<WalEntry> readFrom(long startSeq) {
-        synchronized (entries) {
-            return entries.stream()
-                          .filter(entry -> entry.getSeq() >= startSeq)
-                          .toList();
-        }
+    public synchronized List<WalEntry> readFrom(long startSeq) {
+        return entries.stream()
+                      .filter(entry -> entry.getSeq() >= startSeq)
+                      .toList();
     }
     
     public long latestSeq() {

@@ -57,7 +57,6 @@ public class SnapshotService {
         SnapshotState state = SnapshotState.builder()
                                            .lastSeq(currentSeq)
                                            .openOrders(openOrders)
-                                           .orderMap(orderBook.dumpOrderMap())
                                            .partitionOffsets(partitionOffsets)
                                            .createdAt(Instant.now())
                                            .build();

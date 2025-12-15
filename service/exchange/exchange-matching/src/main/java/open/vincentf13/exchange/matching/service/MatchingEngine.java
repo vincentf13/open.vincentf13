@@ -57,9 +57,7 @@ public class MatchingEngine {
             if (snapshot.getPartitionOffsets() != null && !snapshot.getPartitionOffsets().isEmpty()) {
                 partitionOffsets.putAll(snapshot.getPartitionOffsets());
             }
-            if (snapshot.getOrderMap() != null && !snapshot.getOrderMap().isEmpty()) {
-                snapshot.getOrderMap().values().forEach(orderBook::restore);
-            } else if (snapshot.getOpenOrders() != null) {
+            if (snapshot.getOpenOrders() != null) {
                 snapshot.getOpenOrders().forEach(orderBook::restore);
             }
         }

@@ -67,10 +67,11 @@ public class OrderBook {
     }
     
     public void apply(MatchResult result) {
+        // 根據撮合結果更新簿內訂單：移除成交完畢、保留剩餘量
         for (OrderUpdate update : result.getUpdates()) {
             if (update.isTaker()) {
                 if (update.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0
-                    && result.getTakerOrder().getPrice() != null) {
+                            && result.getTakerOrder().getPrice() != null) {
                     Order taker = result.getTakerOrder();
                     taker.setQuantity(update.getRemainingQuantity());
                     insert(taker);
