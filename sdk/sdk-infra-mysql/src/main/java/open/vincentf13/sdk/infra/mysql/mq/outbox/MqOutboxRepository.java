@@ -41,6 +41,33 @@ public class MqOutboxRepository {
         mapper.insertWithAutoSeq(record);
     }
 
+    public <T> void appendWithSeq(String topic,
+                                  Long key,
+                                  T message,
+                                  Map<String, Object> headers,
+                                  Long seq) {
+        Assert.hasText(topic, "topic must not be blank");
+        Assert.notNull(key, "key must not be null");
+        Assert.notNull(message, "message must not be null");
+        OpenValidator.validateOrThrow(message);
+        String eventId = String.valueOf(idGenerator.newLong());
+        MqOutboxPO record = MqOutboxPO.builder()
+                                      .eventId(eventId)
+                                      .aggregateType(topic)
+                                      .aggregateId(key)
+                                      .eventType(message.getClass().getName())
+                                      .payload(OpenObjectMapper.toJson(message))
+                                      .headers(writeHeaders(headers))
+                                      .seq(seq)
+                                      .createdAt(Instant.now())
+                                      .build();
+        if (seq == null) {
+            mapper.insertWithAutoSeq(record);
+        } else {
+            mapper.insertSelective(record);
+        }
+    }
+
     public boolean exists(String topic, Long key) {
         Assert.hasText(topic, "topic must not be blank");
         Assert.notNull(key, "key must not be null");

@@ -4,7 +4,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
-import open.vincentf13.exchange.matching.infra.messaging.publisher.MatchingOutboxRepository;
 import open.vincentf13.exchange.matching.infra.persistence.repository.TradeRepository;
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
 import open.vincentf13.exchange.matching.infra.wal.WalProgressStore;
@@ -14,6 +13,7 @@ import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -29,7 +29,7 @@ public class WalLoader {
     private final WalService walService;
     private final WalProgressStore walProgressStore;
     private final TradeRepository tradeRepository;
-    private final MatchingOutboxRepository outboxRepository;
+    private final MqOutboxRepository outboxRepository;
     private final TransactionTemplate transactionTemplate;
     
     private volatile long lastProcessedSeq;
@@ -91,11 +91,11 @@ public class WalLoader {
         for (Trade trade : trades) {
             long eventSeq = baseOffset + index++;
             try {
-                outboxRepository.append(MatchingTopics.TRADE_EXECUTED.getTopic(),
-                                        trade.getTradeId(),
-                                        OpenObjectMapper.convert(trade, TradeExecutedEvent.class),
-                                        null,
-                                        eventSeq);
+                outboxRepository.appendWithSeq(MatchingTopics.TRADE_EXECUTED.getTopic(),
+                                               trade.getTradeId(),
+                                               OpenObjectMapper.convert(trade, TradeExecutedEvent.class),
+                                               null,
+                                               eventSeq);
             } catch (DuplicateKeyException ex) {
                 OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_TRADE, ex);
             }
