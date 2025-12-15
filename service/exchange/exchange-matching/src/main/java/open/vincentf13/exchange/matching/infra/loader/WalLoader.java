@@ -3,6 +3,7 @@ package open.vincentf13.exchange.matching.infra.loader;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.model.Trade;
+import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.exchange.matching.infra.outbox.MatchingOutboxRepository;
 import open.vincentf13.exchange.matching.infra.persistence.repository.TradeRepository;
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
@@ -50,7 +51,7 @@ public class WalLoader {
                 processEntry(entry);
                 lastProcessedSeq = entry.getSeq();
             } catch (Exception ex) {
-                OpenLog.error(MatchingLogEvent.WAL_LOADER_FAILED,
+                OpenLog.error(MatchingEvent.WAL_LOADER_FAILED,
                               ex,
                               "seq",
                               entry.getSeq());
@@ -68,7 +69,7 @@ public class WalLoader {
                 try {
                     tradeRepository.batchInsert(trades);
                 } catch (DuplicateKeyException ex) {
-                    OpenLog.warn(MatchingLogEvent.TRADE_DUPLICATE, ex);
+                    OpenLog.warn(MatchingEvent.TRADE_DUPLICATE, ex);
                 }
                 persisted.addAll(trades);
                 publishTrades(entry.getSeq(), trades);
@@ -77,7 +78,7 @@ public class WalLoader {
                 publishOrderBook(entry.getSeq(), entry.getOrderBookUpdatedEvent());
             }
         });
-        OpenLog.info(MatchingLogEvent.WAL_ENTRY_APPLIED,
+        OpenLog.info(MatchingEvent.WAL_ENTRY_APPLIED,
                      "seq", entry.getSeq(),
                      "tradeCount", persisted.size());
     }
@@ -95,7 +96,7 @@ public class WalLoader {
                                         null,
                                         eventSeq);
             } catch (DuplicateKeyException ex) {
-                OpenLog.warn(MatchingLogEvent.OUTBOX_DUPLICATE_TRADE, ex);
+                OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_TRADE, ex);
             }
         }
     }
@@ -109,7 +110,7 @@ public class WalLoader {
                                     null,
                                     seq * 10 + 9);
         } catch (DuplicateKeyException ex) {
-            OpenLog.warn(MatchingLogEvent.OUTBOX_DUPLICATE_ORDERBOOK, ex);
+            OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_ORDERBOOK, ex);
         }
     }
 }

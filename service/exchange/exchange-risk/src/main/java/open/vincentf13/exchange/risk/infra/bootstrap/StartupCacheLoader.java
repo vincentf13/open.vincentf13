@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.admin.contract.client.ExchangeAdminClient;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.market.sdk.rest.client.ExchangeMarketClient;
-import open.vincentf13.exchange.risk.infra.RiskLogEvent;
+import open.vincentf13.exchange.risk.infra.RiskEvent;
 import open.vincentf13.exchange.risk.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.risk.infra.cache.MarkPriceCache;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -33,22 +33,22 @@ public class StartupCacheLoader implements CommandLineRunner {
     }
 
     public void loadCaches() {
-        OpenLog.info(RiskLogEvent.STARTUP_CACHE_LOADING);
+        OpenLog.info(RiskEvent.STARTUP_CACHE_LOADING);
 
         int attempt = 0;
         while (attempt < MAX_RETRY_ATTEMPTS) {
             try {
                 attempt++;
-                OpenLog.info(RiskLogEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
+                OpenLog.info(RiskEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
 
                 loadInstruments();
                 loadMarkPrices();
 
-                OpenLog.info(RiskLogEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size());
+                OpenLog.info(RiskEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size());
                 return;
 
             } catch (Exception e) {
-                OpenLog.error(RiskLogEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
+                OpenLog.error(RiskEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
 
                 if (attempt >= MAX_RETRY_ATTEMPTS) {
                     throw new RuntimeException("Failed to load caches after " + MAX_RETRY_ATTEMPTS + " attempts", e);
@@ -65,13 +65,13 @@ public class StartupCacheLoader implements CommandLineRunner {
     }
 
     private void loadInstruments() {
-        OpenLog.info(RiskLogEvent.STARTUP_LOADING_INSTRUMENTS);
+        OpenLog.info(RiskEvent.STARTUP_LOADING_INSTRUMENTS);
 
         List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
 
         instrumentCache.putAll(instruments);
 
-        OpenLog.info(RiskLogEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
+        OpenLog.info(RiskEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
     }
 
     private void loadMarkPrices() {
@@ -82,7 +82,7 @@ public class StartupCacheLoader implements CommandLineRunner {
                     markPriceCache.put(instrument.instrumentId(), response.data().getMarkPrice());
                 }
             } catch (Exception e) {
-                OpenLog.warn(RiskLogEvent.STARTUP_MARK_PRICE_LOAD_FAILED, e, "instrumentId", instrument.instrumentId());
+                OpenLog.warn(RiskEvent.STARTUP_MARK_PRICE_LOAD_FAILED, e, "instrumentId", instrument.instrumentId());
             }
         });
     }

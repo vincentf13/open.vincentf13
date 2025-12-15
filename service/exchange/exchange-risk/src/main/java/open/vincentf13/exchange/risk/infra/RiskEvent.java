@@ -2,7 +2,7 @@ package open.vincentf13.exchange.risk.infra;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
-public enum RiskLogEvent implements OpenEvent {
+public enum RiskEvent implements OpenEvent {
     STARTUP_CACHE_LOADING("Startup cache loading"),
     STARTUP_CACHE_LOADED("Startup cache loaded"),
     STARTUP_CACHE_LOAD_FAILED("Startup cache load failed"),
@@ -12,7 +12,7 @@ public enum RiskLogEvent implements OpenEvent {
 
     private final String message;
 
-    RiskLogEvent(String message) {
+    RiskEvent(String message) {
         this.message = message;
     }
 

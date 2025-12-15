@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.matching.domain.model;
+package open.vincentf13.exchange.matching.domain.match.result;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;

@@ -2,7 +2,7 @@ package open.vincentf13.exchange.matching.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.matching.domain.model.MatchResult;
+import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.order.book.OrderBook;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.infra.wal.SnapshotService;
