@@ -3,8 +3,8 @@ package open.vincentf13.exchange.matching.infra.wal;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
-import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
+import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
@@ -15,7 +15,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -92,6 +91,7 @@ public class WalService {
     private void writeLine(String json) {
         try {
             Files.createDirectories(WAL_PATH.getParent());
+            // 把一行文字同步寫入檔案（Write-Ahead Log 風格）
             Files.writeString(WAL_PATH,
                               json + System.lineSeparator(),
                               StandardOpenOption.CREATE,

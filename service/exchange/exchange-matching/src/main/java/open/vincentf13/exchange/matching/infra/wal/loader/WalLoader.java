@@ -106,7 +106,7 @@ public class WalLoader {
     private void publishOrderBook(long seq,
                                   OrderBookUpdatedEvent event) {
         try {
-            outboxRepository.append(MatchingTopics.ORDERBOOK_UPDATED.getTopic(),
+            outboxRepository.appendWithSeq(MatchingTopics.ORDERBOOK_UPDATED.getTopic(),
                                     event.instrumentId(),
                                     event,
                                     null,
