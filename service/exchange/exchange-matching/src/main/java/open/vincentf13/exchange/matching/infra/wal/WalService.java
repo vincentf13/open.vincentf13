@@ -45,22 +45,28 @@ public class WalService {
         }
     }
     
-    public synchronized WalEntry append(MatchResult result,
-                                        OrderBookUpdatedEvent orderBookUpdatedEvent,
-                                        long kafkaOffset,
-                                        int partition) {
-        long nextSeq = lastSeq.incrementAndGet();
-        WalEntry entry = WalEntry.builder()
-                                 .seq(nextSeq)
-                                 .kafkaOffset(kafkaOffset)
-                                 .partition(partition)
-                                 .matchResult(result)
-                                 .orderBookUpdatedEvent(orderBookUpdatedEvent)
-                                 .appendedAt(Instant.now())
-                                 .build();
-        writeLine(OpenObjectMapper.toJson(entry));
-        entries.add(entry);
-        return entry;
+    public synchronized List<WalEntry> appendBatch(List<WalAppendRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        StringBuilder sb = new StringBuilder(requests.size() * 256);
+        List<WalEntry> appended = new ArrayList<>(requests.size());
+        for (WalAppendRequest req : requests) {
+            long nextSeq = lastSeq.incrementAndGet();
+            WalEntry entry = WalEntry.builder()
+                                     .seq(nextSeq)
+                                     .kafkaOffset(req.kafkaOffset())
+                                     .partition(req.partition())
+                                     .matchResult(req.result())
+                                     .orderBookUpdatedEvent(req.orderBookUpdatedEvent())
+                                     .appendedAt(Instant.now())
+                                     .build();
+            sb.append(OpenObjectMapper.toJson(entry)).append(System.lineSeparator());
+            appended.add(entry);
+            entries.add(entry);
+        }
+        writeLine(sb.toString());
+        return appended;
     }
     
     public synchronized List<WalEntry> readFrom(long startSeq) {
@@ -100,5 +106,11 @@ public class WalService {
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to append WAL", ex);
         }
+    }
+    
+    public record WalAppendRequest(MatchResult result,
+                                   OrderBookUpdatedEvent orderBookUpdatedEvent,
+                                   long kafkaOffset,
+                                   int partition) {
     }
 }
