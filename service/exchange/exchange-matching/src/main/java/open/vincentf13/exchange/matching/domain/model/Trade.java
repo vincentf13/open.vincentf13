@@ -46,5 +46,4 @@ public class Trade {
     private Instant executedAt;
     private Instant createdAt;
     
-
 }
