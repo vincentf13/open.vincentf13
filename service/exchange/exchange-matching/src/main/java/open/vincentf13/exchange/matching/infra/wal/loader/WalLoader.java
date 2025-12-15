@@ -63,6 +63,8 @@ public class WalLoader {
     private void processEntry(WalEntry entry) {
         List<Trade> trades = entry.getMatchResult().getTrades();
         List<Trade> persisted = new ArrayList<>();
+        long baseOffset = entry.getSeq() << 20; // 預留 2^20 筆事件空間
+        final long[] nextIndex = {0L};
         transactionTemplate.executeWithoutResult(status -> {
             if (!trades.isEmpty()) {
                 try {
@@ -71,10 +73,10 @@ public class WalLoader {
                     OpenLog.warn(MatchingEvent.TRADE_DUPLICATE, ex);
                 }
                 persisted.addAll(trades);
-                publishTrades(entry.getSeq(), trades);
+                nextIndex[0] = publishTrades(baseOffset, trades, nextIndex[0]);
             }
             if (entry.getOrderBookUpdatedEvent() != null) {
-                publishOrderBook(entry.getSeq(), entry.getOrderBookUpdatedEvent());
+                publishOrderBook(baseOffset, entry.getOrderBookUpdatedEvent());
             }
         });
         OpenLog.info(MatchingEvent.WAL_ENTRY_APPLIED,
@@ -82,11 +84,12 @@ public class WalLoader {
                      "tradeCount", persisted.size());
     }
     
-    private void publishTrades(long baseSeq,
-                               List<Trade> trades) {
-        long seq = baseSeq * 10;
+    private long publishTrades(long baseOffset,
+                               List<Trade> trades,
+                               long startIndex) {
+        long index = startIndex;
         for (Trade trade : trades) {
-            long eventSeq = seq++;
+            long eventSeq = baseOffset + index++;
             try {
                 outboxRepository.append(MatchingTopics.TRADE_EXECUTED.getTopic(),
                                         trade.getTradeId(),
@@ -97,6 +100,7 @@ public class WalLoader {
                 OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_TRADE, ex);
             }
         }
+        return index;
     }
     
     private void publishOrderBook(long seq,
