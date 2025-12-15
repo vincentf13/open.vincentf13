@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.matching.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.service.MatchingEngine;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
@@ -13,8 +12,6 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
-
-import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
@@ -31,16 +28,16 @@ public class OrderCreatedEventListener {
         OpenValidator.validateOrThrow(event);
         Order order = Order.builder()
                            .orderId(event.orderId())
-                                           .userId(event.userId())
-                                           .instrumentId(event.instrumentId())
-                                           .clientOrderId(event.clientOrderId())
-                                           .side(event.side())
-                                           .type(event.type())
-                                           .intent(event.intent() != null ? event.intent() : PositionIntentType.INCREASE)
-                                           .price(event.price())
-                                           .quantity(event.quantity())
-                                           .submittedAt(event.submittedAt() != null ? event.submittedAt() : Instant.now())
-                                           .build();
+                           .userId(event.userId())
+                           .instrumentId(event.instrumentId())
+                           .clientOrderId(event.clientOrderId())
+                           .side(event.side())
+                           .type(event.type())
+                           .intent( event.intent())
+                           .price(event.price())
+                           .quantity(event.quantity())
+                           .submittedAt( event.submittedAt())
+                           .build();
         matchingEngine.process(order, offset);
         acknowledgment.acknowledge();
     }
