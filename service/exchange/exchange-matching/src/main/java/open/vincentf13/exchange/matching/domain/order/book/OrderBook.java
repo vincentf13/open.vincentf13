@@ -24,8 +24,8 @@ import java.util.TreeMap;
 
 public class OrderBook {
     
-    private final TreeMap<BigDecimal, Deque<Order>> bids = new TreeMap<>(Comparator.reverseOrder());
     private final TreeMap<BigDecimal, Deque<Order>> asks = new TreeMap<>(BigDecimal::compareTo);
+    private final TreeMap<BigDecimal, Deque<Order>> bids = new TreeMap<>(Comparator.reverseOrder());
     private final Map<Long, Order> orderIndex = new HashMap<>();
     
     public MatchResult match(Order taker) {
@@ -113,11 +113,11 @@ public class OrderBook {
     }
     
     public List<Order> dumpOpenOrders() {
-        return new ArrayList<>(orderIndex.values());
-    }
-    
-    public Map<Long, Order> dumpOrderMap() {
-        return new HashMap<>(orderIndex);
+        List<Order> orders = new ArrayList<>(orderIndex.size());
+        // 先輸出 bids (price DESC) 保持掛單順序，再輸出 asks (price ASC)
+        bids.values().forEach(queue -> orders.addAll(queue));
+        asks.values().forEach(queue -> orders.addAll(queue));
+        return orders;
     }
     
     private List<OrderBookUpdatedEvent.OrderBookLevel> topLevels(Map<BigDecimal, Deque<Order>> source,
