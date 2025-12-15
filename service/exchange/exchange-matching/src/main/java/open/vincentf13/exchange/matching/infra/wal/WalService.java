@@ -47,11 +47,13 @@ public class WalService {
     
     public synchronized WalEntry append(MatchResult result,
                                         OrderBookUpdatedEvent orderBookUpdatedEvent,
-                                        long kafkaOffset) {
+                                        long kafkaOffset,
+                                        int partition) {
         long nextSeq = lastSeq.incrementAndGet();
         WalEntry entry = WalEntry.builder()
                                  .seq(nextSeq)
                                  .kafkaOffset(kafkaOffset)
+                                 .partition(partition)
                                  .matchResult(result)
                                  .orderBookUpdatedEvent(orderBookUpdatedEvent)
                                  .appendedAt(Instant.now())

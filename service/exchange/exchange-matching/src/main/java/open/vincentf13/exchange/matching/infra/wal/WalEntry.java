@@ -16,6 +16,7 @@ import java.time.Instant;
 public class WalEntry {
     private long seq;
     private Long kafkaOffset;
+    private Integer partition;
     private MatchResult matchResult;
     private OrderBookUpdatedEvent orderBookUpdatedEvent;
     private Instant appendedAt;

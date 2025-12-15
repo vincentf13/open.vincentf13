@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
@@ -42,22 +43,22 @@ public class SnapshotService {
     
     public void maybeSnapshot(long currentSeq,
                               OrderBook orderBook,
-                              long kafkaOffset) {
+                              Map<Integer, Long> partitionOffsets) {
         if (currentSeq - lastSnapshotSeq.get() < SNAPSHOT_INTERVAL) {
             return;
         }
-        writeSnapshot(currentSeq, orderBook, kafkaOffset);
+        writeSnapshot(currentSeq, orderBook, partitionOffsets);
     }
     
     public void writeSnapshot(long currentSeq,
                               OrderBook orderBook,
-                              long kafkaOffset) {
+                              Map<Integer, Long> partitionOffsets) {
         List<Order> openOrders = orderBook.dumpOpenOrders();
         SnapshotState state = SnapshotState.builder()
                                            .lastSeq(currentSeq)
                                            .openOrders(openOrders)
                                            .orderMap(orderBook.dumpOrderMap())
-                                           .kafkaOffset(kafkaOffset)
+                                           .partitionOffsets(partitionOffsets)
                                            .createdAt(Instant.now())
                                            .build();
         try {

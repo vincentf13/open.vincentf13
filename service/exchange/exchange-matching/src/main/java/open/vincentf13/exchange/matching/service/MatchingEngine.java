@@ -15,7 +15,8 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
@@ -24,7 +25,7 @@ public class MatchingEngine {
     private final OrderBook orderBook = new OrderBook();
     private final WalService walService;
     private final SnapshotService snapshotService;
-    private final AtomicLong lastKafkaOffset = new AtomicLong(0L);
+    private final Map<Integer, Long> partitionOffsets = new ConcurrentHashMap<>();
     
     private SnapshotState snapshotState;
     
@@ -36,24 +37,25 @@ public class MatchingEngine {
     }
     
     public WalEntry process(Order order,
+                            int partition,
                             long kafkaOffset) {
         OpenValidator.validateOrThrow(order);
         MatchResult result = orderBook.match(order);
         WalEntry entry = walService.append(result,
                                            orderBook.depthSnapshot(order.getInstrumentId(), 20),
-                                           kafkaOffset);
+                                           kafkaOffset,
+                                           partition);
         orderBook.apply(result);
-        lastKafkaOffset.set(kafkaOffset);
-        snapshotService.maybeSnapshot(entry.getSeq(), orderBook, kafkaOffset);
+        partitionOffsets.put(partition, kafkaOffset);
+        snapshotService.maybeSnapshot(entry.getSeq(), orderBook, partitionOffsets);
         return entry;
     }
-    
     
     private SnapshotState loadSnapshot() {
         SnapshotState snapshot = snapshotService.load();
         if (snapshot != null) {
-            if (snapshot.getKafkaOffset() != null) {
-                lastKafkaOffset.set(snapshot.getKafkaOffset());
+            if (snapshot.getPartitionOffsets() != null && !snapshot.getPartitionOffsets().isEmpty()) {
+                partitionOffsets.putAll(snapshot.getPartitionOffsets());
             }
             if (snapshot.getOrderMap() != null && !snapshot.getOrderMap().isEmpty()) {
                 snapshot.getOrderMap().values().forEach(orderBook::restore);
@@ -70,6 +72,9 @@ public class MatchingEngine {
         for (WalEntry entry : entries) {
             try {
                 orderBook.apply(entry.getMatchResult());
+                if (entry.getPartition() != null && entry.getKafkaOffset() != null) {
+                    partitionOffsets.merge(entry.getPartition(), entry.getKafkaOffset(), Math::max);
+                }
             } catch (Exception ex) {
                 OpenLog.error(MatchingEvent.WAL_REPLAY_FAILED,
                               ex,
@@ -77,5 +82,9 @@ public class MatchingEngine {
                               entry.getSeq());
             }
         }
+    }
+    
+    public long offsetForPartition(int partition) {
+        return partitionOffsets.getOrDefault(partition, -1L);
     }
 }
