@@ -28,5 +28,6 @@
         <module>exchange-account</module>
         <module>exchange-market</module>
         <module>exchange-admin</module>
+        <module>exchange-matching</module>
     </modules>
 </project>
