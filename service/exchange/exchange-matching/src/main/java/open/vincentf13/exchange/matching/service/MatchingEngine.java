@@ -14,9 +14,10 @@ import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Component
 @RequiredArgsConstructor
@@ -36,19 +37,27 @@ public class MatchingEngine {
         replayWal();
     }
     
-    public WalEntry process(Order order,
-                            int partition,
-                            long kafkaOffset) {
-        OpenValidator.validateOrThrow(order);
-        MatchResult result = orderBook.match(order);
-        WalEntry entry = walService.append(result,
-                                           orderBook.depthSnapshot(order.getInstrumentId(), 20),
-                                           kafkaOffset,
-                                           partition);
-        orderBook.apply(result);
-        partitionOffsets.put(partition, kafkaOffset);
-        snapshotService.maybeSnapshot(entry.getSeq(), orderBook, partitionOffsets);
-        return entry;
+    public void processBatch(int partition,
+                             List<OrderWithOffset> batch) {
+        if (batch == null || batch.isEmpty()) {
+            return;
+        }
+        long lastSeq = -1L;
+        for (OrderWithOffset item : batch) {
+            Objects.requireNonNull(item, "order batch item must not be null");
+            OpenValidator.validateOrThrow(item.order());
+            MatchResult result = orderBook.match(item.order());
+            WalEntry entry = walService.append(result,
+                                               orderBook.depthSnapshot(item.order().getInstrumentId(), 20),
+                                               item.offset(),
+                                               partition);
+            orderBook.apply(result);
+            partitionOffsets.put(partition, item.offset());
+            lastSeq = entry.getSeq();
+        }
+        if (lastSeq > 0) {
+            snapshotService.maybeSnapshot(lastSeq, orderBook, partitionOffsets);
+        }
     }
     
     private SnapshotState loadSnapshot() {
@@ -84,5 +93,8 @@ public class MatchingEngine {
     
     public long offsetForPartition(int partition) {
         return partitionOffsets.getOrDefault(partition, -1L);
+    }
+    
+    public record OrderWithOffset(Order order, long offset) {
     }
 }

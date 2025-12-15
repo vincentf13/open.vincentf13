@@ -15,6 +15,9 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -30,24 +33,36 @@ public class OrderCreatedEventListener implements ConsumerSeekAware {
     @KafkaListener(topics = OrderTopics.Names.ORDER_CREATED,
                    groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
                    concurrency = "1")
-    public void onOrderCreated(@Payload OrderCreatedEvent event,
-                               @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-                               @Header(KafkaHeaders.OFFSET) long offset,
+    public void onOrderCreated(@Payload List<OrderCreatedEvent> events,
+                               @Header(KafkaHeaders.RECEIVED_PARTITION) List<Integer> partitions,
+                               @Header(KafkaHeaders.OFFSET) List<Long> offsets,
                                Acknowledgment acknowledgment) {
-        OpenValidator.validateOrThrow(event);
-        Order order = Order.builder()
-                           .orderId(event.orderId())
-                           .userId(event.userId())
-                           .instrumentId(event.instrumentId())
-                           .clientOrderId(event.clientOrderId())
-                           .side(event.side())
-                           .type(event.type())
-                           .intent(event.intent())
-                           .price(event.price())
-                           .quantity(event.quantity())
-                           .submittedAt(event.submittedAt())
-                           .build();
-        matchingEngine.process(order, partition, offset);
+        if (events == null || events.isEmpty()) {
+            acknowledgment.acknowledge();
+            return;
+        }
+        Map<Integer, List<MatchingEngine.OrderWithOffset>> batchesByPartition = new HashMap<>();
+        for (int i = 0; i < events.size(); i++) {
+            OrderCreatedEvent event = events.get(i);
+            OpenValidator.validateOrThrow(event);
+            int partition = partitions != null && partitions.size() > i ? partitions.get(i) : 0;
+            long offset = offsets != null && offsets.size() > i ? offsets.get(i) : -1L;
+            Order order = Order.builder()
+                               .orderId(event.orderId())
+                               .userId(event.userId())
+                               .instrumentId(event.instrumentId())
+                               .clientOrderId(event.clientOrderId())
+                               .side(event.side())
+                               .type(event.type())
+                               .intent(event.intent())
+                               .price(event.price())
+                               .quantity(event.quantity())
+                               .submittedAt(event.submittedAt())
+                               .build();
+            batchesByPartition.computeIfAbsent(partition, k -> new ArrayList<>())
+                              .add(new MatchingEngine.OrderWithOffset(order, offset));
+        }
+        batchesByPartition.forEach(matchingEngine::processBatch);
         acknowledgment.acknowledge();
     }
     
