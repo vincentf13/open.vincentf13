@@ -16,6 +16,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
@@ -66,6 +67,7 @@ public class WalService {
     public synchronized List<WalEntry> readFrom(long startSeq) {
         return entries.stream()
                       .filter(entry -> entry.getSeq() >= startSeq)
+                      .sorted(Comparator.comparingLong(WalEntry::getSeq))
                       .toList();
     }
     

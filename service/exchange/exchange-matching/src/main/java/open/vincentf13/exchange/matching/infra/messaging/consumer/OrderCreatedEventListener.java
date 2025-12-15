@@ -23,6 +23,10 @@ public class OrderCreatedEventListener implements ConsumerSeekAware {
     
     private final MatchingEngine matchingEngine;
     
+    /**
+     實務上，應該每個 partition 只接收一種 instrument_id
+     並且 matching 服務 應該啟多個，每個只單線程消費單一 partition
+     */
     @KafkaListener(topics = OrderTopics.Names.ORDER_CREATED,
                    groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
                    concurrency = "1")
@@ -51,10 +55,9 @@ public class OrderCreatedEventListener implements ConsumerSeekAware {
      onPartitionsAssigned 會帶進來 Kafka 當前給「這個 consumer 實例」分配到的 partitions；
      分配結果是 Kafka rebalance 算出來的（受 groupId、併發數、集群分區數、其他同 group 實例數影響），在程式啟動或 rebalance 時才知道是哪幾個分區。
    
-     如果要「固定只消費指定分區」，可以改用 @KafkaListener(topicPartitions = @TopicPartition(topic = "...", partitions =
-     {"0"})) 或在容器設定手動分配；否則預設就是 Kafka 決定並透過 assignments 告訴我們這個實例拿到哪些分區。每條訊息也可透過
+     如果要「固定只消費指定分區」，可以改用 @KafkaListener(topicPartitions = @TopicPartition(topic = "...", partitions ={"0"}))或在容器設定手動分配；
+     否則預設就是 Kafka 決定並透過 assignments 告訴我們這個實例拿到哪些分區。
      
-     @Header(KafkaHeaders.RECEIVED_PARTITION) 看到實際的分區編號。
      */
     @Override
     public void onPartitionsAssigned(Map<TopicPartition, Long> assignments,
