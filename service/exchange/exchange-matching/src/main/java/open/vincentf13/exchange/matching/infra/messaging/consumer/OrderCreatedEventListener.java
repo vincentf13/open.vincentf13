@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.matching.infra.messaging;
+package open.vincentf13.exchange.matching.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;

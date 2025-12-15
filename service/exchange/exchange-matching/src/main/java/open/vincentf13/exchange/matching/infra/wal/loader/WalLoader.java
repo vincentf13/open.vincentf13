@@ -1,10 +1,10 @@
-package open.vincentf13.exchange.matching.infra.loader;
+package open.vincentf13.exchange.matching.infra.wal.loader;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.matching.domain.model.Trade;
+import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
-import open.vincentf13.exchange.matching.infra.outbox.MatchingOutboxRepository;
+import open.vincentf13.exchange.matching.infra.messaging.publisher.MatchingOutboxRepository;
 import open.vincentf13.exchange.matching.infra.persistence.repository.TradeRepository;
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
 import open.vincentf13.exchange.matching.infra.wal.WalProgressStore;

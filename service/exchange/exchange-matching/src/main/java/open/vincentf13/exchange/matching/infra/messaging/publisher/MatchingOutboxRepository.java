@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.matching.infra.outbox;
+package open.vincentf13.exchange.matching.infra.messaging.publisher;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
