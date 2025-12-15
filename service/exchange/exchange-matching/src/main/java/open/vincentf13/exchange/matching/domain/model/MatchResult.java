@@ -1,11 +1,9 @@
-package open.vincentf13.exchange.matching.domain.book;
+package open.vincentf13.exchange.matching.domain.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.matching.domain.model.MatchingOrder;
-import open.vincentf13.exchange.matching.domain.model.OrderUpdate;
-import open.vincentf13.exchange.matching.domain.model.Trade;
+import open.vincentf13.exchange.matching.domain.order.book.Order;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,11 +13,11 @@ import java.util.List;
 @AllArgsConstructor
 public class MatchResult {
     
-    private MatchingOrder takerOrder;
+    private Order takerOrder;
     private List<Trade> trades = new ArrayList<>();
     private List<OrderUpdate> updates = new ArrayList<>();
     
-    public MatchResult(MatchingOrder takerOrder) {
+    public MatchResult(Order takerOrder) {
         this.takerOrder = takerOrder;
         this.trades = new ArrayList<>();
         this.updates = new ArrayList<>();

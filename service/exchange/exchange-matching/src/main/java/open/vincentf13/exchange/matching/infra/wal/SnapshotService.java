@@ -1,8 +1,8 @@
 package open.vincentf13.exchange.matching.infra.wal;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.matching.domain.book.OrderBook;
-import open.vincentf13.exchange.matching.domain.model.MatchingOrder;
+import open.vincentf13.exchange.matching.domain.order.book.OrderBook;
+import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
@@ -49,7 +49,7 @@ public class SnapshotService {
     
     public void writeSnapshot(long currentSeq,
                               OrderBook orderBook) {
-        List<MatchingOrder> openOrders = orderBook.dumpOpenOrders();
+        List<Order> openOrders = orderBook.dumpOpenOrders();
         SnapshotState state = SnapshotState.builder()
                                            .lastSeq(currentSeq)
                                            .openOrders(openOrders)

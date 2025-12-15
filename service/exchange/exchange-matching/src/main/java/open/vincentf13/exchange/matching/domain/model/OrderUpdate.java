@@ -20,5 +20,5 @@ public class OrderUpdate {
     private Long orderId;
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal remainingQuantity;
-    private boolean taker;
+    private boolean isTaker;
 }

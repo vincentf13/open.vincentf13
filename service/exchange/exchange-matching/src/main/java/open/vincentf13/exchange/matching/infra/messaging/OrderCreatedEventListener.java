@@ -2,7 +2,7 @@ package open.vincentf13.exchange.matching.infra.messaging;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
-import open.vincentf13.exchange.matching.domain.model.MatchingOrder;
+import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.service.MatchingEngine;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
@@ -26,12 +26,13 @@ public class OrderCreatedEventListener {
     public void onOrderCreated(@Payload OrderCreatedEvent event,
                                Acknowledgment acknowledgment) {
         OpenValidator.validateOrThrow(event);
-        MatchingOrder order = MatchingOrder.builder()
-                                           .orderId(event.orderId())
+        Order order = Order.builder()
+                           .orderId(event.orderId())
                                            .userId(event.userId())
                                            .instrumentId(event.instrumentId())
                                            .clientOrderId(event.clientOrderId())
                                            .side(event.side())
+                                           .type(event.type())
                                            .intent(event.intent() != null ? event.intent() : PositionIntentType.INCREASE)
                                            .price(event.price())
                                            .quantity(event.quantity())

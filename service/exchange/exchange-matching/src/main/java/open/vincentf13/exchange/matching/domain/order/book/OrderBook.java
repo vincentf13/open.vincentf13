@@ -1,9 +1,9 @@
-package open.vincentf13.exchange.matching.domain.book;
+package open.vincentf13.exchange.matching.domain.order.book;
 
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
-import open.vincentf13.exchange.matching.domain.model.MatchingOrder;
+import open.vincentf13.exchange.matching.domain.model.MatchResult;
 import open.vincentf13.exchange.matching.domain.model.OrderUpdate;
 import open.vincentf13.exchange.matching.domain.model.Trade;
 import open.vincentf13.exchange.matching.sdk.mq.enums.TradeType;
@@ -24,26 +24,26 @@ import java.util.TreeMap;
 
 public class OrderBook {
     
-    private final TreeMap<BigDecimal, Deque<MatchingOrder>> bids = new TreeMap<>(Comparator.reverseOrder());
-    private final TreeMap<BigDecimal, Deque<MatchingOrder>> asks = new TreeMap<>(BigDecimal::compareTo);
-    private final Map<Long, MatchingOrder> orderIndex = new HashMap<>();
+    private final TreeMap<BigDecimal, Deque<Order>> bids = new TreeMap<>(Comparator.reverseOrder());
+    private final TreeMap<BigDecimal, Deque<Order>> asks = new TreeMap<>(BigDecimal::compareTo);
+    private final Map<Long, Order> orderIndex = new HashMap<>();
     
-    public MatchResult match(MatchingOrder taker) {
+    public MatchResult match(Order taker) {
         MatchResult result = new MatchResult(taker);
         BigDecimal remaining = taker.getQuantity();
-        TreeMap<BigDecimal, Deque<MatchingOrder>> targetBook = taker.isBuy() ? asks : bids;
-        Iterator<Map.Entry<BigDecimal, Deque<MatchingOrder>>> iterator = targetBook.entrySet().iterator();
+        TreeMap<BigDecimal, Deque<Order>> targetBook = taker.isBuy() ? asks : bids;
+        Iterator<Map.Entry<BigDecimal, Deque<Order>>> iterator = targetBook.entrySet().iterator();
         
         while (remaining.compareTo(BigDecimal.ZERO) > 0 && iterator.hasNext()) {
-            Map.Entry<BigDecimal, Deque<MatchingOrder>> entry = iterator.next();
+            Map.Entry<BigDecimal, Deque<Order>> entry = iterator.next();
             BigDecimal price = entry.getKey();
             if (!isCrossed(taker, price)) {
                 break;
             }
-            Deque<MatchingOrder> queue = entry.getValue();
-            Iterator<MatchingOrder> makerIterator = new ArrayList<>(queue).iterator();
+            Deque<Order> queue = entry.getValue();
+            Iterator<Order> makerIterator = new ArrayList<>(queue).iterator();
             while (remaining.compareTo(BigDecimal.ZERO) > 0 && makerIterator.hasNext()) {
-                MatchingOrder maker = makerIterator.next();
+                Order maker = makerIterator.next();
                 BigDecimal fillQty = remaining.min(maker.getQuantity());
                 Trade trade = buildTrade(taker, maker, price, fillQty);
                 result.addTrade(trade);
@@ -52,7 +52,7 @@ public class OrderBook {
                 result.addUpdate(OrderUpdate.builder()
                                             .orderId(maker.getOrderId())
                                             .remainingQuantity(OpenBigDecimal.normalizeDecimal(makerRemaining.max(BigDecimal.ZERO)))
-                                            .taker(false)
+                                            .isTaker(false)
                                             .build());
                 remaining = remaining.subtract(fillQty);
             }
@@ -61,7 +61,7 @@ public class OrderBook {
         result.addUpdate(OrderUpdate.builder()
                                     .orderId(taker.getOrderId())
                                     .remainingQuantity(OpenBigDecimal.normalizeDecimal(remaining.max(BigDecimal.ZERO)))
-                                    .taker(true)
+                                    .isTaker(true)
                                     .build());
         return result;
     }
@@ -71,13 +71,13 @@ public class OrderBook {
             if (update.isTaker()) {
                 if (update.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0
                     && result.getTakerOrder().getPrice() != null) {
-                    MatchingOrder taker = result.getTakerOrder();
+                    Order taker = result.getTakerOrder();
                     taker.setQuantity(update.getRemainingQuantity());
                     insert(taker);
                 }
                 continue;
             }
-            MatchingOrder maker = orderIndex.get(update.getOrderId());
+            Order maker = orderIndex.get(update.getOrderId());
             if (maker == null) {
                 continue;
             }
@@ -88,14 +88,14 @@ public class OrderBook {
         }
     }
     
-    public void insert(MatchingOrder order) {
-        TreeMap<BigDecimal, Deque<MatchingOrder>> book = order.isBuy() ? bids : asks;
-        Deque<MatchingOrder> queue = book.computeIfAbsent(order.getPrice(), key -> new ArrayDeque<>());
+    public void insert(Order order) {
+        TreeMap<BigDecimal, Deque<Order>> book = order.isBuy() ? bids : asks;
+        Deque<Order> queue = book.computeIfAbsent(order.getPrice(), key -> new ArrayDeque<>());
         queue.addLast(order);
         orderIndex.put(order.getOrderId(), order);
     }
     
-    public void restore(MatchingOrder order) {
+    public void restore(Order order) {
         insert(order);
     }
     
@@ -111,20 +111,20 @@ public class OrderBook {
         return new OrderBookUpdatedEvent(instrumentId, bidLevels, askLevels, bestBid, bestAsk, mid, Instant.now());
     }
     
-    public List<MatchingOrder> dumpOpenOrders() {
+    public List<Order> dumpOpenOrders() {
         return new ArrayList<>(orderIndex.values());
     }
     
-    private List<OrderBookUpdatedEvent.OrderBookLevel> topLevels(Map<BigDecimal, Deque<MatchingOrder>> source,
+    private List<OrderBookUpdatedEvent.OrderBookLevel> topLevels(Map<BigDecimal, Deque<Order>> source,
                                                                  int depth) {
         List<OrderBookUpdatedEvent.OrderBookLevel> levels = new ArrayList<>(depth);
-        for (Map.Entry<BigDecimal, Deque<MatchingOrder>> entry : source.entrySet()) {
+        for (Map.Entry<BigDecimal, Deque<Order>> entry : source.entrySet()) {
             if (levels.size() >= depth) {
                 break;
             }
             BigDecimal total = entry.getValue()
                                     .stream()
-                                    .map(MatchingOrder::getQuantity)
+                                    .map(Order::getQuantity)
                                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             if (total.compareTo(BigDecimal.ZERO) > 0) {
                 levels.add(new OrderBookUpdatedEvent.OrderBookLevel(entry.getKey(),
@@ -134,9 +134,9 @@ public class OrderBook {
         return levels;
     }
     
-    private void remove(MatchingOrder order) {
-        TreeMap<BigDecimal, Deque<MatchingOrder>> book = order.isBuy() ? bids : asks;
-        Deque<MatchingOrder> queue = book.get(order.getPrice());
+    private void remove(Order order) {
+        TreeMap<BigDecimal, Deque<Order>> book = order.isBuy() ? bids : asks;
+        Deque<Order> queue = book.get(order.getPrice());
         if (queue == null) {
             orderIndex.remove(order.getOrderId());
             return;
@@ -148,8 +148,8 @@ public class OrderBook {
         orderIndex.remove(order.getOrderId());
     }
     
-    private Trade buildTrade(MatchingOrder taker,
-                             MatchingOrder maker,
+    private Trade buildTrade(Order taker,
+                             Order maker,
                              BigDecimal price,
                              BigDecimal quantity) {
         OrderSide takerSide = taker.getSide();
@@ -178,7 +178,7 @@ public class OrderBook {
                     .build();
     }
     
-    private boolean isCrossed(MatchingOrder taker,
+    private boolean isCrossed(Order taker,
                               BigDecimal levelPrice) {
         if (taker.getPrice() == null) {
             return true;

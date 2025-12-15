@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.matching.domain.model;
+package open.vincentf13.exchange.matching.domain.order.book;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 
 import java.math.BigDecimal;
@@ -17,7 +18,7 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MatchingOrder {
+public class Order {
     
     @NotNull
     private Long orderId;
@@ -25,14 +26,16 @@ public class MatchingOrder {
     private Long userId;
     @NotNull
     private Long instrumentId;
-    private String clientOrderId;
     @NotNull
     private OrderSide side;
+    @NotNull
+    private OrderType type;
     private PositionIntentType intent;
     @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = true)
     private BigDecimal price;
     @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
     private BigDecimal quantity;
+    private String clientOrderId;
     @NotNull
     private Instant submittedAt;
     

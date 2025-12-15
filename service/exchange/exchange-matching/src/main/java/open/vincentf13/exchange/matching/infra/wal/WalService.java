@@ -2,7 +2,7 @@ package open.vincentf13.exchange.matching.infra.wal;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.matching.domain.book.MatchResult;
+import open.vincentf13.exchange.matching.domain.model.MatchResult;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;

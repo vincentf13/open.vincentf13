@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.matching.domain.model.MatchingOrder;
+import open.vincentf13.exchange.matching.domain.order.book.Order;
 
 import java.time.Instant;
 import java.util.List;
@@ -15,6 +15,6 @@ import java.util.List;
 @AllArgsConstructor
 public class SnapshotState {
     private long lastSeq;
-    private List<MatchingOrder> openOrders;
+    private List<Order> openOrders;
     private Instant createdAt;
 }
