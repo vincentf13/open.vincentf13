@@ -9,7 +9,6 @@ import open.vincentf13.exchange.matching.infra.persistence.repository.TradeRepos
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
 import open.vincentf13.exchange.matching.infra.wal.WalProgressStore;
 import open.vincentf13.exchange.matching.infra.wal.WalService;
-import open.vincentf13.exchange.matching.sdk.mq.enums.TradeType;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
@@ -88,7 +87,6 @@ public class WalLoader {
         long seq = baseSeq * 10;
         for (Trade trade : trades) {
             long eventSeq = seq++;
-            trade.setTradeType(trade.getTradeType() == null ? TradeType.NORMAL : trade.getTradeType());
             try {
                 outboxRepository.append(MatchingTopics.TRADE_EXECUTED.getTopic(),
                                         trade.getTradeId(),
@@ -108,7 +106,7 @@ public class WalLoader {
                                     event.instrumentId(),
                                     event,
                                     null,
-                                    seq * 10 + 9);
+                                    seq);
         } catch (DuplicateKeyException ex) {
             OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_ORDERBOOK, ex);
         }

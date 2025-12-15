@@ -19,7 +19,7 @@ CREATE TABLE mq_outbox (
   event_type    VARCHAR(64)  NOT NULL COMMENT '事件類型',
   payload       JSON         NOT NULL COMMENT '事件內容',
   headers       JSON         NULL COMMENT '可選標頭 trace等',
-  seq           BIGINT       NOT NULL COMMENT '業務序號 保序/重放基準',
+  seq           BIGINT       NULL COMMENT '業務序號 保序/重放基準',
   created_at    DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '生成時間',
   PRIMARY KEY (event_id),
   UNIQUE KEY uk_seq(seq),
