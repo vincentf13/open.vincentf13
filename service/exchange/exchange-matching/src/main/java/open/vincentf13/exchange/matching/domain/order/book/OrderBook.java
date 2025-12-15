@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +25,16 @@ import java.util.TreeMap;
 
 public class OrderBook {
     
+    private static final int PROCESSED_CACHE_SIZE = 1_000_000;
     private final TreeMap<BigDecimal, Deque<Order>> asks = new TreeMap<>(BigDecimal::compareTo);
     private final TreeMap<BigDecimal, Deque<Order>> bids = new TreeMap<>(Comparator.reverseOrder());
     private final Map<Long, Order> orderIndex = new HashMap<>();
+    private final Map<Long, Boolean> processedOrderIds = new LinkedHashMap<>(1024, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Long, Boolean> eldest) {
+            return size() > PROCESSED_CACHE_SIZE;
+        }
+    };
     
     public MatchResult match(Order taker) {
         MatchResult result = new MatchResult(taker);
@@ -66,6 +74,9 @@ public class OrderBook {
         return result;
     }
     
+    /**
+      根據撮合結果更新簿內訂單，必須在 WAL 已持久化後才執行，避免未落盤狀態污染記憶體。
+     */
     public void apply(MatchResult result) {
         // 根據撮合結果更新簿內訂單：移除成交完畢、保留剩餘量
         for (OrderUpdate update : result.getUpdates()) {
@@ -118,6 +129,27 @@ public class OrderBook {
         bids.values().forEach(queue -> orders.addAll(queue));
         asks.values().forEach(queue -> orders.addAll(queue));
         return orders;
+    }
+    
+    public boolean alreadyProcessed(Long orderId) {
+        return orderId != null && processedOrderIds.containsKey(orderId);
+    }
+    
+    public void markProcessed(Long orderId) {
+        if (orderId != null) {
+            processedOrderIds.put(orderId, Boolean.TRUE);
+        }
+    }
+    
+    public List<Long> dumpProcessedOrderIds() {
+        return new ArrayList<>(processedOrderIds.keySet());
+    }
+    
+    public void restoreProcessedIds(List<Long> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return;
+        }
+        orderIds.forEach(id -> processedOrderIds.put(id, Boolean.TRUE));
     }
     
     private List<OrderBookUpdatedEvent.OrderBookLevel> topLevels(Map<BigDecimal, Deque<Order>> source,

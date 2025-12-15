@@ -44,24 +44,43 @@ public class MatchingEngine {
         List<MatchResult> matchResults = new ArrayList<>(batch.size());
         for (OrderWithOffset item : batch) {
             Objects.requireNonNull(item, "order batch item must not be null");
-            OpenValidator.validateOrThrow(item.order());
-            MatchResult result = orderBook.match(item.order());
+            Order order = item.order();
+            OpenValidator.validateOrThrow(order);
+            partitionOffsets.put(partition, item.offset());
+            
+            // 冪等
+            if (orderBook.alreadyProcessed(order.getOrderId())) {
+                continue;
+            }
+            
+            //撮合
+            MatchResult result = orderBook.match(order);
             matchResults.add(result);
             walRequests.add(new WalAppendRequest(result,
-                                                 orderBook.depthSnapshot(item.order().getInstrumentId(), 20),
+                                                 orderBook.depthSnapshot(order.getInstrumentId(), 20),
                                                  item.offset(),
                                                  partition));
         }
-        
-        List<WalEntry> appended = walService.appendBatch(walRequests);
-        
-        for (int i = 0; i < matchResults.size(); i++) {
-            MatchResult result = matchResults.get(i);
-            orderBook.apply(result);
-            partitionOffsets.put(partition, batch.get(i).offset());
+        if (walRequests.isEmpty()) {
+            return;
         }
-        if (!appended.isEmpty()) {
-            long lastSeq = appended.get(appended.size() - 1).getSeq();
+        
+        // WAL
+        List<WalEntry> appended = walService.appendBatch(walRequests);
+        if (appended.isEmpty()) {
+            return;
+        }
+        
+        
+        // apply 撮合結果
+        for (MatchResult result : matchResults) {
+            orderBook.apply(result);
+            orderBook.markProcessed(result.getTakerOrder().getOrderId());
+        }
+        
+        // 快照
+        long lastSeq = appended.get(appended.size() - 1).getSeq();
+        if (lastSeq > 0) {
             snapshotService.maybeSnapshot(lastSeq, orderBook, partitionOffsets);
         }
     }
@@ -75,6 +94,7 @@ public class MatchingEngine {
             if (snapshot.getOpenOrders() != null) {
                 snapshot.getOpenOrders().forEach(orderBook::restore);
             }
+            orderBook.restoreProcessedIds(snapshot.getProcessedOrderIds());
         }
         return snapshot;
     }
@@ -85,6 +105,7 @@ public class MatchingEngine {
         for (WalEntry entry : entries) {
             try {
                 orderBook.apply(entry.getMatchResult());
+                orderBook.markProcessed(entry.getMatchResult().getTakerOrder().getOrderId());
                 if (entry.getPartition() != null && entry.getKafkaOffset() != null) {
                     partitionOffsets.merge(entry.getPartition(), entry.getKafkaOffset(), Math::max);
                 }

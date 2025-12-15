@@ -18,5 +18,6 @@ public class SnapshotState {
     private long lastSeq;
     private List<Order> openOrders;
     private Map<Integer, Long> partitionOffsets;
+    private List<Long> processedOrderIds;
     private Instant createdAt;
 }

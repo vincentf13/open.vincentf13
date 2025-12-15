@@ -58,6 +58,7 @@ public class SnapshotService {
                                            .lastSeq(currentSeq)
                                            .openOrders(openOrders)
                                            .partitionOffsets(partitionOffsets)
+                                           .processedOrderIds(orderBook.dumpProcessedOrderIds())
                                            .createdAt(Instant.now())
                                            .build();
         try {

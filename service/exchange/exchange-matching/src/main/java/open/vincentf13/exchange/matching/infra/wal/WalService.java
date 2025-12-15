@@ -99,7 +99,7 @@ public class WalService {
             Files.createDirectories(WAL_PATH.getParent());
             // 把一行文字同步寫入檔案（Write-Ahead Log 風格）
             Files.writeString(WAL_PATH,
-                              json + System.lineSeparator(),
+                              json,
                               StandardOpenOption.CREATE,
                               StandardOpenOption.APPEND,
                               StandardOpenOption.SYNC);
