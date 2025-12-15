@@ -11,7 +11,14 @@ public enum MatchingEvent implements OpenEvent {
     TRADE_DUPLICATE("TRADE_DUPLICATE", "Trade duplicate during batch insert"),
     WAL_ENTRY_APPLIED("WAL_ENTRY_APPLIED", "WAL entry applied to DB"),
     OUTBOX_DUPLICATE_TRADE("OUTBOX_DUPLICATE_TRADE", "Outbox duplicate trade event"),
-    OUTBOX_DUPLICATE_ORDERBOOK("OUTBOX_DUPLICATE_ORDERBOOK", "Outbox duplicate order book event");
+    OUTBOX_DUPLICATE_ORDERBOOK("OUTBOX_DUPLICATE_ORDERBOOK", "Outbox duplicate order book event"),
+    WAL_LOAD_FAILED("WAL_LOAD_FAILED", "Load WAL file failed"),
+    WAL_TRUNCATE_FAILED("WAL_TRUNCATE_FAILED", "Truncate WAL failed"),
+    WAL_PROGRESS_LOAD_FAILED("WAL_PROGRESS_LOAD_FAILED", "Load WAL progress failed"),
+    WAL_PROGRESS_SAVE_FAILED("WAL_PROGRESS_SAVE_FAILED", "Save WAL progress failed"),
+    SNAPSHOT_LOAD_FAILED("SNAPSHOT_LOAD_FAILED", "Load snapshot failed"),
+    SNAPSHOT_WRITE_FAILED("SNAPSHOT_WRITE_FAILED", "Write snapshot failed"),
+    WAL_REPLAY_FAILED("WAL_REPLAY_FAILED", "Replay WAL failed");
     
     private final String event;
     private final String message;

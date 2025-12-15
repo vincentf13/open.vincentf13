@@ -115,6 +115,10 @@ public class OrderBook {
         return new ArrayList<>(orderIndex.values());
     }
     
+    public Map<Long, Order> dumpOrderMap() {
+        return new HashMap<>(orderIndex);
+    }
+    
     private List<OrderBookUpdatedEvent.OrderBookLevel> topLevels(Map<BigDecimal, Deque<Order>> source,
                                                                  int depth) {
         List<OrderBookUpdatedEvent.OrderBookLevel> levels = new ArrayList<>(depth);

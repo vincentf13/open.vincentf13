@@ -3,6 +3,7 @@ package open.vincentf13.exchange.matching.infra.snapshot;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.order.book.OrderBook;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
+import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
@@ -34,25 +35,29 @@ public class SnapshotService {
             }
             return state;
         } catch (IOException ex) {
-            OpenLog.error(OpenLog.event("SNAPSHOT_LOAD_FAILED"), ex);
+            OpenLog.error(MatchingEvent.SNAPSHOT_LOAD_FAILED, ex);
             return null;
         }
     }
     
     public void maybeSnapshot(long currentSeq,
-                              OrderBook orderBook) {
+                              OrderBook orderBook,
+                              long kafkaOffset) {
         if (currentSeq - lastSnapshotSeq.get() < SNAPSHOT_INTERVAL) {
             return;
         }
-        writeSnapshot(currentSeq, orderBook);
+        writeSnapshot(currentSeq, orderBook, kafkaOffset);
     }
     
     public void writeSnapshot(long currentSeq,
-                              OrderBook orderBook) {
+                              OrderBook orderBook,
+                              long kafkaOffset) {
         List<Order> openOrders = orderBook.dumpOpenOrders();
         SnapshotState state = SnapshotState.builder()
                                            .lastSeq(currentSeq)
                                            .openOrders(openOrders)
+                                           .orderMap(orderBook.dumpOrderMap())
+                                           .kafkaOffset(kafkaOffset)
                                            .createdAt(Instant.now())
                                            .build();
         try {
@@ -60,7 +65,7 @@ public class SnapshotService {
             Files.writeString(SNAPSHOT_PATH, OpenObjectMapper.toPrettyJson(state));
             lastSnapshotSeq.set(currentSeq);
         } catch (IOException ex) {
-            OpenLog.error(OpenLog.event("SNAPSHOT_WRITE_FAILED"), ex);
+            OpenLog.error(MatchingEvent.SNAPSHOT_WRITE_FAILED, ex);
         }
     }
 }

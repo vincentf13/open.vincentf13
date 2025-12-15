@@ -15,6 +15,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class WalEntry {
     private long seq;
+    private Long kafkaOffset;
     private MatchResult matchResult;
     private OrderBookUpdatedEvent orderBookUpdatedEvent;
     private Instant appendedAt;

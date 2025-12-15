@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.matching.infra.wal;
 
+import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
@@ -22,7 +23,7 @@ public class WalProgressStore {
             WalProgress progress = OpenObjectMapper.fromJson(json, WalProgress.class);
             return progress != null ? progress.lastProcessedSeq() : 0L;
         } catch (IOException ex) {
-            OpenLog.error(OpenLog.event("WAL_PROGRESS_LOAD_FAILED"), ex);
+            OpenLog.error(MatchingEvent.WAL_PROGRESS_LOAD_FAILED, ex);
             return 0L;
         }
     }
@@ -32,7 +33,7 @@ public class WalProgressStore {
             Files.createDirectories(PROGRESS_PATH.getParent());
             Files.writeString(PROGRESS_PATH, OpenObjectMapper.toJson(new WalProgress(seq)));
         } catch (IOException ex) {
-            OpenLog.error(OpenLog.event("WAL_PROGRESS_SAVE_FAILED"), ex);
+            OpenLog.error(MatchingEvent.WAL_PROGRESS_SAVE_FAILED, ex);
         }
     }
     

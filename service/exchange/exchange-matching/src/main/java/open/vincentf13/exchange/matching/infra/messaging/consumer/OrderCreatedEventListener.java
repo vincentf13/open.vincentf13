@@ -9,6 +9,8 @@ import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.sdk.core.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +26,7 @@ public class OrderCreatedEventListener {
                    groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
                    concurrency = "1")
     public void onOrderCreated(@Payload OrderCreatedEvent event,
+                               @Header(KafkaHeaders.OFFSET) long offset,
                                Acknowledgment acknowledgment) {
         OpenValidator.validateOrThrow(event);
         Order order = Order.builder()
@@ -38,7 +41,7 @@ public class OrderCreatedEventListener {
                                            .quantity(event.quantity())
                                            .submittedAt(event.submittedAt() != null ? event.submittedAt() : Instant.now())
                                            .build();
-        matchingEngine.process(order);
+        matchingEngine.process(order, offset);
         acknowledgment.acknowledge();
     }
 }

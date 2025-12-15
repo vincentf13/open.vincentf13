@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
+import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
@@ -40,15 +41,17 @@ public class WalService {
                      lastSeq.set(Math.max(lastSeq.get(), entry.getSeq()));
                  });
         } catch (IOException ex) {
-            OpenLog.error(OpenLog.event("WAL_LOAD_FAILED"), ex);
+            OpenLog.error(MatchingEvent.WAL_LOAD_FAILED, ex);
         }
     }
     
     public synchronized WalEntry append(MatchResult result,
-                                        OrderBookUpdatedEvent orderBookUpdatedEvent) {
+                                        OrderBookUpdatedEvent orderBookUpdatedEvent,
+                                        long kafkaOffset) {
         long nextSeq = lastSeq.incrementAndGet();
         WalEntry entry = WalEntry.builder()
                                  .seq(nextSeq)
+                                 .kafkaOffset(kafkaOffset)
                                  .matchResult(result)
                                  .orderBookUpdatedEvent(orderBookUpdatedEvent)
                                  .appendedAt(Instant.now())
@@ -76,7 +79,7 @@ public class WalService {
         try {
             Files.deleteIfExists(WAL_PATH);
         } catch (IOException ex) {
-            OpenLog.error(OpenLog.event("WAL_TRUNCATE_FAILED"), ex);
+            OpenLog.error(MatchingEvent.WAL_TRUNCATE_FAILED, ex);
         }
     }
     
