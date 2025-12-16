@@ -41,6 +41,7 @@ public class OrderCreatedEventListener {
                                .side(event.side())
                                .type(event.type())
                                .intent(event.intent())
+                               .tradeType(event.tradeType())
                                .price(event.price())
                                .quantity(event.quantity())
                                .submittedAt(event.submittedAt())

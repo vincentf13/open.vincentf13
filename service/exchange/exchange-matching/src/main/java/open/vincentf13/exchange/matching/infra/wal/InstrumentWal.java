@@ -76,20 +76,7 @@ public class InstrumentWal {
                       .sorted(Comparator.comparingLong(WalEntry::getSeq))
                       .toList();
     }
-
-    public long latestSeq() {
-        return lastSeq.get();
-    }
-
-    public synchronized void truncate() {
-        entries.clear();
-        lastSeq.set(0L);
-        try {
-            Files.deleteIfExists(walPath);
-        } catch (IOException ex) {
-            OpenLog.error(MatchingEvent.WAL_TRUNCATE_FAILED, ex, "instrumentId", instrumentId);
-        }
-    }
+    
 
     private WalEntry parseEntry(String line) {
         return OpenObjectMapper.fromJson(line, WalEntry.class);

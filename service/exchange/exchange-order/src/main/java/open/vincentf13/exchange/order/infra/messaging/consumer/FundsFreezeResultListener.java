@@ -6,12 +6,13 @@ import open.vincentf13.exchange.account.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.sdk.mq.topic.AccountFundsTopics;
 import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
+import open.vincentf13.exchange.common.sdk.enums.TradeType;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
-import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderEventRepository;
+import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventReferenceType;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventType;
@@ -23,7 +24,6 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.Instant;
 import java.util.Map;
 
 @Component
@@ -90,6 +90,7 @@ public class FundsFreezeResultListener {
                     order.getSide(),
                     order.getType(),
                     order.getIntent(),
+                    TradeType.NORMAL,
                     order.getPrice(),
                     order.getQuantity(),
                     order.getClientOrderId(),

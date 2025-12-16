@@ -3,6 +3,7 @@ package open.vincentf13.exchange.order.mq.event;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.TradeType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -14,6 +15,7 @@ public record OrderCreatedEvent(
         OrderSide side,
         OrderType type,
         PositionIntentType intent,
+        TradeType tradeType,
         BigDecimal price,
         BigDecimal quantity,
         String clientOrderId,
