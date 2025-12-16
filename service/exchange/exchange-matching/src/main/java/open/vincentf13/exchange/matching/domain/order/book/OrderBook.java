@@ -181,10 +181,16 @@ public class OrderBook {
                              BigDecimal quantity) {
         
         Instrument instrument = InstrumentCache.getInstrument(taker.getInstrumentId());
+        if (instrument == null) {
+            throw new IllegalStateException("instrument cache missing for id " + taker.getInstrumentId());
+        }
         
-        AssetSymbol quoteAsset =instrument.getQuoteAsset();
+        AssetSymbol quoteAsset = instrument.getQuoteAsset();
         BigDecimal makerFee = instrument.getMakerFee();
         BigDecimal takerFee = instrument.getTakerFee();
+        if (quoteAsset == null || makerFee == null || takerFee == null) {
+            throw new IllegalStateException("instrument cache incomplete for id " + taker.getInstrumentId());
+        }
         
         BigDecimal totalValue = OpenBigDecimal.normalizeDecimal(price.multiply(quantity));
         
