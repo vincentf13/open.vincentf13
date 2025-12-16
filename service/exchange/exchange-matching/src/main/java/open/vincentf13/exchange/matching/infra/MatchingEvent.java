@@ -18,7 +18,8 @@ public enum MatchingEvent implements OpenEvent {
     WAL_PROGRESS_SAVE_FAILED("WAL_PROGRESS_SAVE_FAILED", "Save WAL progress failed"),
     SNAPSHOT_LOAD_FAILED("SNAPSHOT_LOAD_FAILED", "Load snapshot failed"),
     SNAPSHOT_WRITE_FAILED("SNAPSHOT_WRITE_FAILED", "Write snapshot failed"),
-    WAL_REPLAY_FAILED("WAL_REPLAY_FAILED", "Replay WAL failed");
+    WAL_REPLAY_FAILED("WAL_REPLAY_FAILED", "Replay WAL failed"),
+    ORDER_ROUTING_ERROR("ORDER_ROUTING_ERROR", "Order routed to wrong instrument processor");
     
     private final String event;
     private final String message;

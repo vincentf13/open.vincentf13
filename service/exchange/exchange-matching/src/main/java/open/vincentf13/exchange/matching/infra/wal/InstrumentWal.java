@@ -1,13 +1,11 @@
 package open.vincentf13.exchange.matching.infra.wal;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,20 +18,25 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
-@Component
-@RequiredArgsConstructor
-public class WalService {
-    
-    private static final Path WAL_PATH = Path.of("data/matching/engine.wal");
+public class InstrumentWal {
+
+    private final Path walPath;
+    @Getter
+    private final Long instrumentId;
     @Getter
     private final List<WalEntry> entries = new ArrayList<>();
     private final AtomicLong lastSeq = new AtomicLong(0L);
-    
+
+    public InstrumentWal(Long instrumentId) {
+        this.instrumentId = instrumentId;
+        this.walPath = Path.of("data/matching/wal-" + instrumentId + ".wal");
+    }
+
     public synchronized void loadExisting() {
-        if (!Files.exists(WAL_PATH)) {
+        if (!Files.exists(walPath)) {
             return;
         }
-        try (Stream<String> lines = Files.lines(WAL_PATH)) {
+        try (Stream<String> lines = Files.lines(walPath)) {
             lines.filter(line -> !line.isBlank())
                  .map(this::parseEntry)
                  .forEach(entry -> {
@@ -41,10 +44,10 @@ public class WalService {
                      lastSeq.set(Math.max(lastSeq.get(), entry.getSeq()));
                  });
         } catch (IOException ex) {
-            OpenLog.error(MatchingEvent.WAL_LOAD_FAILED, ex);
+            OpenLog.error(MatchingEvent.WAL_LOAD_FAILED, ex, "instrumentId", instrumentId);
         }
     }
-    
+
     public synchronized List<WalEntry> appendBatch(List<WalAppendRequest> requests) {
         if (requests == null || requests.isEmpty()) {
             return List.of();
@@ -66,46 +69,47 @@ public class WalService {
         writeLine(sb.toString());
         return appended;
     }
-    
+
     public synchronized List<WalEntry> readFrom(long startSeq) {
         return entries.stream()
                       .filter(entry -> entry.getSeq() >= startSeq)
                       .sorted(Comparator.comparingLong(WalEntry::getSeq))
                       .toList();
     }
-    
+
     public long latestSeq() {
         return lastSeq.get();
     }
-    
+
     public synchronized void truncate() {
         entries.clear();
         lastSeq.set(0L);
         try {
-            Files.deleteIfExists(WAL_PATH);
+            Files.deleteIfExists(walPath);
         } catch (IOException ex) {
-            OpenLog.error(MatchingEvent.WAL_TRUNCATE_FAILED, ex);
+            OpenLog.error(MatchingEvent.WAL_TRUNCATE_FAILED, ex, "instrumentId", instrumentId);
         }
     }
-    
+
     private WalEntry parseEntry(String line) {
         return OpenObjectMapper.fromJson(line, WalEntry.class);
     }
-    
+
     private void writeLine(String json) {
         try {
-            Files.createDirectories(WAL_PATH.getParent());
-            // 把一行文字同步寫入檔案（Write-Ahead Log 風格）
-            Files.writeString(WAL_PATH,
+            if (walPath.getParent() != null) {
+                Files.createDirectories(walPath.getParent());
+            }
+            Files.writeString(walPath,
                               json,
                               StandardOpenOption.CREATE,
                               StandardOpenOption.APPEND,
                               StandardOpenOption.SYNC);
         } catch (IOException ex) {
-            throw new IllegalStateException("Failed to append WAL", ex);
+            throw new IllegalStateException("Failed to append WAL for " + instrumentId, ex);
         }
     }
-    
+
     public record WalAppendRequest(MatchResult result,
                                    OrderBookUpdatedEvent orderBookUpdatedEvent) {
     }

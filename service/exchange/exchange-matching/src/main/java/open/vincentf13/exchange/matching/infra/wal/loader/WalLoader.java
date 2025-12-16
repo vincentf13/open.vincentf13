@@ -5,9 +5,11 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.exchange.matching.infra.persistence.repository.TradeRepository;
+import open.vincentf13.exchange.matching.infra.wal.InstrumentWal;
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
 import open.vincentf13.exchange.matching.infra.wal.WalProgressStore;
-import open.vincentf13.exchange.matching.infra.wal.WalService;
+import open.vincentf13.exchange.matching.service.InstrumentProcessor;
+import open.vincentf13.exchange.matching.service.MatchingEngine;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
@@ -21,49 +23,65 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
 public class WalLoader {
     
-    private final WalService walService;
+    private final MatchingEngine matchingEngine;
     private final WalProgressStore walProgressStore;
     private final TradeRepository tradeRepository;
     private final MqOutboxRepository outboxRepository;
     private final TransactionTemplate transactionTemplate;
     
-    private volatile long lastProcessedSeq;
+    private final Map<Long, Long> lastProcessedSeqMap = new ConcurrentHashMap<>();
     
     @PostConstruct
     public void init() {
-        this.lastProcessedSeq = walProgressStore.loadLastProcessedSeq();
     }
     
     @Scheduled(fixedDelayString = "${open.vincentf13.exchange.matching.loader-interval-ms:1000}")
     public void drainWal() {
-        List<WalEntry> entries = walService.readFrom(lastProcessedSeq + 1);
+        for (InstrumentProcessor processor : matchingEngine.getProcessors()) {
+            drainInstrumentWal(processor);
+        }
+    }
+
+    private void drainInstrumentWal(InstrumentProcessor processor) {
+        Long instrumentId = processor.getInstrumentId();
+        long lastSeq = lastProcessedSeqMap.computeIfAbsent(instrumentId, walProgressStore::loadLastProcessedSeq);
+
+        InstrumentWal wal = processor.getWal();
+        List<WalEntry> entries = wal.readFrom(lastSeq + 1);
+
         if (entries.isEmpty()) {
             return;
         }
+
         for (WalEntry entry : entries) {
             try {
                 processEntry(entry);
-                lastProcessedSeq = entry.getSeq();
+                lastSeq = entry.getSeq();
             } catch (Exception ex) {
                 OpenLog.error(MatchingEvent.WAL_LOADER_FAILED,
                               ex,
                               "seq",
-                              entry.getSeq());
+                              entry.getSeq(),
+                              "instrumentId", instrumentId);
                 break;
             }
         }
-        walProgressStore.saveLastProcessedSeq(lastProcessedSeq);
+
+        lastProcessedSeqMap.put(instrumentId, lastSeq);
+        walProgressStore.saveLastProcessedSeq(instrumentId, lastSeq);
     }
     
     private void processEntry(WalEntry entry) {
         List<Trade> trades = entry.getMatchResult().getTrades();
         List<Trade> persisted = new ArrayList<>();
-        long baseOffset = entry.getSeq() << 20; // 預留 2^20 筆事件空間
+        long baseOffset = entry.getSeq() << 20;
         final long[] nextIndex = {0L};
         transactionTemplate.executeWithoutResult(status -> {
             if (!trades.isEmpty()) {
@@ -83,7 +101,7 @@ public class WalLoader {
                      "seq", entry.getSeq(),
                      "tradeCount", persisted.size());
     }
-    
+
     private long publishTrades(long baseOffset,
                                List<Trade> trades,
                                long startIndex) {
