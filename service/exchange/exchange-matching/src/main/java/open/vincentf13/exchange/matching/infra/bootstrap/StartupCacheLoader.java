@@ -54,34 +54,12 @@ public class StartupCacheLoader {
         OpenLog.info(MatchingEvent.STARTUP_LOADING_INSTRUMENTS);
 
         List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
+        if (instruments == null || instruments.isEmpty()) {
+            OpenLog.warn(MatchingEvent.STARTUP_CACHE_LOAD_PARTIAL, "message", "no instruments returned");
+            return;
+        }
 
-        // We need detailed info (makerFee) which is not in summary
-        // Since we cannot batch get details, and n+1 is bad at startup but acceptable if n is small
-        // However, better solution might be to update summary DTO in SDK, but we can't do that easily here.
-        // Let's assume we can fetch details for each instrument.
-
-        List<open.vincentf13.exchange.matching.domain.instrument.Instrument> domainInstruments = instruments.stream()
-            .map(summary -> {
-                try {
-                    var detail = adminClient.get(summary.instrumentId()).data();
-                    return open.vincentf13.exchange.matching.domain.instrument.Instrument.builder()
-                        .instrumentId(detail.instrumentId())
-                        .symbol(detail.symbol())
-                        .baseAsset(detail.baseAsset() != null ? detail.baseAsset().name() : null)
-                        .quoteAsset(detail.quoteAsset() != null ? detail.quoteAsset().name() : null)
-                        .makerFee(detail.makerFeeRate())
-                        .takerFee(detail.takerFeeRate())
-                        .build();
-                } catch (Exception e) {
-                   OpenLog.warn(MatchingEvent.STARTUP_CACHE_LOAD_PARTIAL, "Failed to load detail for instrument " + summary.instrumentId());
-                   return null;
-                }
-            })
-            .filter(java.util.Objects::nonNull)
-            .toList();
-
-        instrumentCache.putAllDomain(domainInstruments);
-
-        OpenLog.info(MatchingEvent.STARTUP_INSTRUMENTS_LOADED, "count", domainInstruments.size());
+        instrumentCache.putAll(instruments);
+        OpenLog.info(MatchingEvent.STARTUP_INSTRUMENTS_LOADED, "count", instrumentCache.size());
     }
 }

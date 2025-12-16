@@ -17,6 +17,7 @@ public record InstrumentSummaryResponse(
         Integer displayOrder,
         Boolean tradable,
         Boolean visible,
-        BigDecimal takerFeeRate
+        BigDecimal takerFeeRate,
+        BigDecimal makerFeeRate
 ) {
 }

@@ -1,14 +1,11 @@
 package open.vincentf13.exchange.matching.domain.order.book;
 
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.exchange.common.sdk.enums.OrderSide;
-import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.domain.instrument.Instrument;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.OrderUpdate;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.cache.InstrumentCache;
-import open.vincentf13.exchange.matching.sdk.mq.enums.TradeType;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 
@@ -182,23 +179,15 @@ public class OrderBook {
                              Order maker,
                              BigDecimal price,
                              BigDecimal quantity) {
-        OrderSide takerSide = taker.getSide();
-        OrderSide makerSide = maker.getSide();
-        PositionIntentType makerIntent = maker.getIntent() != null ? maker.getIntent() : PositionIntentType.INCREASE;
-        PositionIntentType takerIntent = taker.getIntent() != null ? taker.getIntent() : PositionIntentType.INCREASE;
-
+        
         Instrument instrument = InstrumentCache.getInstrument(taker.getInstrumentId());
-        AssetSymbol quoteAsset = AssetSymbol.UNKNOWN;
-        if (instrument != null && instrument.getQuoteAsset() != null) {
-            try {
-                quoteAsset = AssetSymbol.valueOf(instrument.getQuoteAsset());
-            } catch (IllegalArgumentException e) {
-                // Keep UNKNOWN if asset symbol is not found in enum
-            }
-        }
-        BigDecimal makerFee = (instrument != null) ? instrument.getMakerFee() : BigDecimal.ZERO;
-        BigDecimal takerFee = (instrument != null) ? instrument.getTakerFee() : BigDecimal.ZERO;
-
+        
+        AssetSymbol quoteAsset =instrument.getQuoteAsset();
+        BigDecimal makerFee = instrument.getMakerFee();
+        BigDecimal takerFee = instrument.getTakerFee();
+        
+        BigDecimal totalValue = OpenBigDecimal.normalizeDecimal(price.multiply(quantity));
+        
         return Trade.builder()
                     .tradeId(null)
                     .instrumentId(taker.getInstrumentId())
@@ -207,16 +196,16 @@ public class OrderBook {
                     .takerUserId(taker.getUserId())
                     .orderId(maker.getOrderId())
                     .counterpartyOrderId(taker.getOrderId())
-                    .orderSide(makerSide)
-                    .counterpartyOrderSide(takerSide)
-                    .makerIntent(makerIntent)
-                    .takerIntent(takerIntent)
+                    .orderSide(maker.getSide())
+                    .counterpartyOrderSide(taker.getSide())
+                    .makerIntent(maker.getIntent())
+                    .takerIntent(taker.getIntent())
                     .tradeType(taker.getTradeType())
                     .price(OpenBigDecimal.normalizeDecimal(price))
                     .quantity(OpenBigDecimal.normalizeDecimal(quantity))
-                    .totalValue(OpenBigDecimal.normalizeDecimal(price.multiply(quantity)))
-                    .makerFee(makerFee)
-                    .takerFee(takerFee)
+                    .totalValue(totalValue)
+                    .makerFee(totalValue.multiply(makerFee))
+                    .takerFee(totalValue.multiply(takerFee))
                     .executedAt(Instant.now())
                     .build();
     }
