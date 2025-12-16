@@ -8,7 +8,6 @@ import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -49,6 +48,7 @@ public class MatchingEngine {
                     processor.processBatch(orders);
                 } catch (Exception e) {
                     OpenLog.error(MatchingEvent.ORDER_ROUTING_ERROR, e, "instrumentId", instrumentId);
+                    throw e;
                 }
             });
         });

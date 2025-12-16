@@ -20,10 +20,6 @@ public class OrderCreatedEventListener {
     
     private final MatchingEngine matchingEngine;
     
-    /**
-     實務上，應該每個 partition 只接收一種 instrument_id
-     並且 matching 服務 應該啟多個，每個只單線程消費單一 partition
-     */
     @KafkaListener(topics = OrderTopics.Names.ORDER_CREATED,
                    groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
                    concurrency = "1")

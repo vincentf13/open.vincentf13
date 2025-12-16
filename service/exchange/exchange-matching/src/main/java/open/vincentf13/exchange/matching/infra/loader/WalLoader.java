@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.matching.infra.wal.loader;
+package open.vincentf13.exchange.matching.infra.loader;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
