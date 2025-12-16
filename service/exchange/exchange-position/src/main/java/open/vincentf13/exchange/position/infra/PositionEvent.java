@@ -2,12 +2,13 @@ package open.vincentf13.exchange.position.infra;
 
 import open.vincentf13.sdk.core.log.OpenEvent;
 
-/*
- * Position 事件枚舉。
+/**
+  Position 事件枚舉。
  */
 public enum PositionEvent implements OpenEvent {
     POSITION_TRADE_SETTLEMENT_FAILED("PositionTradeSettlementFailed", "Trade settlement handling failed"),
     POSITION_TRADE_PAYLOAD_INVALID("PositionTradePayloadInvalid", "Invalid TradeExecuted payload"),
+    POSITION_MARK_PRICE_UPDATE_FAILED("PositionMarkPriceUpdateFailed", "Mark price update failed"),
     STARTUP_CACHE_LOADING("StartupCacheLoading", "Starting cache loading"),
     STARTUP_CACHE_LOADED("StartupCacheLoaded", "Cache loaded successfully"),
     STARTUP_CACHE_LOAD_FAILED("StartupCacheLoadFailed", "Cache loading failed"),

@@ -12,7 +12,8 @@ data:
 
     ORDINAL=${HOSTNAME##*-}
     NODE_ID=${ORDINAL}
-    ADVERTISED_HOST="${HOSTNAME}.infra-kafka-headless"
+    NAMESPACE="${POD_NAMESPACE:-default}"
+    ADVERTISED_HOST="${HOSTNAME}.infra-kafka-headless.${NAMESPACE}.svc.cluster.local"
     CONFIG_PATH="/opt/kafka/config/generated.properties"
     DATA_DIR="/var/lib/kafka/data"
 

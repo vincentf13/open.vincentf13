@@ -39,6 +39,10 @@ spec:
             - # 固定的 Cluster ID，首次啟動時用於格式化儲存目錄。
               name: KAFKA_CLUSTER_ID
               value: 4L6g3nG2RDeXh7Ya9Bc2fA
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           volumeMounts:
             - name: kafka-config
               mountPath: /opt/kafka/custom-config
