@@ -10,6 +10,7 @@ import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.matching.sdk.mq.enums.TradeType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -31,6 +32,7 @@ public class Order {
     @NotNull
     private OrderType type;
     private PositionIntentType intent;
+    private TradeType tradeType;
     @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = true)
     private BigDecimal price;
     @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
