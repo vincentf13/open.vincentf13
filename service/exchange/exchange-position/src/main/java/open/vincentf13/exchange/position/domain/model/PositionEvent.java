@@ -118,4 +118,41 @@ public class PositionEvent {
                 .occurredAt(occurredAt)
                 .build();
     }
+
+    public static PositionEvent createMarkPriceEvent(Long positionId,
+                                                     Long userId,
+                                                     Long instrumentId,
+                                                     BigDecimal newQuantity,
+                                                     BigDecimal newReservedQuantity,
+                                                     BigDecimal newEntryPrice,
+                                                     Integer newLeverage,
+                                                     BigDecimal newMargin,
+                                                     BigDecimal newUnrealizedPnl,
+                                                     BigDecimal marginRatio,
+                                                     BigDecimal newLiquidationPrice,
+                                                     Long tradeId,
+                                                     Instant occurredAt) {
+        return PositionEvent.builder()
+                .positionId(positionId)
+                .userId(userId)
+                .instrumentId(instrumentId)
+                .eventType(PositionEventType.MARK_PRICE_UPDATED)
+                .deltaQuantity(BigDecimal.ZERO)
+                .deltaMargin(BigDecimal.ZERO)
+                .realizedPnl(BigDecimal.ZERO)
+                .tradeFee(BigDecimal.ZERO)
+                .fundingFee(BigDecimal.ZERO)
+                .newQuantity(newQuantity)
+                .newReservedQuantity(newReservedQuantity)
+                .newEntryPrice(newEntryPrice)
+                .newLeverage(newLeverage)
+                .newMargin(newMargin)
+                .newUnrealizedPnl(newUnrealizedPnl)
+                .newLiquidationPrice(newLiquidationPrice)
+                .referenceId(tradeId)
+                .referenceType(PositionReferenceType.MARK_PRICE_UPDATE)
+                .metadata("{\"marginRatio\": " + marginRatio + "}")
+                .occurredAt(occurredAt)
+                .build();
+    }
 }

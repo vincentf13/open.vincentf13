@@ -16,12 +16,14 @@ import open.vincentf13.exchange.position.infra.cache.MarkPriceCache;
 import open.vincentf13.exchange.position.infra.cache.RiskLimitCache;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
+import open.vincentf13.exchange.market.mq.event.MarkPriceUpdatedEvent;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -44,6 +46,110 @@ public class PositionDomainService {
 
     private static final BigDecimal MAINTENANCE_MARGIN_RATE_DEFAULT = BigDecimal.valueOf(0.005);
     private static final BigDecimal CONTRACT_MULTIPLIER = BigDecimal.ONE;
+
+    @Transactional
+    public void handleMarkPriceUpdate(MarkPriceUpdatedEvent event) {
+        Long instrumentId = event.instrumentId();
+        BigDecimal markPrice = event.markPrice();
+        Instant eventTime = event.tradeExecutedAt();
+
+        markPriceCache.update(instrumentId, markPrice, eventTime);
+
+        List<Position> activePositions = positionRepository.findBy(
+                Wrappers.lambdaQuery(PositionPO.class)
+                        .eq(PositionPO::getInstrumentId, instrumentId)
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
+
+        BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
+                .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
+                .orElse(CONTRACT_MULTIPLIER);
+
+        BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
+                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
+                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
+
+        for (Position position : activePositions) {
+            updatePositionWithMarkPrice(position, markPrice, contractMultiplier, maintenanceMarginRate, event);
+        }
+    }
+
+    private void updatePositionWithMarkPrice(Position position, BigDecimal markPrice, BigDecimal contractMultiplier, BigDecimal maintenanceMarginRate, MarkPriceUpdatedEvent event) {
+        Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
+        updatedPosition.setMarkPrice(markPrice);
+
+        BigDecimal quantity = safe(position.getQuantity());
+
+        // Skip if quantity is zero (should not happen for active positions but safe guard)
+        if (quantity.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
+
+        if (updatedPosition.getSide() == PositionSide.LONG) {
+            updatedPosition.setUnrealizedPnl(markPrice.subtract(updatedPosition.getEntryPrice())
+                    .multiply(quantity)
+                    .multiply(contractMultiplier));
+        } else {
+            updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(markPrice)
+                    .multiply(quantity)
+                    .multiply(contractMultiplier));
+        }
+
+        BigDecimal notional = markPrice.multiply(quantity).abs();
+        if (notional.compareTo(BigDecimal.ZERO) == 0) {
+            updatedPosition.setMarginRatio(BigDecimal.ZERO);
+        } else {
+            updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
+                    .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
+        }
+
+        if (updatedPosition.getSide() == PositionSide.LONG) {
+            updatedPosition.setLiquidationPrice(
+                    updatedPosition.getEntryPrice()
+                            .subtract(updatedPosition.getMargin().divide(quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                            .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
+            );
+        } else {
+            updatedPosition.setLiquidationPrice(
+                    updatedPosition.getEntryPrice()
+                            .add(updatedPosition.getMargin().divide(quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                            .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
+            );
+        }
+
+        // Optimistic Locking Update
+        int expectedVersion = position.safeVersion();
+        updatedPosition.setVersion(expectedVersion + 1);
+        boolean updated = positionRepository.updateSelectiveBy(
+                updatedPosition,
+                Wrappers.<PositionPO>lambdaUpdate()
+                        .eq(PositionPO::getPositionId, updatedPosition.getPositionId())
+                        .eq(PositionPO::getVersion, expectedVersion));
+
+        if (!updated) {
+           // If concurrent update happens (e.g. user trades at the same time), we skip this mark price update
+           // as the trade event will update the position with latest data anyway.
+           // Or we could throw exception to retry, but for high freq mark price, skipping is acceptable.
+           // However, to be safe and consistent with other methods, we can log it.
+           return;
+        }
+
+        PositionEvent positionEvent = PositionEvent.createMarkPriceEvent(
+                updatedPosition.getPositionId(),
+                position.getUserId(),
+                position.getInstrumentId(),
+                updatedPosition.getQuantity(),
+                updatedPosition.getClosingReservedQuantity(),
+                updatedPosition.getEntryPrice(),
+                updatedPosition.getLeverage(),
+                updatedPosition.getMargin(),
+                updatedPosition.getUnrealizedPnl(),
+                updatedPosition.getMarginRatio(),
+                updatedPosition.getLiquidationPrice(),
+                event.tradeId(),
+                event.calculatedAt()
+        );
+        positionEventRepository.insert(positionEvent);
+    }
 
     public PositionSide toPositionSide(OrderSide orderSide) {
         if (orderSide == null) {
