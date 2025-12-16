@@ -21,6 +21,10 @@
             <artifactId>sdk-spring-cloud-gateway</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

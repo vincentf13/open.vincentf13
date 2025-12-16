@@ -13,6 +13,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Listens to application startup events and triggers cache initialization.
  */
@@ -25,6 +27,7 @@ public class ApplicationStartupListener {
     private final MarkPriceCache markPriceCache;
     private final InstrumentCache instrumentCache;
     private final PositionDomainService positionDomainService;
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     /**
      * Handles the ApplicationReadyEvent to load caches after application startup.
@@ -33,6 +36,12 @@ public class ApplicationStartupListener {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady(ApplicationReadyEvent event) {
+        if (event.getApplicationContext().getParent() != null) {
+            return;
+        }
+        if (!initialized.compareAndSet(false, true)) {
+            return;
+        }
         OpenLog.info(PositionEvent.STARTUP_CACHE_LOADING,
                      "Application ready, starting cache initialization");
 
