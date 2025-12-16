@@ -24,7 +24,6 @@ public class MatchingEngine {
     private final OrderBook orderBook = new OrderBook();
     private final WalService walService;
     private final SnapshotService snapshotService;
-    private final Map<Integer, Long> partitionOffsets = new HashMap<>();
     
     private SnapshotState snapshotState;
     
@@ -35,8 +34,7 @@ public class MatchingEngine {
         replayWal();
     }
     
-    public void processBatch(int partition,
-                             List<OrderWithOffset> batch) {
+    public void processBatch(List<Order> batch) {
         if (batch == null || batch.isEmpty()) {
             return;
         }
@@ -47,11 +45,9 @@ public class MatchingEngine {
         
         List<WalAppendRequest> walRequests = new ArrayList<>(batch.size());
         List<MatchResult> matchResults = new ArrayList<>(batch.size());
-        for (OrderWithOffset item : batch) {
-            Objects.requireNonNull(item, "order batch item must not be null");
-            Order order = item.order();
+        for (Order order : batch) {
+            Objects.requireNonNull(order, "order batch item must not be null");
             OpenValidator.validateOrThrow(order);
-            partitionOffsets.put(partition, item.offset());
             
             // 冪等
             if (orderBook.alreadyProcessed(order.getOrderId())) {
@@ -62,9 +58,7 @@ public class MatchingEngine {
             MatchResult result = orderBook.match(order);
             matchResults.add(result);
             walRequests.add(new WalAppendRequest(result,
-                                                 orderBook.depthSnapshot(order.getInstrumentId(), 20),
-                                                 item.offset(),
-                                                 partition));
+                                                 orderBook.depthSnapshot(order.getInstrumentId(), 20)));
         }
         if (walRequests.isEmpty()) {
             return;
@@ -86,16 +80,13 @@ public class MatchingEngine {
         // 快照
         long lastSeq = appended.get(appended.size() - 1).getSeq();
         if (lastSeq > 0) {
-            snapshotService.maybeSnapshot(lastSeq, orderBook, partitionOffsets);
+            snapshotService.maybeSnapshot(lastSeq, orderBook);
         }
     }
     
     private SnapshotState loadSnapshot() {
         SnapshotState snapshot = snapshotService.load();
         if (snapshot != null) {
-            if (snapshot.getPartitionOffsets() != null && !snapshot.getPartitionOffsets().isEmpty()) {
-                partitionOffsets.putAll(snapshot.getPartitionOffsets());
-            }
             if (snapshot.getOpenOrders() != null) {
                 snapshot.getOpenOrders().forEach(orderBook::restore);
             }
@@ -111,9 +102,6 @@ public class MatchingEngine {
             try {
                 orderBook.apply(entry.getMatchResult());
                 orderBook.markProcessed(entry.getMatchResult().getTakerOrder().getOrderId());
-                if (entry.getPartition() != null && entry.getKafkaOffset() != null) {
-                    partitionOffsets.merge(entry.getPartition(), entry.getKafkaOffset(), Math::max);
-                }
             } catch (Exception ex) {
                 OpenLog.error(MatchingEvent.WAL_REPLAY_FAILED,
                               ex,
@@ -121,12 +109,5 @@ public class MatchingEngine {
                               entry.getSeq());
             }
         }
-    }
-    
-    public long offsetForPartition(int partition) {
-        return partitionOffsets.getOrDefault(partition, -1L);
-    }
-    
-    public record OrderWithOffset(Order order, long offset) {
     }
 }

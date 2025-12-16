@@ -55,8 +55,6 @@ public class WalService {
             long nextSeq = lastSeq.incrementAndGet();
             WalEntry entry = WalEntry.builder()
                                      .seq(nextSeq)
-                                     .kafkaOffset(req.kafkaOffset())
-                                     .partition(req.partition())
                                      .matchResult(req.result())
                                      .orderBookUpdatedEvent(req.orderBookUpdatedEvent())
                                      .appendedAt(Instant.now())
@@ -109,8 +107,6 @@ public class WalService {
     }
     
     public record WalAppendRequest(MatchResult result,
-                                   OrderBookUpdatedEvent orderBookUpdatedEvent,
-                                   long kafkaOffset,
-                                   int partition) {
+                                   OrderBookUpdatedEvent orderBookUpdatedEvent) {
     }
 }

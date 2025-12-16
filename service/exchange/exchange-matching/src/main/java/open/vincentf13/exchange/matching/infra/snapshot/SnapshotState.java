@@ -8,7 +8,6 @@ import open.vincentf13.exchange.matching.domain.order.book.Order;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 @Data
 @Builder
@@ -17,7 +16,6 @@ import java.util.Map;
 public class SnapshotState {
     private long lastSeq;
     private List<Order> openOrders;
-    private Map<Integer, Long> partitionOffsets;
     private List<Long> processedOrderIds;
     private Instant createdAt;
 }
