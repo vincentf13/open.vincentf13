@@ -8,6 +8,7 @@
             parameterType="open.vincentf13.sdk.infra.mysql.pending.task.SysPendingTaskPO"
             useGeneratedKeys="true"
             keyProperty="id">
+        <![CDATA[
         INSERT INTO sys_pending_tasks (
             biz_type, biz_key, status, priority, payload, result_msg,
             retry_count, max_retries, next_run_time, version
@@ -16,9 +17,11 @@
             #{bizType}, #{bizKey}, #{status}, #{priority}, #{payload}, #{resultMsg},
             #{retryCount}, #{maxRetries}, #{nextRunTime}, #{version}
         )
+        ]]>
     </insert>
 
     <select id="fetchRunnable" resultType="open.vincentf13.sdk.infra.mysql.pending.task.SysPendingTaskPO">
+        <![CDATA[
         SELECT id, biz_type, biz_key, status, priority, payload, result_msg, retry_count, max_retries,
                next_run_time, version, created_at, updated_at
         FROM sys_pending_tasks
@@ -26,26 +29,32 @@
           AND next_run_time <= NOW()
         ORDER BY priority ASC, id ASC
         LIMIT #{limit}
+        ]]>
     </select>
 
     <update id="markProcessing">
+        <![CDATA[
         UPDATE sys_pending_tasks
         SET status = 'PROCESSING',
             version = version + 1
         WHERE id = #{id}
           AND version = #{expectedVersion}
+        ]]>
     </update>
 
     <update id="markSuccess">
+        <![CDATA[
         UPDATE sys_pending_tasks
         SET status = 'SUCCESS',
             result_msg = #{resultMsg},
             version = version + 1
         WHERE id = #{id}
           AND version = #{expectedVersion}
+        ]]>
     </update>
 
     <update id="markFailRetry">
+        <![CDATA[
         UPDATE sys_pending_tasks
         SET status = 'FAIL_RETRY',
             retry_count = retry_count + 1,
@@ -54,18 +63,22 @@
             version = version + 1
         WHERE id = #{id}
           AND version = #{expectedVersion}
+        ]]>
     </update>
 
     <update id="markFailTerminal">
+        <![CDATA[
         UPDATE sys_pending_tasks
         SET status = 'FAIL_TERMINAL',
             result_msg = #{resultMsg},
             version = version + 1
         WHERE id = #{id}
           AND version = #{expectedVersion}
+        ]]>
     </update>
 
     <update id="rescueStuck">
+        <![CDATA[
         UPDATE sys_pending_tasks
         SET status = 'FAIL_RETRY',
             retry_count = retry_count + 1,
@@ -74,5 +87,6 @@
             next_run_time = NOW()
         WHERE status = 'PROCESSING'
           AND updated_at <= #{timeoutThreshold}
+        ]]>
     </update>
 </mapper>
