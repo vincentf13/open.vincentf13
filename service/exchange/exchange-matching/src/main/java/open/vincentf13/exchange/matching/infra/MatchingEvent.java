@@ -19,7 +19,13 @@ public enum MatchingEvent implements OpenEvent {
     SNAPSHOT_LOAD_FAILED("SNAPSHOT_LOAD_FAILED", "Load snapshot failed"),
     SNAPSHOT_WRITE_FAILED("SNAPSHOT_WRITE_FAILED", "Write snapshot failed"),
     WAL_REPLAY_FAILED("WAL_REPLAY_FAILED", "Replay WAL failed"),
-    ORDER_ROUTING_ERROR("ORDER_ROUTING_ERROR", "Order routed to wrong instrument processor");
+    ORDER_ROUTING_ERROR("ORDER_ROUTING_ERROR", "Order routed to wrong instrument processor"),
+    STARTUP_CACHE_LOADING("STARTUP_CACHE_LOADING", "Cache loading started"),
+    STARTUP_CACHE_LOADED("STARTUP_CACHE_LOADED", "Cache loaded successfully"),
+    STARTUP_CACHE_LOAD_FAILED("STARTUP_CACHE_LOAD_FAILED", "Cache loading failed"),
+    STARTUP_LOADING_INSTRUMENTS("STARTUP_LOADING_INSTRUMENTS", "Loading instruments"),
+    STARTUP_CACHE_LOAD_PARTIAL("STARTUP_CACHE_LOAD_PARTIAL", "Cache loaded partially"),
+    STARTUP_INSTRUMENTS_LOADED("STARTUP_INSTRUMENTS_LOADED", "Instruments loaded");
     
     private final String event;
     private final String message;

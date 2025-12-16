@@ -3,9 +3,12 @@ package open.vincentf13.exchange.matching.domain.order.book;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.matching.domain.instrument.Instrument;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.OrderUpdate;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
+import open.vincentf13.exchange.matching.infra.cache.InstrumentCache;
+import open.vincentf13.exchange.matching.sdk.mq.enums.TradeType;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 
@@ -183,10 +186,23 @@ public class OrderBook {
         OrderSide makerSide = maker.getSide();
         PositionIntentType makerIntent = maker.getIntent() != null ? maker.getIntent() : PositionIntentType.INCREASE;
         PositionIntentType takerIntent = taker.getIntent() != null ? taker.getIntent() : PositionIntentType.INCREASE;
+
+        Instrument instrument = InstrumentCache.getInstrument(taker.getInstrumentId());
+        AssetSymbol quoteAsset = AssetSymbol.UNKNOWN;
+        if (instrument != null && instrument.getQuoteAsset() != null) {
+            try {
+                quoteAsset = AssetSymbol.valueOf(instrument.getQuoteAsset());
+            } catch (IllegalArgumentException e) {
+                // Keep UNKNOWN if asset symbol is not found in enum
+            }
+        }
+        BigDecimal makerFee = (instrument != null) ? instrument.getMakerFee() : BigDecimal.ZERO;
+        BigDecimal takerFee = (instrument != null) ? instrument.getTakerFee() : BigDecimal.ZERO;
+
         return Trade.builder()
                     .tradeId(null)
                     .instrumentId(taker.getInstrumentId())
-                    .quoteAsset(AssetSymbol.UNKNOWN)
+                    .quoteAsset(quoteAsset)
                     .makerUserId(maker.getUserId())
                     .takerUserId(taker.getUserId())
                     .orderId(maker.getOrderId())
@@ -199,8 +215,8 @@ public class OrderBook {
                     .price(OpenBigDecimal.normalizeDecimal(price))
                     .quantity(OpenBigDecimal.normalizeDecimal(quantity))
                     .totalValue(OpenBigDecimal.normalizeDecimal(price.multiply(quantity)))
-                    .makerFee(BigDecimal.ZERO)
-                    .takerFee(BigDecimal.ZERO)
+                    .makerFee(makerFee)
+                    .takerFee(takerFee)
                     .executedAt(Instant.now())
                     .build();
     }
