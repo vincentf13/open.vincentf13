@@ -18,6 +18,6 @@ public class OrderEventPublisher {
     }
 
     public void publishOrderCreated(OrderCreatedEvent event) {
-        outboxRepository.append(OrderTopics.ORDER_CREATED.getTopic(), event.orderId(), event, null);
+        outboxRepository.append(OrderTopics.ORDER_CREATED.getTopic(), event.instrumentId(), event, null);
     }
 }
