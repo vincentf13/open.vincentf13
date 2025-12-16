@@ -3,6 +3,7 @@ package open.vincentf13.exchange.matching.infra.messaging.consumer;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.service.MatchingEngine;
+import open.vincentf13.exchange.common.sdk.enums.TradeType;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.sdk.core.OpenValidator;
@@ -41,6 +42,7 @@ public class OrderCreatedEventListener {
                                .side(event.side())
                                .type(event.type())
                                .intent(event.intent())
+                               .tradeType(event.tradeType())
                                .price(event.price())
                                .quantity(event.quantity())
                                .submittedAt(event.submittedAt())

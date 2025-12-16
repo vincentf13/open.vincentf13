@@ -6,22 +6,12 @@ import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.OrderUpdate;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
-import open.vincentf13.exchange.matching.sdk.mq.enums.TradeType;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 public class OrderBook {
     
@@ -205,7 +195,7 @@ public class OrderBook {
                     .counterpartyOrderSide(takerSide)
                     .makerIntent(makerIntent)
                     .takerIntent(takerIntent)
-                    .tradeType(taker.getTradeType() != null ? taker.getTradeType() : TradeType.NORMAL)
+                    .tradeType(taker.getTradeType())
                     .price(OpenBigDecimal.normalizeDecimal(price))
                     .quantity(OpenBigDecimal.normalizeDecimal(quantity))
                     .totalValue(OpenBigDecimal.normalizeDecimal(price.multiply(quantity)))

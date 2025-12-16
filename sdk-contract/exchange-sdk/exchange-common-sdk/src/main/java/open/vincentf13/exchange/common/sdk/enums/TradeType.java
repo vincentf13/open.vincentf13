@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.matching.sdk.mq.enums;
+package open.vincentf13.exchange.common.sdk.enums;
 
 public enum TradeType {
     NORMAL,

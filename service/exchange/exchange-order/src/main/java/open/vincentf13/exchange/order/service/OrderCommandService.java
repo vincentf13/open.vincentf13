@@ -7,13 +7,14 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.TradeType;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
-import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderEventRepository;
+import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventReferenceType;
@@ -119,6 +120,7 @@ public class OrderCommandService {
                             request.side(),
                             request.type(),
                             order.getIntent(),
+                            TradeType.NORMAL,
                             order.getPrice(),
                             order.getQuantity(),
                             order.getClientOrderId(),
@@ -215,7 +217,7 @@ public class OrderCommandService {
     private String actorFromUser(Long userId) {
         return "USER:" + userId;
     }
-
+    
     private Map<String, Object> orderCreatedPayload(Order order) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("status", order.getStatus() != null ? order.getStatus().name() : null);
@@ -230,7 +232,7 @@ public class OrderCommandService {
         payload.put("submittedAt", order.getSubmittedAt());
         return payload;
     }
-
+    
     private void recordOrderEvent(Order order,
                                   OrderEventType eventType,
                                   String actor,

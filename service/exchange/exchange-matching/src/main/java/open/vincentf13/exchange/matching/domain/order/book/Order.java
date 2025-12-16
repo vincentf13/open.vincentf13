@@ -10,7 +10,7 @@ import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
-import open.vincentf13.exchange.matching.sdk.mq.enums.TradeType;
+import open.vincentf13.exchange.common.sdk.enums.TradeType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
