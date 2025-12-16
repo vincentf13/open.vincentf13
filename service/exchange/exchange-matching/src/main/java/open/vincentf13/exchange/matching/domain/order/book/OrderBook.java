@@ -205,7 +205,7 @@ public class OrderBook {
                     .counterpartyOrderSide(takerSide)
                     .makerIntent(makerIntent)
                     .takerIntent(takerIntent)
-                    .tradeType(TradeType.NORMAL)
+                    .tradeType(taker.getTradeType() != null ? taker.getTradeType() : TradeType.NORMAL)
                     .price(OpenBigDecimal.normalizeDecimal(price))
                     .quantity(OpenBigDecimal.normalizeDecimal(quantity))
                     .totalValue(OpenBigDecimal.normalizeDecimal(price.multiply(quantity)))
