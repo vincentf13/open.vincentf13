@@ -11,6 +11,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
   Service responsible for loading instrument configuration data into local caches at application startup for the Account service.
@@ -24,9 +25,16 @@ public class AccountStartupCacheLoader {
 
     private final ExchangeAdminClient adminClient;
     private final InstrumentCache instrumentCache;
-
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
+    
     @EventListener(ContextRefreshedEvent.class)
-    public void loadCaches() {
+    public void loadCaches(ContextRefreshedEvent event) {
+        if (event.getApplicationContext().getParent() != null) {
+            return;
+        }
+        if (!initialized.compareAndSet(false, true)) {
+            return;
+        }
         OpenLog.info(AccountEvent.STARTUP_CACHE_LOADING);
 
         int attempt = 0;
