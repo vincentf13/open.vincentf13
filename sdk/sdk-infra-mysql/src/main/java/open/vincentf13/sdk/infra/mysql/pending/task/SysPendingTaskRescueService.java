@@ -1,12 +1,9 @@
 package open.vincentf13.sdk.infra.mysql.pending.task;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.time.Duration;
 import java.time.Instant;
 
-@Service
 @RequiredArgsConstructor
 public class SysPendingTaskRescueService {
     

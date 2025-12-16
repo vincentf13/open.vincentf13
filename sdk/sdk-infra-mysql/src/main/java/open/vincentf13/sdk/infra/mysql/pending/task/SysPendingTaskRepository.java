@@ -2,13 +2,11 @@ package open.vincentf13.sdk.infra.mysql.pending.task;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import org.springframework.stereotype.Repository;
 import org.springframework.util.Assert;
 
 import java.time.Instant;
 import java.util.List;
 
-@Repository
 @RequiredArgsConstructor
 public class SysPendingTaskRepository {
     
