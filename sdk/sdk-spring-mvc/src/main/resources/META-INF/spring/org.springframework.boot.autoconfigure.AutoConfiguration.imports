@@ -1,4 +1,4 @@
-open.vincentf13.sdk.spring.mvc.exception.GlobalExceptionHandler
+open.vincentf13.sdk.spring.mvc.exception.GlobalExceptionHandlerConfig
 open.vincentf13.sdk.spring.mvc.response.ResponseBodyAdviceConfig
 open.vincentf13.sdk.spring.mvc.cookie.CookieConfig
 open.vincentf13.sdk.spring.mvc.log.RequestLoggingFilterConfig

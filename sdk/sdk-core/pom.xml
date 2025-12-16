@@ -19,7 +19,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
-            <!-- 移除預設 Logback -->
+            <!-- 移除預設 Logback，改由 Log4j2 -->
             <exclusions>
                 <exclusion>
                     <groupId>org.springframework.boot</groupId>
