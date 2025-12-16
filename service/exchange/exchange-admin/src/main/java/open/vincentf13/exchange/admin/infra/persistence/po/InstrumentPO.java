@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.admin.infra.persistence.po;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -35,7 +36,9 @@ public class InstrumentPO {
     private Instant launchAt;
     private Instant delistAt;
     private Integer displayOrder;
+    @TableField("is_tradable")
     private Boolean tradable;
+    @TableField("is_visible")
     private Boolean visible;
     private String description;
     private String metadata;
