@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: service-test
+  name: service-template
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/use-regex: "true"
@@ -10,13 +10,6 @@ spec:
   rules:
     - http:
         paths:
-          - path: /service-test(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: service-test
-                port:
-                  number: 8080
           - path: /service-template(/|$)(.*)
             pathType: ImplementationSpecific
             backend:

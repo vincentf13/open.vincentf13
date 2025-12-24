@@ -22,24 +22,20 @@ The goal of this project is to help developers easily build their own local deve
 
 ## build與push鏡像到dockhub
 1. build docker 鏡像
-   docker build -t service-test:latest service/service-test
-   docker tag service-test:latest \<dockerhub-user>/service-test:latest
    docker build -t service-template:latest service/service-template
    docker tag service-template:latest \<dockerhub-user>/service-template:latest
 2. 推送鏡像
    docker login
-   docker push \<dockerhub-user>/service-test:latest
+   docker push \<dockerhub-user>/service-template:latest
 
 ## k8s集群與元件建置
    1. 調整 deployment 配置
-      k8s/service-test/deployment.yaml 配置鏡像
-      spec.template.spec.containers[0].image:  \<dockerhub-user>/service-test:latest
       k8s/service-template/deployment.yaml 配置鏡像
       spec.template.spec.containers[0].image:  \<dockerhub-user>/service-template:latest
 2. 安裝 kind
    
    使用 kind 建立 k8s 集群: kind create cluster
-   驗證 k8s 集群啟動: kubectl cluster-info --context kind-service-test
+   驗證 k8s 集群啟動: kubectl cluster-info
 3. 建置與啟動 ingress Controller
    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
    kubectl wait --namespace ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=120s
@@ -49,7 +45,7 @@ The goal of this project is to help developers easily build their own local deve
 5. 驗證  
    使用 Kubernetes 內網域名測試 Ingress：
    ```bash
-   curl http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/service-test/
+   curl http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/service-template/
    ```
    若已配置 Telepresence（或其他方式讓本機解析 cluster.local），上列指令可直接在開發機上執行；回應為服務頁面即表示路由正常。
 
@@ -204,7 +200,7 @@ bash ./script/cluster-up.sh
 # 工具
 
 ## 檢查 Ingress path轉發
-  kubectl describe ingress service-test | sed -n '/Rules:/,$p'  
+  kubectl describe ingress service-template | sed -n '/Rules:/,$p'  
 ## K6壓力測試
 
 1. 安裝 K6

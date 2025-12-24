@@ -17,9 +17,6 @@ NACOS_DIR="$K8S_DIR/infra-nacos"
 
 # Core application manifests applied to the cluster in order.
 APPLICATION_MANIFESTS=(
-  service-test/deployment.yaml
-  service-test/service.yaml
-  service-test/hpa.yaml
   service-template/deployment.yaml
   service-template/service.yaml
   service-template/hpa.yaml
