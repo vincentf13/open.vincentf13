@@ -36,7 +36,7 @@ export default function Login() {
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: '100vh',
-      background: '#f0f2f5'
+      background: 'transparent'
     }}>
       <Card title="交易所登入" style={{ width: 400 }}>
         <Form onFinish={handleLogin}>

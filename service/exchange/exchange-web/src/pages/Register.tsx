@@ -41,7 +41,7 @@ export default function Register() {
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: '100vh',
-      background: '#f0f2f5'
+      background: 'transparent'
     }}>
       <Card title="註冊帳號" style={{ width: 400 }}>
         <Form onFinish={handleRegister}>

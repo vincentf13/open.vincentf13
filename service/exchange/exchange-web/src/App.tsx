@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Trading from './pages/Trading';
+import './App.css';
 
 /**
  * 路由表。負責把不同 URL 對應到不同頁面元件。
