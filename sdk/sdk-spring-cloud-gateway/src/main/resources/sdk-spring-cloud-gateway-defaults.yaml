@@ -29,6 +29,7 @@ open:
 logging:
   level:
     open.vincentf13.sdk.spring.cloud.gateway.jwt: DEBUG
+    open.vincentf13.sdk.spring.cloud.gateway.log: DEBUG
 #    org.springframework.cloud.gateway: DEBUG
 #    org.springframework.http.server.reactive: DEBUG
 #    org.springframework.web.reactive: DEBUG

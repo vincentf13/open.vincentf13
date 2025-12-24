@@ -10,15 +10,23 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Component
 public class LogService {
     
+    private static final Logger LOG = LoggerFactory.getLogger(LogService.class);
     private static final String ATTR_INITIAL_FORWARD_URL = LogService.class.getName() + ".initialForwardUrl";
     private static final String ATTR_INITIAL_SERVICE_INSTANCE = LogService.class.getName() + ".initialServiceInstance";
+    static final String ATTR_RESPONSE_BODY = LogService.class.getName() + ".responseBody";
+    static final String ATTR_RESPONSE_BODY_TRUNCATED = LogService.class.getName() + ".responseBodyTruncated";
+    private static final int MAX_RESPONSE_BODY_BYTES = 64 * 1024;
     
     public void logRequest(ServerWebExchange exchange) {
         Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
@@ -98,6 +106,15 @@ public class LogService {
         }
         
         response.getHeaders().forEach((name, values) -> logHeader("GatewayResponseHeader", "Response header", name, values));
+
+        if (isDebugEnabled()) {
+            Object bodyAttr = exchange.getAttribute(ATTR_RESPONSE_BODY);
+            if (bodyAttr instanceof ByteArrayOutputStream) {
+                String body = ((ByteArrayOutputStream) bodyAttr).toString(StandardCharsets.UTF_8);
+                boolean truncated = Boolean.TRUE.equals(exchange.getAttribute(ATTR_RESPONSE_BODY_TRUNCATED));
+                OpenLog.debug(GatewayEvent.RESPONSE_BODY, "body", body, "truncated", truncated);
+            }
+        }
     }
     
     public void logForwardFailure(ServerWebExchange exchange,
@@ -168,5 +185,34 @@ public class LogService {
         sb.append(':').append(port);
         sb.append('(').append(scheme).append(')');
         return sb.toString();
+    }
+
+    public boolean isDebugEnabled() {
+        return LOG.isDebugEnabled();
+    }
+
+    public void appendResponseBody(ServerWebExchange exchange,
+                                   byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return;
+        }
+        Object attr = exchange.getAttribute(ATTR_RESPONSE_BODY);
+        ByteArrayOutputStream buffer;
+        if (attr instanceof ByteArrayOutputStream) {
+            buffer = (ByteArrayOutputStream) attr;
+        } else {
+            buffer = new ByteArrayOutputStream();
+            exchange.getAttributes().put(ATTR_RESPONSE_BODY, buffer);
+        }
+        int remaining = MAX_RESPONSE_BODY_BYTES - buffer.size();
+        if (remaining <= 0) {
+            exchange.getAttributes().put(ATTR_RESPONSE_BODY_TRUNCATED, true);
+            return;
+        }
+        int toWrite = Math.min(remaining, bytes.length);
+        buffer.write(bytes, 0, toWrite);
+        if (toWrite < bytes.length) {
+            exchange.getAttributes().put(ATTR_RESPONSE_BODY_TRUNCATED, true);
+        }
     }
 }

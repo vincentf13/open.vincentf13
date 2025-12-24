@@ -13,6 +13,7 @@ public enum GatewayEvent implements OpenEvent {
     SERVICE_INSTANCE("GatewayServiceInstance", "Service instance resolved"),
     SERVICE_INSTANCE_PENDING("GatewayServiceInstancePending", "Service instance not yet resolved"),
     RESPONSE("GatewayResponse", "Response completed"),
+    RESPONSE_BODY("GatewayResponseBody", "Response body"),
     FORWARD_URL_RESOLVED("GatewayForwardUrlResolved", "Forward URL resolved"),
     SERVICE_INSTANCE_RESOLVED("GatewayServiceInstanceResolved", "Service instance resolved after filter"),
     FORWARD_FAILED("GatewayForwardFailed", "Forwarding failed"),
