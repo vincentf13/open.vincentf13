@@ -15,7 +15,7 @@
 - Java sources are UTF-8 with 4-space indentation; use PascalCase for classes, camelCase for members, and UPPER_SNAKE_CASE for constants.
 - Prefer constructor injection, isolate config in dedicated classes, and remove transient debug output (`System.out.printf`, etc.) before committing.
 - Name components by responsibility (e.g., `UserController`, `OrderService`).
-- 開發 exchange 模組時，目錄／類別分層、命名與責任切分、規則必須遵照 `design/exchange/整體設計.md` 及 `Domain設計.md` / `Controller_Design.md` / `Service 設計.md` / `DB設計.md` / `Kafka設計.md` 的規範（如 domain/infra/service/controller、聚合邊界等），任何新服務或重構都需先比對設計文件再實作。
+- 開發 exchange 模組時，目錄／類別分層、命名與責任切分、規則必須遵照 `service/exchange/design/整體設計.md` 及 `Domain設計.md` / `Controller_Design.md` / `Service 設計.md` / `DB設計.md` / `Kafka設計.md` 的規範（如 domain/infra/service/controller、聚合邊界等），任何新服務或重構都需先比對設計文件再實作。
 - 文件與程式的 API 命名需一致：即使為內部呼叫，統一以 `/api/...` 為前綴；Endpoint 表的 `授權` 欄內部介面填 `private`，`服務調用` 僅記錄「呼叫了哪個服務與接口」，不要描述回傳內容；`補償機制` 用來標註調用失敗時會在哪段程式碼重試或補償。
 
 ## Testing Expectations
@@ -36,7 +36,7 @@
 - 以後處理本專案時，不需要執行任何 Maven 指令。
 - 以後不再編寫或更新測試程式碼。
 - 回覆最終總結時請一律使用中文。
-- exchange 相關需求一律以 `design/exchange/` 目錄內設計文件為主要參考與判準，若與其他描述衝突，以該目錄為優先。
+- exchange 相關需求一律以 `service/exchange/design/` 目錄內設計文件為主要參考與判準，若與其他描述衝突，以該目錄為優先。
 - Kafka 消費邏輯（例如 PositionReserveRequestListener）僅在成功處理後手動 ack，若發生異常需讓 Kafka 重送或進 DLQ，禁止在 finally 中強制 ack。
 - 所有 Domain ↔ DTO ↔ PO 之間的物件轉換一律透過 `open.vincentf13.sdk.core.object.mapper.OpenObjectMapper`，禁止手寫 builder/constructor 直接複製欄位（包含行情查詢、標記價等服務）；Domain 層保持純粹，不引入基礎設施依賴或框架註解。
 

@@ -19,7 +19,6 @@
 
     <modules>
         <module>exchange</module>
-        <module>service-test</module>
         <module>service-template</module>
     </modules>
 
