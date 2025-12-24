@@ -232,6 +232,42 @@ ensure_ingress_controller() {
     wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=300s
 }
 
+handle_ingress_apply_error() {
+  local output="$1"
+  printf '%s\n' "$output" >&2
+  if [[ "$output" == *"validate.nginx.ingress.kubernetes.io"* && "$output" == *"already defined in ingress"* ]]; then
+    if [[ "$output" =~ ingress[[:space:]]+([a-z0-9-]+)/([a-z0-9-]+) ]]; then
+      local conflict_ns="${BASH_REMATCH[1]}"
+      local conflict_name="${BASH_REMATCH[2]}"
+      printf 'Deleting conflicting ingress %s/%s\n' "$conflict_ns" "$conflict_name" >&2
+      if kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n "$conflict_ns" delete ingress "$conflict_name"; then
+        return 0
+      fi
+      return 1
+    fi
+  fi
+  return 1
+}
+
+apply_ingress_manifest() {
+  local file="$K8S_DIR/ingress.yaml"
+
+  local out
+  printf 'Applying %s\n' "$file"
+  if out=$(kubectl "${KUBECTL_APP_ARGS[@]}" apply -f "$file" 2>&1); then
+    printf '%s\n' "$out"
+    return 0
+  fi
+
+  if handle_ingress_apply_error "$out"; then
+    printf 'Re-applying %s after deleting conflict\n' "$file"
+    kubectl "${KUBECTL_APP_ARGS[@]}" apply -f "$file"
+    return $?
+  fi
+
+  return 1
+}
+
 apply_application_manifests() {
   local manifest
   for manifest in "${APPLICATION_MANIFESTS[@]}"; do
@@ -246,8 +282,12 @@ apply_application_manifests() {
   for manifest in "${APPLICATION_MANIFESTS[@]}"; do
     (
       local file="$K8S_DIR/$manifest"
-      printf 'Applying %s\n' "$file"
-      kubectl "${KUBECTL_APP_ARGS[@]}" apply -f "$file"
+      if [[ "$manifest" == "ingress.yaml" ]]; then
+        apply_ingress_manifest
+      else
+        printf 'Applying %s\n' "$file"
+        kubectl "${KUBECTL_APP_ARGS[@]}" apply -f "$file"
+      fi
     ) &
     pids+=($!)
   done
