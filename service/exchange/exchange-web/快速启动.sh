@@ -12,12 +12,20 @@ if ! command -v node &> /dev/null; then
 fi
 
 echo "✅ Node.js 版本: $(node -v)"
+if ! command -v npm &> /dev/null; then
+    echo "❌ npm 未安装，请先安装 npm"
+    exit 1
+fi
 echo "✅ npm 版本: $(npm -v)"
 echo ""
 
+# 切换到脚本所在目录，允许在任意路径执行
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR" || exit 1
+
 # 检查是否在正确的目录
 if [ ! -f "package.json" ]; then
-    echo "❌ 请在 web/exchange-web 目录下执行此脚本"
+    echo "❌ 未找到 package.json，请确认脚本位于 exchange-web 目录"
     exit 1
 fi
 
