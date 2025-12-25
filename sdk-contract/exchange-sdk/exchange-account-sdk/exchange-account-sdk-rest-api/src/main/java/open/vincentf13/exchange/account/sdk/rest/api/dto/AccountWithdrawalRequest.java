@@ -16,8 +16,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AccountWithdrawalRequest {
-
-    @NotNull
+    
     private Long userId;
 
     @NotNull

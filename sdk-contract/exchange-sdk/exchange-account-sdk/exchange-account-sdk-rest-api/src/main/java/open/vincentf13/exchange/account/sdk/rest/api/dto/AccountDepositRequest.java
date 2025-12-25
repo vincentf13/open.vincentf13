@@ -16,7 +16,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class AccountDepositRequest {
 
-    @NotNull
+ 
     private Long userId;
 
     @NotNull
