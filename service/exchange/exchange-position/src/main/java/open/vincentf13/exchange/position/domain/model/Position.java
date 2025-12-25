@@ -63,7 +63,7 @@ public class Position {
         return Position.builder()
                        .userId(userId)
                        .instrumentId(instrumentId)
-                       .leverage(1)
+                       .leverage(40)
                        .margin(BigDecimal.ZERO)
                        .side(side == null ? PositionSide.LONG : side)
                        .entryPrice(BigDecimal.ZERO)
