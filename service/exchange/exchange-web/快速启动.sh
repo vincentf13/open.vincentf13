@@ -45,4 +45,4 @@ echo "  - 按 Ctrl+C 停止服务器"
 echo "  - 确保后端 Gateway 在 http://localhost:12345 运行"
 echo ""
 
-npm run dev
+CHOKIDAR_USEPOLLING=1 CHOKIDAR_INTERVAL=100 npm run dev
