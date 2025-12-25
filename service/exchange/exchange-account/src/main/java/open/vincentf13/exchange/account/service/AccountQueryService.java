@@ -1,11 +1,9 @@
 package open.vincentf13.exchange.account.service;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
-import open.vincentf13.exchange.account.infra.persistence.po.UserAccountPO;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
@@ -17,8 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -32,19 +28,9 @@ public class AccountQueryService {
                                               @NotBlank String asset) {
         AssetSymbol normalizedAsset = UserAccount.normalizeAsset(asset);
         var accountCode = UserAccountCode.SPOT;
-        List<UserAccount> balances = userAccountRepository.findBy(
-                Wrappers.lambdaQuery(UserAccountPO.class)
-                        .eq(UserAccountPO::getUserId, userId)
-                        .eq(UserAccountPO::getAccountCode, accountCode)
-                        .eq(UserAccountPO::getCategory, accountCode.getCategory())
-                        .eq(UserAccountPO::getAsset, normalizedAsset)
-                                                                    );
-        Instant snapshotAt = balances.stream()
-                                     .map(UserAccount::getUpdatedAt)
-                                     .filter(Objects::nonNull)
-                                     .max(Instant::compareTo)
-                                     .orElse(null);
-        List<AccountBalanceItem> items = OpenObjectMapper.convertList(balances, AccountBalanceItem.class);
-        return new AccountBalanceResponse(userId, snapshotAt, items);
+        UserAccount balance = userAccountRepository.getOrCreate(userId, accountCode, null, normalizedAsset);
+        Instant snapshotAt = balance.getUpdatedAt();
+        AccountBalanceItem item = OpenObjectMapper.convert(balance, AccountBalanceItem.class);
+        return new AccountBalanceResponse(userId, snapshotAt, item);
     }
 }

@@ -96,7 +96,7 @@ public class UserAccountRepository {
         UserAccountPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, UserAccount.class));
     }
-    
+
     public UserAccount getOrCreate(@NotNull Long userId,
                                    @NotNull UserAccountCode accountCode,
                                    Long instrumentId,
