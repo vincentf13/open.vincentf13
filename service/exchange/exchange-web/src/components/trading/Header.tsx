@@ -1,6 +1,24 @@
 
+import { Dropdown, message } from 'antd';
 
-export default function Header() {
+import { logout } from '../../api/auth';
+
+type HeaderProps = {
+  onLogout: () => void;
+};
+
+export default function Header({ onLogout }: HeaderProps) {
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || '登出失敗');
+    } finally {
+      localStorage.removeItem('accessToken');
+      onLogout();
+    }
+  };
+
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-white/20 bg-white/10 backdrop-blur-md">
       <div className="flex items-center gap-4">
@@ -21,9 +39,25 @@ export default function Header() {
                 <div className="text-xs font-medium text-slate-500">Portfolio Value</div>
                 <div className="text-sm font-bold text-slate-800">1.245 BTC</div>
             </div>
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg border border-white/20 flex items-center justify-center text-white font-bold text-xs cursor-pointer hover:scale-105 transition-transform">
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [{ key: 'logout', label: 'Log out' }],
+                onClick: ({ key }) => {
+                  if (key === 'logout') {
+                    void handleLogout();
+                  }
+                },
+              }}
+            >
+              <div
+                className="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 shadow-lg border border-white/20 flex items-center justify-center text-white font-bold text-xs cursor-pointer hover:scale-105 transition-transform"
+                role="button"
+                tabIndex={0}
+              >
                 VF
-            </div>
+              </div>
+            </Dropdown>
          </div>
       </div>
     </header>

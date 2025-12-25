@@ -1,5 +1,9 @@
 
+import { useEffect, useState } from 'react';
+
 import GlassLayout from '../components/layout/GlassLayout';
+import AuthModal from '../components/auth/AuthModal';
+import { AUTH_REQUIRED_EVENT } from '../api/client';
 import Header from '../components/trading/Header';
 import Chart from '../components/trading/Chart';
 import OrderBook from '../components/trading/OrderBook';
@@ -8,12 +12,31 @@ import Positions from '../components/trading/Positions';
 import MarketStats from '../components/trading/MarketStats';
 import AccountPanel from '../components/trading/AccountPanel';
 
+const hasToken = () => {
+  return Boolean(localStorage.getItem('accessToken'));
+};
+
 export default function Trading() {
+  const [authOpen, setAuthOpen] = useState(() => !hasToken());
+  const handleLogout = () => {
+    setAuthOpen(true);
+  };
+
+  useEffect(() => {
+    const handleAuthRequired = () => {
+      setAuthOpen(true);
+    };
+    window.addEventListener(AUTH_REQUIRED_EVENT, handleAuthRequired);
+    return () => {
+      window.removeEventListener(AUTH_REQUIRED_EVENT, handleAuthRequired);
+    };
+  }, []);
+
   return (
     <GlassLayout>
       <div className="relative flex-1 min-h-0">
         <div className="absolute inset-x-0 top-0 z-30">
-          <Header />
+          <Header onLogout={handleLogout} />
         </div>
 
         <div className="flex-1 min-h-0 pt-24 lg:pr-[260px] flex flex-col gap-4">
@@ -51,6 +74,7 @@ export default function Trading() {
           </div>
         </div>
       </div>
+      <AuthModal open={authOpen} onSuccess={() => setAuthOpen(false)} />
     </GlassLayout>
   );
 }

@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+export const AUTH_REQUIRED_EVENT = 'auth:required';
+
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:12345',
   timeout: 10000,
@@ -30,6 +32,7 @@ apiClient.interceptors.response.use(
 
     if (status === 401 && !isLoginRequest && errorCode !== 'AUTH_BAD_CREDENTIALS') {
       localStorage.removeItem('accessToken');
+      window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
     }
     return Promise.reject(error);
   }

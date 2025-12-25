@@ -18,3 +18,8 @@ export const register = async (email: string, password: string) => {
   });
   return response.data;
 };
+
+export const logout = async () => {
+  const response = await apiClient.post('/auth/api/logout');
+  return response.data;
+};
