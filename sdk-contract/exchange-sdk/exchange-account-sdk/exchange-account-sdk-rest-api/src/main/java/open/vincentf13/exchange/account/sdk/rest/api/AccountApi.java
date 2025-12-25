@@ -14,18 +14,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Validated
 public interface AccountApi {
-
+    
     @GetMapping("/balances")
     @Jwt
     @PrivateAPI
     OpenApiResponse<AccountBalanceResponse> getBalances(@RequestParam("asset") @NotBlank String asset,
                                                         @RequestParam(value = "userId", required = false) Long userId);
-
+    
     @PostMapping("/deposits")
     @PrivateAPI
+    @Jwt
     OpenApiResponse<AccountDepositResponse> deposit(@Valid @RequestBody AccountDepositRequest request);
-
+    
     @PostMapping("/withdrawals")
     @PrivateAPI
+    @Jwt
     OpenApiResponse<AccountWithdrawalResponse> withdraw(@Valid @RequestBody AccountWithdrawalRequest request);
 }

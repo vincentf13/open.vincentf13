@@ -83,17 +83,17 @@ public class AccountTransactionDomainService {
     @Transactional(rollbackFor = Exception.class)
     public AccountDepositResult deposit(@NotNull @Valid AccountDepositRequest request) {
         
-        AssetSymbol asset = UserAccount.normalizeAsset(request.asset());
-        Instant eventTime = request.creditedAt() == null ? Instant.now() : request.creditedAt();
-        assertNoDuplicateJournal(request.userId(), asset, ReferenceType.DEPOSIT, request.txId());
+        AssetSymbol asset = UserAccount.normalizeAsset(request.getAsset());
+        Instant eventTime = request.getCreditedAt() == null ? Instant.now() : request.getCreditedAt();
+        assertNoDuplicateJournal(request.getUserId(), asset, ReferenceType.DEPOSIT, request.getTxId());
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
-                request.userId(),
+                request.getUserId(),
                 UserAccountCode.SPOT,
                 null,
                 asset);
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
-                request.userId(),
+                request.getUserId(),
                 UserAccountCode.SPOT_EQUITY,
                 null,
                 asset);
@@ -105,15 +105,15 @@ public class AccountTransactionDomainService {
                 PlatformAccountCode.USER_LIABILITY,
                 asset);
         
-        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.DEBIT, request.amount());
-        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.CREDIT, request.amount());
-        PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.DEBIT, request.amount());
-        PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.CREDIT, request.amount());
+        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.DEBIT, request.getAmount());
+        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.CREDIT, request.getAmount());
+        PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.DEBIT, request.getAmount());
+        PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.CREDIT, request.getAmount());
         
-        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.DEBIT, request.amount(), ReferenceType.DEPOSIT, request.txId(), "User deposit", eventTime);
-        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.CREDIT, request.amount(), ReferenceType.DEPOSIT, request.txId(), "User equity increase", eventTime);
-        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.DEBIT, request.amount(), ReferenceType.DEPOSIT, request.txId(), "Platform asset increase", eventTime);
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.CREDIT, request.amount(), ReferenceType.DEPOSIT, request.txId(), "Platform liability increase", eventTime);
+        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.DEBIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), "User deposit", eventTime);
+        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.CREDIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), "User equity increase", eventTime);
+        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.DEBIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), "Platform asset increase", eventTime);
+        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.CREDIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), "Platform liability increase", eventTime);
         
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedUserAsset, updatedUserEquity),
@@ -173,24 +173,24 @@ public class AccountTransactionDomainService {
     
     @Transactional(rollbackFor = Exception.class)
     public AccountWithdrawalResult withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
-        AssetSymbol asset = UserAccount.normalizeAsset(request.asset());
-        Instant eventTime = request.creditedAt() == null ? Instant.now() : request.creditedAt();
-        assertNoDuplicateJournal(request.userId(), asset, ReferenceType.WITHDRAWAL, request.txId());
+        AssetSymbol asset = UserAccount.normalizeAsset(request.getAsset());
+        Instant eventTime = request.getCreditedAt() == null ? Instant.now() : request.getCreditedAt();
+        assertNoDuplicateJournal(request.getUserId(), asset, ReferenceType.WITHDRAWAL, request.getTxId());
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
-                request.userId(),
+                request.getUserId(),
                 UserAccountCode.SPOT,
                 null,
                 asset);
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
-                request.userId(),
+                request.getUserId(),
                 UserAccountCode.SPOT_EQUITY,
                 null,
                 asset);
         
-        if (!userAssetAccount.hasEnoughAvailable(request.amount())) {
+        if (!userAssetAccount.hasEnoughAvailable(request.getAmount())) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
-                                   Map.of("userId", request.userId(), "asset", asset, "available", userAssetAccount.getAvailable(), "amount", request.amount()));
+                                   Map.of("userId", request.getUserId(), "asset", asset, "available", userAssetAccount.getAvailable(), "amount", request.getAmount()));
         }
         
         PlatformAccount platformAssetAccount = platformAccountRepository.getOrCreate(
@@ -200,15 +200,15 @@ public class AccountTransactionDomainService {
                 PlatformAccountCode.USER_LIABILITY,
                 asset);
         
-        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.CREDIT, request.amount());
-        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.DEBIT, request.amount());
-        PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.CREDIT, request.amount());
-        PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.DEBIT, request.amount());
+        UserAccount updatedUserAsset = applyUserUpdate(userAssetAccount, Direction.CREDIT, request.getAmount());
+        UserAccount updatedUserEquity = applyUserUpdate(userEquityAccount, Direction.DEBIT, request.getAmount());
+        PlatformAccount updatedPlatformAsset = applyPlatformUpdate(platformAssetAccount, Direction.CREDIT, request.getAmount());
+        PlatformAccount updatedPlatformLiability = applyPlatformUpdate(platformLiabilityAccount, Direction.DEBIT, request.getAmount());
         
-        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.CREDIT, request.amount(), ReferenceType.WITHDRAWAL, request.txId(), "User withdrawal", eventTime);
-        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.DEBIT, request.amount(), ReferenceType.WITHDRAWAL, request.txId(), "User equity decrease", eventTime);
-        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.CREDIT, request.amount(), ReferenceType.WITHDRAWAL, request.txId(), "Platform payout", eventTime);
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.DEBIT, request.amount(), ReferenceType.WITHDRAWAL, request.txId(), "Platform liability decrease", eventTime);
+        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.CREDIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), "User withdrawal", eventTime);
+        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.DEBIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), "User equity decrease", eventTime);
+        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.CREDIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), "Platform payout", eventTime);
+        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.DEBIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), "Platform liability decrease", eventTime);
         
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedUserAsset, updatedUserEquity),

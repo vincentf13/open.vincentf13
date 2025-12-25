@@ -41,8 +41,8 @@ public class AccountCommandService {
                 userAssetJournal.getEventTime(),
                 updatedUserAsset.getUserId(),
                 updatedUserAsset.getAsset(),
-                request.amount(),
-                request.txId()
+                request.getAmount(),
+                request.getTxId()
         );
     }
     
@@ -59,8 +59,8 @@ public class AccountCommandService {
                 userAssetJournal.getEventTime(),
                 userAsset.getUserId(),
                 userAsset.getAsset(),
-                request.amount(),
-                request.txId()
+                request.getAmount(),
+                request.getTxId()
         );
     }
     

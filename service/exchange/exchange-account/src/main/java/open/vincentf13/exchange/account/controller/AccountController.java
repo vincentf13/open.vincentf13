@@ -33,11 +33,23 @@ public class AccountController implements AccountApi {
     
     @Override
     public OpenApiResponse<AccountDepositResponse> deposit(AccountDepositRequest request) {
+        extracted(request);
         return OpenApiResponse.success(accountCommandService.deposit(request));
     }
     
     @Override
     public OpenApiResponse<AccountWithdrawalResponse> withdraw(AccountWithdrawalRequest request) {
+        extracted(request);
         return OpenApiResponse.success(accountCommandService.withdraw(request));
+    }
+    
+    private static void extracted(AccountWithdrawalRequest request) {
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        if (jwtUserId != null) {
+            request.setUserId(jwtUserId);
+        }
+        if (request.getUserId() == null) {
+            throw new IllegalArgumentException("Missing user context");
+        }
     }
 }
