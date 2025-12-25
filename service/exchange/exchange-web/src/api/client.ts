@@ -30,7 +30,6 @@ apiClient.interceptors.response.use(
 
     if (status === 401 && !isLoginRequest && errorCode !== 'AUTH_BAD_CREDENTIALS') {
       localStorage.removeItem('accessToken');
-      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

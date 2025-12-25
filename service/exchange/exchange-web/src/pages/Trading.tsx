@@ -39,25 +39,15 @@ export default function Trading() {
           </div>
         </div>
 
-        {/* Floating Right Panel: Trade + Account */}
-        <div className="hidden lg:flex flex-col absolute top-0 right-0 h-full w-[260px] z-10">
-          <div className="flex flex-col h-full border-l border-white/20 bg-white/5 pt-24">
+        {/* Right Panel: Trade + Account */}
+        <div className="flex flex-col w-full border-t border-white/20 bg-white/5 lg:absolute lg:top-0 lg:right-0 lg:h-full lg:w-[260px] lg:z-10 lg:border-t-0 lg:border-l lg:border-white/20">
+          <div className="flex flex-col h-full lg:pt-24">
             <div className="border-b border-white/20">
               <TradeForm />
             </div>
             <div className="flex-1 min-h-0 p-4">
               <AccountPanel />
             </div>
-          </div>
-        </div>
-
-        {/* Stacked Right Panel for Mobile */}
-        <div className="lg:hidden border-t border-white/20 bg-white/5">
-          <div className="border-b border-white/20">
-            <TradeForm />
-          </div>
-          <div className="p-4">
-            <AccountPanel />
           </div>
         </div>
       </div>

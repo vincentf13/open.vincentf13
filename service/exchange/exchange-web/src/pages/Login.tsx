@@ -17,7 +17,10 @@ export default function Login() {
 
       if (result.code === '0') {
         // 儲存 Token
-        localStorage.setItem('accessToken', result.data.token);
+        const accessToken = result.data?.jwtToken || result.data?.token;
+        if (accessToken) {
+          localStorage.setItem('accessToken', accessToken);
+        }
         message.success('登入成功！');
         navigate('/trading');
       } else {

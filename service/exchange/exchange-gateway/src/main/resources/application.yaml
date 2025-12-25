@@ -32,6 +32,12 @@ spring:
             - Path=/market/**
           filters:
             - StripPrefix=1
+        - id: exchange-account-route
+          uri: lb://exchange-account
+          predicates:
+            - Path=/account/**
+          filters:
+            - StripPrefix=1
 
 open:
   vincentf13:

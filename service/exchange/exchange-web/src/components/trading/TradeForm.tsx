@@ -23,8 +23,8 @@ export default function TradeForm() {
       <div className="p-4 space-y-4">
         <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Type</label>
-            <div className="grid grid-cols-3 gap-1 bg-white/20 p-1 rounded-xl border border-white/30">
-                {['Limit', 'Market', 'Stop'].map(t => (
+            <div className="grid grid-cols-2 gap-1 bg-white/20 p-1 rounded-xl border border-white/30">
+                {['Limit', 'Market'].map(t => (
                     <button key={t} className={`text-xs py-1.5 rounded-lg transition-all ${t === 'Limit' ? 'bg-white shadow-sm text-slate-800 font-semibold' : 'text-slate-500 hover:text-slate-700'}`}>
                         {t}
                     </button>
