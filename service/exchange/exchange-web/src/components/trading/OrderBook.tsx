@@ -49,9 +49,9 @@ export default function OrderBook() {
               {asks.slice().reverse().map((o, i) => <Row key={i} price={o.p} amount={o.a} total={o.t} type="ask" />)}
           </div>
 
-          <div className="my-3 flex items-center justify-between px-3 py-2 rounded-lg border border-white/40 bg-white/30 backdrop-blur-sm shadow-inner">
-              <span className="text-lg font-bold text-slate-800 tracking-tight">67,243.5</span>
-              <span className="text-xs text-slate-500 font-medium">≈ $67,243.5</span>
+          <div className="my-3 flex items-center justify-between px-2 py-1 text-slate-700">
+              <span className="text-sm font-semibold tracking-tight">67,243.5</span>
+              <span className="text-[10px] text-slate-500 font-medium">≈ $67,243.5</span>
           </div>
 
           <div className="space-y-0.5">
