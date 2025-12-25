@@ -57,8 +57,7 @@ public class ApiKeyFilter extends OncePerRequestFilter {
         if (privateApiAnnotation != null) {
             String apiKey = request.getHeader(OpenConstant.HttpHeader.API_KEY.value());
             if (apiKey == null || !apiKeyValidator.isValid(apiKey)) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Invalid or missing API Key");
+                filterChain.doFilter(request, response);
                 return;
             }
             markAuthenticatedWithApiKey(request);
