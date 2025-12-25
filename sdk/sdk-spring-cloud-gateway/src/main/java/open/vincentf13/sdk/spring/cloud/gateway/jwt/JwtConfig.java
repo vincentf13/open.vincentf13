@@ -23,4 +23,10 @@ public class JwtConfig {
                                       JwtProperties properties) {
         return new JwtFilter(openJwtService, sessionServiceProvider, properties);
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AuthorizationForwardFilter authorizationForwardFilter() {
+        return new AuthorizationForwardFilter();
+    }
 }
