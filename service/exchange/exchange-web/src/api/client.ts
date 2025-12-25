@@ -11,7 +11,9 @@ const apiClient = axios.create({
 // 請求攔截器：自動添加 Token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
-  if (token) {
+  const requestUrl = config.url || '';
+  const isLoginRequest = requestUrl.includes('/auth/api/login');
+  if (!isLoginRequest && token && token !== 'undefined' && token !== 'null') {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
