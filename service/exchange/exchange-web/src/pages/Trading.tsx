@@ -2,27 +2,24 @@ export default function Trading() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#D6E4F0] to-[#AEC2D6] text-slate-700">
       <div className="mx-auto max-w-6xl px-4 py-10 lg:px-6">
-        <div className="relative">
-          <div className="absolute inset-0 translate-y-4 rounded-lg border border-white/50 bg-white/30 shadow-[0_26px_60px_rgba(66,88,112,0.35)]" />
-          <div className="relative overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br from-white/70 via-white/45 to-white/25 shadow-[0_18px_40px_rgba(80,100,124,0.25)]">
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/55 via-transparent to-transparent" />
-            <div className="relative flex flex-col gap-5 px-5 pb-6 pt-5 lg:px-6">
-              <header className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-white/60 bg-white/50 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/60 bg-white/70">
-                    <span className="h-4 w-4 rounded-lg bg-blue-400/80" />
-                  </div>
-                  <div className="text-sm">
-                    <div className="text-base font-semibold text-slate-800">Liquid Flow</div>
-                  </div>
+        <div className="liquid-shell">
+          <div className="liquid-shell-content flex flex-col gap-5 px-5 pb-6 pt-5 lg:px-6">
+            <header className="flex flex-wrap items-center justify-between gap-4 px-2 pt-1">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/60 bg-white/70">
+                  <span className="h-4 w-4 rounded-lg bg-blue-400/80" />
                 </div>
-                <div className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700">
-                  BTC/USD
-                  <span className="text-[10px] text-slate-500">15m</span>
+                <div className="text-sm">
+                  <div className="text-base font-semibold text-slate-800">Liquid Flow</div>
                 </div>
-              </header>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700">
+                BTC/USD
+                <span className="text-[10px] text-slate-500">15m</span>
+              </div>
+            </header>
 
-              <section className="rounded-lg border border-white/60 bg-gradient-to-br from-white/70 via-white/45 to-white/25 shadow-[0_10px_24px_rgba(80,100,124,0.15)]">
+              <section className="liquid-embed">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/60 px-4 py-3 text-xs font-semibold text-slate-600">
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-slate-800">Order Book</span>
@@ -34,7 +31,7 @@ export default function Trading() {
                   <span className="text-sm font-semibold text-slate-700">$67,242.15</span>
                 </div>
                 <div className="grid gap-4 px-4 pb-4 pt-3 lg:grid-cols-[220px,1fr]">
-                  <div className="rounded-lg border border-white/60 bg-white/55 p-3 text-xs">
+                  <div className="liquid-embed px-3 py-3 text-xs">
                     <div className="grid grid-cols-2 text-[11px] uppercase text-slate-500">
                       <span>Bids</span>
                       <span className="text-right">Amount</span>
@@ -51,8 +48,8 @@ export default function Trading() {
                       <span>$1.20</span>
                     </div>
                   </div>
-                  <div className="rounded-lg border border-white/60 bg-white/55 p-3">
-                    <div className="relative mt-1">
+                  <div className="liquid-embed px-3 py-3">
+                    <div className="relative rounded-lg border border-white/60 bg-white/75 px-2 py-2">
                       <div className="absolute left-3 top-2 text-sm font-semibold text-blue-600">$67,243.15</div>
                       <div className="pointer-events-none absolute right-2 top-6 flex h-[150px] flex-col justify-between text-[10px] text-slate-400">
                         <span>67,320</span>
@@ -61,68 +58,69 @@ export default function Trading() {
                         <span>67,200</span>
                         <span>67,160</span>
                       </div>
-                      <svg className="h-52 w-full" viewBox="0 0 640 230" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="chartFillMain" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#5b93d1" stopOpacity="0.35" />
-                            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
-                          </linearGradient>
-                        </defs>
-                        <g stroke="#d7e3f2" strokeWidth="1">
-                          <line x1="0" y1="40" x2="640" y2="40" />
-                          <line x1="0" y1="80" x2="640" y2="80" />
-                          <line x1="0" y1="120" x2="640" y2="120" />
-                          <line x1="0" y1="160" x2="640" y2="160" />
-                          <line x1="0" y1="200" x2="640" y2="200" />
-                          <line x1="80" y1="20" x2="80" y2="210" />
-                          <line x1="160" y1="20" x2="160" y2="210" />
-                          <line x1="240" y1="20" x2="240" y2="210" />
-                          <line x1="320" y1="20" x2="320" y2="210" />
-                          <line x1="400" y1="20" x2="400" y2="210" />
-                          <line x1="480" y1="20" x2="480" y2="210" />
-                          <line x1="560" y1="20" x2="560" y2="210" />
+                      <svg className="h-56 w-full" viewBox="0 0 640 240" preserveAspectRatio="none">
+                        <g stroke="#d7e6f5" strokeWidth="1">
+                          <line x1="0" y1="30" x2="640" y2="30" />
+                          <line x1="0" y1="70" x2="640" y2="70" />
+                          <line x1="0" y1="110" x2="640" y2="110" />
+                          <line x1="0" y1="150" x2="640" y2="150" />
+                          <line x1="0" y1="190" x2="640" y2="190" />
+                          <line x1="80" y1="20" x2="80" y2="200" />
+                          <line x1="160" y1="20" x2="160" y2="200" />
+                          <line x1="240" y1="20" x2="240" y2="200" />
+                          <line x1="320" y1="20" x2="320" y2="200" />
+                          <line x1="400" y1="20" x2="400" y2="200" />
+                          <line x1="480" y1="20" x2="480" y2="200" />
+                          <line x1="560" y1="20" x2="560" y2="200" />
                         </g>
-                        <path
-                          d="M20 145 L70 160 L120 170 L170 150 L220 140 L270 122 L320 112 L370 102 L420 96 L470 84 L520 74 L570 60 L620 52"
-                          fill="none"
-                          stroke="#3d74b5"
-                          strokeWidth="2.2"
-                        />
-                        <path
-                          d="M20 145 L70 160 L120 170 L170 150 L220 140 L270 122 L320 112 L370 102 L420 96 L470 84 L520 74 L570 60 L620 52 L620 210 L20 210 Z"
-                          fill="url(#chartFillMain)"
-                        />
-                        <g fill="#f8fbff" stroke="#3d74b5" strokeWidth="1.6">
-                          <circle cx="20" cy="145" r="3" />
-                          <circle cx="70" cy="160" r="3" />
-                          <circle cx="120" cy="170" r="3" />
-                          <circle cx="170" cy="150" r="3" />
-                          <circle cx="220" cy="140" r="3" />
-                          <circle cx="270" cy="122" r="3" />
-                          <circle cx="320" cy="112" r="3" />
-                          <circle cx="370" cy="102" r="3" />
-                          <circle cx="420" cy="96" r="3" />
-                          <circle cx="470" cy="84" r="3" />
-                          <circle cx="520" cy="74" r="3" />
-                          <circle cx="570" cy="60" r="3" />
-                          <circle cx="620" cy="52" r="3" />
+                        <g stroke="#3d74b5" strokeWidth="1.8">
+                          <line x1="40" y1="130" x2="40" y2="170" />
+                          <line x1="80" y1="140" x2="80" y2="182" />
+                          <line x1="120" y1="150" x2="120" y2="188" />
+                          <line x1="160" y1="128" x2="160" y2="170" />
+                          <line x1="200" y1="120" x2="200" y2="160" />
+                          <line x1="240" y1="108" x2="240" y2="150" />
+                          <line x1="280" y1="98" x2="280" y2="140" />
+                          <line x1="320" y1="90" x2="320" y2="130" />
+                          <line x1="360" y1="84" x2="360" y2="122" />
+                          <line x1="400" y1="76" x2="400" y2="114" />
+                          <line x1="440" y1="66" x2="440" y2="106" />
+                          <line x1="480" y1="58" x2="480" y2="96" />
+                          <line x1="520" y1="50" x2="520" y2="90" />
+                          <line x1="560" y1="42" x2="560" y2="82" />
+                          <line x1="600" y1="36" x2="600" y2="76" />
                         </g>
-                      </svg>
-                    </div>
-                    <div className="mt-2 rounded-lg border border-white/60 bg-white/70 p-2">
-                      <svg className="h-10 w-full" viewBox="0 0 640 60" preserveAspectRatio="none">
-                        <rect x="10" y="28" width="16" height="26" fill="#3d74b5" opacity="0.35" />
-                        <rect x="40" y="22" width="16" height="32" fill="#3d74b5" opacity="0.35" />
-                        <rect x="70" y="16" width="16" height="38" fill="#3d74b5" opacity="0.35" />
-                        <rect x="100" y="24" width="16" height="30" fill="#3d74b5" opacity="0.35" />
-                        <rect x="130" y="12" width="16" height="42" fill="#3d74b5" opacity="0.35" />
-                        <rect x="160" y="18" width="16" height="36" fill="#3d74b5" opacity="0.35" />
-                        <rect x="190" y="10" width="16" height="44" fill="#3d74b5" opacity="0.35" />
-                        <rect x="220" y="22" width="16" height="32" fill="#3d74b5" opacity="0.35" />
-                        <rect x="250" y="18" width="16" height="36" fill="#3d74b5" opacity="0.35" />
-                        <rect x="280" y="26" width="16" height="28" fill="#3d74b5" opacity="0.35" />
-                        <rect x="310" y="20" width="16" height="34" fill="#3d74b5" opacity="0.35" />
-                        <rect x="340" y="14" width="16" height="40" fill="#3d74b5" opacity="0.35" />
+                        <g fill="#f4f9ff" stroke="#3d74b5" strokeWidth="1.4">
+                          <rect x="34" y="142" width="12" height="16" rx="2" />
+                          <rect x="74" y="152" width="12" height="18" rx="2" />
+                          <rect x="114" y="158" width="12" height="18" rx="2" />
+                          <rect x="154" y="136" width="12" height="18" rx="2" />
+                          <rect x="194" y="126" width="12" height="18" rx="2" />
+                          <rect x="234" y="116" width="12" height="18" rx="2" />
+                          <rect x="274" y="106" width="12" height="18" rx="2" />
+                          <rect x="314" y="98" width="12" height="18" rx="2" />
+                          <rect x="354" y="92" width="12" height="18" rx="2" />
+                          <rect x="394" y="84" width="12" height="18" rx="2" />
+                          <rect x="434" y="74" width="12" height="18" rx="2" />
+                          <rect x="474" y="66" width="12" height="18" rx="2" />
+                          <rect x="514" y="58" width="12" height="18" rx="2" />
+                          <rect x="554" y="50" width="12" height="18" rx="2" />
+                          <rect x="594" y="44" width="12" height="18" rx="2" />
+                        </g>
+                        <g fill="#3d74b5" opacity="0.28">
+                          <rect x="30" y="206" width="12" height="22" />
+                          <rect x="60" y="202" width="12" height="26" />
+                          <rect x="90" y="198" width="12" height="30" />
+                          <rect x="120" y="204" width="12" height="24" />
+                          <rect x="150" y="194" width="12" height="34" />
+                          <rect x="180" y="200" width="12" height="28" />
+                          <rect x="210" y="190" width="12" height="38" />
+                          <rect x="240" y="204" width="12" height="24" />
+                          <rect x="270" y="198" width="12" height="30" />
+                          <rect x="300" y="206" width="12" height="22" />
+                          <rect x="330" y="200" width="12" height="28" />
+                          <rect x="360" y="196" width="12" height="32" />
+                        </g>
                       </svg>
                       <div className="mt-2 flex justify-between text-[10px] text-slate-400">
                         <span>00:00</span>
@@ -138,7 +136,7 @@ export default function Trading() {
               </section>
 
               <section className="grid gap-4 lg:grid-cols-[1fr,2fr]">
-                <div className="rounded-lg border border-white/60 bg-white/45 shadow-[0_10px_22px_rgba(80,100,124,0.12)]">
+                <div className="liquid-embed">
                   <div className="border-b border-white/60 px-4 py-3 text-sm font-semibold text-slate-800">Order Book</div>
                   <div className="px-4 py-4 text-xs text-slate-600">
                     <div className="grid grid-cols-3 text-[11px] uppercase text-slate-500">
@@ -159,7 +157,7 @@ export default function Trading() {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-white/60 bg-white/45 shadow-[0_10px_22px_rgba(80,100,124,0.12)]">
+                <div className="liquid-embed">
                   <div className="flex items-center justify-between border-b border-white/60 px-4 py-3 text-sm font-semibold text-slate-800">
                     <span>Position</span>
                     <div className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/70 p-1 text-xs text-slate-600">
@@ -200,7 +198,7 @@ export default function Trading() {
                       </div>
                     </div>
                     <div className="mt-4 grid grid-cols-[1fr,70px] gap-3">
-                      <div className="rounded-lg border border-white/60 bg-white/70 p-2">
+                      <div className="liquid-embed p-2">
                         <svg className="h-20 w-full" viewBox="0 0 220 80" preserveAspectRatio="none">
                           <polyline
                             fill="none"
@@ -221,7 +219,7 @@ export default function Trading() {
                 </div>
               </section>
 
-              <section className="rounded-lg border border-white/60 bg-gradient-to-br from-white/70 via-white/45 to-white/25 shadow-[0_10px_24px_rgba(80,100,124,0.15)]">
+              <section className="liquid-embed">
                 <div className="flex items-center justify-between gap-4 border-b border-white/60 px-5 py-3 text-sm font-semibold text-slate-800">
                   <div className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/70 p-1 text-xs text-slate-600">
                     <span className="flex items-center gap-2 rounded-lg bg-white/80 px-3 py-1 text-slate-800">
@@ -287,7 +285,7 @@ export default function Trading() {
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-4 rounded-lg border border-white/60 bg-white/60 p-4 text-sm text-slate-600">
+                  <div className="liquid-embed p-4 text-sm text-slate-600">
                     <div className="flex items-center justify-between">
                       <span>Leverage</span>
                       <span className="font-semibold text-slate-800">20x</span>
@@ -316,10 +314,10 @@ export default function Trading() {
                 </div>
               </section>
 
-              <section className="rounded-lg border border-white/60 bg-white/45 shadow-[0_10px_22px_rgba(80,100,124,0.12)]">
+              <section className="liquid-embed">
                 <div className="border-b border-white/60 px-4 py-3 text-sm font-semibold text-slate-800">Market Stats</div>
                 <div className="px-4 py-4 text-sm text-slate-600">
-                  <div className="rounded-lg border border-white/60 bg-white/70 p-2">
+                  <div className="liquid-embed p-2">
                     <svg className="h-16 w-full" viewBox="0 0 200 60" preserveAspectRatio="none">
                       <polyline
                         fill="none"
@@ -336,7 +334,6 @@ export default function Trading() {
                   </div>
                 </div>
               </section>
-            </div>
           </div>
         </div>
       </div>
