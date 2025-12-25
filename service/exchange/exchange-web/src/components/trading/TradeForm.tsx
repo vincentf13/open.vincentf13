@@ -43,8 +43,13 @@ export default function TradeForm() {
         <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Amount (BTC)</label>
             <div className="relative group">
-                <input type="text" className="liquid-input pl-3 pr-12 text-right font-mono" placeholder="0.00" />
-                <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-medium group-focus-within:text-blue-500 transition-colors">BTC</span>
+                <input
+                  type="text"
+                  className="liquid-input pl-3 text-right font-mono"
+                  placeholder="0.00"
+                  style={{ paddingRight: '2.5rem' }}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium group-focus-within:text-blue-500 transition-colors">BTC</span>
             </div>
         </div>
 
