@@ -16,19 +16,6 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-         <nav className="hidden md:flex items-center gap-1 rounded-xl bg-white/20 p-1 border border-white/30 backdrop-blur-sm">
-            {['Trade', 'Markets', 'Wallets', 'Earn'].map((item, i) => (
-                <button
-                    key={item}
-                    className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${i === 0 ? 'bg-white shadow-sm text-slate-800' : 'text-slate-600 hover:bg-white/30 hover:text-slate-800'}`}
-                >
-                    {item}
-                </button>
-            ))}
-         </nav>
-
-         <div className="h-8 w-[1px] bg-white/30 mx-2" />
-
          <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
                 <div className="text-xs font-medium text-slate-500">Portfolio Value</div>

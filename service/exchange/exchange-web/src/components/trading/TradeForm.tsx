@@ -4,7 +4,7 @@ export default function TradeForm() {
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
 
   return (
-    <div className="flex flex-col h-full bg-white/5 border-t border-white/20">
+    <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 p-3 border-b border-white/20">
         <button
           onClick={() => setSide('buy')}

@@ -6,37 +6,59 @@ import OrderBook from '../components/trading/OrderBook';
 import TradeForm from '../components/trading/TradeForm';
 import Positions from '../components/trading/Positions';
 import MarketStats from '../components/trading/MarketStats';
+import AccountPanel from '../components/trading/AccountPanel';
 
 export default function Trading() {
   return (
     <GlassLayout>
-      <Header />
-
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative z-0">
-        {/* Left Column: Chart & Positions */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-white/20">
-            {/* Top: Chart */}
-            <div className="h-[450px] lg:h-[60%] border-b border-white/20 relative z-10">
-                <Chart />
-            </div>
-
-            {/* Bottom: Positions */}
-            <div className="flex-1 overflow-y-auto p-0 bg-gradient-to-b from-white/5 to-transparent">
-               <div className="p-4 h-full">
-                  <Positions />
-               </div>
-            </div>
+      <div className="relative flex-1 min-h-0">
+        <div className="absolute inset-x-0 top-0 z-30">
+          <Header />
         </div>
 
-        {/* Right Column: Order Book & Trade Form */}
-        <div className="w-full lg:w-[320px] xl:w-[360px] flex flex-col bg-white/5 backdrop-blur-sm z-20 h-full overflow-y-auto lg:overflow-hidden">
-            <div className="flex-1 min-h-[400px] flex flex-col">
-                <OrderBook />
-            </div>
-            <div className="flex-shrink-0">
+        <div className="flex-1 min-h-0 pt-24 lg:pr-[260px] flex flex-col gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[2.2fr,0.72fr] min-h-0">
+            {/* Left Column: Market Info + Chart */}
+            <div className="flex flex-col min-w-0 border-r border-white/20">
+              <div className="border-b border-white/20 bg-white/5">
                 <MarketStats />
-                <TradeForm />
+              </div>
+              <div className="flex-1 min-h-0 relative z-10">
+                <Chart />
+              </div>
             </div>
+
+            {/* Middle Column: Order Book */}
+            <div className="flex flex-col min-w-0 bg-white/5">
+              <OrderBook />
+            </div>
+          </div>
+
+          <div className="px-2 lg:px-4">
+            <Positions />
+          </div>
+        </div>
+
+        {/* Floating Right Panel: Trade + Account */}
+        <div className="hidden lg:flex flex-col absolute top-0 right-0 h-full w-[260px] z-10">
+          <div className="flex flex-col h-full border-l border-white/20 bg-white/5 pt-24">
+            <div className="border-b border-white/20">
+              <TradeForm />
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4">
+              <AccountPanel />
+            </div>
+          </div>
+        </div>
+
+        {/* Stacked Right Panel for Mobile */}
+        <div className="lg:hidden border-t border-white/20 bg-white/5">
+          <div className="border-b border-white/20">
+            <TradeForm />
+          </div>
+          <div className="p-4">
+            <AccountPanel />
+          </div>
         </div>
       </div>
     </GlassLayout>

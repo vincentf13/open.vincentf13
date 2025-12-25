@@ -3,15 +3,7 @@
 export default function Chart() {
   return (
     <div className="flex flex-col h-full bg-white/5">
-      <div className="flex items-center justify-between border-b border-white/20 px-4 py-3">
-        <div className="flex items-center gap-3">
-           <div className="flex items-center gap-2">
-             <span className="text-2xl font-bold text-slate-800">$67,242.15</span>
-             <span className="text-sm font-medium text-emerald-600 bg-emerald-400/20 px-2 py-0.5 rounded-lg border border-emerald-400/30 flex items-center gap-1 shadow-sm">
-                ▲ 2.4%
-             </span>
-           </div>
-        </div>
+      <div className="flex items-center justify-end border-b border-white/20 px-4 py-3">
         <div className="flex items-center gap-1 bg-white/30 rounded-lg p-1 border border-white/40 shadow-inner">
             {['1H', '4H', '1D', '1W'].map((t, i) => (
                 <button key={t} className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${i === 2 ? 'bg-white shadow-sm text-slate-800 font-semibold' : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'}`}>

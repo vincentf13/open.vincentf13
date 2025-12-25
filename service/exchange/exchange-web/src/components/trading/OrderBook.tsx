@@ -33,36 +33,31 @@ export default function OrderBook() {
   );
 
   return (
-    <div className="flex flex-col h-full bg-white/5 border-l border-white/20">
-        <div className="p-4 border-b border-white/20 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-700">Order Book</h3>
-            <div className="flex gap-1">
-                 <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                 <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-                 <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-            </div>
-        </div>
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b border-white/20 bg-white/10">
+          <h3 className="text-sm font-semibold text-slate-700">Order Book</h3>
+      </div>
 
-        <div className="flex-1 overflow-hidden p-2">
-            <div className="grid grid-cols-3 text-[10px] uppercase text-slate-400 font-bold tracking-wider px-2 mb-2">
-                <span>Price</span>
-                <span className="text-right">Amount</span>
-                <span className="text-right">Total</span>
-            </div>
+      <div className="flex-1 overflow-hidden p-2">
+          <div className="grid grid-cols-3 text-[10px] uppercase text-slate-400 font-bold tracking-wider px-2 mb-2">
+              <span>Price</span>
+              <span className="text-right">Amount</span>
+              <span className="text-right">Total</span>
+          </div>
 
-            <div className="space-y-0.5">
-                {asks.slice().reverse().map((o, i) => <Row key={i} price={o.p} amount={o.a} total={o.t} type="ask" />)}
-            </div>
+          <div className="space-y-0.5">
+              {asks.slice().reverse().map((o, i) => <Row key={i} price={o.p} amount={o.a} total={o.t} type="ask" />)}
+          </div>
 
-            <div className="my-3 flex items-center justify-between px-3 py-2 rounded-xl border border-white/40 bg-white/30 backdrop-blur-sm shadow-inner">
-                <span className="text-lg font-bold text-slate-800 tracking-tight">67,243.5</span>
-                <span className="text-xs text-slate-500 font-medium">≈ $67,243.5</span>
-            </div>
+          <div className="my-3 flex items-center justify-between px-3 py-2 rounded-lg border border-white/40 bg-white/30 backdrop-blur-sm shadow-inner">
+              <span className="text-lg font-bold text-slate-800 tracking-tight">67,243.5</span>
+              <span className="text-xs text-slate-500 font-medium">≈ $67,243.5</span>
+          </div>
 
-            <div className="space-y-0.5">
-                {bids.map((o, i) => <Row key={i} price={o.p} amount={o.a} total={o.t} type="bid" />)}
-            </div>
-        </div>
+          <div className="space-y-0.5">
+              {bids.map((o, i) => <Row key={i} price={o.p} amount={o.a} total={o.t} type="bid" />)}
+          </div>
+      </div>
     </div>
   );
 }
