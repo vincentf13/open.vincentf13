@@ -4,6 +4,7 @@ import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionUtils;
+import org.springframework.dao.TransientDataAccessResourceException;
 
 import java.util.List;
 import java.util.Objects;
@@ -41,18 +42,30 @@ public final class OpenMybatisBatchExecutor {
         Objects.requireNonNull(records, "records");
         Objects.requireNonNull(action, "action");
         
-        SqlSession sqlSession = SqlSessionUtils.getSqlSession(sqlSessionFactory, ExecutorType.BATCH, null);
+        SqlSession sqlSession = null;
+        ExecutorType executorType = ExecutorType.BATCH;
+        try {
+            sqlSession = SqlSessionUtils.getSqlSession(sqlSessionFactory, ExecutorType.BATCH, null);
+        } catch (TransientDataAccessResourceException ex) {
+            if (ex.getMessage() == null || !ex.getMessage().contains("Cannot change the ExecutorType")) {
+                throw ex;
+            }
+            executorType = ExecutorType.SIMPLE;
+            sqlSession = SqlSessionUtils.getSqlSession(sqlSessionFactory, ExecutorType.SIMPLE, null);
+        }
         try {
             Mapper mapper = sqlSession.getMapper(mapperType);
             for (int i = 0; i < records.size(); i++) {
                 action.accept(mapper, records.get(i));
-                if ((i + 1) % flushThreshold == 0) {
+                if (executorType == ExecutorType.BATCH && (i + 1) % flushThreshold == 0) {
                     sqlSession.flushStatements();
                     sqlSession.clearCache();
                 }
             }
-            sqlSession.flushStatements();
-            sqlSession.clearCache();
+            if (executorType == ExecutorType.BATCH) {
+                sqlSession.flushStatements();
+                sqlSession.clearCache();
+            }
         } finally {
             SqlSessionUtils.closeSqlSession(sqlSession, sqlSessionFactory);
         }

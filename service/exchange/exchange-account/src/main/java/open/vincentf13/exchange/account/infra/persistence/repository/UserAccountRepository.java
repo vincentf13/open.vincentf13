@@ -31,10 +31,14 @@ public class UserAccountRepository {
     
     private final UserAccountMapper mapper;
     private final DefaultIdGenerator idGenerator;
+    private static final Long SPOT_INSTRUMENT_ID = 0L;
     
     public UserAccount insertSelective(@NotNull @Valid UserAccount balance) {
         if (balance.getAccountId() == null) {
             balance.setAccountId(idGenerator.newLong());
+        }
+        if (balance.getInstrumentId() == null) {
+            balance.setInstrumentId(SPOT_INSTRUMENT_ID);
         }
         if (balance.getAccountName() == null && balance.getAccountCode() != null) {
             balance.setAccountName(balance.getAccountCode().getDisplayName());
@@ -58,6 +62,9 @@ public class UserAccountRepository {
     
     public boolean updateSelectiveBy(@NotNull @Valid UserAccount balance,
                                      LambdaUpdateWrapper<UserAccountPO> updateWrapper) {
+        if (balance.getInstrumentId() == null) {
+            balance.setInstrumentId(SPOT_INSTRUMENT_ID);
+        }
         UserAccountPO po = OpenObjectMapper.convert(balance, UserAccountPO.class);
         return mapper.update(po, updateWrapper) > 0;
     }
@@ -73,6 +80,9 @@ public class UserAccountRepository {
         for (int i = 0; i < accounts.size(); i++) {
             UserAccount account = accounts.get(i);
             Integer expectedVersion = expectedVersions.get(i);
+            if (account.getInstrumentId() == null) {
+                account.setInstrumentId(SPOT_INSTRUMENT_ID);
+            }
             UserAccountPO po = OpenObjectMapper.convert(account, UserAccountPO.class);
             LambdaUpdateWrapper<UserAccountPO> wrapper = new LambdaUpdateWrapper<UserAccountPO>()
                     .eq(UserAccountPO::getAccountId, account.getAccountId())
@@ -88,19 +98,20 @@ public class UserAccountRepository {
     
     public List<UserAccount> findBy(@NotNull LambdaQueryWrapper<UserAccountPO> wrapper) {
         return mapper.selectList(wrapper).stream()
-                     .map(item -> OpenObjectMapper.convert(item, UserAccount.class))
+                     .map(item -> normalizeInstrumentId(OpenObjectMapper.convert(item, UserAccount.class)))
                      .toList();
     }
     
     public Optional<UserAccount> findOne(@NotNull LambdaQueryWrapper<UserAccountPO> wrapper) {
         UserAccountPO po = mapper.selectOne(wrapper);
-        return Optional.ofNullable(OpenObjectMapper.convert(po, UserAccount.class));
+        return Optional.ofNullable(normalizeInstrumentId(OpenObjectMapper.convert(po, UserAccount.class)));
     }
 
     public UserAccount getOrCreate(@NotNull Long userId,
                                    @NotNull UserAccountCode accountCode,
                                    Long instrumentId,
                                    @NotNull AssetSymbol asset) {
+        Long normalizedInstrumentId = normalizeInstrumentIdValue(instrumentId);
         String accountName = accountCode.getDisplayName();
         AccountCategory category = accountCode.getCategory();
         return findOne(Wrappers.lambdaQuery(UserAccountPO.class)
@@ -108,13 +119,27 @@ public class UserAccountRepository {
                                .eq(UserAccountPO::getAccountCode, accountCode)
                                .eq(UserAccountPO::getCategory, category)
                                .eq(UserAccountPO::getAsset, asset)
-                               .eq(UserAccountPO::getInstrumentId, instrumentId))
+                               .eq(UserAccountPO::getInstrumentId, normalizedInstrumentId))
                 .map(account -> {
                     if (account.getAccountName() == null) {
                         account.setAccountName(accountName);
                     }
                     return account;
                 })
-                .orElseGet(() -> insertSelective(UserAccount.createDefault(userId, accountCode, instrumentId, asset)));
+                .orElseGet(() -> insertSelective(UserAccount.createDefault(userId, accountCode, normalizedInstrumentId, asset)));
+    }
+
+    private Long normalizeInstrumentIdValue(Long instrumentId) {
+        return instrumentId == null ? SPOT_INSTRUMENT_ID : instrumentId;
+    }
+
+    private UserAccount normalizeInstrumentId(UserAccount account) {
+        if (account == null) {
+            return null;
+        }
+        if (account.getInstrumentId() == null) {
+            account.setInstrumentId(SPOT_INSTRUMENT_ID);
+        }
+        return account;
     }
 }

@@ -50,7 +50,7 @@ public class UserAccount {
                           .userId(userId)
                           .accountCode(accountCode)
                           .accountName(accountCode.getDisplayName())
-                          .instrumentId(instrumentId)
+                          .instrumentId(instrumentId == null ? 0L : instrumentId)
                           .category(accountCode.getCategory())
                           .asset(asset)
                           .balance(BigDecimal.ZERO)
