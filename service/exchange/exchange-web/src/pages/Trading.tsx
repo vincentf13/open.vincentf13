@@ -1,273 +1,344 @@
-import { useState } from 'react';
-import { InputNumber, message } from 'antd';
-import './Trading.css';
-
 export default function Trading() {
-  const [orderType, setOrderType] = useState<'LIMIT' | 'MARKET'>('LIMIT');
-  const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
-  const [price, setPrice] = useState<number>(0);
-  const [quantity, setQuantity] = useState<number>(0);
-  const [loading, setLoading] = useState(false);
-  const lastPrice = 67243.15;
-  const highPrice = 67880.2;
-  const lowPrice = 66210.4;
-  const changePct = 2.18;
-  const estimatedPrice = orderType === 'MARKET' ? lastPrice : (price || lastPrice);
-  const estimatedCost = quantity ? estimatedPrice * quantity : 0;
-
-  const handleSubmit = async (targetSide: 'BUY' | 'SELL') => {
-    if (side !== targetSide) {
-      setSide(targetSide);
-    }
-    if (orderType === 'LIMIT' && !price) {
-      message.error('請輸入價格');
-      return;
-    }
-    if (!quantity) {
-      message.error('請輸入數量');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // TODO: 調用下單 API
-      // await submitOrder({ type: orderType, side, price, quantity });
-
-      message.success('下單成功！');
-    } catch (error) {
-      message.error('下單失敗');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="trading-page">
-      <div className="trading-shell">
-        <section className="glass-card chart-card panel-rise delay-1">
-          <div className="chart-header">
-            <div className="brand-block">
-              <span className="brand-mark" />
-              <span className="brand-title">Liquid Flow</span>
-              <div className="pair-block">
-                <span className="pair-pill">BTC/USDT</span>
-                <span className="pair-pill">15m</span>
-              </div>
-            </div>
-            <div className="price-block">
-              <div className="price-main">${lastPrice.toLocaleString()}</div>
-              <div className="price-sub">今日 {changePct}%</div>
-            </div>
-          </div>
-          <div className="chart-body">
-            <div className="chart-area">
-              <div className="chart-grid" />
-              <svg className="kline-svg" viewBox="0 0 800 240" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="kline-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#4b87c5" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M20 180 L70 150 L110 170 L150 120 L190 130 L230 110 L270 125 L310 90 L350 105 L390 80 L430 95 L470 70 L510 85 L550 60 L590 72 L630 58 L670 75 L710 50 L760 62"
-                  fill="none"
-                  stroke="#2d5f9c"
-                  strokeWidth="2.2"
-                />
-                <path
-                  d="M20 180 L70 150 L110 170 L150 120 L190 130 L230 110 L270 125 L310 90 L350 105 L390 80 L430 95 L470 70 L510 85 L550 60 L590 72 L630 58 L670 75 L710 50 L760 62 L760 220 L20 220 Z"
-                  fill="url(#kline-fill)"
-                />
-                <g stroke="#2d5f9c" strokeWidth="2">
-                  <line x1="60" y1="160" x2="60" y2="195" />
-                  <line x1="120" y1="140" x2="120" y2="185" />
-                  <line x1="180" y1="150" x2="180" y2="205" />
-                  <line x1="240" y1="120" x2="240" y2="170" />
-                  <line x1="300" y1="110" x2="300" y2="165" />
-                  <line x1="360" y1="95" x2="360" y2="150" />
-                  <line x1="420" y1="80" x2="420" y2="130" />
-                  <line x1="480" y1="70" x2="480" y2="120" />
-                  <line x1="540" y1="60" x2="540" y2="115" />
-                  <line x1="600" y1="55" x2="600" y2="110" />
-                  <line x1="660" y1="65" x2="660" y2="120" />
-                  <line x1="720" y1="50" x2="720" y2="100" />
-                </g>
-                <g fill="#e5eff8" stroke="#2d5f9c" strokeWidth="1.5">
-                  <rect x="52" y="170" width="16" height="20" rx="3" />
-                  <rect x="112" y="155" width="16" height="20" rx="3" />
-                  <rect x="172" y="168" width="16" height="22" rx="3" />
-                  <rect x="232" y="140" width="16" height="18" rx="3" />
-                  <rect x="292" y="135" width="16" height="18" rx="3" />
-                  <rect x="352" y="110" width="16" height="20" rx="3" />
-                  <rect x="412" y="95" width="16" height="18" rx="3" />
-                  <rect x="472" y="90" width="16" height="18" rx="3" />
-                  <rect x="532" y="80" width="16" height="18" rx="3" />
-                  <rect x="592" y="75" width="16" height="18" rx="3" />
-                  <rect x="652" y="85" width="16" height="18" rx="3" />
-                  <rect x="712" y="70" width="16" height="18" rx="3" />
-                </g>
-              </svg>
-            </div>
-            <div className="chart-stats">
-              <div className="stat-item">
-                <div className="stat-label">最新價</div>
-                <div className="stat-value">${lastPrice.toLocaleString()}</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-label">24h 最高</div>
-                <div className="stat-value">${highPrice.toLocaleString()}</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-label">24h 最低</div>
-                <div className="stat-value">${lowPrice.toLocaleString()}</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-label">成交量</div>
-                <div className="stat-value">1,248 BTC</div>
-              </div>
-            </div>
-          </div>
-        </section>
+    <div className="min-h-screen bg-gradient-to-b from-[#D6E4F0] to-[#AEC2D6] text-slate-700">
+      <div className="mx-auto max-w-6xl px-4 py-10 lg:px-6">
+        <div className="relative">
+          <div className="absolute inset-0 translate-y-4 rounded-lg border border-white/50 bg-white/30 shadow-[0_26px_60px_rgba(66,88,112,0.35)]" />
+          <div className="relative overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br from-white/70 via-white/45 to-white/25 shadow-[0_18px_40px_rgba(80,100,124,0.25)]">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/55 via-transparent to-transparent" />
+            <div className="relative flex flex-col gap-5 px-5 pb-6 pt-5 lg:px-6">
+              <header className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-white/60 bg-white/50 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/60 bg-white/70">
+                    <span className="h-4 w-4 rounded-lg bg-blue-400/80" />
+                  </div>
+                  <div className="text-sm">
+                    <div className="text-base font-semibold text-slate-800">Liquid Flow</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700">
+                  BTC/USD
+                  <span className="text-[10px] text-slate-500">15m</span>
+                </div>
+              </header>
 
-        <section className="info-grid">
-          <div className="glass-card info-card panel-rise delay-2">
-            <div className="card-title">Order Book</div>
-            <div className="orderbook">
-              <ul>
-                <li><span>67,248.5</span><span>0.038</span></li>
-                <li><span>67,244.0</span><span>0.052</span></li>
-                <li><span>67,240.8</span><span>0.041</span></li>
-                <li><span>67,238.2</span><span>0.063</span></li>
-              </ul>
-              <ul>
-                <li><span>67,230.1</span><span>0.028</span></li>
-                <li><span>67,225.7</span><span>0.044</span></li>
-                <li><span>67,221.9</span><span>0.036</span></li>
-                <li><span>67,219.3</span><span>0.051</span></li>
-              </ul>
-            </div>
-          </div>
-          <div className="glass-card info-card panel-rise delay-3">
-            <div className="card-title">Position</div>
-            <div className="position-metrics">
-              <div>Available: <strong>0.3200 BTC</strong></div>
-              <div>Margin: <strong>0.0092 BTC</strong></div>
-              <div>Leverage: <strong>20x</strong></div>
-              <div>Liq. Price: <strong>$57,450.00</strong></div>
-              <div>Unrealized PnL: <strong>+$1,280.50</strong></div>
-            </div>
-          </div>
-          <div className="glass-card info-card panel-rise delay-4">
-            <div className="card-title">Recent Trades</div>
-            <div className="trade-stream">
-              <div className="trade-row"><span>15:32:21</span><span>0.012 BTC</span></div>
-              <div className="trade-row"><span>15:31:58</span><span>0.008 BTC</span></div>
-              <div className="trade-row"><span>15:31:40</span><span>0.015 BTC</span></div>
-              <div className="trade-row"><span>15:31:05</span><span>0.020 BTC</span></div>
-            </div>
-          </div>
-        </section>
+              <section className="rounded-lg border border-white/60 bg-gradient-to-br from-white/70 via-white/45 to-white/25 shadow-[0_10px_24px_rgba(80,100,124,0.15)]">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/60 px-4 py-3 text-xs font-semibold text-slate-600">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-slate-800">Order Book</span>
+                    <div className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/70 p-1">
+                      <span className="rounded-lg bg-white/80 px-3 py-1 text-slate-800">Price</span>
+                      <span className="rounded-lg px-3 py-1 text-slate-500">Limit</span>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-700">$67,242.15</span>
+                </div>
+                <div className="grid gap-4 px-4 pb-4 pt-3 lg:grid-cols-[220px,1fr]">
+                  <div className="rounded-lg border border-white/60 bg-white/55 p-3 text-xs">
+                    <div className="grid grid-cols-2 text-[11px] uppercase text-slate-500">
+                      <span>Bids</span>
+                      <span className="text-right">Amount</span>
+                    </div>
+                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                      <div className="flex justify-between"><span>67,243.30</span><span>0.038</span></div>
+                      <div className="flex justify-between"><span>67,242.80</span><span>0.052</span></div>
+                      <div className="flex justify-between"><span>67,242.40</span><span>0.041</span></div>
+                      <div className="flex justify-between"><span>67,241.90</span><span>0.063</span></div>
+                      <div className="flex justify-between"><span>67,241.40</span><span>0.055</span></div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/60 bg-white/70 px-2 py-1 text-[10px] uppercase text-slate-500">
+                      <span>Spread</span>
+                      <span>$1.20</span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-white/60 bg-white/55 p-3">
+                    <div className="relative mt-1">
+                      <div className="absolute left-3 top-2 text-sm font-semibold text-blue-600">$67,243.15</div>
+                      <div className="pointer-events-none absolute right-2 top-6 flex h-[150px] flex-col justify-between text-[10px] text-slate-400">
+                        <span>67,320</span>
+                        <span>67,280</span>
+                        <span>67,240</span>
+                        <span>67,200</span>
+                        <span>67,160</span>
+                      </div>
+                      <svg className="h-52 w-full" viewBox="0 0 640 230" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="chartFillMain" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#5b93d1" stopOpacity="0.35" />
+                            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
+                          </linearGradient>
+                        </defs>
+                        <g stroke="#d7e3f2" strokeWidth="1">
+                          <line x1="0" y1="40" x2="640" y2="40" />
+                          <line x1="0" y1="80" x2="640" y2="80" />
+                          <line x1="0" y1="120" x2="640" y2="120" />
+                          <line x1="0" y1="160" x2="640" y2="160" />
+                          <line x1="0" y1="200" x2="640" y2="200" />
+                          <line x1="80" y1="20" x2="80" y2="210" />
+                          <line x1="160" y1="20" x2="160" y2="210" />
+                          <line x1="240" y1="20" x2="240" y2="210" />
+                          <line x1="320" y1="20" x2="320" y2="210" />
+                          <line x1="400" y1="20" x2="400" y2="210" />
+                          <line x1="480" y1="20" x2="480" y2="210" />
+                          <line x1="560" y1="20" x2="560" y2="210" />
+                        </g>
+                        <path
+                          d="M20 145 L70 160 L120 170 L170 150 L220 140 L270 122 L320 112 L370 102 L420 96 L470 84 L520 74 L570 60 L620 52"
+                          fill="none"
+                          stroke="#3d74b5"
+                          strokeWidth="2.2"
+                        />
+                        <path
+                          d="M20 145 L70 160 L120 170 L170 150 L220 140 L270 122 L320 112 L370 102 L420 96 L470 84 L520 74 L570 60 L620 52 L620 210 L20 210 Z"
+                          fill="url(#chartFillMain)"
+                        />
+                        <g fill="#f8fbff" stroke="#3d74b5" strokeWidth="1.6">
+                          <circle cx="20" cy="145" r="3" />
+                          <circle cx="70" cy="160" r="3" />
+                          <circle cx="120" cy="170" r="3" />
+                          <circle cx="170" cy="150" r="3" />
+                          <circle cx="220" cy="140" r="3" />
+                          <circle cx="270" cy="122" r="3" />
+                          <circle cx="320" cy="112" r="3" />
+                          <circle cx="370" cy="102" r="3" />
+                          <circle cx="420" cy="96" r="3" />
+                          <circle cx="470" cy="84" r="3" />
+                          <circle cx="520" cy="74" r="3" />
+                          <circle cx="570" cy="60" r="3" />
+                          <circle cx="620" cy="52" r="3" />
+                        </g>
+                      </svg>
+                    </div>
+                    <div className="mt-2 rounded-lg border border-white/60 bg-white/70 p-2">
+                      <svg className="h-10 w-full" viewBox="0 0 640 60" preserveAspectRatio="none">
+                        <rect x="10" y="28" width="16" height="26" fill="#3d74b5" opacity="0.35" />
+                        <rect x="40" y="22" width="16" height="32" fill="#3d74b5" opacity="0.35" />
+                        <rect x="70" y="16" width="16" height="38" fill="#3d74b5" opacity="0.35" />
+                        <rect x="100" y="24" width="16" height="30" fill="#3d74b5" opacity="0.35" />
+                        <rect x="130" y="12" width="16" height="42" fill="#3d74b5" opacity="0.35" />
+                        <rect x="160" y="18" width="16" height="36" fill="#3d74b5" opacity="0.35" />
+                        <rect x="190" y="10" width="16" height="44" fill="#3d74b5" opacity="0.35" />
+                        <rect x="220" y="22" width="16" height="32" fill="#3d74b5" opacity="0.35" />
+                        <rect x="250" y="18" width="16" height="36" fill="#3d74b5" opacity="0.35" />
+                        <rect x="280" y="26" width="16" height="28" fill="#3d74b5" opacity="0.35" />
+                        <rect x="310" y="20" width="16" height="34" fill="#3d74b5" opacity="0.35" />
+                        <rect x="340" y="14" width="16" height="40" fill="#3d74b5" opacity="0.35" />
+                      </svg>
+                      <div className="mt-2 flex justify-between text-[10px] text-slate-400">
+                        <span>00:00</span>
+                        <span>04:00</span>
+                        <span>08:00</span>
+                        <span>12:00</span>
+                        <span>16:00</span>
+                        <span>20:00</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-        <section className="glass-card order-card panel-rise delay-2">
-          <div className="order-header">
-            <div className="card-title">下單</div>
-            <div className="segmented">
-              <button
-                className={`segment-button ${orderType === 'LIMIT' ? 'active' : ''}`}
-                onClick={() => setOrderType('LIMIT')}
-                type="button"
-              >
-                限價
-              </button>
-              <button
-                className={`segment-button ${orderType === 'MARKET' ? 'active' : ''}`}
-                onClick={() => setOrderType('MARKET')}
-                type="button"
-              >
-                市價
-              </button>
-            </div>
-          </div>
+              <section className="grid gap-4 lg:grid-cols-[1fr,2fr]">
+                <div className="rounded-lg border border-white/60 bg-white/45 shadow-[0_10px_22px_rgba(80,100,124,0.12)]">
+                  <div className="border-b border-white/60 px-4 py-3 text-sm font-semibold text-slate-800">Order Book</div>
+                  <div className="px-4 py-4 text-xs text-slate-600">
+                    <div className="grid grid-cols-3 text-[11px] uppercase text-slate-500">
+                      <span>Bids</span>
+                      <span>Amount</span>
+                      <span className="text-right">Total (BTC)</span>
+                    </div>
+                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                      <div className="grid grid-cols-3"><span>67,242.0</span><span>0.021</span><span className="text-right">0.812</span></div>
+                      <div className="grid grid-cols-3"><span>67,238.6</span><span>0.046</span><span className="text-right">0.792</span></div>
+                      <div className="grid grid-cols-3"><span>67,233.2</span><span>0.038</span><span className="text-right">0.761</span></div>
+                      <div className="grid grid-cols-3"><span>67,229.5</span><span>0.052</span><span className="text-right">0.742</span></div>
+                    </div>
+                    <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/60 bg-white/70 px-3 py-2 text-[10px] uppercase text-slate-500">
+                      <span>Spread</span>
+                      <span>$1.20</span>
+                    </div>
+                  </div>
+                </div>
 
-          <div className="order-header">
-            <div className="card-title">方向</div>
-            <div className="segmented">
-              <button
-                className={`segment-button buy ${side === 'BUY' ? 'active' : ''}`}
-                onClick={() => setSide('BUY')}
-                type="button"
-              >
-                買入
-              </button>
-              <button
-                className={`segment-button sell ${side === 'SELL' ? 'active' : ''}`}
-                onClick={() => setSide('SELL')}
-                type="button"
-              >
-                賣出
-              </button>
-            </div>
-          </div>
+                <div className="rounded-lg border border-white/60 bg-white/45 shadow-[0_10px_22px_rgba(80,100,124,0.12)]">
+                  <div className="flex items-center justify-between border-b border-white/60 px-4 py-3 text-sm font-semibold text-slate-800">
+                    <span>Position</span>
+                    <div className="flex items-center gap-1 rounded-lg border border-white/60 bg-white/70 p-1 text-xs text-slate-600">
+                      <span className="rounded-lg bg-white/80 px-2 py-1 text-slate-800">Limit</span>
+                      <span className="rounded-lg px-2 py-1">Limit</span>
+                      <span className="rounded-lg px-2 py-1">Test</span>
+                    </div>
+                  </div>
+                  <div className="px-4 py-4 text-sm text-slate-600">
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span>Available</span>
+                          <span className="font-semibold text-slate-800">0.3200 BTC</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Margin</span>
+                          <span className="font-semibold text-slate-800">0.0092</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Liq. Price</span>
+                          <span className="font-semibold text-slate-800">$66,500.00</span>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span>Leverage</span>
+                          <span className="font-semibold text-slate-800">20x</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Margin</span>
+                          <span className="font-semibold text-slate-800">0.0037 BTC</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Liq. Price</span>
+                          <span className="font-semibold text-slate-800">$57,450.00</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-[1fr,70px] gap-3">
+                      <div className="rounded-lg border border-white/60 bg-white/70 p-2">
+                        <svg className="h-20 w-full" viewBox="0 0 220 80" preserveAspectRatio="none">
+                          <polyline
+                            fill="none"
+                            stroke="#3d74b5"
+                            strokeWidth="2"
+                            points="0,62 18,58 36,60 54,44 72,46 90,38 108,40 126,28 144,30 162,22 180,24 200,18 220,12"
+                          />
+                        </svg>
+                      </div>
+                      <div className="flex flex-col justify-between text-xs text-slate-500">
+                        <span>$56k</span>
+                        <span>$60k</span>
+                        <span>$64k</span>
+                        <span>$68k</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-          <div className="order-grid">
-            {orderType === 'LIMIT' && (
-              <div className="field-group">
-                <div className="field-label">價格</div>
-                <InputNumber
-                  style={{ width: '100%' }}
-                  placeholder="輸入價格"
-                  value={price}
-                  onChange={(val) => setPrice(val || 0)}
-                  min={0}
-                />
-              </div>
-            )}
-            <div className="field-group">
-              <div className="field-label">數量</div>
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder="輸入數量"
-                value={quantity}
-                onChange={(val) => setQuantity(val || 0)}
-                min={0}
-              />
-            </div>
-            <div className="order-summary">
-              <div className="summary-row">
-                <span>估算價格</span>
-                <span>${estimatedPrice.toLocaleString()}</span>
-              </div>
-              <div className="summary-row">
-                <span>手續費</span>
-                <span>0.03%</span>
-              </div>
-              <div className="summary-row">
-                <span>預估成本</span>
-                <span>${estimatedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-              </div>
-            </div>
-          </div>
+              <section className="rounded-lg border border-white/60 bg-gradient-to-br from-white/70 via-white/45 to-white/25 shadow-[0_10px_24px_rgba(80,100,124,0.15)]">
+                <div className="flex items-center justify-between gap-4 border-b border-white/60 px-5 py-3 text-sm font-semibold text-slate-800">
+                  <div className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/70 p-1 text-xs text-slate-600">
+                    <span className="flex items-center gap-2 rounded-lg bg-white/80 px-3 py-1 text-slate-800">
+                      <span className="h-2 w-2 rounded-lg bg-blue-400/80" />
+                      Market
+                    </span>
+                    <span className="flex items-center gap-2 rounded-lg px-3 py-1 text-slate-500">
+                      <span className="h-2 w-2 rounded-lg border border-slate-400/60" />
+                      Limit
+                    </span>
+                  </div>
+                </div>
+                <div className="grid gap-6 px-5 pb-6 pt-4 lg:grid-cols-[1.15fr,0.85fr]">
+                  <div className="space-y-4 text-sm text-slate-600">
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="space-y-2">
+                        <span className="text-xs uppercase tracking-wide text-slate-500">Price</span>
+                        <input
+                          className="w-full rounded-lg border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-700"
+                          type="text"
+                          value="67,242.15"
+                          readOnly
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-xs uppercase tracking-wide text-slate-500">Amount</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            className="w-full rounded-lg border border-white/60 bg-white/60 px-3 py-2 text-sm text-slate-700"
+                            type="number"
+                            placeholder="0.00"
+                          />
+                          <span className="rounded-lg border border-white/60 bg-white/70 px-2 py-2 text-xs font-semibold text-slate-600">
+                            BTC
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-[110px,1fr] items-center gap-3">
+                      <span className="text-xs uppercase tracking-wide text-slate-500">Asks</span>
+                      <div className="flex items-center gap-3">
+                        <input className="w-full accent-blue-500" type="range" min="0" max="100" defaultValue="60" />
+                        <span className="rounded-lg border border-white/60 bg-white/70 px-2 py-1 text-xs font-semibold text-slate-600">
+                          BTC
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-[110px,1fr] items-center gap-3">
+                      <span className="text-xs uppercase tracking-wide text-slate-500">Leverage</span>
+                      <div className="flex items-center gap-3">
+                        <input className="w-full accent-blue-500" type="range" min="1" max="50" defaultValue="20" />
+                        <span className="text-sm font-semibold text-slate-800">20x</span>
+                        <span className="rounded-lg border border-white/60 bg-white/70 px-2 py-1 text-xs text-slate-600">
+                          2000
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-[110px,1fr] items-start gap-3">
+                      <span className="text-xs uppercase tracking-wide text-slate-500">Margin</span>
+                      <div className="flex flex-col text-sm text-slate-700">
+                        <span className="font-semibold">0.0037 BTC</span>
+                        <span className="text-xs text-slate-500">$16,940.50</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4 rounded-lg border border-white/60 bg-white/60 p-4 text-sm text-slate-600">
+                    <div className="flex items-center justify-between">
+                      <span>Leverage</span>
+                      <span className="font-semibold text-slate-800">20x</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Margin</span>
+                      <span className="font-semibold text-slate-800">0.0037 BTC</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Fee</span>
+                      <span className="font-semibold text-slate-800">$7.90</span>
+                    </div>
+                    <div className="border-t border-white/60 pt-4">
+                      <div className="text-xs uppercase tracking-wide text-slate-500">Est. Cost</div>
+                      <div className="text-xl font-semibold text-slate-800">$16,810.50</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <button className="rounded-lg bg-emerald-500/80 px-4 py-2 text-sm font-semibold text-white shadow-sm" type="button">
+                        Buy / Long BTC
+                      </button>
+                      <button className="rounded-lg bg-rose-500/80 px-4 py-2 text-sm font-semibold text-white shadow-sm" type="button">
+                        Sell / Short BTC
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-          <div className="order-actions">
-            <button
-              className="action-button action-buy"
-              onClick={() => handleSubmit('BUY')}
-              type="button"
-              disabled={loading}
-            >
-              {loading ? '送出中...' : 'Buy / Long BTC'}
-            </button>
-            <button
-              className="action-button action-sell"
-              onClick={() => handleSubmit('SELL')}
-              type="button"
-              disabled={loading}
-            >
-              {loading ? '送出中...' : 'Sell / Short BTC'}
-            </button>
+              <section className="rounded-lg border border-white/60 bg-white/45 shadow-[0_10px_22px_rgba(80,100,124,0.12)]">
+                <div className="border-b border-white/60 px-4 py-3 text-sm font-semibold text-slate-800">Market Stats</div>
+                <div className="px-4 py-4 text-sm text-slate-600">
+                  <div className="rounded-lg border border-white/60 bg-white/70 p-2">
+                    <svg className="h-16 w-full" viewBox="0 0 200 60" preserveAspectRatio="none">
+                      <polyline
+                        fill="none"
+                        stroke="#3d74b5"
+                        strokeWidth="2"
+                        points="0,36 20,34 40,28 60,30 80,24 100,26 120,18 140,20 160,14 180,16 200,12"
+                      />
+                    </svg>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between"><span>24h Volume</span><span className="font-semibold text-slate-800">18,240 BTC</span></div>
+                    <div className="flex items-center justify-between"><span>24h High</span><span className="font-semibold text-slate-800">$67,880.20</span></div>
+                    <div className="flex items-center justify-between"><span>24h Low</span><span className="font-semibold text-slate-800">$66,210.40</span></div>
+                  </div>
+                </div>
+              </section>
+            </div>
           </div>
-        </section>
+        </div>
       </div>
     </div>
   );
