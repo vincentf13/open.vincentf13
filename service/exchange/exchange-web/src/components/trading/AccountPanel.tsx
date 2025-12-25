@@ -6,12 +6,14 @@ type BalanceState = {
   balance: string;
   available: string;
   reserved: string;
+  asset: string;
 };
 
 const defaultBalances: BalanceState = {
   balance: '--',
   available: '--',
   reserved: '--',
+  asset: '--',
 };
 
 const formatAmount = (value: unknown) => {
@@ -21,28 +23,38 @@ const formatAmount = (value: unknown) => {
   return String(value);
 };
 
+const formatAmountWithAsset = (value: string, asset: string) => {
+  if (value === '--') {
+    return '--';
+  }
+  if (!asset || asset === '--') {
+    return value;
+  }
+  return `${value} ${asset}`;
+};
+
 export default function AccountPanel() {
   const [balances, setBalances] = useState<BalanceState>(defaultBalances);
-  const requestedRef = useRef(false);
+  const requestRef = useRef<Promise<any> | null>(null);
 
   useEffect(() => {
-    if (requestedRef.current) {
-      return;
-    }
-    requestedRef.current = true;
     let isActive = true;
     const loadBalances = async () => {
       try {
-        const result = await getAccountBalances('USDT');
+        if (!requestRef.current) {
+          requestRef.current = getAccountBalances('USDT');
+        }
+        const result = await requestRef.current;
         if (!isActive) {
           return;
         }
-        if (result?.code === '0' && result?.data?.balances) {
+        if (String(result?.code) === '0' && result?.data?.balances) {
           const payload = result.data.balances;
           setBalances({
             balance: formatAmount(payload.balance),
             available: formatAmount(payload.available),
             reserved: formatAmount(payload.reserved),
+            asset: formatAmount(payload.asset),
           });
         }
       } catch {
@@ -69,15 +81,21 @@ export default function AccountPanel() {
       <div className="space-y-3 text-xs">
         <div className="flex items-center justify-between gap-2 whitespace-nowrap">
           <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider truncate">Balance</span>
-          <span className="text-sm font-mono font-medium text-slate-700 truncate">{balances.balance} USDT</span>
+          <span className="text-sm font-mono font-medium text-slate-700 truncate">
+            {formatAmountWithAsset(balances.balance, balances.asset)}
+          </span>
         </div>
         <div className="flex items-center justify-between gap-2 whitespace-nowrap">
           <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider truncate">Available</span>
-          <span className="text-sm font-mono font-medium text-slate-700 truncate">{balances.available} USDT</span>
+          <span className="text-sm font-mono font-medium text-slate-700 truncate">
+            {formatAmountWithAsset(balances.available, balances.asset)}
+          </span>
         </div>
         <div className="flex items-center justify-between gap-2 whitespace-nowrap">
           <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider truncate">Reserved</span>
-          <span className="text-sm font-mono font-medium text-slate-700 truncate">{balances.reserved} USDT</span>
+          <span className="text-sm font-mono font-medium text-slate-700 truncate">
+            {formatAmountWithAsset(balances.reserved, balances.asset)}
+          </span>
         </div>
       </div>
     </div>
