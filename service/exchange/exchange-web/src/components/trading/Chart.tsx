@@ -13,9 +13,9 @@ export default function Chart() {
         </div>
       </div>
 
-      <div className="relative flex-1 w-full min-h-[300px] p-4">
+      <div className="relative flex-1 w-full min-h-[300px] px-2 py-4">
         {/* Mock Chart Area */}
-        <div className="absolute inset-0 top-12 bottom-8 left-4 right-16">
+        <div className="absolute inset-0 top-12 bottom-8 left-0 right-0">
             <svg className="w-full h-full" viewBox="0 0 800 300" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
@@ -58,7 +58,7 @@ export default function Chart() {
         </div>
 
         {/* Y Axis Labels */}
-        <div className="absolute right-2 top-12 bottom-8 w-12 flex flex-col justify-between text-[10px] text-slate-400 font-mono text-right select-none">
+        <div className="absolute right-0 top-12 bottom-8 w-12 pr-2 flex flex-col justify-between text-[10px] text-slate-400 font-mono text-right select-none">
             <span>68.0k</span>
             <span>67.5k</span>
             <span>67.0k</span>

@@ -2,7 +2,16 @@ export default function Positions() {
   return (
     <div className="flex flex-col overflow-hidden bg-white/5">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-        <div className="text-sm font-semibold text-slate-700">Positions</div>
+        <div className="flex items-center gap-4 text-xs font-semibold">
+          {['Positions', 'Orders', 'Trades'].map((tab, index) => (
+            <button
+              key={tab}
+              className={`uppercase tracking-wider transition-colors ${index === 0 ? 'text-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="p-4 overflow-x-auto">

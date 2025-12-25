@@ -33,7 +33,7 @@ export default function OrderBook() {
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-[80%] ml-auto">
       <div className="p-4 border-b border-white/20 bg-white/10">
           <h3 className="text-sm font-semibold text-slate-700">Order Book</h3>
       </div>

@@ -17,7 +17,7 @@ export default function Trading() {
         </div>
 
         <div className="flex-1 min-h-0 pt-24 lg:pr-[260px] flex flex-col gap-4">
-          <div className="grid grid-cols-1 lg:grid-cols-[2.2fr,0.72fr] min-h-0">
+          <div className="grid grid-cols-1 lg:grid-cols-[2.4fr,0.6fr] min-h-0">
             {/* Left Column: Market Info + Chart */}
             <div className="flex flex-col min-w-0 border-r border-white/20">
               <div className="border-b border-white/20 bg-white/5">
@@ -45,7 +45,7 @@ export default function Trading() {
             <div className="border-b border-white/20">
               <TradeForm />
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
+            <div className="flex-1 min-h-0 p-4">
               <AccountPanel />
             </div>
           </div>

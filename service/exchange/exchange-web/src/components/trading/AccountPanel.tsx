@@ -12,25 +12,25 @@ export default function AccountPanel() {
       </div>
 
       <div className="space-y-3 text-xs">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Wallet Balance</span>
-          <span className="text-sm font-mono font-medium text-slate-700">24,050.50 USDT</span>
+        <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider truncate">Wallet Balance</span>
+          <span className="text-sm font-mono font-medium text-slate-700 truncate">24,050.50 USDT</span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Available</span>
-          <span className="text-sm font-mono font-medium text-slate-700">19,800.30 USDT</span>
+        <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider truncate">Available</span>
+          <span className="text-sm font-mono font-medium text-slate-700 truncate">19,800.30 USDT</span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Margin Balance</span>
-          <span className="text-sm font-mono font-medium text-slate-700">21,560.10 USDT</span>
+        <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider truncate">Margin Balance</span>
+          <span className="text-sm font-mono font-medium text-slate-700 truncate">21,560.10 USDT</span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Unrealized PnL</span>
-          <span className="text-sm font-mono font-medium text-emerald-600">+250.30 USDT</span>
+        <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider truncate">Unrealized PnL</span>
+          <span className="text-sm font-mono font-medium text-emerald-600 truncate">+250.30 USDT</span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Maintenance Margin</span>
-          <span className="text-sm font-mono font-medium text-slate-700">1,240.00 USDT</span>
+        <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider truncate">Maintenance Margin</span>
+          <span className="text-sm font-mono font-medium text-slate-700 truncate">1,240.00 USDT</span>
         </div>
       </div>
     </div>
