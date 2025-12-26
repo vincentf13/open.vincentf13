@@ -44,6 +44,24 @@ spring:
             - Path=/admin/**
           filters:
             - StripPrefix=1
+        - id: exchange-order-route
+          uri: lb://exchange-order
+          predicates:
+            - Path=/order/**
+          filters:
+            - StripPrefix=1
+        - id: exchange-risk-route
+          uri: lb://exchange-risk
+          predicates:
+            - Path=/risk/**
+          filters:
+            - StripPrefix=1
+        - id: exchange-matching-route
+          uri: lb://exchange-matching
+          predicates:
+            - Path=/matching/**
+          filters:
+            - StripPrefix=1
 
 open:
   vincentf13:
