@@ -127,8 +127,6 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
 
   const orderColumns = [
     { key: 'instrumentId', label: 'Instrument' },
-    { key: 'orderId', label: 'Order ID' },
-    { key: 'clientOrderId', label: 'Client Order ID' },
     { key: 'side', label: 'Side' },
     { key: 'type', label: 'Order Type' },
     { key: 'price', label: 'Price' },
@@ -140,7 +138,6 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
     { key: 'fee', label: 'Fee' },
     { key: 'status', label: 'Status' },
     { key: 'rejectedReason', label: 'Rejected Reason' },
-    { key: 'version', label: 'Version' },
     { key: 'createdAt', label: 'Created Time' },
     { key: 'updatedAt', label: 'Updated Time' },
     { key: 'submittedAt', label: 'Submitted Time' },
@@ -312,11 +309,17 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
               )}
               {orders.map((order) => (
                 <tr key={order.orderId} className="hover:bg-white/20 transition-colors">
-                  {orderColumns.map((column) => (
-                    <td key={column.key} className="py-3 px-2 font-mono whitespace-nowrap text-right">
-                      {renderOrderCellValue(order, column.key)}
-                    </td>
-                  ))}
+                  {orderColumns.map((column) => {
+                    const value = renderOrderCellValue(order, column.key);
+                    const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
+                    const tagClass =
+                      'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
+                    return (
+                      <td key={column.key} className="py-3 px-2 font-mono whitespace-nowrap text-right">
+                        {isTag ? <span className={tagClass}>{String(value)}</span> : value}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>

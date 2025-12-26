@@ -40,8 +40,7 @@ public class OrderQueryService {
         }
         List<Order> orders = orderRepository.findBy(
                 Wrappers.lambdaQuery(OrderPO.class)
-                        .eq(OrderPO::getUserId, userId)
-                        .orderByDesc(OrderPO::getCreatedAt));
+                        .eq(OrderPO::getUserId, userId));
         if (orders.isEmpty()) {
             return List.of();
         }
@@ -49,8 +48,7 @@ public class OrderQueryService {
             List<Order> sorted = new ArrayList<>(orders);
             Comparator<Order> comparator = Comparator
                     .comparing((Order order) -> instrumentId.equals(order.getInstrumentId()) ? 0 : 1)
-                    .thenComparing(Order::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                    .thenComparing(Order::getOrderId, Comparator.nullsLast(Comparator.reverseOrder()));
+                    .thenComparing(Order::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
             sorted.sort(comparator);
             return OpenObjectMapper.convertList(sorted, OrderResponse.class);
         }
