@@ -10,6 +10,8 @@ import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/positions")
 @RequiredArgsConstructor
@@ -26,5 +28,11 @@ public class PositionController implements PositionApi {
     public OpenApiResponse<PositionResponse> getPosition(Long userId,
                                                          Long instrumentId) {
         return OpenApiResponse.success(positionQueryService.getPosition(userId, instrumentId));
+    }
+
+    @Override
+    public OpenApiResponse<List<PositionResponse>> getPositions(Long userId,
+                                                                Long instrumentId) {
+        return OpenApiResponse.success(positionQueryService.getPositions(userId, instrumentId));
     }
 }

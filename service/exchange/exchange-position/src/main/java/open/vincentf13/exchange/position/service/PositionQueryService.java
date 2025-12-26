@@ -20,6 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -82,5 +85,27 @@ public class PositionQueryService {
                                               .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
                                                                                   Map.of("userId", userId, "instrumentId", instrumentId)));
         return OpenObjectMapper.convert(position, PositionResponse.class);
+    }
+
+    public List<PositionResponse> getPositions(@NotNull Long userId,
+                                               Long instrumentId) {
+        List<Position> positions = positionRepository.findBy(
+                Wrappers.lambdaQuery(PositionPO.class)
+                        .eq(PositionPO::getUserId, userId));
+        if (positions.isEmpty()) {
+            return List.of();
+        }
+        List<Position> sorted = new ArrayList<>(positions);
+        Comparator<Position> comparator = Comparator
+                .comparing((Position position) -> {
+                    if (instrumentId != null && instrumentId.equals(position.getInstrumentId())) {
+                        return 0;
+                    }
+                    return 1;
+                })
+                .thenComparing(position -> position.getStatus() == PositionStatus.ACTIVE ? 0 : 1)
+                .thenComparing(position -> position.getInstrumentId() == null ? Long.MAX_VALUE : position.getInstrumentId());
+        sorted.sort(comparator);
+        return OpenObjectMapper.convertList(sorted, PositionResponse.class);
     }
 }
