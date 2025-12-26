@@ -10,6 +10,7 @@ import java.time.Instant;
 public record InstrumentDetailResponse(
         Long instrumentId,
         String symbol,
+        String name,
         AssetSymbol baseAsset,
         AssetSymbol quoteAsset,
         InstrumentType instrumentType,
