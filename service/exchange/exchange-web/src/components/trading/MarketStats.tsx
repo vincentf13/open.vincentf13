@@ -1,12 +1,56 @@
 
+import { Dropdown } from 'antd';
 
-export default function MarketStats() {
+import type { InstrumentSummary } from '../../api/instrument';
+
+type MarketStatsProps = {
+  instruments: InstrumentSummary[];
+  selectedInstrument: InstrumentSummary | null;
+  onSelectInstrument: (instrument: InstrumentSummary) => void;
+};
+
+export default function MarketStats({
+  instruments,
+  selectedInstrument,
+  onSelectInstrument,
+}: MarketStatsProps) {
+    const currentName = selectedInstrument?.name || selectedInstrument?.symbol || 'BTC/USDT';
+
+    const menuItems = instruments.length
+        ? instruments.map((instrument) => ({
+            key: String(instrument.instrumentId),
+            label: instrument.name || instrument.symbol || instrument.instrumentId,
+        }))
+        : [{ key: 'empty', label: '載入中', disabled: true }];
+
     return (
         <div className="p-4">
             <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-4 items-start">
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-800">BTC/USDT</span>
+                        <Dropdown
+                            trigger={['click']}
+                            menu={{
+                                items: menuItems,
+                                onClick: ({ key }) => {
+                                    if (!instruments.length) {
+                                        return;
+                                    }
+                                    const next = instruments.find(item => String(item.instrumentId) === key);
+                                    if (next) {
+                                        onSelectInstrument(next);
+                                    }
+                                },
+                            }}
+                        >
+                            <button
+                                type="button"
+                                className="text-sm font-bold text-slate-800 inline-flex items-center gap-1 hover:text-slate-900"
+                            >
+                                {currentName}
+                                <span className="text-xs text-slate-500">v</span>
+                            </button>
+                        </Dropdown>
                         <span className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider">Perpetual</span>
                         <span className="text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5">USDT-M</span>
                     </div>

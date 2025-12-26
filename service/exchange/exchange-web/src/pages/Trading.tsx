@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react';
 import GlassLayout from '../components/layout/GlassLayout';
 import AuthModal from '../components/auth/AuthModal';
 import { AUTH_REQUIRED_EVENT } from '../api/client';
+import {
+  fetchInstrumentSummaries,
+  getCachedInstrumentId,
+  getCachedInstrumentSummaries,
+  setCachedInstrumentId,
+  type InstrumentSummary,
+} from '../api/instrument';
 import Header from '../components/trading/Header';
 import Chart from '../components/trading/Chart';
 import OrderBook from '../components/trading/OrderBook';
@@ -18,9 +25,18 @@ const hasToken = () => {
 
 export default function Trading() {
   const [authOpen, setAuthOpen] = useState(() => !hasToken());
+  const [instruments, setInstruments] = useState<InstrumentSummary[]>(() => getCachedInstrumentSummaries());
+  const [selectedInstrumentId, setSelectedInstrumentId] = useState<string | null>(() => {
+    const cachedId = getCachedInstrumentId();
+    const cachedList = getCachedInstrumentSummaries();
+    return cachedId || cachedList[0]?.instrumentId || null;
+  });
   const handleLogout = () => {
     setAuthOpen(true);
   };
+
+  const selectedInstrument =
+    instruments.find(item => item.instrumentId === selectedInstrumentId) || instruments[0] || null;
 
   useEffect(() => {
     const handleAuthRequired = () => {
@@ -29,6 +45,36 @@ export default function Trading() {
     window.addEventListener(AUTH_REQUIRED_EVENT, handleAuthRequired);
     return () => {
       window.removeEventListener(AUTH_REQUIRED_EVENT, handleAuthRequired);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadInstruments = async () => {
+      try {
+        const list = await fetchInstrumentSummaries();
+        if (cancelled) {
+          return;
+        }
+        setInstruments(list);
+        setSelectedInstrumentId((current) => {
+          const next =
+            list.find(item => item.instrumentId === current)?.instrumentId ||
+            list[0]?.instrumentId ||
+            null;
+          setCachedInstrumentId(next);
+          return next;
+        });
+      }
+      catch (error) {
+        return;
+      }
+    };
+
+    loadInstruments();
+
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -44,7 +90,14 @@ export default function Trading() {
             {/* Left Column: Market Info + Chart */}
             <div className="flex flex-col min-w-0 border-r border-white/20">
               <div className="border-b border-white/20 bg-white/5">
-                <MarketStats />
+                <MarketStats
+                  instruments={instruments}
+                  selectedInstrument={selectedInstrument}
+                  onSelectInstrument={(instrument) => {
+                    setSelectedInstrumentId(instrument.instrumentId);
+                    setCachedInstrumentId(instrument.instrumentId);
+                  }}
+                />
               </div>
               <div className="flex-1 min-h-0 relative z-10">
                 <Chart />

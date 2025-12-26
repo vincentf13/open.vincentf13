@@ -38,6 +38,12 @@ spring:
             - Path=/account/**
           filters:
             - StripPrefix=1
+        - id: exchange-admin-route
+          uri: lb://exchange-admin
+          predicates:
+            - Path=/admin/**
+          filters:
+            - StripPrefix=1
 
 open:
   vincentf13:
