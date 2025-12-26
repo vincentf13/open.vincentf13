@@ -19,6 +19,7 @@ public class Instrument {
     
     private Long instrumentId;
     private String symbol;
+    private String name;
     private AssetSymbol baseAsset;
     private AssetSymbol quoteAsset;
     private InstrumentType instrumentType;

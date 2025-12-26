@@ -26,6 +26,7 @@ public class InstrumentPO {
     private Long instrumentId;
     
     private String symbol;
+    private String name;
     private AssetSymbol baseAsset;
     private AssetSymbol quoteAsset;
     private InstrumentType instrumentType;
