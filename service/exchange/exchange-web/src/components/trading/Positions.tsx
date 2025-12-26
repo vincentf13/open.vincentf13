@@ -188,14 +188,24 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
                     const isPnl = column.key === 'unrealizedPnl' || column.key === 'cumRealizedPnl';
                     const isFee = column.key === 'cumFee' || column.key === 'cumFundingFee';
                     const isTag = column.key === 'side' || column.key === 'status';
+                    const sideValue = column.key === 'side' ? String(value).toUpperCase() : '';
                     const pnlValue = isPnl ? Number((position as any)[column.key] || 0) : 0;
                     const pnlClass = isPnl ? (pnlValue >= 0 ? 'text-emerald-600' : 'text-rose-500') : '';
                     const feeClass = isFee ? 'text-rose-500' : '';
                     const cellClass = feeClass || pnlClass;
-                    const tagClass =
-                      'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
+                    const tagBaseClass =
+                      'inline-flex items-center justify-center text-[10px] uppercase font-semibold tracking-wider rounded-md px-1.5 py-0.5 border';
+                    const sideTagClass =
+                      sideValue === 'LONG'
+                        ? 'text-emerald-700 bg-emerald-400/20 border-emerald-400/40'
+                        : sideValue === 'SHORT'
+                          ? 'text-rose-700 bg-rose-400/20 border-rose-400/40'
+                          : 'text-slate-600 bg-white/40 border-white/50';
+                    const statusTagClass = 'text-slate-600 bg-white/40 border-white/50';
                     const cellContent = isTag ? (
-                      <span className={tagClass}>{String(value)}</span>
+                      <span className={`${tagBaseClass} ${column.key === 'side' ? sideTagClass : statusTagClass}`}>
+                        {String(value)}
+                      </span>
                     ) : (
                       value
                     );

@@ -6,9 +6,12 @@ import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.order.service.OrderCommandService;
 import open.vincentf13.exchange.order.service.OrderQueryService;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -26,5 +29,13 @@ public class OrderController implements OrderApi {
     @Override
     public OpenApiResponse<OrderResponse> getOrder(Long orderId) {
         return OpenApiResponse.success(orderQueryService.get(orderId));
+    }
+
+    @Override
+    public OpenApiResponse<List<OrderResponse>> getOrders(Long userId,
+                                                          Long instrumentId) {
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        Long resolvedUserId = jwtUserId != null ? jwtUserId : userId;
+        return OpenApiResponse.success(orderQueryService.getOrders(resolvedUserId, instrumentId));
     }
 }
