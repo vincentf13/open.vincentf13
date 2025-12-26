@@ -29,9 +29,9 @@ public interface PositionApi {
     OpenApiResponse<PositionResponse> getPosition(@PathVariable("userId") Long userId,
                                                   @PathVariable("instrumentId") Long instrumentId);
 
-    @GetMapping("/{userId}")
+    @GetMapping
     @PrivateAPI
     @Jwt
-    OpenApiResponse<List<PositionResponse>> getPositions(@PathVariable("userId") Long userId,
+    OpenApiResponse<List<PositionResponse>> getPositions(@RequestParam(value = "userId", required = false) Long userId,
                                                          @RequestParam(value = "instrumentId", required = false) Long instrumentId);
 }

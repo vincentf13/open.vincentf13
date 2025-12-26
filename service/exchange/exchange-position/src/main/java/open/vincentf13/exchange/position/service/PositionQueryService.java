@@ -87,8 +87,11 @@ public class PositionQueryService {
         return OpenObjectMapper.convert(position, PositionResponse.class);
     }
 
-    public List<PositionResponse> getPositions(@NotNull Long userId,
+    public List<PositionResponse> getPositions(Long userId,
                                                Long instrumentId) {
+        if (userId == null) {
+            return List.of();
+        }
         List<Position> positions = positionRepository.findBy(
                 Wrappers.lambdaQuery(PositionPO.class)
                         .eq(PositionPO::getUserId, userId));

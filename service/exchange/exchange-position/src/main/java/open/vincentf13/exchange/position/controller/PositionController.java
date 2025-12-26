@@ -6,6 +6,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.position.service.PositionQueryService;
+import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +34,8 @@ public class PositionController implements PositionApi {
     @Override
     public OpenApiResponse<List<PositionResponse>> getPositions(Long userId,
                                                                 Long instrumentId) {
-        return OpenApiResponse.success(positionQueryService.getPositions(userId, instrumentId));
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        Long resolvedUserId = jwtUserId != null ? jwtUserId : userId;
+        return OpenApiResponse.success(positionQueryService.getPositions(resolvedUserId, instrumentId));
     }
 }
