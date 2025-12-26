@@ -1,12 +1,159 @@
-export default function Positions() {
+import { useEffect, useMemo, useState } from 'react';
+import { message } from 'antd';
+
+import type { InstrumentSummary } from '../../api/instrument';
+import { getPositions, type PositionResponse } from '../../api/position';
+
+type PositionsProps = {
+  instruments: InstrumentSummary[];
+  selectedInstrumentId: string | null;
+};
+
+const formatNumber = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) {
+    return String(value);
+  }
+  return numeric.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  });
+};
+
+const formatPercent = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) {
+    return String(value);
+  }
+  return `${(numeric * 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  })}%`;
+};
+
+const formatDateTime = (value: string | number | null | undefined) => {
+  if (!value) {
+    return '-';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+export default function Positions({ instruments, selectedInstrumentId }: PositionsProps) {
+  const [activeTab, setActiveTab] = useState('Positions');
+  const [positions, setPositions] = useState<PositionResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const instrumentMap = useMemo(() => {
+    return new Map(
+      instruments.map((item) => [String(item.instrumentId), item.name || item.symbol || String(item.instrumentId)])
+    );
+  }, [instruments]);
+
+  const fetchPositions = async () => {
+    setLoading(true);
+    try {
+      const response = await getPositions(selectedInstrumentId || undefined);
+      if (String(response?.code) === '0') {
+        setPositions(Array.isArray(response?.data) ? response.data : []);
+      } else {
+        setPositions([]);
+        if (response?.message) {
+          message.error(response.message);
+        }
+      }
+    } catch (error: any) {
+      setPositions([]);
+      if (error?.response?.data?.message) {
+        message.error(error.response.data.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPositions();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'Positions') {
+      fetchPositions();
+    }
+  }, [activeTab, selectedInstrumentId]);
+
+  const columns = [
+    { key: 'instrumentId', label: 'Instrument' },
+    { key: 'side', label: 'Side' },
+    { key: 'status', label: 'Status' },
+    { key: 'entryPrice', label: 'Entry Price' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'closingReservedQuantity', label: 'Closing Reserved' },
+    { key: 'markPrice', label: 'Mark Price' },
+    { key: 'liquidationPrice', label: 'Liquidation Price' },
+    { key: 'unrealizedPnl', label: 'Unrealized PnL' },
+    { key: 'cumRealizedPnl', label: 'Realized PnL' },
+    { key: 'cumFee', label: 'Fee' },
+    { key: 'cumFundingFee', label: 'Funding Fee' },
+    { key: 'leverage', label: 'Leverage' },
+    { key: 'margin', label: 'Margin' },
+    { key: 'marginRatio', label: 'Margin Ratio' },
+    { key: 'createdAt', label: 'Created Time' },
+    { key: 'updatedAt', label: 'Updated Time' },
+    { key: 'closedAt', label: 'Closed Time' },
+  ];
+
+  const renderCellValue = (position: PositionResponse, key: string) => {
+    if (key === 'instrumentId') {
+      return instrumentMap.get(String(position.instrumentId)) || String(position.instrumentId);
+    }
+    if (key === 'unrealizedPnl') {
+      return formatNumber(position.unrealizedPnl);
+    }
+    if (
+      ['margin', 'entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'marginRatio', 'cumRealizedPnl', 'cumFee',
+        'cumFundingFee', 'liquidationPrice'].includes(key)
+    ) {
+      if (key === 'marginRatio') {
+        return formatPercent((position as any)[key]);
+      }
+      return formatNumber((position as any)[key]);
+    }
+    if (['createdAt', 'updatedAt', 'closedAt'].includes(key)) {
+      return formatDateTime((position as any)[key]);
+    }
+    return (position as any)[key] ?? '-';
+  };
+
   return (
     <div className="flex flex-col overflow-hidden bg-white/5">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
         <div className="flex items-center gap-4 text-xs font-semibold">
-          {['Positions', 'Orders', 'Trades'].map((tab, index) => (
+          {['Positions', 'Orders', 'Trades'].map((tab) => (
             <button
               key={tab}
-              className={`uppercase tracking-wider transition-colors ${index === 0 ? 'text-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
+              onClick={() => {
+                setActiveTab(tab);
+                if (tab === 'Positions') {
+                  fetchPositions();
+                }
+              }}
+              className={`uppercase tracking-wider transition-colors ${tab === activeTab ? 'text-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
             >
               {tab}
             </button>
@@ -15,41 +162,52 @@ export default function Positions() {
       </div>
 
       <div className="p-4 overflow-x-auto">
-        <table className="w-full text-sm text-left text-slate-600">
+        <table className="min-w-[2600px] w-full text-xs text-right text-slate-600">
           <thead>
             <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-              <th className="py-2 font-semibold">Instrument</th>
-              <th className="py-2 font-semibold">Size</th>
-              <th className="py-2 font-semibold">Entry</th>
-              <th className="py-2 font-semibold">Mark</th>
-              <th className="py-2 font-semibold text-right">PnL</th>
+              {columns.map((column) => (
+                <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                  {column.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
-            <tr className="hover:bg-white/20 transition-colors">
-              <td className="py-3 font-semibold text-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.45)]" />
-                  BTC/USDT
-                </div>
-              </td>
-              <td className="py-3 font-mono text-slate-700">0.500</td>
-              <td className="py-3 font-mono text-slate-500">65,240.50</td>
-              <td className="py-3 font-mono text-slate-800">67,242.15</td>
-              <td className="py-3 text-right font-mono text-emerald-600">+1,000.82</td>
-            </tr>
-            <tr className="hover:bg-white/20 transition-colors">
-              <td className="py-3 font-semibold text-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]" />
-                  ETH/USDT
-                </div>
-              </td>
-              <td className="py-3 font-mono text-slate-700">5.000</td>
-              <td className="py-3 font-mono text-slate-500">3,450.20</td>
-              <td className="py-3 font-mono text-slate-800">3,420.10</td>
-              <td className="py-3 text-right font-mono text-emerald-600">+150.50</td>
-            </tr>
+            {positions.length === 0 && (
+              <tr>
+                <td className="py-6 text-center text-slate-400 text-xs" colSpan={columns.length}>
+                  {loading ? 'Loading...' : 'No positions'}
+                </td>
+              </tr>
+            )}
+            {positions.map((position) => {
+              return (
+                <tr key={position.positionId} className="hover:bg-white/20 transition-colors">
+                  {columns.map((column) => {
+                    const value = renderCellValue(position, column.key);
+                    const isPnl = column.key === 'unrealizedPnl' || column.key === 'cumRealizedPnl';
+                    const isFee = column.key === 'cumFee' || column.key === 'cumFundingFee';
+                    const isTag = column.key === 'side' || column.key === 'status';
+                    const pnlValue = isPnl ? Number((position as any)[column.key] || 0) : 0;
+                    const pnlClass = isPnl ? (pnlValue >= 0 ? 'text-emerald-600' : 'text-rose-500') : '';
+                    const feeClass = isFee ? 'text-rose-500' : '';
+                    const cellClass = feeClass || pnlClass;
+                    const tagClass =
+                      'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
+                    const cellContent = isTag ? (
+                      <span className={tagClass}>{String(value)}</span>
+                    ) : (
+                      value
+                    );
+                    return (
+                      <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
+                        {cellContent}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

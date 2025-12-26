@@ -111,7 +111,7 @@ export default function Trading() {
           </div>
 
           <div className="px-2 lg:px-4">
-            <Positions />
+            <Positions instruments={instruments} selectedInstrumentId={selectedInstrumentId} />
           </div>
         </div>
 
