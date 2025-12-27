@@ -29,3 +29,12 @@ export const getTradesByOrderId = async (orderId: number) => {
   });
   return response.data;
 };
+
+export const getTradesByInstrument = async (instrumentId: string | number) => {
+  const response = await apiClient.get('/matching/api/trades/by-instrument', {
+    params: {
+      instrumentId,
+    },
+  });
+  return response.data;
+};

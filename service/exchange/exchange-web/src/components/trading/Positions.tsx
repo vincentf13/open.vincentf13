@@ -4,7 +4,7 @@ import { message } from 'antd';
 import type { InstrumentSummary } from '../../api/instrument';
 import { getOrders, type OrderResponse } from '../../api/order';
 import { getPositions, type PositionResponse } from '../../api/position';
-import { getTradesByOrderId, type TradeResponse } from '../../api/trade';
+import { getTradesByInstrument, getTradesByOrderId, type TradeResponse } from '../../api/trade';
 
 type PositionsProps = {
   instruments: InstrumentSummary[];
@@ -65,6 +65,8 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [orderTrades, setOrderTrades] = useState<Record<string, TradeResponse[]>>({});
   const [tradesLoading, setTradesLoading] = useState<Record<string, boolean>>({});
+  const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
+  const [instrumentTradesLoading, setInstrumentTradesLoading] = useState(false);
 
   const instrumentMap = useMemo(() => {
     return new Map(
@@ -141,6 +143,32 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
     }
   };
 
+  const fetchInstrumentTrades = async () => {
+    if (!selectedInstrumentId) {
+      setInstrumentTrades([]);
+      return;
+    }
+    setInstrumentTradesLoading(true);
+    try {
+      const response = await getTradesByInstrument(selectedInstrumentId);
+      if (String(response?.code) === '0') {
+        setInstrumentTrades(Array.isArray(response?.data) ? response.data : []);
+      } else {
+        setInstrumentTrades([]);
+        if (response?.message) {
+          message.error(response.message);
+        }
+      }
+    } catch (error: any) {
+      setInstrumentTrades([]);
+      if (error?.response?.data?.message) {
+        message.error(error.response.data.message);
+      }
+    } finally {
+      setInstrumentTradesLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPositions();
   }, []);
@@ -151,6 +179,9 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
     }
     if (activeTab === 'Orders') {
       fetchOrders();
+    }
+    if (activeTab === 'Traders') {
+      fetchInstrumentTrades();
     }
   }, [activeTab, selectedInstrumentId]);
 
@@ -270,7 +301,7 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
     <div className="flex flex-col overflow-hidden bg-white/5">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
         <div className="flex items-center gap-4 text-xs font-semibold">
-          {['Positions', 'Orders', 'Trades'].map((tab) => (
+          {['Positions', 'Orders', 'Traders'].map((tab) => (
             <button
               key={tab}
               onClick={() => {
@@ -280,6 +311,9 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
                 }
                 if (tab === 'Orders') {
                   fetchOrders();
+                }
+                if (tab === 'Traders') {
+                  fetchInstrumentTrades();
                 }
               }}
               className={`uppercase tracking-wider transition-colors ${tab === activeTab ? 'text-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
@@ -451,8 +485,36 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
             </tbody>
           </table>
         )}
-        {activeTab === 'Trades' && (
-          <div className="py-8 text-center text-xs text-slate-400">No trades</div>
+        {activeTab === 'Traders' && (
+          <table className="min-w-[2000px] w-full text-xs text-right text-slate-600">
+            <thead>
+              <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                {tradeColumns.map((column) => (
+                  <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                    {column.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {instrumentTrades.length === 0 && (
+                <tr>
+                  <td className="py-6 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
+                    {instrumentTradesLoading ? 'Loading...' : 'No trades'}
+                  </td>
+                </tr>
+              )}
+              {instrumentTrades.map((trade) => (
+                <tr key={trade.tradeId} className="hover:bg-white/20 transition-colors">
+                  {tradeColumns.map((column) => (
+                    <td key={column.key} className="py-3 px-2 font-mono whitespace-nowrap text-right">
+                      {renderTradeCellValue(trade, column.key)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
