@@ -23,6 +23,7 @@ export default function MarketStats({
     );
     const [ticker, setTicker] = useState<TickerResponse | null>(null);
     const [tickerLoading, setTickerLoading] = useState(false);
+    const [showExtraStats, setShowExtraStats] = useState(false);
     const instrumentTypeLabelMap: Record<string, string> = {
         SPOT: 'Spot',
         PERPETUAL: 'Perpetual',
@@ -73,6 +74,22 @@ export default function MarketStats({
             maximumFractionDigits: 6,
         });
     };
+
+    const formatTickerPercent = (value: string | number | null | undefined) => {
+        if (value === null || value === undefined || value === '') {
+            return '-';
+        }
+        const numeric = Number(value);
+        if (Number.isNaN(numeric)) {
+            return String(value);
+        }
+        return `${(numeric * 100).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })}%`;
+    };
+    const changeClass = Number(ticker?.priceChange24h || 0) >= 0 ? 'text-emerald-600' : 'text-rose-500';
+    const changePctClass = Number(ticker?.priceChangePct || 0) >= 0 ? 'text-emerald-600' : 'text-rose-500';
 
     useEffect(() => {
         if (!selectedInstrument?.instrumentId) {
@@ -187,7 +204,7 @@ export default function MarketStats({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-xs text-slate-600">
+                <div className="grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-x-6 gap-y-3 text-xs text-slate-600 items-start">
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Mark</span>
                         <span className="font-mono font-medium text-slate-700">67,242.15</span>
@@ -204,29 +221,55 @@ export default function MarketStats({
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Next</span>
                         <span className="font-mono font-medium text-slate-600">01:52:10</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h High</span>
                         <span className="font-mono font-medium text-slate-700">
                             {tickerLoading ? '...' : formatTickerNumber(ticker?.high24h)}
                         </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Low</span>
                         <span className="font-mono font-medium text-slate-700">
                             {tickerLoading ? '...' : formatTickerNumber(ticker?.low24h)}
                         </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 sm:col-start-3 sm:row-start-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Vol</span>
                         <span className="font-mono font-medium text-slate-700">
                             {tickerLoading ? '...' : formatTickerNumber(ticker?.volume24h)}
                         </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 sm:col-start-4 sm:row-start-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Turnover</span>
                         <span className="font-mono font-medium text-slate-700">
                             {tickerLoading ? '...' : formatTickerNumber(ticker?.turnover24h)}
                         </span>
+                    </div>
+                    {showExtraStats && (
+                        <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-3">
+                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change</span>
+                            <span className={`font-mono font-medium ${changeClass}`}>
+                                {tickerLoading ? '...' : formatTickerNumber(ticker?.priceChange24h)}
+                            </span>
+                        </div>
+                    )}
+                    {showExtraStats && (
+                        <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-3">
+                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change %</span>
+                            <span className={`font-mono font-medium ${changePctClass}`}>
+                                {tickerLoading ? '...' : formatTickerPercent(ticker?.priceChangePct)}
+                            </span>
+                        </div>
+                    )}
+                    <div className="flex items-center justify-end sm:col-start-5 sm:row-start-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowExtraStats((prev) => !prev)}
+                            className="inline-flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider text-slate-500 hover:text-slate-700"
+                        >
+                            {showExtraStats ? 'Less' : 'More'}
+                            <span className="text-[9px]">{showExtraStats ? '˄' : '˅'}</span>
+                        </button>
                     </div>
                 </div>
             </div>
