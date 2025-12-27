@@ -35,15 +35,15 @@ public class KlineBucketRepository {
     
     public KlineBucket insertSelective(@NotNull @Valid KlineBucket bucket) {
         KlineBucketPO record = OpenObjectMapper.convert(bucket, KlineBucketPO.class);
-        if (record.getClosed() == null) {
-            record.setClosed(Boolean.FALSE);
+        if (record.getIsClosed() == null) {
+            record.setIsClosed(Boolean.FALSE);
         }
         if (record.getBucketId() == null) {
             record.setBucketId(idGenerator.newLong());
         }
         mapper.insert(record);
         bucket.setBucketId(record.getBucketId());
-        bucket.setClosed(record.getClosed());
+        bucket.setIsClosed(record.getIsClosed());
         return bucket;
     }
     

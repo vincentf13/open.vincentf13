@@ -75,7 +75,7 @@ public class KlineAggregationService {
             bucket.setTakerBuyVolume(BigDecimal.ZERO);
             bucket.setTakerBuyTurnover(BigDecimal.ZERO);
         }
-        bucket.setClosed(Boolean.TRUE);
+        bucket.setIsClosed(Boolean.TRUE);
         klineBucketRepository.updateSelectiveBy(bucket,
                                                 Wrappers.<KlineBucketPO>lambdaUpdate()
                                                         .eq(KlineBucketPO::getBucketId, bucket.getBucketId())
@@ -146,7 +146,7 @@ public class KlineAggregationService {
             bucket.setTakerBuyVolume(safeAdd(bucket.getTakerBuyVolume(), quantity));
             bucket.setTakerBuyTurnover(safeAdd(bucket.getTakerBuyTurnover(), price.multiply(quantity)));
         }
-        bucket.setClosed(Boolean.FALSE);
+        bucket.setIsClosed(Boolean.FALSE);
         klineBucketRepository.updateSelectiveBy(bucket,
                                                 Wrappers.<KlineBucketPO>lambdaUpdate()
                                                         .eq(KlineBucketPO::getBucketId, bucket.getBucketId())

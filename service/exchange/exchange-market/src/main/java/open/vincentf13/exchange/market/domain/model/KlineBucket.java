@@ -64,7 +64,7 @@ public class KlineBucket {
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal takerBuyTurnover;
     
-    private Boolean closed;
+    private Boolean isClosed;
     private Instant createdAt;
     private Instant updatedAt;
     
@@ -86,7 +86,7 @@ public class KlineBucket {
                           .tradeCount(0)
                           .takerBuyVolume(BigDecimal.ZERO)
                           .takerBuyTurnover(BigDecimal.ZERO)
-                          .closed(Boolean.FALSE)
+                          .isClosed(Boolean.FALSE)
                           .build();
     }
 }

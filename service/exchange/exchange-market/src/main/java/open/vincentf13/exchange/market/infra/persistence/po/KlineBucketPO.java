@@ -34,7 +34,7 @@ public class KlineBucketPO {
     private Integer tradeCount;
     private BigDecimal takerBuyVolume;
     private BigDecimal takerBuyTurnover;
-    private Boolean closed;
+    private Boolean isClosed;
     private Instant createdAt;
     private Instant updatedAt;
 }

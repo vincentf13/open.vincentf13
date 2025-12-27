@@ -19,6 +19,19 @@ export type MarkPriceResponse = {
   calculatedAt: string | null;
 };
 
+export type KlineResponse = {
+  instrumentId: number;
+  period: string;
+  bucketStart: string;
+  bucketEnd: string;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+  volume: string | null;
+  turnover: string | null;
+};
+
 export const getTicker = async (instrumentId: string | number) => {
   const response = await apiClient.get(`/market/api/market/tickers/${instrumentId}`);
   return response.data;
@@ -26,5 +39,16 @@ export const getTicker = async (instrumentId: string | number) => {
 
 export const getMarkPrice = async (instrumentId: string | number) => {
   const response = await apiClient.get(`/market/api/market/mark-price/${instrumentId}`);
+  return response.data;
+};
+
+export const getKlines = async (instrumentId: string | number, period: string, limit = 200) => {
+  const response = await apiClient.get('/market/api/market/kline', {
+    params: {
+      instrumentId,
+      period,
+      limit,
+    },
+  });
   return response.data;
 };

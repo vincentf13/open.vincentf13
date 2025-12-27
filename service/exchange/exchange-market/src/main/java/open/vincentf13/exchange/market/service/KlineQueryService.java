@@ -128,7 +128,7 @@ public class KlineQueryService {
                           .tradeCount(0)
                           .takerBuyVolume(BigDecimal.ZERO)
                           .takerBuyTurnover(BigDecimal.ZERO)
-                          .closed(Boolean.TRUE)
+                          .isClosed(Boolean.TRUE)
                           .build();
     }
 }

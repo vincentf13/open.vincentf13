@@ -100,7 +100,7 @@ export default function Trading() {
                 />
               </div>
               <div className="flex-1 min-h-0 relative z-10">
-                <Chart />
+                <Chart instrumentId={selectedInstrumentId} />
               </div>
             </div>
 
