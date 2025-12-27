@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent, type WheelEvent } from 'react';
 
 import { getKlines, type KlineResponse } from '../../api/market';
 
@@ -140,6 +140,7 @@ export default function Chart({ instrumentId }: ChartProps) {
     mode: 'price' | 'volume';
     value: number;
   } | null>(null);
+  const [viewCount, setViewCount] = useState(120);
 
   useEffect(() => {
     if (!instrumentId) {
@@ -187,24 +188,45 @@ export default function Chart({ instrumentId }: ChartProps) {
     return buildRandomSeries(sorted).filter((item) => Number.isFinite(item.close));
   }, [klines]);
 
-  const chartMetrics = useMemo(() => {
+  useEffect(() => {
     if (!series.length) {
+      return;
+    }
+    setViewCount((prev) => {
+      if (!prev || prev <= 0) {
+        return Math.min(series.length, 120);
+      }
+      return Math.min(prev, series.length);
+    });
+  }, [series.length]);
+
+  const visibleSeries = useMemo(() => {
+    if (!series.length) {
+      return [];
+    }
+    const count = Math.min(viewCount, series.length);
+    const start = Math.max(0, series.length - count);
+    return series.slice(start);
+  }, [series, viewCount]);
+
+  const chartMetrics = useMemo(() => {
+    if (!visibleSeries.length) {
       return null;
     }
-    const highs = series.map((point) => point.high);
-    const lows = series.map((point) => point.low);
+    const highs = visibleSeries.map((point) => point.high);
+    const lows = visibleSeries.map((point) => point.low);
     const max = Math.max(...highs);
     const min = Math.min(...lows);
     const range = max - min || 1;
     return { min, max, range };
-  }, [series]);
+  }, [visibleSeries]);
 
   const volumeMax = useMemo(() => {
-    if (!series.length) {
+    if (!visibleSeries.length) {
       return 0;
     }
-    return Math.max(...series.map((point) => point.volume || 0));
-  }, [series]);
+    return Math.max(...visibleSeries.map((point) => point.volume || 0));
+  }, [visibleSeries]);
 
   const handleMouseMove = (event: MouseEvent<HTMLDivElement>) => {
     if (!chartMetrics || !series.length) {
@@ -272,32 +294,46 @@ export default function Chart({ instrumentId }: ChartProps) {
   }, [volumeMax]);
 
   const timeTicks = useMemo(() => {
-    if (!series.length) {
+    if (!visibleSeries.length) {
       return [];
     }
-    const size = series.length;
+    const size = visibleSeries.length;
     const step = CHART_WIDTH / Math.max(size, 1);
     const indices = [0, Math.floor((size - 1) / 3), Math.floor(((size - 1) * 2) / 3), size - 1];
     const unique = Array.from(new Set(indices)).filter((idx) => idx >= 0 && idx < size);
     return unique.map((idx) => {
-      const label = formatTimeLabel(series[idx]?.bucketStart, period);
+      const label = formatTimeLabel(visibleSeries[idx]?.bucketStart, period);
       return {
         x: step * idx + step / 2,
         label,
       };
     });
-  }, [series, period]);
+  }, [visibleSeries, period]);
 
   const hoveredPoint = useMemo(() => {
-    if (!crosshair || !series.length) {
+    if (!crosshair || !visibleSeries.length) {
       return null;
     }
-    const index = Math.min(series.length - 1, Math.max(0, Math.floor(crosshair.xRatio * series.length)));
+    const index = Math.min(visibleSeries.length - 1, Math.max(0, Math.floor(crosshair.xRatio * visibleSeries.length)));
     return {
       index,
-      point: series[index],
+      point: visibleSeries[index],
     };
-  }, [crosshair, series]);
+  }, [crosshair, visibleSeries]);
+
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (!series.length) {
+      return;
+    }
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? 1 : -1;
+    setViewCount((prev) => {
+      const current = prev || series.length;
+      const next =
+        direction > 0 ? Math.round(current * 1.15) : Math.max(20, Math.round(current * 0.85));
+      return Math.min(series.length, Math.max(20, next));
+    });
+  };
 
   return (
     <div className="flex flex-col h-full bg-white/5">
@@ -325,6 +361,7 @@ export default function Chart({ instrumentId }: ChartProps) {
           className="absolute inset-0 right-12 bottom-6"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onWheel={handleWheel}
         >
           <svg className="w-full h-full" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none">
             <defs>
@@ -345,10 +382,10 @@ export default function Chart({ instrumentId }: ChartProps) {
 
             <line x1="0" y1={VOLUME_TOP} x2={CHART_WIDTH} y2={VOLUME_TOP} stroke="rgba(148,163,184,0.7)" strokeWidth="0.6" />
 
-            {chartMetrics && series.length > 0 && (
+            {chartMetrics && visibleSeries.length > 0 && (
               <>
-                {series.map((point, index) => {
-                  const step = CHART_WIDTH / Math.max(series.length, 1);
+                {visibleSeries.map((point, index) => {
+                  const step = CHART_WIDTH / Math.max(visibleSeries.length, 1);
                   const centerX = step * index + step / 2;
                   const candleWidth = Math.max(2, Math.min(12, step * 0.6));
                   const { min, range } = chartMetrics;
