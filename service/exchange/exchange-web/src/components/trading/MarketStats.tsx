@@ -3,6 +3,7 @@ import { Dropdown } from 'antd';
 import { useEffect, useState } from 'react';
 
 import type { InstrumentSummary } from '../../api/instrument';
+import { getTicker, type TickerResponse } from '../../api/market';
 
 type MarketStatsProps = {
   instruments: InstrumentSummary[];
@@ -20,6 +21,8 @@ export default function MarketStats({
     const [previewInstrumentId, setPreviewInstrumentId] = useState<string | null>(
         selectedInstrument?.instrumentId ?? null
     );
+    const [ticker, setTicker] = useState<TickerResponse | null>(null);
+    const [tickerLoading, setTickerLoading] = useState(false);
     const instrumentTypeLabelMap: Record<string, string> = {
         SPOT: 'Spot',
         PERPETUAL: 'Perpetual',
@@ -56,6 +59,54 @@ export default function MarketStats({
         }
         return String(value);
     };
+
+    const formatTickerNumber = (value: string | number | null | undefined) => {
+        if (value === null || value === undefined || value === '') {
+            return '-';
+        }
+        const numeric = Number(value);
+        if (Number.isNaN(numeric)) {
+            return String(value);
+        }
+        return numeric.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6,
+        });
+    };
+
+    useEffect(() => {
+        if (!selectedInstrument?.instrumentId) {
+            setTicker(null);
+            return;
+        }
+        let cancelled = false;
+        const loadTicker = async () => {
+            setTickerLoading(true);
+            try {
+                const response = await getTicker(selectedInstrument.instrumentId);
+                if (cancelled) {
+                    return;
+                }
+                if (String(response?.code) === '0') {
+                    setTicker(response?.data || null);
+                } else {
+                    setTicker(null);
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setTicker(null);
+                }
+            } finally {
+                if (!cancelled) {
+                    setTickerLoading(false);
+                }
+            }
+        };
+        loadTicker();
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedInstrument?.instrumentId]);
 
     return (
         <div className="p-4">
@@ -155,19 +206,27 @@ export default function MarketStats({
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h High</span>
-                        <span className="font-mono font-medium text-slate-700">67,880.20</span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {tickerLoading ? '...' : formatTickerNumber(ticker?.high24h)}
+                        </span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Low</span>
-                        <span className="font-mono font-medium text-slate-700">66,210.40</span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {tickerLoading ? '...' : formatTickerNumber(ticker?.low24h)}
+                        </span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Vol</span>
-                        <span className="font-mono font-medium text-slate-700">18,240.5 BTC</span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {tickerLoading ? '...' : formatTickerNumber(ticker?.volume24h)}
+                        </span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Turnover</span>
-                        <span className="font-mono font-medium text-slate-700">$1.18B</span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {tickerLoading ? '...' : formatTickerNumber(ticker?.turnover24h)}
+                        </span>
                     </div>
                 </div>
             </div>
