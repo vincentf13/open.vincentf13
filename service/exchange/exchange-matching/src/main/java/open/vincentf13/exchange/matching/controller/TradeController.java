@@ -26,4 +26,13 @@ public class TradeController implements TradeApi {
         }
         return OpenApiResponse.success(tradeQueryService.listByOrderId(userId, orderId));
     }
+
+    @Override
+    public OpenApiResponse<List<TradeResponse>> listByInstrument(Long instrumentId) {
+        Long userId = OpenJwtLoginUserHolder.currentUserId();
+        if (userId == null) {
+            throw new IllegalArgumentException("Missing user context");
+        }
+        return OpenApiResponse.success(tradeQueryService.listByInstrument(userId, instrumentId));
+    }
 }
