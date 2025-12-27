@@ -14,7 +14,12 @@ type SeriesPoint = {
   low: number;
   volume: number;
   turnover: number;
+  tradeCount: number;
+  takerBuyVolume: number;
+  takerBuyTurnover: number;
+  isClosed: boolean;
   bucketStart?: string;
+  bucketEnd?: string;
 };
 
 const periods = ['1m', '5m', '1h', '1d'] as const;
@@ -72,6 +77,24 @@ const formatTimeLabel = (value: string | undefined, period: string) => {
   return `${hh}:${mi}`;
 };
 
+const formatDateTime = (value: string | undefined) => {
+  if (!value) {
+    return '-';
+  }
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return '-';
+  }
+  const pad2 = (num: number) => String(num).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const mm = pad2(date.getMonth() + 1);
+  const dd = pad2(date.getDate());
+  const hh = pad2(date.getHours());
+  const mi = pad2(date.getMinutes());
+  const ss = pad2(date.getSeconds());
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+};
+
 const buildRandomSeries = (items: KlineResponse[]) => {
   let lastClose = 67200;
   return items.map((item) => {
@@ -85,6 +108,10 @@ const buildRandomSeries = (items: KlineResponse[]) => {
     const volumeBase = 120;
     const volume = Math.max(1, volumeBase * (0.4 + Math.random() * 1.2));
     const turnover = volume * ((open + close) / 2);
+    const tradeCount = Math.max(1, Math.floor(20 + Math.random() * 180));
+    const takerBuyVolume = volume * (0.3 + Math.random() * 0.5);
+    const takerBuyTurnover = takerBuyVolume * ((open + close) / 2);
+    const isClosed = Math.random() > 0.2;
     lastClose = close;
     return {
       open,
@@ -93,7 +120,12 @@ const buildRandomSeries = (items: KlineResponse[]) => {
       low,
       volume,
       turnover,
+      tradeCount,
+      takerBuyVolume,
+      takerBuyTurnover,
+      isClosed,
       bucketStart: item.bucketStart,
+      bucketEnd: item.bucketEnd,
     };
   });
 };
@@ -256,6 +288,17 @@ export default function Chart({ instrumentId }: ChartProps) {
     });
   }, [series, period]);
 
+  const hoveredPoint = useMemo(() => {
+    if (!crosshair || !series.length) {
+      return null;
+    }
+    const index = Math.min(series.length - 1, Math.max(0, Math.floor(crosshair.xRatio * series.length)));
+    return {
+      index,
+      point: series[index],
+    };
+  }, [crosshair, series]);
+
   return (
     <div className="flex flex-col h-full bg-white/5">
       <div className="flex items-center justify-end border-b border-white/20 px-4 py-3">
@@ -356,6 +399,48 @@ export default function Chart({ instrumentId }: ChartProps) {
                 style={{ top: `${crosshair.yRatio * 100}%` }}
               />
             </>
+          )}
+
+          {crosshair && hoveredPoint && (
+            <div
+              className="absolute pointer-events-none z-10 w-56 rounded-lg border border-white/60 bg-white/80 text-[10px] text-slate-700 shadow-lg backdrop-blur-sm"
+              style={{
+                left: `${crosshair.xRatio * 100}%`,
+                top: `${crosshair.yRatio * 100}%`,
+                transform:
+                  crosshair.xRatio > 0.7
+                    ? `translate(calc(-100% - 12px), ${crosshair.yRatio > 0.7 ? '-100%' : '-50%'})`
+                    : `translate(12px, ${crosshair.yRatio > 0.7 ? '-100%' : '-50%'})`,
+              }}
+            >
+              <div className="border-b border-white/60 px-2 py-1 font-semibold text-slate-600">Kline Detail</div>
+              <div className="grid grid-cols-[92px_1fr] gap-x-2 gap-y-1 px-2 py-2">
+                <span className="text-slate-500">bucketStart</span>
+                <span className="text-slate-800">{formatDateTime(hoveredPoint.point.bucketStart)}</span>
+                <span className="text-slate-500">bucketEnd</span>
+                <span className="text-slate-800">{formatDateTime(hoveredPoint.point.bucketEnd)}</span>
+                <span className="text-slate-500">openPrice</span>
+                <span className="text-slate-800">{formatAxisNumber(hoveredPoint.point.open)}</span>
+                <span className="text-slate-500">highPrice</span>
+                <span className="text-slate-800">{formatAxisNumber(hoveredPoint.point.high)}</span>
+                <span className="text-slate-500">lowPrice</span>
+                <span className="text-slate-800">{formatAxisNumber(hoveredPoint.point.low)}</span>
+                <span className="text-slate-500">closePrice</span>
+                <span className="text-slate-800">{formatAxisNumber(hoveredPoint.point.close)}</span>
+                <span className="text-slate-500">volume</span>
+                <span className="text-slate-800">{formatVolumeNumber(hoveredPoint.point.volume)}</span>
+                <span className="text-slate-500">turnover</span>
+                <span className="text-slate-800">{formatVolumeNumber(hoveredPoint.point.turnover)}</span>
+                <span className="text-slate-500">tradeCount</span>
+                <span className="text-slate-800">{hoveredPoint.point.tradeCount}</span>
+                <span className="text-slate-500">takerBuyVolume</span>
+                <span className="text-slate-800">{formatVolumeNumber(hoveredPoint.point.takerBuyVolume)}</span>
+                <span className="text-slate-500">takerBuyTurnover</span>
+                <span className="text-slate-800">{formatVolumeNumber(hoveredPoint.point.takerBuyTurnover)}</span>
+                <span className="text-slate-500">isClosed</span>
+                <span className="text-slate-800">{String(hoveredPoint.point.isClosed)}</span>
+              </div>
+            </div>
           )}
 
           {!loading && !series.length && (

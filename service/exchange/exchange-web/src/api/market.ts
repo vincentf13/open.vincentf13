@@ -30,6 +30,10 @@ export type KlineResponse = {
   close: string;
   volume: string | null;
   turnover: string | null;
+  tradeCount?: number | string | null;
+  takerBuyVolume?: string | null;
+  takerBuyTurnover?: string | null;
+  isClosed?: boolean | null;
 };
 
 export const getTicker = async (instrumentId: string | number) => {
