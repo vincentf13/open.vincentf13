@@ -1,7 +1,5 @@
 
-import { useEffect, useMemo, useState } from 'react';
-
-import { getOrderBook, type OrderBookLevel, type OrderBookResponse } from '../../api/market';
+import { useMemo } from 'react';
 
 type OrderBookProps = {
   instrumentId: string | null;
@@ -14,9 +12,9 @@ type RowData = {
   depth: number;
 };
 
-const toNumber = (value: string | number | null | undefined) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+type RandomLevel = {
+  price: number;
+  amount: number;
 };
 
 const formatPrice = (value: number) => {
@@ -35,21 +33,13 @@ const formatAmount = (value: number) => {
 
 const formatTotal = (value: number) => {
   return value.toLocaleString(undefined, {
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 };
 
-const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean) => {
-  if (!levels || !levels.length) {
-    return [];
-  }
-  const sorted = [...levels]
-    .map((level) => ({
-      price: toNumber(level.price),
-      amount: toNumber(level.quantity),
-    }))
-    .filter((item): item is { price: number; amount: number } => item.price !== null && item.amount !== null)
-    .sort((a, b) => (sortDesc ? b.price - a.price : a.price - b.price));
+const buildRows = (levels: RandomLevel[], sortDesc: boolean) => {
+  const sorted = [...levels].sort((a, b) => (sortDesc ? b.price - a.price : a.price - b.price));
 
   let cumulative = 0;
   const rows = sorted.map((item) => {
@@ -69,58 +59,36 @@ const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolea
 };
 
 export default function OrderBook({ instrumentId }: OrderBookProps) {
-  const [orderBook, setOrderBook] = useState<OrderBookResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
+  const seed = useMemo(() => {
     if (!instrumentId) {
-      setOrderBook(null);
-      return;
+      return 67240;
     }
-    let cancelled = false;
-    const loadOrderBook = async () => {
-      setLoading(true);
-      try {
-        const response = await getOrderBook(instrumentId);
-        if (cancelled) {
-          return;
-        }
-        if (String(response?.code) === '0') {
-          setOrderBook(response?.data || null);
-        } else {
-          setOrderBook(null);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setOrderBook(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-    loadOrderBook();
-    return () => {
-      cancelled = true;
-    };
+    let hash = 0;
+    for (let i = 0; i < instrumentId.length; i += 1) {
+      hash = (hash * 31 + instrumentId.charCodeAt(i)) % 1000;
+    }
+    return 67000 + hash;
   }, [instrumentId]);
 
-  const asks = useMemo(() => buildRows(orderBook?.asks, false), [orderBook?.asks]);
-  const bids = useMemo(() => buildRows(orderBook?.bids, true), [orderBook?.bids]);
+  const { asks, bids, midPrice } = useMemo(() => {
+    const base = seed + Math.random() * 30 - 15;
+    const makeLevels = (count: number, direction: 1 | -1) => {
+      return Array.from({ length: count }, (_, index) => {
+        const price = base + direction * (index + 1) * (0.5 + Math.random() * 0.4);
+        const amount = Math.max(0.05, 0.2 + Math.random() * 1.6);
+        return { price, amount };
+      });
+    };
+    const askLevels = makeLevels(5, 1);
+    const bidLevels = makeLevels(5, -1);
+    return {
+      asks: buildRows(askLevels, false),
+      bids: buildRows(bidLevels, true),
+      midPrice: base,
+    };
+  }, [seed]);
+
   const displayAsks = useMemo(() => asks.slice().reverse(), [asks]);
-  const midPrice = useMemo(() => {
-    const mid = toNumber(orderBook?.midPrice);
-    if (mid !== null) {
-      return mid;
-    }
-    const bid = toNumber(orderBook?.bestBid);
-    const ask = toNumber(orderBook?.bestAsk);
-    if (bid !== null && ask !== null) {
-      return (bid + ask) / 2;
-    }
-    return null;
-  }, [orderBook?.midPrice, orderBook?.bestBid, orderBook?.bestAsk]);
 
   const Row = ({ price, amount, total, depth, type }: { price: number; amount: number; total: number; depth: number; type: 'ask' | 'bid' }) => (
     <div className="grid grid-cols-3 text-xs py-1 hover:bg-white/30 cursor-pointer rounded-md px-2 transition-all relative overflow-hidden group">
@@ -154,16 +122,14 @@ export default function OrderBook({ instrumentId }: OrderBookProps) {
               {displayAsks.length ? displayAsks.map((o, i) => (
                 <Row key={`ask-${i}`} price={o.price} amount={o.amount} total={o.total} depth={o.depth} type="ask" />
               )) : (
-                <div className="px-2 py-6 text-xs text-slate-400 text-center">{loading ? 'Loading...' : 'No data'}</div>
+                <div className="px-2 py-6 text-xs text-slate-400 text-center">No data</div>
               )}
           </div>
 
           <div className="my-3 flex items-center justify-between px-2 py-1 text-slate-700">
+              <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Mid Price</span>
               <span className="text-sm font-semibold tracking-tight">
                 {midPrice !== null ? formatPrice(midPrice) : '-'}
-              </span>
-              <span className="text-[10px] text-slate-500 font-medium">
-                {midPrice !== null ? `≈ $${formatPrice(midPrice)}` : '-'}
               </span>
           </div>
 
@@ -171,7 +137,7 @@ export default function OrderBook({ instrumentId }: OrderBookProps) {
               {bids.length ? bids.map((o, i) => (
                 <Row key={`bid-${i}`} price={o.price} amount={o.amount} total={o.total} depth={o.depth} type="bid" />
               )) : (
-                <div className="px-2 py-6 text-xs text-slate-400 text-center">{loading ? 'Loading...' : 'No data'}</div>
+                <div className="px-2 py-6 text-xs text-slate-400 text-center">No data</div>
               )}
           </div>
       </div>
