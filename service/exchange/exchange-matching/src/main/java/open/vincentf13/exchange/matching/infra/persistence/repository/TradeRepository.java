@@ -15,6 +15,7 @@ import java.util.List;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 @Repository
 @Validated
@@ -35,6 +36,12 @@ public class TradeRepository {
     public void insertSelective(@NotNull @Valid Trade trade) {
         assignDefaults(trade);
         mapper.insert(OpenObjectMapper.convert(trade, TradePO.class));
+    }
+
+    public List<Trade> findBy(@NotNull LambdaQueryWrapper<TradePO> wrapper) {
+        return mapper.selectList(wrapper).stream()
+                     .map(item -> OpenObjectMapper.convert(item, Trade.class))
+                     .toList();
     }
     
     private void assignDefaults(Trade trade) {
