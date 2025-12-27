@@ -37,6 +37,9 @@ export default function MarketStats({
     const quoteAssetLabel = selectedInstrument?.quoteAsset
         ? String(selectedInstrument.quoteAsset).toUpperCase()
         : 'USDT';
+    const baseAssetLabel = selectedInstrument?.baseAsset
+        ? String(selectedInstrument.baseAsset).toUpperCase()
+        : 'BTC';
 
     useEffect(() => {
         if (dropdownOpen) {
@@ -234,13 +237,17 @@ export default function MarketStats({
                         </span>
                     </div>
                     <div className="flex items-center gap-2 sm:col-start-3 sm:row-start-2">
-                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Vol</span>
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
+                            24h Vol ({baseAssetLabel})
+                        </span>
                         <span className="font-mono font-medium text-slate-700">
                             {tickerLoading ? '...' : formatTickerNumber(ticker?.volume24h)}
                         </span>
                     </div>
                     <div className="flex items-center gap-2 sm:col-start-4 sm:row-start-2">
-                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Turnover</span>
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
+                            24h Turnover ({quoteAssetLabel})
+                        </span>
                         <span className="font-mono font-medium text-slate-700">
                             {tickerLoading ? '...' : formatTickerNumber(ticker?.turnover24h)}
                         </span>

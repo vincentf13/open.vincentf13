@@ -6,6 +6,7 @@ export type InstrumentSummary = {
   symbol?: string;
   instrumentType?: string;
   quoteAsset?: string;
+  baseAsset?: string;
   [key: string]: unknown;
 };
 
