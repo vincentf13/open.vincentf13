@@ -13,6 +13,7 @@ type SeriesPoint = {
   high: number;
   low: number;
   volume: number;
+  turnover: number;
   bucketStart?: string;
 };
 
@@ -30,6 +31,70 @@ const formatAxisNumber = (value: number) => {
   return value.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+  });
+};
+
+const formatVolumeNumber = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return '-';
+  }
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  });
+};
+
+const clamp = (value: number, min: number, max: number) => {
+  return Math.min(max, Math.max(min, value));
+};
+
+const toNumber = (value: string | number | null | undefined) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatTimeLabel = (value: string | undefined, period: string) => {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return '';
+  }
+  const pad2 = (num: number) => String(num).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const mm = pad2(date.getMonth() + 1);
+  const dd = pad2(date.getDate());
+  const hh = pad2(date.getHours());
+  const mi = pad2(date.getMinutes());
+  if (period === '1d') {
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return `${hh}:${mi}`;
+};
+
+const buildRandomSeries = (items: KlineResponse[]) => {
+  let lastClose = 67200;
+  return items.map((item) => {
+    const baseSeed = toNumber(item.close) ?? toNumber(item.open) ?? lastClose;
+    const base = baseSeed > 0 ? baseSeed : lastClose;
+    const swing = base * (0.002 + Math.random() * 0.006);
+    const open = base + (Math.random() - 0.5) * swing;
+    const close = base + (Math.random() - 0.5) * swing;
+    const high = Math.max(open, close) + Math.random() * swing * 0.6;
+    const low = Math.min(open, close) - Math.random() * swing * 0.6;
+    const volumeBase = 120;
+    const volume = Math.max(1, volumeBase * (0.4 + Math.random() * 1.2));
+    const turnover = volume * ((open + close) / 2);
+    lastClose = close;
+    return {
+      open,
+      close,
+      high,
+      low,
+      volume,
+      turnover,
+      bucketStart: item.bucketStart,
+    };
   });
 };
 
@@ -81,16 +146,7 @@ export default function Chart({ instrumentId }: ChartProps) {
       const bTime = b.bucketStart ? new Date(b.bucketStart).getTime() : 0;
       return aTime - bTime;
     });
-    return sorted
-      .map((item) => ({
-        open: Number(item.open),
-        close: Number(item.close),
-        high: Number(item.high),
-        low: Number(item.low),
-        volume: Number(item.volume ?? 0),
-        bucketStart: item.bucketStart,
-      }))
-      .filter((item) => Number.isFinite(item.close));
+    return buildRandomSeries(sorted).filter((item) => Number.isFinite(item.close));
   }, [klines]);
 
   const chartMetrics = useMemo(() => {
@@ -122,35 +178,79 @@ export default function Chart({ instrumentId }: ChartProps) {
     return { price: lastClose, y };
   }, [series, chartMetrics]);
 
-  const axisLabels = useMemo(() => {
+  const priceTicks = useMemo(() => {
     if (!chartMetrics) {
-      return ['-', '-', '-', '-'];
+      return [];
     }
-    const { min, max } = chartMetrics;
+    const { min, max, range } = chartMetrics;
     const mid = (min + max) / 2;
     const upperMid = (mid + max) / 2;
     const lowerMid = (mid + min) / 2;
-    return [max, upperMid, lowerMid, min].map(formatAxisNumber);
+    const values = [max, upperMid, lowerMid, min];
+    return values.map((value) => {
+      const y = PRICE_HEIGHT - ((value - min) / range) * PRICE_HEIGHT;
+      return {
+        value,
+        y: clamp(y, 6, PRICE_HEIGHT - 6),
+      };
+    });
   }, [chartMetrics]);
+
+  const volumeTicks = useMemo(() => {
+    if (!volumeMax || !Number.isFinite(volumeMax)) {
+      return [];
+    }
+    const values = [volumeMax, volumeMax / 2, 0];
+    return values.map((value) => {
+      const ratio = volumeMax > 0 ? value / volumeMax : 0;
+      const y = VOLUME_TOP + (1 - ratio) * VOLUME_HEIGHT;
+      return {
+        value,
+        y: clamp(y, VOLUME_TOP + 8, VOLUME_TOP + VOLUME_HEIGHT - 2),
+      };
+    });
+  }, [volumeMax]);
+
+  const timeTicks = useMemo(() => {
+    if (!series.length) {
+      return [];
+    }
+    const size = series.length;
+    const step = CHART_WIDTH / Math.max(size, 1);
+    const indices = [0, Math.floor((size - 1) / 3), Math.floor(((size - 1) * 2) / 3), size - 1];
+    const unique = Array.from(new Set(indices)).filter((idx) => idx >= 0 && idx < size);
+    return unique.map((idx) => {
+      const label = formatTimeLabel(series[idx]?.bucketStart, period);
+      return {
+        x: step * idx + step / 2,
+        label,
+      };
+    });
+  }, [series, period]);
 
   return (
     <div className="flex flex-col h-full bg-white/5">
       <div className="flex items-center justify-end border-b border-white/20 px-4 py-3">
-        <div className="flex items-center gap-1 bg-white/30 rounded-lg p-1 border border-white/40 shadow-inner">
-          {periods.map((t) => (
-            <button
-              key={t}
-              onClick={() => setPeriod(t)}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${t === period ? 'bg-white shadow-sm text-slate-800 font-semibold' : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'}`}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1 bg-white/30 rounded-lg p-1 border border-white/40 shadow-inner">
+            {periods.map((t) => (
+              <button
+                key={t}
+                onClick={() => setPeriod(t)}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${t === period ? 'bg-white shadow-sm text-slate-800 font-semibold' : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
+            KLINE COUNTS {loading ? '...' : series.length}
+          </span>
         </div>
       </div>
 
-      <div className="relative flex-1 w-full min-h-[300px] px-2 py-4">
-        <div className="absolute inset-0 top-12 bottom-8 left-0 right-0">
+      <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">
+        <div className="absolute inset-0 right-12 bottom-6">
           <svg className="w-full h-full" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none">
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
@@ -180,7 +280,7 @@ export default function Chart({ instrumentId }: ChartProps) {
                   const yOpen = PRICE_HEIGHT - ((point.open - min) / range) * PRICE_HEIGHT;
                   const yClose = PRICE_HEIGHT - ((point.close - min) / range) * PRICE_HEIGHT;
                   const isUp = point.close >= point.open;
-                  const color = isUp ? '#3B82F6' : '#93C5FD';
+                  const color = isUp ? '#10B981' : '#F43F5E';
                   const bodyTop = Math.min(yOpen, yClose);
                   const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
                   const volumeHeight = volumeMax > 0 ? (point.volume / volumeMax) * VOLUME_HEIGHT : 0;
@@ -215,7 +315,7 @@ export default function Chart({ instrumentId }: ChartProps) {
           {cursor && (
             <div
               className="absolute right-0 w-full border-t border-blue-500/50 border-dashed flex items-center justify-end"
-              style={{ top: `${cursor.y}px` }}
+              style={{ top: `${(cursor.y / CHART_HEIGHT) * 100}%` }}
             >
               <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-l-md font-mono shadow-sm">
                 {formatAxisNumber(cursor.price)}
@@ -229,10 +329,35 @@ export default function Chart({ instrumentId }: ChartProps) {
             </div>
           )}
         </div>
-
-        <div className="absolute right-0 top-12 bottom-8 w-12 pr-2 flex flex-col justify-between text-[10px] text-slate-400 font-mono text-right select-none">
-          {axisLabels.map((label) => (
-            <span key={label}>{label}</span>
+        <div className="absolute right-0 top-0 bottom-6 w-12 pr-1">
+          {priceTicks.map((tick, index) => (
+            <div
+              key={`price-${index}`}
+              className="absolute right-0 text-[10px] text-slate-400 font-mono text-right"
+              style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
+            >
+              {formatAxisNumber(tick.value)}
+            </div>
+          ))}
+          {volumeTicks.map((tick, index) => (
+            <div
+              key={`vol-${index}`}
+              className="absolute right-0 text-[9px] text-slate-400 font-mono text-right"
+              style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
+            >
+              {formatVolumeNumber(tick.value)}
+            </div>
+          ))}
+        </div>
+        <div className="absolute left-0 right-12 bottom-0 h-6">
+          {timeTicks.map((tick, index) => (
+            <div
+              key={`time-${index}`}
+              className="absolute bottom-0 text-[10px] text-slate-400 font-mono text-center"
+              style={{ left: `${(tick.x / CHART_WIDTH) * 100}%`, transform: 'translateX(-50%)' }}
+            >
+              {tick.label}
+            </div>
           ))}
         </div>
       </div>
