@@ -13,7 +13,18 @@ export type TickerResponse = {
   capturedAt: string | null;
 };
 
+export type MarkPriceResponse = {
+  instrumentId: number;
+  markPrice: string | null;
+  calculatedAt: string | null;
+};
+
 export const getTicker = async (instrumentId: string | number) => {
   const response = await apiClient.get(`/market/api/market/tickers/${instrumentId}`);
+  return response.data;
+};
+
+export const getMarkPrice = async (instrumentId: string | number) => {
+  const response = await apiClient.get(`/market/api/market/mark-price/${instrumentId}`);
   return response.data;
 };
