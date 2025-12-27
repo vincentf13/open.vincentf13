@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { message } from 'antd';
 
 import type { InstrumentSummary } from '../../api/instrument';
 import { getOrders, type OrderResponse } from '../../api/order';
 import { getPositions, type PositionResponse } from '../../api/position';
+import { getTradesByOrderId, type TradeResponse } from '../../api/trade';
 
 type PositionsProps = {
   instruments: InstrumentSummary[];
@@ -61,6 +62,9 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+  const [orderTrades, setOrderTrades] = useState<Record<string, TradeResponse[]>>({});
+  const [tradesLoading, setTradesLoading] = useState<Record<string, boolean>>({});
 
   const instrumentMap = useMemo(() => {
     return new Map(
@@ -112,6 +116,31 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
     }
   };
 
+  const fetchTrades = async (orderId: number) => {
+    setTradesLoading((prev) => ({ ...prev, [orderId]: true }));
+    try {
+      const response = await getTradesByOrderId(orderId);
+      if (String(response?.code) === '0') {
+        setOrderTrades((prev) => ({
+          ...prev,
+          [orderId]: Array.isArray(response?.data) ? response.data : [],
+        }));
+      } else {
+        setOrderTrades((prev) => ({ ...prev, [orderId]: [] }));
+        if (response?.message) {
+          message.error(response.message);
+        }
+      }
+    } catch (error: any) {
+      setOrderTrades((prev) => ({ ...prev, [orderId]: [] }));
+      if (error?.response?.data?.message) {
+        message.error(error.response.data.message);
+      }
+    } finally {
+      setTradesLoading((prev) => ({ ...prev, [orderId]: false }));
+    }
+  };
+
   useEffect(() => {
     fetchPositions();
   }, []);
@@ -145,6 +174,27 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
     { key: 'cancelledAt', label: 'Cancelled Time' },
   ];
 
+  const tradeColumns = [
+    { key: 'tradeId', label: 'Trade ID' },
+    { key: 'instrumentId', label: 'Instrument' },
+    { key: 'makerUserId', label: 'Maker User ID' },
+    { key: 'takerUserId', label: 'Taker User ID' },
+    { key: 'orderId', label: 'Order ID' },
+    { key: 'counterpartyOrderId', label: 'Counterparty Order ID' },
+    { key: 'orderSide', label: 'Order Side' },
+    { key: 'counterpartyOrderSide', label: 'Counterparty Order Side' },
+    { key: 'makerIntent', label: 'Maker Intent' },
+    { key: 'takerIntent', label: 'Taker Intent' },
+    { key: 'tradeType', label: 'Trade Type' },
+    { key: 'price', label: 'Price' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'totalValue', label: 'Total Value' },
+    { key: 'makerFee', label: 'Maker Fee' },
+    { key: 'takerFee', label: 'Taker Fee' },
+    { key: 'executedAt', label: 'Executed Time' },
+    { key: 'createdAt', label: 'Created Time' },
+  ];
+
   const renderOrderCellValue = (order: OrderResponse, key: string) => {
     if (key === 'instrumentId') {
       return instrumentMap.get(String(order.instrumentId)) || String(order.instrumentId);
@@ -158,6 +208,19 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
       return formatDateTime((order as any)[key]);
     }
     return (order as any)[key] ?? '-';
+  };
+
+  const renderTradeCellValue = (trade: TradeResponse, key: string) => {
+    if (key === 'instrumentId') {
+      return instrumentMap.get(String(trade.instrumentId)) || String(trade.instrumentId);
+    }
+    if (['price', 'quantity', 'totalValue', 'makerFee', 'takerFee'].includes(key)) {
+      return formatNumber((trade as any)[key]);
+    }
+    if (['executedAt', 'createdAt'].includes(key)) {
+      return formatDateTime((trade as any)[key]);
+    }
+    return (trade as any)[key] ?? '-';
   };
 
   const columns = [
@@ -292,6 +355,7 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
           <table className="min-w-[2400px] w-full text-xs text-right text-slate-600">
             <thead>
               <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
                 {orderColumns.map((column) => (
                   <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
                     {column.label}
@@ -302,26 +366,88 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
             <tbody className="divide-y divide-white/10">
               {orders.length === 0 && (
                 <tr>
-                  <td className="py-6 text-center text-slate-400 text-xs" colSpan={orderColumns.length}>
+                  <td className="py-6 text-center text-slate-400 text-xs" colSpan={orderColumns.length + 1}>
                     {ordersLoading ? 'Loading...' : 'No orders'}
                   </td>
                 </tr>
               )}
-              {orders.map((order) => (
-                <tr key={order.orderId} className="hover:bg-white/20 transition-colors">
-                  {orderColumns.map((column) => {
-                    const value = renderOrderCellValue(order, column.key);
-                    const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
-                    const tagClass =
-                      'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
-                    return (
-                      <td key={column.key} className="py-3 px-2 font-mono whitespace-nowrap text-right">
-                        {isTag ? <span className={tagClass}>{String(value)}</span> : value}
+              {orders.map((order) => {
+                const isExpanded = expandedOrderId === order.orderId;
+                return (
+                  <Fragment key={order.orderId}>
+                    <tr className="hover:bg-white/20 transition-colors">
+                      <td className="py-3 px-2 text-right">
+                        <button
+                          type="button"
+                          className="h-5 w-5 rounded-md border border-white/50 bg-white/30 text-[10px] text-slate-600 hover:bg-white/50"
+                          onClick={() => {
+                            const next = isExpanded ? null : order.orderId;
+                            setExpandedOrderId(next);
+                            if (!isExpanded) {
+                              fetchTrades(order.orderId);
+                            }
+                          }}
+                        >
+                          {isExpanded ? 'v' : '>'}
+                        </button>
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                      {orderColumns.map((column) => {
+                        const value = renderOrderCellValue(order, column.key);
+                        const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
+                        const tagClass =
+                          'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
+                        return (
+                          <td key={column.key} className="py-3 px-2 font-mono whitespace-nowrap text-right">
+                            {isTag ? <span className={tagClass}>{String(value)}</span> : value}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td className="py-3 px-2" colSpan={orderColumns.length + 1}>
+                          <div className="rounded-xl border border-white/40 bg-white/20 p-3">
+                            <div className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider mb-2">
+                              Trades
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="min-w-[2000px] w-full text-[11px] text-right text-slate-600">
+                                <thead>
+                                  <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                                    {tradeColumns.map((column) => (
+                                      <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                        {column.label}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/10">
+                                  {(orderTrades[order.orderId] || []).length === 0 && (
+                                    <tr>
+                                      <td className="py-4 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
+                                        {tradesLoading[order.orderId] ? 'Loading...' : 'No trades'}
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {(orderTrades[order.orderId] || []).map((trade) => (
+                                    <tr key={trade.tradeId}>
+                                      {tradeColumns.map((column) => (
+                                        <td key={column.key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
+                                          {renderTradeCellValue(trade, column.key)}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         )}
