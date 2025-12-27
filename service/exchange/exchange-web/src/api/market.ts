@@ -36,8 +36,28 @@ export type KlineResponse = {
   isClosed?: boolean | null;
 };
 
+export type OrderBookLevel = {
+  price: string | number | null;
+  quantity: string | number | null;
+};
+
+export type OrderBookResponse = {
+  instrumentId: number;
+  bids: OrderBookLevel[] | null;
+  asks: OrderBookLevel[] | null;
+  bestBid: string | number | null;
+  bestAsk: string | number | null;
+  midPrice: string | number | null;
+  updatedAt: string | null;
+};
+
 export const getTicker = async (instrumentId: string | number) => {
   const response = await apiClient.get(`/market/api/market/tickers/${instrumentId}`);
+  return response.data;
+};
+
+export const getOrderBook = async (instrumentId: string | number) => {
+  const response = await apiClient.get(`/market/api/market/orderbook/${instrumentId}`);
   return response.data;
 };
 

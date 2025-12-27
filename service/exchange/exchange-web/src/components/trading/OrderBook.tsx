@@ -1,34 +1,139 @@
 
+import { useEffect, useMemo, useState } from 'react';
 
-export default function OrderBook() {
-  const asks = [
-    { p: 67245.5, a: 0.452, t: 30394 },
-    { p: 67245.0, a: 0.125, t: 8405 },
-    { p: 67244.5, a: 0.850, t: 57158 },
-    { p: 67244.0, a: 0.334, t: 22459 },
-    { p: 67243.5, a: 1.205, t: 81029 },
-  ];
-  const bids = [
-    { p: 67242.0, a: 0.552, t: 37117 },
-    { p: 67241.5, a: 0.225, t: 15129 },
-    { p: 67241.0, a: 0.950, t: 63878 },
-    { p: 67240.5, a: 0.434, t: 29182 },
-    { p: 67240.0, a: 2.105, t: 141540 },
-  ];
+import { getOrderBook, type OrderBookLevel, type OrderBookResponse } from '../../api/market';
 
-  const Row = ({ price, amount, total, type }: { price: number, amount: number, total: number, type: 'ask' | 'bid' }) => (
+type OrderBookProps = {
+  instrumentId: string | null;
+};
+
+type RowData = {
+  price: number;
+  amount: number;
+  total: number;
+  depth: number;
+};
+
+const toNumber = (value: string | number | null | undefined) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatPrice = (value: number) => {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+};
+
+const formatAmount = (value: number) => {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
+};
+
+const formatTotal = (value: number) => {
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: 0,
+  });
+};
+
+const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean) => {
+  if (!levels || !levels.length) {
+    return [];
+  }
+  const sorted = [...levels]
+    .map((level) => ({
+      price: toNumber(level.price),
+      amount: toNumber(level.quantity),
+    }))
+    .filter((item): item is { price: number; amount: number } => item.price !== null && item.amount !== null)
+    .sort((a, b) => (sortDesc ? b.price - a.price : a.price - b.price));
+
+  let cumulative = 0;
+  const rows = sorted.map((item) => {
+    cumulative += item.amount;
+    return {
+      price: item.price,
+      amount: item.amount,
+      total: cumulative,
+      depth: 0,
+    };
+  });
+  const maxTotal = rows.length ? rows[rows.length - 1].total : 0;
+  return rows.map((row) => ({
+    ...row,
+    depth: maxTotal > 0 ? Math.min(100, (row.total / maxTotal) * 100) : 0,
+  }));
+};
+
+export default function OrderBook({ instrumentId }: OrderBookProps) {
+  const [orderBook, setOrderBook] = useState<OrderBookResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!instrumentId) {
+      setOrderBook(null);
+      return;
+    }
+    let cancelled = false;
+    const loadOrderBook = async () => {
+      setLoading(true);
+      try {
+        const response = await getOrderBook(instrumentId);
+        if (cancelled) {
+          return;
+        }
+        if (String(response?.code) === '0') {
+          setOrderBook(response?.data || null);
+        } else {
+          setOrderBook(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setOrderBook(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+    loadOrderBook();
+    return () => {
+      cancelled = true;
+    };
+  }, [instrumentId]);
+
+  const asks = useMemo(() => buildRows(orderBook?.asks, false), [orderBook?.asks]);
+  const bids = useMemo(() => buildRows(orderBook?.bids, true), [orderBook?.bids]);
+  const displayAsks = useMemo(() => asks.slice().reverse(), [asks]);
+  const midPrice = useMemo(() => {
+    const mid = toNumber(orderBook?.midPrice);
+    if (mid !== null) {
+      return mid;
+    }
+    const bid = toNumber(orderBook?.bestBid);
+    const ask = toNumber(orderBook?.bestAsk);
+    if (bid !== null && ask !== null) {
+      return (bid + ask) / 2;
+    }
+    return null;
+  }, [orderBook?.midPrice, orderBook?.bestBid, orderBook?.bestAsk]);
+
+  const Row = ({ price, amount, total, depth, type }: { price: number; amount: number; total: number; depth: number; type: 'ask' | 'bid' }) => (
     <div className="grid grid-cols-3 text-xs py-1 hover:bg-white/30 cursor-pointer rounded-md px-2 transition-all relative overflow-hidden group">
-        {/* Depth Bar */}
         <div
           className={`absolute top-0 bottom-0 right-0 opacity-20 transition-all duration-500 ${type === 'ask' ? 'bg-rose-500' : 'bg-emerald-500'}`}
-          style={{ width: `${Math.random() * 60 + 10}%` }}
+          style={{ width: `${depth}%` }}
         />
 
         <span className={`font-medium z-10 ${type === 'ask' ? 'text-rose-500' : 'text-emerald-600'}`}>
-            {price.toFixed(1)}
+            {formatPrice(price)}
         </span>
-        <span className="text-right text-slate-600 z-10">{amount.toFixed(3)}</span>
-        <span className="text-right text-slate-400 z-10">{total.toLocaleString()}</span>
+        <span className="text-right text-slate-600 z-10">{formatAmount(amount)}</span>
+        <span className="text-right text-slate-400 z-10">{formatTotal(total)}</span>
     </div>
   );
 
@@ -46,16 +151,28 @@ export default function OrderBook() {
           </div>
 
           <div className="space-y-0.5">
-              {asks.slice().reverse().map((o, i) => <Row key={i} price={o.p} amount={o.a} total={o.t} type="ask" />)}
+              {displayAsks.length ? displayAsks.map((o, i) => (
+                <Row key={`ask-${i}`} price={o.price} amount={o.amount} total={o.total} depth={o.depth} type="ask" />
+              )) : (
+                <div className="px-2 py-6 text-xs text-slate-400 text-center">{loading ? 'Loading...' : 'No data'}</div>
+              )}
           </div>
 
           <div className="my-3 flex items-center justify-between px-2 py-1 text-slate-700">
-              <span className="text-sm font-semibold tracking-tight">67,243.5</span>
-              <span className="text-[10px] text-slate-500 font-medium">≈ $67,243.5</span>
+              <span className="text-sm font-semibold tracking-tight">
+                {midPrice !== null ? formatPrice(midPrice) : '-'}
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">
+                {midPrice !== null ? `≈ $${formatPrice(midPrice)}` : '-'}
+              </span>
           </div>
 
           <div className="space-y-0.5">
-              {bids.map((o, i) => <Row key={i} price={o.p} amount={o.a} total={o.t} type="bid" />)}
+              {bids.length ? bids.map((o, i) => (
+                <Row key={`bid-${i}`} price={o.price} amount={o.amount} total={o.total} depth={o.depth} type="bid" />
+              )) : (
+                <div className="px-2 py-6 text-xs text-slate-400 text-center">{loading ? 'Loading...' : 'No data'}</div>
+              )}
           </div>
       </div>
     </div>

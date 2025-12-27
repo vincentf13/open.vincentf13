@@ -69,6 +69,9 @@ public class OrderBookCacheService {
                                 .instrumentId(instrumentId)
                                 .bids(List.of())
                                 .asks(List.of())
+                                .bestAsk(BigDecimal.ZERO)
+                                .bestBid(BigDecimal.ZERO)
+                                .midPrice(BigDecimal.ZERO)
                                 .updatedAt(Instant.now())
                                 .build();
     }

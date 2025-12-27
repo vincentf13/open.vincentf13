@@ -106,7 +106,7 @@ export default function Trading() {
 
             {/* Middle Column: Order Book */}
             <div className="flex flex-col min-w-0 bg-white/5">
-              <OrderBook />
+              <OrderBook instrumentId={selectedInstrumentId} />
             </div>
           </div>
 
