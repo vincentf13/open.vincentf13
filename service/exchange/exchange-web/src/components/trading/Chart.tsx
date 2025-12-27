@@ -14,10 +14,10 @@ type SeriesPoint = {
   low: number;
   volume: number;
   turnover: number;
-  tradeCount: number;
-  takerBuyVolume: number;
-  takerBuyTurnover: number;
-  isClosed: boolean;
+  tradeCount: number | null;
+  takerBuyVolume: number | null;
+  takerBuyTurnover: number | null;
+  isClosed: boolean | null;
   bucketStart?: string;
   bucketEnd?: string;
 };
@@ -46,6 +46,29 @@ const formatVolumeNumber = (value: number) => {
   return value.toLocaleString(undefined, {
     maximumFractionDigits: 2,
   });
+};
+
+const formatCountNumber = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return '-';
+  }
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: 0,
+  });
+};
+
+const formatOptionalNumber = (value: number | null | undefined, formatter: (value: number) => string) => {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return '-';
+  }
+  return formatter(value);
+};
+
+const formatOptionalBoolean = (value: boolean | null | undefined) => {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+  return value ? 'true' : 'false';
 };
 
 const clamp = (value: number, min: number, max: number) => {
@@ -93,41 +116,6 @@ const formatDateTime = (value: string | undefined) => {
   const mi = pad2(date.getMinutes());
   const ss = pad2(date.getSeconds());
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
-};
-
-const buildRandomSeries = (items: KlineResponse[]) => {
-  let lastClose = 67200;
-  return items.map((item) => {
-    const baseSeed = toNumber(item.close) ?? toNumber(item.open) ?? lastClose;
-    const base = baseSeed > 0 ? baseSeed : lastClose;
-    const swing = base * (0.002 + Math.random() * 0.006);
-    const open = base + (Math.random() - 0.5) * swing;
-    const close = base + (Math.random() - 0.5) * swing;
-    const high = Math.max(open, close) + Math.random() * swing * 0.6;
-    const low = Math.min(open, close) - Math.random() * swing * 0.6;
-    const volumeBase = 120;
-    const volume = Math.max(1, volumeBase * (0.4 + Math.random() * 1.2));
-    const turnover = volume * ((open + close) / 2);
-    const tradeCount = Math.max(1, Math.floor(20 + Math.random() * 180));
-    const takerBuyVolume = volume * (0.3 + Math.random() * 0.5);
-    const takerBuyTurnover = takerBuyVolume * ((open + close) / 2);
-    const isClosed = Math.random() > 0.2;
-    lastClose = close;
-    return {
-      open,
-      close,
-      high,
-      low,
-      volume,
-      turnover,
-      tradeCount,
-      takerBuyVolume,
-      takerBuyTurnover,
-      isClosed,
-      bucketStart: item.bucketStart,
-      bucketEnd: item.bucketEnd,
-    };
-  });
 };
 
 export default function Chart({ instrumentId }: ChartProps) {
@@ -185,7 +173,31 @@ export default function Chart({ instrumentId }: ChartProps) {
       const bTime = b.bucketStart ? new Date(b.bucketStart).getTime() : 0;
       return aTime - bTime;
     });
-    return buildRandomSeries(sorted).filter((item) => Number.isFinite(item.close));
+    return sorted
+      .map((item) => {
+        const open = toNumber(item.open);
+        const high = toNumber(item.high);
+        const low = toNumber(item.low);
+        const close = toNumber(item.close);
+        if (open === null || high === null || low === null || close === null) {
+          return null;
+        }
+        return {
+          open,
+          close,
+          high,
+          low,
+          volume: toNumber(item.volume) ?? 0,
+          turnover: toNumber(item.turnover) ?? 0,
+          tradeCount: toNumber(item.tradeCount),
+          takerBuyVolume: toNumber(item.takerBuyVolume),
+          takerBuyTurnover: toNumber(item.takerBuyTurnover),
+          isClosed: item.isClosed ?? null,
+          bucketStart: item.bucketStart,
+          bucketEnd: item.bucketEnd,
+        };
+      })
+      .filter((item): item is SeriesPoint => item !== null);
   }, [klines]);
 
   useEffect(() => {
@@ -351,7 +363,7 @@ export default function Chart({ instrumentId }: ChartProps) {
             ))}
           </div>
           <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
-            KLINE COUNTS {loading ? '...' : series.length}
+            KLINE COUNTS {loading ? '...' : visibleSeries.length}
           </span>
         </div>
       </div>
@@ -469,13 +481,13 @@ export default function Chart({ instrumentId }: ChartProps) {
                 <span className="text-slate-500">turnover</span>
                 <span className="text-slate-800">{formatVolumeNumber(hoveredPoint.point.turnover)}</span>
                 <span className="text-slate-500">tradeCount</span>
-                <span className="text-slate-800">{hoveredPoint.point.tradeCount}</span>
+                <span className="text-slate-800">{formatOptionalNumber(hoveredPoint.point.tradeCount, formatCountNumber)}</span>
                 <span className="text-slate-500">takerBuyVolume</span>
-                <span className="text-slate-800">{formatVolumeNumber(hoveredPoint.point.takerBuyVolume)}</span>
+                <span className="text-slate-800">{formatOptionalNumber(hoveredPoint.point.takerBuyVolume, formatVolumeNumber)}</span>
                 <span className="text-slate-500">takerBuyTurnover</span>
-                <span className="text-slate-800">{formatVolumeNumber(hoveredPoint.point.takerBuyTurnover)}</span>
+                <span className="text-slate-800">{formatOptionalNumber(hoveredPoint.point.takerBuyTurnover, formatVolumeNumber)}</span>
                 <span className="text-slate-500">isClosed</span>
-                <span className="text-slate-800">{String(hoveredPoint.point.isClosed)}</span>
+                <span className="text-slate-800">{formatOptionalBoolean(hoveredPoint.point.isClosed)}</span>
               </div>
             </div>
           )}
