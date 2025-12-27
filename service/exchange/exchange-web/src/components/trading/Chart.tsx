@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 
 import { getKlines, type KlineResponse } from '../../api/market';
 
@@ -102,6 +102,12 @@ export default function Chart({ instrumentId }: ChartProps) {
   const [period, setPeriod] = useState<(typeof periods)[number]>('1h');
   const [klines, setKlines] = useState<KlineResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [crosshair, setCrosshair] = useState<{
+    xRatio: number;
+    yRatio: number;
+    mode: 'price' | 'volume';
+    value: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!instrumentId) {
@@ -168,15 +174,37 @@ export default function Chart({ instrumentId }: ChartProps) {
     return Math.max(...series.map((point) => point.volume || 0));
   }, [series]);
 
-  const cursor = useMemo(() => {
-    if (!series.length || !chartMetrics) {
-      return null;
+  const handleMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    if (!chartMetrics || !series.length) {
+      setCrosshair(null);
+      return;
     }
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+    const localX = clamp(event.clientX - rect.left, 0, rect.width);
+    const localY = clamp(event.clientY - rect.top, 0, rect.height);
+    const xRatio = localX / rect.width;
+    const yRatio = localY / rect.height;
+    const chartY = yRatio * CHART_HEIGHT;
+    const clampedY = clamp(chartY, 0, PRICE_HEIGHT);
     const { min, range } = chartMetrics;
-    const lastClose = series[series.length - 1].close;
-    const y = PRICE_HEIGHT - ((lastClose - min) / range) * PRICE_HEIGHT;
-    return { price: lastClose, y };
-  }, [series, chartMetrics]);
+    const price = min + ((PRICE_HEIGHT - clampedY) / PRICE_HEIGHT) * range;
+    const isVolumeArea = chartY >= VOLUME_TOP;
+    const volumeRatio = clamp((chartY - VOLUME_TOP) / VOLUME_HEIGHT, 0, 1);
+    const volumeValue = volumeMax > 0 ? volumeMax * (1 - volumeRatio) : 0;
+    setCrosshair({
+      xRatio,
+      yRatio,
+      mode: isVolumeArea ? 'volume' : 'price',
+      value: isVolumeArea ? volumeValue : price,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setCrosshair(null);
+  };
 
   const priceTicks = useMemo(() => {
     if (!chartMetrics) {
@@ -250,7 +278,11 @@ export default function Chart({ instrumentId }: ChartProps) {
       </div>
 
       <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">
-        <div className="absolute inset-0 right-12 bottom-6">
+        <div
+          className="absolute inset-0 right-12 bottom-6"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
           <svg className="w-full h-full" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none">
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
@@ -267,6 +299,8 @@ export default function Chart({ instrumentId }: ChartProps) {
               <line x1={CHART_WIDTH * 0.5} y1="0" x2={CHART_WIDTH * 0.5} y2={PRICE_HEIGHT} />
               <line x1={CHART_WIDTH * 0.75} y1="0" x2={CHART_WIDTH * 0.75} y2={PRICE_HEIGHT} />
             </g>
+
+            <line x1="0" y1={VOLUME_TOP} x2={CHART_WIDTH} y2={VOLUME_TOP} stroke="rgba(148,163,184,0.7)" strokeWidth="0.6" />
 
             {chartMetrics && series.length > 0 && (
               <>
@@ -307,20 +341,21 @@ export default function Chart({ instrumentId }: ChartProps) {
                     </g>
                   );
                 })}
-                <line x1="0" y1={VOLUME_TOP} x2={CHART_WIDTH} y2={VOLUME_TOP} stroke="rgba(255,255,255,0.35)" strokeWidth="0.5" />
               </>
             )}
           </svg>
 
-          {cursor && (
-            <div
-              className="absolute right-0 w-full border-t border-blue-500/50 border-dashed flex items-center justify-end"
-              style={{ top: `${(cursor.y / CHART_HEIGHT) * 100}%` }}
-            >
-              <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-l-md font-mono shadow-sm">
-                {formatAxisNumber(cursor.price)}
-              </span>
-            </div>
+          {crosshair && (
+            <>
+              <div
+                className="absolute inset-y-0 border-l border-blue-500/50"
+                style={{ left: `${crosshair.xRatio * 100}%` }}
+              />
+              <div
+                className="absolute inset-x-0 border-t border-blue-500/50"
+                style={{ top: `${crosshair.yRatio * 100}%` }}
+              />
+            </>
           )}
 
           {!loading && !series.length && (
@@ -339,6 +374,14 @@ export default function Chart({ instrumentId }: ChartProps) {
               {formatAxisNumber(tick.value)}
             </div>
           ))}
+          {crosshair && (
+            <div
+              className="absolute -right-1 text-[10px] font-mono text-right bg-blue-500 text-white px-2 py-0.5 rounded-l-md shadow-sm"
+              style={{ top: `${crosshair.yRatio * 100}%`, transform: 'translateY(-50%)' }}
+            >
+              {crosshair.mode === 'volume' ? formatVolumeNumber(crosshair.value) : formatAxisNumber(crosshair.value)}
+            </div>
+          )}
           {volumeTicks.map((tick, index) => (
             <div
               key={`vol-${index}`}
