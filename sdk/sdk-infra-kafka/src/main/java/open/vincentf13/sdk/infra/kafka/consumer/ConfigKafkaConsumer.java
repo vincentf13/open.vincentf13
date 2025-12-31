@@ -13,12 +13,13 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.ConsumerRecordRecoverer;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.converter.BatchMessagingMessageConverter;
 import org.springframework.util.backoff.FixedBackOff;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.util.function.BiFunction;
 
 /**
  Kafka Consumer 配置類
@@ -31,15 +32,6 @@ public class ConfigKafkaConsumer {
     private static final long RETRY_MAX_ATTEMPTS = 2L;
     private static final String DLT_SUFFIX = ".DLT";
 
-    /**
-     創建並配置 Kafka 監聽器容器工廠。
-     
-     @param consumerFactory Spring Boot 自動配置的 ConsumerFactory。
-     @param kafkaTemplate   Spring Boot 自動配置的 KafkaTemplate，用於發送訊息到 DLQ。
-     @param kafkaProperties Spring Boot 自動配置的 Kafka 屬性，用於日誌記錄。
-     @param objectMapper    Spring Boot 自動配置的 ObjectMapper。
-     @return 配置好的 ConcurrentKafkaListenerContainerFactory。
-     */
     @Bean
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public ConcurrentKafkaListenerContainerFactory<Object, Object> kafkaListenerContainerFactory(
@@ -74,12 +66,17 @@ public class ConfigKafkaConsumer {
             String listenerTypeLabel) {
 
         ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        // 套用 spring.kafka.listener.* 與 spring.kafka.consumer.* 配置
         configurer.configure(factory, consumerFactory);
         factory.setBatchListener(batchListener);
 
         // 配置訊息轉換器：將 JSON String 轉換為 POJO (支援 Double Encoding)
-        factory.setRecordMessageConverter(new DoubleDecodingJsonMessageConverter(objectMapper));
+        DoubleDecodingJsonMessageConverter converter = new DoubleDecodingJsonMessageConverter(objectMapper);
+        factory.setRecordMessageConverter(converter);
+        
+        if (batchListener) {
+            // 強制設定 BatchMessageConverter，確保 Converter 被正確使用
+            factory.setBatchMessageConverter(new BatchMessagingMessageConverter(converter));
+        }
 
         factory.setCommonErrorHandler(buildErrorHandler(kafkaTemplate, kafkaProperties));
 
@@ -93,34 +90,32 @@ public class ConfigKafkaConsumer {
 
     private DefaultErrorHandler buildErrorHandler(KafkaTemplate<String, Object> kafkaTemplate,
                                                   KafkaProperties kafkaProperties) {
-        // 配置錯誤處理器 (重試 + DLQ)
-        // 重試耗盡後 DeadLetterPublishingRecoverer 把原訊息送到 <topic>.DLT
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, this::routeToDlq);
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(RETRY_BACKOFF_MS, RETRY_MAX_ATTEMPTS));
-        errorHandler.setRetryListeners((record, ex, deliveryAttempt) ->
-                                               OpenLog.error(KafkaEvent.KAFKA_CONSUME_RETRY, ex,
-                                                            "topic", record.topic(),
-                                                            "partition", record.partition(),
-                                                            "offset", record.offset(),
-                                                            "attempt", deliveryAttempt,
-                                                            "groupId", kafkaProperties.getConsumer().getGroupId(),
-                                                            "stackTrace", stackTraceOf(ex))
-                                      );
+        BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> dlqTopicRouter = 
+                (record, ex) -> new TopicPartition(record.topic() + DLT_SUFFIX, record.partition());
+        
+        DeadLetterPublishingRecoverer dlqRecoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
+        
+        // 包裝 Recoverer 以確保在最終失敗（包含 Fatal Exception 不重試的情況）時印出 Stack Trace
+        ConsumerRecordRecoverer loggingRecoverer = (record, ex) -> {
+            OpenLog.error(KafkaEvent.KAFKA_CONSUME_FAILED, ex,
+                          "topic", record.topic(),
+                          "partition", record.partition(),
+                          "offset", record.offset());
+            
+            dlqRecoverer.accept(record, ex);
+        };
+
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(loggingRecoverer, new FixedBackOff(RETRY_BACKOFF_MS, RETRY_MAX_ATTEMPTS));
+        
+ 
+        errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
+            OpenLog.error(KafkaEvent.KAFKA_CONSUME_RETRY, ex,
+                          "topic", record.topic(),
+                          "partition", record.partition(),
+                          "offset", record.offset(),
+                          "attempt", deliveryAttempt,
+                          "groupId", kafkaProperties.getConsumer().getGroupId());
+        });
         return errorHandler;
-    }
-
-    private TopicPartition routeToDlq(ConsumerRecord<?, ?> record, Exception ex) {
-        return new TopicPartition(record.topic() + DLT_SUFFIX, record.partition());
-    }
-
-    private String stackTraceOf(Throwable throwable) {
-        if (throwable == null) {
-            return "";
-        }
-        StringWriter writer = new StringWriter();
-        PrintWriter printer = new PrintWriter(writer);
-        throwable.printStackTrace(printer);
-        printer.flush();
-        return writer.toString();
     }
 }

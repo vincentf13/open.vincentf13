@@ -12,6 +12,7 @@ public enum KafkaEvent implements OpenEvent {
     KAFKA_SEND_ERROR("KafkaSendError", "Kafka 訊息送出失敗"),
     KAFKA_SEND_SUCCESS("KafkaSendSuccess", "Kafka 訊息送出成功"),
     KAFKA_CONSUME_RETRY("KafkaConsumeRetry", "Kafka 訊息消費重試"),
+    KAFKA_CONSUME_FAILED("KafkaConsumeFailed", "Kafka 訊息消費最終失敗（已進入 DLQ 或拋棄）"),
     KAFKA_CONSUMER_CONFIGURED("KafkaConsumerConfigured", "自定義 Kafka Consumer 配置已加載");
     
     private final String event;

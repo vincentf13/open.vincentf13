@@ -6,25 +6,35 @@ import open.vincentf13.exchange.matching.service.MatchingEngine;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
 import open.vincentf13.sdk.core.OpenValidator;
+import org.apache.kafka.common.TopicPartition;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.listener.ConsumerSeekAware;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class OrderCreatedEventListener {
+public class OrderCreatedEventListener implements ConsumerSeekAware {
     
     private final MatchingEngine matchingEngine;
+    
+    
+    /**
+     調試用
+     */
+    @Override
+    public void onPartitionsAssigned(Map<TopicPartition, Long> assignments, ConsumerSeekCallback callback) {
+        callback.seekToBeginning(assignments.keySet());
+    }
    
     @KafkaListener(topics = OrderTopics.Names.ORDER_CREATED,
                    groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
                    containerFactory = "kafkaBatchListenerContainerFactory",
-                   // 調試用
-                   properties = "auto.offset.reset=earliest",
                    concurrency = "1")
     public void onOrderCreated(@Payload List<OrderCreatedEvent> events,
                                Acknowledgment acknowledgment) {
