@@ -20,7 +20,7 @@ open:
       mapper-base-packages: open.vincentf13.exchange.risk.infra.persistence.mapper
     pending-task:
       rescue:
-        enabled: true
+        enabled: false
 
 exchange:
   risk:

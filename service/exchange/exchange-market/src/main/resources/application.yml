@@ -25,4 +25,4 @@ open:
           consumer-group: exchange-market-trade
     pending-task:
       rescue:
-        enabled: true
+        enabled: false

@@ -19,4 +19,4 @@ open:
         worker-id: 7
     pending-task:
       rescue:
-        enabled: true
+        enabled: false

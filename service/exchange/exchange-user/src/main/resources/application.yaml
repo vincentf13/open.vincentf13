@@ -23,4 +23,4 @@ open:
       mapper-base-packages: open.vincentf13.exchange.user.infra.persistence.mapper
     pending-task:
       rescue:
-        enabled: true
+        enabled: false

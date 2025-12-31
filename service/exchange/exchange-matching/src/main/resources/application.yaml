@@ -19,7 +19,7 @@ open:
       mapper-base-packages: open.vincentf13.exchange.matching.infra.persistence.mapper
     pending-task:
       rescue:
-        enabled: true
+        enabled: false
     exchange:
       matching:
         consumer-group: exchange-matching
