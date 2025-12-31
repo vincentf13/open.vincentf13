@@ -6,7 +6,6 @@ import open.vincentf13.exchange.matching.domain.instrument.Instrument;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.cache.InstrumentCache;
-import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 
 import java.math.BigDecimal;
@@ -105,18 +104,6 @@ public class OrderBook {
         insert(order);
     }
     
-    public OrderBookUpdatedEvent depthSnapshot(Long instrumentId,
-                                               int depth) {
-        List<OrderBookUpdatedEvent.OrderBookLevel> bidLevels = topLevels(bids, depth);
-        List<OrderBookUpdatedEvent.OrderBookLevel> askLevels = topLevels(asks, depth);
-        BigDecimal bestBid = bidLevels.isEmpty() ? null : bidLevels.get(0).price();
-        BigDecimal bestAsk = askLevels.isEmpty() ? null : askLevels.get(0).price();
-        BigDecimal mid = bestBid != null && bestAsk != null
-                         ? OpenBigDecimal.normalizeDecimal(bestBid.add(bestAsk).divide(BigDecimal.valueOf(2)))
-                         : null;
-        return new OrderBookUpdatedEvent(instrumentId, bidLevels, askLevels, bestBid, bestAsk, mid, Instant.now());
-    }
-    
     public List<Order> dumpOpenOrders() {
         List<Order> orders = new ArrayList<>(orderIndex.size());
         // 先輸出 bids (price DESC) 保持掛單順序，再輸出 asks (price ASC)
@@ -144,25 +131,6 @@ public class OrderBook {
             return;
         }
         orderIds.forEach(id -> processedOrderIds.put(id, Boolean.TRUE));
-    }
-    
-    private List<OrderBookUpdatedEvent.OrderBookLevel> topLevels(Map<BigDecimal, Deque<Order>> source,
-                                                                 int depth) {
-        List<OrderBookUpdatedEvent.OrderBookLevel> levels = new ArrayList<>(depth);
-        for (Map.Entry<BigDecimal, Deque<Order>> entry : source.entrySet()) {
-            if (levels.size() >= depth) {
-                break;
-            }
-            BigDecimal total = entry.getValue()
-                                    .stream()
-                                    .map(Order::getQuantity)
-                                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            if (total.compareTo(BigDecimal.ZERO) > 0) {
-                levels.add(new OrderBookUpdatedEvent.OrderBookLevel(entry.getKey(),
-                                                                    OpenBigDecimal.normalizeDecimal(total)));
-            }
-        }
-        return levels;
     }
     
     private void remove(Order order) {

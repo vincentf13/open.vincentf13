@@ -54,11 +54,17 @@ public class OrderBookCacheService {
         
         List<OrderBookLevel> bidLevels = bids.entrySet().stream()
                 .limit(20)
-                .map(e -> new OrderBookLevel(e.getKey(), OpenBigDecimal.normalizeDecimal(e.getValue())))
+                .map(e -> OrderBookLevel.builder()
+                        .price(e.getKey())
+                        .quantity(OpenBigDecimal.normalizeDecimal(e.getValue()))
+                        .build())
                 .toList();
         List<OrderBookLevel> askLevels = asks.entrySet().stream()
                 .limit(20)
-                .map(e -> new OrderBookLevel(e.getKey(), OpenBigDecimal.normalizeDecimal(e.getValue())))
+                .map(e -> OrderBookLevel.builder()
+                        .price(e.getKey())
+                        .quantity(OpenBigDecimal.normalizeDecimal(e.getValue()))
+                        .build())
                 .toList();
         
         BigDecimal bestBid = bidLevels.isEmpty() ? null : bidLevels.get(0).getPrice();
