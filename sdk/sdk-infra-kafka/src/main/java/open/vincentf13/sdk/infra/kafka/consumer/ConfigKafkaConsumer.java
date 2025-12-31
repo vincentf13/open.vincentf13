@@ -5,7 +5,6 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.kafka.KafkaEvent;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
@@ -16,7 +15,6 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.function.BiFunction;
@@ -53,7 +51,8 @@ public class ConfigKafkaConsumer {
         factory.setBatchListener(false); // 顯式設定為單筆模式
         
         // 配置訊息轉換器：將 JSON String 轉換為 POJO
-        factory.setRecordMessageConverter(new StringJsonMessageConverter(objectMapper));
+        // 配置訊息轉換器：將 JSON String 轉換為 POJO (支援 Double Encoding)
+        factory.setRecordMessageConverter(new open.vincentf13.sdk.kafka.consumer.DoubleDecodingJsonMessageConverter(objectMapper));
         
         // 配置錯誤處理器 (重試 + DLQ)
         // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ
@@ -101,7 +100,8 @@ public class ConfigKafkaConsumer {
         factory.setBatchListener(true); // Force Batch
         
         // 配置訊息轉換器：將 JSON String 轉換為 POJO (批次處理時會對每個元素應用此轉換器)
-        factory.setRecordMessageConverter(new StringJsonMessageConverter(objectMapper));
+        // 配置訊息轉換器：將 JSON String 轉換為 POJO (支援 Double Encoding)
+        factory.setRecordMessageConverter(new open.vincentf13.sdk.kafka.consumer.DoubleDecodingJsonMessageConverter(objectMapper));
 
         BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) -> new TopicPartition(record.topic() + ".DLT", record.partition());
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
