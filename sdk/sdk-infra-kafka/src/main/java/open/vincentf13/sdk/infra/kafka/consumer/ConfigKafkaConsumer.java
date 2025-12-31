@@ -97,7 +97,7 @@ public class ConfigKafkaConsumer {
         
         // 包裝 Recoverer 以確保在最終失敗（包含 Fatal Exception 不重試的情況）時印出 Stack Trace
         ConsumerRecordRecoverer loggingRecoverer = (record, ex) -> {
-            OpenLog.error(KafkaEvent.KAFKA_CONSUME_FAILED, ex,
+            OpenLog.warn(KafkaEvent.KAFKA_CONSUME_FAILED, ex,
                           "topic", record.topic(),
                           "partition", record.partition(),
                           "offset", record.offset());
@@ -109,7 +109,7 @@ public class ConfigKafkaConsumer {
         
  
         errorHandler.setRetryListeners((record, ex, deliveryAttempt) -> {
-            OpenLog.error(KafkaEvent.KAFKA_CONSUME_RETRY, ex,
+            OpenLog.warn(KafkaEvent.KAFKA_CONSUME_RETRY,
                           "topic", record.topic(),
                           "partition", record.partition(),
                           "offset", record.offset(),
