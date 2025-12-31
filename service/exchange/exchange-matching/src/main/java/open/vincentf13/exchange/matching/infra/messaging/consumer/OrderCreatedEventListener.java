@@ -19,10 +19,12 @@ import java.util.List;
 public class OrderCreatedEventListener {
     
     private final MatchingEngine matchingEngine;
-    
+   
     @KafkaListener(topics = OrderTopics.Names.ORDER_CREATED,
                    groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
                    containerFactory = "kafkaBatchListenerContainerFactory",
+                   // 調試用
+                   properties = "auto.offset.reset=earliest",
                    concurrency = "1")
     public void onOrderCreated(@Payload List<OrderCreatedEvent> events,
                                Acknowledgment acknowledgment) {
