@@ -98,7 +98,6 @@ public class UserCommandService {
                                                                         .retryCount(0)
                                                                         .nextRetryAt(null)
                                                                         .lastError(null)
-                                                                        .updatedAt(Instant.now())
                                                                         .build(),
                                                    Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
                                                            .eq(AuthCredentialPendingPO::getUserId, persistedUser.getId())
@@ -120,7 +119,6 @@ public class UserCommandService {
                                                                     .status(AuthCredentialPendingStatus.PENDING)
                                                                     .lastError(message)
                                                                     .nextRetryAt(Instant.now().plusSeconds(60))
-                                                                    .updatedAt(Instant.now())
                                                                     .build(),
                                                Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
                                                        .eq(AuthCredentialPendingPO::getUserId, userId)

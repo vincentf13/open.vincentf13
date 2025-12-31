@@ -75,7 +75,6 @@ public class AuthCredentialPendingRetryService {
                                                                         .retryCount(0)
                                                                         .nextRetryAt(null)
                                                                         .lastError(null)
-                                                                        .updatedAt(Instant.now())
                                                                         .build(),
                                                    Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
                                                            .eq(AuthCredentialPendingPO::getUserId, pending.getUserId())
@@ -101,7 +100,6 @@ public class AuthCredentialPendingRetryService {
                                                                     .status(nextStatus)
                                                                     .lastError(sanitizedReason)
                                                                     .nextRetryAt(nextRetryAt)
-                                                                    .updatedAt(Instant.now())
                                                                     .build(),
                                                Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
                                                        .eq(AuthCredentialPendingPO::getUserId, pending.getUserId())

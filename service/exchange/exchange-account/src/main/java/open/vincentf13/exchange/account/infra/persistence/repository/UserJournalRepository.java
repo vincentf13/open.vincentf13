@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.account.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -10,7 +11,6 @@ import open.vincentf13.exchange.account.infra.persistence.po.UserJournalPO;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -46,7 +46,7 @@ public class UserJournalRepository {
             }
             pos.add(OpenObjectMapper.convert(journal, UserJournalPO.class));
         }
-        OpenMybatisBatchExecutor.execute(UserJournalMapper.class, pos, UserJournalMapper::insert);
+        Db.saveBatch(pos);
         return journals;
     }
     

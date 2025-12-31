@@ -3,6 +3,7 @@ package open.vincentf13.exchange.account.infra.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -16,7 +17,6 @@ import open.vincentf13.exchange.account.infra.persistence.po.UserAccountPO;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -75,25 +75,18 @@ public class UserAccountRepository {
         if (accounts.size() != expectedVersions.size()) {
             throw new IllegalArgumentException("accounts size does not match expectedVersions size");
         }
-        record UpdateCommand(UserAccountPO po, LambdaUpdateWrapper<UserAccountPO> wrapper) { }
-        List<UpdateCommand> commands = new java.util.ArrayList<>(accounts.size());
+
+        record UpdateTask(UserAccountPO po, Integer expectedVersion) {}
+        List<UpdateTask> tasks = new java.util.ArrayList<>(accounts.size());
         for (int i = 0; i < accounts.size(); i++) {
             UserAccount account = accounts.get(i);
-            Integer expectedVersion = expectedVersions.get(i);
             if (account.getInstrumentId() == null) {
                 account.setInstrumentId(SPOT_INSTRUMENT_ID);
             }
-            UserAccountPO po = OpenObjectMapper.convert(account, UserAccountPO.class);
-            LambdaUpdateWrapper<UserAccountPO> wrapper = new LambdaUpdateWrapper<UserAccountPO>()
-                    .eq(UserAccountPO::getAccountId, account.getAccountId())
-                    .eq(UserAccountPO::getVersion, expectedVersion);
-            commands.add(new UpdateCommand(po, wrapper));
+            tasks.add(new UpdateTask(OpenObjectMapper.convert(account, UserAccountPO.class), expectedVersions.get(i)));
         }
-        OpenMybatisBatchExecutor.execute(UserAccountMapper.class, commands, (m, cmd) -> {
-            if (m.update(cmd.po(), cmd.wrapper()) == 0) {
-                throw OpenException.of(AccountErrorCode.OPTIMISTIC_LOCK_FAILURE, java.util.Map.of("action", action, "accountId", cmd.po().getAccountId()));
-            }
-        });
+
+        mapper.batchUpdateWithOptimisticLock(tasks);
     }
     
     public List<UserAccount> findBy(@NotNull LambdaQueryWrapper<UserAccountPO> wrapper) {

@@ -314,7 +314,6 @@ public class AccountTransactionDomainService {
                           .reserved(current.getReserved().add(amount))
                           .version(current.safeVersion() + 1)
                           .createdAt(current.getCreatedAt())
-                          .updatedAt(Instant.now())
                           .build();
     }
     
@@ -350,7 +349,6 @@ public class AccountTransactionDomainService {
                           .reserved(newReserved)
                           .version(current.safeVersion() + 1)
                           .createdAt(current.getCreatedAt())
-                          .updatedAt(Instant.now())
                           .build();
     }
 

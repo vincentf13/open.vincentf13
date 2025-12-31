@@ -57,7 +57,6 @@ public class PlatformAccount {
                               .balance(balance.add(delta))
                               .version(safeVersion() + 1)
                               .createdAt(createdAt)
-                              .updatedAt(Instant.now())
                               .build();
     }
     
