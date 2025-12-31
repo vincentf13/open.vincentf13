@@ -24,6 +24,23 @@ export type OrderResponse = {
   cancelledAt: string | null;
 };
 
+export type OrderSide = 'BUY' | 'SELL';
+export type OrderType = 'LIMIT' | 'MARKET';
+
+export type OrderCreateRequest = {
+  instrumentId: number;
+  side: OrderSide;
+  type: OrderType;
+  quantity: number | string;
+  price?: number | string | null;
+  clientOrderId?: string;
+};
+
+export const createOrder = async (data: OrderCreateRequest) => {
+  const response = await apiClient.post<any>('/order/api/orders', data);
+  return response.data;
+};
+
 export const getOrders = async (instrumentId?: string | number, userId?: string | number) => {
   const response = await apiClient.get('/order/api/orders', {
     params: {

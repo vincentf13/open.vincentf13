@@ -119,7 +119,7 @@ export default function Trading() {
         <div className="flex flex-col w-full border-t border-white/20 bg-white/5 lg:absolute lg:top-0 lg:right-0 lg:h-full lg:w-[260px] lg:z-10 lg:border-t-0 lg:border-l lg:border-white/20">
           <div className="flex flex-col h-full lg:pt-24">
             <div className="border-b border-white/20">
-              <TradeForm />
+              <TradeForm instrument={selectedInstrument} />
             </div>
             <div className="flex-1 min-h-0 p-4">
               <AccountPanel />

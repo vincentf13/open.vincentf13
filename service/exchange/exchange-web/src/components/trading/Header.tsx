@@ -37,7 +37,9 @@ export default function Header({ onLogout }: HeaderProps) {
          <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
                 <div className="text-xs font-medium text-slate-500">Portfolio Value</div>
-                <div className="text-sm font-bold text-slate-800">1.245 BTC</div>
+                <div className="text-sm font-bold text-slate-800">
+                  -- <span className="text-[11px] font-medium text-slate-500">USDT</span>
+                </div>
             </div>
             <Dropdown
               trigger={['click']}

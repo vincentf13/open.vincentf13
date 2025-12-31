@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
@@ -24,6 +28,16 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.4);
+}
+
+/* Hide Input Spinners */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type=number] {
+  -moz-appearance: textfield;
 }
 
 /* Liquid Glass Utilities */
@@ -79,6 +93,25 @@ body {
 }
 
 .liquid-input:focus {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.liquid-input-group {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 0.875rem;
+  color: #334155;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+}
+
+.liquid-input-group:focus-within {
   border-color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.35);
 }
