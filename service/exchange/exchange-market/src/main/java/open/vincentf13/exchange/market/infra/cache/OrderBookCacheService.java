@@ -1,15 +1,18 @@
 package open.vincentf13.exchange.market.infra.cache;
 
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.model.OrderUpdate;
-import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 import open.vincentf13.exchange.market.domain.model.OrderBookSnapshot;
-import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
+import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 import open.vincentf13.sdk.core.OpenBigDecimal;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -19,7 +22,7 @@ public class OrderBookCacheService {
     // 為了維護 L2，我們需要存儲每個 OrderId 的當前狀態，以便計算 Price Level 的變化
     private final Map<Long, Map<Long, OrderState>> orderStates = new ConcurrentHashMap<>();
 
-    private record OrderState(BigDecimal price, BigDecimal quantity, open.vincentf13.exchange.common.sdk.enums.OrderSide side) {}
+    private record OrderState(BigDecimal price, BigDecimal quantity, OrderSide side) {}
     
     public void applyUpdates(Long instrumentId, List<OrderUpdate> updates, Instant updatedAt) {
         if (instrumentId == null || updates == null) {
@@ -45,7 +48,7 @@ public class OrderBookCacheService {
         TreeMap<BigDecimal, BigDecimal> asks = new TreeMap<>();
         
         for (OrderState os : orders.values()) {
-            TreeMap<BigDecimal, BigDecimal> target = (os.side() == open.vincentf13.exchange.common.sdk.enums.OrderSide.BUY) ? bids : asks;
+            TreeMap<BigDecimal, BigDecimal> target = (os.side() == OrderSide.BUY) ? bids : asks;
             target.merge(os.price(), os.quantity(), BigDecimal::add);
         }
         
@@ -73,6 +76,10 @@ public class OrderBookCacheService {
                 .build();
         
         cache.put(instrumentId, snapshot);
+        
+        /**
+         TODO 持久化 與 啟動恢復
+         */
     }
     
     public OrderBookSnapshot get(Long instrumentId) {
