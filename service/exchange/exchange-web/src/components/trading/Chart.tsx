@@ -278,14 +278,13 @@ export default function Chart({ instrumentId }: ChartProps) {
     }
     const { min, max, range } = chartMetrics;
     const mid = (min + max) / 2;
-    const upperMid = (mid + max) / 2;
-    const lowerMid = (mid + min) / 2;
-    const values = [max, upperMid, lowerMid, min];
+    // 使用 5 個均勻分佈的刻度
+    const values = [max, (max + mid) / 2, mid, (min + mid) / 2, min];
     return values.map((value) => {
       const y = PRICE_HEIGHT - ((value - min) / range) * PRICE_HEIGHT;
       return {
         value,
-        y: clamp(y, 6, PRICE_HEIGHT - 6),
+        y,
       };
     });
   }, [chartMetrics]);
@@ -294,13 +293,13 @@ export default function Chart({ instrumentId }: ChartProps) {
     if (!volumeMax || !Number.isFinite(volumeMax)) {
       return [];
     }
-    const values = [volumeMax, volumeMax / 2, 0];
+    const values = [volumeMax, volumeMax / 2];
     return values.map((value) => {
       const ratio = volumeMax > 0 ? value / volumeMax : 0;
       const y = VOLUME_TOP + (1 - ratio) * VOLUME_HEIGHT;
       return {
         value,
-        y: clamp(y, VOLUME_TOP + 8, VOLUME_TOP + VOLUME_HEIGHT - 2),
+        y,
       };
     });
   }, [volumeMax]);
@@ -383,16 +382,21 @@ export default function Chart({ instrumentId }: ChartProps) {
               </linearGradient>
             </defs>
 
-            <g stroke="rgba(255,255,255,0.4)" strokeDasharray="4 4" strokeWidth="0.5">
-              <line x1="0" y1={PRICE_HEIGHT * 0.25} x2={CHART_WIDTH} y2={PRICE_HEIGHT * 0.25} />
-              <line x1="0" y1={PRICE_HEIGHT * 0.5} x2={CHART_WIDTH} y2={PRICE_HEIGHT * 0.5} />
-              <line x1="0" y1={PRICE_HEIGHT * 0.75} x2={CHART_WIDTH} y2={PRICE_HEIGHT * 0.75} />
+            <g stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" strokeWidth="0.5">
+              {priceTicks.map((tick, i) => (
+                <line key={`grid-p-${i}`} x1="0" y1={tick.y} x2={CHART_WIDTH} y2={tick.y} />
+              ))}
               <line x1={CHART_WIDTH * 0.25} y1="0" x2={CHART_WIDTH * 0.25} y2={PRICE_HEIGHT} />
               <line x1={CHART_WIDTH * 0.5} y1="0" x2={CHART_WIDTH * 0.5} y2={PRICE_HEIGHT} />
               <line x1={CHART_WIDTH * 0.75} y1="0" x2={CHART_WIDTH * 0.75} y2={PRICE_HEIGHT} />
             </g>
 
             <line x1="0" y1={VOLUME_TOP} x2={CHART_WIDTH} y2={VOLUME_TOP} stroke="rgba(148,163,184,0.7)" strokeWidth="0.6" />
+            <g stroke="rgba(255,255,255,0.15)" strokeDasharray="2 2" strokeWidth="0.5">
+              {volumeTicks.map((tick, i) => (
+                <line key={`grid-v-${i}`} x1="0" y1={tick.y} x2={CHART_WIDTH} y2={tick.y} />
+              ))}
+            </g>
 
             {chartMetrics && visibleSeries.length > 0 && (
               <>
@@ -503,7 +507,7 @@ export default function Chart({ instrumentId }: ChartProps) {
             <div
               key={`price-${index}`}
               className="absolute right-0 text-[10px] text-slate-400 font-mono text-right"
-              style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
+              style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%`, transform: 'translateY(-50%)' }}
             >
               {formatAxisNumber(tick.value)}
             </div>
@@ -520,7 +524,7 @@ export default function Chart({ instrumentId }: ChartProps) {
             <div
               key={`vol-${index}`}
               className="absolute right-0 text-[9px] text-slate-400 font-mono text-right"
-              style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%` }}
+              style={{ top: `${(tick.y / CHART_HEIGHT) * 100}%`, transform: 'translateY(-50%)' }}
             >
               {formatVolumeNumber(tick.value)}
             </div>
