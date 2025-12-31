@@ -3,6 +3,7 @@ package open.vincentf13.exchange.matching.domain.match.result;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.common.sdk.model.OrderUpdate;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
 
 import java.util.ArrayList;

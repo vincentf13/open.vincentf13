@@ -3,7 +3,6 @@ package open.vincentf13.exchange.matching.infra.wal;
 import lombok.Getter;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
-import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 
@@ -48,18 +47,17 @@ public class InstrumentWal {
         }
     }
 
-    public synchronized List<WalEntry> appendBatch(List<WalAppendRequest> requests) {
-        if (requests == null || requests.isEmpty()) {
+    public synchronized List<WalEntry> appendBatch(List<MatchResult> results) {
+        if (results == null || results.isEmpty()) {
             return List.of();
         }
-        StringBuilder sb = new StringBuilder(requests.size() * 256);
-        List<WalEntry> appended = new ArrayList<>(requests.size());
-        for (WalAppendRequest req : requests) {
+        StringBuilder sb = new StringBuilder(results.size() * 256);
+        List<WalEntry> appended = new ArrayList<>(results.size());
+        for (MatchResult result : results) {
             long nextSeq = lastSeq.incrementAndGet();
             WalEntry entry = WalEntry.builder()
                                      .seq(nextSeq)
-                                     .matchResult(req.result())
-                                     .orderBookUpdatedEvent(req.orderBookUpdatedEvent())
+                                     .matchResult(result)
                                      .appendedAt(Instant.now())
                                      .build();
             sb.append(OpenObjectMapper.toJson(entry)).append(System.lineSeparator());
@@ -95,9 +93,5 @@ public class InstrumentWal {
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to append WAL for " + instrumentId, ex);
         }
-    }
-
-    public record WalAppendRequest(MatchResult result,
-                                   OrderBookUpdatedEvent orderBookUpdatedEvent) {
     }
 }

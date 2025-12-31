@@ -2,17 +2,18 @@ package open.vincentf13.exchange.matching.infra.loader;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.exchange.matching.infra.persistence.repository.TradeRepository;
 import open.vincentf13.exchange.matching.infra.wal.InstrumentWal;
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
 import open.vincentf13.exchange.matching.infra.wal.WalProgressStore;
-import open.vincentf13.exchange.matching.service.InstrumentProcessor;
-import open.vincentf13.exchange.matching.service.MatchingEngine;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
+import open.vincentf13.exchange.matching.service.InstrumentProcessor;
+import open.vincentf13.exchange.matching.service.MatchingEngine;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxRepository;
@@ -21,6 +22,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -93,9 +95,8 @@ public class WalLoader {
                 persisted.addAll(trades);
                 nextIndex[0] = publishTrades(baseOffset, trades, nextIndex[0]);
             }
-            if (entry.getOrderBookUpdatedEvent() != null) {
-                publishOrderBook(baseOffset, entry.getOrderBookUpdatedEvent());
-            }
+            
+            publishOrderBook(baseOffset, entry.getMatchResult());
         });
         OpenLog.info(MatchingEvent.WAL_ENTRY_APPLIED,
                      "seq", entry.getSeq(),
@@ -122,7 +123,13 @@ public class WalLoader {
     }
     
     private void publishOrderBook(long seq,
-                                  OrderBookUpdatedEvent event) {
+                                  MatchResult result) {
+        OrderBookUpdatedEvent event = new OrderBookUpdatedEvent(
+                result.getTakerOrder().getInstrumentId(),
+                result.getUpdates(),
+                Instant.now()
+        );
+
         try {
             outboxRepository.appendWithSeq(MatchingTopics.ORDERBOOK_UPDATED.getTopic(),
                                     event.instrumentId(),

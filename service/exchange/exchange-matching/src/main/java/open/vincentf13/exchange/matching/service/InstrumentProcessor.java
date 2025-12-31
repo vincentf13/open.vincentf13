@@ -8,7 +8,6 @@ import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.exchange.matching.infra.snapshot.InstrumentSnapshot;
 import open.vincentf13.exchange.matching.infra.snapshot.SnapshotState;
 import open.vincentf13.exchange.matching.infra.wal.InstrumentWal;
-import open.vincentf13.exchange.matching.infra.wal.InstrumentWal.WalAppendRequest;
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -52,7 +51,6 @@ public class InstrumentProcessor {
             return;
         }
 
-        List<WalAppendRequest> walRequests = new ArrayList<>(batch.size());
         List<MatchResult> matchResults = new ArrayList<>(batch.size());
 
         for (Order order : batch) {
@@ -69,14 +67,13 @@ public class InstrumentProcessor {
 
             MatchResult result = orderBook.match(order);
             matchResults.add(result);
-            walRequests.add(new WalAppendRequest(result, orderBook.depthSnapshot(instrumentId, 20)));
         }
 
-        if (walRequests.isEmpty()) {
+        if (matchResults.isEmpty()) {
             return;
         }
 
-        List<WalEntry> appended = wal.appendBatch(walRequests);
+        List<WalEntry> appended = wal.appendBatch(matchResults);
         if (appended.isEmpty()) {
             return;
         }

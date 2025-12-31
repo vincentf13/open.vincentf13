@@ -1,59 +1,77 @@
 package open.vincentf13.exchange.market.infra.cache;
 
+import open.vincentf13.exchange.common.sdk.model.OrderUpdate;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
 import open.vincentf13.exchange.market.domain.model.OrderBookSnapshot;
+import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
+import open.vincentf13.sdk.core.OpenBigDecimal;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class OrderBookCacheService {
     
     private final Map<Long, OrderBookSnapshot> cache = new ConcurrentHashMap<>();
+    // 為了維護 L2，我們需要存儲每個 OrderId 的當前狀態，以便計算 Price Level 的變化
+    private final Map<Long, Map<Long, OrderState>> orderStates = new ConcurrentHashMap<>();
+
+    private record OrderState(BigDecimal price, BigDecimal quantity, open.vincentf13.exchange.common.sdk.enums.OrderSide side) {}
     
-    public void update(Long instrumentId,
-                       List<OrderBookLevel> bids,
-                       List<OrderBookLevel> asks,
-                       BigDecimal bestBid,
-                       BigDecimal bestAsk,
-                       BigDecimal midPrice,
-                       Instant updatedAt) {
-        if (instrumentId == null) {
+    public void applyUpdates(Long instrumentId, List<OrderUpdate> updates, Instant updatedAt) {
+        if (instrumentId == null || updates == null) {
             return;
         }
-        List<OrderBookLevel> sortedBids = bids == null ? List.of() : bids.stream()
-                                                                         .sorted(Comparator.comparing(OrderBookLevel::getPrice).reversed())
-                                                                         .toList();
-        List<OrderBookLevel> sortedAsks = asks == null ? List.of() : asks.stream()
-                                                                         .sorted(Comparator.comparing(OrderBookLevel::getPrice))
-                                                                         .toList();
         
-        BigDecimal resolvedBestBid = bestBid != null
-                                     ? bestBid
-                                     : sortedBids.stream().findFirst().map(OrderBookLevel::getPrice).orElse(null);
-        BigDecimal resolvedBestAsk = bestAsk != null
-                                     ? bestAsk
-                                     : sortedAsks.stream().findFirst().map(OrderBookLevel::getPrice).orElse(null);
-        BigDecimal resolvedMid = midPrice;
-        if (resolvedMid == null && resolvedBestBid != null && resolvedBestAsk != null) {
-            resolvedMid = resolvedBestBid.add(resolvedBestAsk).divide(BigDecimal.valueOf(2));
+        Map<Long, OrderState> instrumentOrders = orderStates.computeIfAbsent(instrumentId, k -> new ConcurrentHashMap<>());
+        
+        for (OrderUpdate update : updates) {
+            if (update.getRemainingQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                instrumentOrders.remove(update.getOrderId());
+            } else {
+                instrumentOrders.put(update.getOrderId(), new OrderState(update.getPrice(), update.getRemainingQuantity(), update.getSide()));
+            }
         }
-        Instant resolvedUpdatedAt = updatedAt != null ? updatedAt : Instant.now();
         
+        // 重新計算 L2
+        rebuildL2(instrumentId, instrumentOrders, updatedAt);
+    }
+
+    private void rebuildL2(Long instrumentId, Map<Long, OrderState> orders, Instant updatedAt) {
+        TreeMap<BigDecimal, BigDecimal> bids = new TreeMap<>(Comparator.reverseOrder());
+        TreeMap<BigDecimal, BigDecimal> asks = new TreeMap<>();
+        
+        for (OrderState os : orders.values()) {
+            TreeMap<BigDecimal, BigDecimal> target = (os.side() == open.vincentf13.exchange.common.sdk.enums.OrderSide.BUY) ? bids : asks;
+            target.merge(os.price(), os.quantity(), BigDecimal::add);
+        }
+        
+        List<OrderBookLevel> bidLevels = bids.entrySet().stream()
+                .limit(20)
+                .map(e -> new OrderBookLevel(e.getKey(), OpenBigDecimal.normalizeDecimal(e.getValue())))
+                .toList();
+        List<OrderBookLevel> askLevels = asks.entrySet().stream()
+                .limit(20)
+                .map(e -> new OrderBookLevel(e.getKey(), OpenBigDecimal.normalizeDecimal(e.getValue())))
+                .toList();
+        
+        BigDecimal bestBid = bidLevels.isEmpty() ? null : bidLevels.get(0).getPrice();
+        BigDecimal bestAsk = askLevels.isEmpty() ? null : askLevels.get(0).getPrice();
+        BigDecimal mid = (bestBid != null && bestAsk != null) ? OpenBigDecimal.normalizeDecimal(bestBid.add(bestAsk).divide(BigDecimal.valueOf(2))) : null;
+
         OrderBookSnapshot snapshot = OrderBookSnapshot.builder()
-                                                      .instrumentId(instrumentId)
-                                                      .bids(sortedBids)
-                                                      .asks(sortedAsks)
-                                                      .bestBid(resolvedBestBid)
-                                                      .bestAsk(resolvedBestAsk)
-                                                      .midPrice(resolvedMid)
-                                                      .updatedAt(resolvedUpdatedAt)
-                                                      .build();
+                .instrumentId(instrumentId)
+                .bids(bidLevels)
+                .asks(askLevels)
+                .bestBid(bestBid)
+                .bestAsk(bestAsk)
+                .midPrice(mid)
+                .updatedAt(updatedAt)
+                .build();
+        
         cache.put(instrumentId, snapshot);
     }
     

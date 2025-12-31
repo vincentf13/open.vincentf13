@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.matching.domain.match.result;
+package open.vincentf13.exchange.common.sdk.model;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 
 import java.math.BigDecimal;
 
@@ -18,6 +19,8 @@ public class OrderUpdate {
     
     @NotNull
     private Long orderId;
+    private BigDecimal price;
+    private OrderSide side;
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal remainingQuantity;
     private boolean isTaker;

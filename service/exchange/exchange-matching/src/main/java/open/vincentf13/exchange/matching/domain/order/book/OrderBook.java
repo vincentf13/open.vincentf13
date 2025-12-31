@@ -1,9 +1,9 @@
 package open.vincentf13.exchange.matching.domain.order.book;
 
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.model.OrderUpdate;
 import open.vincentf13.exchange.matching.domain.instrument.Instrument;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
-import open.vincentf13.exchange.matching.domain.match.result.OrderUpdate;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
@@ -49,6 +49,8 @@ public class OrderBook {
                 BigDecimal makerRemaining = maker.getQuantity().subtract(fillQty);
                 result.addUpdate(OrderUpdate.builder()
                                             .orderId(maker.getOrderId())
+                                            .price(maker.getPrice())
+                                            .side(maker.getSide())
                                             .remainingQuantity(OpenBigDecimal.normalizeDecimal(makerRemaining.max(BigDecimal.ZERO)))
                                             .isTaker(false)
                                             .build());
@@ -58,6 +60,8 @@ public class OrderBook {
         
         result.addUpdate(OrderUpdate.builder()
                                     .orderId(taker.getOrderId())
+                                    .price(taker.getPrice())
+                                    .side(taker.getSide())
                                     .remainingQuantity(OpenBigDecimal.normalizeDecimal(remaining.max(BigDecimal.ZERO)))
                                     .isTaker(true)
                                     .build());
