@@ -26,7 +26,6 @@ import java.util.function.BiFunction;
  */
 @Configuration
 @EnableKafka
-@ConditionalOnBean(ConsumerFactory.class)
 public class ConfigKafkaConsumer {
     
     
@@ -51,6 +50,7 @@ public class ConfigKafkaConsumer {
         ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         // 套用 spring.kafka.listener.* 與 spring.kafka.consumer.* 配置
         configurer.configure(factory, consumerFactory);
+        factory.setBatchListener(false); // 顯式設定為單筆模式
         
         // 配置訊息轉換器：將 JSON String 轉換為 POJO
         factory.setRecordMessageConverter(new StringJsonMessageConverter(objectMapper));
@@ -81,7 +81,7 @@ public class ConfigKafkaConsumer {
         
         OpenLog.info(KafkaEvent.KAFKA_CONSUMER_CONFIGURED,
                      "ackMode", factory.getContainerProperties().getAckMode(),
-                     "listenerType", factory.isBatchListener() ? "BATCH" : "SINGLE",
+                     "listenerType", Boolean.TRUE.equals(factory.isBatchListener()) ? "BATCH" : "SINGLE",
                      "errorHandler", "DLQ with 2 retries");
         
         return factory;

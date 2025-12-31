@@ -46,8 +46,6 @@ spring:
         fetch.min.bytes: 262144
         fetch.max.wait.ms: 150
     listener:
-      # 單筆 / 批次消費
-      type: single
       # 手動 ACK
       ack-mode: manual
       sync-commits: false   # async commit
