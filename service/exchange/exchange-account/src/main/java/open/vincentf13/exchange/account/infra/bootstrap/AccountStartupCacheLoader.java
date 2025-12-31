@@ -25,16 +25,8 @@ public class AccountStartupCacheLoader {
 
     private final ExchangeAdminClient adminClient;
     private final InstrumentCache instrumentCache;
-    private final AtomicBoolean initialized = new AtomicBoolean(false);
     
-    @EventListener(ContextRefreshedEvent.class)
-    public void loadCaches(ContextRefreshedEvent event) {
-        if (event.getApplicationContext().getParent() != null) {
-            return;
-        }
-        if (!initialized.compareAndSet(false, true)) {
-            return;
-        }
+    public void loadCaches() {
         OpenLog.info(AccountEvent.STARTUP_CACHE_LOADING);
 
         int attempt = 0;

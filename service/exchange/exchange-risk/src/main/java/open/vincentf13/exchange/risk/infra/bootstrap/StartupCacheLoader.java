@@ -9,7 +9,6 @@ import open.vincentf13.exchange.risk.infra.RiskEvent;
 import open.vincentf13.exchange.risk.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.risk.infra.cache.MarkPriceCache;
 import open.vincentf13.sdk.core.log.OpenLog;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,7 +16,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class StartupCacheLoader implements CommandLineRunner {
+public class StartupCacheLoader {
 
     private static final int MAX_RETRY_ATTEMPTS = 3;
     private static final long RETRY_DELAY_MS = 2000;
@@ -26,11 +25,6 @@ public class StartupCacheLoader implements CommandLineRunner {
     private final ExchangeMarketClient marketClient;
     private final InstrumentCache instrumentCache;
     private final MarkPriceCache markPriceCache;
-
-    @Override
-    public void run(String... args) {
-        loadCaches();
-    }
 
     public void loadCaches() {
         OpenLog.info(RiskEvent.STARTUP_CACHE_LOADING);

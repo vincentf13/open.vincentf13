@@ -20,8 +20,7 @@ public class InstrumentCache {
 
     private final Map<Long, Instrument> cache = new ConcurrentHashMap<>();
 
-    @PostConstruct
-    public void init() {
+    public InstrumentCache() {
         instance = this;
     }
 

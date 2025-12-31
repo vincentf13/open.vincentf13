@@ -40,7 +40,6 @@ public class WalLoader {
     
     private final Map<Long, Long> lastProcessedSeqMap = new ConcurrentHashMap<>();
     
-    @PostConstruct
     public void init() {
     }
     

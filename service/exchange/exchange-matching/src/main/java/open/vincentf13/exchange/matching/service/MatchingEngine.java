@@ -23,7 +23,6 @@ public class MatchingEngine {
     
     private final Map<Long, InstrumentProcessor> processors = new ConcurrentHashMap<>();
     
-    @PostConstruct
     public void init() {
         scanAndLoadInstruments();
     }
