@@ -1,5 +1,6 @@
 package open.vincentf13.sdk.infra.kafka.consumer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.kafka.KafkaEvent;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -15,6 +16,7 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.function.BiFunction;
@@ -34,6 +36,7 @@ public class ConfigKafkaConsumer {
      @param consumerFactory Spring Boot 自動配置的 ConsumerFactory。
      @param kafkaTemplate   Spring Boot 自動配置的 KafkaTemplate，用於發送訊息到 DLQ。
      @param kafkaProperties Spring Boot 自動配置的 Kafka 屬性，用於日誌記錄。
+     @param objectMapper    Spring Boot 自動配置的 ObjectMapper。
      @return 配置好的 ConcurrentKafkaListenerContainerFactory。
      */
     @Bean
@@ -42,12 +45,15 @@ public class ConfigKafkaConsumer {
             ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
             ConsumerFactory<Object, Object> consumerFactory,
             KafkaTemplate<String, Object> kafkaTemplate,
-            KafkaProperties kafkaProperties) {
+            KafkaProperties kafkaProperties,
+            ObjectMapper objectMapper) {
         
         ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         // 套用 spring.kafka.listener.* 與 spring.kafka.consumer.* 配置
         configurer.configure(factory, consumerFactory);
         
+        // 配置訊息轉換器：將 JSON String 轉換為 POJO
+        factory.setRecordMessageConverter(new StringJsonMessageConverter(objectMapper));
         
         // 配置錯誤處理器 (重試 + DLQ)
         // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ
@@ -87,11 +93,15 @@ public class ConfigKafkaConsumer {
             ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
             ConsumerFactory<Object, Object> consumerFactory,
             KafkaTemplate<String, Object> kafkaTemplate,
-            KafkaProperties kafkaProperties) {
+            KafkaProperties kafkaProperties,
+            ObjectMapper objectMapper) {
 
         ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         configurer.configure(factory, consumerFactory);
         factory.setBatchListener(true); // Force Batch
+        
+        // 配置訊息轉換器：將 JSON String 轉換為 POJO (批次處理時會對每個元素應用此轉換器)
+        factory.setRecordMessageConverter(new StringJsonMessageConverter(objectMapper));
 
         BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) -> new TopicPartition(record.topic() + ".DLT", record.partition());
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
