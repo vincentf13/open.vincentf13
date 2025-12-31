@@ -17,7 +17,8 @@ import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
 
-import java.util.function.BiFunction;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 /**
  Kafka Consumer 配置類
@@ -25,8 +26,11 @@ import java.util.function.BiFunction;
 @Configuration
 @EnableKafka
 public class ConfigKafkaConsumer {
-    
-    
+
+    private static final long RETRY_BACKOFF_MS = 1000L;
+    private static final long RETRY_MAX_ATTEMPTS = 2L;
+    private static final String DLT_SUFFIX = ".DLT";
+
     /**
      創建並配置 Kafka 監聽器容器工廠。
      
@@ -44,46 +48,8 @@ public class ConfigKafkaConsumer {
             KafkaTemplate<String, Object> kafkaTemplate,
             KafkaProperties kafkaProperties,
             ObjectMapper objectMapper) {
-        
-        ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        // 套用 spring.kafka.listener.* 與 spring.kafka.consumer.* 配置
-        configurer.configure(factory, consumerFactory);
-        factory.setBatchListener(false); // 顯式設定為單筆模式
-        
-  
-        // 配置訊息轉換器：將 JSON String 轉換為 POJO (支援 Double Encoding)
-        factory.setRecordMessageConverter(new open.vincentf13.sdk.infra.kafka.consumer.DoubleDecodingJsonMessageConverter(objectMapper));
-        
-        // 配置錯誤處理器 (重試 + DLQ)
-        // 創建 DeadLetterPublishingRecoverer，當重試耗盡時，將訊息發送到 DLQ
-        // DLQ 的 topic 命名規則為：<原始topic>.DLT
-        BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) -> new TopicPartition(record.topic() + ".DLT", record.partition());
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
-        
-        // 設置重試次數和間隔
-        // listener 方法裡未捕捉的 runtime / checked exception 都會重試
-        // 重試耗盡後 DeadLetterPublishingRecoverer 把原訊息送到 <topic>.DLT，Recoverer 成功回傳後 DefaultErrorHandler 才告知容器「這筆已處理完成」，容器再提交原 Topic 的 offset。
-        // 此處配置為重試 2 次，每次間隔 1 秒。之後再發送到 DLQ。
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2));
-        
-        // 註冊日誌記錄，以便觀察重試和 DLQ 的行為
-        errorHandler.setRetryListeners((record, ex, deliveryAttempt) ->
-                                               OpenLog.error(KafkaEvent.KAFKA_CONSUME_RETRY, ex,
-                                                            "topic", record.topic(),
-                                                            "partition", record.partition(),
-                                                            "offset", record.offset(),
-                                                            "attempt", deliveryAttempt,
-                                                            "groupId", kafkaProperties.getConsumer().getGroupId())
-                                      );
-        
-        factory.setCommonErrorHandler(errorHandler);
-        
-        OpenLog.info(KafkaEvent.KAFKA_CONSUMER_CONFIGURED,
-                     "ackMode", factory.getContainerProperties().getAckMode(),
-                     "listenerType", Boolean.TRUE.equals(factory.isBatchListener()) ? "BATCH" : "SINGLE",
-                     "errorHandler", "DLQ with 2 retries");
-        
-        return factory;
+
+        return buildListenerContainerFactory(configurer, consumerFactory, kafkaTemplate, kafkaProperties, objectMapper, false, "SINGLE");
     }
 
     @Bean
@@ -95,31 +61,66 @@ public class ConfigKafkaConsumer {
             KafkaProperties kafkaProperties,
             ObjectMapper objectMapper) {
 
-        ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        configurer.configure(factory, consumerFactory);
-        factory.setBatchListener(true); // Force Batch
-        
-        // 配置訊息轉換器：將 JSON String 轉換為 POJO (批次處理時會對每個元素應用此轉換器，並支援 Double Encoding)
-        factory.setRecordMessageConverter(new open.vincentf13.sdk.infra.kafka.consumer.DoubleDecodingJsonMessageConverter(objectMapper));
+        return buildListenerContainerFactory(configurer, consumerFactory, kafkaTemplate, kafkaProperties, objectMapper, true, "BATCH (Forced)");
+    }
 
-        BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) -> new TopicPartition(record.topic() + ".DLT", record.partition());
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2));
+    private ConcurrentKafkaListenerContainerFactory<Object, Object> buildListenerContainerFactory(
+            ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
+            ConsumerFactory<Object, Object> consumerFactory,
+            KafkaTemplate<String, Object> kafkaTemplate,
+            KafkaProperties kafkaProperties,
+            ObjectMapper objectMapper,
+            boolean batchListener,
+            String listenerTypeLabel) {
+
+        ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        // 套用 spring.kafka.listener.* 與 spring.kafka.consumer.* 配置
+        configurer.configure(factory, consumerFactory);
+        factory.setBatchListener(batchListener);
+
+        // 配置訊息轉換器：將 JSON String 轉換為 POJO (支援 Double Encoding)
+        factory.setRecordMessageConverter(new DoubleDecodingJsonMessageConverter(objectMapper));
+
+        factory.setCommonErrorHandler(buildErrorHandler(kafkaTemplate, kafkaProperties));
+
+        OpenLog.info(KafkaEvent.KAFKA_CONSUMER_CONFIGURED,
+                     "ackMode", factory.getContainerProperties().getAckMode(),
+                     "listenerType", listenerTypeLabel,
+                     "errorHandler", "DLQ with 2 retries");
+
+        return factory;
+    }
+
+    private DefaultErrorHandler buildErrorHandler(KafkaTemplate<String, Object> kafkaTemplate,
+                                                  KafkaProperties kafkaProperties) {
+        // 配置錯誤處理器 (重試 + DLQ)
+        // 重試耗盡後 DeadLetterPublishingRecoverer 把原訊息送到 <topic>.DLT
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, this::routeToDlq);
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(RETRY_BACKOFF_MS, RETRY_MAX_ATTEMPTS));
         errorHandler.setRetryListeners((record, ex, deliveryAttempt) ->
                                                OpenLog.error(KafkaEvent.KAFKA_CONSUME_RETRY, ex,
                                                             "topic", record.topic(),
                                                             "partition", record.partition(),
                                                             "offset", record.offset(),
                                                             "attempt", deliveryAttempt,
-                                                            "groupId", kafkaProperties.getConsumer().getGroupId())
+                                                            "groupId", kafkaProperties.getConsumer().getGroupId(),
+                                                            "stackTrace", stackTraceOf(ex))
                                       );
-        factory.setCommonErrorHandler(errorHandler);
+        return errorHandler;
+    }
 
-        OpenLog.info(KafkaEvent.KAFKA_CONSUMER_CONFIGURED,
-                     "ackMode", factory.getContainerProperties().getAckMode(),
-                     "listenerType", "BATCH (Forced)",
-                     "errorHandler", "DLQ with 2 retries");
+    private TopicPartition routeToDlq(ConsumerRecord<?, ?> record, Exception ex) {
+        return new TopicPartition(record.topic() + DLT_SUFFIX, record.partition());
+    }
 
-        return factory;
+    private String stackTraceOf(Throwable throwable) {
+        if (throwable == null) {
+            return "";
+        }
+        StringWriter writer = new StringWriter();
+        PrintWriter printer = new PrintWriter(writer);
+        throwable.printStackTrace(printer);
+        printer.flush();
+        return writer.toString();
     }
 }
