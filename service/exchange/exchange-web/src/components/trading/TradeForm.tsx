@@ -55,7 +55,9 @@ export default function TradeForm({ instrument }: TradeFormProps) {
     }
   };
 
-  const total = (Number(price) || 0) * (Number(quantity) || 0);
+  const contractSizeValue = Number(instrument?.contractSize);
+  const contractMultiplier = Number.isFinite(contractSizeValue) && contractSizeValue > 0 ? contractSizeValue : 1;
+  const total = (Number(price) || 0) * (Number(quantity) || 0) * contractMultiplier;
 
   return (
     <div className="flex flex-col h-full">
@@ -126,11 +128,14 @@ export default function TradeForm({ instrument }: TradeFormProps) {
                     type === 'MARKET' ? 'placeholder-slate-400 cursor-not-allowed' : ''
                   }`} 
                 />
-                <div className="flex items-center justify-start w-[52px] pl-2 border-l border-white/20 bg-white/5">
-                  <span className="text-xs text-slate-400 font-medium whitespace-nowrap select-none">
+                <div className="flex items-center justify-end w-[52px] pr-2 border-l border-white/20 bg-white/5">
+                  <span className="text-xs text-slate-400 font-medium whitespace-nowrap select-none text-right">
                     {instrument?.quoteAsset || ''}
                   </span>
                 </div>
+            </div>
+            <div className="text-[11px] text-slate-400 text-right pr-2">
+              Contract Size: {instrument?.contractSize ?? '--'}
             </div>
         </div>
 

@@ -7,6 +7,7 @@ export type InstrumentSummary = {
   instrumentType?: string;
   quoteAsset?: string;
   baseAsset?: string;
+  contractSize?: number | string | null;
   [key: string]: unknown;
 };
 
