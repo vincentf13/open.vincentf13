@@ -195,17 +195,22 @@ public class OrderCommandService {
                : PositionSide.SHORT;
     }
     
+    private static final int MAX_REJECTED_REASON_LENGTH = 255;
+
     private OrderResponse rejectOrder(Order order,
                                       String reason) {
+        String truncatedReason = reason != null && reason.length() > MAX_REJECTED_REASON_LENGTH
+                                 ? reason.substring(0, MAX_REJECTED_REASON_LENGTH)
+                                 : reason;
         order.setStatus(OrderStatus.REJECTED);
-        order.setRejectedReason(reason);
+        order.setRejectedReason(truncatedReason);
         transactionTemplate.executeWithoutResult(status -> {
             orderRepository.insertSelective(order);
             recordOrderEvent(order,
                              OrderEventType.ORDER_REJECTED,
                              actorFromUser(order.getUserId()),
                              Instant.now(),
-                             Map.of("reason", reason),
+                             Map.of("reason", Optional.ofNullable(truncatedReason).orElse("")),
                              OrderEventReferenceType.RISK_CHECK,
                              null);
         });

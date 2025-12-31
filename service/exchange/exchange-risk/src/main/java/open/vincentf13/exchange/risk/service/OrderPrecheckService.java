@@ -59,6 +59,7 @@ public class OrderPrecheckService {
             return validateLiquidationRisk(snapshot, requiredMargin, fee, orderNotional, markPrice, multiplier, riskLimit, request.getIntent());
             
         } catch (Exception e) {
+            e.printStackTrace();
             return new OrderPrecheckResponse(false, null, null, "Risk check error: " + e.getMessage());
         }
     }
