@@ -80,4 +80,37 @@ public class ConfigKafkaConsumer {
         
         return factory;
     }
+
+    @Bean
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    public ConcurrentKafkaListenerContainerFactory<Object, Object> kafkaBatchListenerContainerFactory(
+            ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
+            ConsumerFactory<Object, Object> consumerFactory,
+            KafkaTemplate<String, Object> kafkaTemplate,
+            KafkaProperties kafkaProperties) {
+
+        ConcurrentKafkaListenerContainerFactory<Object, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        configurer.configure(factory, consumerFactory);
+        factory.setBatchListener(true); // Force Batch
+
+        BiFunction<ConsumerRecord<?, ?>, Exception, TopicPartition> dlqTopicRouter = (record, ex) -> new TopicPartition(record.topic() + ".DLT", record.partition());
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2));
+        errorHandler.setRetryListeners((record, ex, deliveryAttempt) ->
+                                               OpenLog.warn(KafkaEvent.KAFKA_CONSUME_RETRY, ex,
+                                                            "topic", record.topic(),
+                                                            "partition", record.partition(),
+                                                            "offset", record.offset(),
+                                                            "attempt", deliveryAttempt,
+                                                            "groupId", kafkaProperties.getConsumer().getGroupId())
+                                      );
+        factory.setCommonErrorHandler(errorHandler);
+
+        OpenLog.info(KafkaEvent.KAFKA_CONSUMER_CONFIGURED,
+                     "ackMode", factory.getContainerProperties().getAckMode(),
+                     "listenerType", "BATCH (Forced)",
+                     "errorHandler", "DLQ with 2 retries");
+
+        return factory;
+    }
 }

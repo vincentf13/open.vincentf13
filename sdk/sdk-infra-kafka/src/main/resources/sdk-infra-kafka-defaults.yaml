@@ -37,12 +37,8 @@ spring:
       max-poll-interval-ms: 300000 # 5 分鐘
       # 反序列化
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
-        # 自動反序列化
-        spring.json.use.type.headers: true
-        # 信任所有包（*）僅建議在開發環境使用，生產環境應指定具體的包路徑
-        spring.json.trusted.packages: '*'
         # 為每個實例動態分配唯一的成員ID，以啟用靜態成員資格
 #        group.instance.id: ${spring.application.name}-${random.uuid}
         session.timeout.ms: 10000
@@ -50,8 +46,8 @@ spring:
         fetch.min.bytes: 262144
         fetch.max.wait.ms: 150
     listener:
-      # 批次
-      type: batch
+      # 單筆 / 批次消費
+      type: single
       # 手動 ACK
       ack-mode: manual
       sync-commits: false   # async commit

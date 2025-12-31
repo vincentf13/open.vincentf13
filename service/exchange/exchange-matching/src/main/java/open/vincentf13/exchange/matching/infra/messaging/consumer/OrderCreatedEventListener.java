@@ -22,6 +22,7 @@ public class OrderCreatedEventListener {
     
     @KafkaListener(topics = OrderTopics.Names.ORDER_CREATED,
                    groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
+                   containerFactory = "kafkaBatchListenerContainerFactory",
                    concurrency = "1")
     public void onOrderCreated(@Payload List<OrderCreatedEvent> events,
                                Acknowledgment acknowledgment) {
