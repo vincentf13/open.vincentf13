@@ -79,7 +79,7 @@ export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
 
   useEffect(() => {
     mountedRef.current = true;
-    loadBalances();
+    loadBalances(true);
     return () => {
       mountedRef.current = false;
     };
