@@ -35,7 +35,11 @@ const formatAmountWithAsset = (value: string, asset: string) => {
   return `${value} ${asset}`;
 };
 
-export default function AccountPanel() {
+type AccountPanelProps = {
+  refreshTrigger?: number;
+};
+
+export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
   const [balances, setBalances] = useState<BalanceState>(defaultBalances);
   const requestRef = useRef<Promise<any> | null>(null);
   const mountedRef = useRef(true);
@@ -79,7 +83,7 @@ export default function AccountPanel() {
     return () => {
       mountedRef.current = false;
     };
-  }, [loadBalances]);
+  }, [loadBalances, refreshTrigger]);
 
   const resolveUserId = useCallback(async () => {
     try {

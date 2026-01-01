@@ -32,6 +32,12 @@ export default function Trading() {
     const cachedList = getCachedInstrumentSummaries();
     return cachedId || cachedList[0]?.instrumentId || null;
   });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleRefresh = () => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
   const handleLogout = () => {
     setAuthOpen(true);
   };
@@ -113,6 +119,7 @@ export default function Trading() {
                 <MarketStats
                   instruments={instruments}
                   selectedInstrument={selectedInstrument}
+                  refreshTrigger={refreshTrigger}
                   onSelectInstrument={(instrument) => {
                     setSelectedInstrumentId(instrument.instrumentId);
                     setCachedInstrumentId(instrument.instrumentId);
@@ -120,18 +127,18 @@ export default function Trading() {
                 />
               </div>
               <div className="flex-1 min-h-0 relative z-10">
-                <Chart instrumentId={selectedInstrumentId} />
+                <Chart instrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} />
               </div>
             </div>
 
             {/* Middle Column: Order Book */}
             <div className="flex flex-col min-w-0 bg-white/5">
-              <OrderBook instrumentId={selectedInstrumentId} />
+              <OrderBook instrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} />
             </div>
           </div>
 
           <div className="px-2 lg:px-4">
-            <Positions instruments={instruments} selectedInstrumentId={selectedInstrumentId} />
+            <Positions instruments={instruments} selectedInstrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} />
           </div>
         </div>
 
@@ -142,13 +149,13 @@ export default function Trading() {
               <TradeForm instrument={selectedInstrument} />
             </div>
             <div className="flex-1 min-h-0 p-4">
-              <AccountPanel />
+              <AccountPanel refreshTrigger={refreshTrigger} />
             </div>
           </div>
         </div>
 
         {/* Reset Data Button - Bottom Left */}
-        <div className="fixed bottom-4 left-4 z-50">
+        <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2">
           <button
             onClick={handleResetData}
             disabled={resetting}
@@ -156,6 +163,14 @@ export default function Trading() {
           >
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
             {resetting ? 'Resetting...' : 'Reset System Data'}
+          </button>
+
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
+          >
+            <span className="text-xs">⟳</span>
+            Refresh
           </button>
         </div>
       </div>

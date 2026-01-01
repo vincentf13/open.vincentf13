@@ -5,6 +5,7 @@ import { getKlines, type KlineResponse } from '../../api/market';
 
 type ChartProps = {
   instrumentId: string | null;
+  refreshTrigger?: number;
 };
 
 type SeriesPoint = {
@@ -118,7 +119,7 @@ const formatDateTime = (value: string | undefined) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 };
 
-export default function Chart({ instrumentId }: ChartProps) {
+export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
   const [period, setPeriod] = useState<(typeof periods)[number]>('1h');
   const [klines, setKlines] = useState<KlineResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -162,7 +163,7 @@ export default function Chart({ instrumentId }: ChartProps) {
     return () => {
       cancelled = true;
     };
-  }, [instrumentId, period]);
+  }, [instrumentId, period, refreshTrigger]);
 
   const series = useMemo<SeriesPoint[]>(() => {
     if (!klines.length) {

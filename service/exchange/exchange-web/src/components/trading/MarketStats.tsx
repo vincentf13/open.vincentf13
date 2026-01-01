@@ -9,12 +9,14 @@ type MarketStatsProps = {
   instruments: InstrumentSummary[];
   selectedInstrument: InstrumentSummary | null;
   onSelectInstrument: (instrument: InstrumentSummary) => void;
+  refreshTrigger?: number;
 };
 
 export default function MarketStats({
   instruments,
   selectedInstrument,
   onSelectInstrument,
+  refreshTrigger,
 }: MarketStatsProps) {
     const currentName = selectedInstrument?.name || selectedInstrument?.symbol || 'BTC/USDT';
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -130,7 +132,7 @@ export default function MarketStats({
         return () => {
             cancelled = true;
         };
-    }, [selectedInstrument?.instrumentId]);
+    }, [selectedInstrument?.instrumentId, refreshTrigger]);
 
     useEffect(() => {
         if (!selectedInstrument?.instrumentId) {
@@ -164,7 +166,7 @@ export default function MarketStats({
         return () => {
             cancelled = true;
         };
-    }, [selectedInstrument?.instrumentId]);
+    }, [selectedInstrument?.instrumentId, refreshTrigger]);
 
     return (
         <div className="p-4">

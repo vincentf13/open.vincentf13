@@ -5,6 +5,7 @@ import { getOrderBook, type OrderBookLevel, type OrderBookResponse } from '../..
 
 type OrderBookProps = {
   instrumentId: string | null;
+  refreshTrigger?: number;
 };
 
 type RowData = {
@@ -69,7 +70,7 @@ const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolea
   }));
 };
 
-export default function OrderBook({ instrumentId }: OrderBookProps) {
+export default function OrderBook({ instrumentId, refreshTrigger }: OrderBookProps) {
   const [orderBook, setOrderBook] = useState<OrderBookResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -105,7 +106,7 @@ export default function OrderBook({ instrumentId }: OrderBookProps) {
     return () => {
       cancelled = true;
     };
-  }, [instrumentId]);
+  }, [instrumentId, refreshTrigger]);
 
   const asks = useMemo(() => buildRows(orderBook?.asks, false).slice(0, 5), [orderBook?.asks]);
   const bids = useMemo(() => buildRows(orderBook?.bids, true).slice(0, 5), [orderBook?.bids]);

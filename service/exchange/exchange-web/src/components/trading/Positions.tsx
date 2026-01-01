@@ -9,6 +9,7 @@ import { getTradesByInstrument, getTradesByOrderId, type TradeResponse } from '.
 type PositionsProps = {
   instruments: InstrumentSummary[];
   selectedInstrumentId: string | null;
+  refreshTrigger?: number;
 };
 
 const formatNumber = (value: string | number | null | undefined) => {
@@ -56,7 +57,7 @@ const formatDateTime = (value: string | number | null | undefined) => {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-export default function Positions({ instruments, selectedInstrumentId }: PositionsProps) {
+export default function Positions({ instruments, selectedInstrumentId, refreshTrigger }: PositionsProps) {
   const [activeTab, setActiveTab] = useState('Positions');
   const [positions, setPositions] = useState<PositionResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -183,7 +184,7 @@ export default function Positions({ instruments, selectedInstrumentId }: Positio
     if (activeTab === 'Traders') {
       fetchInstrumentTrades();
     }
-  }, [activeTab, selectedInstrumentId]);
+  }, [activeTab, selectedInstrumentId, refreshTrigger]);
 
   const orderColumns = [
     { key: 'instrumentId', label: 'Instrument' },
