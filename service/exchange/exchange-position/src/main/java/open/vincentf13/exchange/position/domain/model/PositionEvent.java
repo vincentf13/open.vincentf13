@@ -49,9 +49,6 @@ public class PositionEvent {
     private BigDecimal newQuantity;
 
     @NotNull
-    private BigDecimal newReservedQuantity;
-
-    @NotNull
     private BigDecimal newEntryPrice;
 
     @NotNull
@@ -87,7 +84,6 @@ public class PositionEvent {
                                                   BigDecimal tradeFee,
                                                   BigDecimal fundingFee,
                                                   BigDecimal newQuantity,
-                                                  BigDecimal newReservedQuantity,
                                                   BigDecimal newEntryPrice,
                                                   Integer newLeverage,
                                                   BigDecimal newMargin,
@@ -106,7 +102,6 @@ public class PositionEvent {
                 .tradeFee(tradeFee)
                 .fundingFee(fundingFee)
                 .newQuantity(newQuantity)
-                .newReservedQuantity(newReservedQuantity)
                 .newEntryPrice(newEntryPrice)
                 .newLeverage(newLeverage)
                 .newMargin(newMargin)
