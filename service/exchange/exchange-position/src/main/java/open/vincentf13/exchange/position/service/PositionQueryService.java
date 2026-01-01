@@ -53,13 +53,10 @@ public class PositionQueryService {
                                                      PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE.code());
         }
         int expectedVersion = position.safeVersion();
-        Position updateRecord = Position.builder()
-                                        .positionId(position.getPositionId())
-                                        .closingReservedQuantity(position.getClosingReservedQuantity().add(request.quantity()))
-                                        .version(expectedVersion + 1)
-                                        .build();
+        position.setClosingReservedQuantity(position.getClosingReservedQuantity().add(request.quantity()));
+        position.setVersion(expectedVersion + 1);
         boolean updated = positionRepository.updateSelectiveBy(
-                updateRecord,
+                position,
                 new LambdaUpdateWrapper<PositionPO>()
                         .eq(PositionPO::getPositionId, position.getPositionId())
                         .eq(PositionPO::getUserId, position.getUserId())
