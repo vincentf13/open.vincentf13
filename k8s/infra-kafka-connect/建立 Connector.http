@@ -68,3 +68,15 @@ Content-Type: application/json
 
 GET http://infra-kafka-connect.default.svc.cluster.local:8083/connectors
 Content-Type: application/json
+
+
+###
+
+GET http://infra-kafka-connect.default.svc.cluster.local:8083/connectors/mysql-cdc/status
+Content-Type: application/json
+
+
+
+###
+
+DELETE http://infra-kafka-connect.default.svc.cluster.local:8083/connectors/mysql-cdc

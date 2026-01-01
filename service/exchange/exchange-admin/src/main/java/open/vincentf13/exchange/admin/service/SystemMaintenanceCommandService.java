@@ -52,7 +52,8 @@ public class SystemMaintenanceCommandService {
     private static final Set<String> PROTECTED_TOPICS = Set.of(
             "infra.connect.config",
             "infra.connect.offsets",
-            "infra.connect.status"
+            "infra.connect.status",
+            "cdc.infra-mysql-0"
     );
 
     /**
