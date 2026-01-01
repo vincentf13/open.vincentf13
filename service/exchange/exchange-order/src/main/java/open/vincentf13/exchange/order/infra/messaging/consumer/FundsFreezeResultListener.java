@@ -18,7 +18,9 @@ import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventReferenceType
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventType;
 import open.vincentf13.sdk.core.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
+import org.apache.kafka.common.TopicPartition;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.listener.ConsumerSeekAware;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
@@ -28,13 +30,23 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class FundsFreezeResultListener {
+public class FundsFreezeResultListener implements ConsumerSeekAware {
 
     private final OrderRepository orderRepository;
     private final OrderEventPublisher orderEventPublisher;
     private final OrderEventRepository orderEventRepository;
     private final TransactionTemplate transactionTemplate;
     private static final String ACTOR_ACCOUNT = "ACCOUNT_SERVICE";
+
+    /**
+     調試用
+     * @param assignments
+     * @param callback
+     */
+    @Override
+    public void onPartitionsAssigned(Map<TopicPartition, Long> assignments, ConsumerSeekCallback callback) {
+        callback.seekToBeginning(assignments.keySet());
+    }
 
     @KafkaListener(topics = AccountFundsTopics.Names.FUNDS_FROZEN,
                    groupId = "${open.vincentf13.exchange.order.consumer-group:exchange-order}")
