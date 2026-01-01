@@ -6,7 +6,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 @FeignClient(
         contextId = "exchangeMatchingMaintenanceClient",
         name = "${exchange.matching.client.name:exchange-matching}",
-        url = "${exchange.matching.client.url:}"
+        url = "${exchange.matching.client.url:}",
+        path = "/api/matching/maintenance"
 )
 public interface ExchangeMatchingMaintenanceClient extends MatchingMaintenanceApi {
 }

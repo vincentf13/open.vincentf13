@@ -6,7 +6,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 @FeignClient(
         contextId = "exchangeMarketMaintenanceClient",
         name = "${exchange.market.client.name:exchange-market}",
-        url = "${exchange.market.client.url:}"
+        url = "${exchange.market.client.url:}",
+        path = "/api/market/maintenance"
 )
 public interface ExchangeMarketMaintenanceClient extends MarketMaintenanceApi {
 }
