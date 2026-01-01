@@ -72,9 +72,9 @@ logging:
   level:
     # MyBatis 核心層的預設日誌等級
     org.mybatis: warn
-    org.springframework.transaction: DEBUG
-    org.springframework.transaction.interceptor: DEBUG
-    org.mybatis.spring.SqlSessionUtils: DEBUG
+    org.springframework.transaction: INFO
+    org.springframework.transaction.interceptor: INFO
+    org.mybatis.spring.SqlSessionUtils: INFO
 
 mybatis:
   # Mapper XML 放置位置（支援多層目錄）

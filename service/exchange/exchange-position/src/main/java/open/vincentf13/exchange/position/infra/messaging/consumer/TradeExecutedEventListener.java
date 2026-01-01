@@ -35,12 +35,8 @@ public class TradeExecutedEventListener implements ConsumerSeekAware {
                    groupId = "${exchange.position.trade-executed.consumer-group:exchange-position-trade-executed}")
     public void onTradeExecuted(@Payload TradeExecutedEvent event,
                                 Acknowledgment acknowledgment) {
-        try {
-            positionTradeCloseService.handleTradeExecuted(event);
-            acknowledgment.acknowledge();
-        } catch (Exception e) {
-            OpenLog.error(PositionEvent.POSITION_TRADE_PAYLOAD_INVALID, e, "event", event);
-            throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
-        }
+        
+        positionTradeCloseService.handleTradeExecuted(event);
+        acknowledgment.acknowledge();
     }
 }
