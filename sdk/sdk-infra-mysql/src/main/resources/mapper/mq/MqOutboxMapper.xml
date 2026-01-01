@@ -52,6 +52,7 @@
             COALESCE(MAX(seq), 0) + 1,
             #{createdAt}
         FROM mq_outbox
+        WHERE event_type = #{eventType}
         FOR UPDATE
     </insert>
 

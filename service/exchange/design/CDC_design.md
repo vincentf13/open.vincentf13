@@ -22,7 +22,7 @@ CREATE TABLE mq_outbox (
   seq           BIGINT       NULL COMMENT '業務序號 保序/重放基準',
   created_at    DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '生成時間',
   PRIMARY KEY (event_id),
-  UNIQUE KEY uk_seq(seq),
+  UNIQUE KEY uk_event_type_seq(event_type, seq),
   KEY idx_created(created_at),
   KEY idx_agg(aggregate_type, aggregate_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
