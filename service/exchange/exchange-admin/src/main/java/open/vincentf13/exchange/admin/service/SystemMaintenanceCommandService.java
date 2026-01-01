@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.admin.service;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.admin.infra.client.ExchangeRiskMaintenanceClient;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
@@ -19,6 +20,7 @@ public class SystemMaintenanceCommandService {
 
     private final KafkaAdmin kafkaAdmin;
     private final JdbcTemplate jdbcTemplate;
+    private final ExchangeRiskMaintenanceClient riskMaintenanceClient;
 
     private static final List<String> TABLES_TO_CLEAR = List.of(
             "positions",
@@ -49,6 +51,13 @@ public class SystemMaintenanceCommandService {
 
         // 2. 清理資料庫表
         clearDatabaseTables();
+
+        // 3. 觸發 Risk 服務重新載入快取 (確保其讀取到清空後的狀態)
+        try {
+            riskMaintenanceClient.reloadCaches();
+        } catch (Exception e) {
+            System.err.println("Failed to trigger Risk cache reload: " + e.getMessage());
+        }
     }
 
     private void clearKafkaTopics() {
