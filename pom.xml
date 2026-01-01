@@ -149,16 +149,6 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>exchange-account-sdk-rest-api</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
-                <artifactId>exchange-account-sdk-rest-client</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
                 <artifactId>sdk-core-test</artifactId>
                 <version>${project.version}</version>
                 <scope>test</scope>
@@ -245,6 +235,21 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-account-sdk-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-account-sdk-rest-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-account-sdk-mq</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
                 <artifactId>exchange-position-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -260,27 +265,17 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>exchange-risk-sdk-mq</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
-                <artifactId>exchange-account-sdk-mq</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
-                <artifactId>exchange-matching-sdk-mq</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
                 <artifactId>exchange-matching-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
                 <artifactId>exchange-matching-sdk-rest-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-matching-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -295,7 +290,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>exchange-market-sdk-mq</artifactId>
+                <artifactId>exchange-risk-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -310,7 +305,17 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-market-sdk-mq</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
                 <artifactId>exchange-admin-sdk-rest-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13</groupId>
+                <artifactId>exchange-admin-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -322,16 +327,6 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>3.5.5</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
-                <artifactId>exchange-admin-sdk-rest-client</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>open.vincentf13</groupId>
-                <artifactId>exchange-market-sdk-rest-client</artifactId>
-                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
