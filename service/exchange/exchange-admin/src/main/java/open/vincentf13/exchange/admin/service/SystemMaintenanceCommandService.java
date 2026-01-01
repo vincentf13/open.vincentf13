@@ -46,7 +46,8 @@ public class SystemMaintenanceCommandService {
             "orders",
             "risk_snapshots",
             "mq_dead_letters",
-            "liquidation_queue"
+            "liquidation_queue",
+            "mq_outbox"
     );
 
     private static final Set<String> PROTECTED_TOPICS = Set.of(
@@ -143,7 +144,11 @@ public class SystemMaintenanceCommandService {
         try {
             for (String table : TABLES_TO_CLEAR) {
                 System.out.println("Clearing table: " + table);
-                jdbcTemplate.execute("TRUNCATE TABLE " + table);
+                if ("mq_outbox".equals(table)) {
+                    jdbcTemplate.execute("DELETE FROM " + table);
+                } else {
+                    jdbcTemplate.execute("TRUNCATE TABLE " + table);
+                }
             }
         } finally {
             jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
