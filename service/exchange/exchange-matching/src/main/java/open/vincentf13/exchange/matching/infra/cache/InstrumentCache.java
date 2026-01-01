@@ -78,6 +78,10 @@ public class InstrumentCache {
         return instance.get(instrumentId);
     }
 
+    public void clear() {
+        cache.clear();
+    }
+
     public int size() {
         return cache.size();
     }

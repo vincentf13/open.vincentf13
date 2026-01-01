@@ -42,6 +42,10 @@ public class WalLoader {
     
     public void init() {
     }
+
+    public void reset() {
+        lastProcessedSeqMap.clear();
+    }
     
     @Scheduled(fixedDelayString = "${open.vincentf13.exchange.matching.loader-interval-ms:1000}")
     public void drainWal() {

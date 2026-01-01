@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.admin.service;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.admin.infra.client.ExchangeMatchingMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.client.ExchangePositionMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.client.ExchangeRiskMaintenanceClient;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -23,6 +24,7 @@ public class SystemMaintenanceCommandService {
     private final JdbcTemplate jdbcTemplate;
     private final ExchangeRiskMaintenanceClient riskMaintenanceClient;
     private final ExchangePositionMaintenanceClient positionMaintenanceClient;
+    private final ExchangeMatchingMaintenanceClient matchingMaintenanceClient;
 
     private static final List<String> TABLES_TO_CLEAR = List.of(
             "positions",
@@ -66,6 +68,13 @@ public class SystemMaintenanceCommandService {
             positionMaintenanceClient.reloadCaches();
         } catch (Exception e) {
             System.err.println("Failed to trigger Position cache reload: " + e.getMessage());
+        }
+
+        // 5. 觸發 Matching 引擎重置與檔案清空
+        try {
+            matchingMaintenanceClient.reset();
+        } catch (Exception e) {
+            System.err.println("Failed to trigger Matching engine reset: " + e.getMessage());
         }
     }
 

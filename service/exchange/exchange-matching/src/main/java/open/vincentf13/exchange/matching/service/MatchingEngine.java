@@ -31,6 +31,11 @@ public class MatchingEngine {
     public void shutdown() {
         processors.values().forEach(InstrumentProcessor::shutdown);
     }
+
+    public void reset() {
+        shutdown();
+        processors.clear();
+    }
     
     public void processBatch(List<Order> batch) {
         if (batch == null || batch.isEmpty()) {
