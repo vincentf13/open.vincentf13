@@ -85,13 +85,15 @@ public class AccountTransactionDomainService {
         
         AssetSymbol asset = UserAccount.normalizeAsset(request.getAsset());
         Instant eventTime = request.getCreditedAt() == null ? Instant.now() : request.getCreditedAt();
-        assertNoDuplicateJournal(request.getUserId(), asset, ReferenceType.DEPOSIT, request.getTxId());
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
                 request.getUserId(),
                 UserAccountCode.SPOT,
                 null,
                 asset);
+        
+        assertNoDuplicateJournal(userAssetAccount.getAccountId(), asset, ReferenceType.DEPOSIT, request.getTxId());
+        
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
                 request.getUserId(),
                 UserAccountCode.SPOT_EQUITY,
@@ -137,11 +139,13 @@ public class AccountTransactionDomainService {
         OpenValidator.validateOrThrow(event);
         AssetSymbol asset = instrument.quoteAsset();
         BigDecimal amount = event.requiredMargin().add(event.fee());
-        assertNoDuplicateJournal(event.userId(), asset, ReferenceType.FUNDS_FREEZE_REQUESTED, event.orderId().toString());
+        
+        UserAccount userSpot = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
+        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.FUNDS_FREEZE_REQUESTED, event.orderId().toString());
+        
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "amount", amount));
         }
-        UserAccount userSpot = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
         if (!userSpot.hasEnoughAvailable(amount)) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
                                    Map.of("userId", event.userId(), "asset", asset, "available", userSpot.getAvailable(), "amount", amount));
@@ -175,13 +179,15 @@ public class AccountTransactionDomainService {
     public AccountWithdrawalResult withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
         AssetSymbol asset = UserAccount.normalizeAsset(request.getAsset());
         Instant eventTime = request.getCreditedAt() == null ? Instant.now() : request.getCreditedAt();
-        assertNoDuplicateJournal(request.getUserId(), asset, ReferenceType.WITHDRAWAL, request.getTxId());
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
                 request.getUserId(),
                 UserAccountCode.SPOT,
                 null,
                 asset);
+        
+        assertNoDuplicateJournal(userAssetAccount.getAccountId(), asset, ReferenceType.WITHDRAWAL, request.getTxId());
+        
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
                 request.getUserId(),
                 UserAccountCode.SPOT_EQUITY,
@@ -283,14 +289,14 @@ public class AccountTransactionDomainService {
                           .build();
     }
 
-    private void assertNoDuplicateJournal(Long userId,
+    private void assertNoDuplicateJournal(Long accountId,
                                           AssetSymbol asset,
                                           ReferenceType referenceType,
                                           String referenceId) {
-        boolean exists = userJournalRepository.findLatestByReference(userId, asset, referenceType, referenceId).isPresent();
+        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, referenceType, referenceId).isPresent();
         if (exists) {
             throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
-                                   Map.of("userId", userId, "asset", asset, "referenceType", referenceType, "referenceId", referenceId));
+                                   Map.of("accountId", accountId, "asset", asset, "referenceType", referenceType, "referenceId", referenceId));
         }
     }
     
@@ -359,7 +365,9 @@ public class AccountTransactionDomainService {
                             @NotNull PositionIntentType intent,
                             boolean isMaker) {
         AssetSymbol asset = event.quoteAsset();
-        assertNoDuplicateJournal(userId, asset, ReferenceType.TRADE_MARGIN_SETTLED, event.tradeId().toString());
+        UserAccount userSpot = userAccountRepository.getOrCreate(userId, UserAccountCode.SPOT, null, asset);
+        
+        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.TRADE_MARGIN_SETTLED, event.tradeId().toString());
         if (intent != PositionIntentType.INCREASE) {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
                                    Map.of("orderId", orderId, "intent", intent));
@@ -392,7 +400,7 @@ public class AccountTransactionDomainService {
             // 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
             feeRefund = BigDecimal.ZERO;
         }
-        UserAccount userSpot = userAccountRepository.getOrCreate(userId, UserAccountCode.SPOT, null, asset);
+
         UserAccount userMargin = userAccountRepository.getOrCreate(userId, UserAccountCode.MARGIN, event.instrumentId(), asset);
         UserAccount userFeeExpense = userAccountRepository.getOrCreate(userId, UserAccountCode.FEE_EXPENSE, null, asset);
         PlatformAccount platformAsset = platformAccountRepository.getOrCreate(PlatformAccountCode.HOT_WALLET, asset);

@@ -50,12 +50,12 @@ public class UserJournalRepository {
         return journals;
     }
     
-    public Optional<UserJournal> findLatestByReference(@NotNull Long userId,
+    public Optional<UserJournal> findLatestByReference(@NotNull Long accountId,
                                                        @NotNull AssetSymbol asset,
                                                        @NotNull ReferenceType referenceType,
                                                        @NotNull String referenceId) {
         var wrapper = com.baomidou.mybatisplus.core.toolkit.Wrappers.<UserJournalPO>lambdaQuery()
-                .eq(UserJournalPO::getUserId, userId)
+                .eq(UserJournalPO::getAccountId, accountId)
                 .eq(UserJournalPO::getAsset, asset)
                 .eq(UserJournalPO::getReferenceType, referenceType)
                 .eq(UserJournalPO::getReferenceId, referenceId)
