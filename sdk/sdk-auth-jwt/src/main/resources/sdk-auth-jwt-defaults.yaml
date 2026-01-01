@@ -4,7 +4,7 @@ open:
       jwt:
         secret: change-me-change-me-change-me-change
         issuer: open.vincentf13
-        access-token-ttl-seconds: 3600
-        refresh-token-ttl-seconds: 604800
+        access-token-ttl-seconds: 2592000
+        refresh-token-ttl-seconds: 5184000
         session-store-prefix: open:sessions
         check-session-active: false

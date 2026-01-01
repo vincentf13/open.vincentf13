@@ -85,9 +85,11 @@ export default function Trading() {
     setResetting(true);
     try {
       await resetSystemData();
-      // 清空前端快取
-      localStorage.clear();
-      alert('System data reset successfully. Please re-login.');
+      // 僅清空業務相關數據，保留 accessToken 以維持登入狀態
+      localStorage.removeItem('instrumentSummaries');
+      localStorage.removeItem('selectedInstrumentId');
+      
+      alert('System data reset successfully.');
       window.location.reload();
     } catch (error: any) {
       alert('Failed to reset data: ' + (error.response?.data?.message || error.message));
