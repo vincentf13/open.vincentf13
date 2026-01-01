@@ -170,7 +170,7 @@ export default function Trading() {
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
           >
             <span className="text-xs">⟳</span>
-            Refresh
+            Refresh Data
           </button>
         </div>
       </div>
