@@ -48,6 +48,12 @@ public class SystemMaintenanceCommandService {
             "liquidation_queue"
     );
 
+    private static final Set<String> PROTECTED_TOPICS = Set.of(
+            "infra.connect.config",
+            "infra.connect.offsets",
+            "infra.connect.status"
+    );
+
     /**
      * 重置系統數據
      */
@@ -110,7 +116,7 @@ public class SystemMaintenanceCommandService {
     private void clearKafkaTopics() {
         try (AdminClient client = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
             Set<String> topics = client.listTopics().names().get(10, TimeUnit.SECONDS);
-            topics.removeIf(name -> name.startsWith("_") || name.startsWith("__"));
+            topics.removeIf(name -> name.startsWith("_") || name.startsWith("__") || PROTECTED_TOPICS.contains(name));
             
             if (!topics.isEmpty()) {
                 System.out.println("Deleting Kafka topics: " + topics);
