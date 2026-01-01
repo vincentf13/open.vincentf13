@@ -38,6 +38,10 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-spring-cloud-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
         </dependency>
         <dependency>
@@ -65,6 +69,10 @@
         <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>exchange-common-sdk</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-position-sdk-rest-api</artifactId>
         </dependency>
     </dependencies>
 </project>

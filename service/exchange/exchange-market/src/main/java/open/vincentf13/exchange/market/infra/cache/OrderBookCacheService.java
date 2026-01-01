@@ -22,7 +22,12 @@ public class OrderBookCacheService {
     // 為了維護 L2，我們需要存儲每個 OrderId 的當前狀態，以便計算 Price Level 的變化
     private final Map<Long, Map<Long, OrderState>> orderStates = new ConcurrentHashMap<>();
 
-    private record OrderState(BigDecimal price, BigDecimal quantity, OrderSide side) {}
+    public void reset() {
+        cache.clear();
+        orderStates.clear();
+    }
+
+    private record OrderState(BigDecimal price, BigDecimal quantity, open.vincentf13.exchange.common.sdk.enums.OrderSide side) {}
     
     public void applyUpdates(Long instrumentId, List<OrderUpdate> updates, Instant updatedAt) {
         if (instrumentId == null || updates == null) {

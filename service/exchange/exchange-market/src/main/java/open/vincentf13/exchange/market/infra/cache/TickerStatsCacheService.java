@@ -14,6 +14,10 @@ public class TickerStatsCacheService {
     private final Map<Long, TickerStats> cache = new ConcurrentHashMap<>();
     private final MarkPriceCacheService markPriceCacheService;
     private final KlineAggregationService klineAggregationService;
+
+    public void reset() {
+        cache.clear();
+    }
     
     public TickerStatsCacheService(MarkPriceCacheService markPriceCacheService,
                                    KlineAggregationService klineAggregationService) {

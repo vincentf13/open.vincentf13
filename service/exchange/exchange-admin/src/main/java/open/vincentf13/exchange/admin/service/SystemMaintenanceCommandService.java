@@ -1,10 +1,10 @@
 package open.vincentf13.exchange.admin.service;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.admin.infra.client.ExchangeMarketMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.client.ExchangeMatchingMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.client.ExchangePositionMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.client.ExchangeRiskMaintenanceClient;
-import open.vincentf13.sdk.core.log.OpenLog;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -25,6 +25,7 @@ public class SystemMaintenanceCommandService {
     private final ExchangeRiskMaintenanceClient riskMaintenanceClient;
     private final ExchangePositionMaintenanceClient positionMaintenanceClient;
     private final ExchangeMatchingMaintenanceClient matchingMaintenanceClient;
+    private final ExchangeMarketMaintenanceClient marketMaintenanceClient;
 
     private static final List<String> TABLES_TO_CLEAR = List.of(
             "positions",
@@ -56,32 +57,43 @@ public class SystemMaintenanceCommandService {
         // 2. 清理資料庫表
         clearDatabaseTables();
 
-        // 3. 觸發 Risk 服務重新載入快取
+        // 3. 觸發各服務重新載入快取或重置內存
+        resetServiceCaches();
+    }
+
+    private void resetServiceCaches() {
+        // Risk
         try {
             riskMaintenanceClient.reloadCaches();
         } catch (Exception e) {
             System.err.println("Failed to trigger Risk cache reload: " + e.getMessage());
         }
 
-        // 4. 觸發 Position 服務重新載入快取
+        // Position
         try {
             positionMaintenanceClient.reloadCaches();
         } catch (Exception e) {
             System.err.println("Failed to trigger Position cache reload: " + e.getMessage());
         }
 
-        // 5. 觸發 Matching 引擎重置與檔案清空
+        // Matching
         try {
             matchingMaintenanceClient.reset();
         } catch (Exception e) {
             System.err.println("Failed to trigger Matching engine reset: " + e.getMessage());
+        }
+
+        // Market
+        try {
+            marketMaintenanceClient.reset();
+        } catch (Exception e) {
+            System.err.println("Failed to trigger Market cache reset: " + e.getMessage());
         }
     }
 
     private void clearKafkaTopics() {
         try (AdminClient client = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
             Set<String> topics = client.listTopics().names().get(10, TimeUnit.SECONDS);
-            // 排除系統 Topic
             topics.removeIf(name -> name.startsWith("_") || name.startsWith("__"));
             
             if (!topics.isEmpty()) {
@@ -91,12 +103,10 @@ public class SystemMaintenanceCommandService {
             }
         } catch (Exception e) {
             System.err.println("Failed to clear Kafka topics: " + e.getMessage());
-            // Kafka 清理失敗不影響資料庫事務回滾，僅記錄
         }
     }
 
     private void clearDatabaseTables() {
-        // 關閉外鍵檢查以便清空所有表
         jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0");
         try {
             for (String table : TABLES_TO_CLEAR) {

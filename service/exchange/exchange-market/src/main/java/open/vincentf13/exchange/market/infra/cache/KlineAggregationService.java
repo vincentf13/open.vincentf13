@@ -27,6 +27,10 @@ public class KlineAggregationService {
     
     private final KlineBucketRepository klineBucketRepository;
     private final Map<KlineKey, KlineBucket> activeBuckets = new ConcurrentHashMap<>();
+
+    public void reset() {
+        activeBuckets.clear();
+    }
     
     public void recordTrade(Long instrumentId,
                             BigDecimal price,

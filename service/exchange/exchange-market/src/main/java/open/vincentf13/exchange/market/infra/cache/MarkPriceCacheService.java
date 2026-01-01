@@ -22,6 +22,10 @@ public class MarkPriceCacheService {
     private final Map<Long, MarkPriceSnapshot> cache = new ConcurrentHashMap<>();
     private final MarkPriceSnapshotRepository repository;
     private final MarkPriceEventPublisher eventPublisher;
+
+    public void reset() {
+        cache.clear();
+    }
     
     public MarkPriceCacheService(MarkPriceSnapshotRepository repository,
                                  MarkPriceEventPublisher eventPublisher) {
