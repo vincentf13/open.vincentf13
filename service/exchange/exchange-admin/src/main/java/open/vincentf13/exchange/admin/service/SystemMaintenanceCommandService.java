@@ -43,7 +43,6 @@ public class SystemMaintenanceCommandService {
             "mark_price_snapshots",
             "orders",
             "risk_snapshots",
-            "mq_outbox",
             "mq_dead_letters",
             "liquidation_queue"
     );

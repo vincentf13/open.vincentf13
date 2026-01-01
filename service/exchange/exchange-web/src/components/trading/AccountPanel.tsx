@@ -45,7 +45,7 @@ export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
   const mountedRef = useRef(true);
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferType, setTransferType] = useState<'deposit' | 'withdraw'>('deposit');
-  const [transferAmount, setTransferAmount] = useState<number | null>(null);
+  const [transferAmount, setTransferAmount] = useState<number | string | null>(null);
   const [transferLoading, setTransferLoading] = useState(false);
   const userRequestRef = useRef<Promise<any> | null>(null);
 
@@ -109,7 +109,7 @@ export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
   };
 
   const handleTransferConfirm = async () => {
-    if (!transferAmount || transferAmount <= 0) {
+    if (!transferAmount || Number(transferAmount) <= 0) {
       message.warning('請輸入金額');
       return;
     }
@@ -200,7 +200,7 @@ export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
             <InputNumber
               min={0}
               value={transferAmount}
-              onChange={(value) => setTransferAmount(typeof value === 'number' ? value : null)}
+              onChange={setTransferAmount}
               className="w-full"
               placeholder="輸入金額"
             />
