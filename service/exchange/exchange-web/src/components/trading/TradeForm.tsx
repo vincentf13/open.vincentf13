@@ -86,30 +86,15 @@ export default function TradeForm({ instrument }: TradeFormProps) {
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Type Selector (Limit/Market) */}
+        {/* Type Selector (Limit Only) */}
         <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Type</label>
-            <div className="grid grid-cols-2 gap-1 bg-white/20 p-1 rounded-xl border border-white/30">
-                <button 
-                  onClick={() => setType('LIMIT')}
-                  className={`text-xs py-1.5 rounded-lg transition-all ${
-                    type === 'LIMIT' 
-                      ? 'bg-white shadow-sm text-slate-800 font-semibold' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
+            <div className="grid grid-cols-1 gap-1 bg-white/20 p-1 rounded-xl border border-white/30">
+                <div 
+                  className="text-xs py-1.5 rounded-lg bg-white shadow-sm text-slate-800 font-semibold text-center cursor-default"
                 >
                     Limit
-                </button>
-                <button 
-                  onClick={() => setType('MARKET')}
-                  className={`text-xs py-1.5 rounded-lg transition-all ${
-                    type === 'MARKET' 
-                      ? 'bg-white shadow-sm text-slate-800 font-semibold' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                    Market
-                </button>
+                </div>
             </div>
         </div>
 
