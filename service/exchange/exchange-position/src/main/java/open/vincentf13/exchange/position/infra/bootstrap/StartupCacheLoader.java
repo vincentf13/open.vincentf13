@@ -3,8 +3,10 @@ package open.vincentf13.exchange.position.infra.bootstrap;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.admin.contract.client.ExchangeAdminClient;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
+import open.vincentf13.exchange.market.sdk.rest.client.ExchangeMarketClient;
 import open.vincentf13.exchange.position.infra.PositionEvent;
 import open.vincentf13.exchange.position.infra.cache.InstrumentCache;
+import open.vincentf13.exchange.position.infra.cache.MarkPriceCache;
 import open.vincentf13.exchange.position.infra.cache.RiskLimitCache;
 import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
@@ -26,7 +28,9 @@ public class StartupCacheLoader {
 
     private final ExchangeAdminClient adminClient;
     private final ExchangeRiskClient riskClient;
+    private final ExchangeMarketClient marketClient;
     private final InstrumentCache instrumentCache;
+    private final MarkPriceCache markPriceCache;
     private final RiskLimitCache riskLimitCache;
 
     /**
@@ -45,8 +49,9 @@ public class StartupCacheLoader {
 
                 loadInstruments();
                 loadRiskLimits();
+                loadMarkPrices();
 
-                OpenLog.info(PositionEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size(), "riskLimits", riskLimitCache.size());
+                OpenLog.info(PositionEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size(), "riskLimits", riskLimitCache.size(), "markPrices", markPriceCache.size());
                 return;
 
             } catch (Exception e) {
@@ -101,9 +106,20 @@ public class StartupCacheLoader {
         });
 
         OpenLog.info(PositionEvent.STARTUP_RISK_LIMITS_LOADED, "succeeded", successCount.get(), "failed", failureCount.get());
+    }
 
-        if (failureCount.get() > 0) {
-            OpenLog.warn(PositionEvent.STARTUP_RISK_LIMIT_LOAD_PARTIAL, "failed", failureCount.get(), "total", instrumentCache.size());
-        }
+    private void loadMarkPrices() {
+        OpenLog.info(PositionEvent.STARTUP_CACHE_LOADING, "Loading mark prices");
+        instrumentCache.getAll().forEach(instrument -> {
+            Long instrumentId = instrument.instrumentId();
+            try {
+                var response = marketClient.getMarkPrice(instrumentId);
+                if (response.isSuccess() && response.data() != null) {
+                    markPriceCache.update(instrumentId, response.data().getMarkPrice(), response.data().getCalculatedAt());
+                }
+            } catch (Exception e) {
+                OpenLog.warn(PositionEvent.STARTUP_CACHE_LOAD_PARTIAL, e, "instrumentId", instrumentId);
+            }
+        });
     }
 }
