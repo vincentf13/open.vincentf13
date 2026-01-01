@@ -51,4 +51,13 @@ public class MarkPriceCache {
             return currentEntry;
         });
     }
+
+    /**
+      Returns the number of mark prices in the cache.
+
+      @return The cache size.
+     */
+    public int size() {
+        return cache.size();
+    }
 }
