@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.admin.service;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.admin.infra.client.ExchangeAccountMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.client.ExchangeMarketMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.client.ExchangeMatchingMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.client.ExchangePositionMaintenanceClient;
@@ -26,6 +27,7 @@ public class SystemMaintenanceCommandService {
     private final ExchangePositionMaintenanceClient positionMaintenanceClient;
     private final ExchangeMatchingMaintenanceClient matchingMaintenanceClient;
     private final ExchangeMarketMaintenanceClient marketMaintenanceClient;
+    private final ExchangeAccountMaintenanceClient accountMaintenanceClient;
 
     private static final List<String> TABLES_TO_CLEAR = List.of(
             "positions",
@@ -88,6 +90,13 @@ public class SystemMaintenanceCommandService {
             marketMaintenanceClient.reset();
         } catch (Exception e) {
             System.err.println("Failed to trigger Market cache reset: " + e.getMessage());
+        }
+
+        // Account
+        try {
+            accountMaintenanceClient.reloadCaches();
+        } catch (Exception e) {
+            System.err.println("Failed to trigger Account cache reload: " + e.getMessage());
         }
     }
 
