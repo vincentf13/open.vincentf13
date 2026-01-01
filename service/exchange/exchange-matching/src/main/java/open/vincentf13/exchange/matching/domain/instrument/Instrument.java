@@ -18,6 +18,7 @@ public class Instrument {
   private final AssetSymbol quoteAsset;
   private final BigDecimal makerFee;
   private final BigDecimal takerFee;
+  private final BigDecimal contractSize;
 
   public static Instrument from(InstrumentSummaryResponse dto) {
     return Instrument.builder()
@@ -27,6 +28,7 @@ public class Instrument {
         .quoteAsset(dto.quoteAsset())
         .makerFee(dto.makerFeeRate())
         .takerFee(dto.takerFeeRate())
+        .contractSize(dto.contractSize())
         .build();
   }
 }

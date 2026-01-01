@@ -164,7 +164,7 @@ public class OrderBook {
             throw new IllegalStateException("instrument cache incomplete for id " + taker.getInstrumentId());
         }
         
-        BigDecimal totalValue = OpenBigDecimal.normalizeDecimal(price.multiply(quantity));
+        BigDecimal totalValue = OpenBigDecimal.normalizeDecimal(price.multiply(quantity).multiply(instrument.getContractSize()));
         
         return Trade.builder()
                     .tradeId(null)
