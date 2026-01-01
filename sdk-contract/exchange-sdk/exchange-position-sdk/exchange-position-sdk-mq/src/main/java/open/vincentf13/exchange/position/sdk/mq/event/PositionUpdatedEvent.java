@@ -12,7 +12,7 @@ public record PositionUpdatedEvent(
         @NotNull Long userId,
         @NotNull Long instrumentId,
         @NotNull PositionSide side,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
+        @NotNull BigDecimal quantity,
         @NotNull @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE) BigDecimal entryPrice,
         @NotNull @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE) BigDecimal markPrice,
         @NotNull BigDecimal unrealizedPnl,
