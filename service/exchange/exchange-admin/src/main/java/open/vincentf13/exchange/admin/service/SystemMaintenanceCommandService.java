@@ -53,6 +53,7 @@ public class SystemMaintenanceCommandService {
             "infra.connect.config",
             "infra.connect.offsets",
             "infra.connect.status",
+            "infra-mysql-0",
             "cdc.infra-mysql-0"
     );
 
