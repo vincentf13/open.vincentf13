@@ -109,7 +109,7 @@ public class PositionEvent {
                 .newLiquidationPrice(newLiquidationPrice)
                 .referenceId(tradeId)
                 .referenceType(PositionReferenceType.TRADE)
-                .metadata("")
+                .metadata("{}")
                 .occurredAt(occurredAt)
                 .build();
     }
