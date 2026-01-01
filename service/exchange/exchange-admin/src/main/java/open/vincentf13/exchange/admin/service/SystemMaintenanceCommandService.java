@@ -59,7 +59,14 @@ public class SystemMaintenanceCommandService {
         // 2. 清理資料庫表
         clearDatabaseTables();
 
-        // 3. 觸發各服務重新載入快取或重置內存
+        // 3. 等待異步清理完成 (Kafka 刪除 Topic 是異步的)
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // 4. 觸發各服務重新載入快取或重置內存
         resetServiceCaches();
     }
 
