@@ -6,6 +6,7 @@ import open.vincentf13.exchange.market.infra.cache.MarkPriceCacheService;
 import open.vincentf13.exchange.market.infra.cache.OrderBookCacheService;
 import open.vincentf13.exchange.market.infra.cache.TickerStatsCacheService;
 import open.vincentf13.exchange.market.sdk.rest.api.MarketMaintenanceApi;
+import open.vincentf13.sdk.infra.kafka.consumer.KafkaConsumerResetService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,6 +20,7 @@ public class MarketMaintenanceController implements MarketMaintenanceApi {
     private final MarkPriceCacheService markPriceCacheService;
     private final OrderBookCacheService orderBookCacheService;
     private final TickerStatsCacheService tickerStatsCacheService;
+    private final KafkaConsumerResetService kafkaConsumerResetService;
 
     @Override
     public OpenApiResponse<Void> reset() {
@@ -26,6 +28,7 @@ public class MarketMaintenanceController implements MarketMaintenanceApi {
         markPriceCacheService.reset();
         orderBookCacheService.reset();
         tickerStatsCacheService.reset();
+        kafkaConsumerResetService.resetConsumers();
         return OpenApiResponse.success(null);
     }
 }

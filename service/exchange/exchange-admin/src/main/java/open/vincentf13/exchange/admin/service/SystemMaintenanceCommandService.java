@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.sdk.rest.client.ExchangeAccountMaintenanceClient;
 import open.vincentf13.exchange.market.sdk.rest.client.ExchangeMarketMaintenanceClient;
 import open.vincentf13.exchange.matching.sdk.rest.client.ExchangeMatchingMaintenanceClient;
+import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderMaintenanceClient;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionMaintenanceClient;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskMaintenanceClient;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -28,6 +29,7 @@ public class SystemMaintenanceCommandService {
     private final ExchangeMatchingMaintenanceClient matchingMaintenanceClient;
     private final ExchangeMarketMaintenanceClient marketMaintenanceClient;
     private final ExchangeAccountMaintenanceClient accountMaintenanceClient;
+    private final ExchangeOrderMaintenanceClient orderMaintenanceClient;
 
     private static final List<String> TABLES_TO_CLEAR = List.of(
             "positions",
@@ -109,6 +111,13 @@ public class SystemMaintenanceCommandService {
             accountMaintenanceClient.reloadCaches();
         } catch (Exception e) {
             System.err.println("Failed to trigger Account cache reload: " + e.getMessage());
+        }
+
+        // Order
+        try {
+            orderMaintenanceClient.reset();
+        } catch (Exception e) {
+            System.err.println("Failed to trigger Order cache reset: " + e.getMessage());
         }
     }
 

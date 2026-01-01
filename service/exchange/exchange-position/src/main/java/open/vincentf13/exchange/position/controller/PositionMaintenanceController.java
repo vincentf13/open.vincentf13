@@ -3,6 +3,7 @@ package open.vincentf13.exchange.position.controller;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.infra.bootstrap.StartupCacheLoader;
 import open.vincentf13.exchange.position.sdk.rest.api.PositionMaintenanceApi;
+import open.vincentf13.sdk.infra.kafka.consumer.KafkaConsumerResetService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,10 +14,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class PositionMaintenanceController implements PositionMaintenanceApi {
 
     private final StartupCacheLoader startupCacheLoader;
+    private final KafkaConsumerResetService kafkaConsumerResetService;
 
     @Override
     public OpenApiResponse<Void> reloadCaches() {
         startupCacheLoader.loadCaches();
+        kafkaConsumerResetService.resetConsumers();
         return OpenApiResponse.success(null);
     }
 }

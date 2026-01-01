@@ -1,25 +1,21 @@
-package open.vincentf13.exchange.risk.controller;
+package open.vincentf13.exchange.order.controller;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.risk.infra.bootstrap.StartupCacheLoader;
-import open.vincentf13.exchange.risk.sdk.rest.api.RiskMaintenanceApi;
+import open.vincentf13.exchange.order.sdk.rest.api.OrderMaintenanceApi;
 import open.vincentf13.sdk.infra.kafka.consumer.KafkaConsumerResetService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/risk/maintenance")
+@RequestMapping("/api/order/maintenance")
 @RequiredArgsConstructor
-public class RiskMaintenanceController implements RiskMaintenanceApi {
+public class OrderMaintenanceController implements OrderMaintenanceApi {
 
-    private final StartupCacheLoader startupCacheLoader;
     private final KafkaConsumerResetService kafkaConsumerResetService;
 
     @Override
-    public OpenApiResponse<Void> reloadCaches() {
-        // 調用現有的啟動加載邏輯來更新最新數據
-        startupCacheLoader.loadCaches();
+    public OpenApiResponse<Void> reset() {
         kafkaConsumerResetService.resetConsumers();
         return OpenApiResponse.success(null);
     }

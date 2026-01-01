@@ -6,6 +6,7 @@ import open.vincentf13.exchange.matching.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.matching.infra.loader.WalLoader;
 import open.vincentf13.exchange.matching.service.MatchingEngine;
 import open.vincentf13.exchange.matching.sdk.rest.api.MatchingMaintenanceApi;
+import open.vincentf13.sdk.infra.kafka.consumer.KafkaConsumerResetService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +26,7 @@ public class MatchingMaintenanceController implements MatchingMaintenanceApi {
     private final WalLoader walLoader;
     private final InstrumentCache instrumentCache;
     private final StartupCacheLoader startupCacheLoader;
+    private final KafkaConsumerResetService kafkaConsumerResetService;
 
     @Override
     public OpenApiResponse<Void> reset() {
@@ -39,6 +41,7 @@ public class MatchingMaintenanceController implements MatchingMaintenanceApi {
         // 3. 重新載入初始快取
         startupCacheLoader.loadCaches();
 
+        kafkaConsumerResetService.resetConsumers();
         return OpenApiResponse.success(null);
     }
 
