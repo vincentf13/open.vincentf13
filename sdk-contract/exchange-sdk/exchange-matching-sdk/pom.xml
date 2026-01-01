@@ -20,5 +20,6 @@
     <modules>
         <module>exchange-matching-sdk-mq</module>
         <module>exchange-matching-sdk-rest-api</module>
+        <module>exchange-matching-sdk-rest-client</module>
     </modules>
 </project>

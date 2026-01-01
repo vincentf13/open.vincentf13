@@ -18,7 +18,8 @@
     <description>Account service contracts</description>
 
     <modules>
-        <module>exchange-account-sdk-rest-api</module>
         <module>exchange-account-sdk-mq</module>
+        <module>exchange-account-sdk-rest-api</module>
+        <module>exchange-account-sdk-rest-client</module>
     </modules>
 </project>
