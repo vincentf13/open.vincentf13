@@ -367,7 +367,8 @@ public class AccountTransactionDomainService {
         AssetSymbol asset = event.quoteAsset();
         UserAccount userSpot = userAccountRepository.getOrCreate(userId, UserAccountCode.SPOT, null, asset);
         
-        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.TRADE_MARGIN_SETTLED, event.tradeId().toString());
+        String refIdWithSide = event.tradeId() + (isMaker ? ":Maker" : ":Taker");
+        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide);
         if (intent != PositionIntentType.INCREASE) {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
                                    Map.of("orderId", orderId, "intent", intent));
@@ -380,7 +381,7 @@ public class AccountTransactionDomainService {
         
         // 用order id 查分錄查出凍結時到底凍結多少錢，再去算要退多少手續費，因為凍結後可能調整費率，導致撮合時收的手續費不一樣
         BigDecimal totalReserved = userJournalRepository.findLatestByReference(
-                        userId, asset, ReferenceType.FUNDS_FREEZE_REQUESTED, orderId.toString())
+                        userSpot.getAccountId(), asset, ReferenceType.FUNDS_FREEZE_REQUESTED, orderId.toString())
                                                         .map(UserJournal::getAmount)
                                                         .orElseThrow(() -> OpenException.of(AccountErrorCode.FREEZE_ENTRY_NOT_FOUND,
                                                                                             Map.of("orderId", orderId, "userId", userId)));
@@ -427,7 +428,7 @@ public class AccountTransactionDomainService {
                 Direction.DEBIT,
                 marginUsed,
                 ReferenceType.TRADE_MARGIN_SETTLED,
-                event.tradeId().toString(),
+                refIdWithSide,
                 "Margin allocated to isolated account",
                 event.executedAt());
         UserJournal marginOutJournal = buildUserJournal(
@@ -435,7 +436,7 @@ public class AccountTransactionDomainService {
                 Direction.CREDIT,
                 marginUsed,
                 ReferenceType.TRADE_MARGIN_SETTLED,
-                event.tradeId().toString(),
+                refIdWithSide,
                 "Margin transferred from spot",
                 event.executedAt());
         UserJournal feeJournal = buildUserJournal(
@@ -443,7 +444,7 @@ public class AccountTransactionDomainService {
                 Direction.CREDIT,
                 actualFee,
                 ReferenceType.TRADE_FEE,
-                event.tradeId().toString(),
+                refIdWithSide,
                 "Trading fee deducted",
                 event.executedAt());
         UserJournal feeExpenseJournal = buildUserJournal(
@@ -451,7 +452,7 @@ public class AccountTransactionDomainService {
                 Direction.DEBIT,
                 actualFee,
                 ReferenceType.TRADE_FEE_EXPENSE,
-                event.tradeId().toString(),
+                refIdWithSide,
                 "Trading fee expense",
                 event.executedAt());
         if (feeRefund.signum() > 0) {
@@ -460,7 +461,7 @@ public class AccountTransactionDomainService {
                     Direction.DEBIT,
                     feeRefund,
                     ReferenceType.TRADE_FEE_REFUND,
-                    event.tradeId().toString(),
+                    refIdWithSide,
                     "Maker fee refund",
                     event.executedAt());
             userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, refundJournal));
@@ -472,7 +473,7 @@ public class AccountTransactionDomainService {
                 Direction.DEBIT,
                 actualFee,
                 ReferenceType.TRADE_FEE,
-                event.tradeId().toString(),
+                refIdWithSide,
                 "Trading fee received",
                 event.executedAt());
         PlatformJournal revenueJournal = buildPlatformJournal(
@@ -480,7 +481,7 @@ public class AccountTransactionDomainService {
                 Direction.CREDIT,
                 actualFee,
                 ReferenceType.TRADE_FEE,
-                event.tradeId().toString(),
+                refIdWithSide,
                 "Trading fee revenue",
                 event.executedAt());
         platformJournalRepository.insertBatch(List.of(platformAssetJournal, revenueJournal));
