@@ -76,8 +76,10 @@ public class PositionDomainService {
                                              @NotNull BigDecimal marginUsed,
                                              @NotNull BigDecimal feeCharged,
                                              @NotNull BigDecimal feeRefund,
-                                             @NotNull Long referenceId,
+                                             @NotNull Long tradeId,
                                              @NotNull Instant executedAt) {
+        String referenceId = tradeId + ":" + orderSide.name();
+        
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
             return positionRepository.findOne(
                             Wrappers.lambdaQuery(PositionPO.class)
@@ -111,14 +113,14 @@ public class PositionDomainService {
                 BigDecimal closeFeeRefund = feeRefund.subtract(flipFeeRefund);
 
                 List<Position> results = new ArrayList<>();
-                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, referenceId, executedAt));
-                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, referenceId, executedAt));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, tradeId, executedAt));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, tradeId, executedAt));
                 return results;
             }
 
-            PositionCloseResult result = closePosition(position, userId, instrumentId, price, quantity, feeCharged, feeRefund, referenceId, executedAt, false);
+            PositionCloseResult result = closePosition(position, userId, instrumentId, price, quantity, feeCharged, feeRefund, orderSide, tradeId, executedAt, false);
             positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
-                    referenceId,
+                    tradeId,
                     orderId,
                     userId,
                     instrumentId,
@@ -236,7 +238,8 @@ public class PositionDomainService {
                     updatedPosition.getMargin(),
                     updatedPosition.getUnrealizedPnl(),
                     updatedPosition.getLiquidationPrice(),
-                    referenceId,
+                    orderSide,
+                    tradeId,
                     executedAt
                                                                 );
             positionEventRepository.insert(event);
@@ -248,7 +251,8 @@ public class PositionDomainService {
     public PositionCloseResult closePosition(Position position, Long userId, Long instrumentId,
                                              BigDecimal price, BigDecimal quantity,
                                              BigDecimal feeCharged, BigDecimal feeRefund,
-                                             Long referenceId, Instant executedAt,
+                                             OrderSide orderSide,
+                                             Long tradeId, Instant executedAt,
                                              boolean reduceReserved) {
         Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
 
@@ -380,7 +384,8 @@ public class PositionDomainService {
                 updatedPosition.getMargin(),
                 updatedPosition.getUnrealizedPnl(),
                 updatedPosition.getLiquidationPrice(),
-                referenceId,
+                orderSide,
+                tradeId,
                 executedAt
         );
         positionEventRepository.insert(event);

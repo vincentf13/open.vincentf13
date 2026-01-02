@@ -76,7 +76,7 @@ public class PositionTradeCloseService {
         if (intentType == null || intentType == PositionIntentType.INCREASE) {
             return;
         }
-        if (positionEventRepository.existsByReferenceAndUser(PositionReferenceType.TRADE, tradeId, userId)) {
+        if (positionEventRepository.existsByReferenceAndUser(PositionReferenceType.TRADE, tradeId + ":" + orderSide, userId)) {
             return;
         }
 
@@ -109,6 +109,7 @@ public class PositionTradeCloseService {
                 quantity,
                 safe(fee),
                 BigDecimal.ZERO,
+                orderSide,
                 tradeId,
                 eventTime,
                 true

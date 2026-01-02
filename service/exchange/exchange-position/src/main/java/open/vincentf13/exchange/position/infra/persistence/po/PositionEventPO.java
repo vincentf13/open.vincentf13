@@ -31,7 +31,7 @@ public class PositionEventPO {
     private BigDecimal newMargin;
     private BigDecimal newUnrealizedPnl;
     private BigDecimal newLiquidationPrice;
-    private Long referenceId;
+    private String referenceId;
     private PositionReferenceType referenceType;
     private String metadata; // JSON
     private Instant occurredAt;

@@ -35,7 +35,7 @@ public class PositionEventRepository {
     }
 
     public boolean existsByReference(@NotNull PositionReferenceType referenceType,
-                                     @NotNull Long referenceId) {
+                                     @NotNull String referenceId) {
         try {
             return mapper.selectCount(
                     com.baomidou.mybatisplus.core.toolkit.Wrappers.lambdaQuery(PositionEventPO.class)
@@ -47,7 +47,7 @@ public class PositionEventRepository {
     }
     
     public boolean existsByReferenceAndUser(@NotNull PositionReferenceType referenceType,
-                                            @NotNull Long referenceId,
+                                            @NotNull String referenceId,
                                             @NotNull Long userId) {
         return mapper.selectCount(Wrappers.lambdaQuery(PositionEventPO.class)
                                           .eq(PositionEventPO::getReferenceType, referenceType)

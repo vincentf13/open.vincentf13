@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 
@@ -63,7 +64,7 @@ public class PositionEvent {
     @NotNull
     private BigDecimal newLiquidationPrice;
 
-    private Long referenceId;
+    private String referenceId;
     @NotNull
     private PositionReferenceType referenceType;
 
@@ -89,8 +90,10 @@ public class PositionEvent {
                                                   BigDecimal newMargin,
                                                   BigDecimal newUnrealizedPnl,
                                                   BigDecimal newLiquidationPrice,
+                                                  OrderSide side,
                                                   Long tradeId,
                                                   Instant occurredAt) {
+        String baseId = String.valueOf(tradeId);
         return PositionEvent.builder()
                 .positionId(positionId)
                 .userId(userId)
@@ -107,7 +110,7 @@ public class PositionEvent {
                 .newMargin(newMargin)
                 .newUnrealizedPnl(newUnrealizedPnl)
                 .newLiquidationPrice(newLiquidationPrice)
-                .referenceId(tradeId)
+                .referenceId(baseId + ":" + side.name())
                 .referenceType(PositionReferenceType.TRADE)
                 .metadata("{}")
                 .occurredAt(occurredAt)
