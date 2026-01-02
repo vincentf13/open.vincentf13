@@ -52,22 +52,22 @@ public class MvcLogService {
                           "uri", uri,
                           "status", status,
                           "durationMs", durationMs,
-                          "handler", handlerDisplay,
-                          "pattern", matchingPattern,
                           "clientIp", clientIp,
-                          "requestBytes", requestBody.length(),
-                          "responseBytes", responseBody.length());
+                          "reqBytes", requestBody.length(),
+                          "resBytes", responseBody.length(),
+                          "\nReqBody", requestBody.preview(),
+                          "\nResBody", responseBody.preview());
         } else {
             OpenLog.info(MvcEvent.MVC_REQUEST_COMPLETED,
                          "method", method,
                          "uri", uri,
                          "status", status,
                          "durationMs", durationMs,
-                         "handler", handlerDisplay,
-                         "pattern", matchingPattern,
                          "clientIp", clientIp,
-                         "requestBytes", requestBody.length(),
-                         "responseBytes", responseBody.length());
+                         "reqBytes", requestBody.length(),
+                         "resBytes", responseBody.length(),
+                         "\nReqBody", requestBody.preview(),
+                         "\nResBody", responseBody.preview());
         }
         
         OpenLog.debug(MvcEvent.MVC_REQUEST_DETAIL,
