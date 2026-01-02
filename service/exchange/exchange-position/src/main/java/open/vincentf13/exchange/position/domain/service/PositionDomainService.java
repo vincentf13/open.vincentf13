@@ -107,7 +107,7 @@ public class PositionDomainService {
         if (position.getSide() != side) {
             BigDecimal availableToClose = position.availableToClose();
             if (availableToClose.compareTo(BigDecimal.ZERO) <= 0) {
-                throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
+                throw OpenException.of(PositionErrorCode.POSITION_FLIP_NOT_ALLOWED,
                                        Map.of("userId", userId,
                                               "instrumentId", instrumentId,
                                               "requestedQuantity", quantity,
