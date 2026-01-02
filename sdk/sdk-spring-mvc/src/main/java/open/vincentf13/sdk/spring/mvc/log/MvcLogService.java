@@ -55,7 +55,9 @@ public class MvcLogService {
                           "clientIp", clientIp,
                           "reqBytes", requestBody.length(),
                           "resBytes", responseBody.length(),
+                          "\nReqHead", requestHeaders.toString(),
                           "\nReqBody", requestBody.preview(),
+                          "\nResHead", responseHeaders.toString(),
                           "\nResBody", responseBody.preview());
         } else {
             OpenLog.info(MvcEvent.MVC_REQUEST_COMPLETED,
@@ -66,7 +68,9 @@ public class MvcLogService {
                          "clientIp", clientIp,
                          "reqBytes", requestBody.length(),
                          "resBytes", responseBody.length(),
+                         "\nReqHead", requestHeaders.toString(),
                          "\nReqBody", requestBody.preview(),
+                         "\nResHead", responseHeaders.toString(),
                          "\nResBody", responseBody.preview());
         }
         

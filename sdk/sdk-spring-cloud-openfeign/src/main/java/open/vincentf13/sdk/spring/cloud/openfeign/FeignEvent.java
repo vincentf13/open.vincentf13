@@ -6,6 +6,8 @@ import open.vincentf13.sdk.core.log.OpenEvent;
  Feign 相關事件枚舉。
  */
 public enum FeignEvent implements OpenEvent {
+    FEIGN_REQUEST("FeignRequest", "Feign request sent"),
+    FEIGN_RESPONSE("FeignResponse", "Feign response received"),
     FEIGN_RETRYABLE_EXCEPTION("FeignRetryableException", "Retryable remote call failure"),
     FEIGN_EXCEPTION("FeignException", "Feign call failed"),
     FEIGN_DECODE_EXCEPTION("FeignDecodeException", "Failed to decode remote response"),
