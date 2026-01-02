@@ -21,6 +21,6 @@ public class TradeExecutedEventListener {
                                 Acknowledgment acknowledgment) {
         
         positionTradeCloseService.handleTradeExecuted(event);
-        //acknowledgment.acknowledge();
+        acknowledgment.acknowledge();
     }
 }
