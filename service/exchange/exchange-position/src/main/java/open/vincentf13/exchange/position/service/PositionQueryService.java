@@ -48,6 +48,11 @@ public class PositionQueryService {
             return PositionIntentResponse.of(intentType, existing, OpenObjectMapper.convert(position, PositionResponse.class));
         }
         BigDecimal availableToClose = position.availableToClose();
+        // prevent flip when all quantity is reserved for closing.
+        if (availableToClose.compareTo(BigDecimal.ZERO) <= 0) {
+            return PositionIntentResponse.ofRejected(intentType, existing,
+                                                     PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE.code());
+        }
         if (availableToClose.compareTo(request.quantity()) < 0) {
             return PositionIntentResponse.ofRejected(intentType, existing,
                                                      PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE.code());
