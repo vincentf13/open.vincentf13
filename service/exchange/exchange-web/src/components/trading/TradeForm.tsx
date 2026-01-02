@@ -41,7 +41,7 @@ export default function TradeForm({ instrument }: TradeFormProps) {
         instrumentId: Number(instrument.instrumentId),
         side,
         type,
-        quantity: Number(quantity),
+        quantity: normalizedQuantity,
         price: type === 'LIMIT' ? Number(price) : null,
       });
       alert('Order placed successfully!');
@@ -57,7 +57,12 @@ export default function TradeForm({ instrument }: TradeFormProps) {
 
   const contractSizeValue = Number(instrument?.contractSize);
   const contractMultiplier = Number.isFinite(contractSizeValue) && contractSizeValue > 0 ? contractSizeValue : 1;
-  const total = (Number(price) || 0) * (Number(quantity) || 0) * contractMultiplier;
+  const parsedQuantity = Number(quantity);
+  const normalizedQuantity = Number.isFinite(parsedQuantity) ? parsedQuantity / contractMultiplier : NaN;
+  const displayNormalizedQuantity = Number.isFinite(normalizedQuantity)
+    ? Number(normalizedQuantity.toFixed(6))
+    : '--';
+  const total = (Number(price) || 0) * (Number(quantity) || 0);
 
   return (
     <div className="flex flex-col h-full">
@@ -119,9 +124,6 @@ export default function TradeForm({ instrument }: TradeFormProps) {
                   </span>
                 </div>
             </div>
-            <div className="text-[11px] text-slate-400 text-right pr-2">
-              Contract Size: {instrument?.contractSize ?? '--'}
-            </div>
         </div>
 
         {/* Quantity Input */}
@@ -140,6 +142,12 @@ export default function TradeForm({ instrument }: TradeFormProps) {
                     {instrument?.baseAsset || ''}
                   </span>
                 </div>
+            </div>
+            <div className="text-[11px] text-slate-400 text-right pr-2">
+              Contract Size: {instrument?.contractSize ?? '--'}
+            </div>
+            <div className="text-[11px] text-slate-400 text-right pr-2">
+              Quantity: {instrument ? displayNormalizedQuantity : '--'}
             </div>
         </div>
 
