@@ -51,8 +51,7 @@ public class InstrumentProcessor {
             return;
         }
 
-        List<MatchResult> matchResults = new ArrayList<>(batch.size());
-
+        long lastSeq = -1L;
         for (Order order : batch) {
             if (!Objects.equals(order.getInstrumentId(), instrumentId)) {
                 OpenLog.warn(MatchingEvent.ORDER_ROUTING_ERROR, "expected", instrumentId, "actual", order.getInstrumentId());
@@ -65,25 +64,22 @@ public class InstrumentProcessor {
                 continue;
             }
 
+            // 1. Calculate Match
             MatchResult result = orderBook.match(order);
-            matchResults.add(result);
-        }
 
-        if (matchResults.isEmpty()) {
-            return;
-        }
+            // 2. Persist to WAL (Sequentially)
+            List<WalEntry> appended = wal.appendBatch(List.of(result));
+            if (appended.isEmpty()) {
+                continue;
+            }
 
-        List<WalEntry> appended = wal.appendBatch(matchResults);
-        if (appended.isEmpty()) {
-            return;
-        }
-
-        for (MatchResult result : matchResults) {
+            // 3. Apply to OrderBook (Update State)
             orderBook.apply(result);
             orderBook.markProcessed(result.getTakerOrder().getOrderId());
+            lastSeq = appended.get(0).getSeq();
         }
 
-        long lastSeq = appended.get(appended.size() - 1).getSeq();
+        // 4. Snapshot Check (Once per batch)
         if (lastSeq > 0) {
             snapshotStore.maybeSnapshot(lastSeq, orderBook);
         }
