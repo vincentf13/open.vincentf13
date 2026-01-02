@@ -92,8 +92,12 @@ public class PositionEvent {
                                                   BigDecimal newLiquidationPrice,
                                                   OrderSide side,
                                                   Long tradeId,
-                                                  Instant occurredAt) {
-        String baseId = String.valueOf(tradeId);
+                                                  Instant occurredAt,
+                                                  boolean isRecursive) {
+        String baseId = tradeId + ":" + side.name();
+        if (isRecursive) {
+            baseId += ":FLIP";
+        }
         return PositionEvent.builder()
                 .positionId(positionId)
                 .userId(userId)
@@ -110,7 +114,7 @@ public class PositionEvent {
                 .newMargin(newMargin)
                 .newUnrealizedPnl(newUnrealizedPnl)
                 .newLiquidationPrice(newLiquidationPrice)
-                .referenceId(baseId + ":" + side.name())
+                .referenceId(baseId)
                 .referenceType(PositionReferenceType.TRADE)
                 .metadata("{}")
                 .occurredAt(occurredAt)

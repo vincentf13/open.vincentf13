@@ -77,8 +77,12 @@ public class PositionDomainService {
                                              @NotNull BigDecimal feeCharged,
                                              @NotNull BigDecimal feeRefund,
                                              @NotNull Long tradeId,
-                                             @NotNull Instant executedAt) {
+                                             @NotNull Instant executedAt,
+                                             boolean isRecursive) {
         String referenceId = tradeId + ":" + orderSide.name();
+        if (isRecursive) {
+            referenceId += ":FLIP";
+        }
         
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
             return positionRepository.findOne(
@@ -113,8 +117,8 @@ public class PositionDomainService {
                 BigDecimal closeFeeRefund = feeRefund.subtract(flipFeeRefund);
 
                 List<Position> results = new ArrayList<>();
-                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, tradeId, executedAt));
-                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, tradeId, executedAt));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, tradeId, executedAt,false));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, tradeId, executedAt,true));
                 return results;
             }
 
@@ -240,7 +244,8 @@ public class PositionDomainService {
                     updatedPosition.getLiquidationPrice(),
                     orderSide,
                     tradeId,
-                    executedAt
+                    executedAt,
+                    isRecursive
                                                                 );
             positionEventRepository.insert(event);
             
@@ -254,6 +259,8 @@ public class PositionDomainService {
                                              OrderSide orderSide,
                                              Long tradeId, Instant executedAt,
                                              boolean reduceReserved) {
+        String referenceId = tradeId + ":" + orderSide.name();
+
         Position position = positionRepository.findOne(
                 Wrappers.lambdaQuery(PositionPO.class)
                         .eq(PositionPO::getUserId, userId)
@@ -262,13 +269,12 @@ public class PositionDomainService {
                 .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
                         Map.of("userId", userId, "instrumentId", instrumentId)));
         
-        Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
-        
         // 冪等效驗
-        String referenceId = tradeId + ":" + orderSide.name();
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
             return new PositionCloseResult(position, BigDecimal.ZERO, BigDecimal.ZERO);
         }
+
+        Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
 
         
         BigDecimal reserved = safe(position.getClosingReservedQuantity());
@@ -437,7 +443,8 @@ public class PositionDomainService {
                 updatedPosition.getLiquidationPrice(),
                 orderSide,
                 tradeId,
-                executedAt
+                executedAt,
+                false
         );
         positionEventRepository.insert(event);
 

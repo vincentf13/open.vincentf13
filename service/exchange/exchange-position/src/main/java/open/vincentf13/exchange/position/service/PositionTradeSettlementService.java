@@ -36,7 +36,8 @@ public class PositionTradeSettlementService {
                 event.feeCharged(),
                 event.feeRefund(),
                 event.tradeId(),
-                event.executedAt());
+                event.executedAt(),
+                false);
 
         for (Position position : positions) {
             positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
