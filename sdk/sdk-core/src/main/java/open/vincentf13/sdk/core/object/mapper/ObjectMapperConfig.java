@@ -59,7 +59,7 @@ public class ObjectMapperConfig {
     
     // 統一使用此配置，避免其他套件內的 ObjectMapper 影響。 例如：Spring MVC 取錯ObjectMapper，導致沒使用到此統一配置
     @Bean
-    public BeanPostProcessor openObjectMapperPostProcessor() {
+    public static BeanPostProcessor openObjectMapperPostProcessor() {
         return new BeanPostProcessor() {
             @Override
             public Object postProcessAfterInitialization(Object bean,
