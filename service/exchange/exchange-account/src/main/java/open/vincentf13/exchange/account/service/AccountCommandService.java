@@ -70,6 +70,7 @@ public class AccountCommandService {
                 accountTransactionDomainService.settleTrade(event,
                                                             event.orderId(),
                                                             event.makerUserId(),
+                                                            event.orderSide(),
                                                             event.makerIntent(),
                                                             true);
             }
@@ -77,6 +78,7 @@ public class AccountCommandService {
                 accountTransactionDomainService.settleTrade(event,
                                                             event.counterpartyOrderId(),
                                                             event.takerUserId(),
+                                                            event.counterpartyOrderSide(),
                                                             event.takerIntent(),
                                                             false);
             }

@@ -34,7 +34,8 @@ public class AccountPositionDomainService {
     @Transactional(rollbackFor = Exception.class)
     public void releaseMargin(@NotNull @Valid PositionMarginReleasedEvent event) {
         AssetSymbol asset = event.asset();
-        assertNoDuplicateJournal(event.userId(), asset, ReferenceType.POSITION_MARGIN_RELEASED, event.tradeId().toString());
+        String referenceId = event.tradeId() + ":" + event.side().name();
+        assertNoDuplicateJournal(event.userId(), asset, ReferenceType.POSITION_MARGIN_RELEASED, referenceId);
         UserAccount marginAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.MARGIN, event.instrumentId(), asset);
         if (marginAccount.getBalance().compareTo(event.marginReleased()) < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
@@ -58,20 +59,20 @@ public class AccountPositionDomainService {
                 List.of(marginAccount.safeVersion(), spotAccount.safeVersion(), equityAccount.safeVersion()),
                 "position-margin-release");
 
-        UserJournal marginOut = buildUserJournal(updatedMargin, Direction.CREDIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, event.tradeId().toString(), "Margin released to spot", event.releasedAt());
-        UserJournal marginIn = buildUserJournal(updatedSpot, Direction.DEBIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, event.tradeId().toString(), "Margin returned to spot", event.releasedAt());
+        UserJournal marginOut = buildUserJournal(updatedMargin, Direction.CREDIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, "Margin released to spot", event.releasedAt());
+        UserJournal marginIn = buildUserJournal(updatedSpot, Direction.DEBIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, "Margin returned to spot", event.releasedAt());
         UserJournal pnlJournal = buildUserJournal(updatedSpot,
                                                   event.realizedPnl().signum() >= 0 ? Direction.DEBIT : Direction.CREDIT,
                                                   event.realizedPnl().abs(),
                                                   ReferenceType.POSITION_REALIZED_PNL,
-                                                  event.tradeId().toString(),
+                                                  referenceId,
                                                   "Realized PnL settlement",
                                                   event.releasedAt());
         UserJournal equityJournal = buildUserJournal(updatedEquity,
                                                      event.realizedPnl().signum() >= 0 ? Direction.CREDIT : Direction.DEBIT,
                                                      event.realizedPnl().abs(),
                                                      ReferenceType.POSITION_REALIZED_PNL,
-                                                     event.tradeId().toString(),
+                                                     referenceId,
                                                      "Equity adjusted by realized PnL",
                                                      event.releasedAt());
         userJournalRepository.insertBatch(List.of(marginOut, marginIn, pnlJournal, equityJournal));

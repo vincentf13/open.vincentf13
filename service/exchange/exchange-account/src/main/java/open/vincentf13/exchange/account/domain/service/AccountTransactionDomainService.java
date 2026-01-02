@@ -25,6 +25,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
@@ -362,12 +363,13 @@ public class AccountTransactionDomainService {
     public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
                             @NotNull Long orderId,
                             @NotNull Long userId,
+                            @NotNull OrderSide orderSide,
                             @NotNull PositionIntentType intent,
                             boolean isMaker) {
         AssetSymbol asset = event.quoteAsset();
         UserAccount userSpot = userAccountRepository.getOrCreate(userId, UserAccountCode.SPOT, null, asset);
         
-        String refIdWithSide = event.tradeId() + (isMaker ? ":Maker" : ":Taker");
+        String refIdWithSide = event.tradeId() + ":" + orderSide.name();
         assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide);
         if (intent != PositionIntentType.INCREASE) {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
