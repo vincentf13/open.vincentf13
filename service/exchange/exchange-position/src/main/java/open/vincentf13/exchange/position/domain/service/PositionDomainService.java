@@ -254,8 +254,6 @@ public class PositionDomainService {
                                              OrderSide orderSide,
                                              Long tradeId, Instant executedAt,
                                              boolean reduceReserved) {
-        String referenceId = tradeId + ":" + orderSide.name();
-
         Position position = positionRepository.findOne(
                 Wrappers.lambdaQuery(PositionPO.class)
                         .eq(PositionPO::getUserId, userId)
@@ -264,26 +262,53 @@ public class PositionDomainService {
                 .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
                         Map.of("userId", userId, "instrumentId", instrumentId)));
         
+        Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
+        
+        // 冪等效驗
+        String referenceId = tradeId + ":" + orderSide.name();
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
             return new PositionCloseResult(position, BigDecimal.ZERO, BigDecimal.ZERO);
         }
 
+        
         BigDecimal reserved = safe(position.getClosingReservedQuantity());
         BigDecimal existingQty = safe(position.getQuantity());
-
-        if (quantity.compareTo(reserved) > 0 || quantity.compareTo(existingQty) > 0) {
-            throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
-                    Map.of("userId", userId,
-                            "instrumentId", instrumentId,
-                            "requestedQuantity", quantity,
-                            "closingReservedQuantity", reserved,
-                            "positionQuantity", existingQty));
+        
+        
+        // 一般平倉
+        if (reduceReserved) {
+            BigDecimal existingReserved = safe(position.getClosingReservedQuantity());
+            updatedPosition.setClosingReservedQuantity(existingReserved.subtract(quantity).max(BigDecimal.ZERO));
+            
+            if (quantity.compareTo(reserved) > 0 || quantity.compareTo(existingQty) > 0) {
+                throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
+                                       Map.of("userId", userId,
+                                              "instrumentId", instrumentId,
+                                              "requestedQuantity", quantity,
+                                              "closingReservedQuantity", reserved,
+                                              "positionQuantity", existingQty));
+            }
+        } else {
+            // 開倉 flip 的 平倉
+            if (quantity.compareTo(existingQty) > 0) {
+                throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
+                                       Map.of("userId", userId,
+                                              "instrumentId", instrumentId,
+                                              "requestedQuantity", quantity,
+                                              "closingReservedQuantity", reserved,
+                                              "positionQuantity", existingQty));
+            }
         }
-
-        Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
-
+        
+        // 更新 Mark Price
         markPriceCache.get(instrumentId)
                 .ifPresent(updatedPosition::setMarkPrice);
+        BigDecimal effectiveMarkPrice = updatedPosition.getMarkPrice();
+        if (effectiveMarkPrice == null || effectiveMarkPrice.compareTo(BigDecimal.ZERO) == 0) {
+            effectiveMarkPrice = price;
+            updatedPosition.setMarkPrice(price);
+        }
+        
 
         BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
                 .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
@@ -298,9 +323,12 @@ public class PositionDomainService {
         BigDecimal existingCumFee = safe(position.getCumFee());
         BigDecimal existingCumRealized = safe(position.getCumRealizedPnl());
 
+        
+        // 釋放保證金
         BigDecimal marginToRelease = existingMargin.multiply(quantity)
                 .divide(existingQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
 
+        // 計算盈虧
         BigDecimal pnl;
         if (position.getSide() == PositionSide.LONG) {
             pnl = price.subtract(updatedPosition.getEntryPrice())
@@ -311,31 +339,26 @@ public class PositionDomainService {
                     .multiply(quantity)
                     .multiply(contractMultiplier);
         }
-
+        
         BigDecimal newQuantity = existingQuantity.subtract(quantity);
+        // 更新數量、保證金
         updatedPosition.setQuantity(newQuantity);
         updatedPosition.setMargin(existingMargin.subtract(marginToRelease));
+        
+        
+        // 更新統計
         updatedPosition.setCumRealizedPnl(existingCumRealized.add(pnl));
-
-        if (reduceReserved) {
-            BigDecimal existingReserved = safe(position.getClosingReservedQuantity());
-            updatedPosition.setClosingReservedQuantity(existingReserved.subtract(quantity).max(BigDecimal.ZERO));
-        }
-
         BigDecimal feeDelta = feeCharged.subtract(feeRefund);
         updatedPosition.setCumFee(existingCumFee.add(feeDelta));
 
+        // 關倉
         if (newQuantity.compareTo(BigDecimal.ZERO) == 0) {
             updatedPosition.setStatus(PositionStatus.CLOSED);
             updatedPosition.setClosedAt(executedAt);
         }
 
-        BigDecimal effectiveMarkPrice = updatedPosition.getMarkPrice();
-        if (effectiveMarkPrice == null || effectiveMarkPrice.compareTo(BigDecimal.ZERO) == 0) {
-            effectiveMarkPrice = price;
-            updatedPosition.setMarkPrice(price);
-        }
-
+  
+        // 未實現盈虧
         if (newQuantity.compareTo(BigDecimal.ZERO) > 0) {
             if (updatedPosition.getSide() == PositionSide.LONG) {
                 updatedPosition.setUnrealizedPnl(effectiveMarkPrice.subtract(updatedPosition.getEntryPrice())
@@ -350,6 +373,7 @@ public class PositionDomainService {
             updatedPosition.setUnrealizedPnl(BigDecimal.ZERO);
         }
 
+        // 維持保證金率
         if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).multiply(contractMultiplier).abs();
             if (notional.compareTo(BigDecimal.ZERO) == 0) {
@@ -359,6 +383,7 @@ public class PositionDomainService {
                         .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
             }
 
+            // 強平價格
             BigDecimal quantityTimesMultiplier = updatedPosition.getQuantity().multiply(contractMultiplier);
             if (updatedPosition.getSide() == PositionSide.LONG) {
                 updatedPosition.setLiquidationPrice(
