@@ -35,8 +35,8 @@ public class AccountPositionDomainService {
     public void releaseMargin(@NotNull @Valid PositionMarginReleasedEvent event) {
         AssetSymbol asset = event.asset();
         String referenceId = event.tradeId() + ":" + event.side().name();
-        assertNoDuplicateJournal(event.userId(), asset, ReferenceType.POSITION_MARGIN_RELEASED, referenceId);
         UserAccount marginAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.MARGIN, event.instrumentId(), asset);
+        assertNoDuplicateJournal(marginAccount.getAccountId(), asset, ReferenceType.POSITION_MARGIN_RELEASED, referenceId);
         if (marginAccount.getBalance().compareTo(event.marginReleased()) < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
                                    Map.of("userId", event.userId(), "asset", asset, "available", marginAccount.getBalance(), "amount", event.marginReleased()));
@@ -101,14 +101,14 @@ public class AccountPositionDomainService {
                           .build();
     }
 
-    private void assertNoDuplicateJournal(Long userId,
+    private void assertNoDuplicateJournal(Long accountId,
                                           AssetSymbol asset,
                                           ReferenceType referenceType,
                                           String referenceId) {
-        boolean exists = userJournalRepository.findLatestByReference(userId, asset, referenceType, referenceId).isPresent();
+        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, referenceType, referenceId).isPresent();
         if (exists) {
             throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
-                                   Map.of("userId", userId, "asset", asset, "referenceType", referenceType, "referenceId", referenceId));
+                                   Map.of("accountId", accountId, "asset", asset, "referenceType", referenceType, "referenceId", referenceId));
         }
     }
 }
