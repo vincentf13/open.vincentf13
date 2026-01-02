@@ -6,25 +6,16 @@ import open.vincentf13.exchange.account.sdk.mq.topic.AccountTradeTopics;
 import open.vincentf13.exchange.position.infra.PositionEvent;
 import open.vincentf13.exchange.position.service.PositionTradeSettlementService;
 import open.vincentf13.sdk.core.log.OpenLog;
-import org.apache.kafka.common.TopicPartition;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.listener.ConsumerSeekAware;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
-
 @Component
 @RequiredArgsConstructor
-public class TradeMarginSettledEventListener implements ConsumerSeekAware {
+public class TradeMarginSettledEventListener {
 
     private final PositionTradeSettlementService positionTradeSettlementService;
-
-    @Override
-    public void onPartitionsAssigned(Map<TopicPartition, Long> assignments, ConsumerSeekCallback callback) {
-        callback.seekToBeginning(assignments.keySet());
-    }
 
     @KafkaListener(topics = AccountTradeTopics.Names.TRADE_MARGIN_SETTLED,
                    groupId = "${exchange.position.trade-settled.consumer-group:exchange-position-trade-settled}")
