@@ -25,6 +25,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceTyp
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -449,7 +450,7 @@ public class PositionDomainService {
     public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NEVER)
     public void updateMarkPrice(@NotNull Long instrumentId, @NotNull BigDecimal markPrice) {
         List<Position> positions = positionRepository.findBy(
                 Wrappers.lambdaQuery(PositionPO.class)

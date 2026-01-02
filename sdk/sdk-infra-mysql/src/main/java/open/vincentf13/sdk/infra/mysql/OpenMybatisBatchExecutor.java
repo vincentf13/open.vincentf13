@@ -3,7 +3,7 @@ package open.vincentf13.sdk.infra.mysql;
 import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
-import org.mybatis.spring.SqlSessionUtils;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -23,7 +23,10 @@ public class OpenMybatisBatchExecutor {
         if (items == null || items.isEmpty()) {
             return;
         }
-        SqlSession sqlSession = SqlSessionUtils.getSqlSession(sqlSessionFactory, ExecutorType.BATCH, null);
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("OpenMybatisBatchExecutor must not run within an active transaction");
+        }
+        SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH, false);
         try {
             int count = 0;
             for (T item : items) {
@@ -36,8 +39,12 @@ public class OpenMybatisBatchExecutor {
             }
             sqlSession.flushStatements();
             sqlSession.clearCache();
+            sqlSession.commit();
+        } catch (Exception e) {
+            sqlSession.rollback();
+            throw e;
         } finally {
-            SqlSessionUtils.closeSqlSession(sqlSession, sqlSessionFactory);
+            sqlSession.close();
         }
     }
 }
