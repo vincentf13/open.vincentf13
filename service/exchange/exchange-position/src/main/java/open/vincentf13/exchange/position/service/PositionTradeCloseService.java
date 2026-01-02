@@ -88,7 +88,7 @@ public class PositionTradeCloseService {
                 orderSide,
                 tradeId,
                 eventTime,
-                true
+                false
         );
 
         Position updatedPosition = result.position();
