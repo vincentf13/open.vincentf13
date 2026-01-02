@@ -76,33 +76,9 @@ public class PositionTradeCloseService {
         if (intentType == null || intentType == PositionIntentType.INCREASE) {
             return;
         }
-        if (positionEventRepository.existsByReferenceAndUser(PositionReferenceType.TRADE, tradeId + ":" + orderSide, userId)) {
-            return;
-        }
-
-        Optional<Position> optional = positionRepository.findOne(
-                Wrappers.lambdaQuery(PositionPO.class)
-                        .eq(PositionPO::getUserId, userId)
-                        .eq(PositionPO::getInstrumentId, instrumentId)
-                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
-        Position position = optional.orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
-                                                                        Map.of("userId", userId, "instrumentId", instrumentId)));
-
-        BigDecimal reserved = safe(position.getClosingReservedQuantity());
-        BigDecimal existingQty = safe(position.getQuantity());
-
-        if (quantity.compareTo(reserved) > 0 || quantity.compareTo(existingQty) > 0) {
-            throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
-                                   Map.of("userId", userId,
-                                          "instrumentId", instrumentId,
-                                          "requestedQuantity", quantity,
-                                          "closingReservedQuantity", reserved,
-                                          "positionQuantity", existingQty));
-        }
 
         Instant eventTime = executedAt == null ? Instant.now() : executedAt;
         PositionDomainService.PositionCloseResult result = positionDomainService.closePosition(
-                position,
                 userId,
                 instrumentId,
                 price,
@@ -116,6 +92,7 @@ public class PositionTradeCloseService {
         );
 
         Position updatedPosition = result.position();
+
         positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
                 updatedPosition.getUserId(),
                 updatedPosition.getInstrumentId(),
@@ -134,7 +111,7 @@ public class PositionTradeCloseService {
                 userId,
                 instrumentId,
                 asset,
-                position.getSide(),
+                updatedPosition.getSide(),
                 result.marginReleased(),
                 result.pnl(),
                 eventTime

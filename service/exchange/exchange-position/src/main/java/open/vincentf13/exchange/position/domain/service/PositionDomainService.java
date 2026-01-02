@@ -118,7 +118,7 @@ public class PositionDomainService {
                 return results;
             }
 
-            PositionCloseResult result = closePosition(position, userId, instrumentId, price, quantity, feeCharged, feeRefund, orderSide, tradeId, executedAt, false);
+            PositionCloseResult result = closePosition(userId, instrumentId, price, quantity, feeCharged, feeRefund, orderSide, tradeId, executedAt, false);
             positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
                     tradeId,
                     orderId,
@@ -248,12 +248,38 @@ public class PositionDomainService {
         }
     }
 
-    public PositionCloseResult closePosition(Position position, Long userId, Long instrumentId,
+    public PositionCloseResult closePosition(Long userId, Long instrumentId,
                                              BigDecimal price, BigDecimal quantity,
                                              BigDecimal feeCharged, BigDecimal feeRefund,
                                              OrderSide orderSide,
                                              Long tradeId, Instant executedAt,
                                              boolean reduceReserved) {
+        String referenceId = tradeId + ":" + orderSide.name();
+
+        Position position = positionRepository.findOne(
+                Wrappers.lambdaQuery(PositionPO.class)
+                        .eq(PositionPO::getUserId, userId)
+                        .eq(PositionPO::getInstrumentId, instrumentId)
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
+                        Map.of("userId", userId, "instrumentId", instrumentId)));
+        
+        if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
+            return new PositionCloseResult(position, BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+
+        BigDecimal reserved = safe(position.getClosingReservedQuantity());
+        BigDecimal existingQty = safe(position.getQuantity());
+
+        if (quantity.compareTo(reserved) > 0 || quantity.compareTo(existingQty) > 0) {
+            throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
+                    Map.of("userId", userId,
+                            "instrumentId", instrumentId,
+                            "requestedQuantity", quantity,
+                            "closingReservedQuantity", reserved,
+                            "positionQuantity", existingQty));
+        }
+
         Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
 
         markPriceCache.get(instrumentId)
