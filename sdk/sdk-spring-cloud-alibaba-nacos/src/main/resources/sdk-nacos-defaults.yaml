@@ -60,10 +60,10 @@ logging:
 #    com.alibaba.nacos.client.naming: INFO
 
     # 配置拉取與熱更新細節（觀察配置變化，可暫時升級為 DEBUG）
-    com.alibaba.nacos.client.config: INFO
+#    com.alibaba.nacos.client.config: INFO
 
     # Spring Cloud RefreshContext，當配置變更觸發 @RefreshScope 時會記錄
-    org.springframework.cloud.context.refresh: INFO
+#    org.springframework.cloud.context.refresh: INFO
 
     # Reactor Netty：Spring WebFlux 與 Nacos HTTP 通訊底層（排查連線/逾時用）
 #    reactor.netty: WARN
