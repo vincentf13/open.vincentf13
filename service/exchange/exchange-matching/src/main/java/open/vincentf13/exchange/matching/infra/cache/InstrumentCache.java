@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.matching.infra.cache;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +36,7 @@ public class InstrumentCache {
         }
 
         instruments.forEach(instrument -> {
+            validateContractSize(instrument);
             cache.put(instrument.getInstrumentId(), instrument);
         });
     }
@@ -51,6 +53,7 @@ public class InstrumentCache {
         }
 
         instrumentSummaries.forEach(dto -> {
+            validateContractSize(dto);
             Instrument instrument = Instrument.from(dto);
             cache.put(instrument.getInstrumentId(), instrument);
         });
@@ -84,5 +87,25 @@ public class InstrumentCache {
 
     public int size() {
         return cache.size();
+    }
+
+    private void validateContractSize(InstrumentSummaryResponse instrument) {
+        if (instrument == null) {
+            throw new IllegalArgumentException("Instrument must not be null");
+        }
+        BigDecimal contractSize = instrument.contractSize();
+        if (contractSize == null || contractSize.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Invalid contractSize for instrumentId=" + instrument.instrumentId());
+        }
+    }
+
+    private void validateContractSize(Instrument instrument) {
+        if (instrument == null) {
+            throw new IllegalArgumentException("Instrument must not be null");
+        }
+        BigDecimal contractSize = instrument.getContractSize();
+        if (contractSize == null || contractSize.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Invalid contractSize for instrumentId=" + instrument.getInstrumentId());
+        }
     }
 }

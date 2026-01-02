@@ -3,6 +3,7 @@ package open.vincentf13.exchange.account.infra.cache;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,11 +22,18 @@ public class InstrumentCache {
     }
 
     public void put(Long instrumentId, InstrumentSummaryResponse instrument) {
+        validateContractSize(instrument);
         cache.put(instrumentId, instrument);
     }
 
     public void putAll(Collection<InstrumentSummaryResponse> instruments) {
-        instruments.forEach(instrument -> cache.put(instrument.instrumentId(), instrument));
+        if (instruments == null) {
+            return;
+        }
+        instruments.forEach(instrument -> {
+            validateContractSize(instrument);
+            cache.put(instrument.instrumentId(), instrument);
+        });
     }
 
     public void clear() {
@@ -38,5 +46,15 @@ public class InstrumentCache {
 
     public Collection<InstrumentSummaryResponse> getAll() {
         return cache.values();
+    }
+
+    private void validateContractSize(InstrumentSummaryResponse instrument) {
+        if (instrument == null) {
+            throw new IllegalArgumentException("Instrument must not be null");
+        }
+        BigDecimal contractSize = instrument.contractSize();
+        if (contractSize == null || contractSize.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Invalid contractSize for instrumentId=" + instrument.instrumentId());
+        }
     }
 }
