@@ -13,6 +13,8 @@ import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
@@ -28,6 +30,7 @@ public class PositionRepository {
     
     private final PositionMapper mapper;
     private final DefaultIdGenerator idGenerator;
+    private final SqlSessionFactory sqlSessionFactory;
     
     public Position createDefault(@NotNull Long userId,
                                   @NotNull Long instrumentId) {
@@ -70,6 +73,24 @@ public class PositionRepository {
                                      LambdaUpdateWrapper<PositionPO> updateWrapper) {
         PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);
         return mapper.update(record, updateWrapper) > 0;
+    }
+
+    public void updateSelectiveBatch(@NotNull List<@Valid PositionUpdateTask> tasks) {
+        if (tasks.isEmpty()) {
+            return;
+        }
+        OpenMybatisBatchExecutor batchExecutor = new OpenMybatisBatchExecutor(sqlSessionFactory);
+        batchExecutor.execute(tasks, (session, task) -> {
+            PositionMapper batchMapper = session.getMapper(PositionMapper.class);
+            PositionPO record = OpenObjectMapper.convert(task.position(), PositionPO.class);
+            LambdaUpdateWrapper<PositionPO> updateWrapper = Wrappers.lambdaUpdate(PositionPO.class)
+                                                                    .eq(PositionPO::getPositionId, record.getPositionId())
+                                                                    .eq(PositionPO::getVersion, task.expectedVersion());
+            batchMapper.update(record, updateWrapper);
+        });
+    }
+
+    public record PositionUpdateTask(Position position, int expectedVersion) {
     }
 
     private Position normalize(Position position) {

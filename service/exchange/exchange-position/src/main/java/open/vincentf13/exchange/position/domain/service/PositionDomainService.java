@@ -466,6 +466,7 @@ public class PositionDomainService {
                 .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
                 .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
 
+        List<PositionRepository.PositionUpdateTask> updateTasks = new ArrayList<>(positions.size());
         for (Position position : positions) {
             Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
             updatedPosition.setMarkPrice(markPrice);
@@ -517,12 +518,9 @@ public class PositionDomainService {
 
             int expectedVersion = position.safeVersion();
             updatedPosition.setVersion(expectedVersion + 1);
-            positionRepository.updateSelectiveBy(
-                    updatedPosition,
-                    Wrappers.<PositionPO>lambdaUpdate()
-                            .eq(PositionPO::getPositionId, updatedPosition.getPositionId())
-                            .eq(PositionPO::getVersion, expectedVersion));
+            updateTasks.add(new PositionRepository.PositionUpdateTask(updatedPosition, expectedVersion));
         }
+        positionRepository.updateSelectiveBatch(updateTasks);
     }
 
     public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased) {
