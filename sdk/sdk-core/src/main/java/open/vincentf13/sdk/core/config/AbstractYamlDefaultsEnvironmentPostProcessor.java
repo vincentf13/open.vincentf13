@@ -27,7 +27,7 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor implements En
     private final YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
     
     @Override
-    public void postProcessEnvironment(ConfigurableEnvironment environment,
+    public final void postProcessEnvironment(ConfigurableEnvironment environment,
                                              SpringApplication application) {
         Resource resource = resolveResource();
         if (resource == null || !resource.exists()) {
