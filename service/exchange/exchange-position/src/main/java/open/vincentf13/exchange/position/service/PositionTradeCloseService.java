@@ -1,30 +1,26 @@
 package open.vincentf13.exchange.position.service;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.*;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.service.PositionDomainService;
-import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
-import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
-import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.OpenValidator;
-import open.vincentf13.sdk.core.exception.OpenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -88,7 +84,7 @@ public class PositionTradeCloseService {
                 orderSide,
                 tradeId,
                 eventTime,
-                false
+                true
         );
 
         Position updatedPosition = result.position();

@@ -281,9 +281,6 @@ public class PositionDomainService {
         
         // 一般平倉
         if (reduceReserved) {
-            BigDecimal existingReserved = safe(position.getClosingReservedQuantity());
-            updatedPosition.setClosingReservedQuantity(existingReserved.subtract(quantity).max(BigDecimal.ZERO));
-            
             if (quantity.compareTo(reserved) > 0 || quantity.compareTo(existingQty) > 0) {
                 throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
                                        Map.of("userId", userId,
@@ -292,6 +289,9 @@ public class PositionDomainService {
                                               "closingReservedQuantity", reserved,
                                               "positionQuantity", existingQty));
             }
+            
+            BigDecimal existingReserved = safe(position.getClosingReservedQuantity());
+            updatedPosition.setClosingReservedQuantity(existingReserved.subtract(quantity).max(BigDecimal.ZERO));
         } else {
             // 開倉 flip 的 平倉
             if (quantity.compareTo(existingQty) > 0) {
