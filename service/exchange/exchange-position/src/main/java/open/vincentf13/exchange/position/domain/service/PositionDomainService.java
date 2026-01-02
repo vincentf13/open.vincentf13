@@ -44,7 +44,6 @@ public class PositionDomainService {
     private final InstrumentCache instrumentCache;
 
     private static final BigDecimal MAINTENANCE_MARGIN_RATE_DEFAULT = BigDecimal.valueOf(0.005);
-    private static final BigDecimal CONTRACT_MULTIPLIER = BigDecimal.ONE;
 
     public PositionSide toPositionSide(OrderSide orderSide) {
         if (orderSide == null) {
@@ -142,9 +141,7 @@ public class PositionDomainService {
             markPriceCache.get(instrumentId)
                           .ifPresent(updatedPosition::setMarkPrice);
             
-            BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
-                                                           .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
-                                                           .orElse(CONTRACT_MULTIPLIER);
+            BigDecimal contractMultiplier = requireContractSize(instrumentId);
             
             BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
                                                              .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
@@ -316,9 +313,7 @@ public class PositionDomainService {
         }
         
 
-        BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
-                .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
-                .orElse(CONTRACT_MULTIPLIER);
+        BigDecimal contractMultiplier = requireContractSize(instrumentId);
 
         BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
                 .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
@@ -465,9 +460,7 @@ public class PositionDomainService {
             return;
         }
 
-        BigDecimal contractMultiplier = instrumentCache.get(instrumentId)
-                .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : CONTRACT_MULTIPLIER)
-                .orElse(CONTRACT_MULTIPLIER);
+        BigDecimal contractMultiplier = requireContractSize(instrumentId);
 
         BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
                 .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
@@ -533,6 +526,13 @@ public class PositionDomainService {
     }
 
     public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased) {
+    }
+
+    private BigDecimal requireContractSize(Long instrumentId) {
+        return instrumentCache.get(instrumentId)
+                .map(instrument -> instrument.contractSize())
+                .filter(contractSize -> contractSize != null && contractSize.compareTo(BigDecimal.ZERO) > 0)
+                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid contractSize for instrumentId=" + instrumentId));
     }
 
     private BigDecimal safe(BigDecimal value) {

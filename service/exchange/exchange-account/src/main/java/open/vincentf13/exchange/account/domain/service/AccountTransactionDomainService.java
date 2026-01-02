@@ -373,9 +373,7 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
                                    Map.of("orderId", orderId, "intent", intent));
         }
-        BigDecimal contractMultiplier = instrumentCache.get(event.instrumentId())
-                                                       .map(instrument -> instrument.contractSize() != null ? instrument.contractSize() : BigDecimal.ONE)
-                                                       .orElse(BigDecimal.ONE);
+        BigDecimal contractMultiplier = requireContractSize(event.instrumentId());
         BigDecimal marginUsed = event.price().multiply(event.quantity()).multiply(contractMultiplier);
         BigDecimal actualFee = isMaker ? event.makerFee() : event.takerFee();
         
@@ -502,5 +500,12 @@ public class AccountTransactionDomainService {
                         Instant.now()
                 )
         );
+    }
+
+    private BigDecimal requireContractSize(Long instrumentId) {
+        return instrumentCache.get(instrumentId)
+                .map(InstrumentSummaryResponse::contractSize)
+                .filter(contractSize -> contractSize != null && contractSize.compareTo(BigDecimal.ZERO) > 0)
+                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid contractSize for instrumentId=" + instrumentId));
     }
 }
