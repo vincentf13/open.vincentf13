@@ -59,7 +59,7 @@ public class MarkPriceCacheService {
         Instant now = Instant.now();
         return MarkPriceSnapshot.builder()
                                 .instrumentId(instrumentId)
-                                .markPrice(BigDecimal.ZERO)
+                                .markPrice(BigDecimal.ONE)
                                 .tradeId(0L)
                                 .tradeExecutedAt(now)
                                 .calculatedAt(now)
