@@ -1,12 +1,14 @@
 package open.vincentf13.exchange.risk.service;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.account.sdk.rest.client.ExchangeAccountClient;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
 import open.vincentf13.exchange.risk.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.risk.infra.cache.MarkPriceCache;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckResponse;
+import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -20,8 +22,10 @@ public class OrderPrecheckService {
     private final InstrumentCache instrumentCache;
     private final MarkPriceCache markPriceCache;
     private final RiskLimitQueryService riskLimitQueryService;
+    private final ExchangeAccountClient exchangeAccountClient;
     
     private static final BigDecimal BUFFER = BigDecimal.ZERO;
+    private static final String NEGATIVE_BALANCE_REASON = "因訂單成交後倉位flip，導致平倉訂單成交後轉開倉，扣減保證金後餘額不足，導致餘額變成負數。請聯繫補充資金或聯繫客服了解詳情。[正式上線應該要做強制平倉，但這裡不省略，僅顯示此提示信息]";
     
     public OrderPrecheckResponse precheck(OrderPrecheckRequest request) {
         // 1. 基礎校驗 (Fail Fast)
@@ -32,8 +36,20 @@ public class OrderPrecheckService {
         var instrument = instrumentOpt.get();
         if (!Boolean.TRUE.equals(instrument.tradable()))
             return new OrderPrecheckResponse(false, null, null, "Instrument is not tradable");
-        
+
         try {
+            
+            // 餘額檢查
+            if (request.getUserId() != null && instrument.quoteAsset() != null) {
+                var balanceResponse = OpenApiClientInvoker.call(
+                        () -> exchangeAccountClient.getBalances(instrument.quoteAsset().code(), request.getUserId()));
+                var balanceItem = balanceResponse.balances();
+                if (balanceItem != null
+                    && ((balanceItem.balance() != null && balanceItem.balance().signum() < 0)
+                        || (balanceItem.available() != null && balanceItem.available().signum() < 0))) {
+                    return new OrderPrecheckResponse(false, null, null, NEGATIVE_BALANCE_REASON);
+                }
+            }
             // 2. 數據上下文準備
             var riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(request.getInstrumentId());
             var snapshot = normalizeSnapshot(request.getPositionSnapshot(), request.getInstrumentId());

@@ -72,6 +72,10 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-account-sdk-rest-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
             <artifactId>exchange-market-sdk-rest-client</artifactId>
         </dependency>
         <dependency>
