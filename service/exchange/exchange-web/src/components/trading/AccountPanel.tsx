@@ -144,7 +144,8 @@ export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="relative flex flex-col gap-4 p-4 rounded-2xl border border-white/25 bg-white/15 shadow-md overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none" />
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-slate-700">Account</div>
         <button

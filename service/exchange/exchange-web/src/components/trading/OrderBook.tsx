@@ -145,12 +145,12 @@ export default function OrderBook({ instrumentId, contractSize, refreshTrigger }
   );
 
   return (
-    <div className="flex flex-col h-full w-[80%] ml-auto">
-      <div className="p-4 border-b border-white/20 bg-white/10">
+    <div className="relative flex flex-col h-full w-[80%] ml-auto border-l border-white/30 bg-gradient-to-b from-white/15 via-white/5 to-transparent">
+      <div className="relative p-4 border-b border-white/20 bg-white/5">
           <h3 className="text-sm font-semibold text-slate-700">Order Book</h3>
       </div>
 
-      <div className="flex-1 overflow-hidden p-2">
+      <div className="relative flex-1 overflow-hidden p-2">
           <div className="grid grid-cols-3 text-[10px] uppercase text-slate-400 font-bold tracking-wider px-2 mb-2">
               <span>Price</span>
               <span className="text-right">Amount</span>
