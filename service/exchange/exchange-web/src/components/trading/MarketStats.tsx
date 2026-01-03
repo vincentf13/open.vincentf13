@@ -360,7 +360,7 @@ export default function MarketStats({
                         <button
                             type="button"
                             onClick={() => setShowExtraStats((prev) => !prev)}
-                            className="inline-flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider text-slate-500 hover:text-slate-700"
+                            className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/70 px-2.5 py-1 text-[10px] uppercase font-semibold tracking-wider text-slate-600 shadow-sm transition-all hover:bg-white hover:text-slate-800"
                         >
                             {showExtraStats ? 'Less' : 'More'}
                             <span className="text-[9px]">{showExtraStats ? '˄' : '˅'}</span>
