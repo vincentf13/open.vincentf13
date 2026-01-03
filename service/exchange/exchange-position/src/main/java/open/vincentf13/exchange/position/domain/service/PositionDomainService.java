@@ -123,7 +123,7 @@ public class PositionDomainService {
                 return results;
             }
 
-            PositionCloseResult result = closePosition(userId, instrumentId, price, quantity, feeCharged, feeRefund, orderSide, tradeId, executedAt, false);
+            PositionCloseResult result = closePosition(userId, instrumentId, price, quantity, feeCharged, feeRefund, orderSide, tradeId, executedAt, true);
             positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
                     tradeId,
                     orderId,
@@ -257,7 +257,7 @@ public class PositionDomainService {
                                              BigDecimal feeCharged, BigDecimal feeRefund,
                                              OrderSide orderSide,
                                              Long tradeId, Instant executedAt,
-                                             boolean reduceReserved) {
+                                             boolean isFlip) {
         String referenceId = tradeId + ":" + orderSide.name();
 
         Position position = positionRepository.findOne(
@@ -280,9 +280,18 @@ public class PositionDomainService {
         BigDecimal existingQty = safe(position.getQuantity());
         
         
-        // 一般平倉
-        if (reduceReserved) {
-            if (quantity.compareTo(reserved) > 0 || quantity.compareTo(existingQty) > 0) {
+        if (quantity.compareTo(existingQty) > 0) {
+            throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
+                                   Map.of("userId", userId,
+                                          "instrumentId", instrumentId,
+                                          "requestedQuantity", quantity,
+                                          "closingReservedQuantity", reserved,
+                                          "positionQuantity", existingQty));
+        }
+        
+        // 一般平倉 效驗保留倉位數量
+        if (!isFlip) {
+            if (quantity.compareTo(reserved) > 0) {
                 throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
                                        Map.of("userId", userId,
                                               "instrumentId", instrumentId,
@@ -290,19 +299,10 @@ public class PositionDomainService {
                                               "closingReservedQuantity", reserved,
                                               "positionQuantity", existingQty));
             }
-            
-            BigDecimal existingReserved = safe(position.getClosingReservedQuantity());
-            updatedPosition.setClosingReservedQuantity(existingReserved.subtract(quantity).max(BigDecimal.ZERO));
+            updatedPosition.setClosingReservedQuantity(reserved.subtract(quantity).max(BigDecimal.ZERO));
         } else {
-            // 開倉 flip 的 平倉
-            if (quantity.compareTo(existingQty) > 0) {
-                throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
-                                       Map.of("userId", userId,
-                                              "instrumentId", instrumentId,
-                                              "requestedQuantity", quantity,
-                                              "closingReservedQuantity", reserved,
-                                              "positionQuantity", existingQty));
-            }
+            // Flip
+            updatedPosition.setClosingReservedQuantity(BigDecimal.ZERO);
         }
         
         // 更新 Mark Price
