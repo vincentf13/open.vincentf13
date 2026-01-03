@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { message } from 'antd';
+import { Tooltip, message } from 'antd';
 
 import type { InstrumentSummary } from '../../api/instrument';
 import { getOrders, type OrderResponse } from '../../api/order';
@@ -620,7 +620,25 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
           </table>
         )}
         {activeTab === 'Orders' && (
-          <div>
+          <Tooltip
+            title={(
+              <div className="text-xs">
+                <div className="whitespace-nowrap">數據變化將會上色，方便檢核交易動態。</div>
+                <div className="whitespace-nowrap">
+                  訂單下拉框內的成交明細中，左下角附有統計數據，方便核對剩餘開倉佔用保證金、平均成交價格與最終手續費。
+                </div>
+                <div className="whitespace-nowrap">
+                  Changes are highlighted for easier trade verification.
+                </div>
+                <div className="whitespace-nowrap">
+                  The stats at the bottom-left of the expanded order trades help verify remaining open-position margin, average fill price, and final fees.
+                </div>
+              </div>
+            )}
+            overlayStyle={{ maxWidth: 'none' }}
+            overlayInnerStyle={{ maxWidth: 'none' }}
+          >
+            <div>
             <table className="min-w-[2400px] w-full text-xs text-right text-slate-600">
               <thead>
                 <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
@@ -801,6 +819,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               Reserved Fee: {orders.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
             </div>
           </div>
+          </Tooltip>
         )}
         {activeTab === 'Traders' && (
           <div>

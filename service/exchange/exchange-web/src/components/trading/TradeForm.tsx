@@ -166,7 +166,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
               Quantity: {instrument ? displayNormalizedQuantity : '--'}
             </div>
             <div className="text-[11px] text-slate-400 text-right pr-2">
-              預收手續費: {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
+              Estimated Fee: {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
             </div>
         </div>
 
