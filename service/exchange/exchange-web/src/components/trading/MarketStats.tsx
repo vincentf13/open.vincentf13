@@ -270,11 +270,11 @@ export default function MarketStats({
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Funding</span>
-                        <span className="font-mono font-medium text-orange-500">0.0100%</span>
+                        <span className="font-mono font-medium text-orange-500">-- %</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Next</span>
-                        <span className="font-mono font-medium text-slate-600">01:52:10</span>
+                        <span className="font-mono font-medium text-slate-600">--:--:--</span>
                     </div>
                     <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h High</span>

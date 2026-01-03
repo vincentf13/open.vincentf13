@@ -5,6 +5,7 @@ import { getOrderBook, type OrderBookLevel, type OrderBookResponse } from '../..
 
 type OrderBookProps = {
   instrumentId: string | null;
+  contractSize?: number | string | null;
   refreshTrigger?: number;
 };
 
@@ -41,7 +42,7 @@ const formatTotal = (value: number) => {
   });
 };
 
-const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean) => {
+const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean, contractMultiplier: number) => {
   if (!levels || !levels.length) {
     return [];
   }
@@ -55,10 +56,11 @@ const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolea
 
   let cumulative = 0;
   const rows = sorted.map((item) => {
-    cumulative += item.amount;
+    const normalizedAmount = contractMultiplier > 0 ? item.amount * contractMultiplier : item.amount;
+    cumulative += normalizedAmount;
     return {
       price: item.price,
-      amount: item.amount,
+      amount: normalizedAmount,
       total: cumulative,
       depth: 0,
     };
@@ -70,7 +72,7 @@ const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolea
   }));
 };
 
-export default function OrderBook({ instrumentId, refreshTrigger }: OrderBookProps) {
+export default function OrderBook({ instrumentId, contractSize, refreshTrigger }: OrderBookProps) {
   const [orderBook, setOrderBook] = useState<OrderBookResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -108,8 +110,10 @@ export default function OrderBook({ instrumentId, refreshTrigger }: OrderBookPro
     };
   }, [instrumentId, refreshTrigger]);
 
-  const asks = useMemo(() => buildRows(orderBook?.asks, false).slice(0, 5), [orderBook?.asks]);
-  const bids = useMemo(() => buildRows(orderBook?.bids, true).slice(0, 5), [orderBook?.bids]);
+  const contractSizeValue = Number(contractSize);
+  const contractMultiplier = Number.isFinite(contractSizeValue) && contractSizeValue > 0 ? contractSizeValue : 1;
+  const asks = useMemo(() => buildRows(orderBook?.asks, false, contractMultiplier).slice(0, 5), [orderBook?.asks, contractMultiplier]);
+  const bids = useMemo(() => buildRows(orderBook?.bids, true, contractMultiplier).slice(0, 5), [orderBook?.bids, contractMultiplier]);
   const midPrice = useMemo(() => {
     const mid = toNumber(orderBook?.midPrice);
     if (mid !== null) {

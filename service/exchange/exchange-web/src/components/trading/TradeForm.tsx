@@ -4,9 +4,10 @@ import type { InstrumentSummary } from '../../api/instrument';
 
 interface TradeFormProps {
   instrument: InstrumentSummary | null;
+  onOrderPlaced?: () => void;
 }
 
-export default function TradeForm({ instrument }: TradeFormProps) {
+export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps) {
   const [side, setSide] = useState<OrderSide>('BUY');
   const [type, setType] = useState<OrderType>('LIMIT');
   const [price, setPrice] = useState<string>('');
@@ -44,6 +45,7 @@ export default function TradeForm({ instrument }: TradeFormProps) {
         quantity: normalizedQuantity,
         price: type === 'LIMIT' ? Number(price) : null,
       });
+      onOrderPlaced?.();
       alert('Order placed successfully!');
       setQuantity('');
     } catch (error: any) {
@@ -62,7 +64,11 @@ export default function TradeForm({ instrument }: TradeFormProps) {
   const displayNormalizedQuantity = Number.isFinite(normalizedQuantity)
     ? Number(normalizedQuantity.toFixed(6))
     : '--';
-  const total = (Number(price) || 0) * (Number(quantity) || 0);
+  const baseTotal = (Number(price) || 0) * (Number(quantity) || 0);
+  const takerFeeRateValue = Number(instrument?.takerFeeRate);
+  const takerFeeRate = Number.isFinite(takerFeeRateValue) ? takerFeeRateValue : 0;
+  const estimatedFee = baseTotal * takerFeeRate;
+  const total = baseTotal + estimatedFee;
 
   return (
     <div className="flex flex-col h-full">
@@ -148,6 +154,9 @@ export default function TradeForm({ instrument }: TradeFormProps) {
             </div>
             <div className="text-[11px] text-slate-400 text-right pr-2">
               Quantity: {instrument ? displayNormalizedQuantity : '--'}
+            </div>
+            <div className="text-[11px] text-slate-400 text-right pr-2">
+              預收手續費: {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
             </div>
         </div>
 
