@@ -1,6 +1,6 @@
 
 import { Dropdown } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { InstrumentSummary } from '../../api/instrument';
 import { getMarkPrice, getTicker, type MarkPriceResponse, type TickerResponse } from '../../api/market';
@@ -28,6 +28,8 @@ export default function MarketStats({
     const [showExtraStats, setShowExtraStats] = useState(false);
     const [markPrice, setMarkPrice] = useState<MarkPriceResponse | null>(null);
     const [markPriceLoading, setMarkPriceLoading] = useState(false);
+    const [markPriceChangePercent, setMarkPriceChangePercent] = useState<number | null>(null);
+    const previousMarkPriceRef = useRef<number | null>(null);
     const instrumentTypeLabelMap: Record<string, string> = {
         SPOT: 'Spot',
         PERPETUAL: 'Perpetual',
@@ -104,8 +106,13 @@ export default function MarketStats({
     const changeClass = Number(ticker?.priceChange24h || 0) >= 0 ? 'text-emerald-600' : 'text-rose-500';
     const changePercentValue = resolveChangePercent(ticker?.priceChangePct);
     const changePctClass = (changePercentValue ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-500';
-    const changeDirection = (changePercentValue ?? 0) >= 0 ? '▲' : '▼';
+    const markPriceChangeDirection = (markPriceChangePercent ?? 0) >= 0 ? '▲' : '▼';
     const markPriceDisplay = formatTickerNumber(markPrice?.markPrice);
+
+    useEffect(() => {
+        previousMarkPriceRef.current = null;
+        setMarkPriceChangePercent(null);
+    }, [selectedInstrument?.instrumentId]);
 
     useEffect(() => {
         if (!selectedInstrument?.instrumentId) {
@@ -156,12 +163,26 @@ export default function MarketStats({
                 }
                 if (String(response?.code) === '0') {
                     setMarkPrice(response?.data || null);
+                    const currentMarkPrice = Number(response?.data?.markPrice);
+                    if (Number.isFinite(currentMarkPrice)) {
+                        const previousMarkPrice = previousMarkPriceRef.current;
+                        if (previousMarkPrice !== null && previousMarkPrice !== 0) {
+                            setMarkPriceChangePercent((currentMarkPrice / previousMarkPrice) * 100 - 100);
+                        } else {
+                            setMarkPriceChangePercent(0);
+                        }
+                        previousMarkPriceRef.current = currentMarkPrice;
+                    } else {
+                        setMarkPriceChangePercent(0);
+                    }
                 } else {
                     setMarkPrice(null);
+                    setMarkPriceChangePercent(0);
                 }
             } catch (error) {
                 if (!cancelled) {
                     setMarkPrice(null);
+                    setMarkPriceChangePercent(null);
                 }
             } finally {
                 if (!cancelled) {
@@ -252,12 +273,12 @@ export default function MarketStats({
                         </span>
                         <span
                             className={`text-sm font-medium px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm ${
-                                (changePercentValue ?? 0) >= 0
+                                (markPriceChangePercent ?? 0) >= 0
                                     ? 'text-emerald-600 bg-emerald-400/20 border-emerald-400/30'
                                     : 'text-rose-500 bg-rose-400/20 border-rose-400/30'
                             }`}
                         >
-                            {changeDirection} {tickerLoading ? '...' : formatTickerPercent(changePercentValue)}
+                            {markPriceChangeDirection} {markPriceLoading ? '...' : formatTickerPercent(markPriceChangePercent)}
                         </span>
                     </div>
                 </div>
@@ -313,6 +334,14 @@ export default function MarketStats({
                     </div>
                     {showExtraStats && (
                         <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-3">
+                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Open</span>
+                            <span className="font-mono font-medium text-slate-700">
+                                {tickerLoading ? '...' : formatTickerNumber(ticker?.open24h)}
+                            </span>
+                        </div>
+                    )}
+                    {showExtraStats && (
+                        <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-3">
                             <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change</span>
                             <span className={`font-mono font-medium ${changeClass}`}>
                                 {tickerLoading ? '...' : formatTickerNumber(ticker?.priceChange24h)}
@@ -320,7 +349,7 @@ export default function MarketStats({
                         </div>
                     )}
                     {showExtraStats && (
-                        <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-3">
+                        <div className="flex items-center gap-2 sm:col-start-3 sm:row-start-3">
                             <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change %</span>
                             <span className={`font-mono font-medium ${changePctClass}`}>
                                 {tickerLoading ? '...' : formatTickerPercent(changePercentValue)}
