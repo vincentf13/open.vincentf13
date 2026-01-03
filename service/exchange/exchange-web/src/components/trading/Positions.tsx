@@ -5,6 +5,7 @@ import type { InstrumentSummary } from '../../api/instrument';
 import { getOrders, type OrderResponse } from '../../api/order';
 import { getPositions, type PositionResponse } from '../../api/position';
 import { getTradesByInstrument, getTradesByOrderId, type TradeResponse } from '../../api/trade';
+import { getCurrentUser } from '../../api/user';
 
 type PositionsProps = {
   instruments: InstrumentSummary[];
@@ -68,6 +69,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [tradesLoading, setTradesLoading] = useState<Record<string, boolean>>({});
   const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
   const [instrumentTradesLoading, setInstrumentTradesLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const instrumentMap = useMemo(() => {
     return new Map(
@@ -181,6 +183,31 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
   useEffect(() => {
     fetchPositions();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCurrentUser = async () => {
+      try {
+        const response = await getCurrentUser();
+        if (cancelled) {
+          return;
+        }
+        if (String(response?.code) === '0' && response?.data?.id != null) {
+          setCurrentUserId(String(response.data.id));
+        } else {
+          setCurrentUserId(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUserId(null);
+        }
+      }
+    };
+    loadCurrentUser();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -598,11 +625,28 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               )}
               {instrumentTrades.map((trade) => (
                 <tr key={trade.tradeId} className="hover:bg-white/20 transition-colors">
-                  {tradeColumns.map((column) => (
-                    <td key={column.key} className="py-3 px-2 font-mono whitespace-nowrap text-right">
-                      {renderTradeCellValue(trade, column.key)}
-                    </td>
-                  ))}
+                  {tradeColumns.map((column) => {
+                    const isMakerForUser =
+                      currentUserId != null &&
+                      trade.makerUserId != null &&
+                      String(trade.makerUserId) === currentUserId;
+                    const isTakerForUser =
+                      currentUserId != null &&
+                      trade.takerUserId != null &&
+                      String(trade.takerUserId) === currentUserId;
+                    const makerHighlight = isMakerForUser && makerHighlightKeys.has(column.key);
+                    const takerHighlight = isTakerForUser && takerHighlightKeys.has(column.key);
+                    const cellClass = makerHighlight
+                      ? 'bg-rose-100/70 text-rose-900'
+                      : takerHighlight
+                        ? 'bg-amber-100/70 text-amber-900'
+                        : '';
+                    return (
+                      <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
+                        {renderTradeCellValue(trade, column.key)}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
