@@ -14,6 +14,7 @@ import open.vincentf13.sdk.core.exception.OpenException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 
 @Data
 @Builder
@@ -79,8 +80,8 @@ public class UserAccount {
                              BigDecimal amount) {
         BigDecimal delta = AccountCategory.delta(category, direction, amount);
         BigDecimal newBalance = balance.add(delta);
-        BigDecimal newAvailable = category.calculatesAvailableBalance() ? available.add(delta) : available;
-        if (category.calculatesAvailableBalance() && newAvailable.signum() < 0) {
+        BigDecimal newAvailable = available.add(delta);
+        if (newAvailable.signum() < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS);
         }
         return UserAccount.builder()
@@ -104,7 +105,7 @@ public class UserAccount {
                                           BigDecimal amount) {
         BigDecimal delta = AccountCategory.delta(category, direction, amount);
         BigDecimal newBalance = balance.add(delta);
-        BigDecimal newAvailable = category.calculatesAvailableBalance() ? available.add(delta) : available;
+        BigDecimal newAvailable = available.add(delta);
         return UserAccount.builder()
                           .accountId(accountId)
                           .userId(userId)
@@ -119,6 +120,40 @@ public class UserAccount {
                           .version(safeVersion() + 1)
                           .createdAt(createdAt)
                           .updatedAt(Instant.now())
+                          .build();
+    }
+
+    public UserAccount applyTradeSettlement(BigDecimal totalReserved,
+                                            BigDecimal totalUsed,
+                                            BigDecimal feeRefund) {
+        BigDecimal newReserved = reserved.subtract(totalReserved);
+        if (newReserved.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
+                                   Map.of("userId", userId, "reserved", reserved, "required", totalReserved));
+        }
+        BigDecimal newBalance = balance.subtract(totalUsed);
+        if (newBalance.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
+                                   Map.of("userId", userId, "balance", balance, "required", totalUsed));
+        }
+        BigDecimal newAvailable = available.add(feeRefund);
+        if (newAvailable.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
+                                   Map.of("userId", userId, "available", available, "required", totalUsed));
+        }
+        return UserAccount.builder()
+                          .accountId(accountId)
+                          .userId(userId)
+                          .accountCode(accountCode)
+                          .accountName(accountName)
+                          .instrumentId(instrumentId)
+                          .category(category)
+                          .asset(asset)
+                          .balance(newBalance)
+                          .available(newAvailable)
+                          .reserved(newReserved)
+                          .version(safeVersion() + 1)
+                          .createdAt(createdAt)
                           .build();
     }
     

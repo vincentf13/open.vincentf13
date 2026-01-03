@@ -313,40 +313,6 @@ public class AccountTransactionDomainService {
                           .build();
     }
     
-    private UserAccount applyTradeSettlement(UserAccount current,
-                                             BigDecimal totalReserved,
-                                             BigDecimal totalUsed,
-                                             BigDecimal feeRefund) {
-        BigDecimal newReserved = current.getReserved().subtract(totalReserved);
-        if (newReserved.signum() < 0) {
-            throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
-                                   Map.of("userId", current.getUserId(), "reserved", current.getReserved(), "required", totalReserved));
-        }
-        BigDecimal newBalance = current.getBalance().subtract(totalUsed);
-        if (newBalance.signum() < 0) {
-            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
-                                   Map.of("userId", current.getUserId(), "balance", current.getBalance(), "required", totalUsed));
-        }
-        BigDecimal newAvailable = current.getAvailable().add(feeRefund);
-        if (newAvailable.signum() < 0) {
-            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
-                                   Map.of("userId", current.getUserId(), "available", current.getAvailable(), "required", totalUsed));
-        }
-        return UserAccount.builder()
-                          .accountId(current.getAccountId())
-                          .userId(current.getUserId())
-                          .accountCode(current.getAccountCode())
-                          .accountName(current.getAccountName())
-                          .instrumentId(current.getInstrumentId())
-                          .category(current.getCategory())
-                          .asset(current.getAsset())
-                          .balance(newBalance)
-                          .available(newAvailable)
-                          .reserved(newReserved)
-                          .version(current.safeVersion() + 1)
-                          .createdAt(current.getCreatedAt())
-                          .build();
-    }
 
     @Transactional(rollbackFor = Exception.class)
     public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
@@ -399,7 +365,7 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
                                    Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReserved));
         }
-        UserAccount settledAccount = applyTradeSettlement(userSpot, totalReserved, totalUsed, feeRefund);
+        UserAccount settledAccount = userSpot.applyTradeSettlement(totalReserved, totalUsed, feeRefund);
         UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginUsed);
         UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
         userAccountRepository.updateSelectiveBatch(
