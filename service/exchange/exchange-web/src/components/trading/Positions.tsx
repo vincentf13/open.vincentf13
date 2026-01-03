@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { message } from 'antd';
 
 import type { InstrumentSummary } from '../../api/instrument';
@@ -70,6 +70,8 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
   const [instrumentTradesLoading, setInstrumentTradesLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const previousOrdersRef = useRef<Map<string, OrderResponse>>(new Map());
+  const currentOrdersRef = useRef<OrderResponse[]>([]);
 
   const instrumentMap = useMemo(() => {
     return new Map(
@@ -122,7 +124,12 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     try {
       const response = await getOrders(selectedInstrumentId || undefined);
       if (String(response?.code) === '0') {
-        setOrders(Array.isArray(response?.data) ? response.data : []);
+        const nextOrders = Array.isArray(response?.data) ? response.data : [];
+        previousOrdersRef.current = new Map(
+          currentOrdersRef.current.map((order) => [String(order.orderId), order])
+        );
+        currentOrdersRef.current = nextOrders;
+        setOrders(nextOrders);
       } else {
         setOrders([]);
         if (response?.message) {
@@ -287,6 +294,28 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'filledAt', label: 'Filled Time' },
     { key: 'cancelledAt', label: 'Cancelled Time' },
   ];
+  const orderHighlightKeys = new Set([
+    'status',
+    'filledQuantity',
+    'remainingQuantity',
+    'avgFillPrice',
+    'fee',
+    'rejectedReason',
+  ]);
+  const getOrderCompareValue = (order: OrderResponse, key: string) => {
+    const value = (order as any)[key];
+    return value === null || value === undefined ? '' : String(value);
+  };
+  const hasOrderFieldChanged = (order: OrderResponse, key: string) => {
+    if (!orderHighlightKeys.has(key)) {
+      return false;
+    }
+    const previousOrder = previousOrdersRef.current.get(String(order.orderId));
+    if (!previousOrder) {
+      return false;
+    }
+    return getOrderCompareValue(order, key) !== getOrderCompareValue(previousOrder, key);
+  };
 
   const tradeColumns = [
     { key: 'tradeId', label: 'Trade ID' },
@@ -571,17 +600,18 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                             {isExpanded ? 'v' : '>'}
                           </button>
                         </td>
-                        {orderColumns.map((column) => {
-                          const value = renderOrderCellValue(order, column.key);
-                          const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
-                          const tagClass =
-                            'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
-                          return (
-                            <td key={column.key} className="py-3 px-2 font-mono whitespace-nowrap text-right">
-                              {isTag ? <span className={tagClass}>{String(value)}</span> : value}
-                            </td>
-                          );
-                        })}
+                      {orderColumns.map((column) => {
+                        const value = renderOrderCellValue(order, column.key);
+                        const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
+                        const tagClass =
+                          'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
+                        const cellClass = hasOrderFieldChanged(order, column.key) ? 'bg-rose-100/70 text-rose-900' : '';
+                        return (
+                          <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
+                            {isTag ? <span className={tagClass}>{String(value)}</span> : value}
+                          </td>
+                        );
+                      })}
                       </tr>
                       {isExpanded && (
                         <tr>
