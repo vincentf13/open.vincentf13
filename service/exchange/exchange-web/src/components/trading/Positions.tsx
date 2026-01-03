@@ -252,6 +252,57 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     const rate = instrumentTakerFeeRateMap.get(String(instrumentId));
     return rate ?? 0;
   };
+  const tradersSummary = useMemo(() => {
+    return instrumentTrades.reduce(
+      (acc, trade) => {
+        const isMaker =
+          currentUserId != null &&
+          trade.makerUserId != null &&
+          String(trade.makerUserId) === currentUserId;
+        const isTaker =
+          currentUserId != null &&
+          trade.takerUserId != null &&
+          String(trade.takerUserId) === currentUserId;
+        if (!isMaker && !isTaker) {
+          return acc;
+        }
+        const priceValue = Number(trade.price);
+        const quantityValue = Number(trade.quantity);
+        const contractSize = resolveContractSize(trade.instrumentId);
+        if (Number.isFinite(priceValue) && Number.isFinite(quantityValue)) {
+          const totalValue = priceValue * quantityValue * contractSize;
+          if (isMaker) {
+            const makerSide = trade.orderSide ? String(trade.orderSide).toUpperCase() : '';
+            if (makerSide === 'BUY') {
+              acc.buyTotal += totalValue;
+            }
+            if (makerSide === 'SELL') {
+              acc.sellTotal += totalValue;
+            }
+          }
+          if (isTaker) {
+            const takerSide = trade.counterpartyOrderSide ? String(trade.counterpartyOrderSide).toUpperCase() : '';
+            if (takerSide === 'BUY') {
+              acc.buyTotal += totalValue;
+            }
+            if (takerSide === 'SELL') {
+              acc.sellTotal += totalValue;
+            }
+          }
+        }
+        const makerFeeValue = Number(trade.makerFee);
+        if (isMaker && Number.isFinite(makerFeeValue)) {
+          acc.totalFee += makerFeeValue;
+        }
+        const takerFeeValue = Number(trade.takerFee);
+        if (isTaker && Number.isFinite(takerFeeValue)) {
+          acc.totalFee += takerFeeValue;
+        }
+        return acc;
+      },
+      { buyTotal: 0, sellTotal: 0, totalFee: 0 }
+    );
+  }, [currentUserId, instrumentTrades, instrumentContractSizeMap]);
   const ordersReservedSummary = useMemo(() => {
     return orders.reduce(
       (acc, order) => {
@@ -556,10 +607,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                         acc.fillTotal += priceValue * quantityValue * contractSize;
                         acc.quantityTotal += quantityValue * contractSize;
                       }
-                      const feeValue = Number(isMakerForOrder ? trade.makerFee : trade.takerFee);
-                      if (Number.isFinite(feeValue)) {
-                        acc.feeTotal += feeValue;
-                      }
+                    const feeValue = Number(isMakerForOrder ? trade.makerFee : trade.takerFee);
+                    if (Number.isFinite(feeValue)) {
+                      acc.feeTotal += feeValue;
+                    }
                       acc.matchedCount += 1;
                       return acc;
                     },
@@ -696,52 +747,61 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
           </div>
         )}
         {activeTab === 'Traders' && (
-          <table className="min-w-[2000px] w-full text-xs text-right text-slate-600">
-            <thead>
-              <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                {tradeColumns.map((column) => (
-                  <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                    {column.label}
-                  </th>
+          <div>
+            <table className="min-w-[2000px] w-full text-xs text-right text-slate-600">
+              <thead>
+                <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                  {tradeColumns.map((column) => (
+                    <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                      {column.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {instrumentTrades.length === 0 && (
+                  <tr>
+                    <td className="py-6 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
+                      {instrumentTradesLoading ? 'Loading...' : 'No trades'}
+                    </td>
+                  </tr>
+                )}
+                {instrumentTrades.map((trade) => (
+                  <tr key={trade.tradeId} className="hover:bg-white/20 transition-colors">
+                    {tradeColumns.map((column) => {
+                      const isMakerForUser =
+                        currentUserId != null &&
+                        trade.makerUserId != null &&
+                        String(trade.makerUserId) === currentUserId;
+                      const isTakerForUser =
+                        currentUserId != null &&
+                        trade.takerUserId != null &&
+                        String(trade.takerUserId) === currentUserId;
+                      const makerHighlight = isMakerForUser && makerHighlightKeys.has(column.key);
+                      const takerHighlight = isTakerForUser && takerHighlightKeys.has(column.key);
+                      const cellClass = makerHighlight
+                        ? 'bg-rose-100/70 text-rose-900'
+                        : takerHighlight
+                          ? 'bg-amber-100/70 text-amber-900'
+                          : '';
+                      return (
+                        <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
+                          {renderTradeCellValue(trade, column.key)}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {instrumentTrades.length === 0 && (
-                <tr>
-                  <td className="py-6 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
-                    {instrumentTradesLoading ? 'Loading...' : 'No trades'}
-                  </td>
-                </tr>
-              )}
-              {instrumentTrades.map((trade) => (
-                <tr key={trade.tradeId} className="hover:bg-white/20 transition-colors">
-                  {tradeColumns.map((column) => {
-                    const isMakerForUser =
-                      currentUserId != null &&
-                      trade.makerUserId != null &&
-                      String(trade.makerUserId) === currentUserId;
-                    const isTakerForUser =
-                      currentUserId != null &&
-                      trade.takerUserId != null &&
-                      String(trade.takerUserId) === currentUserId;
-                    const makerHighlight = isMakerForUser && makerHighlightKeys.has(column.key);
-                    const takerHighlight = isTakerForUser && takerHighlightKeys.has(column.key);
-                    const cellClass = makerHighlight
-                      ? 'bg-rose-100/70 text-rose-900'
-                      : takerHighlight
-                        ? 'bg-amber-100/70 text-amber-900'
-                        : '';
-                    return (
-                      <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
-                        {renderTradeCellValue(trade, column.key)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+            <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
+              Buy Total: {instrumentTrades.length ? formatNumber(tradersSummary.buyTotal) : '-'}
+              <br />
+              Sell Total: {instrumentTrades.length ? formatNumber(tradersSummary.sellTotal) : '-'}
+              <br />
+              Total Fee: {instrumentTrades.length ? formatNumber(tradersSummary.totalFee) : '-'}
+            </div>
+          </div>
         )}
       </div>
     </div>
