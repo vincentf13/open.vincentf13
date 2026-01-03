@@ -208,6 +208,8 @@ export default function MarketStats({
                     </div>
                 </div>
             )}
+            overlayStyle={{ maxWidth: 'none' }}
+            overlayInnerStyle={{ maxWidth: 'none' }}
         >
             <div className="p-4">
                 <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-4 items-start">

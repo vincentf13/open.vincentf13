@@ -487,12 +487,6 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
                 <span className="text-slate-800">{formatVolumeNumber(hoveredPoint.point.turnover)}</span>
                 <span className="text-slate-500">tradeCount</span>
                 <span className="text-slate-800">{formatOptionalNumber(hoveredPoint.point.tradeCount, formatCountNumber)}</span>
-                <span className="text-slate-500">takerBuyVolume</span>
-                <span className="text-slate-800">{formatOptionalNumber(hoveredPoint.point.takerBuyVolume, formatVolumeNumber)}</span>
-                <span className="text-slate-500">takerBuyTurnover</span>
-                <span className="text-slate-800">{formatOptionalNumber(hoveredPoint.point.takerBuyTurnover, formatVolumeNumber)}</span>
-                <span className="text-slate-500">isClosed</span>
-                <span className="text-slate-800">{formatOptionalBoolean(hoveredPoint.point.isClosed)}</span>
               </div>
             </div>
           )}
