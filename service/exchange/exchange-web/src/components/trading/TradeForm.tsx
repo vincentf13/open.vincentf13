@@ -36,16 +36,20 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
         return;
     }
 
-    onOrderPlaced?.();
     setLoading(true);
     try {
-      await createOrder({
+      const result = await createOrder({
         instrumentId: Number(instrument.instrumentId),
         side,
         type,
         quantity: normalizedQuantity,
         price: type === 'LIMIT' ? Number(price) : null,
       });
+      if (String(result?.code) !== '0') {
+        alert(`Error: ${result?.message || 'Failed to place order'}`);
+        return;
+      }
+      onOrderPlaced?.();
       alert('Order placed successfully!');
       setQuantity('');
     } catch (error: any) {
