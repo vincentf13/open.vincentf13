@@ -1,11 +1,13 @@
 package open.vincentf13.exchange.market.infra.cache;
 
+import open.vincentf13.exchange.market.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.market.domain.model.TickerStats;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -94,14 +96,18 @@ public class TickerStatsCacheService {
     
     private TickerStats createDefault(Long instrumentId) {
         Instant now = Instant.now();
+        BigDecimal lastPrice = markPriceCacheService.getLatest(instrumentId)
+                .map(MarkPriceSnapshot::getMarkPrice)
+                .filter(Objects::nonNull)
+                .orElse(BigDecimal.ONE);
         return TickerStats.builder()
                           .instrumentId(instrumentId)
-                          .lastPrice(BigDecimal.ONE)
+                          .lastPrice(lastPrice)
                           .volume24h(BigDecimal.ZERO)
                           .turnover24h(BigDecimal.ZERO)
-                          .high24h(BigDecimal.ONE)
-                          .low24h(BigDecimal.ONE)
-                          .open24h(BigDecimal.ONE)
+                          .high24h(lastPrice)
+                          .low24h(lastPrice)
+                          .open24h(lastPrice)
                           .priceChange24h(BigDecimal.ZERO)
                           .priceChangePct(BigDecimal.ZERO)
                           .build();
