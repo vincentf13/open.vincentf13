@@ -24,4 +24,8 @@ public class KlineResponse {
     BigDecimal closePrice;
     BigDecimal volume;
     BigDecimal turnover;
+    Integer tradeCount;
+    BigDecimal takerBuyVolume;
+    BigDecimal takerBuyTurnover;
+    Boolean isClosed;
 }

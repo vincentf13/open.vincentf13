@@ -1,5 +1,5 @@
 
-import { Dropdown } from 'antd';
+import { Dropdown, Tooltip } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 
 import type { InstrumentSummary } from '../../api/instrument';
@@ -197,8 +197,20 @@ export default function MarketStats({
     }, [selectedInstrument?.instrumentId, refreshTrigger]);
 
     return (
-        <div className="p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-4 items-start">
+        <Tooltip
+            title={(
+                <div className="text-xs">
+                    <div className="whitespace-nowrap">
+                        行情僅持久化最後成交價跟K線，其餘統計只在內存，行情服務重啟時將重新統計
+                    </div>
+                    <div className="whitespace-nowrap">
+                        Only the last traded price and kline are persisted; other stats are in-memory and will be recalculated when the market service restarts.
+                    </div>
+                </div>
+            )}
+        >
+            <div className="p-4">
+                <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-4 items-start">
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                         <Dropdown
@@ -367,7 +379,8 @@ export default function MarketStats({
                         </button>
                     </div>
                 </div>
+                </div>
             </div>
-        </div>
+        </Tooltip>
     )
 }
