@@ -79,10 +79,32 @@ public class UserAccount {
                              BigDecimal amount) {
         BigDecimal delta = AccountCategory.delta(category, direction, amount);
         BigDecimal newBalance = balance.add(delta);
-        BigDecimal newAvailable = category.affectsAvailable() ? available.add(delta) : available;
-        if (category.affectsAvailable() && newAvailable.signum() < 0) {
+        BigDecimal newAvailable = category.calculatesAvailableBalance() ? available.add(delta) : available;
+        if (category.calculatesAvailableBalance() && newAvailable.signum() < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS);
         }
+        return UserAccount.builder()
+                          .accountId(accountId)
+                          .userId(userId)
+                          .accountCode(accountCode)
+                          .accountName(accountName)
+                          .instrumentId(instrumentId)
+                          .category(category)
+                          .asset(asset)
+                          .balance(newBalance)
+                          .available(newAvailable)
+                          .reserved(reserved)
+                          .version(safeVersion() + 1)
+                          .createdAt(createdAt)
+                          .updatedAt(Instant.now())
+                          .build();
+    }
+
+    public UserAccount applyAllowNegative(Direction direction,
+                                          BigDecimal amount) {
+        BigDecimal delta = AccountCategory.delta(category, direction, amount);
+        BigDecimal newBalance = balance.add(delta);
+        BigDecimal newAvailable = category.calculatesAvailableBalance() ? available.add(delta) : available;
         return UserAccount.builder()
                           .accountId(accountId)
                           .userId(userId)

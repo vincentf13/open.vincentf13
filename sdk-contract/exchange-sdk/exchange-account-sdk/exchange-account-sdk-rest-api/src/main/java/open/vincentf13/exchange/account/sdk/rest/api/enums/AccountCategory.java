@@ -27,7 +27,7 @@ public enum AccountCategory {
         return positive ? value : value.negate();
     }
     
-    public boolean affectsAvailable() {
+    public boolean calculatesAvailableBalance() {
         return affectsAvailable;
     }
 }

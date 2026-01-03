@@ -13,6 +13,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalReques
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalResponse;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompensationEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,5 +89,10 @@ public class AccountCommandService {
     @Transactional(rollbackFor = Exception.class)
     public void handlePositionMarginReleased(@NotNull @Valid PositionMarginReleasedEvent event) {
         accountPositionDomainService.releaseMargin(event);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void handleCloseToOpenCompensation(@NotNull @Valid PositionCloseToOpenCompensationEvent event) {
+        accountTransactionDomainService.settleCloseToOpenCompensation(event);
     }
 }
