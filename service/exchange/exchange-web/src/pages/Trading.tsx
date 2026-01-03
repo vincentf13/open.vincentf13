@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Tooltip } from 'antd';
 
 import GlassLayout from '../components/layout/GlassLayout';
 import AuthModal from '../components/auth/AuthModal';
@@ -180,29 +181,51 @@ export default function Trading() {
               <TradeForm instrument={selectedInstrument} onOrderPlaced={handleRefresh} />
             </div>
             <div className="flex-1 min-h-0 p-4">
-              <AccountPanel refreshTrigger={refreshTrigger} />
+              <div className="flex flex-col gap-3">
+                <AccountPanel refreshTrigger={refreshTrigger} />
+                <div className="flex flex-col gap-2">
+                  <Tooltip
+                    title={(
+                      <div className="text-xs">
+                        <div className="whitespace-nowrap">重置所有交易、帳務數據與Kafka，加速測試效率。</div>
+                        <div className="whitespace-nowrap">Resets all trading/account data and Kafka to speed up testing.</div>
+                      </div>
+                    )}
+                    overlayStyle={{ maxWidth: 'none' }}
+                    overlayInnerStyle={{ maxWidth: 'none' }}
+                  >
+                    <button
+                      onClick={handleResetData}
+                      disabled={resetting}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                      {resetting ? 'Resetting...' : 'Reset System Data'}
+                    </button>
+                  </Tooltip>
+
+                  <Tooltip
+                    title={(
+                      <div className="text-xs">
+                        <div className="whitespace-nowrap">重載所有頁面數據，加速測試。</div>
+                        <div className="whitespace-nowrap">Reloads all page data to speed up testing.</div>
+                      </div>
+                    )}
+                    overlayStyle={{ maxWidth: 'none' }}
+                    overlayInnerStyle={{ maxWidth: 'none' }}
+                  >
+                    <button
+                      onClick={handleRefresh}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
+                    >
+                      <span className="text-xs">⟳</span>
+                      Refresh Data
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Reset Data Button - Bottom Left */}
-        <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2">
-          <button
-            onClick={handleResetData}
-            disabled={resetting}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
-          >
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-            {resetting ? 'Resetting...' : 'Reset System Data'}
-          </button>
-
-          <button
-            onClick={handleRefresh}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
-          >
-            <span className="text-xs">⟳</span>
-            Refresh Data
-          </button>
         </div>
       </div>
       <AuthModal
