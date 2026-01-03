@@ -69,7 +69,7 @@ public class TickerStatsCacheService {
         }
         BigDecimal priceChange = price.subtract(current.getOpen24h());
         current.setPriceChange24h(priceChange);
-        if (current.getOpen24h().compareTo(BigDecimal.ZERO) > 0) {
+        if (current.getOpen24h().compareTo(BigDecimal.ZERO) >= 0) {
             current.setPriceChangePct(priceChange.divide(current.getOpen24h(), 8, java.math.RoundingMode.HALF_UP));
         }
         cache.put(instrumentId, current);
