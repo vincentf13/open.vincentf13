@@ -258,7 +258,7 @@ export default function MarketStats({
                         >
                             <button
                                 type="button"
-                                className="text-sm font-bold text-slate-800 inline-flex items-center gap-1 hover:text-slate-900"
+                                className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-3 py-1.5 text-sm font-bold text-slate-800 shadow-sm transition-all hover:bg-white hover:text-slate-900"
                             >
                                 {currentName}
                                 <span className="text-xs text-slate-500">v</span>
