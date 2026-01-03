@@ -37,9 +37,17 @@ const formatAmountWithAsset = (value: string, asset: string) => {
 
 type AccountPanelProps = {
   refreshTrigger?: number;
+  onResetData?: () => void;
+  resetting?: boolean;
+  onRefreshData?: () => void;
 };
 
-export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
+export default function AccountPanel({
+  refreshTrigger,
+  onResetData,
+  resetting,
+  onRefreshData
+}: AccountPanelProps) {
   const [balances, setBalances] = useState<BalanceState>(defaultBalances);
   const requestRef = useRef<Promise<any> | null>(null);
   const mountedRef = useRef(true);
@@ -148,12 +156,39 @@ export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
       <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none" />
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-slate-700">Account</div>
-        <button
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/30 bg-white/20 hover:bg-white/40 text-slate-600 hover:text-slate-800 transition-all active:scale-95"
-          onClick={() => setTransferOpen(true)}
-        >
-          Transfer
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onResetData && (
+            <button
+              onClick={onResetData}
+              disabled={resetting}
+              className="flex items-center justify-center w-6 h-6 rounded bg-rose-500/10 border border-rose-500/20 text-rose-600 hover:bg-rose-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+              title="Reset System Data"
+            >
+              {resetting ? (
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+              ) : (
+                <span className="text-[10px] font-bold">R</span>
+              )}
+            </button>
+          )}
+
+          {onRefreshData && (
+            <button
+              onClick={onRefreshData}
+              className="flex items-center justify-center w-6 h-6 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
+              title="Refresh Data"
+            >
+              <span className="text-[10px] font-bold">⟳</span>
+            </button>
+          )}
+
+          <button
+            className="text-xs font-semibold px-2 py-1 h-6 flex items-center rounded border border-white/30 bg-white/20 hover:bg-white/40 text-slate-600 hover:text-slate-800 transition-all active:scale-95"
+            onClick={() => setTransferOpen(true)}
+          >
+            Transfer
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3 text-xs">

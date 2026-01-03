@@ -180,27 +180,13 @@ export default function Trading() {
               <TradeForm instrument={selectedInstrument} onOrderPlaced={handleRefresh} />
             </div>
 
-            <div className="flex items-center gap-2 p-4 border-b border-white/20">
-              <button
-                onClick={handleResetData}
-                disabled={resetting}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
-              >
-                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                {resetting ? 'Resetting...' : 'Reset Data'}
-              </button>
-
-              <button
-                onClick={handleRefresh}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
-              >
-                <span className="text-xs">⟳</span>
-                Refresh
-              </button>
-            </div>
-
             <div className="flex-1 min-h-0 p-4">
-              <AccountPanel refreshTrigger={refreshTrigger} />
+              <AccountPanel
+                refreshTrigger={refreshTrigger}
+                onResetData={handleResetData}
+                resetting={resetting}
+                onRefreshData={handleRefresh}
+              />
             </div>
           </div>
         </div>
