@@ -1,4 +1,5 @@
 
+import { Tooltip } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type WheelEvent as ReactWheelEvent } from 'react';
 
 import { getKlines, type KlineResponse } from '../../api/market';
@@ -550,22 +551,32 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
         </div>
       </div>
 
-      <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">
-        <div
-          ref={chartContainerRef}
-          className={`absolute inset-0 right-12 bottom-6 overscroll-contain ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          onMouseDown={beginDrag}
-          onWheel={handleWheel}
-        >
-          <svg className="w-full h-full" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-              </linearGradient>
-            </defs>
+      <Tooltip
+        title={(
+          <div className="text-xs">
+            <div className="whitespace-nowrap">滑鼠在K線上時，按住左鍵左右與上下移動可以調整價格與時間密度。</div>
+            <div className="whitespace-nowrap">Hover over the Kline and drag left/right or up/down to adjust price and time density.</div>
+          </div>
+        )}
+        overlayStyle={{ maxWidth: 'none' }}
+        overlayInnerStyle={{ maxWidth: 'none' }}
+      >
+        <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">
+          <div
+            ref={chartContainerRef}
+            className={`absolute inset-0 right-12 bottom-6 overscroll-contain ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            onMouseDown={beginDrag}
+            onWheel={handleWheel}
+          >
+            <svg className="w-full h-full" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+                </linearGradient>
+              </defs>
 
             <g stroke="rgba(148,163,184,0.45)" strokeDasharray="3 3" strokeWidth="0.6">
               {priceTicks.map((tick, i) => (
@@ -707,8 +718,8 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
               No data
             </div>
           )}
-        </div>
-        <div className="absolute right-0 top-0 bottom-6 w-12 pr-1">
+          </div>
+          <div className="absolute right-0 top-0 bottom-6 w-12 pr-1">
           {priceTicks.map((tick, index) => (
             <div
               key={`price-${index}`}
@@ -746,8 +757,9 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
               {tick.label}
             </div>
           ))}
+          </div>
         </div>
-      </div>
+      </Tooltip>
     </div>
   );
 }
