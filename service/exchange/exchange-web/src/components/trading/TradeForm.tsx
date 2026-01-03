@@ -36,6 +36,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
         return;
     }
 
+    onOrderPlaced?.();
     setLoading(true);
     try {
       await createOrder({
@@ -45,7 +46,6 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
         quantity: normalizedQuantity,
         price: type === 'LIMIT' ? Number(price) : null,
       });
-      onOrderPlaced?.();
       alert('Order placed successfully!');
       setQuantity('');
     } catch (error: any) {
