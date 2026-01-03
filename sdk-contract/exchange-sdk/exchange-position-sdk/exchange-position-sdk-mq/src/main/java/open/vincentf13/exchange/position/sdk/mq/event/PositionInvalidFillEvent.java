@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.account.sdk.mq.event;
+package open.vincentf13.exchange.position.sdk.mq.event;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -9,7 +9,7 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-public record TradeMarginSettledEvent(
+public record PositionInvalidFillEvent(
         @NotNull Long tradeId,
         @NotNull Long orderId,
         @NotNull Long userId,
@@ -18,11 +18,7 @@ public record TradeMarginSettledEvent(
         @NotNull OrderSide side,
         @NotNull @DecimalMin(value = ValidationConstant.Names.PRICE_MIN) BigDecimal price,
         @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal marginUsed,
         @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true) BigDecimal feeCharged,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true) BigDecimal feeRefund,
-        @NotNull Instant executedAt,
-        @NotNull Instant settledAt,
-        boolean isRecursive
+        @NotNull Instant executedAt
 ) {
 }

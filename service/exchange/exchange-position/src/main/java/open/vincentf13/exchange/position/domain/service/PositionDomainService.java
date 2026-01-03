@@ -57,12 +57,12 @@ public class PositionDomainService {
         if (position == null) {
             return false;
         }
-        BigDecimal availableToClose = position.availableToClose();
-        return position.getSide() != targetSide && availableToClose.compareTo(quantity) < 0;
+        BigDecimal existingQuantity = safe(position.getQuantity());
+        return position.getSide() != targetSide && existingQuantity.compareTo(quantity) < 0;
     }
 
     public TradeSplit calculateTradeSplit(Position position, BigDecimal quantity) {
-        BigDecimal closeQty = position.availableToClose();
+        BigDecimal closeQty = safe(position.getQuantity());
         BigDecimal flipQty = quantity.subtract(closeQty);
         return new TradeSplit(closeQty, flipQty);
     }
@@ -105,15 +105,6 @@ public class PositionDomainService {
 
         // 開倉 因併發訂單，變為平倉，需釋放保證金，並處理flip的情況
         if (position.getSide() != side) {
-            BigDecimal availableToClose = position.availableToClose();
-            if (availableToClose.compareTo(BigDecimal.ZERO) <= 0) {
-                throw OpenException.of(PositionErrorCode.POSITION_FLIP_NOT_ALLOWED,
-                                       Map.of("userId", userId,
-                                              "instrumentId", instrumentId,
-                                              "requestedQuantity", quantity,
-                                              "availableToClose", availableToClose,
-                                              "closingReservedQuantity", safe(position.getClosingReservedQuantity())));
-            }
             if (shouldSplitTrade(position, side, quantity)) {
                 TradeSplit split = calculateTradeSplit(position, quantity);
 

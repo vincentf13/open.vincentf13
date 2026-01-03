@@ -37,7 +37,7 @@ public class PositionTradeSettlementService {
                 event.feeRefund(),
                 event.tradeId(),
                 event.executedAt(),
-                false);
+                event.isRecursive());
 
         for (Position position : positions) {
             positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
