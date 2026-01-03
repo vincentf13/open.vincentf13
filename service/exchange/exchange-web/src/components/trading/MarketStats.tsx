@@ -82,22 +82,29 @@ export default function MarketStats({
         });
     };
 
-    const formatTickerPercent = (value: string | number | null | undefined) => {
+    const resolveChangePercent = (value: string | number | null | undefined) => {
         if (value === null || value === undefined || value === '') {
-            return '-';
+            return null;
         }
         const numeric = Number(value);
         if (Number.isNaN(numeric)) {
-            return String(value);
+            return null;
         }
-        return `${(numeric * 100).toLocaleString(undefined, {
+        return numeric * 100 - 100;
+    };
+    const formatTickerPercent = (value: number | null) => {
+        if (value === null) {
+            return '-';
+        }
+        return `${value.toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         })}%`;
     };
     const changeClass = Number(ticker?.priceChange24h || 0) >= 0 ? 'text-emerald-600' : 'text-rose-500';
-    const changePctClass = Number(ticker?.priceChangePct || 0) >= 0 ? 'text-emerald-600' : 'text-rose-500';
-    const changeDirection = Number(ticker?.priceChangePct || 0) >= 0 ? '▲' : '▼';
+    const changePercentValue = resolveChangePercent(ticker?.priceChangePct);
+    const changePctClass = (changePercentValue ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-500';
+    const changeDirection = (changePercentValue ?? 0) >= 0 ? '▲' : '▼';
     const markPriceDisplay = formatTickerNumber(markPrice?.markPrice);
 
     useEffect(() => {
@@ -245,12 +252,12 @@ export default function MarketStats({
                         </span>
                         <span
                             className={`text-sm font-medium px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm ${
-                                Number(ticker?.priceChangePct || 0) >= 0
+                                (changePercentValue ?? 0) >= 0
                                     ? 'text-emerald-600 bg-emerald-400/20 border-emerald-400/30'
                                     : 'text-rose-500 bg-rose-400/20 border-rose-400/30'
                             }`}
                         >
-                            {changeDirection} {tickerLoading ? '...' : formatTickerPercent(ticker?.priceChangePct)}
+                            {changeDirection} {tickerLoading ? '...' : formatTickerPercent(changePercentValue)}
                         </span>
                     </div>
                 </div>
@@ -316,7 +323,7 @@ export default function MarketStats({
                         <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-3">
                             <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change %</span>
                             <span className={`font-mono font-medium ${changePctClass}`}>
-                                {tickerLoading ? '...' : formatTickerPercent(ticker?.priceChangePct)}
+                                {tickerLoading ? '...' : formatTickerPercent(changePercentValue)}
                             </span>
                         </div>
                     )}
