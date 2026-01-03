@@ -8,6 +8,15 @@ type ChartProps = {
   refreshTrigger?: number;
 };
 
+type DragState = {
+  active: boolean;
+  startX: number;
+  startY: number;
+  startOffset: number;
+  startScale: number;
+  count: number;
+};
+
 type SeriesPoint = {
   open: number;
   close: number;
@@ -121,8 +130,12 @@ const formatDateTime = (value: string | undefined) => {
 
 export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
   const [period, setPeriod] = useState<(typeof periods)[number]>('1h');
   const [chartMode, setChartMode] = useState<'line' | 'candle'>('line');
+  const [viewOffset, setViewOffset] = useState(0);
+  const [priceScale, setPriceScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
   const [klines, setKlines] = useState<KlineResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [crosshair, setCrosshair] = useState<{
@@ -220,9 +233,11 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
       return [];
     }
     const count = Math.min(viewCount, series.length);
-    const start = Math.max(0, series.length - count);
+    const maxOffset = Math.max(0, series.length - count);
+    const clampedOffset = Math.min(viewOffset, maxOffset);
+    const start = Math.max(0, series.length - count - clampedOffset);
     return series.slice(start);
-  }, [series, viewCount]);
+  }, [series, viewCount, viewOffset]);
 
   const chartMetrics = useMemo(() => {
     if (!visibleSeries.length) {
@@ -230,11 +245,15 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
     }
     const highs = visibleSeries.map((point) => point.high);
     const lows = visibleSeries.map((point) => point.low);
-    const max = Math.max(...highs);
-    const min = Math.min(...lows);
-    const range = max - min || 1;
-    return { min, max, range };
-  }, [visibleSeries]);
+    const rawMax = Math.max(...highs);
+    const rawMin = Math.min(...lows);
+    const rawRange = rawMax - rawMin || 1;
+    const scaledRange = rawRange * priceScale;
+    const center = (rawMax + rawMin) / 2;
+    const min = center - scaledRange / 2;
+    const max = center + scaledRange / 2;
+    return { min, max, range: scaledRange };
+  }, [visibleSeries, priceScale]);
 
   const useLineChart = chartMode === 'line';
 
@@ -272,6 +291,9 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
   }, [chartMetrics, visibleSeries]);
 
   const handleMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    if (dragStateRef.current?.active) {
+      return;
+    }
     if (!chartMetrics || !series.length) {
       setCrosshair(null);
       return;
@@ -300,6 +322,9 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
   };
 
   const handleMouseLeave = () => {
+    if (dragStateRef.current?.active) {
+      return;
+    }
     setCrosshair(null);
   };
 
@@ -374,7 +399,52 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
         direction > 0 ? Math.round(current * 1.15) : Math.max(20, Math.round(current * 0.85));
       return Math.min(series.length, Math.max(20, next));
     });
+    setPriceScale((prev) => {
+      const factor = direction > 0 ? 1.08 : 0.92;
+      return clamp(prev * factor, 0.2, 5);
+    });
   }, [series.length]);
+
+  const beginDrag = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !chartMetrics || !series.length) {
+      return;
+    }
+    event.preventDefault();
+    const count = Math.min(viewCount, series.length);
+    dragStateRef.current = {
+      active: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      startOffset: viewOffset,
+      startScale: priceScale,
+      count,
+    };
+    setIsDragging(true);
+    setCrosshair(null);
+  };
+
+  const updateDrag = useCallback((event: MouseEvent) => {
+    const state = dragStateRef.current;
+    if (!state?.active) {
+      return;
+    }
+    const deltaX = event.clientX - state.startX;
+    const deltaY = event.clientY - state.startY;
+    const step = CHART_WIDTH / Math.max(state.count, 1);
+    const offsetDelta = Math.round(deltaX / step);
+    const maxOffset = Math.max(0, series.length - state.count);
+    const nextOffset = Math.min(maxOffset, Math.max(0, state.startOffset + offsetDelta));
+    setViewOffset(nextOffset);
+    const scaleFactor = clamp(1 + deltaY / PRICE_HEIGHT, 0.2, 5);
+    setPriceScale(clamp(state.startScale * scaleFactor, 0.2, 5));
+  }, [series.length]);
+
+  const endDrag = useCallback(() => {
+    if (dragStateRef.current?.active) {
+      dragStateRef.current = null;
+      setIsDragging(false);
+    }
+  }, []);
 
   const handleWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -397,6 +467,41 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
       node.removeEventListener('wheel', onWheel);
     };
   }, [applyWheelZoom]);
+
+  useEffect(() => {
+    if (!isDragging) {
+      return;
+    }
+    const handleMove = (event: MouseEvent) => {
+      updateDrag(event);
+    };
+    const handleUp = () => {
+      endDrag();
+    };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isDragging, updateDrag, endDrag]);
+
+  useEffect(() => {
+    setViewOffset(0);
+    setPriceScale(1);
+  }, [instrumentId, period]);
+
+  useEffect(() => {
+    if (!series.length) {
+      setViewOffset(0);
+      return;
+    }
+    setViewOffset((prev) => {
+      const count = Math.min(viewCount, series.length);
+      const maxOffset = Math.max(0, series.length - count);
+      return Math.min(prev, maxOffset);
+    });
+  }, [series.length, viewCount]);
 
   return (
     <div className="flex flex-col h-full bg-white/5">
@@ -448,9 +553,10 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
       <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">
         <div
           ref={chartContainerRef}
-          className="absolute inset-0 right-12 bottom-6 overscroll-contain"
+          className={`absolute inset-0 right-12 bottom-6 overscroll-contain ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onMouseDown={beginDrag}
           onWheel={handleWheel}
         >
           <svg className="w-full h-full" viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none">
