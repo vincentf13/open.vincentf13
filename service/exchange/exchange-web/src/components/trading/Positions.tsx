@@ -71,7 +71,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [instrumentTradesLoading, setInstrumentTradesLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const previousOrdersRef = useRef<Map<string, OrderResponse>>(new Map());
-  const currentOrdersRef = useRef<OrderResponse[]>([]);
+  const orderChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
 
   const instrumentMap = useMemo(() => {
     return new Map(
@@ -96,6 +96,27 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       })
     );
   }, [instruments]);
+  const orderHighlightKeys = new Set([
+    'status',
+    'filledQuantity',
+    'remainingQuantity',
+    'avgFillPrice',
+    'fee',
+    'rejectedReason',
+  ]);
+  const getOrderCompareValue = (order: OrderResponse, key: string) => {
+    const value = (order as any)[key];
+    return value === null || value === undefined ? '' : String(value);
+  };
+  const hasAnyOrderFieldChanged = (order: OrderResponse, previousOrder: OrderResponse) => {
+    const keys = new Set([...Object.keys(order), ...Object.keys(previousOrder)]);
+    for (const key of keys) {
+      if (getOrderCompareValue(order, key) !== getOrderCompareValue(previousOrder, key)) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   const fetchPositions = async () => {
     setLoading(true);
@@ -125,10 +146,51 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       const response = await getOrders(selectedInstrumentId || undefined);
       if (String(response?.code) === '0') {
         const nextOrders = Array.isArray(response?.data) ? response.data : [];
-        previousOrdersRef.current = new Map(
-          currentOrdersRef.current.map((order) => [String(order.orderId), order])
-        );
-        currentOrdersRef.current = nextOrders;
+        const previousMap = previousOrdersRef.current;
+        const nextMap = new Map(nextOrders.map((order) => [String(order.orderId), order]));
+        let hasAnyListChange = previousMap.size !== nextMap.size;
+        if (!hasAnyListChange) {
+          for (const orderId of previousMap.keys()) {
+            if (!nextMap.has(orderId)) {
+              hasAnyListChange = true;
+              break;
+            }
+          }
+        }
+        if (!hasAnyListChange) {
+          for (const order of nextOrders) {
+            const orderId = String(order.orderId);
+            const previousOrder = previousMap.get(orderId);
+            if (!previousOrder || hasAnyOrderFieldChanged(order, previousOrder)) {
+              hasAnyListChange = true;
+              break;
+            }
+          }
+        }
+        let nextChangeMap = orderChangedFieldsRef.current;
+        if (hasAnyListChange) {
+          const rebuiltChangeMap = new Map<string, Set<string>>();
+          nextOrders.forEach((order) => {
+            const orderId = String(order.orderId);
+            const previousOrder = previousMap.get(orderId);
+            if (!previousOrder) {
+              rebuiltChangeMap.set(orderId, new Set(orderHighlightKeys));
+              return;
+            }
+            const changedKeys = new Set<string>();
+            orderHighlightKeys.forEach((key) => {
+              if (getOrderCompareValue(order, key) !== getOrderCompareValue(previousOrder, key)) {
+                changedKeys.add(key);
+              }
+            });
+            if (changedKeys.size > 0) {
+              rebuiltChangeMap.set(orderId, changedKeys);
+            }
+          });
+          nextChangeMap = rebuiltChangeMap;
+        }
+        previousOrdersRef.current = nextMap;
+        orderChangedFieldsRef.current = nextChangeMap;
         setOrders(nextOrders);
       } else {
         setOrders([]);
@@ -345,27 +407,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'filledAt', label: 'Filled Time' },
     { key: 'cancelledAt', label: 'Cancelled Time' },
   ];
-  const orderHighlightKeys = new Set([
-    'status',
-    'filledQuantity',
-    'remainingQuantity',
-    'avgFillPrice',
-    'fee',
-    'rejectedReason',
-  ]);
-  const getOrderCompareValue = (order: OrderResponse, key: string) => {
-    const value = (order as any)[key];
-    return value === null || value === undefined ? '' : String(value);
-  };
-  const hasOrderFieldChanged = (order: OrderResponse, key: string) => {
-    if (!orderHighlightKeys.has(key)) {
-      return false;
-    }
-    const previousOrder = previousOrdersRef.current.get(String(order.orderId));
-    if (!previousOrder) {
-      return false;
-    }
-    return getOrderCompareValue(order, key) !== getOrderCompareValue(previousOrder, key);
+  const isOrderFieldHighlighted = (order: OrderResponse, key: string) => {
+    const changedFields = orderChangedFieldsRef.current.get(String(order.orderId));
+    return Boolean(changedFields && changedFields.has(key));
   };
 
   const tradeColumns = [
@@ -656,7 +700,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                         const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
                         const tagClass =
                           'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
-                        const cellClass = hasOrderFieldChanged(order, column.key) ? 'bg-rose-100/70 text-rose-900' : '';
+                        const cellClass = isOrderFieldHighlighted(order, column.key) ? 'bg-rose-100/70 text-rose-900' : '';
                         return (
                           <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
                             {isTag ? <span className={tagClass}>{String(value)}</span> : value}
