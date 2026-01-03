@@ -26,6 +26,7 @@ public class KlineAggregationService {
                                                                         );
     
     private final KlineBucketRepository klineBucketRepository;
+    private final InstrumentCache instrumentCache;
     private final Map<KlineKey, KlineBucket> activeBuckets = new ConcurrentHashMap<>();
 
     public void reset() {
@@ -40,10 +41,12 @@ public class KlineAggregationService {
         if (instrumentId == null || price == null || quantity == null || executedAt == null) {
             return;
         }
+        BigDecimal contractMultiplier = requireContractSize(instrumentId);
+        BigDecimal normalizedQuantity = quantity.multiply(contractMultiplier);
         for (KlinePeriod period : SUPPORTED_PERIODS) {
             Instant bucketStart = alignBucketStart(executedAt, period.getDuration());
             KlineBucket bucket = getOrLoadBucket(instrumentId, period, bucketStart);
-            applyTrade(bucket, price, quantity, executedAt, takerIsBuyer);
+            applyTrade(bucket, price, normalizedQuantity, executedAt, takerIsBuyer);
         }
     }
     
@@ -179,6 +182,13 @@ public class KlineAggregationService {
         BigDecimal left = base == null ? BigDecimal.ZERO : base;
         BigDecimal right = delta == null ? BigDecimal.ZERO : delta;
         return left.add(right);
+    }
+
+    private BigDecimal requireContractSize(Long instrumentId) {
+        return instrumentCache.get(instrumentId)
+                .map(instrument -> instrument.contractSize())
+                .filter(contractSize -> contractSize != null && contractSize.compareTo(BigDecimal.ZERO) > 0)
+                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid contractSize for instrumentId=" + instrumentId));
     }
     
     private int safeInt(Integer value) {

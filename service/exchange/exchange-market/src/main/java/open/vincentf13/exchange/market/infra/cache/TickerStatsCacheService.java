@@ -14,15 +14,18 @@ public class TickerStatsCacheService {
     private final Map<Long, TickerStats> cache = new ConcurrentHashMap<>();
     private final MarkPriceCacheService markPriceCacheService;
     private final KlineAggregationService klineAggregationService;
+    private final InstrumentCache instrumentCache;
 
     public void reset() {
         cache.clear();
     }
     
     public TickerStatsCacheService(MarkPriceCacheService markPriceCacheService,
-                                   KlineAggregationService klineAggregationService) {
+                                   KlineAggregationService klineAggregationService,
+                                   InstrumentCache instrumentCache) {
         this.markPriceCacheService = markPriceCacheService;
         this.klineAggregationService = klineAggregationService;
+        this.instrumentCache = instrumentCache;
     }
     
     public void recordTrade(Long instrumentId,
@@ -33,13 +36,16 @@ public class TickerStatsCacheService {
         if (instrumentId == null || price == null || quantity == null) {
             return;
         }
+        BigDecimal contractMultiplier = requireContractSize(instrumentId);
+        BigDecimal normalizedQuantity = quantity.multiply(contractMultiplier);
+
         TickerStats current = cache.get(instrumentId);
         if (current == null) {
             current = TickerStats.builder()
                                  .instrumentId(instrumentId)
                                  .lastPrice(price)
-                                 .volume24h(quantity)
-                                 .turnover24h(price.multiply(quantity))
+                                 .volume24h(normalizedQuantity)
+                                 .turnover24h(price.multiply(normalizedQuantity))
                                  .high24h(price)
                                  .low24h(price)
                                  .open24h(price)
@@ -54,8 +60,8 @@ public class TickerStatsCacheService {
         //  現狀下只能視為簡易的累積統計，供快速顯示，不具嚴格時間窗語意。
         
         current.setLastPrice(price);
-        current.setVolume24h(current.getVolume24h().add(quantity));
-        current.setTurnover24h(current.getTurnover24h().add(price.multiply(quantity)));
+        current.setVolume24h(current.getVolume24h().add(normalizedQuantity));
+        current.setTurnover24h(current.getTurnover24h().add(price.multiply(normalizedQuantity)));
         current.setHigh24h(price.max(current.getHigh24h()));
         current.setLow24h(price.min(current.getLow24h()));
         if (current.getOpen24h() == null) {
@@ -70,6 +76,13 @@ public class TickerStatsCacheService {
         
         markPriceCacheService.record(instrumentId, tradeId, price, executedAt);
         klineAggregationService.recordTrade(instrumentId, price, quantity, executedAt, null);
+    }
+
+    private BigDecimal requireContractSize(Long instrumentId) {
+        return instrumentCache.get(instrumentId)
+                .map(instrument -> instrument.contractSize())
+                .filter(contractSize -> contractSize != null && contractSize.compareTo(BigDecimal.ZERO) > 0)
+                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid contractSize for instrumentId=" + instrumentId));
     }
     
     public TickerStats get(Long instrumentId) {
