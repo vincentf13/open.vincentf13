@@ -72,6 +72,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const previousOrdersRef = useRef<Map<string, OrderResponse>>(new Map());
   const orderChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
+  const ordersInitializedRef = useRef(false);
 
   const instrumentMap = useMemo(() => {
     return new Map(
@@ -148,6 +149,13 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
         const nextOrders = Array.isArray(response?.data) ? response.data : [];
         const previousMap = previousOrdersRef.current;
         const nextMap = new Map(nextOrders.map((order) => [String(order.orderId), order]));
+        if (!ordersInitializedRef.current) {
+          previousOrdersRef.current = nextMap;
+          orderChangedFieldsRef.current = new Map();
+          ordersInitializedRef.current = true;
+          setOrders(nextOrders);
+          return;
+        }
         let hasAnyListChange = previousMap.size !== nextMap.size;
         if (!hasAnyListChange) {
           for (const orderId of previousMap.keys()) {
