@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState, type MouseEvent, type WheelEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type WheelEvent as ReactWheelEvent } from 'react';
 
 import { getKlines, type KlineResponse } from '../../api/market';
 
@@ -23,7 +23,7 @@ type SeriesPoint = {
   bucketEnd?: string;
 };
 
-const periods = ['1m', '5m', '1h', '1d'] as const;
+  const periods = ['1m', '5m', '1h', '1d'] as const;
 const CHART_WIDTH = 800;
 const CHART_HEIGHT = 300;
 const PRICE_HEIGHT = 220;
@@ -120,7 +120,9 @@ const formatDateTime = (value: string | undefined) => {
 };
 
 export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const [period, setPeriod] = useState<(typeof periods)[number]>('1h');
+  const [chartMode, setChartMode] = useState<'line' | 'candle'>('line');
   const [klines, setKlines] = useState<KlineResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [crosshair, setCrosshair] = useState<{
@@ -234,12 +236,40 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
     return { min, max, range };
   }, [visibleSeries]);
 
+  const useLineChart = chartMode === 'line';
+
   const volumeMax = useMemo(() => {
     if (!visibleSeries.length) {
       return 0;
     }
     return Math.max(...visibleSeries.map((point) => point.volume || 0));
   }, [visibleSeries]);
+
+  const timeGridXs = useMemo(() => {
+    if (!visibleSeries.length) {
+      return [];
+    }
+    const step = CHART_WIDTH / Math.max(visibleSeries.length, 1);
+    return visibleSeries.map((_, index) => step * index + step / 2);
+  }, [visibleSeries]);
+
+  const linePaths = useMemo(() => {
+    if (!chartMetrics || !visibleSeries.length) {
+      return null;
+    }
+    const step = CHART_WIDTH / Math.max(visibleSeries.length, 1);
+    const { min, range } = chartMetrics;
+    const points = visibleSeries.map((point, index) => {
+      const x = step * index + step / 2;
+      const y = PRICE_HEIGHT - ((point.close - min) / range) * PRICE_HEIGHT;
+      return { x, y };
+    });
+    const linePath = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+      .join(' ');
+    const areaPath = `${linePath} L ${points[points.length - 1].x} ${PRICE_HEIGHT} L ${points[0].x} ${PRICE_HEIGHT} Z`;
+    return { linePath, areaPath };
+  }, [chartMetrics, visibleSeries]);
 
   const handleMouseMove = (event: MouseEvent<HTMLDivElement>) => {
     if (!chartMetrics || !series.length) {
@@ -333,44 +363,92 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
     };
   }, [crosshair, visibleSeries]);
 
-  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+  const applyWheelZoom = useCallback((deltaY: number) => {
     if (!series.length) {
       return;
     }
-    event.preventDefault();
-    const direction = event.deltaY > 0 ? 1 : -1;
+    const direction = deltaY > 0 ? 1 : -1;
     setViewCount((prev) => {
       const current = prev || series.length;
       const next =
         direction > 0 ? Math.round(current * 1.15) : Math.max(20, Math.round(current * 0.85));
       return Math.min(series.length, Math.max(20, next));
     });
+  }, [series.length]);
+
+  const handleWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    applyWheelZoom(event.deltaY);
   };
+
+  useEffect(() => {
+    const node = chartContainerRef.current;
+    if (!node) {
+      return;
+    }
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      applyWheelZoom(event.deltaY);
+    };
+    node.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      node.removeEventListener('wheel', onWheel);
+    };
+  }, [applyWheelZoom]);
 
   return (
     <div className="flex flex-col h-full bg-white/5">
-      <div className="flex items-center justify-end border-b border-white/20 px-4 py-3">
+      <div className="relative flex items-center justify-end border-b border-white/20 px-4 py-3">
+        <span className="absolute left-4 top-3 text-[10px] uppercase text-slate-400 font-bold tracking-wider">
+          KLINE COUNTS {loading ? '...' : visibleSeries.length}
+        </span>
         <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-1 bg-white/30 rounded-lg p-1 border border-white/40 shadow-inner">
-            {periods.map((t) => (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-white/30 rounded-lg p-1 border border-white/40 shadow-inner">
+              {periods.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setPeriod(t)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${t === period ? 'bg-white shadow-sm text-slate-800 font-semibold' : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1 bg-white/20 rounded-lg p-1 border border-white/30">
               <button
-                key={t}
-                onClick={() => setPeriod(t)}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${t === period ? 'bg-white shadow-sm text-slate-800 font-semibold' : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'}`}
+                type="button"
+                onClick={() => setChartMode('line')}
+                className={`px-2 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-md transition-all ${
+                  chartMode === 'line'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
+                }`}
               >
-                {t}
+                Line
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setChartMode('candle')}
+                className={`px-2 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-md transition-all ${
+                  chartMode === 'candle'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
+                }`}
+              >
+                Candle
+              </button>
+            </div>
           </div>
-          <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
-            KLINE COUNTS {loading ? '...' : visibleSeries.length}
-          </span>
         </div>
       </div>
 
       <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">
         <div
-          className="absolute inset-0 right-12 bottom-6"
+          ref={chartContainerRef}
+          className="absolute inset-0 right-12 bottom-6 overscroll-contain"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onWheel={handleWheel}
@@ -383,13 +461,13 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
               </linearGradient>
             </defs>
 
-            <g stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" strokeWidth="0.5">
+            <g stroke="rgba(148,163,184,0.45)" strokeDasharray="3 3" strokeWidth="0.6">
               {priceTicks.map((tick, i) => (
                 <line key={`grid-p-${i}`} x1="0" y1={tick.y} x2={CHART_WIDTH} y2={tick.y} />
               ))}
-              <line x1={CHART_WIDTH * 0.25} y1="0" x2={CHART_WIDTH * 0.25} y2={PRICE_HEIGHT} />
-              <line x1={CHART_WIDTH * 0.5} y1="0" x2={CHART_WIDTH * 0.5} y2={PRICE_HEIGHT} />
-              <line x1={CHART_WIDTH * 0.75} y1="0" x2={CHART_WIDTH * 0.75} y2={PRICE_HEIGHT} />
+              {timeGridXs.map((x, index) => (
+                <line key={`grid-x-${index}`} x1={x} y1="0" x2={x} y2={CHART_HEIGHT} />
+              ))}
             </g>
 
             <line x1="0" y1={VOLUME_TOP} x2={CHART_WIDTH} y2={VOLUME_TOP} stroke="rgba(148,163,184,0.7)" strokeWidth="0.6" />
@@ -399,7 +477,34 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
               ))}
             </g>
 
-            {chartMetrics && visibleSeries.length > 0 && (
+            {chartMetrics && visibleSeries.length > 0 && useLineChart && linePaths && (
+              <>
+                <path d={linePaths.areaPath} fill="url(#chartGradient)" />
+                <path d={linePaths.linePath} fill="none" stroke="#3B82F6" strokeWidth="1.6" />
+                {visibleSeries.map((point, index) => {
+                  const step = CHART_WIDTH / Math.max(visibleSeries.length, 1);
+                  const centerX = step * index + step / 2;
+                  const candleWidth = Math.max(2, Math.min(12, step * 0.6));
+                  const isUp = point.close >= point.open;
+                  const color = isUp ? '#10B981' : '#F43F5E';
+                  const volumeHeight = volumeMax > 0 ? (point.volume / volumeMax) * VOLUME_HEIGHT : 0;
+                  const volumeY = VOLUME_TOP + (VOLUME_HEIGHT - volumeHeight);
+                  return (
+                    <rect
+                      key={`vol-${point.bucketStart ?? index}`}
+                      x={centerX - candleWidth / 2}
+                      y={volumeY}
+                      width={candleWidth}
+                      height={volumeHeight}
+                      fill={color}
+                      opacity="0.6"
+                    />
+                  );
+                })}
+              </>
+            )}
+
+            {chartMetrics && visibleSeries.length > 0 && !useLineChart && (
               <>
                 {visibleSeries.map((point, index) => {
                   const step = CHART_WIDTH / Math.max(visibleSeries.length, 1);
@@ -413,7 +518,7 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
                   const isUp = point.close >= point.open;
                   const color = isUp ? '#10B981' : '#F43F5E';
                   const bodyTop = Math.min(yOpen, yClose);
-                  const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
+                  const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
                   const volumeHeight = volumeMax > 0 ? (point.volume / volumeMax) * VOLUME_HEIGHT : 0;
                   const volumeY = VOLUME_TOP + (VOLUME_HEIGHT - volumeHeight);
                   return (
