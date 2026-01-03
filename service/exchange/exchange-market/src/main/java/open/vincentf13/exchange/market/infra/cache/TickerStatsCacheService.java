@@ -69,8 +69,8 @@ public class TickerStatsCacheService {
         }
         BigDecimal priceChange = price.subtract(current.getOpen24h());
         current.setPriceChange24h(priceChange);
-        if (current.getOpen24h().compareTo(BigDecimal.ZERO) >= 0) {
-            current.setPriceChangePct(priceChange.divide(current.getOpen24h(), 8, java.math.RoundingMode.HALF_UP));
+        if (current.getOpen24h().compareTo(BigDecimal.ZERO) > 0) {
+            current.setPriceChangePct(price.divide(current.getOpen24h(), 8, java.math.RoundingMode.HALF_UP));
         }
         cache.put(instrumentId, current);
         
@@ -96,12 +96,12 @@ public class TickerStatsCacheService {
         Instant now = Instant.now();
         return TickerStats.builder()
                           .instrumentId(instrumentId)
-                          .lastPrice(BigDecimal.ZERO)
+                          .lastPrice(BigDecimal.ONE)
                           .volume24h(BigDecimal.ZERO)
                           .turnover24h(BigDecimal.ZERO)
-                          .high24h(BigDecimal.ZERO)
-                          .low24h(BigDecimal.ZERO)
-                          .open24h(BigDecimal.ZERO)
+                          .high24h(BigDecimal.ONE)
+                          .low24h(BigDecimal.ONE)
+                          .open24h(BigDecimal.ONE)
                           .priceChange24h(BigDecimal.ZERO)
                           .priceChangePct(BigDecimal.ZERO)
                           .build();
