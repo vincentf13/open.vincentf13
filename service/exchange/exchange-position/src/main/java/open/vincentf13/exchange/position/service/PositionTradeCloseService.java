@@ -16,7 +16,7 @@ import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEvent
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
-import open.vincentf13.exchange.position.sdk.mq.event.PositionInvalidFillEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompensationEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
@@ -107,7 +107,7 @@ public class PositionTradeCloseService {
         // 若不夠，就是 開倉 flip 的流程，導致平倉預扣的倉位被 flip 吃掉了。  [詳細需了解 flip流程]
         if (position == null || safe(position.getQuantity()).compareTo(BigDecimal.ZERO) <= 0) {
             // 平倉轉開倉，要補保證金，若保證金為負，風控要限制後續下單並強平。
-            publishInvalidFill(tradeId, orderId, userId, instrumentId, asset, orderSide, price, executedQuantity, totalFee, eventTime);
+            publishCloseToOpenCompensation(tradeId, orderId, userId, instrumentId, asset, orderSide, price, executedQuantity, totalFee, eventTime);
             return;
         }
 
@@ -166,21 +166,21 @@ public class PositionTradeCloseService {
         }
 
         if (openQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            publishInvalidFill(tradeId, orderId, userId, instrumentId, asset, orderSide, price, openQuantity, openFee, eventTime);
+            publishCloseToOpenCompensation(tradeId, orderId, userId, instrumentId, asset, orderSide, price, openQuantity, openFee, eventTime);
         }
     }
 
-    private void publishInvalidFill(Long tradeId,
-                                    Long orderId,
-                                    Long userId,
-                                    Long instrumentId,
-                                    AssetSymbol asset,
-                                    OrderSide orderSide,
-                                    BigDecimal price,
-                                    BigDecimal quantity,
-                                    BigDecimal feeCharged,
-                                    Instant executedAt) {
-        positionEventPublisher.publishInvalidFill(new PositionInvalidFillEvent(
+    private void publishCloseToOpenCompensation(Long tradeId,
+                                                Long orderId,
+                                                Long userId,
+                                                Long instrumentId,
+                                                AssetSymbol asset,
+                                                OrderSide orderSide,
+                                                BigDecimal price,
+                                                BigDecimal quantity,
+                                                BigDecimal feeCharged,
+                                                Instant executedAt) {
+        positionEventPublisher.publishCloseToOpenCompensation(new PositionCloseToOpenCompensationEvent(
                 tradeId,
                 orderId,
                 userId,

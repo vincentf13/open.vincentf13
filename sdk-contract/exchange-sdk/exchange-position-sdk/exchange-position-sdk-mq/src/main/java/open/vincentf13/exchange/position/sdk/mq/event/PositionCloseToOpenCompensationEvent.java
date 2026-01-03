@@ -9,7 +9,7 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-public record PositionInvalidFillEvent(
+public record PositionCloseToOpenCompensationEvent(
         @NotNull Long tradeId,
         @NotNull Long orderId,
         @NotNull Long userId,
