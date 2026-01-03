@@ -23,6 +23,8 @@ const hasToken = () => {
   return Boolean(localStorage.getItem('accessToken'));
 };
 
+const REFRESH_AFTER_LOGIN_KEY = 'refreshAfterLogin';
+
 export default function Trading() {
   const [authOpen, setAuthOpen] = useState(() => !hasToken());
   const [resetting, setResetting] = useState(false);
@@ -53,6 +55,13 @@ export default function Trading() {
     return () => {
       window.removeEventListener(AUTH_REQUIRED_EVENT, handleAuthRequired);
     };
+  }, []);
+
+  useEffect(() => {
+    if (localStorage.getItem(REFRESH_AFTER_LOGIN_KEY) === '1') {
+      localStorage.removeItem(REFRESH_AFTER_LOGIN_KEY);
+      setRefreshTrigger((prev) => prev + 1);
+    }
   }, []);
 
   useEffect(() => {
@@ -174,7 +183,13 @@ export default function Trading() {
           </button>
         </div>
       </div>
-      <AuthModal open={authOpen} onSuccess={() => setAuthOpen(false)} />
+      <AuthModal
+        open={authOpen}
+        onSuccess={() => {
+          setAuthOpen(false);
+          handleRefresh();
+        }}
+      />
     </GlassLayout>
   );
 }

@@ -21,6 +21,7 @@ export default function Login() {
         if (accessToken) {
           localStorage.setItem('accessToken', accessToken);
         }
+        localStorage.setItem('refreshAfterLogin', '1');
         message.success('登入成功！');
         navigate('/trading');
       } else {
