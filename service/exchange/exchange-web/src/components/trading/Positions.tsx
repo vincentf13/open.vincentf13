@@ -74,6 +74,15 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       instruments.map((item) => [String(item.instrumentId), item.name || item.symbol || String(item.instrumentId)])
     );
   }, [instruments]);
+  const instrumentContractSizeMap = useMemo(() => {
+    return new Map(
+      instruments.map((item) => {
+        const rawSize = Number(item.contractSize);
+        const size = Number.isFinite(rawSize) && rawSize > 0 ? rawSize : 1;
+        return [String(item.instrumentId), size];
+      })
+    );
+  }, [instruments]);
 
   const fetchPositions = async () => {
     setLoading(true);
@@ -186,6 +195,14 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     }
   }, [activeTab, selectedInstrumentId, refreshTrigger]);
 
+  const resolveContractSize = (instrumentId: string | number | null | undefined) => {
+    if (instrumentId === null || instrumentId === undefined) {
+      return 1;
+    }
+    const size = instrumentContractSizeMap.get(String(instrumentId));
+    return size ?? 1;
+  };
+
   const orderColumns = [
     { key: 'instrumentId', label: 'Instrument' },
     { key: 'side', label: 'Side' },
@@ -193,11 +210,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'price', label: 'Price' },
     { key: 'quantity', label: 'Quantity' },
     { key: 'intent', label: 'Position Intent' },
+    { key: 'status', label: 'Status' },
     { key: 'filledQuantity', label: 'Filled Quantity' },
     { key: 'remainingQuantity', label: 'Remaining Quantity' },
     { key: 'avgFillPrice', label: 'Average Fill Price' },
     { key: 'fee', label: 'Fee' },
-    { key: 'status', label: 'Status' },
     { key: 'rejectedReason', label: 'Rejected Reason' },
     { key: 'createdAt', label: 'Created Time' },
     { key: 'updatedAt', label: 'Updated Time' },
@@ -226,6 +243,21 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'executedAt', label: 'Executed Time' },
     { key: 'createdAt', label: 'Created Time' },
   ];
+
+  const makerHighlightKeys = new Set([
+    'makerUserId',
+    'orderId',
+    'orderSide',
+    'makerIntent',
+    'makerFee',
+  ]);
+  const takerHighlightKeys = new Set([
+    'takerUserId',
+    'counterpartyOrderId',
+    'counterpartyOrderSide',
+    'takerIntent',
+    'takerFee',
+  ]);
 
   const renderOrderCellValue = (order: OrderResponse, key: string) => {
     if (key === 'instrumentId') {
@@ -408,6 +440,41 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               )}
               {orders.map((order) => {
                 const isExpanded = expandedOrderId === order.orderId;
+                const tradesForOrder = orderTrades[order.orderId] || [];
+                const tradeSummary = tradesForOrder.reduce(
+                  (acc, trade) => {
+                    const isMakerForOrder =
+                      trade.orderId != null &&
+                      order.orderId != null &&
+                      String(trade.orderId) === String(order.orderId);
+                    const isTakerForOrder =
+                      trade.counterpartyOrderId != null &&
+                      order.orderId != null &&
+                      String(trade.counterpartyOrderId) === String(order.orderId);
+                    if (!isMakerForOrder && !isTakerForOrder) {
+                      return acc;
+                    }
+                    const priceValue = Number(trade.price);
+                    const quantityValue = Number(trade.quantity);
+                    const contractSize = resolveContractSize(trade.instrumentId ?? order.instrumentId);
+                    if (Number.isFinite(priceValue) && Number.isFinite(quantityValue)) {
+                      acc.fillTotal += priceValue * quantityValue * contractSize;
+                      acc.quantityTotal += quantityValue * contractSize;
+                    }
+                    const feeValue = Number(isMakerForOrder ? trade.makerFee : trade.takerFee);
+                    if (Number.isFinite(feeValue)) {
+                      acc.feeTotal += feeValue;
+                    }
+                    acc.matchedCount += 1;
+                    return acc;
+                  },
+                  { fillTotal: 0, feeTotal: 0, matchedCount: 0, quantityTotal: 0 }
+                );
+                const hasTradeSummary = tradeSummary.matchedCount > 0;
+                const averageFillPrice =
+                  tradeSummary.quantityTotal > 0
+                    ? tradeSummary.fillTotal / tradeSummary.quantityTotal
+                    : null;
                 return (
                   <Fragment key={order.orderId}>
                     <tr className="hover:bg-white/20 transition-colors">
@@ -442,7 +509,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                       <tr>
                         <td className="py-3 px-2" colSpan={orderColumns.length + 1}>
                           <div className="rounded-xl border border-white/40 bg-white/20 p-3">
-                            <div className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider mb-2">
+                            <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
                               Trades
                             </div>
                             <div className="overflow-x-auto">
@@ -457,24 +524,48 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/10">
-                                  {(orderTrades[order.orderId] || []).length === 0 && (
+                                  {tradesForOrder.length === 0 && (
                                     <tr>
                                       <td className="py-4 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
                                         {tradesLoading[order.orderId] ? 'Loading...' : 'No trades'}
                                       </td>
                                     </tr>
                                   )}
-                                  {(orderTrades[order.orderId] || []).map((trade) => (
+                                  {tradesForOrder.map((trade) => (
                                     <tr key={trade.tradeId}>
-                                      {tradeColumns.map((column) => (
-                                        <td key={column.key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
-                                          {renderTradeCellValue(trade, column.key)}
-                                        </td>
-                                      ))}
+                                      {tradeColumns.map((column) => {
+                                        const isTakerForOrder =
+                                          trade.counterpartyOrderId != null &&
+                                          order.orderId != null &&
+                                          String(trade.counterpartyOrderId) === String(order.orderId);
+                                        const isMakerForOrder =
+                                          trade.orderId != null &&
+                                          order.orderId != null &&
+                                          String(trade.orderId) === String(order.orderId);
+                                        const shouldHighlight =
+                                          (isTakerForOrder && takerHighlightKeys.has(column.key)) ||
+                                          (isMakerForOrder && makerHighlightKeys.has(column.key));
+                                        const cellClass = shouldHighlight ? 'bg-amber-100/70 text-amber-900' : '';
+                                        return (
+                                          <td
+                                            key={column.key}
+                                            className={`py-2 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}
+                                          >
+                                            {renderTradeCellValue(trade, column.key)}
+                                          </td>
+                                        );
+                                      })}
                                     </tr>
                                   ))}
                                 </tbody>
                               </table>
+                            </div>
+                            <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
+                              Total Fill Price: {hasTradeSummary ? formatNumber(tradeSummary.fillTotal) : '-'}
+                              <br />
+                              Average Fill Price: {hasTradeSummary ? formatNumber(averageFillPrice) : '-'}
+                              <br />
+                              Fee: {hasTradeSummary ? formatNumber(tradeSummary.feeTotal) : '-'}
                             </div>
                           </div>
                         </td>
