@@ -522,7 +522,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   return (
     <div className="flex flex-col overflow-hidden bg-white/5">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-        <div className="flex items-center gap-4 text-xs font-semibold">
+        <div className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 p-1">
           {['Positions', 'Orders', 'Traders'].map((tab) => (
             <button
               key={tab}
@@ -538,7 +538,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                   fetchInstrumentTrades();
                 }
               }}
-              className={`uppercase tracking-wider transition-colors ${tab === activeTab ? 'text-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`px-3 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-wider transition-all ${
+                tab === activeTab
+                  ? 'bg-white text-slate-800 shadow-sm border border-white/80'
+                  : 'text-slate-500 border border-transparent hover:text-slate-700 hover:bg-white/30'
+              }`}
             >
               {tab}
             </button>
