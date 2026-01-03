@@ -201,10 +201,10 @@ export default function MarketStats({
             title={(
                 <div className="text-xs">
                     <div className="whitespace-nowrap">
-                        行情僅持久化最後成交價跟K線，其餘統計只在內存，行情服務重啟時將重新統計
+                        這裡的行情統計僅持久化最後成交價跟K線，其餘的統計只統計在內存中，每當行情服務重新啟動時，統計將會重置重新統計。
                     </div>
                     <div className="whitespace-nowrap">
-                        Only the last traded price and kline are persisted; other stats are in-memory and will be recalculated when the market service restarts.
+                        Only the last traded price and kline are persisted here; other stats live in memory and will reset and be recalculated whenever the market service restarts.
                     </div>
                 </div>
             )}

@@ -623,15 +623,17 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
           <Tooltip
             title={(
               <div className="text-xs">
-                <div className="whitespace-nowrap">數據變化將會上色，方便檢核交易動態。</div>
                 <div className="whitespace-nowrap">
-                  訂單下拉框內的成交明細中，左下角附有統計數據，方便核對剩餘開倉佔用保證金、平均成交價格與最終手續費。
+                  每當成交時，訂單數據變化的部分將會上色，方便了解交易動態。
                 </div>
                 <div className="whitespace-nowrap">
-                  Changes are highlighted for easier trade verification.
+                  每個訂單下拉框內的成交明細中，左下角附有成交紀錄的統計數據，可以了解該筆訂單剩餘的開倉佔用保證金、平均成交價格與最終手續費。(此數據用於與Order紀錄的數據雙重核對)
                 </div>
                 <div className="whitespace-nowrap">
-                  The stats at the bottom-left of the expanded order trades help verify remaining open-position margin, average fill price, and final fees.
+                  When trades execute, changed order fields are highlighted to make trade activity easier to follow.
+                </div>
+                <div className="whitespace-nowrap">
+                  Each order’s expanded trade details include summary stats at the bottom-left to review remaining open-position margin, average fill price, and final fees. (Used to cross-check against the Order record.)
                 </div>
               </div>
             )}

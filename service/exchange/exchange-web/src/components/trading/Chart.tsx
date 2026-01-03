@@ -554,8 +554,8 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
       <Tooltip
         title={(
           <div className="text-xs">
-            <div className="whitespace-nowrap">滑鼠在K線上時，按住左鍵左右與上下移動可以調整價格與時間密度。</div>
-            <div className="whitespace-nowrap">Hover over the Kline and drag left/right or up/down to adjust price and time density.</div>
+            <div className="whitespace-nowrap">按住左鍵左右與上下移動可以調整價格與時間密度。</div>
+            <div className="whitespace-nowrap">Hold the left mouse button and drag left/right or up/down to adjust price and time density.</div>
           </div>
         )}
         overlayStyle={{ maxWidth: 'none' }}
