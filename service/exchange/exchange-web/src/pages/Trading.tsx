@@ -99,13 +99,35 @@ export default function Trading() {
     }
     setResetting(true);
     try {
-      await resetSystemData();
+      const result = await resetSystemData();
+      if (String(result?.code) !== '0') {
+        alert(result?.message || 'Failed to reset data.');
+        return;
+      }
       // 僅清空業務相關數據，保留 accessToken 以維持登入狀態
       localStorage.removeItem('instrumentSummaries');
       localStorage.removeItem('selectedInstrumentId');
-      
+      try {
+        const list = await fetchInstrumentSummaries();
+        setInstruments(list);
+        setSelectedInstrumentId(() => {
+          const next = list[0]?.instrumentId || null;
+          setCachedInstrumentId(next);
+          return next;
+        });
+      } catch (error) {
+        // Ignore refresh failure; keep current view.
+      }
+      setTimeout(() => {
+        handleRefresh();
+      }, 300);
+      setTimeout(() => {
+        handleRefresh();
+      }, 2000);
+      setTimeout(() => {
+        handleRefresh();
+      }, 4000);
       alert('System data reset successfully.');
-      window.location.reload();
     } catch (error: any) {
       alert('Failed to reset data: ' + (error.response?.data?.message || error.message));
     } finally {

@@ -50,6 +50,12 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
         return;
       }
       onOrderPlaced?.();
+      setTimeout(() => {
+        onOrderPlaced?.();
+      }, 2000);
+      setTimeout(() => {
+        onOrderPlaced?.();
+      }, 4000);
       alert('Order placed successfully!');
       setQuantity('');
     } catch (error: any) {
