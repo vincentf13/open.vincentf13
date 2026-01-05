@@ -34,7 +34,7 @@ public class PositionRepository {
     
     public Position createDefault(@NotNull Long userId,
                                   @NotNull Long instrumentId) {
-        Position domain = Position.createDefault(userId, instrumentId, PositionSide.LONG);
+        Position domain = Position.createDefault(userId, instrumentId, PositionSide.LONG, null);
         domain.setPositionId(idGenerator.newLong());
         PositionPO po = OpenObjectMapper.convert(domain, PositionPO.class);
         try {

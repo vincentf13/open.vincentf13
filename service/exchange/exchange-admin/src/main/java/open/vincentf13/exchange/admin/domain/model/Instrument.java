@@ -27,6 +27,7 @@ public class Instrument {
     private BigDecimal makerFeeRate;
     private BigDecimal takerFeeRate;
     private BigDecimal contractSize;
+    private Integer defaultLeverage;
     private Instant launchAt;
     private Instant delistAt;
     private Integer displayOrder;

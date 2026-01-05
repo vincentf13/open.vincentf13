@@ -52,7 +52,8 @@ public class OrderPrecheckService {
             }
             // 2. 數據上下文準備
             var riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(request.getInstrumentId());
-            var snapshot = normalizeSnapshot(request.getPositionSnapshot(), request.getInstrumentId());
+            Integer defaultLeverage = instrument.defaultLeverage();
+            var snapshot = normalizeSnapshot(request.getPositionSnapshot(), request.getInstrumentId(), defaultLeverage);
             
             BigDecimal markPrice = snapshot.getMarkPrice();
             BigDecimal execPrice = request.getPrice() != null ? request.getPrice() : markPrice;
@@ -82,12 +83,14 @@ public class OrderPrecheckService {
     
     
     private OrderPrecheckRequest.PositionSnapshot normalizeSnapshot(OrderPrecheckRequest.PositionSnapshot snapshot,
-                                                                    Long instrumentId) {
+                                                                    Long instrumentId,
+                                                                    Integer defaultLeverage) {
         OrderPrecheckRequest.PositionSnapshot normalized = snapshot != null
                                                            ? snapshot
                                                            : new OrderPrecheckRequest.PositionSnapshot();
         if (normalized.getLeverage() == null || normalized.getLeverage() <= 0) {
-            normalized.setLeverage(1);
+            Integer leverage = defaultLeverage != null && defaultLeverage > 0 ? defaultLeverage : 1;
+            normalized.setLeverage(leverage);
         }
         if (normalized.getMargin() == null) {
             normalized.setMargin(BigDecimal.ZERO);

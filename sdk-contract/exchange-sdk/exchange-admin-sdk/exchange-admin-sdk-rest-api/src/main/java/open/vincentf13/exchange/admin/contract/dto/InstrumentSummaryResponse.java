@@ -18,6 +18,7 @@ public record InstrumentSummaryResponse(
         BigDecimal makerFeeRate,
         BigDecimal takerFeeRate,
         BigDecimal contractSize,
+        Integer defaultLeverage,
         Instant launchAt,
         Instant delistAt,
         Integer displayOrder,

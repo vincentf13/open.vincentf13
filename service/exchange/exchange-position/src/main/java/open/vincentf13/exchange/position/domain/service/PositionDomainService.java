@@ -100,7 +100,7 @@ public class PositionDomainService {
                         .eq(PositionPO::getUserId, userId)
                         .eq(PositionPO::getInstrumentId, instrumentId)
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                .orElse(Position.createDefault(userId, instrumentId, side));
+                .orElseGet(() -> Position.createDefault(userId, instrumentId, side, requireDefaultLeverage(instrumentId)));
 
         // 開倉 因併發訂單，變為平倉，需釋放保證金，並處理flip的情況
         if (position.getSide() != side) {
@@ -510,6 +510,13 @@ public class PositionDomainService {
                 .map(instrument -> instrument.contractSize())
                 .filter(contractSize -> contractSize != null && contractSize.compareTo(BigDecimal.ZERO) > 0)
                 .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid contractSize for instrumentId=" + instrumentId));
+    }
+
+    private Integer requireDefaultLeverage(Long instrumentId) {
+        return instrumentCache.get(instrumentId)
+                .map(instrument -> instrument.defaultLeverage())
+                .filter(leverage -> leverage != null && leverage > 0)
+                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid defaultLeverage for instrumentId=" + instrumentId));
     }
 
     private BigDecimal safe(BigDecimal value) {

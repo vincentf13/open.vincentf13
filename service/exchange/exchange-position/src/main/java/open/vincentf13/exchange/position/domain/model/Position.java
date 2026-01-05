@@ -63,11 +63,13 @@ public class Position {
     
     public static Position createDefault(Long userId,
                                          Long instrumentId,
-                                         PositionSide side) {
+                                         PositionSide side,
+                                         Integer defaultLeverage) {
+        Integer leverage = defaultLeverage == null || defaultLeverage <= 0 ? 1 : defaultLeverage;
         return Position.builder()
                        .userId(userId)
                        .instrumentId(instrumentId)
-                       .leverage(40)
+                       .leverage(leverage)
                        .margin(BigDecimal.ZERO)
                        .side(side == null ? PositionSide.LONG : side)
                        .entryPrice(BigDecimal.ZERO)
