@@ -140,41 +140,59 @@ public class AccountTransactionDomainService {
                                             @NotNull InstrumentSummaryResponse instrument) {
         OpenValidator.validateOrThrow(event);
         AssetSymbol asset = instrument.quoteAsset();
-        BigDecimal amount = event.requiredMargin().add(event.fee());
+        BigDecimal requiredMargin = event.requiredMargin();
+        BigDecimal fee = event.fee();
+        BigDecimal totalAmount = requiredMargin.add(fee);
         
         UserAccount userSpot = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
-        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.FUNDS_FREEZE_REQUESTED, event.orderId().toString());
+        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.ORDER_MARGIN_FROZEN, event.orderId().toString());
         
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "amount", amount));
+        if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "amount", totalAmount));
         }
-        if (!userSpot.hasEnoughAvailable(amount)) {
+        if (!userSpot.hasEnoughAvailable(totalAmount)) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
-                                   Map.of("userId", event.userId(), "asset", asset, "available", userSpot.getAvailable(), "amount", amount));
+                                   Map.of("userId", event.userId(), "asset", asset, "available", userSpot.getAvailable(), "amount", totalAmount));
         }
-        UserAccount frozenAccount = applyUserFreeze(userSpot, amount);
+        UserAccount frozenAccount = applyUserFreeze(userSpot, totalAmount);
         userAccountRepository.updateSelectiveBatch(
                 List.of(frozenAccount),
                 List.of(userSpot.safeVersion()),
                 "order-freeze");
-        UserJournal reserveJournal = buildUserJournal(
+        UserJournal marginReserveJournal = buildUserJournal(
                 frozenAccount,
                 Direction.DEBIT,
-                amount,
-                ReferenceType.FUNDS_FREEZE_REQUESTED,
+                requiredMargin,
+                ReferenceType.ORDER_MARGIN_FROZEN,
                 event.orderId().toString(),
-                "Funds reserved for order",
+                "Margin reserved for order",
                 event.createdAt());
-        UserJournal availableJournal = buildUserJournal(
+        UserJournal marginAvailableJournal = buildUserJournal(
                 frozenAccount,
                 Direction.CREDIT,
-                amount,
-                ReferenceType.FUNDS_FREEZE_REQUESTED,
+                requiredMargin,
+                ReferenceType.ORDER_MARGIN_FROZEN,
                 event.orderId().toString(),
-                "Funds moved from available",
+                "Margin moved from available",
                 event.createdAt());
-        userJournalRepository.insertBatch(List.of(reserveJournal, availableJournal));
-        return new FundsFreezeResult(asset, amount);
+        UserJournal feeReserveJournal = buildUserJournal(
+                frozenAccount,
+                Direction.DEBIT,
+                fee,
+                ReferenceType.ORDER_FEE_FROZEN,
+                event.orderId().toString(),
+                "Fee reserved for order",
+                event.createdAt());
+        UserJournal feeAvailableJournal = buildUserJournal(
+                frozenAccount,
+                Direction.CREDIT,
+                fee,
+                ReferenceType.ORDER_FEE_FROZEN,
+                event.orderId().toString(),
+                "Fee moved from available",
+                event.createdAt());
+        userJournalRepository.insertBatch(List.of(marginReserveJournal, marginAvailableJournal, feeReserveJournal, feeAvailableJournal));
+        return new FundsFreezeResult(asset, totalAmount);
     }
     
     @Transactional(rollbackFor = Exception.class)
@@ -330,28 +348,23 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
                                    Map.of("orderId", orderId, "intent", intent));
         }
-        BigDecimal contractMultiplier = requireContractSize(event.instrumentId());
-        BigDecimal marginUsed = event.price().multiply(event.quantity()).multiply(contractMultiplier);
+   
         BigDecimal actualFee = isMaker ? event.makerFee() : event.takerFee();
         
         // 用order id 查分錄查出凍結時到底凍結多少錢，再去算要退多少手續費，因為凍結後可能調整費率，導致撮合時收的手續費不一樣
-        BigDecimal totalReserved = userJournalRepository.findLatestByReference(
-                        userSpot.getAccountId(), asset, ReferenceType.FUNDS_FREEZE_REQUESTED, orderId.toString())
+        BigDecimal marginReserved = userJournalRepository.findLatestByReference(
+                        userSpot.getAccountId(), asset, ReferenceType.ORDER_MARGIN_FROZEN, orderId.toString())
                                                         .map(UserJournal::getAmount)
                                                         .orElseThrow(() -> OpenException.of(AccountErrorCode.FREEZE_ENTRY_NOT_FOUND,
                                                                                             Map.of("orderId", orderId, "userId", userId)));
-        BigDecimal totalUsed = marginUsed.add(actualFee);
-        if (totalReserved.compareTo(totalUsed) < 0) {
-            // 人工排查: 可能是 BUG 預扣扣不夠。
-            // 也可能是 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
-            OpenLog.warn(AccountEvent.INSUFFICIENT_RESERVED_BALANCE,
-                         "userId", userId,
-                         "orderId", orderId,
-                         "reserved", totalReserved,
-                         "marginUsed", marginUsed,
-                         "actualFee", actualFee);
-        }
-        BigDecimal feeRefund = totalReserved.subtract(totalUsed);
+        BigDecimal feeReserved = userJournalRepository.findLatestByReference(
+                        userSpot.getAccountId(), asset, ReferenceType.ORDER_FEE_FROZEN, orderId.toString())
+                                                    .map(UserJournal::getAmount)
+                                                    .orElseThrow(() -> OpenException.of(AccountErrorCode.FREEZE_ENTRY_NOT_FOUND,
+                                                                                        Map.of("orderId", orderId, "userId", userId)));
+        BigDecimal totalReserved = marginReserved.add(feeReserved);
+
+        BigDecimal feeRefund = feeReserved.subtract(actualFee);
         if(feeRefund.signum() < 0) {
             // 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
             feeRefund = BigDecimal.ZERO;
@@ -367,8 +380,8 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
                                    Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReserved));
         }
-        UserAccount settledAccount = userSpot.applyTradeSettlement(totalReserved, totalUsed, feeRefund);
-        UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginUsed);
+        UserAccount settledAccount = userSpot.applyTradeSettlement(totalReserved, feeRefund);
+        UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginReserved);
         UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
         UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
         userAccountRepository.updateSelectiveBatch(
@@ -385,7 +398,7 @@ public class AccountTransactionDomainService {
         UserJournal marginJournal = buildUserJournal(
                 updatedMargin,
                 Direction.DEBIT,
-                marginUsed,
+                marginReserved,
                 ReferenceType.TRADE_MARGIN_SETTLED,
                 refIdWithSide,
                 "Margin allocated to isolated account",
@@ -393,7 +406,7 @@ public class AccountTransactionDomainService {
         UserJournal marginOutJournal = buildUserJournal(
                 settledAccount,
                 Direction.CREDIT,
-                marginUsed,
+                marginReserved,
                 ReferenceType.TRADE_MARGIN_SETTLED,
                 refIdWithSide,
                 "Margin transferred from spot",
@@ -470,7 +483,7 @@ public class AccountTransactionDomainService {
                         isMaker ? event.orderSide() : event.counterpartyOrderSide(),
                         event.price(),
                         event.quantity(),
-                        marginUsed,
+                        marginReserved,
                         actualFee,
                         event.executedAt(),
                         Instant.now(),

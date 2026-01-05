@@ -124,22 +124,21 @@ public class UserAccount {
     }
 
     public UserAccount applyTradeSettlement(BigDecimal totalReserved,
-                                            BigDecimal totalUsed,
                                             BigDecimal feeRefund) {
         BigDecimal newReserved = reserved.subtract(totalReserved);
         if (newReserved.signum() < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
                                    Map.of("userId", userId, "reserved", reserved, "required", totalReserved));
         }
-        BigDecimal newBalance = balance.subtract(totalUsed);
+        BigDecimal newBalance = balance.subtract(totalReserved);
         if (newBalance.signum() < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
-                                   Map.of("userId", userId, "balance", balance, "required", totalUsed));
+                                   Map.of("userId", userId, "balance", balance, "required", totalReserved));
         }
         BigDecimal newAvailable = available.add(feeRefund);
         if (newAvailable.signum() < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
-                                   Map.of("userId", userId, "available", available, "required", totalUsed));
+                                   Map.of("userId", userId, "available", available, "required", 0));
         }
         return UserAccount.builder()
                           .accountId(accountId)
