@@ -472,7 +472,6 @@ public class AccountTransactionDomainService {
                         event.quantity(),
                         marginUsed,
                         actualFee,
-                        feeRefund,
                         event.executedAt(),
                         Instant.now(),
                         false
@@ -606,7 +605,6 @@ public class AccountTransactionDomainService {
                         event.quantity(),
                         marginUsed,
                         actualFee,
-                        BigDecimal.ZERO,
                         event.executedAt(),
                         Instant.now(),
                         true

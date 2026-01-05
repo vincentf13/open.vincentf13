@@ -76,7 +76,6 @@ public class PositionDomainService {
                                              @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = false) BigDecimal quantity,
                                              @NotNull BigDecimal marginUsed,
                                              @NotNull BigDecimal feeCharged,
-                                             @NotNull BigDecimal feeRefund,
                                              @NotNull Long tradeId,
                                              @NotNull Instant executedAt,
                                              boolean isRecursive) {
@@ -113,17 +112,15 @@ public class PositionDomainService {
                 BigDecimal closeMargin = marginUsed.subtract(flipMargin);
 
                 BigDecimal flipFeeCharged = feeCharged.multiply(flipRatio);
-                BigDecimal flipFeeRefund = feeRefund.multiply(flipRatio);
                 BigDecimal closeFeeCharged = feeCharged.subtract(flipFeeCharged);
-                BigDecimal closeFeeRefund = feeRefund.subtract(flipFeeRefund);
 
                 List<Position> results = new ArrayList<>();
-                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, closeFeeRefund, tradeId, executedAt,false));
-                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, flipFeeRefund, tradeId, executedAt,true));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, tradeId, executedAt,false));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, tradeId, executedAt,true));
                 return results;
             }
 
-            PositionCloseResult result = closePosition(userId, instrumentId, price, quantity, feeCharged, feeRefund, orderSide, tradeId, executedAt, true);
+            PositionCloseResult result = closePosition(userId, instrumentId, price, quantity, feeCharged, orderSide, tradeId, executedAt, true);
             positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
                     tradeId,
                     orderId,
@@ -163,8 +160,7 @@ public class PositionDomainService {
             updatedPosition.setEntryPrice(newEntryPrice);
             updatedPosition.setClosingReservedQuantity(safe(position.getClosingReservedQuantity()));
             updatedPosition.setMargin(existingMargin.add(marginUsed));
-            BigDecimal feeDelta = feeCharged.subtract(feeRefund);
-            updatedPosition.setCumFee(existingCumFee.add(feeDelta));
+            updatedPosition.setCumFee(existingCumFee.add(feeCharged));
             
             BigDecimal effectiveMarkPrice = updatedPosition.getMarkPrice();
             if (effectiveMarkPrice == null || effectiveMarkPrice.compareTo(BigDecimal.ZERO) == 0) {
@@ -245,7 +241,7 @@ public class PositionDomainService {
 
     public PositionCloseResult closePosition(Long userId, Long instrumentId,
                                              BigDecimal price, BigDecimal quantity,
-                                             BigDecimal feeCharged, BigDecimal feeRefund,
+                                             BigDecimal feeCharged,
                                              OrderSide orderSide,
                                              Long tradeId, Instant executedAt,
                                              boolean isFlip) {
@@ -342,8 +338,7 @@ public class PositionDomainService {
         
         // 更新統計
         updatedPosition.setCumRealizedPnl(existingCumRealized.add(pnl));
-        BigDecimal feeDelta = feeCharged.subtract(feeRefund);
-        updatedPosition.setCumFee(existingCumFee.add(feeDelta));
+        updatedPosition.setCumFee(existingCumFee.add(feeCharged));
 
         // 關倉
         if (newQuantity.compareTo(BigDecimal.ZERO) == 0) {

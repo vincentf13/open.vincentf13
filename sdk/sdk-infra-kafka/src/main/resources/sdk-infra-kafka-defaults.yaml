@@ -29,7 +29,7 @@ spring:
       partition-assignment-strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
 
       # 第一次消費時的起始位置 earliest || latest。
-      auto-offset-reset: earliest
+      auto-offset-reset: latest
       enable-auto-commit: false
       # 一次 poll() 調用最多拉取的訊息數量。
       max-poll-records: 20

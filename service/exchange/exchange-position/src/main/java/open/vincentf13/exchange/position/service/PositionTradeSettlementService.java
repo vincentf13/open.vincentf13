@@ -34,7 +34,6 @@ public class PositionTradeSettlementService {
                 event.quantity(),
                 event.marginUsed(),
                 event.feeCharged(),
-                event.feeRefund(),
                 event.tradeId(),
                 event.executedAt(),
                 event.isRecursive());

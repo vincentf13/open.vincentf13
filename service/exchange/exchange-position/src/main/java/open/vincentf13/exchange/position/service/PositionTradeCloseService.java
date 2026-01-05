@@ -131,7 +131,6 @@ public class PositionTradeCloseService {
                     price,
                     closeQuantity,
                     closeFee,
-                    BigDecimal.ZERO,
                     orderSide,
                     tradeId,
                     eventTime,

@@ -20,7 +20,6 @@ public record TradeMarginSettledEvent(
         @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal quantity,
         @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal marginUsed,
         @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true) BigDecimal feeCharged,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.FEE_MIN, inclusive = true) BigDecimal feeRefund,
         @NotNull Instant executedAt,
         @NotNull Instant settledAt,
         boolean isRecursive
