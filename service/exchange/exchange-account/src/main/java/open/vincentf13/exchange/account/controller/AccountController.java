@@ -63,6 +63,18 @@ public class AccountController implements AccountApi {
         }
         return OpenApiResponse.success(accountQueryService.getBalanceSheet(jwtUserId));
     }
+
+    @Override
+    public OpenApiResponse<AccountJournalResponse> getAccountJournals(Long accountId) {
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        if (jwtUserId == null) {
+            throw new IllegalArgumentException("Missing user context");
+        }
+        if (accountId == null) {
+            throw new IllegalArgumentException("Missing accountId");
+        }
+        return OpenApiResponse.success(accountQueryService.getAccountJournals(jwtUserId, accountId));
+    }
     
     
 }

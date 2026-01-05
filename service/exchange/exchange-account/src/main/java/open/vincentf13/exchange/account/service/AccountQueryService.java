@@ -4,10 +4,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
+import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
+import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResponse;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalItem;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
@@ -20,6 +24,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ import java.util.Objects;
 public class AccountQueryService {
     
     private final UserAccountRepository userAccountRepository;
+    private final UserJournalRepository userJournalRepository;
     
     public AccountBalanceResponse getBalances(@NotNull Long userId,
                                               @NotBlank String asset) {
@@ -51,12 +57,23 @@ public class AccountQueryService {
                 .thenComparing(item -> item.asset() != null ? item.asset().name() : "");
         Map<AccountCategory, List<AccountBalanceItem>> grouped = items.stream()
                                                                       .sorted(comparator)
-                                                                      .collect(java.util.stream.Collectors.groupingBy(AccountBalanceItem::category));
+                                                                      .collect(Collectors.groupingBy(AccountBalanceItem::category));
         List<AccountBalanceItem> assets = grouped.getOrDefault(AccountCategory.ASSET, List.of());
         List<AccountBalanceItem> liabilities = grouped.getOrDefault(AccountCategory.LIABILITY, List.of());
         List<AccountBalanceItem> equity = grouped.getOrDefault(AccountCategory.EQUITY, List.of());
         List<AccountBalanceItem> expenses = grouped.getOrDefault(AccountCategory.EXPENSE, List.of());
         List<AccountBalanceItem> revenue = grouped.getOrDefault(AccountCategory.REVENUE, List.of());
         return new AccountBalanceSheetResponse(userId, snapshotAt, assets, liabilities, equity, expenses, revenue);
+    }
+
+    public AccountJournalResponse getAccountJournals(@NotNull Long userId,
+                                                     @NotNull Long accountId) {
+        List<UserJournal> journals = userJournalRepository.findByAccountId(userId, accountId);
+        List<AccountJournalItem> items = journals.stream()
+                                                 .map(item -> OpenObjectMapper.convert(item, AccountJournalItem.class))
+                                                 .filter(Objects::nonNull)
+                                                 .toList();
+        Instant snapshotAt = journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
+        return new AccountJournalResponse(userId, accountId, snapshotAt, items);
     }
 }

@@ -12,7 +12,14 @@ import {
   type InstrumentSummary,
 } from '../api/instrument';
 import { resetSystemData } from '../api/admin';
-import { getBalanceSheet, type AccountBalanceSheetResponse, type AccountBalanceItem } from '../api/account';
+import {
+  getAccountJournals,
+  getBalanceSheet,
+  type AccountBalanceSheetResponse,
+  type AccountBalanceItem,
+  type AccountJournalResponse,
+  type AccountJournalItem,
+} from '../api/account';
 import Header from '../components/trading/Header';
 import Chart from '../components/trading/Chart';
 import OrderBook from '../components/trading/OrderBook';
@@ -41,6 +48,11 @@ export default function Trading() {
   const [balanceSheetLoading, setBalanceSheetLoading] = useState(false);
   const [balanceSheetError, setBalanceSheetError] = useState<string | null>(null);
   const [balanceSheetData, setBalanceSheetData] = useState<AccountBalanceSheetResponse | null>(null);
+  const [accountJournalOpen, setAccountJournalOpen] = useState(false);
+  const [accountJournalLoading, setAccountJournalLoading] = useState(false);
+  const [accountJournalError, setAccountJournalError] = useState<string | null>(null);
+  const [accountJournalData, setAccountJournalData] = useState<AccountJournalResponse | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -68,6 +80,81 @@ export default function Trading() {
   };
   const handleCloseBalanceSheet = () => {
     setBalanceSheetOpen(false);
+    setAccountJournalOpen(false);
+  };
+  const handleOpenAccountJournal = (accountId: number) => {
+    if (!Number.isFinite(accountId)) {
+      return;
+    }
+    setSelectedAccountId(accountId);
+    setAccountJournalOpen(true);
+    setAccountJournalError(null);
+    setAccountJournalData(null);
+    setAccountJournalLoading(true);
+    getAccountJournals(accountId)
+      .then((result) => {
+        if (String(result?.code) !== '0') {
+          setAccountJournalError(result?.message || 'Failed to load account journals.');
+          setAccountJournalData(null);
+          return;
+        }
+        setAccountJournalData(result?.data ?? null);
+      })
+      .catch(() => {
+        setAccountJournalError('Failed to load account journals.');
+        setAccountJournalData(null);
+      })
+      .finally(() => {
+        setAccountJournalLoading(false);
+      });
+  };
+  const handleCloseAccountJournal = () => {
+    setAccountJournalOpen(false);
+    setSelectedAccountId(null);
+  };
+
+  const renderJournalRows = (items?: AccountJournalItem[]) => {
+    const rows = items && items.length > 0 ? items : [null];
+    return (
+      <table className="w-max text-[10px] text-left text-slate-600">
+        <thead>
+          <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60">
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Journal ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">User ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Category</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Asset</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Amount</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Direction</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Balance After</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reference Type</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reference ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Description</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Event Time</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Created At</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/40">
+          {rows.map((item, index) => (
+            <tr key={`${item?.journalId ?? index}-${item?.referenceId ?? 'ref'}`}>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.journalId ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.userId ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.amount ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.direction ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.balanceAfter ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceId ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
   };
 
   const renderAccountItems = (items?: AccountBalanceItem[]) => {
@@ -94,7 +181,19 @@ export default function Trading() {
             <tbody className="divide-y divide-white/40">
               {rows.map((item, index) => (
                 <tr key={`${item?.accountId ?? index}-${item?.asset ?? 'asset'}-${item?.instrumentId ?? '0'}`}>
-                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
+                    {item?.accountId != null ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAccountJournal(Number(item.accountId))}
+                        className="text-slate-700 hover:text-blue-600 underline decoration-dotted underline-offset-2"
+                      >
+                        {String(item.accountId)}
+                      </button>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                   <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountCode ?? '-')}</td>
                   <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountName ?? '-')}</td>
                   <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
@@ -260,6 +359,35 @@ export default function Trading() {
                     <div className="absolute bottom-full right-0 z-40 w-max max-w-none mb-3">
                       <div className="relative min-h-[320px] rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
                         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border border-white/70 bg-white/95" />
+                        {accountJournalOpen && (
+                          <div className="absolute left-4 top-4 z-50 w-max max-w-none">
+                            <div className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                  Account Journals {selectedAccountId != null ? `(Account ID: ${selectedAccountId})` : ''}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="h-6 w-6 rounded-full border border-white/60 bg-white/70 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-white transition-all"
+                                  onClick={handleCloseAccountJournal}
+                                >
+                                  X
+                                </button>
+                              </div>
+                              {accountJournalLoading && (
+                                <div className="text-xs text-slate-400">Loading...</div>
+                              )}
+                              {accountJournalError && (
+                                <div className="text-xs text-rose-500">{accountJournalError}</div>
+                              )}
+                              {!accountJournalLoading && !accountJournalError && (
+                                <div className="max-h-[50vh] overflow-auto pr-1">
+                                  {renderJournalRows(accountJournalData?.journals)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between mb-3">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Balance Sheet</div>
                           <button

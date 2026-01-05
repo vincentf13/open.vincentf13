@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.account.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
@@ -54,7 +55,7 @@ public class UserJournalRepository {
                                                        @NotNull AssetSymbol asset,
                                                        @NotNull ReferenceType referenceType,
                                                        @NotNull String referenceId) {
-        var wrapper = com.baomidou.mybatisplus.core.toolkit.Wrappers.<UserJournalPO>lambdaQuery()
+        var wrapper = Wrappers.<UserJournalPO>lambdaQuery()
                 .eq(UserJournalPO::getAccountId, accountId)
                 .eq(UserJournalPO::getAsset, asset)
                 .eq(UserJournalPO::getReferenceType, referenceType)
@@ -65,5 +66,17 @@ public class UserJournalRepository {
                      .stream()
                      .findFirst()
                      .map(po -> OpenObjectMapper.convert(po, UserJournal.class));
+    }
+
+    public List<UserJournal> findByAccountId(@NotNull Long userId,
+                                             @NotNull Long accountId) {
+        var wrapper = Wrappers.<UserJournalPO>lambdaQuery()
+                .eq(UserJournalPO::getUserId, userId)
+                .eq(UserJournalPO::getAccountId, accountId)
+                .orderByDesc(UserJournalPO::getEventTime);
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .map(po -> OpenObjectMapper.convert(po, UserJournal.class))
+                     .toList();
     }
 }

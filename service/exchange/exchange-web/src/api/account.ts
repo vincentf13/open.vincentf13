@@ -57,3 +57,33 @@ export const getBalanceSheet = async () => {
   const response = await apiClient.get('/account/api/account/balance-sheet');
   return response.data;
 };
+
+export type AccountJournalItem = {
+  journalId: number;
+  userId: number;
+  accountId: number;
+  category: string;
+  asset: string;
+  amount: string;
+  direction: string;
+  balanceAfter: string;
+  referenceType: string;
+  referenceId: string;
+  description: string | null;
+  eventTime: string;
+  createdAt: string | null;
+};
+
+export type AccountJournalResponse = {
+  userId: number;
+  accountId: number;
+  snapshotAt: string;
+  journals: AccountJournalItem[];
+};
+
+export const getAccountJournals = async (accountId: number) => {
+  const response = await apiClient.get('/account/api/account/journals', {
+    params: { accountId },
+  });
+  return response.data;
+};
