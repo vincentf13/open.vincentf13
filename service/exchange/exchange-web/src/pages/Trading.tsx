@@ -232,8 +232,9 @@ export default function Trading() {
     setReferenceJournalOpen(false);
   };
 
-  const renderJournalRows = (items?: AccountJournalItem[]) => {
+  const renderJournalRows = (items?: AccountJournalItem[], options?: { disableReferenceLink?: boolean }) => {
     const rows = items && items.length > 0 ? items : [null];
+    const disableReferenceLink = options?.disableReferenceLink ?? false;
     return (
       <table className="w-max text-[10px] text-left text-slate-600">
         <thead>
@@ -271,13 +272,17 @@ export default function Trading() {
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
                 {item?.referenceId ? (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
-                    className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
-                  >
-                    {String(item.referenceId)}
-                  </button>
+                  disableReferenceLink ? (
+                    String(item.referenceId)
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
+                      className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
+                    >
+                      {String(item.referenceId)}
+                    </button>
+                  )
                 ) : (
                   '-'
                 )}
@@ -292,8 +297,9 @@ export default function Trading() {
     );
   };
 
-  const renderPlatformJournalRows = (items?: PlatformJournalItem[]) => {
+  const renderPlatformJournalRows = (items?: PlatformJournalItem[], options?: { disableReferenceLink?: boolean }) => {
     const rows = items && items.length > 0 ? items : [null];
+    const disableReferenceLink = options?.disableReferenceLink ?? false;
     return (
       <table className="w-max text-[10px] text-left text-slate-600">
         <thead>
@@ -325,13 +331,17 @@ export default function Trading() {
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
                 {item?.referenceId ? (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
-                    className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
-                  >
-                    {String(item.referenceId)}
-                  </button>
+                  disableReferenceLink ? (
+                    String(item.referenceId)
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
+                      className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
+                    >
+                      {String(item.referenceId)}
+                    </button>
+                  )
                 ) : (
                   '-'
                 )}
@@ -764,9 +774,9 @@ export default function Trading() {
                                     {!referenceJournalLoading && !referenceJournalError && (
                                       <div className="max-h-[50vh] overflow-auto pr-1">
                                         <div className="text-[10px] font-semibold text-slate-600 mb-2">Account Journals</div>
-                                        {renderJournalRows(referenceJournalData?.accountJournals)}
+                                        {renderJournalRows(referenceJournalData?.accountJournals, { disableReferenceLink: true })}
                                         <div className="text-[10px] font-semibold text-slate-600 mt-4 mb-2">Platform Journals</div>
-                                        {renderPlatformJournalRows(referenceJournalData?.platformJournals)}
+                                        {renderPlatformJournalRows(referenceJournalData?.platformJournals, { disableReferenceLink: true })}
                                       </div>
                                     )}
                                   </div>
@@ -831,9 +841,9 @@ export default function Trading() {
                                     {!referenceJournalLoading && !referenceJournalError && (
                                       <div className="max-h-[50vh] overflow-auto pr-1">
                                         <div className="text-[10px] font-semibold text-slate-600 mb-2">Account Journals</div>
-                                        {renderJournalRows(referenceJournalData?.accountJournals)}
+                                        {renderJournalRows(referenceJournalData?.accountJournals, { disableReferenceLink: true })}
                                         <div className="text-[10px] font-semibold text-slate-600 mt-4 mb-2">Platform Journals</div>
-                                        {renderPlatformJournalRows(referenceJournalData?.platformJournals)}
+                                        {renderPlatformJournalRows(referenceJournalData?.platformJournals, { disableReferenceLink: true })}
                                       </div>
                                     )}
                                   </div>
