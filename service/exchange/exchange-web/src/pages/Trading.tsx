@@ -16,12 +16,15 @@ import {
   getAccountJournals,
   getJournalsByReference,
   getBalanceSheet,
+  getPlatformAccounts,
   type AccountBalanceSheetResponse,
   type AccountBalanceItem,
   type AccountJournalResponse,
   type AccountJournalItem,
   type AccountReferenceJournalResponse,
   type PlatformJournalItem,
+  type PlatformAccountResponse,
+  type PlatformAccountItem,
 } from '../api/account';
 import Header from '../components/trading/Header';
 import Chart from '../components/trading/Chart';
@@ -51,6 +54,9 @@ export default function Trading() {
   const [balanceSheetLoading, setBalanceSheetLoading] = useState(false);
   const [balanceSheetError, setBalanceSheetError] = useState<string | null>(null);
   const [balanceSheetData, setBalanceSheetData] = useState<AccountBalanceSheetResponse | null>(null);
+  const [platformAccountsLoading, setPlatformAccountsLoading] = useState(false);
+  const [platformAccountsError, setPlatformAccountsError] = useState<string | null>(null);
+  const [platformAccountsData, setPlatformAccountsData] = useState<PlatformAccountResponse | null>(null);
   const [accountJournalOpen, setAccountJournalOpen] = useState(false);
   const [accountJournalLoading, setAccountJournalLoading] = useState(false);
   const [accountJournalError, setAccountJournalError] = useState<string | null>(null);
@@ -70,6 +76,8 @@ export default function Trading() {
     setBalanceSheetOpen(true);
     setBalanceSheetError(null);
     setBalanceSheetLoading(true);
+    setPlatformAccountsError(null);
+    setPlatformAccountsLoading(true);
     getBalanceSheet()
       .then((result) => {
         if (String(result?.code) !== '0') {
@@ -85,6 +93,22 @@ export default function Trading() {
       })
       .finally(() => {
         setBalanceSheetLoading(false);
+      });
+    getPlatformAccounts()
+      .then((result) => {
+        if (String(result?.code) !== '0') {
+          setPlatformAccountsError(result?.message || 'Failed to load platform accounts.');
+          setPlatformAccountsData(null);
+          return;
+        }
+        setPlatformAccountsData(result?.data ?? null);
+      })
+      .catch(() => {
+        setPlatformAccountsError('Failed to load platform accounts.');
+        setPlatformAccountsData(null);
+      })
+      .finally(() => {
+        setPlatformAccountsLoading(false);
       });
   };
   const handleCloseBalanceSheet = () => {
@@ -264,6 +288,47 @@ export default function Trading() {
       </table>
     );
   };
+
+  const renderPlatformAccountRows = (items?: PlatformAccountItem[]) => {
+    const rows = items && items.length > 0 ? items : [null];
+    return (
+      <div className="rounded-lg border border-white/60 bg-white/70 p-2">
+        <div className="w-max">
+          <table className="w-max text-[10px] text-left text-slate-600">
+            <thead>
+              <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60">
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account ID</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account Code</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account Name</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Category</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Asset</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Balance</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Version</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Created At</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Updated At</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/40">
+              {rows.map((item, index) => (
+                <tr key={`${item?.accountId ?? index}-${item?.asset ?? 'asset'}`}>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountCode ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountName ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.balance ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.version ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.updatedAt ?? '-')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
 
   const renderAccountItems = (items?: AccountBalanceItem[]) => {
     const rows = items && items.length > 0 ? items : [null];
@@ -603,6 +668,43 @@ export default function Trading() {
                                 <div className="font-semibold text-slate-700">Revenue</div>
                                 {renderAccountItems(balanceSheetData?.revenue)}
                               </div>
+                            </div>
+                            <div className="mt-4">
+                              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                                Exchange Balance Sheet
+                              </div>
+                              {platformAccountsLoading && (
+                                <div className="text-xs text-slate-400">Loading...</div>
+                              )}
+                              {platformAccountsError && (
+                                <div className="text-xs text-rose-500">{platformAccountsError}</div>
+                              )}
+                              {!platformAccountsLoading && !platformAccountsError && (
+                                <div className="grid grid-cols-2 text-xs text-slate-600 border border-slate-200/80 divide-x divide-y divide-slate-200/80">
+                                  <div className="flex flex-col gap-2 p-3">
+                                    <div className="font-semibold text-slate-700">Assets</div>
+                                    {renderPlatformAccountRows(platformAccountsData?.assets)}
+                                  </div>
+                                  <div className="flex flex-col p-3">
+                                    <div className="flex flex-col gap-2 pb-3 border-b border-slate-200/80">
+                                      <div className="font-semibold text-slate-700">Liabilities</div>
+                                      {renderPlatformAccountRows(platformAccountsData?.liabilities)}
+                                    </div>
+                                    <div className="flex flex-col gap-2 pt-3">
+                                      <div className="font-semibold text-slate-700">Equity</div>
+                                      {renderPlatformAccountRows(platformAccountsData?.equity)}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col gap-2 p-3">
+                                    <div className="font-semibold text-slate-700">Expenses</div>
+                                    {renderPlatformAccountRows(platformAccountsData?.expenses)}
+                                  </div>
+                                  <div className="flex flex-col gap-2 p-3">
+                                    <div className="font-semibold text-slate-700">Revenue</div>
+                                    {renderPlatformAccountRows(platformAccountsData?.revenue)}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             {balanceSheetData?.snapshotAt && (
                               <div className="text-[10px] text-slate-400 mt-3 text-right">

@@ -45,4 +45,8 @@ public interface AccountApi {
     @Jwt
     OpenApiResponse<AccountReferenceJournalResponse> getJournalsByReference(@RequestParam("referenceType") @NotNull ReferenceType referenceType,
                                                                             @RequestParam("referenceId") @NotBlank String referenceId);
+
+    @GetMapping("/platform-accounts")
+    @Jwt
+    OpenApiResponse<PlatformAccountResponse> getPlatformAccounts();
 }

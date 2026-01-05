@@ -80,6 +80,10 @@ public class PlatformAccountRepository {
         PlatformAccountPO po = mapper.selectOne(wrapper);
         return Optional.ofNullable(OpenObjectMapper.convert(po, PlatformAccount.class));
     }
+
+    public List<PlatformAccount> findAll() {
+        return findBy(Wrappers.lambdaQuery(PlatformAccountPO.class));
+    }
     
     public PlatformAccount getOrCreate(@NotNull PlatformAccountCode code,
                                        @NotNull AssetSymbol asset) {

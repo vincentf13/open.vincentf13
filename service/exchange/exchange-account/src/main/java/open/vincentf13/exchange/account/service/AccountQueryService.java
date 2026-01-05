@@ -4,9 +4,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.PlatformJournal;
+import open.vincentf13.exchange.account.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
 import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
+import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
@@ -15,6 +17,8 @@ import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResp
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountReferenceJournalResponse;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformAccountItem;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformAccountResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformJournalItem;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
@@ -39,6 +43,7 @@ public class AccountQueryService {
     private final UserAccountRepository userAccountRepository;
     private final UserJournalRepository userJournalRepository;
     private final PlatformJournalRepository platformJournalRepository;
+    private final PlatformAccountRepository platformAccountRepository;
     
     public AccountBalanceResponse getBalances(@NotNull Long userId,
                                               @NotBlank String asset) {
@@ -102,6 +107,26 @@ public class AccountQueryService {
                                                                   .toList();
         Instant snapshotAt = Instant.now();
         return new AccountReferenceJournalResponse(userId, referenceType, prefix, snapshotAt, accountItems, platformItems);
+    }
+
+    public PlatformAccountResponse getPlatformAccounts() {
+        List<PlatformAccount> accounts = platformAccountRepository.findAll();
+        List<PlatformAccountItem> items = accounts.stream()
+                                                  .map(item -> OpenObjectMapper.convert(item, PlatformAccountItem.class))
+                                                  .filter(Objects::nonNull)
+                                                  .toList();
+        Comparator<PlatformAccountItem> comparator = Comparator
+                .comparing((PlatformAccountItem item) -> item.accountCode() != null ? item.accountCode().name() : "")
+                .thenComparing(item -> item.asset() != null ? item.asset().name() : "");
+        Map<AccountCategory, List<PlatformAccountItem>> grouped = items.stream()
+                                                                       .sorted(comparator)
+                                                                       .collect(Collectors.groupingBy(PlatformAccountItem::category));
+        List<PlatformAccountItem> assets = grouped.getOrDefault(AccountCategory.ASSET, List.of());
+        List<PlatformAccountItem> liabilities = grouped.getOrDefault(AccountCategory.LIABILITY, List.of());
+        List<PlatformAccountItem> equity = grouped.getOrDefault(AccountCategory.EQUITY, List.of());
+        List<PlatformAccountItem> expenses = grouped.getOrDefault(AccountCategory.EXPENSE, List.of());
+        List<PlatformAccountItem> revenue = grouped.getOrDefault(AccountCategory.REVENUE, List.of());
+        return new PlatformAccountResponse(Instant.now(), assets, liabilities, equity, expenses, revenue);
     }
 
     private String normalizeReferencePrefix(String referenceId) {

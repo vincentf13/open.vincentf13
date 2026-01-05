@@ -118,3 +118,29 @@ export const getJournalsByReference = async (referenceType: string, referenceId:
   });
   return response.data;
 };
+
+export type PlatformAccountItem = {
+  accountId: number;
+  accountCode: string;
+  accountName: string;
+  category: string;
+  asset: string;
+  balance: string;
+  version: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type PlatformAccountResponse = {
+  snapshotAt: string;
+  assets: PlatformAccountItem[];
+  liabilities: PlatformAccountItem[];
+  equity: PlatformAccountItem[];
+  expenses: PlatformAccountItem[];
+  revenue: PlatformAccountItem[];
+};
+
+export const getPlatformAccounts = async () => {
+  const response = await apiClient.get('/account/api/account/platform-accounts');
+  return response.data;
+};
