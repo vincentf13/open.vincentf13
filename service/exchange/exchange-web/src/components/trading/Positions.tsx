@@ -547,7 +547,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
   return (
     <div className="flex flex-col overflow-hidden bg-white/5">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
+      <div id="positions-tabs-bar" className="flex items-center justify-between px-4 py-3 border-b border-white/20">
         <div className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 p-1">
           {['Positions', 'Orders', 'Traders'].map((tab) => (
             <button

@@ -59,6 +59,7 @@ export default function Trading() {
   const [platformAccountsData, setPlatformAccountsData] = useState<PlatformAccountResponse | null>(null);
   const balanceSheetAnchorRef = useRef<HTMLDivElement | null>(null);
   const [balanceSheetMaxHeight, setBalanceSheetMaxHeight] = useState<number | null>(null);
+  const [balanceSheetBottomOffset, setBalanceSheetBottomOffset] = useState<number | null>(null);
   const [accountJournalOpen, setAccountJournalOpen] = useState(false);
   const [accountJournalLoading, setAccountJournalLoading] = useState(false);
   const [accountJournalError, setAccountJournalError] = useState<string | null>(null);
@@ -118,6 +119,7 @@ export default function Trading() {
     setAccountJournalOpen(false);
     setReferenceJournalOpen(false);
     setBalanceSheetMaxHeight(null);
+    setBalanceSheetBottomOffset(null);
   };
   const handleOpenAccountJournal = (accountId: number) => {
     if (!Number.isFinite(accountId)) {
@@ -424,16 +426,20 @@ export default function Trading() {
   useEffect(() => {
     if (!balanceSheetOpen) {
       setBalanceSheetMaxHeight(null);
+      setBalanceSheetBottomOffset(null);
       return;
     }
     const updateMaxHeight = () => {
       const anchorRect = balanceSheetAnchorRef.current?.getBoundingClientRect();
       const headerRect = document.getElementById('liquid-flow-header')?.getBoundingClientRect();
-      if (!anchorRect || !headerRect) {
+      const tabsRect = document.getElementById('positions-tabs-bar')?.getBoundingClientRect();
+      if (!anchorRect || !headerRect || !tabsRect) {
         return;
       }
-      const available = anchorRect.top - headerRect.bottom - 8;
+      const available = tabsRect.top - headerRect.bottom - 8;
+      const offsetDown = Math.max(0, tabsRect.top - anchorRect.top);
       setBalanceSheetMaxHeight(Math.max(0, Math.floor(available)));
+      setBalanceSheetBottomOffset(offsetDown);
     };
     updateMaxHeight();
     window.addEventListener('resize', updateMaxHeight);
@@ -583,7 +589,14 @@ export default function Trading() {
               <div className="flex flex-col gap-3">
                 <div className="relative" ref={balanceSheetAnchorRef}>
                   {balanceSheetOpen && (
-                    <div className="absolute bottom-full right-0 z-40 w-max max-w-none mb-3">
+                    <div
+                      className="absolute right-0 z-40 w-max max-w-none"
+                      style={{
+                        bottom: balanceSheetBottomOffset != null
+                          ? `calc(100% - ${balanceSheetBottomOffset}px)`
+                          : '100%',
+                      }}
+                    >
                       <div
                         className="relative flex flex-col rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
                         style={balanceSheetMaxHeight != null ? { maxHeight: `${balanceSheetMaxHeight}px` } : undefined}
