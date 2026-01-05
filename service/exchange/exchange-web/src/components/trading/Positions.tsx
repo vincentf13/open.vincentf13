@@ -588,8 +588,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       { buyTotal: 0, sellTotal: 0, totalFee: 0 }
     );
   }, [currentUserId, instrumentTrades, instrumentContractSizeMap]);
+  const isOrderRejected = (order: OrderResponse) =>
+    String(order.status ?? '').toUpperCase() === 'REJECTED';
+  const ordersForSummary = useMemo(() => orders.filter((order) => !isOrderRejected(order)), [orders]);
   const ordersReservedSummary = useMemo(() => {
-    return orders.reduce(
+    return ordersForSummary.reduce(
       (acc, order) => {
         const remainingQuantityValue = Number(order.remainingQuantity);
         const orderPriceValue = Number(order.price);
@@ -609,9 +612,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       },
       { reservedTotal: 0, reservedFeeTotal: 0 }
     );
-  }, [orders, instrumentContractSizeMap, instrumentTakerFeeRateMap]);
+  }, [ordersForSummary, instrumentContractSizeMap, instrumentTakerFeeRateMap]);
   const ordersFillSummary = useMemo(() => {
-    return orders.reduce(
+    return ordersForSummary.reduce(
       (acc, order) => {
         const filledQuantityValue = Number(order.filledQuantity);
         const averageFillPriceValue = Number(order.avgFillPrice);
@@ -627,7 +630,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       },
       { totalFillPrice: 0, totalFee: 0 }
     );
-  }, [orders, instrumentContractSizeMap]);
+  }, [ordersForSummary, instrumentContractSizeMap]);
 
   const orderColumns = [
     { key: 'instrumentId', label: 'Instrument' },
@@ -1369,13 +1372,13 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               </tbody>
             </table>
             <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
-              Total Fill Price: {orders.length ? formatNumber(ordersFillSummary.totalFillPrice) : '-'}
+              Total Fill Price: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFillPrice) : '-'}
               <br />
-              Total Fee: {orders.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
+              Total Fee: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
               <br />
-              Reserved Balance: {orders.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
+              Reserved Balance: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
               <br />
-              Reserved Fee: {orders.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
+              Reserved Fee: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
             </div>
           </div>
           </Tooltip>
