@@ -28,6 +28,10 @@ public class TradePO {
     private Long takerUserId;
     private Long orderId;
     private Long counterpartyOrderId;
+    private BigDecimal orderQuantity;
+    private BigDecimal orderFilledQuantity;
+    private BigDecimal counterpartyOrderQuantity;
+    private BigDecimal counterpartyOrderFilledQuantity;
     private OrderSide orderSide;
     private OrderSide counterpartyOrderSide;
     private PositionIntentType makerIntent;

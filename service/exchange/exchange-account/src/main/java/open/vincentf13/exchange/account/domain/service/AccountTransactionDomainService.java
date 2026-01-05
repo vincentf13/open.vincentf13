@@ -23,6 +23,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
+import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -362,10 +364,63 @@ public class AccountTransactionDomainService {
                                                     .map(UserJournal::getAmount)
                                                     .orElseThrow(() -> OpenException.of(AccountErrorCode.FREEZE_ENTRY_NOT_FOUND,
                                                                                         Map.of("orderId", orderId, "userId", userId)));
-        BigDecimal totalReserved = marginReserved.add(feeReserved);
+        
+        // 計算成交比例
+        BigDecimal tradeQuantity = event.quantity();
+        if (tradeQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_EVENT, Map.of("orderId", orderId, "userId", userId));
+        }
+        BigDecimal orderQuantity = isMaker ? event.orderQuantity() : event.counterpartyOrderQuantity();
+        BigDecimal orderFilledQuantity = isMaker ? event.orderFilledQuantity() : event.counterpartyOrderFilledQuantity();
+        if (orderQuantity == null || orderFilledQuantity == null || orderQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_EVENT, Map.of("orderId", orderId, "userId", userId));
+        }
+        if (orderFilledQuantity.compareTo(tradeQuantity) < 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_EVENT, Map.of("orderId", orderId, "userId", userId));
+        }
+        BigDecimal previousFilled = orderFilledQuantity.subtract(tradeQuantity);
+        if (previousFilled.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_EVENT,
+                                   Map.of("orderId", orderId,
+                                          "userId", userId,
+                                          "orderFilledQuantity", orderFilledQuantity,
+                                          "tradeQuantity", tradeQuantity));
+        }
+        BigDecimal marginPortion;
+        BigDecimal feeReservedPortion;
+        boolean isFinalFill = orderFilledQuantity.compareTo(orderQuantity) >= 0;
+        // 最後一次要把所有剩餘算入
+        if (isFinalFill) {
+            BigDecimal marginUsed = marginReserved.multiply(previousFilled)
+                                                  .divide(orderQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            BigDecimal feeUsed = feeReserved.multiply(previousFilled)
+                                            .divide(orderQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            marginPortion = marginReserved.subtract(marginUsed);
+            feeReservedPortion = feeReserved.subtract(feeUsed);
+        } else {
+            marginPortion = marginReserved.multiply(tradeQuantity)
+                                          .divide(orderQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            feeReservedPortion = feeReserved.multiply(tradeQuantity)
+                                            .divide(orderQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+        }
+        if (marginPortion.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_EVENT,
+                                   Map.of("orderId", orderId,
+                                          "userId", userId,
+                                          "marginReserved", marginReserved,
+                                          "marginPortion", marginPortion));
+        }
+        if (feeReservedPortion.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INVALID_EVENT,
+                                   Map.of("orderId", orderId,
+                                          "userId", userId,
+                                          "feeReserved", feeReserved,
+                                          "feeReservedPortion", feeReservedPortion));
+        }
+        BigDecimal totalReservedUsed = marginPortion.add(feeReservedPortion);
 
-        BigDecimal feeRefund = feeReserved.subtract(actualFee);
-        if(feeRefund.signum() < 0) {
+        BigDecimal feeRefund = feeReservedPortion.subtract(actualFee);
+        if (feeRefund.signum() < 0) {
             // 預扣後 在成交前，調高了手續費 -> 不跟用戶算這些差額，不扣
             feeRefund = BigDecimal.ZERO;
         }
@@ -376,12 +431,12 @@ public class AccountTransactionDomainService {
         PlatformAccount platformAsset = platformAccountRepository.getOrCreate(PlatformAccountCode.HOT_WALLET, asset);
         PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
         PlatformAccount platformFeeEquity = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
-        if (userSpot.getReserved().compareTo(totalReserved) < 0) {
+        if (userSpot.getReserved().compareTo(totalReservedUsed) < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
-                                   Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReserved));
+                                   Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReservedUsed));
         }
-        UserAccount settledAccount = userSpot.applyTradeSettlement(totalReserved, feeRefund);
-        UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginReserved);
+        UserAccount settledAccount = userSpot.applyTradeSettlement(totalReservedUsed, feeRefund);
+        UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginPortion);
         UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
         UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
         userAccountRepository.updateSelectiveBatch(
@@ -398,7 +453,7 @@ public class AccountTransactionDomainService {
         UserJournal marginJournal = buildUserJournal(
                 updatedMargin,
                 Direction.DEBIT,
-                marginReserved,
+                marginPortion,
                 ReferenceType.TRADE_MARGIN_SETTLED,
                 refIdWithSide,
                 "Margin allocated to isolated account",
@@ -406,7 +461,7 @@ public class AccountTransactionDomainService {
         UserJournal marginOutJournal = buildUserJournal(
                 settledAccount,
                 Direction.CREDIT,
-                marginReserved,
+                marginPortion,
                 ReferenceType.TRADE_MARGIN_SETTLED,
                 refIdWithSide,
                 "Margin transferred from spot",
@@ -483,7 +538,7 @@ public class AccountTransactionDomainService {
                         isMaker ? event.orderSide() : event.counterpartyOrderSide(),
                         event.price(),
                         event.quantity(),
-                        marginReserved,
+                        marginPortion,
                         actualFee,
                         event.executedAt(),
                         Instant.now(),
@@ -631,4 +686,5 @@ public class AccountTransactionDomainService {
                 .filter(contractSize -> contractSize != null && contractSize.compareTo(BigDecimal.ZERO) > 0)
                 .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid contractSize for instrumentId=" + instrumentId));
     }
+
 }

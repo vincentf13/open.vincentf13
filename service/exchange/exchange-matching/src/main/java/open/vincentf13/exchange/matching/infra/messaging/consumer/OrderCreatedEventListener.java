@@ -45,6 +45,7 @@ public class OrderCreatedEventListener {
                                .tradeType(event.tradeType())
                                .price(event.price())
                                .quantity(event.quantity())
+                               .originalQuantity(event.quantity())
                                .submittedAt(event.submittedAt())
                                .build();
             orders.add(order);

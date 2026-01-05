@@ -37,6 +37,7 @@ public class Order {
     private BigDecimal price;
     @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
     private BigDecimal quantity;
+    private BigDecimal originalQuantity;
     private String clientOrderId;
     @NotNull
     private Instant submittedAt;

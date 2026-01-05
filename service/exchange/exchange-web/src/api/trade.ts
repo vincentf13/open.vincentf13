@@ -7,6 +7,10 @@ export type TradeResponse = {
   takerUserId: number;
   orderId: number;
   counterpartyOrderId: number;
+  orderQuantity: string;
+  orderFilledQuantity: string;
+  counterpartyOrderQuantity: string;
+  counterpartyOrderFilledQuantity: string;
   orderSide: string;
   counterpartyOrderSide: string;
   makerIntent: string;

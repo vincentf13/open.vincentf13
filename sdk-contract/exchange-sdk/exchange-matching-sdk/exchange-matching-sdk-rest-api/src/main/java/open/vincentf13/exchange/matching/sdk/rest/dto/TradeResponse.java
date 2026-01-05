@@ -14,6 +14,12 @@ public record TradeResponse(
         Long takerUserId,
         Long orderId,
         Long counterpartyOrderId,
+        BigDecimal orderQuantity,
+        // cumulative filled quantity including this trade
+        BigDecimal orderFilledQuantity,
+        BigDecimal counterpartyOrderQuantity,
+        // cumulative filled quantity including this trade
+        BigDecimal counterpartyOrderFilledQuantity,
         OrderSide orderSide,
         OrderSide counterpartyOrderSide,
         PositionIntentType makerIntent,

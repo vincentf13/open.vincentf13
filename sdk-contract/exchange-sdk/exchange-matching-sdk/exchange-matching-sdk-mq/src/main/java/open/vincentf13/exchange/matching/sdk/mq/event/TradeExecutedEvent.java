@@ -19,6 +19,12 @@ public record TradeExecutedEvent(
         @NotNull Long takerUserId,
         @NotNull Long orderId,
         @NotNull Long counterpartyOrderId,
+        @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal orderQuantity,
+        // cumulative filled quantity including this trade
+        @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal orderFilledQuantity,
+        @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal counterpartyOrderQuantity,
+        // cumulative filled quantity including this trade
+        @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN) BigDecimal counterpartyOrderFilledQuantity,
         @NotNull OrderSide orderSide,
         @NotNull OrderSide counterpartyOrderSide,
         @NotNull PositionIntentType makerIntent,

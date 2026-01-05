@@ -42,10 +42,11 @@ public class OrderBook {
             while (remaining.compareTo(BigDecimal.ZERO) > 0 && makerIterator.hasNext()) {
                 Order maker = makerIterator.next();
                 BigDecimal fillQty = remaining.min(maker.getQuantity());
-                Trade trade = buildTrade(taker, maker, price, fillQty);
+                BigDecimal makerRemaining = maker.getQuantity().subtract(fillQty);
+                BigDecimal takerRemaining = remaining.subtract(fillQty);
+                Trade trade = buildTrade(taker, maker, price, fillQty, makerRemaining, takerRemaining);
                 result.addTrade(trade);
                 
-                BigDecimal makerRemaining = maker.getQuantity().subtract(fillQty);
                 result.addUpdate(OrderUpdate.builder()
                                             .orderId(maker.getOrderId())
                                             .price(maker.getPrice())
@@ -53,7 +54,7 @@ public class OrderBook {
                                             .remainingQuantity(OpenBigDecimal.normalizeDecimal(makerRemaining.max(BigDecimal.ZERO)))
                                             .isTaker(false)
                                             .build());
-                remaining = remaining.subtract(fillQty);
+                remaining = takerRemaining;
             }
         }
         
@@ -150,7 +151,9 @@ public class OrderBook {
     private Trade buildTrade(Order taker,
                              Order maker,
                              BigDecimal price,
-                             BigDecimal quantity) {
+                             BigDecimal quantity,
+                             BigDecimal makerRemaining,
+                             BigDecimal takerRemaining) {
         
         Instrument instrument = InstrumentCache.getInstrument(taker.getInstrumentId());
         if (instrument == null) {
@@ -165,7 +168,9 @@ public class OrderBook {
         }
         
         BigDecimal totalValue = OpenBigDecimal.normalizeDecimal(price.multiply(quantity).multiply(instrument.getContractSize()));
-        
+        BigDecimal makerFilled = maker.getOriginalQuantity().subtract(makerRemaining);
+        BigDecimal takerFilled = taker.getOriginalQuantity().subtract(takerRemaining);
+    
         return Trade.builder()
                     .tradeId(null)
                     .instrumentId(taker.getInstrumentId())
@@ -174,6 +179,10 @@ public class OrderBook {
                     .takerUserId(taker.getUserId())
                     .orderId(maker.getOrderId())
                     .counterpartyOrderId(taker.getOrderId())
+                    .orderQuantity(OpenBigDecimal.normalizeDecimal(maker.getOriginalQuantity()))
+                    .orderFilledQuantity(OpenBigDecimal.normalizeDecimal(makerFilled))
+                    .counterpartyOrderQuantity(OpenBigDecimal.normalizeDecimal(taker.getOriginalQuantity()))
+                    .counterpartyOrderFilledQuantity(OpenBigDecimal.normalizeDecimal(takerFilled))
                     .orderSide(maker.getSide())
                     .counterpartyOrderSide(taker.getSide())
                     .makerIntent(maker.getIntent())
