@@ -45,13 +45,14 @@ public class AccountPositionDomainService {
         UserAccount equityAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT_EQUITY, null, asset);
         
         UserAccount updatedMargin = marginAccount.apply(Direction.CREDIT, event.marginReleased());
-        UserAccount updatedSpot = spotAccount.apply(Direction.DEBIT, event.marginReleased());
+        UserAccount spotAfterMargin = spotAccount.apply(Direction.DEBIT, event.marginReleased());
         Direction direction = event.realizedPnl().signum() >= 0 ? Direction.CREDIT : Direction.DEBIT;
         UserAccount updatedEquity = equityAccount.apply(direction, event.realizedPnl().abs());
+        UserAccount updatedSpot;
         if (event.realizedPnl().signum() >= 0) {
-            updatedSpot = updatedSpot.apply(Direction.DEBIT, event.realizedPnl());
+            updatedSpot = spotAfterMargin.apply(Direction.DEBIT, event.realizedPnl());
         } else {
-            updatedSpot = updatedSpot.apply(Direction.CREDIT, event.realizedPnl().abs());
+            updatedSpot = spotAfterMargin.apply(Direction.CREDIT, event.realizedPnl().abs());
         }
 
         userAccountRepository.updateSelectiveBatch(
@@ -60,7 +61,7 @@ public class AccountPositionDomainService {
                 "position-margin-release");
 
         UserJournal marginOut = buildUserJournal(updatedMargin, Direction.CREDIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, "Margin released to spot", event.releasedAt());
-        UserJournal marginIn = buildUserJournal(updatedSpot, Direction.DEBIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, "Margin returned to spot", event.releasedAt());
+        UserJournal marginIn = buildUserJournal(spotAfterMargin, Direction.DEBIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, "Margin returned to spot", event.releasedAt());
         UserJournal pnlJournal = buildUserJournal(updatedSpot,
                                                   event.realizedPnl().signum() >= 0 ? Direction.DEBIT : Direction.CREDIT,
                                                   event.realizedPnl().abs(),

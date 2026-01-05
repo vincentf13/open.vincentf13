@@ -505,7 +505,7 @@ public class AccountTransactionDomainService {
         UserJournal feeJournal = buildUserJournal(
                 spotAfterFee,
                 Direction.CREDIT,
-                actualFee,
+                feeReservedPortion,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
                 "Trading fee deducted",
