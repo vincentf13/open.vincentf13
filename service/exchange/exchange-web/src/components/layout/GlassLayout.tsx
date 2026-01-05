@@ -16,7 +16,7 @@ export default function GlassLayout({ children }: GlassLayoutProps) {
 
       {/* Main Content */}
       <div className="relative z-10 mx-auto max-w-[1600px] p-4 lg:p-6 min-h-screen flex flex-col">
-        <div className="liquid-shell flex-1 flex flex-col rounded-3xl overflow-hidden">
+        <div className="liquid-shell flex-1 flex flex-col rounded-3xl overflow-visible">
             {children}
         </div>
       </div>

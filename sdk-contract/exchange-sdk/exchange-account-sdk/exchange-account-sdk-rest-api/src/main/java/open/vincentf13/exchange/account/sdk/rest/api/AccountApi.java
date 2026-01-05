@@ -33,6 +33,5 @@ public interface AccountApi {
 
     @GetMapping("/balance-sheet")
     @Jwt
-    @PrivateAPI
     OpenApiResponse<AccountBalanceSheetResponse> getBalanceSheet();
 }

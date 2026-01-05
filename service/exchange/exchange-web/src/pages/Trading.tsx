@@ -71,45 +71,45 @@ export default function Trading() {
   };
 
   const renderAccountItems = (items?: AccountBalanceItem[]) => {
-    if (!items || items.length === 0) {
-      return <div className="text-[10px] text-slate-400">-</div>;
-    }
+    const rows = items && items.length > 0 ? items : [null];
     return (
-      <div className="flex flex-col gap-2">
-        {items.map((item, index) => (
-          <div
-            key={`${item.accountId ?? index}-${item.asset ?? 'asset'}-${item.instrumentId ?? '0'}`}
-            className="rounded-lg border border-white/60 bg-white/70 p-2"
-          >
-            <div className="text-[10px] font-semibold text-slate-700">
-              {item.accountName || item.accountCode || 'Account'}
-            </div>
-            <div className="mt-1 grid grid-cols-[92px_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
-              <span className="text-slate-400">Account ID</span>
-              <span className="text-slate-700">{String(item.accountId ?? '-')}</span>
-              <span className="text-slate-400">Account Code</span>
-              <span className="text-slate-700">{String(item.accountCode ?? '-')}</span>
-              <span className="text-slate-400">Account Name</span>
-              <span className="text-slate-700">{String(item.accountName ?? '-')}</span>
-              <span className="text-slate-400">Category</span>
-              <span className="text-slate-700">{String(item.category ?? '-')}</span>
-              <span className="text-slate-400">Instrument ID</span>
-              <span className="text-slate-700">{String(item.instrumentId ?? '-')}</span>
-              <span className="text-slate-400">Asset</span>
-              <span className="text-slate-700">{String(item.asset ?? '-')}</span>
-              <span className="text-slate-400">Balance</span>
-              <span className="text-slate-700">{String(item.balance ?? '-')}</span>
-              <span className="text-slate-400">Available</span>
-              <span className="text-slate-700">{String(item.available ?? '-')}</span>
-              <span className="text-slate-400">Reserved</span>
-              <span className="text-slate-700">{String(item.reserved ?? '-')}</span>
-              <span className="text-slate-400">Version</span>
-              <span className="text-slate-700">{String(item.version ?? '-')}</span>
-              <span className="text-slate-400">Updated At</span>
-              <span className="text-slate-700">{String(item.updatedAt ?? '-')}</span>
-            </div>
-          </div>
-        ))}
+      <div className="rounded-lg border border-white/60 bg-white/70 p-2">
+        <div className="w-max">
+          <table className="w-max text-[10px] text-left text-slate-600">
+            <thead>
+              <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60">
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account ID</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account Code</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account Name</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Category</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Instrument ID</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Asset</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Balance</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Available</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reserved</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Version</th>
+                <th className="py-1 pr-2 font-semibold whitespace-nowrap">Updated At</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/40">
+              {rows.map((item, index) => (
+                <tr key={`${item?.accountId ?? index}-${item?.asset ?? 'asset'}-${item?.instrumentId ?? '0'}`}>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountCode ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountName ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.instrumentId ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.balance ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.available ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.reserved ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.version ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.updatedAt ?? '-')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   };
@@ -257,7 +257,7 @@ export default function Trading() {
               <div className="flex flex-col gap-3">
                 <div className="relative">
                   {balanceSheetOpen && (
-                    <div className="absolute bottom-full right-0 z-40 w-[420px] max-w-[calc(100vw-2rem)] mb-3">
+                    <div className="absolute bottom-full right-0 z-40 w-max max-w-none mb-3">
                       <div className="relative min-h-[320px] rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
                         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border border-white/70 bg-white/95" />
                         <div className="flex items-center justify-between mb-3">
@@ -270,11 +270,6 @@ export default function Trading() {
                             X
                           </button>
                         </div>
-                        {balanceSheetData?.snapshotAt && (
-                          <div className="text-[10px] text-slate-400 mb-3">
-                            Snapshot: {balanceSheetData.snapshotAt}
-                          </div>
-                        )}
                         {balanceSheetLoading && (
                           <div className="text-xs text-slate-400">Loading...</div>
                         )}
@@ -283,26 +278,35 @@ export default function Trading() {
                         )}
                         {!balanceSheetLoading && !balanceSheetError && (
                           <div className="max-h-[60vh] overflow-y-auto pr-1">
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs text-slate-600">
-                              <div className="flex flex-col gap-2">
+                            <div className="grid grid-cols-2 text-xs text-slate-600 border border-slate-200/80 divide-x divide-y divide-slate-200/80">
+                              <div className="flex flex-col gap-2 p-3">
                                 <div className="font-semibold text-slate-700">Assets</div>
                                 {renderAccountItems(balanceSheetData?.assets)}
                               </div>
-                              <div className="flex flex-col gap-2">
-                                <div className="font-semibold text-slate-700">Liabilities</div>
-                                {renderAccountItems(balanceSheetData?.liabilities)}
-                                <div className="font-semibold text-slate-700">Equity</div>
-                                {renderAccountItems(balanceSheetData?.equity)}
+                              <div className="flex flex-col p-3">
+                                <div className="flex flex-col gap-2 pb-3 border-b border-slate-200/80">
+                                  <div className="font-semibold text-slate-700">Liabilities</div>
+                                  {renderAccountItems(balanceSheetData?.liabilities)}
+                                </div>
+                                <div className="flex flex-col gap-2 pt-3">
+                                  <div className="font-semibold text-slate-700">Equity</div>
+                                  {renderAccountItems(balanceSheetData?.equity)}
+                                </div>
                               </div>
-                              <div className="flex flex-col gap-2">
+                              <div className="flex flex-col gap-2 p-3">
                                 <div className="font-semibold text-slate-700">Expenses</div>
                                 {renderAccountItems(balanceSheetData?.expenses)}
                               </div>
-                              <div className="flex flex-col gap-2">
+                              <div className="flex flex-col gap-2 p-3">
                                 <div className="font-semibold text-slate-700">Revenue</div>
                                 {renderAccountItems(balanceSheetData?.revenue)}
                               </div>
                             </div>
+                            {balanceSheetData?.snapshotAt && (
+                              <div className="text-[10px] text-slate-400 mt-3 text-right">
+                                Snapshot: {balanceSheetData.snapshotAt}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
