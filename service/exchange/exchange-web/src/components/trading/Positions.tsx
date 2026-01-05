@@ -75,6 +75,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
   const [instrumentTradesLoading, setInstrumentTradesLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const previousPositionsRef = useRef<Map<string, PositionResponse>>(new Map());
+  const positionChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
+  const positionsInitializedRef = useRef(false);
   const previousOrdersRef = useRef<Map<string, OrderResponse>>(new Map());
   const orderChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
   const ordersInitializedRef = useRef(false);
@@ -110,14 +113,74 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     'fee',
     'rejectedReason',
   ]);
+  const positionHighlightKeys = new Set([
+    'instrumentId',
+    'side',
+    'status',
+    'entryPrice',
+    'quantity',
+    'closingReservedQuantity',
+    'markPrice',
+    'liquidationPrice',
+    'unrealizedPnl',
+    'cumRealizedPnl',
+    'cumFee',
+    'cumFundingFee',
+    'leverage',
+    'margin',
+    'marginRatio',
+    'createdAt',
+    'updatedAt',
+    'closedAt',
+  ]);
+  const positionNumericKeys = new Set([
+    'positionId',
+    'userId',
+    'instrumentId',
+    'leverage',
+    'margin',
+    'entryPrice',
+    'quantity',
+    'closingReservedQuantity',
+    'markPrice',
+    'marginRatio',
+    'unrealizedPnl',
+    'liquidationPrice',
+    'cumRealizedPnl',
+    'cumFee',
+    'cumFundingFee',
+    'version',
+  ]);
   const getOrderCompareValue = (order: OrderResponse, key: string) => {
     const value = (order as any)[key];
     return value === null || value === undefined ? '' : String(value);
+  };
+  const getPositionCompareValue = (position: PositionResponse, key: string) => {
+    const value = (position as any)[key];
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (positionNumericKeys.has(key)) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        return numeric.toString();
+      }
+    }
+    return String(value);
   };
   const hasAnyOrderFieldChanged = (order: OrderResponse, previousOrder: OrderResponse) => {
     const keys = new Set([...Object.keys(order), ...Object.keys(previousOrder)]);
     for (const key of keys) {
       if (getOrderCompareValue(order, key) !== getOrderCompareValue(previousOrder, key)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const hasAnyPositionFieldChanged = (position: PositionResponse, previousPosition: PositionResponse) => {
+    const keys = new Set([...Object.keys(position), ...Object.keys(previousPosition)]);
+    for (const key of keys) {
+      if (getPositionCompareValue(position, key) !== getPositionCompareValue(previousPosition, key)) {
         return true;
       }
     }
@@ -129,7 +192,60 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     try {
       const response = await getPositions(selectedInstrumentId || undefined);
       if (String(response?.code) === '0') {
-        setPositions(Array.isArray(response?.data) ? response.data : []);
+        const nextPositions = Array.isArray(response?.data) ? response.data : [];
+        const previousMap = previousPositionsRef.current;
+        const nextMap = new Map(nextPositions.map((position) => [String(position.positionId), position]));
+        if (!positionsInitializedRef.current) {
+          previousPositionsRef.current = nextMap;
+          positionChangedFieldsRef.current = new Map();
+          positionsInitializedRef.current = true;
+          setPositions(nextPositions);
+          return;
+        }
+        let hasAnyListChange = previousMap.size !== nextMap.size;
+        if (!hasAnyListChange) {
+          for (const positionId of previousMap.keys()) {
+            if (!nextMap.has(positionId)) {
+              hasAnyListChange = true;
+              break;
+            }
+          }
+        }
+        if (!hasAnyListChange) {
+          for (const position of nextPositions) {
+            const positionId = String(position.positionId);
+            const previousPosition = previousMap.get(positionId);
+            if (!previousPosition || hasAnyPositionFieldChanged(position, previousPosition)) {
+              hasAnyListChange = true;
+              break;
+            }
+          }
+        }
+        let nextChangeMap = positionChangedFieldsRef.current;
+        if (hasAnyListChange) {
+          const rebuiltChangeMap = new Map<string, Set<string>>();
+          nextPositions.forEach((position) => {
+            const positionId = String(position.positionId);
+            const previousPosition = previousMap.get(positionId);
+            if (!previousPosition) {
+              rebuiltChangeMap.set(positionId, new Set(positionHighlightKeys));
+              return;
+            }
+            const changedKeys = new Set<string>();
+            positionHighlightKeys.forEach((key) => {
+              if (getPositionCompareValue(position, key) !== getPositionCompareValue(previousPosition, key)) {
+                changedKeys.add(key);
+              }
+            });
+            if (changedKeys.size > 0) {
+              rebuiltChangeMap.set(positionId, changedKeys);
+            }
+          });
+          nextChangeMap = rebuiltChangeMap;
+        }
+        previousPositionsRef.current = nextMap;
+        positionChangedFieldsRef.current = nextChangeMap;
+        setPositions(nextPositions);
       } else {
         setPositions([]);
         if (response?.message) {
@@ -523,10 +639,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'referenceType', label: 'Reference Type' },
     { key: 'referenceId', label: 'Reference ID' },
     { key: 'actor', label: 'Actor' },
-    { key: 'payload', label: 'Payload' },
     { key: 'occurredAt', label: 'Occurred Time' },
     { key: 'createdAt', label: 'Created Time' },
   ];
+  const orderPayloadOrder = orderColumns.map((column) => column.key);
 
   const makerHighlightKeys = new Set([
     'makerUserId',
@@ -613,6 +729,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     }
     return (position as any)[key] ?? '-';
   };
+  const isPositionFieldHighlighted = (position: PositionResponse, key: string) => {
+    const changedFields = positionChangedFieldsRef.current.get(String(position.positionId));
+    return Boolean(changedFields && changedFields.has(key));
+  };
 
   const positionEventColumns = [
     { key: 'eventId', label: 'Event ID' },
@@ -625,6 +745,21 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   ];
   const positionPayloadOrder = columns.map((column) => column.key);
   const positionPayloadIgnoredKeys = new Set(['userId', 'positionId']);
+
+  const parseOrderPayload = (payload?: string | null) => {
+    if (!payload) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(payload);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
 
   const parsePositionPayload = (payload?: string | null) => {
     if (!payload) {
@@ -639,6 +774,38 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       return null;
     }
     return null;
+  };
+
+  const collectOrderPayloadKeys = (
+    entries: Array<{ payload: Record<string, unknown> | null }>
+  ) => {
+    const payloadKeys = new Set<string>();
+    entries.forEach((entry) => {
+      if (!entry.payload) {
+        return;
+      }
+      Object.keys(entry.payload).forEach((key) => payloadKeys.add(key));
+    });
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    orderPayloadOrder.forEach((key) => {
+      if (payloadKeys.has(key)) {
+        ordered.push(key);
+        seen.add(key);
+      }
+    });
+    entries.forEach((entry) => {
+      if (!entry.payload) {
+        return;
+      }
+      Object.keys(entry.payload).forEach((key) => {
+        if (!seen.has(key)) {
+          ordered.push(key);
+          seen.add(key);
+        }
+      });
+    });
+    return ordered;
   };
 
   const collectPositionPayloadKeys = (
@@ -678,6 +845,19 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       });
     });
     return ordered;
+  };
+
+  const formatOrderPayloadValue = (key: string, value: unknown) => {
+    if (value === null || value === undefined || value === '') {
+      return '-';
+    }
+    if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(key)) {
+      return formatDateTime(String(value));
+    }
+    if (typeof value === 'number') {
+      return formatNumber(value);
+    }
+    return String(value);
   };
 
   const formatPositionPayloadValue = (key: string, value: unknown) => {
@@ -784,7 +964,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                         const pnlValue = isPnl ? Number((position as any)[column.key] || 0) : 0;
                         const pnlClass = isPnl ? (pnlValue >= 0 ? 'text-emerald-600' : 'text-rose-500') : '';
                         const feeClass = isFee ? 'text-rose-500' : '';
-                        const cellClass = feeClass || pnlClass;
+                      const highlightClass = isPositionFieldHighlighted(position, column.key)
+                        ? 'bg-rose-100/70 text-rose-900'
+                        : '';
+                      const cellClass = [feeClass || pnlClass, highlightClass].filter(Boolean).join(' ');
                         const tagBaseClass =
                           'inline-flex items-center justify-center text-[10px] uppercase font-semibold tracking-wider rounded-md px-1.5 py-0.5 border';
                         const sideTagClass =
@@ -802,9 +985,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                           value
                         );
                         return (
-                          <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
-                            {cellContent}
-                          </td>
+                        <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
+                          {cellContent}
+                        </td>
                         );
                       })}
                     </tr>
@@ -925,6 +1108,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                   const tradesForOrder = orderTrades[order.orderId] || [];
                   const orderEventsForOrder = orderEvents[order.orderId] || [];
                   const eventsLoading = orderEventsLoading[order.orderId];
+                  const orderEventPayloadEntries = orderEventsForOrder.map((event) => ({
+                    event,
+                    payload: parseOrderPayload(event.payload),
+                  }));
+                  const orderPayloadKeys = collectOrderPayloadKeys(orderEventPayloadEntries);
                   const tradeSummary = tradesForOrder.reduce(
                     (acc, trade) => {
                       const isMakerForOrder =
@@ -1019,17 +1207,25 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                           {column.label}
                                         </th>
                                       ))}
+                                      {orderPayloadKeys.map((key) => (
+                                        <th key={key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                          {key}
+                                        </th>
+                                      ))}
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-white/10">
                                     {orderEventsForOrder.length === 0 && (
                                       <tr>
-                                        <td className="py-4 text-center text-slate-400 text-xs" colSpan={orderEventColumns.length}>
+                                        <td
+                                          className="py-4 text-center text-slate-400 text-xs"
+                                          colSpan={orderEventColumns.length + orderPayloadKeys.length}
+                                        >
                                           {eventsLoading ? 'Loading...' : 'No events'}
                                         </td>
                                       </tr>
                                     )}
-                                    {orderEventsForOrder.map((event) => (
+                                    {orderEventsForOrder.map((event, index) => (
                                       <tr key={event.eventId}>
                                         {orderEventColumns.map((column) => {
                                           let value: string | number | null | undefined = (event as any)[column.key];
@@ -1042,6 +1238,15 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                               className="py-2 px-2 font-mono whitespace-nowrap text-right"
                                             >
                                               {value === null || value === undefined || value === '' ? '-' : String(value)}
+                                            </td>
+                                          );
+                                        })}
+                                        {orderPayloadKeys.map((key) => {
+                                          const payload = orderEventPayloadEntries[index]?.payload;
+                                          const value = payload ? payload[key] : undefined;
+                                          return (
+                                            <td key={key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
+                                              {formatOrderPayloadValue(key, value)}
                                             </td>
                                           );
                                         })}
