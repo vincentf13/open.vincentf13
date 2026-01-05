@@ -689,10 +689,24 @@ export default function Trading() {
                           : '100%',
                       }}
                     >
-                      <div
-                        className="relative flex flex-col rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
-                        style={balanceSheetMaxHeight != null ? { maxHeight: `${balanceSheetMaxHeight}px` } : undefined}
+                      <Tooltip
+                        title={(
+                          <div className="text-xs">
+                            <div className="whitespace-nowrap">依照會計準則，復現用戶與交易所資產負債表。</div>
+                            <div className="whitespace-nowrap">每個帳戶明細內，可查詢到所有交易的分錄。</div>
+                            <div className="whitespace-nowrap">完全依照會計準則，未來需要融資等業務時，擁有擴展性。</div>
+                            <div className="whitespace-nowrap">Built per accounting standards to mirror user and exchange balance sheets.</div>
+                            <div className="whitespace-nowrap">Each account detail lets you query all trade journals.</div>
+                            <div className="whitespace-nowrap">Fully aligned with accounting standards for future extensibility (e.g., financing).</div>
+                          </div>
+                        )}
+                        overlayStyle={{ maxWidth: 'none' }}
+                        overlayInnerStyle={{ maxWidth: 'none' }}
                       >
+                        <div
+                          className="relative flex flex-col rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
+                          style={balanceSheetMaxHeight != null ? { maxHeight: `${balanceSheetMaxHeight}px` } : undefined}
+                        >
                         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border border-white/70 bg-white/95" />
                         {accountJournalOpen && (
                           <div className="absolute left-4 top-4 z-50 w-max max-w-none">
@@ -914,7 +928,8 @@ export default function Trading() {
                             )}
                           </div>
                         )}
-                      </div>
+                        </div>
+                      </Tooltip>
                     </div>
                   )}
                   <AccountPanel refreshTrigger={refreshTrigger} onOpenBalanceSheet={handleOpenBalanceSheet} />
