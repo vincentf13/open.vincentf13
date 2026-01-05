@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Tooltip, message } from 'antd';
 
 import type { InstrumentSummary } from '../../api/instrument';
-import { getOrders, type OrderResponse } from '../../api/order';
+import { getOrderEvents, getOrders, type OrderEventItem, type OrderEventResponse, type OrderResponse } from '../../api/order';
 import { getPositions, type PositionResponse } from '../../api/position';
 import { getTradesByInstrument, getTradesByOrderId, type TradeResponse } from '../../api/trade';
 import { getCurrentUser } from '../../api/user';
@@ -67,6 +67,8 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [orderTrades, setOrderTrades] = useState<Record<string, TradeResponse[]>>({});
   const [tradesLoading, setTradesLoading] = useState<Record<string, boolean>>({});
+  const [orderEvents, setOrderEvents] = useState<Record<string, OrderEventItem[]>>({});
+  const [orderEventsLoading, setOrderEventsLoading] = useState<Record<string, boolean>>({});
   const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
   const [instrumentTradesLoading, setInstrumentTradesLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -238,6 +240,32 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       }
     } finally {
       setTradesLoading((prev) => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const fetchOrderEvents = async (orderId: number) => {
+    setOrderEventsLoading((prev) => ({ ...prev, [orderId]: true }));
+    try {
+      const response = await getOrderEvents(orderId);
+      if (String(response?.code) === '0') {
+        const data = response?.data as OrderEventResponse | null;
+        setOrderEvents((prev) => ({
+          ...prev,
+          [orderId]: Array.isArray(data?.events) ? data.events : [],
+        }));
+      } else {
+        setOrderEvents((prev) => ({ ...prev, [orderId]: [] }));
+        if (response?.message) {
+          message.error(response.message);
+        }
+      }
+    } catch (error: any) {
+      setOrderEvents((prev) => ({ ...prev, [orderId]: [] }));
+      if (error?.response?.data?.message) {
+        message.error(error.response.data.message);
+      }
+    } finally {
+      setOrderEventsLoading((prev) => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -456,6 +484,18 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'makerFee', label: 'Maker Fee' },
     { key: 'takerFee', label: 'Taker Fee' },
     { key: 'executedAt', label: 'Executed Time' },
+    { key: 'createdAt', label: 'Created Time' },
+  ];
+
+  const orderEventColumns = [
+    { key: 'eventId', label: 'Event ID' },
+    { key: 'sequenceNumber', label: 'Seq' },
+    { key: 'eventType', label: 'Event Type' },
+    { key: 'referenceType', label: 'Reference Type' },
+    { key: 'referenceId', label: 'Reference ID' },
+    { key: 'actor', label: 'Actor' },
+    { key: 'payload', label: 'Payload' },
+    { key: 'occurredAt', label: 'Occurred Time' },
     { key: 'createdAt', label: 'Created Time' },
   ];
 
@@ -681,6 +721,8 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                 {orders.map((order) => {
                   const isExpanded = expandedOrderId === order.orderId;
                   const tradesForOrder = orderTrades[order.orderId] || [];
+                  const orderEventsForOrder = orderEvents[order.orderId] || [];
+                  const eventsLoading = orderEventsLoading[order.orderId];
                   const tradeSummary = tradesForOrder.reduce(
                     (acc, trade) => {
                       const isMakerForOrder =
@@ -739,6 +781,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                               setExpandedOrderId(next);
                               if (!isExpanded) {
                                 fetchTrades(order.orderId);
+                                fetchOrderEvents(order.orderId);
                               }
                             }}
                           >
@@ -763,6 +806,49 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                           <td className="py-3 px-2" colSpan={orderColumns.length + 1}>
                             <div className="rounded-xl border border-white/40 bg-white/20 p-3">
                               <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
+                                Order Events
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="min-w-[1600px] w-full text-[11px] text-right text-slate-600">
+                                  <thead>
+                                    <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                                      {orderEventColumns.map((column) => (
+                                        <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                          {column.label}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-white/10">
+                                    {orderEventsForOrder.length === 0 && (
+                                      <tr>
+                                        <td className="py-4 text-center text-slate-400 text-xs" colSpan={orderEventColumns.length}>
+                                          {eventsLoading ? 'Loading...' : 'No events'}
+                                        </td>
+                                      </tr>
+                                    )}
+                                    {orderEventsForOrder.map((event) => (
+                                      <tr key={event.eventId}>
+                                        {orderEventColumns.map((column) => {
+                                          let value: string | number | null | undefined = (event as any)[column.key];
+                                          if (column.key === 'occurredAt' || column.key === 'createdAt') {
+                                            value = formatDateTime(value);
+                                          }
+                                          return (
+                                            <td
+                                              key={column.key}
+                                              className="py-2 px-2 font-mono whitespace-nowrap text-right"
+                                            >
+                                              {value === null || value === undefined || value === '' ? '-' : String(value)}
+                                            </td>
+                                          );
+                                        })}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              <div className="mb-2 mt-4 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
                                 Trades
                               </div>
                               <div className="overflow-x-auto">

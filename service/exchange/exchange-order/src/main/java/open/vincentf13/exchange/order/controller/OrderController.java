@@ -3,6 +3,7 @@ package open.vincentf13.exchange.order.controller;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.sdk.rest.api.OrderApi;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderEventResponse;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.order.service.OrderCommandService;
 import open.vincentf13.exchange.order.service.OrderQueryService;
@@ -29,6 +30,12 @@ public class OrderController implements OrderApi {
     @Override
     public OpenApiResponse<OrderResponse> getOrder(Long orderId) {
         return OpenApiResponse.success(orderQueryService.get(orderId));
+    }
+
+    @Override
+    public OpenApiResponse<OrderEventResponse> getOrderEvents(Long orderId) {
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        return OpenApiResponse.success(orderQueryService.getOrderEvents(jwtUserId, orderId));
     }
 
     @Override

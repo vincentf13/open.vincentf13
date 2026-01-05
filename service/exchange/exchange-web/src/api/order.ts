@@ -36,6 +36,27 @@ export type OrderCreateRequest = {
   clientOrderId?: string;
 };
 
+export type OrderEventItem = {
+  eventId: number;
+  orderId: number;
+  userId: number;
+  instrumentId: number;
+  eventType: string;
+  sequenceNumber: number;
+  payload: string;
+  referenceType: string | null;
+  referenceId: number | null;
+  actor: string | null;
+  occurredAt: string | null;
+  createdAt: string | null;
+};
+
+export type OrderEventResponse = {
+  orderId: number;
+  snapshotAt: string;
+  events: OrderEventItem[];
+};
+
 export const createOrder = async (data: OrderCreateRequest) => {
   const response = await apiClient.post<any>('/order/api/orders', data);
   return response.data;
@@ -48,5 +69,10 @@ export const getOrders = async (instrumentId?: string | number, userId?: string 
       userId,
     },
   });
+  return response.data;
+};
+
+export const getOrderEvents = async (orderId: number | string) => {
+  const response = await apiClient.get(`/order/api/orders/${orderId}/events`);
   return response.data;
 };

@@ -2,6 +2,7 @@ package open.vincentf13.exchange.order.sdk.rest.api;
 
 import jakarta.validation.Valid;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
+import open.vincentf13.exchange.order.sdk.rest.dto.OrderEventResponse;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.sdk.auth.auth.Jwt;
 import open.vincentf13.sdk.auth.auth.PrivateAPI;
@@ -26,6 +27,10 @@ public interface OrderApi {
     @Jwt
     @PrivateAPI
     OpenApiResponse<OrderResponse> getOrder(@PathVariable("orderId") Long orderId);
+
+    @GetMapping("/{orderId}/events")
+    @Jwt
+    OpenApiResponse<OrderEventResponse> getOrderEvents(@PathVariable("orderId") Long orderId);
 
     @GetMapping
     @Jwt

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.order.domain.model.OrderEventRecord;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.persistence.mapper.OrderEventMapper;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderEventPO;
@@ -13,6 +14,7 @@ import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 @Repository
@@ -60,5 +62,16 @@ public class OrderEventRepository {
         }
         long count = mapper.countByReference(orderId, referenceType, referenceId);
         return count > 0;
+    }
+
+    public List<OrderEventRecord> findByOrderId(@NotNull Long orderId) {
+        var wrapper = Wrappers.<OrderEventPO>lambdaQuery()
+                .eq(OrderEventPO::getOrderId, orderId)
+                .orderByDesc(OrderEventPO::getSequenceNumber);
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .map(po -> OpenObjectMapper.convert(po, OrderEventRecord.class))
+                     .filter(Objects::nonNull)
+                     .toList();
     }
 }
