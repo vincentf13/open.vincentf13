@@ -8,9 +8,13 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.domain.model.Position;
+import open.vincentf13.exchange.position.domain.model.PositionEvent;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
+import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventItem;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
@@ -20,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -31,6 +36,7 @@ import java.util.Map;
 public class PositionQueryService {
     
     private final PositionRepository positionRepository;
+    private final PositionEventRepository positionEventRepository;
     
     public PositionIntentResponse prepareIntent(@NotNull @Valid PositionIntentRequest request) {
         var activePosition = positionRepository.findOne(
@@ -112,5 +118,27 @@ public class PositionQueryService {
                 .thenComparing(position -> position.getInstrumentId() == null ? Long.MAX_VALUE : position.getInstrumentId());
         sorted.sort(comparator);
         return OpenObjectMapper.convertList(sorted, PositionResponse.class);
+    }
+
+    public PositionEventResponse getPositionEvents(@NotNull Long userId,
+                                                   @NotNull Long positionId) {
+        if (userId == null) {
+            throw OpenException.of(PositionErrorCode.POSITION_NOT_OWNED);
+        }
+        Position position = positionRepository.findOne(
+                                                  Wrappers.lambdaQuery(PositionPO.class)
+                                                          .eq(PositionPO::getPositionId, positionId))
+                                              .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
+                                                                                  Map.of("positionId", positionId)));
+        if (!userId.equals(position.getUserId())) {
+            throw OpenException.of(PositionErrorCode.POSITION_NOT_OWNED,
+                                   Map.of("positionId", positionId, "userId", userId));
+        }
+        List<PositionEvent> events = positionEventRepository.findByPositionId(positionId);
+        List<PositionEventItem> items = events.stream()
+                                              .map(event -> OpenObjectMapper.convert(event, PositionEventItem.class))
+                                              .filter(java.util.Objects::nonNull)
+                                              .toList();
+        return new PositionEventResponse(positionId, Instant.now(), items);
     }
 }

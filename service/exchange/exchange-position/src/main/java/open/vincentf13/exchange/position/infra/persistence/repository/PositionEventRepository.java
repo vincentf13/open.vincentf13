@@ -16,7 +16,9 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Repository
 @RequiredArgsConstructor
@@ -58,5 +60,15 @@ public class PositionEventRepository {
                                           .eq(PositionEventPO::getReferenceType, referenceType)
                                           .eq(PositionEventPO::getReferenceId, referenceId)
                                           .eq(PositionEventPO::getUserId, userId)) > 0;
+    }
+
+    public List<PositionEvent> findByPositionId(@NotNull Long positionId) {
+        return mapper.selectList(Wrappers.lambdaQuery(PositionEventPO.class)
+                                          .eq(PositionEventPO::getPositionId, positionId)
+                                          .orderByDesc(PositionEventPO::getSequenceNumber))
+                     .stream()
+                     .map(po -> OpenObjectMapper.convert(po, PositionEvent.class))
+                     .filter(Objects::nonNull)
+                     .toList();
     }
 }

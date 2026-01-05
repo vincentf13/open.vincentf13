@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.position.sdk.rest.api;
 
 import jakarta.validation.Valid;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
@@ -28,6 +29,10 @@ public interface PositionApi {
     @Jwt
     OpenApiResponse<PositionResponse> getPosition(@PathVariable("userId") Long userId,
                                                   @PathVariable("instrumentId") Long instrumentId);
+
+    @GetMapping("/{positionId}/events")
+    @Jwt
+    OpenApiResponse<PositionEventResponse> getPositionEvents(@PathVariable("positionId") Long positionId);
 
     @GetMapping
     @PrivateAPI

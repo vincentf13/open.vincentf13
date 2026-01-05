@@ -3,7 +3,7 @@ import { Tooltip, message } from 'antd';
 
 import type { InstrumentSummary } from '../../api/instrument';
 import { getOrderEvents, getOrders, type OrderEventItem, type OrderEventResponse, type OrderResponse } from '../../api/order';
-import { getPositions, type PositionResponse } from '../../api/position';
+import { getPositionEvents, getPositions, type PositionEventItem, type PositionEventResponse, type PositionResponse } from '../../api/position';
 import { getTradesByInstrument, getTradesByOrderId, type TradeResponse } from '../../api/trade';
 import { getCurrentUser } from '../../api/user';
 
@@ -62,6 +62,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [activeTab, setActiveTab] = useState('Positions');
   const [positions, setPositions] = useState<PositionResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expandedPositionId, setExpandedPositionId] = useState<number | null>(null);
+  const [positionEvents, setPositionEvents] = useState<Record<string, PositionEventItem[]>>({});
+  const [positionEventsLoading, setPositionEventsLoading] = useState<Record<string, boolean>>({});
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
@@ -240,6 +243,32 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       }
     } finally {
       setTradesLoading((prev) => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const fetchPositionEvents = async (positionId: number) => {
+    setPositionEventsLoading((prev) => ({ ...prev, [positionId]: true }));
+    try {
+      const response = await getPositionEvents(positionId);
+      if (String(response?.code) === '0') {
+        const data = response?.data as PositionEventResponse | null;
+        setPositionEvents((prev) => ({
+          ...prev,
+          [positionId]: Array.isArray(data?.events) ? data.events : [],
+        }));
+      } else {
+        setPositionEvents((prev) => ({ ...prev, [positionId]: [] }));
+        if (response?.message) {
+          message.error(response.message);
+        }
+      }
+    } catch (error: any) {
+      setPositionEvents((prev) => ({ ...prev, [positionId]: [] }));
+      if (error?.response?.data?.message) {
+        message.error(error.response.data.message);
+      }
+    } finally {
+      setPositionEventsLoading((prev) => ({ ...prev, [positionId]: false }));
     }
   };
 
@@ -585,6 +614,17 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     return (position as any)[key] ?? '-';
   };
 
+  const positionEventColumns = [
+    { key: 'eventId', label: 'Event ID' },
+    { key: 'sequenceNumber', label: 'Seq' },
+    { key: 'eventType', label: 'Event Type' },
+    { key: 'referenceType', label: 'Reference Type' },
+    { key: 'referenceId', label: 'Reference ID' },
+    { key: 'payload', label: 'Payload' },
+    { key: 'occurredAt', label: 'Occurred Time' },
+    { key: 'createdAt', label: 'Created Time' },
+  ];
+
   return (
     <div className="flex flex-col overflow-hidden bg-white/5">
       <div id="positions-tabs-bar" className="flex items-center justify-between px-4 py-3 border-b border-white/20">
@@ -621,6 +661,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
           <table className="min-w-[2600px] w-full text-xs text-right text-slate-600">
             <thead>
               <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
                 {columns.map((column) => (
                   <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
                     {column.label}
@@ -631,47 +672,115 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
             <tbody className="divide-y divide-white/10">
               {positions.length === 0 && (
                 <tr>
-                  <td className="py-6 text-center text-slate-400 text-xs" colSpan={columns.length}>
+                  <td className="py-6 text-center text-slate-400 text-xs" colSpan={columns.length + 1}>
                     {loading ? 'Loading...' : 'No positions'}
                   </td>
                 </tr>
               )}
               {positions.map((position) => {
+                const isExpanded = expandedPositionId === position.positionId;
+                const eventsForPosition = positionEvents[position.positionId] || [];
+                const eventsLoading = positionEventsLoading[position.positionId];
                 return (
-                  <tr key={position.positionId} className="hover:bg-white/20 transition-colors">
-                    {columns.map((column) => {
-                      const value = renderCellValue(position, column.key);
-                      const isPnl = column.key === 'unrealizedPnl' || column.key === 'cumRealizedPnl';
-                      const isFee = column.key === 'cumFee' || column.key === 'cumFundingFee';
-                      const isTag = column.key === 'side' || column.key === 'status';
-                      const sideValue = column.key === 'side' ? String(value).toUpperCase() : '';
-                      const pnlValue = isPnl ? Number((position as any)[column.key] || 0) : 0;
-                      const pnlClass = isPnl ? (pnlValue >= 0 ? 'text-emerald-600' : 'text-rose-500') : '';
-                      const feeClass = isFee ? 'text-rose-500' : '';
-                      const cellClass = feeClass || pnlClass;
-                      const tagBaseClass =
-                        'inline-flex items-center justify-center text-[10px] uppercase font-semibold tracking-wider rounded-md px-1.5 py-0.5 border';
-                      const sideTagClass =
-                        sideValue === 'LONG'
-                          ? 'text-emerald-700 bg-emerald-400/20 border-emerald-400/40'
-                          : sideValue === 'SHORT'
-                            ? 'text-rose-700 bg-rose-400/20 border-rose-400/40'
-                            : 'text-slate-600 bg-white/40 border-white/50';
-                      const statusTagClass = 'text-slate-600 bg-white/40 border-white/50';
-                      const cellContent = isTag ? (
-                        <span className={`${tagBaseClass} ${column.key === 'side' ? sideTagClass : statusTagClass}`}>
-                          {String(value)}
-                        </span>
-                      ) : (
-                        value
-                      );
-                      return (
-                        <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
-                          {cellContent}
+                  <Fragment key={position.positionId}>
+                    <tr className="hover:bg-white/20 transition-colors">
+                      <td className="py-3 px-2 text-right">
+                        <button
+                          type="button"
+                          className="h-5 w-5 rounded-md border border-white/50 bg-white/30 text-[10px] text-slate-600 hover:bg-white/50"
+                          onClick={() => {
+                            const next = isExpanded ? null : position.positionId;
+                            setExpandedPositionId(next);
+                            if (!isExpanded) {
+                              fetchPositionEvents(position.positionId);
+                            }
+                          }}
+                        >
+                          {isExpanded ? 'v' : '>'}
+                        </button>
+                      </td>
+                      {columns.map((column) => {
+                        const value = renderCellValue(position, column.key);
+                        const isPnl = column.key === 'unrealizedPnl' || column.key === 'cumRealizedPnl';
+                        const isFee = column.key === 'cumFee' || column.key === 'cumFundingFee';
+                        const isTag = column.key === 'side' || column.key === 'status';
+                        const sideValue = column.key === 'side' ? String(value).toUpperCase() : '';
+                        const pnlValue = isPnl ? Number((position as any)[column.key] || 0) : 0;
+                        const pnlClass = isPnl ? (pnlValue >= 0 ? 'text-emerald-600' : 'text-rose-500') : '';
+                        const feeClass = isFee ? 'text-rose-500' : '';
+                        const cellClass = feeClass || pnlClass;
+                        const tagBaseClass =
+                          'inline-flex items-center justify-center text-[10px] uppercase font-semibold tracking-wider rounded-md px-1.5 py-0.5 border';
+                        const sideTagClass =
+                          sideValue === 'LONG'
+                            ? 'text-emerald-700 bg-emerald-400/20 border-emerald-400/40'
+                            : sideValue === 'SHORT'
+                              ? 'text-rose-700 bg-rose-400/20 border-rose-400/40'
+                              : 'text-slate-600 bg-white/40 border-white/50';
+                        const statusTagClass = 'text-slate-600 bg-white/40 border-white/50';
+                        const cellContent = isTag ? (
+                          <span className={`${tagBaseClass} ${column.key === 'side' ? sideTagClass : statusTagClass}`}>
+                            {String(value)}
+                          </span>
+                        ) : (
+                          value
+                        );
+                        return (
+                          <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
+                            {cellContent}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td className="py-3 px-2" colSpan={columns.length + 1}>
+                          <div className="rounded-xl border border-white/40 bg-white/20 p-3">
+                            <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
+                              Position Events
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="min-w-[1600px] w-full text-[11px] text-right text-slate-600">
+                                <thead>
+                                  <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                                    {positionEventColumns.map((column) => (
+                                      <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                        {column.label}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/10">
+                                  {eventsForPosition.length === 0 && (
+                                    <tr>
+                                      <td className="py-4 text-center text-slate-400 text-xs" colSpan={positionEventColumns.length}>
+                                        {eventsLoading ? 'Loading...' : 'No events'}
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {eventsForPosition.map((event) => (
+                                    <tr key={event.eventId}>
+                                      {positionEventColumns.map((column) => {
+                                        let value: string | number | null | undefined = (event as any)[column.key];
+                                        if (column.key === 'occurredAt' || column.key === 'createdAt') {
+                                          value = formatDateTime(value);
+                                        }
+                                        return (
+                                          <td key={column.key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
+                                            {value === null || value === undefined || value === '' ? '-' : String(value)}
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
                         </td>
-                      );
-                    })}
-                  </tr>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

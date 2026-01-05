@@ -2,6 +2,7 @@ package open.vincentf13.exchange.position.controller;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.position.sdk.rest.api.PositionApi;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
@@ -37,5 +38,11 @@ public class PositionController implements PositionApi {
         Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
         Long resolvedUserId = jwtUserId != null ? jwtUserId : userId;
         return OpenApiResponse.success(positionQueryService.getPositions(resolvedUserId, instrumentId));
+    }
+
+    @Override
+    public OpenApiResponse<PositionEventResponse> getPositionEvents(Long positionId) {
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        return OpenApiResponse.success(positionQueryService.getPositionEvents(jwtUserId, positionId));
     }
 }
