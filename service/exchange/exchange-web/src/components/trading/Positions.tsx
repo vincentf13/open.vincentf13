@@ -395,6 +395,24 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       { reservedTotal: 0, reservedFeeTotal: 0 }
     );
   }, [orders, instrumentContractSizeMap, instrumentTakerFeeRateMap]);
+  const ordersFillSummary = useMemo(() => {
+    return orders.reduce(
+      (acc, order) => {
+        const filledQuantityValue = Number(order.filledQuantity);
+        const averageFillPriceValue = Number(order.avgFillPrice);
+        if (Number.isFinite(filledQuantityValue) && Number.isFinite(averageFillPriceValue)) {
+          const contractSize = resolveContractSize(order.instrumentId);
+          acc.totalFillPrice += filledQuantityValue * averageFillPriceValue * contractSize;
+        }
+        const feeValue = Number(order.fee);
+        if (Number.isFinite(feeValue)) {
+          acc.totalFee += feeValue;
+        }
+        return acc;
+      },
+      { totalFillPrice: 0, totalFee: 0 }
+    );
+  }, [orders, instrumentContractSizeMap]);
 
   const orderColumns = [
     { key: 'instrumentId', label: 'Instrument' },
@@ -800,9 +818,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                 <br />
                                 Average Fill Price: {hasTradeSummary ? formatNumber(averageFillPrice) : '-'}
                                 <br />
-                                Fee: {hasTradeSummary ? formatNumber(tradeSummary.feeTotal) : '-'}
+                                Total Fee: {hasTradeSummary ? formatNumber(tradeSummary.feeTotal) : '-'}
                                 <br />
-                                Reserved: {reservedValue !== null ? formatNumber(reservedValue) : '-'}
+                                Reserved Balance: {reservedValue !== null ? formatNumber(reservedValue) : '-'}
                                 <br />
                                 Reserved Fee: {reservedFeeValue !== null ? formatNumber(reservedFeeValue) : '-'}
                               </div>
@@ -816,7 +834,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               </tbody>
             </table>
             <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
-              Reserved: {orders.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
+              Total Fill Price: {orders.length ? formatNumber(ordersFillSummary.totalFillPrice) : '-'}
+              <br />
+              Total Fee: {orders.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
+              <br />
+              Reserved Balance: {orders.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
               <br />
               Reserved Fee: {orders.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
             </div>
