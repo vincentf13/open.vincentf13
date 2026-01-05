@@ -41,6 +41,48 @@ const formatPercent = (value: string | number | null | undefined) => {
   })}%`;
 };
 
+const trimTrailingZeros = (value: string) => {
+  if (!value.includes('.')) {
+    return value;
+  }
+  const trimmed = value.replace(/(?:\.0+|(\.\d*?[1-9])0+)$/, '$1');
+  return trimmed.endsWith('.') ? trimmed.slice(0, -1) : trimmed;
+};
+
+const formatPayloadNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return String(value);
+    }
+    return trimTrailingZeros(value.toString());
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return '-';
+    }
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return trimTrailingZeros(trimmed);
+    }
+    return value;
+  }
+  return String(value);
+};
+
+const formatPayloadPercent = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return String(value);
+  }
+  return `${trimTrailingZeros((numeric * 100).toString())}%`;
+};
+
 const formatDateTime = (value: string | number | null | undefined) => {
   if (!value) {
     return '-';
@@ -854,10 +896,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(key)) {
       return formatDateTime(String(value));
     }
-    if (typeof value === 'number') {
-      return formatNumber(value);
-    }
-    return String(value);
+    return formatPayloadNumber(value);
   };
 
   const formatPositionPayloadValue = (key: string, value: unknown) => {
@@ -868,12 +907,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       return formatDateTime(String(value));
     }
     if (key === 'marginRatio') {
-      return formatPercent(Number(value));
+      return formatPayloadPercent(value);
     }
-    if (typeof value === 'number') {
-      return formatNumber(value);
-    }
-    return String(value);
+    return formatPayloadNumber(value);
   };
 
   return (

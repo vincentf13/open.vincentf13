@@ -230,12 +230,20 @@ public class OrderCommandService {
         payload.put("instrumentId", order.getInstrumentId());
         payload.put("side", order.getSide() != null ? order.getSide().name() : null);
         payload.put("type", order.getType() != null ? order.getType().name() : null);
-        payload.put("price", order.getPrice());
-        payload.put("quantity", order.getQuantity());
+        payload.put("price", normalizePayloadDecimal(order.getPrice()));
+        payload.put("quantity", normalizePayloadDecimal(order.getQuantity()));
         payload.put("intent", order.getIntent() != null ? order.getIntent().name() : null);
         payload.put("clientOrderId", order.getClientOrderId());
         payload.put("submittedAt", order.getSubmittedAt());
         return payload;
+    }
+
+    private BigDecimal normalizePayloadDecimal(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        BigDecimal normalized = value.stripTrailingZeros();
+        return normalized.scale() < 0 ? normalized.setScale(0) : normalized;
     }
     
     private void recordOrderEvent(Order order,

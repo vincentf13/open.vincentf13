@@ -151,7 +151,7 @@ public class Position {
                                       Object before,
                                       Object after) {
         if (!isSameValue(before, after)) {
-            payload.put(key, after);
+            payload.put(key, normalizePayloadValue(after));
         }
     }
 
@@ -168,5 +168,20 @@ public class Position {
             return left.compareTo(right) == 0;
         }
         return Objects.equals(before, after);
+    }
+
+    private static Object normalizePayloadValue(Object value) {
+        if (value instanceof BigDecimal) {
+            return normalizeDecimal((BigDecimal) value);
+        }
+        return value;
+    }
+
+    private static BigDecimal normalizeDecimal(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        BigDecimal normalized = value.stripTrailingZeros();
+        return normalized.scale() < 0 ? normalized.setScale(0) : normalized;
     }
 }

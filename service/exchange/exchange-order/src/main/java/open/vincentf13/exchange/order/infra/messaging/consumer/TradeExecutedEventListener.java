@@ -128,11 +128,11 @@ public class TradeExecutedEventListener {
             }
             Map<String, Object> payload = new HashMap<>();
             payload.put("tradeId", tradeId);
-            payload.put("fillPrice", price);
-            payload.put("fillQuantity", filledQuantity);
-            payload.put("feeDelta", feeDelta);
-            payload.put("filledQuantity", order.getFilledQuantity());
-            payload.put("remainingQuantity", order.getRemainingQuantity());
+            payload.put("fillPrice", normalizePayloadDecimal(price));
+            payload.put("fillQuantity", normalizePayloadDecimal(filledQuantity));
+            payload.put("feeDelta", normalizePayloadDecimal(feeDelta));
+            payload.put("filledQuantity", normalizePayloadDecimal(order.getFilledQuantity()));
+            payload.put("remainingQuantity", normalizePayloadDecimal(order.getRemainingQuantity()));
             payload.put("status", order.getStatus().name());
             orderEventRepository.append(order,
                                         OrderEventType.ORDER_TRADE_FILLED,
@@ -142,5 +142,13 @@ public class TradeExecutedEventListener {
                                         OrderEventReferenceType.TRADE,
                                         tradeId);
         });
+    }
+
+    private BigDecimal normalizePayloadDecimal(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        BigDecimal normalized = value.stripTrailingZeros();
+        return normalized.scale() < 0 ? normalized.setScale(0) : normalized;
     }
 }
