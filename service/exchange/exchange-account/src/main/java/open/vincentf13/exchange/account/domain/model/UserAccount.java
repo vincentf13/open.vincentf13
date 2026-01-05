@@ -130,7 +130,7 @@ public class UserAccount {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
                                    Map.of("userId", userId, "reserved", reserved, "required", totalReserved));
         }
-        BigDecimal newBalance = balance.subtract(totalReserved);
+        BigDecimal newBalance = balance.subtract(totalReserved).add(feeRefund);;
         if (newBalance.signum() < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
                                    Map.of("userId", userId, "balance", balance, "required", totalReserved));

@@ -5,6 +5,7 @@ import type { InstrumentSummary } from '../../api/instrument';
 import { getOrderEvents, getOrders, type OrderEventItem, type OrderEventResponse, type OrderResponse } from '../../api/order';
 import { getPositionEvents, getPositions, type PositionEventItem, type PositionEventResponse, type PositionResponse } from '../../api/position';
 import { getTradesByInstrument, getTradesByOrderId, type TradeResponse } from '../../api/trade';
+import { getRiskLimit, type RiskLimitResponse } from '../../api/risk';
 import { getCurrentUser } from '../../api/user';
 
 type PositionsProps = {
@@ -109,6 +110,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [positionEventsLoading, setPositionEventsLoading] = useState<Record<string, boolean>>({});
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderRiskLimit, setOrderRiskLimit] = useState<RiskLimitResponse | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [orderTrades, setOrderTrades] = useState<Record<string, TradeResponse[]>>({});
   const [tradesLoading, setTradesLoading] = useState<Record<string, boolean>>({});
@@ -512,6 +514,36 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    if (!selectedInstrumentId) {
+      setOrderRiskLimit(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    setOrderRiskLimit(null);
+    getRiskLimit(selectedInstrumentId)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        if (String(response?.code) === '0') {
+          setOrderRiskLimit(response?.data ?? null);
+        } else {
+          setOrderRiskLimit(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOrderRiskLimit(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedInstrumentId]);
+
+  useEffect(() => {
     if (activeTab === 'Positions') {
       fetchPositions();
     }
@@ -590,29 +622,36 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   }, [currentUserId, instrumentTrades, instrumentContractSizeMap]);
   const isOrderRejected = (order: OrderResponse) =>
     String(order.status ?? '').toUpperCase() === 'REJECTED';
+  const isOrderOpening = (order: OrderResponse) =>
+    String(order.intent ?? '').toUpperCase() === 'INCREASE';
   const ordersForSummary = useMemo(() => orders.filter((order) => !isOrderRejected(order)), [orders]);
   const ordersReservedSummary = useMemo(() => {
+    const initialMarginRateValue = Number(orderRiskLimit?.initialMarginRate);
+    const initialMarginRate = Number.isFinite(initialMarginRateValue) ? initialMarginRateValue : 1;
     return ordersForSummary.reduce(
       (acc, order) => {
+        if (!isOrderOpening(order)) {
+          return acc;
+        }
         const remainingQuantityValue = Number(order.remainingQuantity);
         const orderPriceValue = Number(order.price);
         if (!Number.isFinite(remainingQuantityValue) || !Number.isFinite(orderPriceValue)) {
           return acc;
         }
         const contractSize = resolveContractSize(order.instrumentId);
-        const reservedValue = remainingQuantityValue * orderPriceValue * contractSize;
-        if (Number.isFinite(reservedValue)) {
-          acc.reservedTotal += reservedValue;
+        const notionalValue = remainingQuantityValue * orderPriceValue * contractSize;
+        if (Number.isFinite(notionalValue)) {
+          acc.reservedTotal += notionalValue * initialMarginRate;
           const takerFeeRate = resolveTakerFeeRate(order.instrumentId);
           if (Number.isFinite(takerFeeRate)) {
-            acc.reservedFeeTotal += reservedValue * takerFeeRate;
+            acc.reservedFeeTotal += notionalValue * takerFeeRate;
           }
         }
         return acc;
       },
       { reservedTotal: 0, reservedFeeTotal: 0 }
     );
-  }, [ordersForSummary, instrumentContractSizeMap, instrumentTakerFeeRateMap]);
+  }, [ordersForSummary, instrumentContractSizeMap, instrumentTakerFeeRateMap, orderRiskLimit]);
   const ordersFillSummary = useMemo(() => {
     return ordersForSummary.reduce(
       (acc, order) => {
@@ -1193,13 +1232,20 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                   const orderPriceValue = Number(order.price);
                   const orderContractSize = resolveContractSize(order.instrumentId);
                   const orderTakerFeeRate = resolveTakerFeeRate(order.instrumentId);
-                  const reservedValue =
+                  const initialMarginRateValue = Number(orderRiskLimit?.initialMarginRate);
+                  const initialMarginRate =
+                    Number.isFinite(initialMarginRateValue) ? initialMarginRateValue : 1;
+                  const orderNotionalValue =
                     Number.isFinite(remainingQuantityValue) && Number.isFinite(orderPriceValue)
                       ? remainingQuantityValue * orderPriceValue * orderContractSize
                       : null;
+                  const reservedValue =
+                    isOrderOpening(order) && orderNotionalValue !== null
+                      ? orderNotionalValue * initialMarginRate
+                      : null;
                   const reservedFeeValue =
-                    reservedValue !== null && Number.isFinite(orderTakerFeeRate)
-                      ? reservedValue * orderTakerFeeRate
+                    isOrderOpening(order) && orderNotionalValue !== null && Number.isFinite(orderTakerFeeRate)
+                      ? orderNotionalValue * orderTakerFeeRate
                       : null;
                   return (
                     <Fragment key={order.orderId}>
