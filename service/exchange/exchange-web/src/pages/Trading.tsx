@@ -525,7 +525,7 @@ export default function Trading() {
                                 </div>
                               )}
                               {referenceJournalOpen && (
-                                <div className="absolute left-full top-0 ml-3 z-50 w-max max-w-none">
+                                <div className="absolute left-6 top-6 z-50 w-max max-w-none">
                                   <div
                                     ref={referenceJournalRef}
                                     className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
