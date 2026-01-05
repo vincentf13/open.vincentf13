@@ -9,7 +9,8 @@ public enum UserAccountCode {
     SPOT("SPOT", "現貨資產", AccountCategory.ASSET),
     SPOT_EQUITY("SPOT_EQUITY", "現貨權益", AccountCategory.EQUITY),
     MARGIN("MARGIN", "逐倉保證金", AccountCategory.ASSET),
-    FEE_EXPENSE("FEE_EXPENSE", "交易手續費支出", AccountCategory.EXPENSE);
+    FEE_EXPENSE("FEE_EXPENSE", "交易手續費支出", AccountCategory.EXPENSE),
+    FEE_EQUITY("FEE_EQUITY", "交易手續費權益", AccountCategory.EQUITY);
     
     private final String code;
     private final String displayName;

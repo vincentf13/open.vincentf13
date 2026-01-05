@@ -359,8 +359,10 @@ public class AccountTransactionDomainService {
 
         UserAccount userMargin = userAccountRepository.getOrCreate(userId, UserAccountCode.MARGIN, event.instrumentId(), asset);
         UserAccount userFeeExpense = userAccountRepository.getOrCreate(userId, UserAccountCode.FEE_EXPENSE, null, asset);
+        UserAccount userFeeEquity = userAccountRepository.getOrCreate(userId, UserAccountCode.FEE_EQUITY, null, asset);
         PlatformAccount platformAsset = platformAccountRepository.getOrCreate(PlatformAccountCode.HOT_WALLET, asset);
         PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
+        PlatformAccount platformFeeEquity = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
         if (userSpot.getReserved().compareTo(totalReserved) < 0) {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
                                    Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReserved));
@@ -368,15 +370,17 @@ public class AccountTransactionDomainService {
         UserAccount settledAccount = userSpot.applyTradeSettlement(totalReserved, totalUsed, feeRefund);
         UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginUsed);
         UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
+        UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
         userAccountRepository.updateSelectiveBatch(
-                List.of(settledAccount, updatedMargin, updatedFeeExpense),
-                List.of(userSpot.safeVersion(), userMargin.safeVersion(), userFeeExpense.safeVersion()),
+                List.of(settledAccount, updatedMargin, updatedFeeExpense, updatedUserFeeEquity),
+                List.of(userSpot.safeVersion(), userMargin.safeVersion(), userFeeExpense.safeVersion(), userFeeEquity.safeVersion()),
                 "trade-settle");
         PlatformAccount updatedPlatformAsset = platformAsset.apply(Direction.DEBIT, actualFee);
         PlatformAccount updatedRevenue = platformRevenue.apply(Direction.CREDIT, actualFee);
+        PlatformAccount updatedPlatformFeeEquity = platformFeeEquity.apply(Direction.CREDIT, actualFee);
         platformAccountRepository.updateSelectiveBatch(
-                List.of(updatedPlatformAsset, updatedRevenue),
-                List.of(platformAsset.safeVersion(), platformRevenue.safeVersion()),
+                List.of(updatedPlatformAsset, updatedRevenue, updatedPlatformFeeEquity),
+                List.of(platformAsset.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
                 "trade-settle");
         UserJournal marginJournal = buildUserJournal(
                 updatedMargin,
@@ -410,6 +414,14 @@ public class AccountTransactionDomainService {
                 refIdWithSide,
                 "Trading fee expense",
                 event.executedAt());
+        UserJournal feeEquityJournal = buildUserJournal(
+                updatedUserFeeEquity,
+                Direction.DEBIT,
+                actualFee,
+                ReferenceType.TRADE_FEE_EQUITY,
+                refIdWithSide,
+                "Trading fee equity",
+                event.executedAt());
         if (feeRefund.signum() > 0) {
             UserJournal refundJournal = buildUserJournal(
                     settledAccount,
@@ -419,9 +431,9 @@ public class AccountTransactionDomainService {
                     refIdWithSide,
                     "Maker fee refund",
                     event.executedAt());
-            userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, refundJournal));
+            userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal, refundJournal));
         } else {
-            userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal));
+            userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal));
         }
         PlatformJournal platformAssetJournal = buildPlatformJournal(
                 updatedPlatformAsset,
@@ -439,7 +451,15 @@ public class AccountTransactionDomainService {
                 refIdWithSide,
                 "Trading fee revenue",
                 event.executedAt());
-        platformJournalRepository.insertBatch(List.of(platformAssetJournal, revenueJournal));
+        PlatformJournal platformFeeEquityJournal = buildPlatformJournal(
+                updatedPlatformFeeEquity,
+                Direction.CREDIT,
+                actualFee,
+                ReferenceType.TRADE_FEE_EQUITY,
+                refIdWithSide,
+                "Trading fee equity",
+                event.executedAt());
+        platformJournalRepository.insertBatch(List.of(platformAssetJournal, revenueJournal, platformFeeEquityJournal));
         tradeSettlementEventPublisher.publishTradeMarginSettled(
                 new TradeMarginSettledEvent(
                         event.tradeId(),
@@ -475,21 +495,25 @@ public class AccountTransactionDomainService {
 
         UserAccount userMargin = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.MARGIN, event.instrumentId(), asset);
         UserAccount userFeeExpense = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EXPENSE, null, asset);
+        UserAccount userFeeEquity = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EQUITY, null, asset);
         PlatformAccount platformAsset = platformAccountRepository.getOrCreate(PlatformAccountCode.HOT_WALLET, asset);
         PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
+        PlatformAccount platformFeeEquity = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
         
         UserAccount updatedSpot = userSpot.applyAllowNegative(Direction.CREDIT, totalUsed);
         UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginUsed);
         UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
+        UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
         userAccountRepository.updateSelectiveBatch(
-                List.of(updatedSpot, updatedMargin, updatedFeeExpense),
-                List.of(userSpot.safeVersion(), userMargin.safeVersion(), userFeeExpense.safeVersion()),
+                List.of(updatedSpot, updatedMargin, updatedFeeExpense, updatedUserFeeEquity),
+                List.of(userSpot.safeVersion(), userMargin.safeVersion(), userFeeExpense.safeVersion(), userFeeEquity.safeVersion()),
                 "close-to-open-compensation");
         PlatformAccount updatedPlatformAsset = platformAsset.apply(Direction.DEBIT, actualFee);
         PlatformAccount updatedRevenue = platformRevenue.apply(Direction.CREDIT, actualFee);
+        PlatformAccount updatedPlatformFeeEquity = platformFeeEquity.apply(Direction.CREDIT, actualFee);
         platformAccountRepository.updateSelectiveBatch(
-                List.of(updatedPlatformAsset, updatedRevenue),
-                List.of(platformAsset.safeVersion(), platformRevenue.safeVersion()),
+                List.of(updatedPlatformAsset, updatedRevenue, updatedPlatformFeeEquity),
+                List.of(platformAsset.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
                 "close-to-open-compensation");
 
         UserJournal marginJournal = buildUserJournal(
@@ -524,7 +548,15 @@ public class AccountTransactionDomainService {
                 refIdWithSide,
                 "Trading fee expense",
                 event.executedAt());
-        userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal));
+        UserJournal feeEquityJournal = buildUserJournal(
+                updatedUserFeeEquity,
+                Direction.DEBIT,
+                actualFee,
+                ReferenceType.TRADE_FEE_EQUITY,
+                refIdWithSide,
+                "Trading fee equity",
+                event.executedAt());
+        userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal));
 
         PlatformJournal platformAssetJournal = buildPlatformJournal(
                 updatedPlatformAsset,
@@ -542,7 +574,15 @@ public class AccountTransactionDomainService {
                 refIdWithSide,
                 "Trading fee revenue (invalid fill)",
                 event.executedAt());
-        platformJournalRepository.insertBatch(List.of(platformAssetJournal, revenueJournal));
+        PlatformJournal platformFeeEquityJournal = buildPlatformJournal(
+                updatedPlatformFeeEquity,
+                Direction.CREDIT,
+                actualFee,
+                ReferenceType.TRADE_FEE_EQUITY,
+                refIdWithSide,
+                "Trading fee equity",
+                event.executedAt());
+        platformJournalRepository.insertBatch(List.of(platformAssetJournal, revenueJournal, platformFeeEquityJournal));
 
         if (updatedSpot.getBalance().signum() < 0 || updatedSpot.getAvailable().signum() < 0) {
             OpenLog.warn(AccountEvent.INVALID_FILL_NEGATIVE_BALANCE,
