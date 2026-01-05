@@ -8,6 +8,7 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MarkPriceCacheService {
     
     private static final Duration SNAPSHOT_INTERVAL = Duration.ofSeconds(5);
+    private static final int CHANGE_RATE_SCALE = 8;
     
     private final Map<Long, MarkPriceSnapshot> cache = new ConcurrentHashMap<>();
     private final MarkPriceSnapshotRepository repository;
@@ -60,6 +62,7 @@ public class MarkPriceCacheService {
         return MarkPriceSnapshot.builder()
                                 .instrumentId(instrumentId)
                                 .markPrice(BigDecimal.ONE)
+                                .markPriceChangeRate(BigDecimal.ONE)
                                 .tradeId(0L)
                                 .tradeExecutedAt(now)
                                 .calculatedAt(now)
@@ -75,9 +78,14 @@ public class MarkPriceCacheService {
         }
         Instant calculatedAt = Instant.now();
         MarkPriceSnapshot previous = cache.get(instrumentId);
+        BigDecimal changeRate = BigDecimal.ONE;
+        if (previous != null && previous.getMarkPrice() != null && previous.getMarkPrice().compareTo(BigDecimal.ZERO) > 0) {
+            changeRate = markPrice.divide(previous.getMarkPrice(), CHANGE_RATE_SCALE, RoundingMode.HALF_UP);
+        }
         MarkPriceSnapshot current = MarkPriceSnapshot.builder()
                                                      .instrumentId(instrumentId)
                                                      .markPrice(markPrice)
+                                                     .markPriceChangeRate(changeRate)
                                                      .tradeId(tradeId)
                                                      .tradeExecutedAt(tradeExecutedAt)
                                                      .calculatedAt(calculatedAt)

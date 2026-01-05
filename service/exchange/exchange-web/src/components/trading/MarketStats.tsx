@@ -1,6 +1,6 @@
 
 import { Dropdown, Tooltip } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { InstrumentSummary } from '../../api/instrument';
 import { getMarkPrice, getTicker, type MarkPriceResponse, type TickerResponse } from '../../api/market';
@@ -28,8 +28,7 @@ export default function MarketStats({
     const [showExtraStats, setShowExtraStats] = useState(false);
     const [markPrice, setMarkPrice] = useState<MarkPriceResponse | null>(null);
     const [markPriceLoading, setMarkPriceLoading] = useState(false);
-    const [markPriceChangePercent, setMarkPriceChangePercent] = useState<number | null>(null);
-    const previousMarkPriceRef = useRef<number | null>(null);
+    const [markPriceChangePercent, setMarkPriceChangePercent] = useState(0);
     const instrumentTypeLabelMap: Record<string, string> = {
         SPOT: 'Spot',
         PERPETUAL: 'Perpetual',
@@ -110,8 +109,7 @@ export default function MarketStats({
     const markPriceDisplay = formatTickerNumber(markPrice?.markPrice);
 
     useEffect(() => {
-        previousMarkPriceRef.current = null;
-        setMarkPriceChangePercent(null);
+        setMarkPriceChangePercent(0);
     }, [selectedInstrument?.instrumentId]);
 
     useEffect(() => {
@@ -163,15 +161,9 @@ export default function MarketStats({
                 }
                 if (String(response?.code) === '0') {
                     setMarkPrice(response?.data || null);
-                    const currentMarkPrice = Number(response?.data?.markPrice);
-                    if (Number.isFinite(currentMarkPrice)) {
-                        const previousMarkPrice = previousMarkPriceRef.current;
-                        if (previousMarkPrice !== null && previousMarkPrice !== 0) {
-                            setMarkPriceChangePercent((currentMarkPrice / previousMarkPrice) * 100 - 100);
-                        } else {
-                            setMarkPriceChangePercent(0);
-                        }
-                        previousMarkPriceRef.current = currentMarkPrice;
+                    const changeRateValue = Number(response?.data?.markPriceChangeRate);
+                    if (Number.isFinite(changeRateValue)) {
+                        setMarkPriceChangePercent(changeRateValue * 100 - 100);
                     } else {
                         setMarkPriceChangePercent(0);
                     }
@@ -182,7 +174,7 @@ export default function MarketStats({
             } catch (error) {
                 if (!cancelled) {
                     setMarkPrice(null);
-                    setMarkPriceChangePercent(null);
+                    setMarkPriceChangePercent(0);
                 }
             } finally {
                 if (!cancelled) {

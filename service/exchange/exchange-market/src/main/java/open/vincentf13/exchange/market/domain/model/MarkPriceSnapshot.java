@@ -26,6 +26,8 @@ public class MarkPriceSnapshot {
     @NotNull
     @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
     private BigDecimal markPrice;
+    @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE, inclusive = true)
+    private BigDecimal markPriceChangeRate;
     private Long tradeId;
     private Instant tradeExecutedAt;
     @NotNull

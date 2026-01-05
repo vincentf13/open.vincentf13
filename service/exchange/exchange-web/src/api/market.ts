@@ -16,6 +16,7 @@ export type TickerResponse = {
 export type MarkPriceResponse = {
   instrumentId: number;
   markPrice: string | null;
+  markPriceChangeRate?: string | null;
   calculatedAt: string | null;
 };
 

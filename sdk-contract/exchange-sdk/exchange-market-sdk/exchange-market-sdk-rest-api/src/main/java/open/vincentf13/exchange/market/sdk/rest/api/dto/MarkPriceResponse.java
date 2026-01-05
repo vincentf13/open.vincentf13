@@ -11,5 +11,6 @@ import java.time.Instant;
 public class MarkPriceResponse {
     Long instrumentId;
     BigDecimal markPrice;
+    BigDecimal markPriceChangeRate;
     Instant calculatedAt;
 }

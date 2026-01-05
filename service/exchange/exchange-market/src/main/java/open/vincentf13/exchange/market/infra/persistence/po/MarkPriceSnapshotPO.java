@@ -23,6 +23,7 @@ public class MarkPriceSnapshotPO {
     
     private Long instrumentId;
     private BigDecimal markPrice;
+    private BigDecimal markPriceChangeRate;
     private Long tradeId;
     private Instant tradeExecutedAt;
     private Instant calculatedAt;

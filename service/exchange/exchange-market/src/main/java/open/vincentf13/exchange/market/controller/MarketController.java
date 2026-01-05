@@ -14,6 +14,7 @@ import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -54,6 +55,7 @@ public class MarketController implements MarketApi {
                                     .orElseGet(() -> OpenApiResponse.success(MarkPriceResponse.builder()
                                                                                               .instrumentId(instrumentId)
                                                                                               .markPrice(null)
+                                                                                              .markPriceChangeRate(BigDecimal.ONE)
                                                                                               .build()));
     }
 }
