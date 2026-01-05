@@ -1418,8 +1418,6 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               </tbody>
             </table>
             <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
-              Total Fill Price: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFillPrice) : '-'}
-              <br />
               Total Fee: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
               <br />
               Reserved Balance: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
