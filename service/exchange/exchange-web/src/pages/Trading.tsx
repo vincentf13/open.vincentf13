@@ -57,6 +57,8 @@ export default function Trading() {
   const [platformAccountsLoading, setPlatformAccountsLoading] = useState(false);
   const [platformAccountsError, setPlatformAccountsError] = useState<string | null>(null);
   const [platformAccountsData, setPlatformAccountsData] = useState<PlatformAccountResponse | null>(null);
+  const balanceSheetAnchorRef = useRef<HTMLDivElement | null>(null);
+  const [balanceSheetMaxHeight, setBalanceSheetMaxHeight] = useState<number | null>(null);
   const [accountJournalOpen, setAccountJournalOpen] = useState(false);
   const [accountJournalLoading, setAccountJournalLoading] = useState(false);
   const [accountJournalError, setAccountJournalError] = useState<string | null>(null);
@@ -115,6 +117,7 @@ export default function Trading() {
     setBalanceSheetOpen(false);
     setAccountJournalOpen(false);
     setReferenceJournalOpen(false);
+    setBalanceSheetMaxHeight(null);
   };
   const handleOpenAccountJournal = (accountId: number) => {
     if (!Number.isFinite(accountId)) {
@@ -419,6 +422,29 @@ export default function Trading() {
   }, []);
 
   useEffect(() => {
+    if (!balanceSheetOpen) {
+      setBalanceSheetMaxHeight(null);
+      return;
+    }
+    const updateMaxHeight = () => {
+      const anchorRect = balanceSheetAnchorRef.current?.getBoundingClientRect();
+      const headerRect = document.getElementById('liquid-flow-header')?.getBoundingClientRect();
+      if (!anchorRect || !headerRect) {
+        return;
+      }
+      const available = anchorRect.top - headerRect.bottom - 8;
+      setBalanceSheetMaxHeight(Math.max(0, Math.floor(available)));
+    };
+    updateMaxHeight();
+    window.addEventListener('resize', updateMaxHeight);
+    window.addEventListener('scroll', updateMaxHeight, true);
+    return () => {
+      window.removeEventListener('resize', updateMaxHeight);
+      window.removeEventListener('scroll', updateMaxHeight, true);
+    };
+  }, [balanceSheetOpen]);
+
+  useEffect(() => {
     if (!accountJournalOpen && !referenceJournalOpen) {
       return;
     }
@@ -555,10 +581,13 @@ export default function Trading() {
             </div>
             <div className="flex-1 min-h-0 p-4">
               <div className="flex flex-col gap-3">
-                <div className="relative">
+                <div className="relative" ref={balanceSheetAnchorRef}>
                   {balanceSheetOpen && (
                     <div className="absolute bottom-full right-0 z-40 w-max max-w-none mb-3">
-                      <div className="relative min-h-[320px] rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
+                      <div
+                        className="relative flex flex-col rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
+                        style={balanceSheetMaxHeight != null ? { maxHeight: `${balanceSheetMaxHeight}px` } : undefined}
+                      >
                         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border border-white/70 bg-white/95" />
                         {accountJournalOpen && (
                           <div className="absolute left-4 top-4 z-50 w-max max-w-none">
@@ -644,7 +673,7 @@ export default function Trading() {
                           <div className="text-xs text-rose-500">{balanceSheetError}</div>
                         )}
                         {!balanceSheetLoading && !balanceSheetError && (
-                          <div className="max-h-[60vh] overflow-y-auto pr-1">
+                          <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                             <div className="grid grid-cols-2 text-xs text-slate-600 border border-slate-200/80 divide-x divide-y divide-slate-200/80">
                               <div className="flex flex-col gap-2 p-3">
                                 <div className="font-semibold text-slate-700">Assets</div>

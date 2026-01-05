@@ -20,7 +20,10 @@ export default function Header({ onLogout }: HeaderProps) {
   };
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-white/20 bg-white/10 backdrop-blur-md">
+    <header
+      id="liquid-flow-header"
+      className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-white/20 bg-white/10 backdrop-blur-md"
+    >
       <div className="flex items-center gap-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/50 bg-gradient-to-br from-white/60 to-white/20 shadow-sm backdrop-blur-md">
           <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-400 shadow-inner ring-2 ring-white/50" />
