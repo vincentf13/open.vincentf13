@@ -36,9 +36,16 @@ export default function Trading() {
     return cachedId || cachedList[0]?.instrumentId || null;
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [balanceSheetOpen, setBalanceSheetOpen] = useState(false);
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
+  };
+  const handleOpenBalanceSheet = () => {
+    setBalanceSheetOpen(true);
+  };
+  const handleCloseBalanceSheet = () => {
+    setBalanceSheetOpen(false);
   };
 
   const scheduleRefresh = () => {
@@ -175,14 +182,42 @@ export default function Trading() {
         </div>
 
         {/* Right Panel: Trade + Account */}
-        <div className="flex flex-col w-full border-t border-white/20 bg-white/5 lg:absolute lg:top-0 lg:right-0 lg:h-full lg:w-[260px] lg:z-10 lg:border-t-0 lg:border-l lg:border-white/20">
+        <div className="relative flex flex-col w-full border-t border-white/20 bg-white/5 lg:absolute lg:top-0 lg:right-0 lg:h-full lg:w-[260px] lg:z-10 lg:border-t-0 lg:border-l lg:border-white/20">
           <div className="flex flex-col h-full lg:pt-24">
             <div className="border-b border-white/20">
               <TradeForm instrument={selectedInstrument} onOrderPlaced={scheduleRefresh} />
             </div>
             <div className="flex-1 min-h-0 p-4">
               <div className="flex flex-col gap-3">
-                <AccountPanel refreshTrigger={refreshTrigger} />
+                <div className="relative">
+                  {balanceSheetOpen && (
+                    <div className="absolute bottom-full right-0 z-40 w-[360px] max-w-[calc(100vw-2rem)] mb-3">
+                      <div className="relative min-h-[260px] rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
+                        <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border border-white/70 bg-white/95" />
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Balance Sheet</div>
+                          <button
+                            type="button"
+                            className="h-6 w-6 rounded-full border border-white/60 bg-white/70 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-white transition-all"
+                            onClick={handleCloseBalanceSheet}
+                          >
+                            X
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-xs text-slate-600">
+                          <div className="font-semibold text-slate-700">Assets</div>
+                          <div className="flex flex-col gap-2">
+                            <div className="font-semibold text-slate-700">Liabilities</div>
+                            <div className="font-semibold text-slate-700">Equity</div>
+                          </div>
+                          <div className="font-semibold text-slate-700">Expenses</div>
+                          <div className="font-semibold text-slate-700">Revenue</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <AccountPanel refreshTrigger={refreshTrigger} onOpenBalanceSheet={handleOpenBalanceSheet} />
+                </div>
                 <div className="flex flex-col gap-2">
                   <Tooltip
                     title={(
