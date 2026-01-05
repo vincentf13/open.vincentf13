@@ -620,10 +620,81 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'eventType', label: 'Event Type' },
     { key: 'referenceType', label: 'Reference Type' },
     { key: 'referenceId', label: 'Reference ID' },
-    { key: 'payload', label: 'Payload' },
     { key: 'occurredAt', label: 'Occurred Time' },
     { key: 'createdAt', label: 'Created Time' },
   ];
+  const positionPayloadOrder = columns.map((column) => column.key);
+  const positionPayloadIgnoredKeys = new Set(['userId', 'positionId']);
+
+  const parsePositionPayload = (payload?: string | null) => {
+    if (!payload) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(payload);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const collectPositionPayloadKeys = (
+    entries: Array<{ payload: Record<string, unknown> | null }>
+  ) => {
+    const payloadKeys = new Set<string>();
+    entries.forEach((entry) => {
+      if (!entry.payload) {
+        return;
+      }
+      Object.keys(entry.payload).forEach((key) => {
+        if (!positionPayloadIgnoredKeys.has(key)) {
+          payloadKeys.add(key);
+        }
+      });
+    });
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    positionPayloadOrder.forEach((key) => {
+      if (payloadKeys.has(key)) {
+        ordered.push(key);
+        seen.add(key);
+      }
+    });
+    entries.forEach((entry) => {
+      if (!entry.payload) {
+        return;
+      }
+      Object.keys(entry.payload).forEach((key) => {
+        if (positionPayloadIgnoredKeys.has(key)) {
+          return;
+        }
+        if (!seen.has(key)) {
+          ordered.push(key);
+          seen.add(key);
+        }
+      });
+    });
+    return ordered;
+  };
+
+  const formatPositionPayloadValue = (key: string, value: unknown) => {
+    if (value === null || value === undefined || value === '') {
+      return '-';
+    }
+    if (['createdAt', 'updatedAt', 'closedAt'].includes(key)) {
+      return formatDateTime(String(value));
+    }
+    if (key === 'marginRatio') {
+      return formatPercent(Number(value));
+    }
+    if (typeof value === 'number') {
+      return formatNumber(value);
+    }
+    return String(value);
+  };
 
   return (
     <div className="flex flex-col overflow-hidden bg-white/5">
@@ -681,6 +752,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                 const isExpanded = expandedPositionId === position.positionId;
                 const eventsForPosition = positionEvents[position.positionId] || [];
                 const eventsLoading = positionEventsLoading[position.positionId];
+                const eventPayloadEntries = eventsForPosition.map((event) => ({
+                  event,
+                  payload: parsePositionPayload(event.payload),
+                }));
+                const positionPayloadKeys = collectPositionPayloadKeys(eventPayloadEntries);
                 return (
                   <Fragment key={position.positionId}>
                     <tr className="hover:bg-white/20 transition-colors">
@@ -748,17 +824,25 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                         {column.label}
                                       </th>
                                     ))}
+                                    {positionPayloadKeys.map((key) => (
+                                      <th key={key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                        {key}
+                                      </th>
+                                    ))}
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/10">
                                   {eventsForPosition.length === 0 && (
                                     <tr>
-                                      <td className="py-4 text-center text-slate-400 text-xs" colSpan={positionEventColumns.length}>
+                                      <td
+                                        className="py-4 text-center text-slate-400 text-xs"
+                                        colSpan={positionEventColumns.length + positionPayloadKeys.length}
+                                      >
                                         {eventsLoading ? 'Loading...' : 'No events'}
                                       </td>
                                     </tr>
                                   )}
-                                  {eventsForPosition.map((event) => (
+                                  {eventsForPosition.map((event, index) => (
                                     <tr key={event.eventId}>
                                       {positionEventColumns.map((column) => {
                                         let value: string | number | null | undefined = (event as any)[column.key];
@@ -768,6 +852,15 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                         return (
                                           <td key={column.key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
                                             {value === null || value === undefined || value === '' ? '-' : String(value)}
+                                          </td>
+                                        );
+                                      })}
+                                      {positionPayloadKeys.map((key) => {
+                                        const payload = eventPayloadEntries[index]?.payload;
+                                        const value = payload ? payload[key] : undefined;
+                                        return (
+                                          <td key={key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
+                                            {formatPositionPayloadValue(key, value)}
                                           </td>
                                         );
                                       })}
