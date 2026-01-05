@@ -479,6 +479,26 @@ export default function Trading() {
   }, [accountJournalOpen, referenceJournalOpen]);
 
   useEffect(() => {
+    if (!balanceSheetOpen) {
+      return;
+    }
+    const handleBalanceSheetClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      if (balanceSheetAnchorRef.current?.contains(target)) {
+        return;
+      }
+      handleCloseBalanceSheet();
+    };
+    document.addEventListener('mousedown', handleBalanceSheetClick);
+    return () => {
+      document.removeEventListener('mousedown', handleBalanceSheetClick);
+    };
+  }, [balanceSheetOpen]);
+
+  useEffect(() => {
     let cancelled = false;
     const loadInstruments = async () => {
       try {
