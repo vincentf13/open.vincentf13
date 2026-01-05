@@ -31,9 +31,11 @@ import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -81,10 +83,7 @@ public class AccountQueryService {
     public AccountJournalResponse getAccountJournals(@NotNull Long userId,
                                                      @NotNull Long accountId) {
         List<UserJournal> journals = userJournalRepository.findByAccountId(userId, accountId);
-        List<AccountJournalItem> items = journals.stream()
-                                                 .map(item -> OpenObjectMapper.convert(item, AccountJournalItem.class))
-                                                 .filter(Objects::nonNull)
-                                                 .toList();
+        List<AccountJournalItem> items = buildAccountJournalItems(userId, journals);
         Instant snapshotAt = journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
         return new AccountJournalResponse(userId, accountId, snapshotAt, items);
     }
@@ -97,10 +96,7 @@ public class AccountQueryService {
             return new AccountReferenceJournalResponse(userId, referenceType, prefix, Instant.now(), List.of(), List.of());
         }
         List<UserJournal> accountJournals = userJournalRepository.findByReference(userId, referenceType, prefix);
-        List<AccountJournalItem> accountItems = accountJournals.stream()
-                                                               .map(item -> OpenObjectMapper.convert(item, AccountJournalItem.class))
-                                                               .filter(Objects::nonNull)
-                                                               .toList();
+        List<AccountJournalItem> accountItems = buildAccountJournalItems(userId, accountJournals);
         List<PlatformJournal> platformJournals = platformJournalRepository.findByReference(referenceType, prefix);
         List<PlatformJournalItem> platformItems = platformJournals.stream()
                                                                   .map(item -> OpenObjectMapper.convert(item, PlatformJournalItem.class))
@@ -108,6 +104,44 @@ public class AccountQueryService {
                                                                   .toList();
         Instant snapshotAt = Instant.now();
         return new AccountReferenceJournalResponse(userId, referenceType, prefix, snapshotAt, accountItems, platformItems);
+    }
+
+    private List<AccountJournalItem> buildAccountJournalItems(@NotNull Long userId,
+                                                              @NotNull List<UserJournal> journals) {
+        if (journals.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, UserAccount> accountMap = userAccountRepository.findByUserId(userId).stream()
+                                                                 .filter(Objects::nonNull)
+                                                                 .filter(item -> item.getAccountId() != null)
+                                                                 .collect(Collectors.toMap(UserAccount::getAccountId, Function.identity(), (left, right) -> left, HashMap::new));
+        return journals.stream()
+                       .map(item -> {
+                           AccountJournalItem base = OpenObjectMapper.convert(item, AccountJournalItem.class);
+                           if (base == null) {
+                               return null;
+                           }
+                           UserAccount account = accountMap.get(item.getAccountId());
+                           return new AccountJournalItem(
+                                   base.journalId(),
+                                   base.userId(),
+                                   base.accountId(),
+                                   account != null ? account.getAccountCode() : null,
+                                   account != null ? account.getAccountName() : null,
+                                   base.category(),
+                                   base.asset(),
+                                   base.amount(),
+                                   base.direction(),
+                                   base.balanceAfter(),
+                                   base.referenceType(),
+                                   base.referenceId(),
+                                   base.description(),
+                                   base.eventTime(),
+                                   base.createdAt()
+                           );
+                       })
+                       .filter(Objects::nonNull)
+                       .toList();
     }
 
     public PlatformAccountResponse getPlatformAccounts() {

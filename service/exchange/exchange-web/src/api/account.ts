@@ -62,6 +62,8 @@ export type AccountJournalItem = {
   journalId: number;
   userId: number;
   accountId: number;
+  accountCode: string | null;
+  accountName: string | null;
   category: string;
   asset: string;
   amount: string;

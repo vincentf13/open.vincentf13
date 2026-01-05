@@ -250,6 +250,8 @@ export default function Trading() {
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Journal ID</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">User ID</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account Code</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account Name</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Category</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Asset</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Amount</th>
@@ -268,6 +270,8 @@ export default function Trading() {
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.journalId ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.userId ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountCode ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountName ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.amount ?? '-')}</td>
