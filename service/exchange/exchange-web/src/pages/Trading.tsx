@@ -257,41 +257,51 @@ export default function Trading() {
           </tr>
         </thead>
         <tbody className="divide-y divide-white/40">
-          {rows.map((item, index) => (
-            <tr key={`${item?.journalId ?? index}-${item?.referenceId ?? 'ref'}`}>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.journalId ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.userId ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountCode ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountName ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.amount ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.direction ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.balanceAfter ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
-                {item?.referenceId ? (
-                  disableReferenceLink ? (
-                    String(item.referenceId)
+          {rows.map((item, index) => {
+            const category = String(item?.category ?? '').toUpperCase();
+            const direction = String(item?.direction ?? '').toUpperCase();
+            const highlightCredit =
+              (category === 'ASSET' || category === 'EXPENSE') && direction === 'CREDIT';
+            const highlightDebit =
+              (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE')
+              && direction === 'DEBIT';
+            const highlightClass = (highlightCredit || highlightDebit) ? 'bg-rose-100/70 text-rose-900' : 'text-slate-700';
+            return (
+              <tr key={`${item?.journalId ?? index}-${item?.referenceId ?? 'ref'}`}>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.journalId ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.userId ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountCode ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountName ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
+                <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.amount ?? '-')}</td>
+                <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.direction ?? '-')}</td>
+                <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.balanceAfter ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
+                  {item?.referenceId ? (
+                    disableReferenceLink ? (
+                      String(item.referenceId)
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
+                        className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
+                      >
+                        {String(item.referenceId)}
+                      </button>
+                    )
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
-                      className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
-                    >
-                      {String(item.referenceId)}
-                    </button>
-                  )
-                ) : (
-                  '-'
-                )}
-              </td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
-            </tr>
-          ))}
+                    '-'
+                  )}
+                </td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     );
@@ -319,38 +329,48 @@ export default function Trading() {
           </tr>
         </thead>
         <tbody className="divide-y divide-white/40">
-          {rows.map((item, index) => (
-            <tr key={`${item?.journalId ?? index}-${item?.referenceId ?? 'ref'}`}>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.journalId ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.amount ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.direction ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.balanceAfter ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
-                {item?.referenceId ? (
-                  disableReferenceLink ? (
-                    String(item.referenceId)
+          {rows.map((item, index) => {
+            const category = String(item?.category ?? '').toUpperCase();
+            const direction = String(item?.direction ?? '').toUpperCase();
+            const highlightCredit =
+              (category === 'ASSET' || category === 'EXPENSE') && direction === 'CREDIT';
+            const highlightDebit =
+              (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE')
+              && direction === 'DEBIT';
+            const highlightClass = (highlightCredit || highlightDebit) ? 'bg-rose-100/70 text-rose-900' : 'text-slate-700';
+            return (
+              <tr key={`${item?.journalId ?? index}-${item?.referenceId ?? 'ref'}`}>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.journalId ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
+                <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.amount ?? '-')}</td>
+                <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.direction ?? '-')}</td>
+                <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.balanceAfter ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
+                  {item?.referenceId ? (
+                    disableReferenceLink ? (
+                      String(item.referenceId)
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
+                        className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
+                      >
+                        {String(item.referenceId)}
+                      </button>
+                    )
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
-                      className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
-                    >
-                      {String(item.referenceId)}
-                    </button>
-                  )
-                ) : (
-                  '-'
-                )}
-              </td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
-            </tr>
-          ))}
+                    '-'
+                  )}
+                </td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     );
