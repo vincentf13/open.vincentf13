@@ -118,31 +118,31 @@ public class Position {
                                       Position after) {
         Position baseline = (before == null || before.getPositionId() == null) ? new Position() : before;
         Map<String, Object> payload = new LinkedHashMap<>();
-        appendPayload(payload, "positionId", baseline.getPositionId(), after.getPositionId());
-        appendPayload(payload, "userId", baseline.getUserId(), after.getUserId());
         appendPayload(payload, "instrumentId", baseline.getInstrumentId(), after.getInstrumentId());
         appendPayload(payload, "side",
                 baseline.getSide() != null ? baseline.getSide().name() : null,
                 after.getSide() != null ? after.getSide().name() : null);
-        appendPayload(payload, "leverage", baseline.getLeverage(), after.getLeverage());
         appendPayload(payload, "status",
                 baseline.getStatus() != null ? baseline.getStatus().name() : null,
                 after.getStatus() != null ? after.getStatus().name() : null);
-        appendPayload(payload, "quantity", baseline.getQuantity(), after.getQuantity());
         appendPayload(payload, "entryPrice", baseline.getEntryPrice(), after.getEntryPrice());
-        appendPayload(payload, "margin", baseline.getMargin(), after.getMargin());
+        appendPayload(payload, "quantity", baseline.getQuantity(), after.getQuantity());
         appendPayload(payload, "closingReservedQuantity", baseline.getClosingReservedQuantity(), after.getClosingReservedQuantity());
         appendPayload(payload, "markPrice", baseline.getMarkPrice(), after.getMarkPrice());
-        appendPayload(payload, "unrealizedPnl", baseline.getUnrealizedPnl(), after.getUnrealizedPnl());
-        appendPayload(payload, "marginRatio", baseline.getMarginRatio(), after.getMarginRatio());
         appendPayload(payload, "liquidationPrice", baseline.getLiquidationPrice(), after.getLiquidationPrice());
+        appendPayload(payload, "unrealizedPnl", baseline.getUnrealizedPnl(), after.getUnrealizedPnl());
         appendPayload(payload, "cumRealizedPnl", baseline.getCumRealizedPnl(), after.getCumRealizedPnl());
         appendPayload(payload, "cumFee", baseline.getCumFee(), after.getCumFee());
         appendPayload(payload, "cumFundingFee", baseline.getCumFundingFee(), after.getCumFundingFee());
-        appendPayload(payload, "version", baseline.getVersion(), after.getVersion());
+        appendPayload(payload, "leverage", baseline.getLeverage(), after.getLeverage());
+        appendPayload(payload, "margin", baseline.getMargin(), after.getMargin());
+        appendPayload(payload, "marginRatio", baseline.getMarginRatio(), after.getMarginRatio());
         appendPayload(payload, "createdAt", baseline.getCreatedAt(), after.getCreatedAt());
         appendPayload(payload, "updatedAt", baseline.getUpdatedAt(), after.getUpdatedAt());
         appendPayload(payload, "closedAt", baseline.getClosedAt(), after.getClosedAt());
+        appendPayload(payload, "positionId", baseline.getPositionId(), after.getPositionId());
+        appendPayload(payload, "userId", baseline.getUserId(), after.getUserId());
+        appendPayload(payload, "version", baseline.getVersion(), after.getVersion());
         return OpenObjectMapper.toJson(payload);
     }
 
@@ -162,8 +162,10 @@ public class Position {
         if (before == null || after == null) {
             return false;
         }
-        if (before instanceof BigDecimal && after instanceof BigDecimal) {
-            return ((BigDecimal) before).compareTo((BigDecimal) after) == 0;
+        if (before instanceof Number && after instanceof Number) {
+            BigDecimal left = new BigDecimal(before.toString());
+            BigDecimal right = new BigDecimal(after.toString());
+            return left.compareTo(right) == 0;
         }
         return Objects.equals(before, after);
     }
