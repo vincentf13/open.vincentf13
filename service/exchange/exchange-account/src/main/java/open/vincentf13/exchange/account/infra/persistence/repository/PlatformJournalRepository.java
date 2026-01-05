@@ -45,7 +45,8 @@ public class PlatformJournalRepository {
         var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()
                 .eq(PlatformJournalPO::getReferenceType, referenceType)
                 .eq(PlatformJournalPO::getReferenceId, referenceId)
-                .orderByDesc(PlatformJournalPO::getEventTime);
+                .orderByDesc(PlatformJournalPO::getEventTime)
+                .orderByAsc(PlatformJournalPO::getJournalId);
         return mapper.selectList(wrapper)
                      .stream()
                      .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class))
@@ -55,7 +56,8 @@ public class PlatformJournalRepository {
     public List<PlatformJournal> findByAccountId(@NotNull Long accountId) {
         var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()
                 .eq(PlatformJournalPO::getAccountId, accountId)
-                .orderByDesc(PlatformJournalPO::getEventTime);
+                .orderByDesc(PlatformJournalPO::getEventTime)
+                .orderByAsc(PlatformJournalPO::getJournalId);
         return mapper.selectList(wrapper)
                      .stream()
                      .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class))
