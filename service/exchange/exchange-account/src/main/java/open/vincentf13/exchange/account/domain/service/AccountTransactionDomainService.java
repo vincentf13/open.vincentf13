@@ -410,7 +410,7 @@ public class AccountTransactionDomainService {
                 updatedFeeExpense,
                 Direction.DEBIT,
                 actualFee,
-                ReferenceType.TRADE_FEE_EXPENSE,
+                ReferenceType.TRADE_FEE,
                 refIdWithSide,
                 "Trading fee expense",
                 event.executedAt());
@@ -418,7 +418,7 @@ public class AccountTransactionDomainService {
                 updatedUserFeeEquity,
                 Direction.DEBIT,
                 actualFee,
-                ReferenceType.TRADE_FEE_EQUITY,
+                ReferenceType.TRADE_FEE,
                 refIdWithSide,
                 "Trading fee equity",
                 event.executedAt());
@@ -455,7 +455,7 @@ public class AccountTransactionDomainService {
                 updatedPlatformFeeEquity,
                 Direction.CREDIT,
                 actualFee,
-                ReferenceType.TRADE_FEE_EQUITY,
+                ReferenceType.TRADE_FEE,
                 refIdWithSide,
                 "Trading fee equity",
                 event.executedAt());
@@ -544,7 +544,7 @@ public class AccountTransactionDomainService {
                 updatedFeeExpense,
                 Direction.DEBIT,
                 actualFee,
-                ReferenceType.TRADE_FEE_EXPENSE,
+                ReferenceType.TRADE_FEE,
                 refIdWithSide,
                 "Trading fee expense",
                 event.executedAt());
@@ -552,7 +552,7 @@ public class AccountTransactionDomainService {
                 updatedUserFeeEquity,
                 Direction.DEBIT,
                 actualFee,
-                ReferenceType.TRADE_FEE_EQUITY,
+                ReferenceType.TRADE_FEE,
                 refIdWithSide,
                 "Trading fee equity",
                 event.executedAt());
@@ -578,7 +578,7 @@ public class AccountTransactionDomainService {
                 updatedPlatformFeeEquity,
                 Direction.CREDIT,
                 actualFee,
-                ReferenceType.TRADE_FEE_EQUITY,
+                ReferenceType.TRADE_FEE,
                 refIdWithSide,
                 "Trading fee equity",
                 event.executedAt());
