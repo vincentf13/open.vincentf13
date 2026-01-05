@@ -156,13 +156,9 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
                                    Map.of("userId", event.userId(), "asset", asset, "available", userSpot.getAvailable(), "amount", totalAmount));
         }
-        UserAccount frozenAccount = applyUserFreeze(userSpot, totalAmount);
-        userAccountRepository.updateSelectiveBatch(
-                List.of(frozenAccount),
-                List.of(userSpot.safeVersion()),
-                "order-freeze");
+        UserAccount marginFrozenAccount = applyUserFreeze(userSpot, requiredMargin);
         UserJournal marginReserveJournal = buildUserJournal(
-                frozenAccount,
+                marginFrozenAccount,
                 Direction.DEBIT,
                 requiredMargin,
                 ReferenceType.ORDER_MARGIN_FROZEN,
@@ -170,15 +166,16 @@ public class AccountTransactionDomainService {
                 "Margin reserved for order",
                 event.createdAt());
         UserJournal marginAvailableJournal = buildUserJournal(
-                frozenAccount,
+                marginFrozenAccount,
                 Direction.CREDIT,
                 requiredMargin,
                 ReferenceType.ORDER_MARGIN_FROZEN,
                 event.orderId().toString(),
                 "Margin moved from available",
                 event.createdAt());
+        UserAccount feeFrozenAccount = applyUserFreeze(marginFrozenAccount, fee);
         UserJournal feeReserveJournal = buildUserJournal(
-                frozenAccount,
+                feeFrozenAccount,
                 Direction.DEBIT,
                 fee,
                 ReferenceType.ORDER_FEE_FROZEN,
@@ -186,13 +183,17 @@ public class AccountTransactionDomainService {
                 "Fee reserved for order",
                 event.createdAt());
         UserJournal feeAvailableJournal = buildUserJournal(
-                frozenAccount,
+                feeFrozenAccount,
                 Direction.CREDIT,
                 fee,
                 ReferenceType.ORDER_FEE_FROZEN,
                 event.orderId().toString(),
                 "Fee moved from available",
                 event.createdAt());
+        userAccountRepository.updateSelectiveBatch(
+                List.of(feeFrozenAccount),
+                List.of(userSpot.safeVersion()),
+                "order-freeze");
         userJournalRepository.insertBatch(List.of(marginReserveJournal, marginAvailableJournal, feeReserveJournal, feeAvailableJournal));
         return new FundsFreezeResult(asset, totalAmount);
     }
@@ -332,6 +333,38 @@ public class AccountTransactionDomainService {
                           .createdAt(current.getCreatedAt())
                           .build();
     }
+
+    private UserAccount applyReservedOut(UserAccount current,
+                                         BigDecimal amount) {
+        if (amount.signum() == 0) {
+            return current;
+        }
+        BigDecimal reserved = current.getReserved();
+        if (reserved.compareTo(amount) < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
+                                   Map.of("userId", current.getUserId(), "reserved", reserved, "required", amount));
+        }
+        BigDecimal newReserved = reserved.subtract(amount);
+        BigDecimal newBalance = current.getBalance().subtract(amount);
+        if (newBalance.signum() < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
+                                   Map.of("userId", current.getUserId(), "balance", current.getBalance(), "required", amount));
+        }
+        return UserAccount.builder()
+                          .accountId(current.getAccountId())
+                          .userId(current.getUserId())
+                          .accountCode(current.getAccountCode())
+                          .accountName(current.getAccountName())
+                          .instrumentId(current.getInstrumentId())
+                          .category(current.getCategory())
+                          .asset(current.getAsset())
+                          .balance(newBalance)
+                          .available(current.getAvailable())
+                          .reserved(newReserved)
+                          .version(current.safeVersion() + 1)
+                          .createdAt(current.getCreatedAt())
+                          .build();
+    }
     
 
     @Transactional(rollbackFor = Exception.class)
@@ -435,7 +468,10 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
                                    Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReservedUsed));
         }
-        UserAccount settledAccount = userSpot.applyTradeSettlement(totalReservedUsed, feeRefund);
+        UserAccount spotAfterMargin = applyReservedOut(userSpot, marginPortion);
+        UserAccount spotAfterFee = applyReservedOut(spotAfterMargin, feeReservedPortion);
+        UserAccount settledAccount =
+                feeRefund.signum() > 0 ? spotAfterFee.apply(Direction.DEBIT, feeRefund) : spotAfterFee;
         UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginPortion);
         UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
         UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
@@ -459,7 +495,7 @@ public class AccountTransactionDomainService {
                 "Margin allocated to isolated account",
                 event.executedAt());
         UserJournal marginOutJournal = buildUserJournal(
-                settledAccount,
+                spotAfterMargin,
                 Direction.CREDIT,
                 marginPortion,
                 ReferenceType.TRADE_MARGIN_SETTLED,
@@ -467,7 +503,7 @@ public class AccountTransactionDomainService {
                 "Margin transferred from spot",
                 event.executedAt());
         UserJournal feeJournal = buildUserJournal(
-                settledAccount,
+                spotAfterFee,
                 Direction.CREDIT,
                 actualFee,
                 ReferenceType.TRADE_FEE,
@@ -558,7 +594,6 @@ public class AccountTransactionDomainService {
         BigDecimal contractMultiplier = requireContractSize(event.instrumentId());
         BigDecimal marginUsed = event.price().multiply(event.quantity()).multiply(contractMultiplier);
         BigDecimal actualFee = event.feeCharged();
-        BigDecimal totalUsed = marginUsed.add(actualFee);
 
         UserAccount userMargin = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.MARGIN, event.instrumentId(), asset);
         UserAccount userFeeExpense = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EXPENSE, null, asset);
@@ -567,7 +602,8 @@ public class AccountTransactionDomainService {
         PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
         PlatformAccount platformFeeEquity = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
         
-        UserAccount updatedSpot = userSpot.applyAllowNegative(Direction.CREDIT, totalUsed);
+        UserAccount spotAfterMargin = userSpot.applyAllowNegative(Direction.CREDIT, marginUsed);
+        UserAccount updatedSpot = spotAfterMargin.applyAllowNegative(Direction.CREDIT, actualFee);
         UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginUsed);
         UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
         UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
@@ -592,7 +628,7 @@ public class AccountTransactionDomainService {
                 "Margin allocated by close-to-open compensation",
                 event.executedAt());
         UserJournal marginOutJournal = buildUserJournal(
-                updatedSpot,
+                spotAfterMargin,
                 Direction.CREDIT,
                 marginUsed,
                 ReferenceType.TRADE_MARGIN_SETTLED,
