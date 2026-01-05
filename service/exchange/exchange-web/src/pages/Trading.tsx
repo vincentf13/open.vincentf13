@@ -17,6 +17,7 @@ import {
   getJournalsByReference,
   getBalanceSheet,
   getPlatformAccounts,
+  getPlatformAccountJournals,
   type AccountBalanceSheetResponse,
   type AccountBalanceItem,
   type AccountJournalResponse,
@@ -25,6 +26,7 @@ import {
   type PlatformJournalItem,
   type PlatformAccountResponse,
   type PlatformAccountItem,
+  type PlatformAccountJournalResponse,
 } from '../api/account';
 import Header from '../components/trading/Header';
 import Chart from '../components/trading/Chart';
@@ -60,6 +62,11 @@ export default function Trading() {
   const balanceSheetAnchorRef = useRef<HTMLDivElement | null>(null);
   const [balanceSheetMaxHeight, setBalanceSheetMaxHeight] = useState<number | null>(null);
   const [balanceSheetBottomOffset, setBalanceSheetBottomOffset] = useState<number | null>(null);
+  const [platformAccountJournalOpen, setPlatformAccountJournalOpen] = useState(false);
+  const [platformAccountJournalLoading, setPlatformAccountJournalLoading] = useState(false);
+  const [platformAccountJournalError, setPlatformAccountJournalError] = useState<string | null>(null);
+  const [platformAccountJournalData, setPlatformAccountJournalData] = useState<PlatformAccountJournalResponse | null>(null);
+  const [selectedPlatformAccountId, setSelectedPlatformAccountId] = useState<number | null>(null);
   const [accountJournalOpen, setAccountJournalOpen] = useState(false);
   const [accountJournalLoading, setAccountJournalLoading] = useState(false);
   const [accountJournalError, setAccountJournalError] = useState<string | null>(null);
@@ -71,6 +78,7 @@ export default function Trading() {
   const [referenceJournalData, setReferenceJournalData] = useState<AccountReferenceJournalResponse | null>(null);
   const accountJournalRef = useRef<HTMLDivElement | null>(null);
   const referenceJournalRef = useRef<HTMLDivElement | null>(null);
+  const platformAccountJournalRef = useRef<HTMLDivElement | null>(null);
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -118,6 +126,7 @@ export default function Trading() {
     setBalanceSheetOpen(false);
     setAccountJournalOpen(false);
     setReferenceJournalOpen(false);
+    setPlatformAccountJournalOpen(false);
     setBalanceSheetMaxHeight(null);
     setBalanceSheetBottomOffset(null);
   };
@@ -130,6 +139,7 @@ export default function Trading() {
     setAccountJournalError(null);
     setAccountJournalData(null);
     setReferenceJournalOpen(false);
+    setPlatformAccountJournalOpen(false);
     setAccountJournalLoading(true);
     getAccountJournals(accountId)
       .then((result) => {
@@ -152,6 +162,41 @@ export default function Trading() {
     setAccountJournalOpen(false);
     setSelectedAccountId(null);
     setReferenceJournalOpen(false);
+    setPlatformAccountJournalOpen(false);
+  };
+
+  const handleOpenPlatformAccountJournal = (accountId: number) => {
+    if (!Number.isFinite(accountId)) {
+      return;
+    }
+    setSelectedPlatformAccountId(accountId);
+    setPlatformAccountJournalOpen(true);
+    setPlatformAccountJournalError(null);
+    setPlatformAccountJournalData(null);
+    setPlatformAccountJournalLoading(true);
+    setAccountJournalOpen(false);
+    setReferenceJournalOpen(false);
+    getPlatformAccountJournals(accountId)
+      .then((result) => {
+        if (String(result?.code) !== '0') {
+          setPlatformAccountJournalError(result?.message || 'Failed to load platform account journals.');
+          setPlatformAccountJournalData(null);
+          return;
+        }
+        setPlatformAccountJournalData(result?.data ?? null);
+      })
+      .catch(() => {
+        setPlatformAccountJournalError('Failed to load platform account journals.');
+        setPlatformAccountJournalData(null);
+      })
+      .finally(() => {
+        setPlatformAccountJournalLoading(false);
+      });
+  };
+
+  const handleClosePlatformAccountJournal = () => {
+    setPlatformAccountJournalOpen(false);
+    setSelectedPlatformAccountId(null);
   };
 
   const normalizeReferenceId = (value?: string | null) => {
@@ -175,6 +220,7 @@ export default function Trading() {
     setReferenceJournalError(null);
     setReferenceJournalData(null);
     setReferenceJournalLoading(true);
+    setPlatformAccountJournalOpen(false);
     getJournalsByReference(referenceType, prefix)
       .then((result) => {
         if (String(result?.code) !== '0') {
@@ -316,7 +362,19 @@ export default function Trading() {
             <tbody className="divide-y divide-white/40">
               {rows.map((item, index) => (
                 <tr key={`${item?.accountId ?? index}-${item?.asset ?? 'asset'}`}>
-                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
+                    {item?.accountId != null ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPlatformAccountJournal(Number(item.accountId))}
+                        className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
+                      >
+                        {String(item.accountId)}
+                      </button>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                   <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountCode ?? '-')}</td>
                   <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountName ?? '-')}</td>
                   <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
@@ -451,7 +509,7 @@ export default function Trading() {
   }, [balanceSheetOpen]);
 
   useEffect(() => {
-    if (!accountJournalOpen && !referenceJournalOpen) {
+    if (!accountJournalOpen && !referenceJournalOpen && !platformAccountJournalOpen) {
       return;
     }
     const handleDocumentClick = (event: MouseEvent) => {
@@ -461,9 +519,17 @@ export default function Trading() {
       }
       const insideAccount = accountJournalRef.current?.contains(target);
       const insideReference = referenceJournalRef.current?.contains(target);
+      const insidePlatform = platformAccountJournalRef.current?.contains(target);
       if (referenceJournalOpen) {
         if (!insideReference) {
           setReferenceJournalOpen(false);
+        }
+        return;
+      }
+      if (platformAccountJournalOpen) {
+        if (!insidePlatform) {
+          setPlatformAccountJournalOpen(false);
+          setSelectedPlatformAccountId(null);
         }
         return;
       }
@@ -476,7 +542,7 @@ export default function Trading() {
     return () => {
       document.removeEventListener('mousedown', handleDocumentClick);
     };
-  }, [accountJournalOpen, referenceJournalOpen]);
+  }, [accountJournalOpen, referenceJournalOpen, platformAccountJournalOpen]);
 
   useEffect(() => {
     if (!balanceSheetOpen) {
@@ -684,6 +750,38 @@ export default function Trading() {
                                       </div>
                                     )}
                                   </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {platformAccountJournalOpen && (
+                          <div className="absolute left-4 top-4 z-50 w-max max-w-none">
+                            <div
+                              ref={platformAccountJournalRef}
+                              className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                  Platform Journals
+                                </div>
+                                <button
+                                  type="button"
+                                  className="h-6 w-6 rounded-full border border-white/60 bg-white/70 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-white transition-all"
+                                  onClick={handleClosePlatformAccountJournal}
+                                >
+                                  X
+                                </button>
+                              </div>
+                              {platformAccountJournalLoading && (
+                                <div className="text-xs text-slate-400">Loading...</div>
+                              )}
+                              {platformAccountJournalError && (
+                                <div className="text-xs text-rose-500">{platformAccountJournalError}</div>
+                              )}
+                              {!platformAccountJournalLoading && !platformAccountJournalError && (
+                                <div className="max-h-[50vh] overflow-auto pr-1">
+                                  {renderPlatformJournalRows(platformAccountJournalData?.journals)}
                                 </div>
                               )}
                             </div>

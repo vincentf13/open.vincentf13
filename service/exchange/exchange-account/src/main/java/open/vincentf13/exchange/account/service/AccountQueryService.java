@@ -18,6 +18,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountReferenceJournalResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformAccountItem;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformAccountJournalResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformAccountResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformJournalItem;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
@@ -127,6 +128,16 @@ public class AccountQueryService {
         List<PlatformAccountItem> expenses = grouped.getOrDefault(AccountCategory.EXPENSE, List.of());
         List<PlatformAccountItem> revenue = grouped.getOrDefault(AccountCategory.REVENUE, List.of());
         return new PlatformAccountResponse(Instant.now(), assets, liabilities, equity, expenses, revenue);
+    }
+
+    public PlatformAccountJournalResponse getPlatformAccountJournals(@NotNull Long accountId) {
+        List<PlatformJournal> journals = platformJournalRepository.findByAccountId(accountId);
+        List<PlatformJournalItem> items = journals.stream()
+                                                  .map(item -> OpenObjectMapper.convert(item, PlatformJournalItem.class))
+                                                  .filter(Objects::nonNull)
+                                                  .toList();
+        Instant snapshotAt = journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
+        return new PlatformAccountJournalResponse(accountId, snapshotAt, items);
     }
 
     private String normalizeReferencePrefix(String referenceId) {

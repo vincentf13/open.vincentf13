@@ -49,4 +49,8 @@ public interface AccountApi {
     @GetMapping("/platform-accounts")
     @Jwt
     OpenApiResponse<PlatformAccountResponse> getPlatformAccounts();
+
+    @GetMapping("/platform-accounts/journals")
+    @Jwt
+    OpenApiResponse<PlatformAccountJournalResponse> getPlatformAccountJournals(@RequestParam("accountId") @NotNull Long accountId);
 }

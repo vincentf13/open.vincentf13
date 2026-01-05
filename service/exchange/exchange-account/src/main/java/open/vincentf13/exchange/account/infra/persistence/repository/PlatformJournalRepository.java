@@ -51,4 +51,14 @@ public class PlatformJournalRepository {
                      .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class))
                      .toList();
     }
+
+    public List<PlatformJournal> findByAccountId(@NotNull Long accountId) {
+        var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()
+                .eq(PlatformJournalPO::getAccountId, accountId)
+                .orderByDesc(PlatformJournalPO::getEventTime);
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class))
+                     .toList();
+    }
 }

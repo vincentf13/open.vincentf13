@@ -144,3 +144,16 @@ export const getPlatformAccounts = async () => {
   const response = await apiClient.get('/account/api/account/platform-accounts');
   return response.data;
 };
+
+export type PlatformAccountJournalResponse = {
+  accountId: number;
+  snapshotAt: string;
+  journals: PlatformJournalItem[];
+};
+
+export const getPlatformAccountJournals = async (accountId: number) => {
+  const response = await apiClient.get('/account/api/account/platform-accounts/journals', {
+    params: { accountId },
+  });
+  return response.data;
+};
