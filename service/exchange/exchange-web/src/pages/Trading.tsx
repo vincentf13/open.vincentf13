@@ -220,7 +220,6 @@ export default function Trading() {
     setReferenceJournalError(null);
     setReferenceJournalData(null);
     setReferenceJournalLoading(true);
-    setPlatformAccountJournalOpen(false);
     getJournalsByReference(referenceType, prefix)
       .then((result) => {
         if (String(result?.code) !== '0') {
@@ -329,7 +328,19 @@ export default function Trading() {
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.direction ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.balanceAfter ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
-              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceId ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
+                {item?.referenceId ? (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
+                    className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
+                  >
+                    {String(item.referenceId)}
+                  </button>
+                ) : (
+                  '-'
+                )}
+              </td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
@@ -782,6 +793,41 @@ export default function Trading() {
                               {!platformAccountJournalLoading && !platformAccountJournalError && (
                                 <div className="max-h-[50vh] overflow-auto pr-1">
                                   {renderPlatformJournalRows(platformAccountJournalData?.journals)}
+                                </div>
+                              )}
+                              {referenceJournalOpen && (
+                                <div className="absolute left-6 top-6 z-50 w-max max-w-none">
+                                  <div
+                                    ref={referenceJournalRef}
+                                    className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
+                                  >
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                        Reference Journals
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="h-6 w-6 rounded-full border border-white/60 bg-white/70 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-white transition-all"
+                                        onClick={handleCloseReferenceJournals}
+                                      >
+                                        X
+                                      </button>
+                                    </div>
+                                    {referenceJournalLoading && (
+                                      <div className="text-xs text-slate-400">Loading...</div>
+                                    )}
+                                    {referenceJournalError && (
+                                      <div className="text-xs text-rose-500">{referenceJournalError}</div>
+                                    )}
+                                    {!referenceJournalLoading && !referenceJournalError && (
+                                      <div className="max-h-[50vh] overflow-auto pr-1">
+                                        <div className="text-[10px] font-semibold text-slate-600 mb-2">Account Journals</div>
+                                        {renderJournalRows(referenceJournalData?.accountJournals)}
+                                        <div className="text-[10px] font-semibold text-slate-600 mt-4 mb-2">Platform Journals</div>
+                                        {renderPlatformJournalRows(referenceJournalData?.platformJournals)}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>
