@@ -1043,11 +1043,14 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                         {column.label}
                                       </th>
                                     ))}
-                                    {positionPayloadKeys.map((key) => (
-                                      <th key={key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                                        {key}
-                                      </th>
-                                    ))}
+                                      {positionPayloadKeys.map((key) => (
+                                        <th
+                                          key={key}
+                                          className="py-2 px-2 font-semibold text-right whitespace-nowrap normal-case"
+                                        >
+                                          {key}
+                                        </th>
+                                      ))}
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/10">
@@ -1244,7 +1247,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                         </th>
                                       ))}
                                       {orderPayloadKeys.map((key) => (
-                                        <th key={key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                        <th
+                                          key={key}
+                                          className="py-2 px-2 font-semibold text-right whitespace-nowrap normal-case"
+                                        >
                                           {key}
                                         </th>
                                       ))}
