@@ -128,8 +128,11 @@ public class OrderPrecheckService {
         // 計算模擬權益
         BigDecimal simulatedEquity = snapshot.getMargin()
                                              .add(snapshot.getUnrealizedPnl())
-                                             .add(requiredMargin)
-                                             .subtract(fee);
+                                             .add(requiredMargin);
+                                             // 權益模擬不扣手續費
+                                             // 避免第一次開倉時，若初始保證金/維持保證金率 都設定 X%， 扣掉手續費後 模擬保證金低於 X%，誤認為開倉就爆倉而被風控的情況。
+                                             // 後續凍結資金時，若餘額不足會自動擋下。
+                                             //.subtract(fee);
         
         // 計算模擬名義價值
         BigDecimal currentNotional = snapshot.getQuantity()
