@@ -30,6 +30,11 @@ public class PositionEventRepository {
         if (event.getEventId() == null) {
             event.setEventId(idGenerator.newLong());
         }
+        if (event.getSequenceNumber() == null) {
+            Long current = mapper.selectMaxSequenceForUpdate(event.getPositionId());
+            long nextSequence = current == null ? 1L : current + 1L;
+            event.setSequenceNumber(nextSequence);
+        }
         PositionEventPO po = OpenObjectMapper.convert(event, PositionEventPO.class);
         mapper.insert(po);
     }

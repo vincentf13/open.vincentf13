@@ -9,7 +9,6 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
@@ -31,44 +30,14 @@ public class PositionEvent {
     @NotNull
     private PositionEventType eventType;
 
-    @NotNull
-    private BigDecimal deltaQuantity;
+    private Long sequenceNumber;
 
     @NotNull
-    private BigDecimal deltaMargin;
-
-    @NotNull
-    private BigDecimal realizedPnl;
-
-    @NotNull
-    private BigDecimal tradeFee;
-
-    @NotNull
-    private BigDecimal fundingFee;
-
-    @NotNull
-    private BigDecimal newQuantity;
-
-    @NotNull
-    private BigDecimal newEntryPrice;
-
-    @NotNull
-    private Integer newLeverage;
-
-    @NotNull
-    private BigDecimal newMargin;
-
-    @NotNull
-    private BigDecimal newUnrealizedPnl;
-
-    @NotNull
-    private BigDecimal newLiquidationPrice;
+    private String payload;
 
     private String referenceId;
     @NotNull
     private PositionReferenceType referenceType;
-
-    private String metadata; // JSON string
 
     @NotNull
     private Instant occurredAt;
@@ -79,17 +48,7 @@ public class PositionEvent {
                                                   Long userId,
                                                   Long instrumentId,
                                                   PositionEventType eventType,
-                                                  BigDecimal deltaQuantity,
-                                                  BigDecimal deltaMargin,
-                                                  BigDecimal realizedPnl,
-                                                  BigDecimal tradeFee,
-                                                  BigDecimal fundingFee,
-                                                  BigDecimal newQuantity,
-                                                  BigDecimal newEntryPrice,
-                                                  Integer newLeverage,
-                                                  BigDecimal newMargin,
-                                                  BigDecimal newUnrealizedPnl,
-                                                  BigDecimal newLiquidationPrice,
+                                                  String payload,
                                                   OrderSide side,
                                                   Long tradeId,
                                                   Instant occurredAt,
@@ -103,20 +62,10 @@ public class PositionEvent {
                 .userId(userId)
                 .instrumentId(instrumentId)
                 .eventType(eventType)
-                .deltaQuantity(deltaQuantity)
-                .deltaMargin(deltaMargin)
-                .realizedPnl(realizedPnl)
-                .tradeFee(tradeFee)
-                .fundingFee(fundingFee)
-                .newQuantity(newQuantity)
-                .newEntryPrice(newEntryPrice)
-                .newLeverage(newLeverage)
-                .newMargin(newMargin)
-                .newUnrealizedPnl(newUnrealizedPnl)
-                .newLiquidationPrice(newLiquidationPrice)
+                .sequenceNumber(null)
+                .payload(payload == null ? "{}" : payload)
                 .referenceId(baseId)
                 .referenceType(PositionReferenceType.TRADE)
-                .metadata("{}")
                 .occurredAt(occurredAt)
                 .build();
     }

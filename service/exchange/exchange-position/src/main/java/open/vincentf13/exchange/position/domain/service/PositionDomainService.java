@@ -225,22 +225,13 @@ public class PositionDomainService {
                 }
             }
             
+            String payload = Position.buildPayload(position, updatedPosition);
             PositionEvent event = PositionEvent.createTradeEvent(
                     updatedPosition.getPositionId(),
                     userId,
                     instrumentId,
                     existingQuantity.compareTo(BigDecimal.ZERO) == 0 ? PositionEventType.POSITION_OPENED : PositionEventType.POSITION_INCREASED,
-                    quantity,
-                    marginUsed,
-                    BigDecimal.ZERO,
-                    feeDelta,
-                    BigDecimal.ZERO,
-                    updatedPosition.getQuantity(),
-                    updatedPosition.getEntryPrice(),
-                    updatedPosition.getLeverage(),
-                    updatedPosition.getMargin(),
-                    updatedPosition.getUnrealizedPnl(),
-                    updatedPosition.getLiquidationPrice(),
+                    payload,
                     orderSide,
                     tradeId,
                     executedAt,
@@ -422,22 +413,13 @@ public class PositionDomainService {
             }
         }
 
+        String payload = Position.buildPayload(position, updatedPosition);
         PositionEvent event = PositionEvent.createTradeEvent(
                 updatedPosition.getPositionId(),
                 userId,
                 instrumentId,
                 newQuantity.compareTo(BigDecimal.ZERO) == 0 ? PositionEventType.POSITION_CLOSED : PositionEventType.POSITION_DECREASED,
-                quantity.negate(),
-                marginToRelease.negate(),
-                pnl,
-                feeDelta,
-                BigDecimal.ZERO,
-                updatedPosition.getQuantity(),
-                updatedPosition.getEntryPrice(),
-                updatedPosition.getLeverage(),
-                updatedPosition.getMargin(),
-                updatedPosition.getUnrealizedPnl(),
-                updatedPosition.getLiquidationPrice(),
+                payload,
                 orderSide,
                 tradeId,
                 executedAt,
@@ -538,4 +520,5 @@ public class PositionDomainService {
     private BigDecimal safe(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
     }
+
 }

@@ -8,9 +8,13 @@ import lombok.NoArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
 @Data
 @Builder
@@ -108,5 +112,46 @@ public class Position {
         }
         BigDecimal current = quantity == null ? BigDecimal.ZERO : quantity;
         return current.compareTo(requested) > 0 ? PositionIntentType.REDUCE : PositionIntentType.CLOSE;
+    }
+
+    public static String buildPayload(Position before,
+                                      Position after) {
+        Position baseline = (before == null || before.getPositionId() == null) ? new Position() : before;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        appendPayload(payload, "positionId", baseline.getPositionId(), after.getPositionId());
+        appendPayload(payload, "userId", baseline.getUserId(), after.getUserId());
+        appendPayload(payload, "instrumentId", baseline.getInstrumentId(), after.getInstrumentId());
+        appendPayload(payload, "leverage", baseline.getLeverage(), after.getLeverage());
+        appendPayload(payload, "margin", baseline.getMargin(), after.getMargin());
+        appendPayload(payload, "side",
+                baseline.getSide() != null ? baseline.getSide().name() : null,
+                after.getSide() != null ? after.getSide().name() : null);
+        appendPayload(payload, "entryPrice", baseline.getEntryPrice(), after.getEntryPrice());
+        appendPayload(payload, "quantity", baseline.getQuantity(), after.getQuantity());
+        appendPayload(payload, "closingReservedQuantity", baseline.getClosingReservedQuantity(), after.getClosingReservedQuantity());
+        appendPayload(payload, "markPrice", baseline.getMarkPrice(), after.getMarkPrice());
+        appendPayload(payload, "marginRatio", baseline.getMarginRatio(), after.getMarginRatio());
+        appendPayload(payload, "unrealizedPnl", baseline.getUnrealizedPnl(), after.getUnrealizedPnl());
+        appendPayload(payload, "liquidationPrice", baseline.getLiquidationPrice(), after.getLiquidationPrice());
+        appendPayload(payload, "cumRealizedPnl", baseline.getCumRealizedPnl(), after.getCumRealizedPnl());
+        appendPayload(payload, "cumFee", baseline.getCumFee(), after.getCumFee());
+        appendPayload(payload, "cumFundingFee", baseline.getCumFundingFee(), after.getCumFundingFee());
+        appendPayload(payload, "status",
+                baseline.getStatus() != null ? baseline.getStatus().name() : null,
+                after.getStatus() != null ? after.getStatus().name() : null);
+        appendPayload(payload, "version", baseline.getVersion(), after.getVersion());
+        appendPayload(payload, "createdAt", baseline.getCreatedAt(), after.getCreatedAt());
+        appendPayload(payload, "updatedAt", baseline.getUpdatedAt(), after.getUpdatedAt());
+        appendPayload(payload, "closedAt", baseline.getClosedAt(), after.getClosedAt());
+        return OpenObjectMapper.toJson(payload);
+    }
+
+    private static void appendPayload(Map<String, Object> payload,
+                                      String key,
+                                      Object before,
+                                      Object after) {
+        if (!Objects.equals(before, after)) {
+            payload.put(key, after);
+        }
     }
 }

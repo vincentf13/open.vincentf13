@@ -7,7 +7,6 @@ import lombok.Data;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
@@ -19,21 +18,10 @@ public class PositionEventPO {
     private Long userId;
     private Long instrumentId;
     private PositionEventType eventType;
-    private BigDecimal deltaQuantity;
-    private BigDecimal deltaMargin;
-    private BigDecimal realizedPnl;
-    private BigDecimal tradeFee;
-    private BigDecimal fundingFee;
-    private BigDecimal newQuantity;
-    private BigDecimal newReservedQuantity;
-    private BigDecimal newEntryPrice;
-    private Integer newLeverage;
-    private BigDecimal newMargin;
-    private BigDecimal newUnrealizedPnl;
-    private BigDecimal newLiquidationPrice;
+    private Long sequenceNumber;
+    private String payload;
     private String referenceId;
     private PositionReferenceType referenceType;
-    private String metadata; // JSON
     private Instant occurredAt;
     private Instant createdAt;
 }
