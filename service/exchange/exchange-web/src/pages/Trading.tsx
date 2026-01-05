@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Tooltip } from 'antd';
 
 import GlassLayout from '../components/layout/GlassLayout';
@@ -60,6 +60,8 @@ export default function Trading() {
   const [referenceJournalLoading, setReferenceJournalLoading] = useState(false);
   const [referenceJournalError, setReferenceJournalError] = useState<string | null>(null);
   const [referenceJournalData, setReferenceJournalData] = useState<AccountReferenceJournalResponse | null>(null);
+  const accountJournalRef = useRef<HTMLDivElement | null>(null);
+  const referenceJournalRef = useRef<HTMLDivElement | null>(null);
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -203,7 +205,7 @@ export default function Trading() {
                   <button
                     type="button"
                     onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
-                    className="text-slate-700 hover:text-blue-600 underline decoration-dotted underline-offset-2"
+                    className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
                   >
                     {String(item.referenceId)}
                   </button>
@@ -292,7 +294,7 @@ export default function Trading() {
                       <button
                         type="button"
                         onClick={() => handleOpenAccountJournal(Number(item.accountId))}
-                        className="text-slate-700 hover:text-blue-600 underline decoration-dotted underline-offset-2"
+                        className="text-sky-500 hover:text-sky-600 underline decoration-dotted underline-offset-2"
                       >
                         {String(item.accountId)}
                       </button>
@@ -350,6 +352,34 @@ export default function Trading() {
       setRefreshTrigger((prev) => prev + 1);
     }
   }, []);
+
+  useEffect(() => {
+    if (!accountJournalOpen && !referenceJournalOpen) {
+      return;
+    }
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) {
+        return;
+      }
+      const insideAccount = accountJournalRef.current?.contains(target);
+      const insideReference = referenceJournalRef.current?.contains(target);
+      if (referenceJournalOpen) {
+        if (!insideReference) {
+          setReferenceJournalOpen(false);
+        }
+        return;
+      }
+      if (accountJournalOpen && !insideAccount) {
+        setAccountJournalOpen(false);
+        setSelectedAccountId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentClick);
+    };
+  }, [accountJournalOpen, referenceJournalOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -467,7 +497,10 @@ export default function Trading() {
                         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border border-white/70 bg-white/95" />
                         {accountJournalOpen && (
                           <div className="absolute left-4 top-4 z-50 w-max max-w-none">
-                            <div className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
+                            <div
+                              ref={accountJournalRef}
+                              className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
+                            >
                               <div className="flex items-center justify-between mb-3">
                                 <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                                   Account Journals
@@ -493,7 +526,10 @@ export default function Trading() {
                               )}
                               {referenceJournalOpen && (
                                 <div className="absolute left-full top-0 ml-3 z-50 w-max max-w-none">
-                                  <div className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
+                                  <div
+                                    ref={referenceJournalRef}
+                                    className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
+                                  >
                                     <div className="flex items-center justify-between mb-3">
                                       <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                                         Reference Journals
