@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Tooltip } from 'antd';
 import { createOrder, type OrderSide, type OrderType } from '../../api/order';
 import type { InstrumentSummary } from '../../api/instrument';
 
@@ -13,6 +14,8 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
   const [price, setPrice] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [amountTooltipHovered, setAmountTooltipHovered] = useState(false);
+  const [amountTooltipFocused, setAmountTooltipFocused] = useState(false);
 
   // Reset form when instrument changes
   useEffect(() => {
@@ -137,32 +140,52 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
         </div>
 
         {/* Quantity Input */}
-        <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</label>
-            <div className="liquid-input-group">
-                <input
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="flex-1 bg-transparent border-none outline-none py-2 pl-3 pr-1 text-right font-mono min-w-0"
-                  placeholder="0.00"
-                />
-                <div className="flex items-center justify-start w-[52px] pl-2 border-l border-white/20 bg-white/5">
-                  <span className="text-xs text-slate-400 font-medium whitespace-nowrap select-none">
-                    {instrument?.baseAsset || ''}
-                  </span>
-                </div>
+        <Tooltip
+          title={(
+            <div className="text-xs">
+              <div className="whitespace-nowrap">Amount * contract size 會是最終下單的 Quantity，用於提升系統內部浮點數運算效率。</div>
+              <div className="whitespace-nowrap">下單若是開倉將以 Taker Fee 預留手續費，結算時若為 Maker 將會退回差額。</div>
+              <div className="whitespace-nowrap">Amount * contract size becomes the final order Quantity to improve internal floating-point efficiency.</div>
+              <div className="whitespace-nowrap">For opening orders, a taker fee is reserved; if filled as maker, the fee difference is refunded on settlement.</div>
             </div>
-            <div className="text-[11px] text-slate-400 text-right pr-2">
-              Contract Size: {instrument?.contractSize ?? '--'}
-            </div>
-            <div className="text-[11px] text-slate-400 text-right pr-2">
-              Quantity: {instrument ? displayNormalizedQuantity : '--'}
-            </div>
-            <div className="text-[11px] text-slate-400 text-right pr-2">
-              Estimated Fee: {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
-            </div>
-        </div>
+          )}
+          overlayStyle={{ maxWidth: 'none' }}
+          overlayInnerStyle={{ maxWidth: 'none' }}
+          open={amountTooltipHovered || amountTooltipFocused}
+        >
+          <div
+            className="space-y-1.5"
+            onMouseEnter={() => setAmountTooltipHovered(true)}
+            onMouseLeave={() => setAmountTooltipHovered(false)}
+          >
+              <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</label>
+              <div className="liquid-input-group">
+                  <input
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    onFocus={() => setAmountTooltipFocused(true)}
+                    onBlur={() => setAmountTooltipFocused(false)}
+                    className="flex-1 bg-transparent border-none outline-none py-2 pl-3 pr-1 text-right font-mono min-w-0"
+                    placeholder="0.00"
+                  />
+                  <div className="flex items-center justify-start w-[52px] pl-2 border-l border-white/20 bg-white/5">
+                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap select-none">
+                      {instrument?.baseAsset || ''}
+                    </span>
+                  </div>
+              </div>
+              <div className="text-[11px] text-slate-400 text-right pr-2">
+                Contract Size: {instrument?.contractSize ?? '--'}
+              </div>
+              <div className="text-[11px] text-slate-400 text-right pr-2">
+                Quantity: {instrument ? displayNormalizedQuantity : '--'}
+              </div>
+              <div className="text-[11px] text-slate-400 text-right pr-2">
+                Estimated Fee: {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
+              </div>
+          </div>
+        </Tooltip>
 
         {/* Total Value */}
         <div className="space-y-2 pt-2">

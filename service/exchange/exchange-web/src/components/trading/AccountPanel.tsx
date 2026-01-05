@@ -175,6 +175,14 @@ export default function AccountPanel({ refreshTrigger }: AccountPanelProps) {
             {formatAmountWithAsset(balances.reserved, balances.asset)}
           </span>
         </div>
+        <div className="flex justify-start">
+          <button
+            type="button"
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/30 bg-white/20 hover:bg-white/40 text-slate-600 hover:text-slate-800 transition-all active:scale-95"
+          >
+            Balance Sheet
+          </button>
+        </div>
       </div>
 
       <Modal
