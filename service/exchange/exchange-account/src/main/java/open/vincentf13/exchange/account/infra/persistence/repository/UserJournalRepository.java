@@ -79,4 +79,21 @@ public class UserJournalRepository {
                      .map(po -> OpenObjectMapper.convert(po, UserJournal.class))
                      .toList();
     }
+
+    public List<UserJournal> findByReference(@NotNull Long userId,
+                                             @NotNull ReferenceType referenceType,
+                                             @NotNull String referenceIdPrefix) {
+        if (referenceIdPrefix.isBlank()) {
+            return List.of();
+        }
+        var wrapper = Wrappers.<UserJournalPO>lambdaQuery()
+                .eq(UserJournalPO::getUserId, userId)
+                .eq(UserJournalPO::getReferenceType, referenceType)
+                .likeRight(UserJournalPO::getReferenceId, referenceIdPrefix)
+                .orderByDesc(UserJournalPO::getEventTime);
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .map(po -> OpenObjectMapper.convert(po, UserJournal.class))
+                     .toList();
+    }
 }

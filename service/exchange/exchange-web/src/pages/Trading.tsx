@@ -14,11 +14,14 @@ import {
 import { resetSystemData } from '../api/admin';
 import {
   getAccountJournals,
+  getJournalsByReference,
   getBalanceSheet,
   type AccountBalanceSheetResponse,
   type AccountBalanceItem,
   type AccountJournalResponse,
   type AccountJournalItem,
+  type AccountReferenceJournalResponse,
+  type PlatformJournalItem,
 } from '../api/account';
 import Header from '../components/trading/Header';
 import Chart from '../components/trading/Chart';
@@ -53,6 +56,10 @@ export default function Trading() {
   const [accountJournalError, setAccountJournalError] = useState<string | null>(null);
   const [accountJournalData, setAccountJournalData] = useState<AccountJournalResponse | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [referenceJournalOpen, setReferenceJournalOpen] = useState(false);
+  const [referenceJournalLoading, setReferenceJournalLoading] = useState(false);
+  const [referenceJournalError, setReferenceJournalError] = useState<string | null>(null);
+  const [referenceJournalData, setReferenceJournalData] = useState<AccountReferenceJournalResponse | null>(null);
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -81,6 +88,7 @@ export default function Trading() {
   const handleCloseBalanceSheet = () => {
     setBalanceSheetOpen(false);
     setAccountJournalOpen(false);
+    setReferenceJournalOpen(false);
   };
   const handleOpenAccountJournal = (accountId: number) => {
     if (!Number.isFinite(accountId)) {
@@ -90,6 +98,7 @@ export default function Trading() {
     setAccountJournalOpen(true);
     setAccountJournalError(null);
     setAccountJournalData(null);
+    setReferenceJournalOpen(false);
     setAccountJournalLoading(true);
     getAccountJournals(accountId)
       .then((result) => {
@@ -111,6 +120,49 @@ export default function Trading() {
   const handleCloseAccountJournal = () => {
     setAccountJournalOpen(false);
     setSelectedAccountId(null);
+    setReferenceJournalOpen(false);
+  };
+
+  const normalizeReferenceId = (value?: string | null) => {
+    if (!value) {
+      return null;
+    }
+    const prefix = value.split(':')[0].trim();
+    const digits = prefix.replace(/\D/g, '');
+    return digits || null;
+  };
+
+  const handleOpenReferenceJournals = (referenceType?: string | null, referenceId?: string | null) => {
+    if (!referenceType || !referenceId) {
+      return;
+    }
+    const prefix = normalizeReferenceId(referenceId);
+    if (!prefix) {
+      return;
+    }
+    setReferenceJournalOpen(true);
+    setReferenceJournalError(null);
+    setReferenceJournalData(null);
+    setReferenceJournalLoading(true);
+    getJournalsByReference(referenceType, prefix)
+      .then((result) => {
+        if (String(result?.code) !== '0') {
+          setReferenceJournalError(result?.message || 'Failed to load reference journals.');
+          setReferenceJournalData(null);
+          return;
+        }
+        setReferenceJournalData(result?.data ?? null);
+      })
+      .catch(() => {
+        setReferenceJournalError('Failed to load reference journals.');
+        setReferenceJournalData(null);
+      })
+      .finally(() => {
+        setReferenceJournalLoading(false);
+      });
+  };
+  const handleCloseReferenceJournals = () => {
+    setReferenceJournalOpen(false);
   };
 
   const renderJournalRows = (items?: AccountJournalItem[]) => {
@@ -139,6 +191,60 @@ export default function Trading() {
             <tr key={`${item?.journalId ?? index}-${item?.referenceId ?? 'ref'}`}>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.journalId ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.userId ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.amount ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.direction ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.balanceAfter ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.referenceType ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">
+                {item?.referenceId ? (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)}
+                    className="text-slate-700 hover:text-blue-600 underline decoration-dotted underline-offset-2"
+                  >
+                    {String(item.referenceId)}
+                  </button>
+                ) : (
+                  '-'
+                )}
+              </td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
+  const renderPlatformJournalRows = (items?: PlatformJournalItem[]) => {
+    const rows = items && items.length > 0 ? items : [null];
+    return (
+      <table className="w-max text-[10px] text-left text-slate-600">
+        <thead>
+          <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60">
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Journal ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Account ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Category</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Asset</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Amount</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Direction</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Balance After</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reference Type</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reference ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Description</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Event Time</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Created At</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/40">
+          {rows.map((item, index) => (
+            <tr key={`${item?.journalId ?? index}-${item?.referenceId ?? 'ref'}`}>
+              <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.journalId ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.accountId ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.category ?? '-')}</td>
               <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.asset ?? '-')}</td>
@@ -364,7 +470,7 @@ export default function Trading() {
                             <div className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                  Account Journals {selectedAccountId != null ? `(Account ID: ${selectedAccountId})` : ''}
+                                  Account Journals
                                 </div>
                                 <button
                                   type="button"
@@ -383,6 +489,38 @@ export default function Trading() {
                               {!accountJournalLoading && !accountJournalError && (
                                 <div className="max-h-[50vh] overflow-auto pr-1">
                                   {renderJournalRows(accountJournalData?.journals)}
+                                </div>
+                              )}
+                              {referenceJournalOpen && (
+                                <div className="absolute left-full top-0 ml-3 z-50 w-max max-w-none">
+                                  <div className="relative rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                        Reference Journals
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="h-6 w-6 rounded-full border border-white/60 bg-white/70 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-white transition-all"
+                                        onClick={handleCloseReferenceJournals}
+                                      >
+                                        X
+                                      </button>
+                                    </div>
+                                    {referenceJournalLoading && (
+                                      <div className="text-xs text-slate-400">Loading...</div>
+                                    )}
+                                    {referenceJournalError && (
+                                      <div className="text-xs text-rose-500">{referenceJournalError}</div>
+                                    )}
+                                    {!referenceJournalLoading && !referenceJournalError && (
+                                      <div className="max-h-[50vh] overflow-auto pr-1">
+                                        <div className="text-[10px] font-semibold text-slate-600 mb-2">Account Journals</div>
+                                        {renderJournalRows(referenceJournalData?.accountJournals)}
+                                        <div className="text-[10px] font-semibold text-slate-600 mt-4 mb-2">Platform Journals</div>
+                                        {renderPlatformJournalRows(referenceJournalData?.platformJournals)}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>

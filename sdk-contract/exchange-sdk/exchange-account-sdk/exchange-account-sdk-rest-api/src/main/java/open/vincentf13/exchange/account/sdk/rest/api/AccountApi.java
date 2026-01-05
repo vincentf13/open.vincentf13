@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.*;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.sdk.auth.auth.Jwt;
 import open.vincentf13.sdk.auth.auth.PrivateAPI;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
@@ -39,4 +40,9 @@ public interface AccountApi {
     @GetMapping("/journals")
     @Jwt
     OpenApiResponse<AccountJournalResponse> getAccountJournals(@RequestParam("accountId") @NotNull Long accountId);
+
+    @GetMapping("/journals/by-reference")
+    @Jwt
+    OpenApiResponse<AccountReferenceJournalResponse> getJournalsByReference(@RequestParam("referenceType") @NotNull ReferenceType referenceType,
+                                                                            @RequestParam("referenceId") @NotBlank String referenceId);
 }

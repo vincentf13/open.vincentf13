@@ -3,6 +3,7 @@ package open.vincentf13.exchange.account.controller;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.sdk.rest.api.AccountApi;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.*;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.account.service.AccountCommandService;
 import open.vincentf13.exchange.account.service.AccountQueryService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
@@ -74,6 +75,16 @@ public class AccountController implements AccountApi {
             throw new IllegalArgumentException("Missing accountId");
         }
         return OpenApiResponse.success(accountQueryService.getAccountJournals(jwtUserId, accountId));
+    }
+
+    @Override
+    public OpenApiResponse<AccountReferenceJournalResponse> getJournalsByReference(ReferenceType referenceType,
+                                                                                   String referenceId) {
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        if (jwtUserId == null) {
+            throw new IllegalArgumentException("Missing user context");
+        }
+        return OpenApiResponse.success(accountQueryService.getJournalsByReference(jwtUserId, referenceType, referenceId));
     }
     
     

@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.account.infra.persistence.repository;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.PlatformJournal;
 import open.vincentf13.exchange.account.infra.persistence.mapper.PlatformJournalMapper;
 import open.vincentf13.exchange.account.infra.persistence.po.PlatformJournalPO;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
@@ -33,5 +35,20 @@ public class PlatformJournalRepository {
             return OpenObjectMapper.convert(record, PlatformJournalPO.class);
         }).toList();
         Db.saveBatch(pos);
+    }
+
+    public List<PlatformJournal> findByReference(@NotNull ReferenceType referenceType,
+                                                 @NotNull String referenceIdPrefix) {
+        if (referenceIdPrefix.isBlank()) {
+            return List.of();
+        }
+        var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()
+                .eq(PlatformJournalPO::getReferenceType, referenceType)
+                .likeRight(PlatformJournalPO::getReferenceId, referenceIdPrefix)
+                .orderByDesc(PlatformJournalPO::getEventTime);
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class))
+                     .toList();
     }
 }

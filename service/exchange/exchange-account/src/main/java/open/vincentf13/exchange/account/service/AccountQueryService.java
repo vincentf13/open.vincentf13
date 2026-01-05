@@ -3,8 +3,10 @@ package open.vincentf13.exchange.account.service;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.account.domain.model.PlatformJournal;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
 import open.vincentf13.exchange.account.domain.model.UserJournal;
+import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
@@ -12,7 +14,10 @@ import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalResponse;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountReferenceJournalResponse;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformJournalItem;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -33,6 +38,7 @@ public class AccountQueryService {
     
     private final UserAccountRepository userAccountRepository;
     private final UserJournalRepository userJournalRepository;
+    private final PlatformJournalRepository platformJournalRepository;
     
     public AccountBalanceResponse getBalances(@NotNull Long userId,
                                               @NotBlank String asset) {
@@ -75,5 +81,36 @@ public class AccountQueryService {
                                                  .toList();
         Instant snapshotAt = journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
         return new AccountJournalResponse(userId, accountId, snapshotAt, items);
+    }
+
+    public AccountReferenceJournalResponse getJournalsByReference(@NotNull Long userId,
+                                                                  @NotNull ReferenceType referenceType,
+                                                                  @NotNull String referenceId) {
+        String prefix = normalizeReferencePrefix(referenceId);
+        if (prefix.isBlank()) {
+            return new AccountReferenceJournalResponse(userId, referenceType, prefix, Instant.now(), List.of(), List.of());
+        }
+        List<UserJournal> accountJournals = userJournalRepository.findByReference(userId, referenceType, prefix);
+        List<AccountJournalItem> accountItems = accountJournals.stream()
+                                                               .map(item -> OpenObjectMapper.convert(item, AccountJournalItem.class))
+                                                               .filter(Objects::nonNull)
+                                                               .toList();
+        List<PlatformJournal> platformJournals = platformJournalRepository.findByReference(referenceType, prefix);
+        List<PlatformJournalItem> platformItems = platformJournals.stream()
+                                                                  .map(item -> OpenObjectMapper.convert(item, PlatformJournalItem.class))
+                                                                  .filter(Objects::nonNull)
+                                                                  .toList();
+        Instant snapshotAt = Instant.now();
+        return new AccountReferenceJournalResponse(userId, referenceType, prefix, snapshotAt, accountItems, platformItems);
+    }
+
+    private String normalizeReferencePrefix(String referenceId) {
+        if (referenceId == null) {
+            return "";
+        }
+        String trimmed = referenceId.trim();
+        int colonIndex = trimmed.indexOf(':');
+        String prefix = colonIndex >= 0 ? trimmed.substring(0, colonIndex) : trimmed;
+        return prefix.replaceAll("[^0-9]", "");
     }
 }
