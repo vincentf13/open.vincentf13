@@ -9,6 +9,7 @@ export type InstrumentSummary = {
   baseAsset?: string;
   contractSize?: number | string | null;
   takerFeeRate?: number | string | null;
+  defaultLeverage?: number | string | null;
   [key: string]: unknown;
 };
 

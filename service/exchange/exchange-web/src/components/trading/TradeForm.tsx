@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Tooltip } from 'antd';
 import { createOrder, type OrderSide, type OrderType } from '../../api/order';
 import type { InstrumentSummary } from '../../api/instrument';
+import { getRiskLimit, type RiskLimitResponse } from '../../api/risk';
 
 interface TradeFormProps {
   instrument: InstrumentSummary | null;
@@ -16,11 +17,41 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
   const [loading, setLoading] = useState(false);
   const [amountTooltipHovered, setAmountTooltipHovered] = useState(false);
   const [amountTooltipFocused, setAmountTooltipFocused] = useState(false);
+  const [riskLimit, setRiskLimit] = useState<RiskLimitResponse | null>(null);
 
   // Reset form when instrument changes
   useEffect(() => {
     setPrice('');
     setQuantity('');
+  }, [instrument?.instrumentId]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!instrument?.instrumentId) {
+      setRiskLimit(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    setRiskLimit(null);
+    getRiskLimit(instrument.instrumentId)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        if (String(response?.code) === '0') {
+          setRiskLimit(response?.data ?? null);
+        } else {
+          setRiskLimit(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRiskLimit(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [instrument?.instrumentId]);
 
   const handleSubmit = async () => {
@@ -75,7 +106,21 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
   const takerFeeRateValue = Number(instrument?.takerFeeRate);
   const takerFeeRate = Number.isFinite(takerFeeRateValue) ? takerFeeRateValue : 0;
   const estimatedFee = baseTotal * takerFeeRate;
-  const total = baseTotal + estimatedFee;
+  const initialMarginRateValue = Number(riskLimit?.initialMarginRate);
+  const initialMarginRate = Number.isFinite(initialMarginRateValue) ? initialMarginRateValue : 1;
+  const total = baseTotal * initialMarginRate + estimatedFee;
+  const defaultLeverageValue = Number(instrument?.defaultLeverage);
+  const displayLeverage = Number.isFinite(defaultLeverageValue) ? defaultLeverageValue : null;
+  const formatRate = (value?: number | string | null) => {
+    if (value === null || value === undefined || value === '') {
+      return '--';
+    }
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return String(value);
+    }
+    return `${(numeric * 100).toFixed(2)}%`;
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -181,19 +226,37 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
               <div className="text-[11px] text-slate-400 text-right pr-2">
                 Quantity: {instrument ? displayNormalizedQuantity : '--'}
               </div>
-              <div className="text-[11px] text-slate-400 text-right pr-2">
-                Estimated Fee: {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
-              </div>
           </div>
         </Tooltip>
 
         {/* Total Value */}
         <div className="space-y-2 pt-2">
             <div className="flex justify-between text-xs text-slate-500">
-                <span>TOTAL</span>
-                <span className="text-slate-700 font-medium">
-                  {instrument ? `${Number(total.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
-                </span>
+              <span>Leverage</span>
+              <span className="text-slate-700 font-medium">
+                {displayLeverage !== null ? `${displayLeverage}x` : '--'}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>Initial Margin Rate</span>
+              <span className="text-slate-700 font-medium">{formatRate(riskLimit?.initialMarginRate)}</span>
+            </div>
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>Maintenance Margin Rate</span>
+              <span className="text-slate-700 font-medium">{formatRate(riskLimit?.maintenanceMarginRate)}</span>
+            </div>
+            <div className="border-t border-white/40" />
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>Estimated Fee</span>
+              <span className="text-slate-700 font-medium">
+                {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>TOTAL</span>
+              <span className="text-slate-700 font-medium">
+                {instrument ? `${Number(total.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
+              </span>
             </div>
         </div>
 
