@@ -28,3 +28,32 @@ export const withdrawAccount = async (payload: {
   const response = await apiClient.post('/account/api/account/withdrawals', payload);
   return response.data;
 };
+
+export type AccountBalanceItem = {
+  accountId: number;
+  accountCode: string;
+  accountName: string;
+  category: string;
+  instrumentId: number;
+  asset: string;
+  balance: string;
+  available: string;
+  reserved: string;
+  version: number;
+  updatedAt: string;
+};
+
+export type AccountBalanceSheetResponse = {
+  userId: number;
+  snapshotAt: string;
+  assets: AccountBalanceItem[];
+  liabilities: AccountBalanceItem[];
+  equity: AccountBalanceItem[];
+  expenses: AccountBalanceItem[];
+  revenue: AccountBalanceItem[];
+};
+
+export const getBalanceSheet = async () => {
+  const response = await apiClient.get('/account/api/account/balance-sheet');
+  return response.data;
+};

@@ -100,6 +100,11 @@ public class UserAccountRepository {
         return Optional.ofNullable(normalizeInstrumentId(OpenObjectMapper.convert(po, UserAccount.class)));
     }
 
+    public List<UserAccount> findByUserId(@NotNull Long userId) {
+        return findBy(Wrappers.lambdaQuery(UserAccountPO.class)
+                              .eq(UserAccountPO::getUserId, userId));
+    }
+
     public UserAccount getOrCreate(@NotNull Long userId,
                                    @NotNull UserAccountCode accountCode,
                                    Long instrumentId,

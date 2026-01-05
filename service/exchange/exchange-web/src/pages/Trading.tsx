@@ -12,6 +12,7 @@ import {
   type InstrumentSummary,
 } from '../api/instrument';
 import { resetSystemData } from '../api/admin';
+import { getBalanceSheet, type AccountBalanceSheetResponse, type AccountBalanceItem } from '../api/account';
 import Header from '../components/trading/Header';
 import Chart from '../components/trading/Chart';
 import OrderBook from '../components/trading/OrderBook';
@@ -37,15 +38,80 @@ export default function Trading() {
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [balanceSheetOpen, setBalanceSheetOpen] = useState(false);
+  const [balanceSheetLoading, setBalanceSheetLoading] = useState(false);
+  const [balanceSheetError, setBalanceSheetError] = useState<string | null>(null);
+  const [balanceSheetData, setBalanceSheetData] = useState<AccountBalanceSheetResponse | null>(null);
 
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
   const handleOpenBalanceSheet = () => {
     setBalanceSheetOpen(true);
+    setBalanceSheetError(null);
+    setBalanceSheetLoading(true);
+    getBalanceSheet()
+      .then((result) => {
+        if (String(result?.code) !== '0') {
+          setBalanceSheetError(result?.message || 'Failed to load balance sheet.');
+          setBalanceSheetData(null);
+          return;
+        }
+        setBalanceSheetData(result?.data ?? null);
+      })
+      .catch(() => {
+        setBalanceSheetError('Failed to load balance sheet.');
+        setBalanceSheetData(null);
+      })
+      .finally(() => {
+        setBalanceSheetLoading(false);
+      });
   };
   const handleCloseBalanceSheet = () => {
     setBalanceSheetOpen(false);
+  };
+
+  const renderAccountItems = (items?: AccountBalanceItem[]) => {
+    if (!items || items.length === 0) {
+      return <div className="text-[10px] text-slate-400">-</div>;
+    }
+    return (
+      <div className="flex flex-col gap-2">
+        {items.map((item, index) => (
+          <div
+            key={`${item.accountId ?? index}-${item.asset ?? 'asset'}-${item.instrumentId ?? '0'}`}
+            className="rounded-lg border border-white/60 bg-white/70 p-2"
+          >
+            <div className="text-[10px] font-semibold text-slate-700">
+              {item.accountName || item.accountCode || 'Account'}
+            </div>
+            <div className="mt-1 grid grid-cols-[92px_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
+              <span className="text-slate-400">Account ID</span>
+              <span className="text-slate-700">{String(item.accountId ?? '-')}</span>
+              <span className="text-slate-400">Account Code</span>
+              <span className="text-slate-700">{String(item.accountCode ?? '-')}</span>
+              <span className="text-slate-400">Account Name</span>
+              <span className="text-slate-700">{String(item.accountName ?? '-')}</span>
+              <span className="text-slate-400">Category</span>
+              <span className="text-slate-700">{String(item.category ?? '-')}</span>
+              <span className="text-slate-400">Instrument ID</span>
+              <span className="text-slate-700">{String(item.instrumentId ?? '-')}</span>
+              <span className="text-slate-400">Asset</span>
+              <span className="text-slate-700">{String(item.asset ?? '-')}</span>
+              <span className="text-slate-400">Balance</span>
+              <span className="text-slate-700">{String(item.balance ?? '-')}</span>
+              <span className="text-slate-400">Available</span>
+              <span className="text-slate-700">{String(item.available ?? '-')}</span>
+              <span className="text-slate-400">Reserved</span>
+              <span className="text-slate-700">{String(item.reserved ?? '-')}</span>
+              <span className="text-slate-400">Version</span>
+              <span className="text-slate-700">{String(item.version ?? '-')}</span>
+              <span className="text-slate-400">Updated At</span>
+              <span className="text-slate-700">{String(item.updatedAt ?? '-')}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const scheduleRefresh = () => {
@@ -191,8 +257,8 @@ export default function Trading() {
               <div className="flex flex-col gap-3">
                 <div className="relative">
                   {balanceSheetOpen && (
-                    <div className="absolute bottom-full right-0 z-40 w-[360px] max-w-[calc(100vw-2rem)] mb-3">
-                      <div className="relative min-h-[260px] rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
+                    <div className="absolute bottom-full right-0 z-40 w-[420px] max-w-[calc(100vw-2rem)] mb-3">
+                      <div className="relative min-h-[320px] rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4">
                         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border border-white/70 bg-white/95" />
                         <div className="flex items-center justify-between mb-3">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Balance Sheet</div>
@@ -204,15 +270,41 @@ export default function Trading() {
                             X
                           </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-xs text-slate-600">
-                          <div className="font-semibold text-slate-700">Assets</div>
-                          <div className="flex flex-col gap-2">
-                            <div className="font-semibold text-slate-700">Liabilities</div>
-                            <div className="font-semibold text-slate-700">Equity</div>
+                        {balanceSheetData?.snapshotAt && (
+                          <div className="text-[10px] text-slate-400 mb-3">
+                            Snapshot: {balanceSheetData.snapshotAt}
                           </div>
-                          <div className="font-semibold text-slate-700">Expenses</div>
-                          <div className="font-semibold text-slate-700">Revenue</div>
-                        </div>
+                        )}
+                        {balanceSheetLoading && (
+                          <div className="text-xs text-slate-400">Loading...</div>
+                        )}
+                        {balanceSheetError && (
+                          <div className="text-xs text-rose-500">{balanceSheetError}</div>
+                        )}
+                        {!balanceSheetLoading && !balanceSheetError && (
+                          <div className="max-h-[60vh] overflow-y-auto pr-1">
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs text-slate-600">
+                              <div className="flex flex-col gap-2">
+                                <div className="font-semibold text-slate-700">Assets</div>
+                                {renderAccountItems(balanceSheetData?.assets)}
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <div className="font-semibold text-slate-700">Liabilities</div>
+                                {renderAccountItems(balanceSheetData?.liabilities)}
+                                <div className="font-semibold text-slate-700">Equity</div>
+                                {renderAccountItems(balanceSheetData?.equity)}
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <div className="font-semibold text-slate-700">Expenses</div>
+                                {renderAccountItems(balanceSheetData?.expenses)}
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <div className="font-semibold text-slate-700">Revenue</div>
+                                {renderAccountItems(balanceSheetData?.revenue)}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

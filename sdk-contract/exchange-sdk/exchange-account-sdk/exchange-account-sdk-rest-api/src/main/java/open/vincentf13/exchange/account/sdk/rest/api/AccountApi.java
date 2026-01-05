@@ -30,4 +30,9 @@ public interface AccountApi {
     @PrivateAPI
     @Jwt
     OpenApiResponse<AccountWithdrawalResponse> withdraw(@Valid @RequestBody AccountWithdrawalRequest request);
+
+    @GetMapping("/balance-sheet")
+    @Jwt
+    @PrivateAPI
+    OpenApiResponse<AccountBalanceSheetResponse> getBalanceSheet();
 }
