@@ -91,19 +91,19 @@ public class AccountQueryService {
     public AccountReferenceJournalResponse getJournalsByReference(@NotNull Long userId,
                                                                   @NotNull ReferenceType referenceType,
                                                                   @NotNull String referenceId) {
-        String prefix = normalizeReferencePrefix(referenceId);
-        if (prefix.isBlank()) {
-            return new AccountReferenceJournalResponse(userId, referenceType, prefix, Instant.now(), List.of(), List.of());
+        String normalizedReferenceId = referenceId.trim();
+        if (normalizedReferenceId.isBlank()) {
+            return new AccountReferenceJournalResponse(userId, referenceType, normalizedReferenceId, Instant.now(), List.of(), List.of());
         }
-        List<UserJournal> accountJournals = userJournalRepository.findByReference(userId, referenceType, prefix);
+        List<UserJournal> accountJournals = userJournalRepository.findByReference(userId, referenceType, normalizedReferenceId);
         List<AccountJournalItem> accountItems = buildAccountJournalItems(userId, accountJournals);
-        List<PlatformJournal> platformJournals = platformJournalRepository.findByReference(referenceType, prefix);
+        List<PlatformJournal> platformJournals = platformJournalRepository.findByReference(referenceType, normalizedReferenceId);
         List<PlatformJournalItem> platformItems = platformJournals.stream()
                                                                   .map(item -> OpenObjectMapper.convert(item, PlatformJournalItem.class))
                                                                   .filter(Objects::nonNull)
                                                                   .toList();
         Instant snapshotAt = Instant.now();
-        return new AccountReferenceJournalResponse(userId, referenceType, prefix, snapshotAt, accountItems, platformItems);
+        return new AccountReferenceJournalResponse(userId, referenceType, normalizedReferenceId, snapshotAt, accountItems, platformItems);
     }
 
     private List<AccountJournalItem> buildAccountJournalItems(@NotNull Long userId,
@@ -174,13 +174,4 @@ public class AccountQueryService {
         return new PlatformAccountJournalResponse(accountId, snapshotAt, items);
     }
 
-    private String normalizeReferencePrefix(String referenceId) {
-        if (referenceId == null) {
-            return "";
-        }
-        String trimmed = referenceId.trim();
-        int colonIndex = trimmed.indexOf(':');
-        String prefix = colonIndex >= 0 ? trimmed.substring(0, colonIndex) : trimmed;
-        return prefix.replaceAll("[^0-9]", "");
-    }
 }

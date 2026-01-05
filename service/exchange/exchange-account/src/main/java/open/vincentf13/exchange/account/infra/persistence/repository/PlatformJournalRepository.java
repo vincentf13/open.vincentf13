@@ -38,13 +38,13 @@ public class PlatformJournalRepository {
     }
 
     public List<PlatformJournal> findByReference(@NotNull ReferenceType referenceType,
-                                                 @NotNull String referenceIdPrefix) {
-        if (referenceIdPrefix.isBlank()) {
+                                                 @NotNull String referenceId) {
+        if (referenceId.isBlank()) {
             return List.of();
         }
         var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()
                 .eq(PlatformJournalPO::getReferenceType, referenceType)
-                .likeRight(PlatformJournalPO::getReferenceId, referenceIdPrefix)
+                .eq(PlatformJournalPO::getReferenceId, referenceId)
                 .orderByDesc(PlatformJournalPO::getEventTime);
         return mapper.selectList(wrapper)
                      .stream()

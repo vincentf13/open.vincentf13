@@ -82,14 +82,14 @@ public class UserJournalRepository {
 
     public List<UserJournal> findByReference(@NotNull Long userId,
                                              @NotNull ReferenceType referenceType,
-                                             @NotNull String referenceIdPrefix) {
-        if (referenceIdPrefix.isBlank()) {
+                                             @NotNull String referenceId) {
+        if (referenceId.isBlank()) {
             return List.of();
         }
         var wrapper = Wrappers.<UserJournalPO>lambdaQuery()
                 .eq(UserJournalPO::getUserId, userId)
                 .eq(UserJournalPO::getReferenceType, referenceType)
-                .likeRight(UserJournalPO::getReferenceId, referenceIdPrefix)
+                .eq(UserJournalPO::getReferenceId, referenceId)
                 .orderByDesc(UserJournalPO::getEventTime);
         return mapper.selectList(wrapper)
                      .stream()

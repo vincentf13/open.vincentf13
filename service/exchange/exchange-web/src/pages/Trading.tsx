@@ -199,28 +199,19 @@ export default function Trading() {
     setSelectedPlatformAccountId(null);
   };
 
-  const normalizeReferenceId = (value?: string | null) => {
-    if (!value) {
-      return null;
-    }
-    const prefix = value.split(':')[0].trim();
-    const digits = prefix.replace(/\D/g, '');
-    return digits || null;
-  };
-
   const handleOpenReferenceJournals = (referenceType?: string | null, referenceId?: string | null) => {
     if (!referenceType || !referenceId) {
       return;
     }
-    const prefix = normalizeReferenceId(referenceId);
-    if (!prefix) {
+    const normalizedReferenceId = referenceId.trim();
+    if (!normalizedReferenceId) {
       return;
     }
     setReferenceJournalOpen(true);
     setReferenceJournalError(null);
     setReferenceJournalData(null);
     setReferenceJournalLoading(true);
-    getJournalsByReference(referenceType, prefix)
+    getJournalsByReference(referenceType, normalizedReferenceId)
       .then((result) => {
         if (String(result?.code) !== '0') {
           setReferenceJournalError(result?.message || 'Failed to load reference journals.');
