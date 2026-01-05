@@ -894,9 +894,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               </tbody>
             </table>
             <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
-              Buy Total: {instrumentTrades.length ? formatNumber(tradersSummary.buyTotal) : '-'}
+              Total Buy Value: {instrumentTrades.length ? formatNumber(tradersSummary.buyTotal) : '-'}
               <br />
-              Sell Total: {instrumentTrades.length ? formatNumber(tradersSummary.sellTotal) : '-'}
+              Total Sell Value: {instrumentTrades.length ? formatNumber(tradersSummary.sellTotal) : '-'}
               <br />
               Total Fee: {instrumentTrades.length ? formatNumber(tradersSummary.totalFee) : '-'}
             </div>
