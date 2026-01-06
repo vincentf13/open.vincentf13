@@ -72,6 +72,11 @@ public class PositionRepository {
     public boolean updateSelectiveBy(@NotNull @Valid Position update,
                                      LambdaUpdateWrapper<PositionPO> updateWrapper) {
         PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);
+        if (record.getLiquidationPrice() == null) {
+            // MyBatis-Plus default behavior ignores null fields in entity updates.
+            // We use the wrapper to explicitly set the column to NULL.
+            updateWrapper.set(PositionPO::getLiquidationPrice, null);
+        }
         return mapper.update(record, updateWrapper) > 0;
     }
 
@@ -86,6 +91,11 @@ public class PositionRepository {
             LambdaUpdateWrapper<PositionPO> updateWrapper = Wrappers.lambdaUpdate(PositionPO.class)
                                                                     .eq(PositionPO::getPositionId, record.getPositionId())
                                                                     .eq(PositionPO::getVersion, task.expectedVersion());
+            if (record.getLiquidationPrice() == null) {
+                // MyBatis-Plus default behavior ignores null fields in entity updates.
+                // We use the wrapper to explicitly set the column to NULL.
+                updateWrapper.set(PositionPO::getLiquidationPrice, null);
+            }
             batchMapper.update(record, updateWrapper);
         });
     }
