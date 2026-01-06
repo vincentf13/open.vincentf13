@@ -131,19 +131,14 @@ public class Position {
                           BigDecimal contractMultiplier,
                           BigDecimal maintenanceMarginRate) {
         BigDecimal newQuantity = this.quantity.add(quantity);
-        
-        BigDecimal tradeValue = tradePrice.multiply(quantity);
-        BigDecimal effectiveTradeValue = this.side == PositionSide.LONG
-                                         ? tradeValue.add(feeCharged)
-                                         : tradeValue.subtract(feeCharged);
-
         BigDecimal newEntryPrice = this.entryPrice
                 .multiply(this.quantity)
-                .add(effectiveTradeValue)
+                .add(tradePrice.multiply(quantity))
                 .divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
         this.entryPrice = newEntryPrice;
         this.quantity = newQuantity;
         this.margin = this.margin.add(marginDelta);
+        this.cumRealizedPnl = this.cumRealizedPnl.subtract(feeCharged);
         this.cumFee = this.cumFee.add(feeCharged);
         this.markPrice = effectiveMarkPrice;
         this.status = PositionStatus.ACTIVE;
