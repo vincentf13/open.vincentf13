@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * OpenObjectDiff: Object difference utility.
+ * OpenObjectDiff: 物件差異比對工具。
  */
 public final class OpenObjectDiff {
 
@@ -21,12 +21,12 @@ public final class OpenObjectDiff {
     }
 
     /**
-     * Compares two objects and returns a JSON string representing the fields that have changed in 'after'.
+     * 比對兩個物件並回傳表示 'after' 中已變更欄位的 JSON 字串。
      *
-     * @param before The baseline object (can be null).
-     * @param after  The updated object (can be null).
-     * @param <T>    The type of the objects.
-     * @return A JSON string of differences, or "{}" if no differences.
+     * @param before 基準物件（可為 null）。
+     * @param after  更新後的物件（可為 null）。
+     * @param <T>    物件類型。
+     * @return 差異的 JSON 字串，若無差異則回傳 "{}"。
      */
     public static <T> String diff(T before, T after) {
         if (before == after) {
@@ -39,7 +39,11 @@ public final class OpenObjectDiff {
         if (beforeNode == null) beforeNode = JsonNodeFactory.instance.objectNode();
         if (afterNode == null) afterNode = JsonNodeFactory.instance.objectNode();
 
+        // 處理基本類型或非物件的情況
         if (!beforeNode.isObject() || !afterNode.isObject()) {
+            if (isSame(beforeNode, afterNode)) {
+                return "{}";
+            }
             return OpenObjectMapper.toJson(after);
         }
 
@@ -53,6 +57,7 @@ public final class OpenObjectDiff {
             JsonNode afterVal = afterNode.get(key);
 
             if (!isSame(beforeVal, afterVal)) {
+                // 如果 afterVal 為 null 或缺失，則在 diff 中明確記錄為 null
                 if (afterVal == null || afterVal.isNull()) {
                     diff.putNull(key);
                 } else {
@@ -64,16 +69,19 @@ public final class OpenObjectDiff {
         return diff.toString();
     }
 
+    /**
+     * 判斷兩個 JsonNode 是否邏輯相等（特別處理了 BigDecimal 的數值相等性）。
+     */
     private static boolean isSame(JsonNode v1, JsonNode v2) {
         if (v1 == v2) return true;
         if (v1 == null && v2 == null) return true;
-        if (v1 == null || v2 == null) return false; // One is missing/null, other is not.
+        if (v1 == null || v2 == null) return false;
 
-        // NullNode check
+        // NullNode 檢查
         if (v1.isNull() && v2.isNull()) return true;
         if (v1.isNull() != v2.isNull()) return false;
 
-        // Number special handling (BigDecimal scale)
+        // 數值特殊處理（忽略 BigDecimal 的 scale 差異）
         if (v1.isNumber() && v2.isNumber()) {
             if (v1.isBigDecimal() || v2.isBigDecimal() || v1.isFloatingPointNumber() || v2.isFloatingPointNumber()) {
                 BigDecimal b1 = v1.decimalValue();
