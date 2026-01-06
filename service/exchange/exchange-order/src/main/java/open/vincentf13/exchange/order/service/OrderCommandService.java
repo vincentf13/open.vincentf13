@@ -58,8 +58,9 @@ public class OrderCommandService {
                        OrderStatus.FILLED,
                        OrderStatus.CANCELLING,
                        OrderStatus.CANCELLED);
-
-    public void processFundsFrozen(Long orderId, Instant eventTime) {
+    
+    public void processFundsFrozen(Long orderId,
+                                   Instant eventTime) {
         transactionTemplate.executeWithoutResult(status -> {
             Order order = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
                                          .orElse(null);
@@ -78,20 +79,20 @@ public class OrderCommandService {
             }
             
             order.incrementVersion();
-
+            
             boolean updated = orderRepository.updateSelective(
                     order,
                     Wrappers.<OrderPO>lambdaUpdate()
                             .eq(OrderPO::getOrderId, orderId)
                             .eq(OrderPO::getStatus, originalStatus)
                             .eq(OrderPO::getVersion, expectedVersion));
-
+            
             if (!updated) {
                 OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", orderId));
                 status.setRollbackOnly();
                 return;
             }
-
+            
             orderEventPublisher.publishOrderCreated(new OrderCreatedEvent(
                     order.getOrderId(),
                     order.getUserId(),
@@ -110,8 +111,10 @@ public class OrderCommandService {
                                                                                                                 "submittedAt", order.getSubmittedAt()), OrderEventReferenceType.ACCOUNT_EVENT, null);
         });
     }
-
-    public void processFundsFreezeFailed(Long orderId, String reason, Instant eventTime) {
+    
+    public void processFundsFreezeFailed(Long orderId,
+                                         String reason,
+                                         Instant eventTime) {
         transactionTemplate.executeWithoutResult(status -> {
             Order order = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
                                          .orElse(null);
@@ -122,22 +125,22 @@ public class OrderCommandService {
             
             int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
             OrderStatus originalStatus = order.getStatus();
-
+            
             order.onFundsFreezeFailed(reason, eventTime);
-
+            
             if (order.getStatus() == originalStatus) {
                 return;
             }
-
+            
             order.incrementVersion();
-
+            
             boolean updated = orderRepository.updateSelective(
                     order,
                     Wrappers.<OrderPO>lambdaUpdate()
                             .eq(OrderPO::getOrderId, orderId)
                             .eq(OrderPO::getStatus, originalStatus)
                             .eq(OrderPO::getVersion, expectedVersion));
-
+            
             if (!updated) {
                 OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", orderId));
                 status.setRollbackOnly();
@@ -150,12 +153,17 @@ public class OrderCommandService {
     }
     
     public OrderResponse createOrder(@NotNull Long userId, @Valid OrderCreateRequest request) {
+        if (request.getClientOrderId() == null || request.getClientOrderId().trim().isEmpty()) {
+            request.setClientOrderId(UUID.randomUUID().toString());
+        }
+        
         try {
             Order order = Order.createNew(userId, request);
+            
             PositionIntentResponse intentResponse = OpenApiClientInvoker.call(
-                    () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity(), request.clientOrderId())),
+                    () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.getInstrumentId(), toPositionSide(request.getSide()), request.getQuantity(), request.getClientOrderId())),
                     msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
-                                            Map.of("userId", userId, "instrumentId", request.instrumentId(), "remoteMessage", msg))
+                                            Map.of("userId", userId, "instrumentId", request.getInstrumentId(), "remoteMessage", msg))
                                                                              );
             PositionIntentType intentType = intentResponse.intentType();
             
@@ -165,12 +173,12 @@ public class OrderCommandService {
             if (intentResponse.rejectReason() != null) {
                 return rejectOrder(order, intentResponse.rejectReason());
             }
-
+            
             OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, intentResponse.positionSnapshot());
             if (!precheck.isAllow()) {
                 return rejectOrder(order, Optional.ofNullable(precheck.getReason()).orElse("riskRejected"));
             }
-
+            
             order.onPositionIntentDetermined(intentType);
             
             if (intentType == PositionIntentType.INCREASE) {
@@ -216,13 +224,13 @@ public class OrderCommandService {
         } catch (DuplicateKeyException ex) {
             OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
                          "userId", userId,
-                         "clientOrderId", request.clientOrderId());
+                         "clientOrderId", request.getClientOrderId());
             return orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
                                                    .eq(OrderPO::getUserId, userId)
-                                                   .eq(OrderPO::getClientOrderId, request.clientOrderId()))
+                                                   .eq(OrderPO::getClientOrderId, request.getClientOrderId()))
                                   .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
                                   .orElseThrow(() -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
-                                                                      Map.of("userId", userId, "clientOrderId", request.clientOrderId())));
+                                                                      Map.of("userId", userId, "clientOrderId", request.getClientOrderId())));
         }
     }
     
@@ -245,23 +253,23 @@ public class OrderCommandService {
                              Map.of("orderId", orderId, "tradeId", tradeId));
                 return;
             }
-
+            
             if (!UPDATABLE_STATUSES.contains(order.getStatus())) {
                 return;
             }
-
+            
             int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
             
             order.onTradeExecuted(price, filledQuantity, feeDelta, executedAt);
             
             order.incrementVersion();
-
+            
             boolean updated = orderRepository.updateSelective(
                     order,
                     Wrappers.<OrderPO>lambdaUpdate()
                             .eq(OrderPO::getOrderId, orderId)
                             .eq(OrderPO::getVersion, expectedVersion));
-
+            
             if (!updated) {
                 OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK,
                              Map.of("orderId", orderId, "tradeId", tradeId));
@@ -281,7 +289,7 @@ public class OrderCommandService {
             orderEventRepository.append(order, OrderEventType.ORDER_TRADE_FILLED, ACTOR_MATCHING, executedAt, payload, OrderEventReferenceType.TRADE, tradeId);
         });
     }
-
+    
     private OrderPrecheckResponse precheckOrder(Long userId,
                                                 Order order,
                                                 PositionIntentType intentType,
@@ -328,7 +336,7 @@ public class OrderCommandService {
     }
     
     private static final int MAX_REJECTED_REASON_LENGTH = 255;
-
+    
     private OrderResponse rejectOrder(Order order,
                                       String reason) {
         String truncatedReason = reason != null && reason.length() > MAX_REJECTED_REASON_LENGTH
@@ -364,7 +372,7 @@ public class OrderCommandService {
         payload.put("submittedAt", order.getSubmittedAt());
         return payload;
     }
-
+    
     private BigDecimal normalizePayloadDecimal(BigDecimal value) {
         if (value == null) {
             return null;

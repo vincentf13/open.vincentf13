@@ -44,6 +44,7 @@ public class PositionDomainService {
     private final RiskLimitCache riskLimitCache;
     private final InstrumentCache instrumentCache;
 
+    @Transactional(rollbackFor = Exception.class)
     public void reserveClosingPosition(Position position, BigDecimal reservedQuantity, String clientOrderId) {
         BigDecimal availableToClose = position.availableToClose();
         // prevent flip when all quantity is reserved for closing.
