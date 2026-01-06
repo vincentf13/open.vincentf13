@@ -85,7 +85,6 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
       }
       onOrderPlaced?.();
       alert('Order placed successfully!');
-      setQuantity('');
     } catch (error: any) {
       console.error('Order creation failed:', error);
       const msg = error.response?.data?.message || 'Failed to place order';
