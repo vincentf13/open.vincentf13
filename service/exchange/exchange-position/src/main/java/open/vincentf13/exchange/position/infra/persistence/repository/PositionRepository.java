@@ -105,7 +105,7 @@ public class PositionRepository {
         position.setMarkPrice(safe(position.getMarkPrice()));
         position.setMarginRatio(safe(position.getMarginRatio()));
         position.setUnrealizedPnl(safe(position.getUnrealizedPnl()));
-        position.setLiquidationPrice(safe(position.getLiquidationPrice()));
+        position.setLiquidationPrice(position.getLiquidationPrice());
         position.setCumRealizedPnl(safe(position.getCumRealizedPnl()));
         position.setCumFee(safe(position.getCumFee()));
         position.setCumFundingFee(safe(position.getCumFundingFee()));

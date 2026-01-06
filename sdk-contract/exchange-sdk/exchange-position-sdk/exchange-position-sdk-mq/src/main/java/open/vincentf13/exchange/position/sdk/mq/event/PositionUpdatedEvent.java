@@ -16,7 +16,7 @@ public record PositionUpdatedEvent(
         @NotNull @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE) BigDecimal entryPrice,
         @NotNull @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE) BigDecimal markPrice,
         @NotNull BigDecimal unrealizedPnl,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE) BigDecimal liquidationPrice,
+        @DecimalMin(value = ValidationConstant.Names.NON_NEGATIVE) BigDecimal liquidationPrice,
         @NotNull Instant timestamp
 ) {
 }

@@ -47,7 +47,6 @@ public class Position {
     private BigDecimal marginRatio;
     @NotNull
     private BigDecimal unrealizedPnl;
-    @NotNull
     private BigDecimal liquidationPrice;
     @NotNull
     private BigDecimal cumRealizedPnl;
@@ -80,7 +79,7 @@ public class Position {
                        .markPrice(BigDecimal.ZERO)
                        .marginRatio(BigDecimal.ZERO)
                        .unrealizedPnl(BigDecimal.ZERO)
-                       .liquidationPrice(BigDecimal.ZERO)
+                       .liquidationPrice(null)
                        .cumRealizedPnl(BigDecimal.ZERO)
                        .cumFee(BigDecimal.ZERO)
                        .cumFundingFee(BigDecimal.ZERO)
