@@ -298,32 +298,28 @@ public class Position {
                                       String key,
                                       Object before,
                                       Object after) {
-        if (!isSameValue(before, after)) {
-            Object normalized = normalizePayloadValue(after);
-            if (normalized == null) {
-                payload.putNull(key);
-            } else {
-                payload.set(key, OpenObjectMapper.toNode(normalized));
-            }
+        if (isSameValue(before, after)) {
+            return;
+        }
+        Object normalized = normalizePayloadValue(after);
+        if (normalized == null) {
+            payload.putNull(key);
+        } else {
+            payload.set(key, OpenObjectMapper.toNode(normalized));
         }
     }
 
     private static boolean isSameValue(Object before, Object after) {
-        if (before == after) {
+        if (Objects.equals(before, after)) {
             return true;
-        }
-        if (before == null || after == null) {
-            return false;
         }
         if (before instanceof BigDecimal && after instanceof BigDecimal) {
             return ((BigDecimal) before).compareTo((BigDecimal) after) == 0;
         }
         if (before instanceof Number && after instanceof Number) {
-            BigDecimal left = new BigDecimal(before.toString());
-            BigDecimal right = new BigDecimal(after.toString());
-            return left.compareTo(right) == 0;
+            return new BigDecimal(before.toString()).compareTo(new BigDecimal(after.toString())) == 0;
         }
-        return Objects.equals(before, after);
+        return false;
     }
 
     private static Object normalizePayloadValue(Object value) {
