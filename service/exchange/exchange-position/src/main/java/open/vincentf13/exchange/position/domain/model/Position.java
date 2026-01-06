@@ -315,6 +315,9 @@ public class Position {
         if (before == null || after == null) {
             return false;
         }
+        if (before instanceof BigDecimal && after instanceof BigDecimal) {
+            return ((BigDecimal) before).compareTo((BigDecimal) after) == 0;
+        }
         if (before instanceof Number && after instanceof Number) {
             BigDecimal left = new BigDecimal(before.toString());
             BigDecimal right = new BigDecimal(after.toString());
