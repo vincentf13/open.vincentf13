@@ -67,7 +67,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 10
+  "quantity": 5000
 }
 
 ### Order B (Sell @ 10)
@@ -80,5 +80,5 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 10
+  "quantity": 5000
 }
