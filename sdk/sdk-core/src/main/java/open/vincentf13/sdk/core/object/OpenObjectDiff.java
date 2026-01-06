@@ -7,9 +7,6 @@ import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -71,6 +68,7 @@ public final class OpenObjectDiff {
 
     /**
      * 比對兩個物件並回傳差異 JSON 字串。對於數值類型，回傳差值（after - before）；其他類型回傳 after 的值。
+     * 數值類型的 null 將會視為 0
      *
      * @param before 基準物件（可為 null）。
      * @param after  更新後的物件（可為 null）。
