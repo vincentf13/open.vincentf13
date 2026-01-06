@@ -57,12 +57,12 @@ public class PositionDomainService {
         if (position == null) {
             return false;
         }
-        BigDecimal existingQuantity = safe(position.getQuantity());
+        BigDecimal existingQuantity = position.getQuantity();
         return position.getSide() != targetSide && existingQuantity.compareTo(quantity) < 0;
     }
 
     public TradeSplit calculateTradeSplit(Position position, BigDecimal quantity) {
-        BigDecimal closeQty = safe(position.getQuantity());
+        BigDecimal closeQty = position.getQuantity();
         BigDecimal flipQty = quantity.subtract(closeQty);
         return new TradeSplit(closeQty, flipQty);
     }
@@ -135,75 +135,10 @@ public class PositionDomainService {
     
             return Collections.singletonList(result.position());
         } else {
-            Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
-            
-            markPriceCache.get(instrumentId)
-                          .ifPresent(updatedPosition::setMarkPrice);
-            
-            BigDecimal contractMultiplier = requireContractSize(instrumentId);
-            
-            BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
-                                                             .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
-                                                             .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
-            
-            BigDecimal existingQuantity = safe(position.getQuantity());
-            BigDecimal existingEntryPrice = safe(position.getEntryPrice());
-            BigDecimal existingMargin = safe(position.getMargin());
-            BigDecimal existingCumFee = safe(position.getCumFee());
-            
-            BigDecimal newQuantity = existingQuantity.add(quantity);
-            BigDecimal newEntryPrice =  existingEntryPrice.multiply(existingQuantity)
-                                                           .add(price.multiply(quantity))
-                                                           .divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
-            
-            updatedPosition.setQuantity(newQuantity);
-            updatedPosition.setEntryPrice(newEntryPrice);
-            updatedPosition.setClosingReservedQuantity(safe(position.getClosingReservedQuantity()));
-            updatedPosition.setMargin(existingMargin.add(marginUsed));
-            updatedPosition.setCumFee(existingCumFee.add(feeCharged));
-            
-            BigDecimal effectiveMarkPrice = updatedPosition.getMarkPrice();
-            if (effectiveMarkPrice == null || effectiveMarkPrice.compareTo(BigDecimal.ZERO) == 0) {
-                effectiveMarkPrice = price;
-                updatedPosition.setMarkPrice(price);
-            }
-            
-            if (updatedPosition.getSide() == PositionSide.LONG) {
-                updatedPosition.setUnrealizedPnl(effectiveMarkPrice.subtract(updatedPosition.getEntryPrice())
-                                                                   .multiply(updatedPosition.getQuantity())
-                                                                   .multiply(contractMultiplier));
-            } else {
-                updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(effectiveMarkPrice)
-                                                                .multiply(updatedPosition.getQuantity())
-                                                                .multiply(contractMultiplier));
-            }
-            
-            BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).multiply(contractMultiplier).abs();
-            if (notional.compareTo(BigDecimal.ZERO) == 0) {
-                updatedPosition.setMarginRatio(BigDecimal.ZERO);
-            } else {
-                updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
-                                                              .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
-            }
-            
-            BigDecimal quantityTimesMultiplier = updatedPosition.getQuantity().multiply(contractMultiplier);
-            if (quantityTimesMultiplier.compareTo(BigDecimal.ZERO) > 0) {
-                if (updatedPosition.getSide() == PositionSide.LONG) {
-                    updatedPosition.setLiquidationPrice(
-                            updatedPosition.getEntryPrice()
-                                           .subtract(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
-                                           .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
-                                                       );
-                } else {
-                    updatedPosition.setLiquidationPrice(
-                            updatedPosition.getEntryPrice()
-                                           .add(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
-                                           .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
-                                                       );
-                }
-            } else {
-                updatedPosition.setLiquidationPrice(BigDecimal.ZERO);
-            }
+            Position updatedPosition = applyPositionUpdate(position,
+                                                          instrumentId,
+                                                          PositionUpdateInput.forOpen(price, quantity, marginUsed, feeCharged))
+                    .position();
             
             if (position.getPositionId() == null || position.getStatus() != PositionStatus.ACTIVE) {
                 positionRepository.insertSelective(updatedPosition);
@@ -226,7 +161,7 @@ public class PositionDomainService {
                     updatedPosition.getPositionId(),
                     userId,
                     instrumentId,
-                    existingQuantity.compareTo(BigDecimal.ZERO) == 0 ? PositionEventType.POSITION_OPENED : PositionEventType.POSITION_INCREASED,
+                    position.getQuantity().compareTo(BigDecimal.ZERO) == 0 ? PositionEventType.POSITION_OPENED : PositionEventType.POSITION_INCREASED,
                     payload,
                     orderSide,
                     tradeId,
@@ -260,137 +195,33 @@ public class PositionDomainService {
             return new PositionCloseResult(position, BigDecimal.ZERO, BigDecimal.ZERO);
         }
 
-        Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
-
-        
-        BigDecimal reserved = safe(position.getClosingReservedQuantity());
-        BigDecimal existingQty = safe(position.getQuantity());
-        
-        
-        if (quantity.compareTo(existingQty) > 0) {
+        if (quantity.compareTo(position.getQuantity()) > 0) {
             throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
                                    Map.of("userId", userId,
                                           "instrumentId", instrumentId,
                                           "requestedQuantity", quantity,
-                                          "closingReservedQuantity", reserved,
-                                          "positionQuantity", existingQty));
+                                          "closingReservedQuantity", position.getClosingReservedQuantity(),
+                                          "positionQuantity", position.getQuantity()));
         }
         
         // 一般平倉 效驗保留倉位數量
         if (!isFlip) {
-            if (quantity.compareTo(reserved) > 0) {
+            if (quantity.compareTo(position.getClosingReservedQuantity()) > 0) {
                 throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
                                        Map.of("userId", userId,
                                               "instrumentId", instrumentId,
                                               "requestedQuantity", quantity,
-                                              "closingReservedQuantity", reserved,
-                                              "positionQuantity", existingQty));
+                                              "closingReservedQuantity", position.getClosingReservedQuantity(),
+                                              "positionQuantity", position.getQuantity()));
             }
-            updatedPosition.setClosingReservedQuantity(reserved.subtract(quantity).max(BigDecimal.ZERO));
-        } else {
-            // Flip
-            updatedPosition.setClosingReservedQuantity(BigDecimal.ZERO);
         }
-        
-        // 更新 Mark Price
-        markPriceCache.get(instrumentId)
-                .ifPresent(updatedPosition::setMarkPrice);
-        BigDecimal effectiveMarkPrice = updatedPosition.getMarkPrice();
-        if (effectiveMarkPrice == null || effectiveMarkPrice.compareTo(BigDecimal.ZERO) == 0) {
-            effectiveMarkPrice = price;
-            updatedPosition.setMarkPrice(price);
-        }
-        
-
-        BigDecimal contractMultiplier = requireContractSize(instrumentId);
-
-        BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
-                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
-                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
-
-        BigDecimal existingQuantity = safe(position.getQuantity());
-        BigDecimal existingMargin = safe(position.getMargin());
-        BigDecimal existingCumFee = safe(position.getCumFee());
-        BigDecimal existingCumRealized = safe(position.getCumRealizedPnl());
-
-        
-        // 釋放保證金
-        BigDecimal marginToRelease = existingMargin.multiply(quantity)
-                .divide(existingQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
 
         // 計算盈虧
-        BigDecimal pnl;
-        if (position.getSide() == PositionSide.LONG) {
-            pnl = price.subtract(updatedPosition.getEntryPrice())
-                    .multiply(quantity)
-                    .multiply(contractMultiplier);
-        } else {
-            pnl = updatedPosition.getEntryPrice().subtract(price)
-                    .multiply(quantity)
-                    .multiply(contractMultiplier);
-        }
-        
-        BigDecimal newQuantity = existingQuantity.subtract(quantity);
-        // 更新數量、保證金
-        updatedPosition.setQuantity(newQuantity);
-        updatedPosition.setMargin(existingMargin.subtract(marginToRelease));
-        
-        
-        // 更新統計
-        updatedPosition.setCumRealizedPnl(existingCumRealized.add(pnl));
-        updatedPosition.setCumFee(existingCumFee.add(feeCharged));
-
-        // 關倉
-        if (newQuantity.compareTo(BigDecimal.ZERO) == 0) {
-            updatedPosition.setStatus(PositionStatus.CLOSED);
-            updatedPosition.setClosedAt(executedAt);
-        }
-
-  
-        // 未實現盈虧
-        if (newQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            if (updatedPosition.getSide() == PositionSide.LONG) {
-                updatedPosition.setUnrealizedPnl(effectiveMarkPrice.subtract(updatedPosition.getEntryPrice())
-                        .multiply(updatedPosition.getQuantity())
-                        .multiply(contractMultiplier));
-            } else {
-                updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(effectiveMarkPrice)
-                        .multiply(updatedPosition.getQuantity())
-                        .multiply(contractMultiplier));
-            }
-        } else {
-            updatedPosition.setUnrealizedPnl(BigDecimal.ZERO);
-        }
-
-        // 維持保證金率
-        if (updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal notional = effectiveMarkPrice.multiply(updatedPosition.getQuantity()).multiply(contractMultiplier).abs();
-            if (notional.compareTo(BigDecimal.ZERO) == 0) {
-                updatedPosition.setMarginRatio(BigDecimal.ZERO);
-            } else {
-                updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
-                        .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
-            }
-
-            // 強平價格
-            BigDecimal quantityTimesMultiplier = updatedPosition.getQuantity().multiply(contractMultiplier);
-            if (updatedPosition.getSide() == PositionSide.LONG) {
-                updatedPosition.setLiquidationPrice(
-                        updatedPosition.getEntryPrice()
-                                .subtract(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
-                                .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
-                );
-            } else {
-                updatedPosition.setLiquidationPrice(
-                        updatedPosition.getEntryPrice()
-                                .add(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
-                                .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
-                );
-            }
-        } else {
-            updatedPosition.setMarginRatio(BigDecimal.ZERO);
-            updatedPosition.setLiquidationPrice(BigDecimal.ZERO);
-        }
+        PositionUpdateResult updateResult = applyPositionUpdate(position,
+                                                               instrumentId,
+                                                               PositionUpdateInput.forClose(price, quantity, feeCharged, isFlip, executedAt));
+        Position updatedPosition = updateResult.position();
+        CloseMetrics closeMetrics = updateResult.closeMetrics();
 
         if (position.getPositionId() == null || position.getStatus() != PositionStatus.ACTIVE) {
             positionRepository.insertSelective(updatedPosition);
@@ -413,7 +244,7 @@ public class PositionDomainService {
                 updatedPosition.getPositionId(),
                 userId,
                 instrumentId,
-                newQuantity.compareTo(BigDecimal.ZERO) == 0 ? PositionEventType.POSITION_CLOSED : PositionEventType.POSITION_DECREASED,
+                updatedPosition.getQuantity().compareTo(BigDecimal.ZERO) == 0 ? PositionEventType.POSITION_CLOSED : PositionEventType.POSITION_DECREASED,
                 payload,
                 orderSide,
                 tradeId,
@@ -422,7 +253,7 @@ public class PositionDomainService {
         );
         positionEventRepository.insert(event);
 
-        return new PositionCloseResult(updatedPosition, pnl, marginToRelease);
+        return new PositionCloseResult(updatedPosition, closeMetrics.pnl(), closeMetrics.marginReleased());
     }
 
     public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
@@ -439,61 +270,12 @@ public class PositionDomainService {
             return;
         }
 
-        BigDecimal contractMultiplier = requireContractSize(instrumentId);
-
-        BigDecimal maintenanceMarginRate = riskLimitCache.get(instrumentId)
-                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
-                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
-
         List<PositionRepository.PositionUpdateTask> updateTasks = new ArrayList<>(positions.size());
         for (Position position : positions) {
-            Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
-            updatedPosition.setMarkPrice(markPrice);
-
-            BigDecimal existingQuantity = safe(position.getQuantity());
-
-            if (existingQuantity.compareTo(BigDecimal.ZERO) > 0) {
-                if (updatedPosition.getSide() == PositionSide.LONG) {
-                    updatedPosition.setUnrealizedPnl(markPrice.subtract(updatedPosition.getEntryPrice())
-                            .multiply(existingQuantity)
-                            .multiply(contractMultiplier));
-                } else {
-                    updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(markPrice)
-                            .multiply(existingQuantity)
-                            .multiply(contractMultiplier));
-                }
-
-                BigDecimal notional = markPrice.multiply(existingQuantity).multiply(contractMultiplier).abs();
-                if (notional.compareTo(BigDecimal.ZERO) == 0) {
-                    updatedPosition.setMarginRatio(BigDecimal.ZERO);
-                } else {
-                    updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
-                            .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
-                }
-
-                BigDecimal quantityTimesMultiplier = existingQuantity.multiply(contractMultiplier);
-                if (quantityTimesMultiplier.compareTo(BigDecimal.ZERO) == 0) {
-                     updatedPosition.setLiquidationPrice(BigDecimal.ZERO);
-                } else {
-                    if (updatedPosition.getSide() == PositionSide.LONG) {
-                        updatedPosition.setLiquidationPrice(
-                                updatedPosition.getEntryPrice()
-                                        .subtract(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
-                                        .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
-                        );
-                    } else {
-                        updatedPosition.setLiquidationPrice(
-                                updatedPosition.getEntryPrice()
-                                        .add(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
-                                        .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
-                        );
-                    }
-                }
-            } else {
-                updatedPosition.setUnrealizedPnl(BigDecimal.ZERO);
-                updatedPosition.setMarginRatio(BigDecimal.ZERO);
-                updatedPosition.setLiquidationPrice(BigDecimal.ZERO);
-            }
+            Position updatedPosition = applyPositionUpdate(position,
+                                                          instrumentId,
+                                                          PositionUpdateInput.forMarkPrice(markPrice))
+                    .position();
 
             int expectedVersion = position.safeVersion();
             updatedPosition.setVersion(expectedVersion + 1);
@@ -503,6 +285,63 @@ public class PositionDomainService {
     }
 
     public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased) {
+    }
+
+    private enum PositionUpdateType {
+        OPEN,
+        CLOSE,
+        MARK_PRICE
+    }
+
+    private record CloseMetrics(BigDecimal marginReleased, BigDecimal pnl) {
+    }
+
+    private record PositionUpdateResult(Position position, CloseMetrics closeMetrics) {
+    }
+
+    private record PositionUpdateInput(PositionUpdateType type,
+                                       BigDecimal tradePrice,
+                                       BigDecimal quantity,
+                                       BigDecimal marginDelta,
+                                       BigDecimal feeCharged,
+                                       boolean isFlip,
+                                       Instant executedAt) {
+        static PositionUpdateInput forOpen(BigDecimal tradePrice,
+                                           BigDecimal quantity,
+                                           BigDecimal marginDelta,
+                                           BigDecimal feeCharged) {
+            return new PositionUpdateInput(PositionUpdateType.OPEN,
+                    tradePrice,
+                    quantity,
+                    marginDelta,
+                    feeCharged,
+                    false,
+                    null);
+        }
+
+        static PositionUpdateInput forClose(BigDecimal tradePrice,
+                                            BigDecimal quantity,
+                                            BigDecimal feeCharged,
+                                            boolean isFlip,
+                                            Instant executedAt) {
+            return new PositionUpdateInput(PositionUpdateType.CLOSE,
+                    tradePrice,
+                    quantity,
+                    null,
+                    feeCharged,
+                    isFlip,
+                    executedAt);
+        }
+
+        static PositionUpdateInput forMarkPrice(BigDecimal markPrice) {
+            return new PositionUpdateInput(PositionUpdateType.MARK_PRICE,
+                    markPrice,
+                    BigDecimal.ZERO,
+                    null,
+                    null,
+                    false,
+                    null);
+        }
     }
 
     private BigDecimal requireContractSize(Long instrumentId) {
@@ -519,8 +358,159 @@ public class PositionDomainService {
                 .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid defaultLeverage for instrumentId=" + instrumentId));
     }
 
-    private BigDecimal safe(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
+    private BigDecimal resolveMaintenanceMarginRate(Long instrumentId) {
+        return riskLimitCache.get(instrumentId)
+                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
+                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
+    }
+
+    private BigDecimal resolveEffectiveMarkPrice(Position position,
+                                                 Long instrumentId,
+                                                 BigDecimal fallbackPrice) {
+        markPriceCache.get(instrumentId)
+                .ifPresent(position::setMarkPrice);
+        BigDecimal markPrice = position.getMarkPrice();
+        if (markPrice == null || markPrice.compareTo(BigDecimal.ZERO) == 0) {
+            position.setMarkPrice(fallbackPrice);
+            return fallbackPrice;
+        }
+        return markPrice;
+    }
+
+    private PositionUpdateResult applyPositionUpdate(Position position,
+                                                     Long instrumentId,
+                                                     PositionUpdateInput input) {
+        Position updatedPosition = OpenObjectMapper.convert(position, Position.class);
+        CloseMetrics closeMetrics = null;
+        switch (input.type()) {
+            case OPEN -> {
+                BigDecimal newQuantity = position.getQuantity().add(input.quantity());
+                BigDecimal newEntryPrice = position.getEntryPrice()
+                        .multiply(position.getQuantity())
+                        .add(input.tradePrice().multiply(input.quantity()))
+                        .divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+                BigDecimal newMargin = position.getMargin().add(input.marginDelta());
+                updatedPosition.setEntryPrice(newEntryPrice);
+                updatedPosition.setQuantity(newQuantity);
+                updatedPosition.setMargin(newMargin);
+                updatedPosition.setClosingReservedQuantity(position.getClosingReservedQuantity());
+                updatedPosition.setCumFee(position.getCumFee().add(input.feeCharged()));
+                updatedPosition.setStatus(PositionStatus.ACTIVE);
+                updatedPosition.setClosedAt(null);
+            }
+            case CLOSE -> {
+                closeMetrics = calculateCloseMetrics(position, input.tradePrice(), input.quantity(), instrumentId);
+                BigDecimal newQuantity = position.getQuantity().subtract(input.quantity());
+                BigDecimal newMargin = position.getMargin().subtract(closeMetrics.marginReleased());
+                updatedPosition.setEntryPrice(position.getEntryPrice());
+                updatedPosition.setQuantity(newQuantity);
+                updatedPosition.setMargin(newMargin);
+                if (input.isFlip()) {
+                    updatedPosition.setClosingReservedQuantity(BigDecimal.ZERO);
+                } else {
+                    updatedPosition.setClosingReservedQuantity(position.getClosingReservedQuantity()
+                            .subtract(input.quantity())
+                            .max(BigDecimal.ZERO));
+                }
+                updatedPosition.setCumRealizedPnl(position.getCumRealizedPnl().add(closeMetrics.pnl()));
+                updatedPosition.setCumFee(position.getCumFee().add(input.feeCharged()));
+                if (newQuantity.compareTo(BigDecimal.ZERO) == 0) {
+                    updatedPosition.setStatus(PositionStatus.CLOSED);
+                    updatedPosition.setClosedAt(input.executedAt());
+                } else {
+                    updatedPosition.setStatus(PositionStatus.ACTIVE);
+                    updatedPosition.setClosedAt(null);
+                }
+            }
+            case MARK_PRICE -> {
+            }
+        }
+
+        updateRiskMetrics(updatedPosition, instrumentId, input.tradePrice());
+        return new PositionUpdateResult(updatedPosition, closeMetrics);
+    }
+
+    private void updateRiskMetrics(Position updatedPosition,
+                                   Long instrumentId,
+                                   BigDecimal fallbackPrice) {
+        BigDecimal contractMultiplier = requireContractSize(instrumentId);
+        BigDecimal maintenanceMarginRate = resolveMaintenanceMarginRate(instrumentId);
+        BigDecimal effectiveMarkPrice = resolveEffectiveMarkPrice(updatedPosition, instrumentId, fallbackPrice);
+        BigDecimal newQuantity = updatedPosition.getQuantity();
+        if (newQuantity.compareTo(BigDecimal.ZERO) > 0) {
+            if (updatedPosition.getSide() == PositionSide.LONG) {
+                updatedPosition.setUnrealizedPnl(effectiveMarkPrice.subtract(updatedPosition.getEntryPrice())
+                                                           .multiply(newQuantity)
+                                                           .multiply(contractMultiplier));
+            } else {
+                updatedPosition.setUnrealizedPnl(updatedPosition.getEntryPrice().subtract(effectiveMarkPrice)
+                                                  .multiply(newQuantity)
+                                                  .multiply(contractMultiplier));
+            }
+
+            BigDecimal notional = effectiveMarkPrice.multiply(newQuantity).multiply(contractMultiplier).abs();
+            if (notional.compareTo(BigDecimal.ZERO) == 0) {
+                updatedPosition.setMarginRatio(BigDecimal.ZERO);
+            } else {
+                updatedPosition.setMarginRatio(updatedPosition.getMargin().add(updatedPosition.getUnrealizedPnl())
+                                               .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP));
+            }
+
+            BigDecimal quantityTimesMultiplier = newQuantity.multiply(contractMultiplier);
+            if (quantityTimesMultiplier.compareTo(BigDecimal.ZERO) == 0) {
+                updatedPosition.setLiquidationPrice(null);
+                return;
+            }
+            if (updatedPosition.getSide() == PositionSide.LONG) {
+                updatedPosition.setLiquidationPrice(
+                        updatedPosition.getEntryPrice()
+                                .subtract(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
+                );
+            } else {
+                updatedPosition.setLiquidationPrice(
+                        updatedPosition.getEntryPrice()
+                                .add(updatedPosition.getMargin().divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP)
+                );
+            }
+        } else {
+            updatedPosition.setUnrealizedPnl(BigDecimal.ZERO);
+            updatedPosition.setMarginRatio(BigDecimal.ZERO);
+            updatedPosition.setLiquidationPrice(null);
+        }
+    }
+
+    private CloseMetrics calculateCloseMetrics(Position position,
+                                               BigDecimal price,
+                                               BigDecimal quantity,
+                                               Long instrumentId) {
+        BigDecimal existingQuantity = position.getQuantity();
+        BigDecimal marginReleased = position.getMargin()
+                .multiply(quantity)
+                .divide(existingQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+        BigDecimal contractMultiplier = requireContractSize(instrumentId);
+        BigDecimal pnl = calculateRealizedPnl(position.getSide(),
+                position.getEntryPrice(),
+                price,
+                quantity,
+                contractMultiplier);
+        return new CloseMetrics(marginReleased, pnl);
+    }
+
+    private BigDecimal calculateRealizedPnl(PositionSide side,
+                                            BigDecimal entryPrice,
+                                            BigDecimal price,
+                                            BigDecimal quantity,
+                                            BigDecimal contractMultiplier) {
+        if (side == PositionSide.LONG) {
+            return price.subtract(entryPrice)
+                        .multiply(quantity)
+                        .multiply(contractMultiplier);
+        }
+        return entryPrice.subtract(price)
+                         .multiply(quantity)
+                         .multiply(contractMultiplier);
     }
 
 }

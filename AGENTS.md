@@ -18,6 +18,7 @@
 - Enum/常數：REST DTO 枚舉放 `sdk-contract/.../enums` 並直接引用；PO 用 enum 型別；領域常數封裝於 Domain/Value Object；Kafka Topic 定義用 Enum 並提供可在註解引用的 `Names`/常數。
 - 多行註解格式：開頭 `/**` 換行後每行兩空格縮排，結尾 ` */` 對齊；避免使用星號前綴。
 - 批次 insert/update 統一使用 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor`（保留每 1,000 筆 flush/clear）；採 Intent-Centric 風格，入參直接用、避免多餘 null 判斷或包裝。
+- 可直接使用入參或來源欄位時就直接使用，避免宣告多餘的暫存變數。
 
 ## Exchange Rules
 - 任何新功能/重構先對照 `service/exchange/design/`；衝突時以設計文件為準。
