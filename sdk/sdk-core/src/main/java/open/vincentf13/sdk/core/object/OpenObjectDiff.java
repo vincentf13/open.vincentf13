@@ -70,6 +70,81 @@ public final class OpenObjectDiff {
     }
 
     /**
+     * 比對兩個物件並回傳差異 JSON 字串。對於數值類型，回傳差值（after - before）；其他類型回傳 after 的值。
+     *
+     * @param before 基準物件（可為 null）。
+     * @param after  更新後的物件（可為 null）。
+     * @param <T>    物件類型。
+     * @return 差異的 JSON 字串，若無差異則回傳 "{}"。
+     */
+    public static <T> String diffDelta(T before, T after) {
+        if (before == after) {
+            return "{}";
+        }
+
+        JsonNode beforeNode = before == null ? JsonNodeFactory.instance.objectNode() : OpenObjectMapper.toNode(before);
+        JsonNode afterNode = after == null ? JsonNodeFactory.instance.objectNode() : OpenObjectMapper.toNode(after);
+
+        if (beforeNode == null) beforeNode = JsonNodeFactory.instance.objectNode();
+        if (afterNode == null) afterNode = JsonNodeFactory.instance.objectNode();
+
+        // 處理基本類型或非物件的情況
+        if (!beforeNode.isObject() || !afterNode.isObject()) {
+            if (isSame(beforeNode, afterNode)) {
+                return "{}";
+            }
+            // 若為數值，回傳差值
+            if (isNumberOrNull(beforeNode) && isNumberOrNull(afterNode)) {
+                BigDecimal b1 = toBigDecimal(beforeNode);
+                BigDecimal b2 = toBigDecimal(afterNode);
+                return b2.subtract(b1).toString();
+            }
+            return OpenObjectMapper.toJson(after);
+        }
+
+        ObjectNode diff = JsonNodeFactory.instance.objectNode();
+        Set<String> allKeys = new HashSet<>();
+        beforeNode.fieldNames().forEachRemaining(allKeys::add);
+        afterNode.fieldNames().forEachRemaining(allKeys::add);
+
+        for (String key : allKeys) {
+            JsonNode beforeVal = beforeNode.get(key);
+            JsonNode afterVal = afterNode.get(key);
+
+            if (!isSame(beforeVal, afterVal)) {
+                if (isNumberOrNull(beforeVal) && isNumberOrNull(afterVal)) {
+                    BigDecimal b1 = toBigDecimal(beforeVal);
+                    BigDecimal b2 = toBigDecimal(afterVal);
+                    diff.put(key, b2.subtract(b1));
+                } else {
+                    // 如果 afterVal 為 null 或缺失，則在 diff 中明確記錄為 null
+                    if (afterVal == null || afterVal.isNull()) {
+                        diff.putNull(key);
+                    } else {
+                        diff.set(key, afterVal);
+                    }
+                }
+            }
+        }
+
+        return diff.toString();
+    }
+
+    private static boolean isNumberOrNull(JsonNode node) {
+        return node == null || node.isNull() || node.isNumber();
+    }
+
+    private static BigDecimal toBigDecimal(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return BigDecimal.ZERO;
+        }
+        if (node.isNumber()) {
+            return node.decimalValue();
+        }
+        return BigDecimal.ZERO; // Should not happen if checked by isNumberOrNull, but safe fallback
+    }
+
+    /**
      * 判斷兩個 JsonNode 是否邏輯相等（特別處理了 BigDecimal 的數值相等性）。
      */
     private static boolean isSame(JsonNode v1, JsonNode v2) {
