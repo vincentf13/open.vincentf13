@@ -45,7 +45,7 @@ public class OrderEventRepository {
                                          .instrumentId(order.getInstrumentId())
                                          .eventType(eventType)
                                          .sequenceNumber(nextSeq)
-                                         .payload(payload == null ? "{}" : OpenObjectMapper.toJson(payload))
+                                         .payload(formatPayload(payload))
                                          .referenceType(referenceType)
                                          .referenceId(resolvedReferenceId)
                                          .actor(actor)
@@ -73,5 +73,15 @@ public class OrderEventRepository {
                      .map(po -> OpenObjectMapper.convert(po, OrderEventRecord.class))
                      .filter(Objects::nonNull)
                      .toList();
+    }
+
+    private String formatPayload(Object payload) {
+        if (payload == null) {
+            return "{}";
+        }
+        if (payload instanceof String) {
+            return (String) payload;
+        }
+        return OpenObjectMapper.toJson(payload);
     }
 }
