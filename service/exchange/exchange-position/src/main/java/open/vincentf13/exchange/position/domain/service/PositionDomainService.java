@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
@@ -320,6 +321,11 @@ public class PositionDomainService {
         Instant now = Instant.now();
         
         for (Position position : positions) {
+            // 5秒內不重複更新同一倉位的標記價相關指標，避免頻繁寫入
+            if (position.getUpdatedAt() != null &&
+                Duration.between(position.getUpdatedAt(), now).toMillis() < 5000) {
+                continue;
+            }
             Position updatedPosition = applyPositionUpdate(position,
                                                           instrumentId,
                                                           PositionUpdateInput.forMarkPrice(markPrice))
