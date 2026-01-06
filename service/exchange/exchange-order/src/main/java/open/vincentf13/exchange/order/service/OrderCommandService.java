@@ -72,7 +72,7 @@ public class OrderCommandService {
             
             order.onFundsFrozen(eventTime);
             
-            if (order.getStatus() == order.getStatus()) {
+            if (order.getStatus() != OrderStatus.NEW) {
                 return;
             }
             
@@ -123,7 +123,7 @@ public class OrderCommandService {
 
             order.onFundsFreezeFailed(reason, eventTime);
 
-            if (order.getStatus() == order.getStatus()) {
+            if (order.getStatus() !=  OrderStatus.REJECTED) {
                 return;
             }
 
