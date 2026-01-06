@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.position.service;
 
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -9,15 +8,12 @@ import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.model.PositionEvent;
+import open.vincentf13.exchange.position.domain.service.PositionDomainService;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventItem;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventResponse;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.*;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
@@ -37,6 +33,7 @@ public class PositionQueryService {
     
     private final PositionRepository positionRepository;
     private final PositionEventRepository positionEventRepository;
+    private final PositionDomainService positionDomainService;
     
     public PositionIntentResponse prepareIntent(@NotNull @Valid PositionIntentRequest request) {
         var activePosition = positionRepository.findOne(
@@ -53,31 +50,13 @@ public class PositionQueryService {
         if (intentType == PositionIntentType.INCREASE) {
             return PositionIntentResponse.of(intentType, existing, OpenObjectMapper.convert(position, PositionResponse.class));
         }
-        BigDecimal availableToClose = position.availableToClose();
-        // prevent flip when all quantity is reserved for closing.
-        if (availableToClose.compareTo(BigDecimal.ZERO) <= 0) {
-            return PositionIntentResponse.ofRejected(intentType, existing,
-                                                     PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE.code());
+        
+        try {
+            positionDomainService.reserveClosingPosition(position, request.quantity());
+        } catch (OpenException e) {
+            return PositionIntentResponse.ofRejected(intentType, existing, e.getCode().message());
         }
-        if (availableToClose.compareTo(request.quantity()) < 0) {
-            return PositionIntentResponse.ofRejected(intentType, existing,
-                                                     PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE.code());
-        }
-        int expectedVersion = position.safeVersion();
-        position.setClosingReservedQuantity(position.getClosingReservedQuantity().add(request.quantity()));
-        position.setVersion(expectedVersion + 1);
-        boolean updated = positionRepository.updateSelectiveBy(
-                position,
-                new LambdaUpdateWrapper<PositionPO>()
-                        .eq(PositionPO::getPositionId, position.getPositionId())
-                        .eq(PositionPO::getUserId, position.getUserId())
-                        .eq(PositionPO::getInstrumentId, position.getInstrumentId())
-                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE)
-                        .eq(PositionPO::getVersion, expectedVersion));
-        if (!updated) {
-            return PositionIntentResponse.ofRejected(intentType, existing,
-                                                     PositionErrorCode.POSITION_CONCURRENT_UPDATE.code());
-        }
+        
         return PositionIntentResponse.of(intentType,
                                          existing,
                                          OpenObjectMapper.convert(position, PositionResponse.class));

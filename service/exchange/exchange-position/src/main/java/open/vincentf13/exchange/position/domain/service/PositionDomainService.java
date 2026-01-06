@@ -44,6 +44,31 @@ public class PositionDomainService {
     private final RiskLimitCache riskLimitCache;
     private final InstrumentCache instrumentCache;
 
+    public void reserveClosingPosition(Position position, BigDecimal reservedQuantity) {
+        BigDecimal availableToClose = position.availableToClose();
+        // prevent flip when all quantity is reserved for closing.
+        if (availableToClose.compareTo(BigDecimal.ZERO) <= 0) {
+            throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE);
+        }
+        if (availableToClose.compareTo(reservedQuantity) < 0) {
+            throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE);
+        }
+        int expectedVersion = position.safeVersion();
+        position.setClosingReservedQuantity(position.getClosingReservedQuantity().add(reservedQuantity));
+        position.setVersion(expectedVersion + 1);
+        boolean updated = positionRepository.updateSelectiveBy(
+                position,
+                Wrappers.<PositionPO>lambdaUpdate()
+                        .eq(PositionPO::getPositionId, position.getPositionId())
+                        .eq(PositionPO::getUserId, position.getUserId())
+                        .eq(PositionPO::getInstrumentId, position.getInstrumentId())
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE)
+                        .eq(PositionPO::getVersion, expectedVersion));
+        if (!updated) {
+            throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE);
+        }
+    }
+
     public PositionSide toPositionSide(OrderSide orderSide) {
         if (orderSide == null) {
             return null;
