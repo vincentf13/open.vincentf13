@@ -6,9 +6,6 @@ import open.vincentf13.sdk.core.log.OpenEvent;
   Market 事件枚舉。
  */
 public enum MarketEvent implements OpenEvent {
-    STARTUP_CACHE_LOADING("MarketStartupCacheLoading", "Starting cache loading"),
-    STARTUP_CACHE_LOADED("MarketStartupCacheLoaded", "Cache loaded successfully"),
-    STARTUP_CACHE_LOAD_FAILED("MarketStartupCacheLoadFailed", "Cache loading failed"),
     STARTUP_LOADING_INSTRUMENTS("MarketStartupLoadingInstruments", "Loading instruments from Admin service"),
     STARTUP_INSTRUMENTS_LOADED("MarketStartupInstrumentsLoaded", "Instruments loaded successfully"),
     MARK_PRICE_CACHE_UPDATED("MarkPriceCacheUpdated", "Mark price updated in cache"),

@@ -1,13 +1,13 @@
 package open.vincentf13.exchange.risk.infra.bootstrap;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.admin.contract.client.ExchangeAdminClient;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.market.sdk.rest.client.ExchangeMarketClient;
 import open.vincentf13.exchange.risk.infra.RiskEvent;
 import open.vincentf13.exchange.risk.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.risk.infra.cache.MarkPriceCache;
+import open.vincentf13.sdk.core.bootstrap.OpenStartupCacheLoader;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
@@ -15,42 +15,17 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
-public class StartupCacheLoader {
-
-    private static final long RETRY_DELAY_MS = 3000;
+public class StartupCacheLoader extends OpenStartupCacheLoader {
 
     private final ExchangeAdminClient adminClient;
     private final ExchangeMarketClient marketClient;
     private final InstrumentCache instrumentCache;
     private final MarkPriceCache markPriceCache;
 
-    public void loadCaches() {
-        OpenLog.info(RiskEvent.STARTUP_CACHE_LOADING);
-
-        int attempt = 0;
-        while (true) {
-            try {
-                attempt++;
-                OpenLog.info(RiskEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
-
-                loadInstruments();
-                loadMarkPrices();
-
-                OpenLog.info(RiskEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size());
-                return;
-
-            } catch (Exception e) {
-                OpenLog.error(RiskEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
-
-                try {
-                    Thread.sleep(RETRY_DELAY_MS);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Cache loading interrupted", ie);
-                }
-            }
-        }
+    @Override
+    protected void doLoadCaches() {
+        loadInstruments();
+        loadMarkPrices();
     }
 
     private void loadInstruments() {

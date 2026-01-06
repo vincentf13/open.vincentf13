@@ -10,6 +10,8 @@ import open.vincentf13.exchange.position.infra.cache.MarkPriceCache;
 import open.vincentf13.exchange.position.infra.cache.RiskLimitCache;
 import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
+import open.vincentf13.sdk.core.bootstrap.OpenStartupCacheLoader;
+import open.vincentf13.sdk.core.log.CoreEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
@@ -21,9 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Service
 @RequiredArgsConstructor
-public class StartupCacheLoader {
-
-    private static final long RETRY_DELAY_MS = 3000;
+public class StartupCacheLoader extends OpenStartupCacheLoader {
 
     private final ExchangeAdminClient adminClient;
     private final ExchangeRiskClient riskClient;
@@ -37,33 +37,11 @@ public class StartupCacheLoader {
      *
      * @throws RuntimeException if loading fails after max retry attempts
      */
-    public void loadCaches() {
-        OpenLog.info(PositionEvent.STARTUP_CACHE_LOADING);
-
-        int attempt = 0;
-        while (true) {
-            try {
-                attempt++;
-                OpenLog.info(PositionEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
-
-                loadInstruments();
-                loadRiskLimits();
-                loadMarkPrices();
-
-                OpenLog.info(PositionEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size(), "riskLimits", riskLimitCache.size(), "markPrices", markPriceCache.size());
-                return;
-
-            } catch (Exception e) {
-                OpenLog.error(PositionEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
-
-                try {
-                    Thread.sleep(RETRY_DELAY_MS);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Cache loading interrupted", ie);
-                }
-            }
-        }
+    @Override
+    protected void doLoadCaches() {
+        loadInstruments();
+        loadRiskLimits();
+        loadMarkPrices();
     }
 
     /**
@@ -104,7 +82,7 @@ public class StartupCacheLoader {
     }
 
     private void loadMarkPrices() {
-        OpenLog.info(PositionEvent.STARTUP_CACHE_LOADING, "Loading mark prices");
+        OpenLog.info(CoreEvent.STARTUP_CACHE_LOADING, "Loading mark prices");
         instrumentCache.getAll().forEach(instrument -> {
             Long instrumentId = instrument.instrumentId();
             try {

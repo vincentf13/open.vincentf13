@@ -9,16 +9,13 @@ public enum PositionEvent implements OpenEvent {
     POSITION_TRADE_SETTLEMENT_FAILED("PositionTradeSettlementFailed", "Trade settlement handling failed"),
     POSITION_TRADE_PAYLOAD_INVALID("PositionTradePayloadInvalid", "Invalid TradeExecuted payload"),
     POSITION_MARK_PRICE_UPDATE_FAILED("PositionMarkPriceUpdateFailed", "Mark price update failed"),
-    STARTUP_CACHE_LOADING("StartupCacheLoading", "Starting cache loading"),
-    STARTUP_CACHE_LOADED("StartupCacheLoaded", "Cache loaded successfully"),
-    STARTUP_CACHE_LOAD_FAILED("StartupCacheLoadFailed", "Cache loading failed"),
-    STARTUP_LOADING_INSTRUMENTS("StartupLoadingInstruments", "Loading instruments from Admin service"),
-    STARTUP_INSTRUMENTS_LOADED("StartupInstrumentsLoaded", "Instruments loaded successfully"),
-    STARTUP_LOADING_RISK_LIMITS("StartupLoadingRiskLimits", "Loading risk limits from Risk service"),
-    STARTUP_RISK_LIMITS_LOADED("StartupRiskLimitsLoaded", "Risk limits loaded successfully"),
-    STARTUP_RISK_LIMIT_FETCH_FAILED("StartupRiskLimitFetchFailed", "Failed to fetch risk limit for instrument"),
-    STARTUP_RISK_LIMIT_LOAD_PARTIAL("StartupRiskLimitLoadPartial", "Partial risk limit loading"),
-    STARTUP_CACHE_LOAD_PARTIAL("StartupCacheLoadPartial", "Partial cache loading during startup");
+    STARTUP_LOADING_INSTRUMENTS("PositionStartupLoadingInstruments", "Loading instruments from Admin service"),
+    STARTUP_INSTRUMENTS_LOADED("PositionStartupInstrumentsLoaded", "Instruments loaded successfully"),
+    STARTUP_LOADING_RISK_LIMITS("PositionStartupLoadingRiskLimits", "Loading risk limits from Risk service"),
+    STARTUP_RISK_LIMITS_LOADED("PositionStartupRiskLimitsLoaded", "Risk limits loaded successfully"),
+    STARTUP_RISK_LIMIT_FETCH_FAILED("PositionStartupRiskLimitFetchFailed", "Failed to fetch risk limit for instrument"),
+    STARTUP_RISK_LIMIT_LOAD_PARTIAL("PositionStartupRiskLimitLoadPartial", "Partial risk limit loading"),
+    STARTUP_CACHE_LOAD_PARTIAL("PositionStartupCacheLoadPartial", "Partial cache loading during startup");
     
     private final String event;
     private final String message;
