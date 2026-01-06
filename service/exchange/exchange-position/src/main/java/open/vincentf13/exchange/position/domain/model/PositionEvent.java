@@ -88,4 +88,22 @@ public class PositionEvent {
                 .occurredAt(occurredAt)
                 .build();
     }
+
+    public static PositionEvent createMarkPriceEvent(Long positionId,
+                                                     Long userId,
+                                                     Long instrumentId,
+                                                     String payload,
+                                                     Instant occurredAt) {
+        return PositionEvent.builder()
+                .positionId(positionId)
+                .userId(userId)
+                .instrumentId(instrumentId)
+                .eventType(PositionEventType.MARK_PRICE_UPDATED)
+                .sequenceNumber(null)
+                .payload(payload == null ? "{}" : payload)
+                .referenceId(null)
+                .referenceType(PositionReferenceType.MARK_PRICE)
+                .occurredAt(occurredAt)
+                .build();
+    }
 }
