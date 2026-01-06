@@ -131,9 +131,15 @@ public class Position {
                           BigDecimal contractMultiplier,
                           BigDecimal maintenanceMarginRate) {
         BigDecimal newQuantity = this.quantity.add(quantity);
+        
+        BigDecimal tradeValue = tradePrice.multiply(quantity);
+        BigDecimal effectiveTradeValue = this.side == PositionSide.LONG
+                                         ? tradeValue.add(feeCharged)
+                                         : tradeValue.subtract(feeCharged);
+
         BigDecimal newEntryPrice = this.entryPrice
                 .multiply(this.quantity)
-                .add(tradePrice.multiply(quantity))
+                .add(effectiveTradeValue)
                 .divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
         this.entryPrice = newEntryPrice;
         this.quantity = newQuantity;
@@ -164,7 +170,7 @@ public class Position {
         BigDecimal newQuantity = this.quantity.subtract(quantity);
         this.quantity = newQuantity;
         this.margin = this.margin.subtract(marginReleased);
-        this.cumRealizedPnl = this.cumRealizedPnl.add(pnl);
+        this.cumRealizedPnl = this.cumRealizedPnl.add(pnl).subtract(feeCharged);
         this.cumFee = this.cumFee.add(feeCharged);
         if (isFlip) {
             this.closingReservedQuantity = BigDecimal.ZERO;
