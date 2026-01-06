@@ -34,6 +34,14 @@ public class MarkPriceCache {
                        .map(MarkPriceEntry::markPrice);
     }
 
+    public static BigDecimal resolveEffectiveMarkPrice(MarkPriceCache cache,
+                                                       Long instrumentId,
+                                                       BigDecimal fallbackPrice) {
+        return cache.get(instrumentId)
+                .filter(markPrice -> markPrice.compareTo(BigDecimal.ZERO) > 0)
+                .orElse(fallbackPrice);
+    }
+
     /**
       Updates the mark price for an instrument, ensuring that older prices do not overwrite newer ones.
 
