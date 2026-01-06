@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.position.domain.model;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,8 +16,6 @@ import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
 
 @Data
@@ -264,7 +264,7 @@ public class Position {
     public static String buildPayload(Position before,
                                       Position after) {
         Position baseline = (before == null || before.getPositionId() == null) ? new Position() : before;
-        Map<String, Object> payload = new LinkedHashMap<>();
+        ObjectNode payload = JsonNodeFactory.instance.objectNode();
         appendPayload(payload, "instrumentId", baseline.getInstrumentId(), after.getInstrumentId());
         appendPayload(payload, "side",
                 baseline.getSide() != null ? baseline.getSide().name() : null,
@@ -290,15 +290,20 @@ public class Position {
         appendPayload(payload, "positionId", baseline.getPositionId(), after.getPositionId());
         appendPayload(payload, "userId", baseline.getUserId(), after.getUserId());
         appendPayload(payload, "version", baseline.getVersion(), after.getVersion());
-        return OpenObjectMapper.toJson(payload);
+        return payload.toString();
     }
 
-    private static void appendPayload(Map<String, Object> payload,
+    private static void appendPayload(ObjectNode payload,
                                       String key,
                                       Object before,
                                       Object after) {
         if (!isSameValue(before, after)) {
-            payload.put(key, normalizePayloadValue(after));
+            Object normalized = normalizePayloadValue(after);
+            if (normalized == null) {
+                payload.putNull(key);
+            } else {
+                payload.set(key, OpenObjectMapper.toNode(normalized));
+            }
         }
     }
 

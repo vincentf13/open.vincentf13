@@ -744,6 +744,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   ]);
 
   const renderOrderCellValue = (order: OrderResponse, key: string) => {
+    if ((order as any)[key] === null) {
+      return 'Removed';
+    }
     if (key === 'instrumentId') {
       return instrumentMap.get(String(order.instrumentId)) || String(order.instrumentId);
     }
@@ -793,6 +796,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   ];
 
   const renderCellValue = (position: PositionResponse, key: string) => {
+    if ((position as any)[key] === null) {
+      return 'Removed';
+    }
     if (key === 'instrumentId') {
       return instrumentMap.get(String(position.instrumentId)) || String(position.instrumentId);
     }
@@ -932,7 +938,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   };
 
   const formatOrderPayloadValue = (key: string, value: unknown) => {
-    if (value === null || value === undefined || value === '') {
+    if (value === null) {
+      return 'Removed';
+    }
+    if (value === undefined || value === '') {
       return '-';
     }
     if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(key)) {
@@ -942,7 +951,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   };
 
   const formatPositionPayloadValue = (key: string, value: unknown) => {
-    if (value === null || value === undefined || value === '') {
+    if (value === null) {
+      return 'Removed';
+    }
+    if (value === undefined || value === '') {
       return '-';
     }
     if (['createdAt', 'updatedAt', 'closedAt'].includes(key)) {
