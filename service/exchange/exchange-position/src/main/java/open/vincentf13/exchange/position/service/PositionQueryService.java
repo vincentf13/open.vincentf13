@@ -10,10 +10,15 @@ import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.model.PositionEvent;
 import open.vincentf13.exchange.position.domain.service.PositionDomainService;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
+import open.vincentf13.exchange.position.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.*;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventItem;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
@@ -34,8 +39,12 @@ public class PositionQueryService {
     private final PositionRepository positionRepository;
     private final PositionEventRepository positionEventRepository;
     private final PositionDomainService positionDomainService;
+    private final InstrumentCache instrumentCache;
     
     public PositionIntentResponse prepareIntent(@NotNull @Valid PositionIntentRequest request) {
+        BigDecimal multiplier = InstrumentCache.requireContractSize(instrumentCache, request.getInstrumentId());
+        request.setQuantity(request.getQuantity().multiply(multiplier));
+
         var activePosition = positionRepository.findOne(
                 Wrappers.lambdaQuery(PositionPO.class)
                         .eq(PositionPO::getUserId, request.userId())

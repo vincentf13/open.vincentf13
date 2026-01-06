@@ -1,0 +1,84 @@
+@namespace = exchange
+@gatewayHost = http://localhost:12345
+@password = 12345678
+@instrumentId = 10001
+
+### Login A
+# @name loginA
+POST {{gatewayHost}}/auth/api/login
+Content-Type: application/json
+
+{
+  "email": "c.p.kevinf13@gmail.com",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("tokenA", response.body.data.jwtToken);
+    client.log("Token A: " + client.global.get("tokenA"));
+%}
+
+### Login B
+# @name loginB
+POST {{gatewayHost}}/auth/api/login
+Content-Type: application/json
+
+{
+  "email": "c.p.kevinf13-2@gmail.com",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("tokenB", response.body.data.jwtToken);
+    client.log("Token B: " + client.global.get("tokenB"));
+%}
+
+### Deposit A
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 1000,
+  "txId": "dep-A-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+### Deposit B
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 1000,
+  "txId": "dep-B-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+### Order A (Buy @ 10)
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 10
+}
+
+### Order B (Sell @ 10)
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 10
+}
