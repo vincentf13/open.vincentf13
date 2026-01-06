@@ -8,7 +8,8 @@ import org.springframework.context.annotation.Import;
 @AutoConfiguration
 @Import({
     KafkaConsumerResetService.class,
-    ConfigKafkaProducer.class
+    ConfigKafkaProducer.class,
+    KafkaDebugOffsetResetConfiguration.class
 })
 public class SdkInfraKafkaAutoConfiguration {
 }
