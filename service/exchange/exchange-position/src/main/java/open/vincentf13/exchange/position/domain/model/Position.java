@@ -1,7 +1,5 @@
 package open.vincentf13.exchange.position.domain.model;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,12 +9,11 @@ import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.object.OpenObjectDiff;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.Objects;
 
 @Data
 @Builder
@@ -265,75 +262,6 @@ public class Position {
     public static String buildPayload(Position before,
                                       Position after) {
         Position baseline = (before == null || before.getPositionId() == null) ? new Position() : before;
-        ObjectNode payload = JsonNodeFactory.instance.objectNode();
-        appendPayload(payload, "instrumentId", baseline.getInstrumentId(), after.getInstrumentId());
-        appendPayload(payload, "side",
-                baseline.getSide() != null ? baseline.getSide().name() : null,
-                after.getSide() != null ? after.getSide().name() : null);
-        appendPayload(payload, "status",
-                baseline.getStatus() != null ? baseline.getStatus().name() : null,
-                after.getStatus() != null ? after.getStatus().name() : null);
-        appendPayload(payload, "entryPrice", baseline.getEntryPrice(), after.getEntryPrice());
-        appendPayload(payload, "quantity", baseline.getQuantity(), after.getQuantity());
-        appendPayload(payload, "closingReservedQuantity", baseline.getClosingReservedQuantity(), after.getClosingReservedQuantity());
-        appendPayload(payload, "markPrice", baseline.getMarkPrice(), after.getMarkPrice());
-        appendPayload(payload, "liquidationPrice", baseline.getLiquidationPrice(), after.getLiquidationPrice());
-        appendPayload(payload, "unrealizedPnl", baseline.getUnrealizedPnl(), after.getUnrealizedPnl());
-        appendPayload(payload, "cumRealizedPnl", baseline.getCumRealizedPnl(), after.getCumRealizedPnl());
-        appendPayload(payload, "cumFee", baseline.getCumFee(), after.getCumFee());
-        appendPayload(payload, "cumFundingFee", baseline.getCumFundingFee(), after.getCumFundingFee());
-        appendPayload(payload, "leverage", baseline.getLeverage(), after.getLeverage());
-        appendPayload(payload, "margin", baseline.getMargin(), after.getMargin());
-        appendPayload(payload, "marginRatio", baseline.getMarginRatio(), after.getMarginRatio());
-        appendPayload(payload, "createdAt", baseline.getCreatedAt(), after.getCreatedAt());
-        appendPayload(payload, "updatedAt", baseline.getUpdatedAt(), after.getUpdatedAt());
-        appendPayload(payload, "closedAt", baseline.getClosedAt(), after.getClosedAt());
-        appendPayload(payload, "positionId", baseline.getPositionId(), after.getPositionId());
-        appendPayload(payload, "userId", baseline.getUserId(), after.getUserId());
-        appendPayload(payload, "version", baseline.getVersion(), after.getVersion());
-        return payload.toString();
-    }
-
-    private static void appendPayload(ObjectNode payload,
-                                      String key,
-                                      Object before,
-                                      Object after) {
-        if (isSameValue(before, after)) {
-            return;
-        }
-        Object normalized = normalizePayloadValue(after);
-        if (normalized == null) {
-            payload.putNull(key);
-        } else {
-            payload.set(key, OpenObjectMapper.toNode(normalized));
-        }
-    }
-
-    private static boolean isSameValue(Object before, Object after) {
-        if (Objects.equals(before, after)) {
-            return true;
-        }
-        if (before instanceof BigDecimal && after instanceof BigDecimal) {
-            return ((BigDecimal) before).compareTo((BigDecimal) after) == 0;
-        }
-        if (before instanceof Number && after instanceof Number) {
-            return new BigDecimal(before.toString()).compareTo(new BigDecimal(after.toString())) == 0;
-        }
-        return false;
-    }
-
-    private static Object normalizePayloadValue(Object value) {
-        if (value instanceof BigDecimal) {
-            return normalizeDecimal((BigDecimal) value);
-        }
-        return value;
-    }
-
-    private static BigDecimal normalizeDecimal(BigDecimal value) {
-        if (value == null) {
-            return null;
-        }
-        BigDecimal normalized = value.stripTrailingZeros();
-        return normalized.scale() < 0 ? normalized.setScale(0) : normalized;
+        return OpenObjectDiff.diff(baseline, after);
     }
 }
