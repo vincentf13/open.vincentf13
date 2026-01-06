@@ -3,6 +3,7 @@ package open.vincentf13.exchange.position.infra.cache;
 import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -14,6 +15,8 @@ import java.util.concurrent.ConcurrentMap;
 @Component
 public class RiskLimitCache {
 
+    private static final BigDecimal MAINTENANCE_MARGIN_RATE_DEFAULT = BigDecimal.valueOf(0.005);
+
     private final ConcurrentMap<Long, RiskLimitResponse> cache = new ConcurrentHashMap<>();
 
     /**
@@ -24,6 +27,14 @@ public class RiskLimitCache {
      */
     public Optional<RiskLimitResponse> get(Long instrumentId) {
         return Optional.ofNullable(cache.get(instrumentId));
+    }
+
+    public static BigDecimal resolveMaintenanceMarginRate(RiskLimitCache cache, Long instrumentId) {
+        return cache.get(instrumentId)
+                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null
+                        ? riskLimit.maintenanceMarginRate()
+                        : MAINTENANCE_MARGIN_RATE_DEFAULT)
+                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
     }
 
     /**

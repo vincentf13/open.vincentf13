@@ -28,6 +28,20 @@ public class InstrumentCache {
         return Optional.ofNullable(cache.get(instrumentId));
     }
 
+    public static BigDecimal requireContractSize(InstrumentCache cache, Long instrumentId) {
+        return cache.get(instrumentId)
+                .map(instrument -> instrument.contractSize())
+                .filter(contractSize -> contractSize != null && contractSize.compareTo(BigDecimal.ZERO) > 0)
+                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid contractSize for instrumentId=" + instrumentId));
+    }
+
+    public static Integer requireDefaultLeverage(InstrumentCache cache, Long instrumentId) {
+        return cache.get(instrumentId)
+                .map(instrument -> instrument.defaultLeverage())
+                .filter(leverage -> leverage != null && leverage > 0)
+                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid defaultLeverage for instrumentId=" + instrumentId));
+    }
+
     /**
      * Puts an instrument configuration into the cache.
      *

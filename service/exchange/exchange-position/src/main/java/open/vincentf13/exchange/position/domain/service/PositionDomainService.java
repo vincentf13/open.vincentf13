@@ -44,27 +44,11 @@ public class PositionDomainService {
     private final RiskLimitCache riskLimitCache;
     private final InstrumentCache instrumentCache;
 
-    private static final BigDecimal MAINTENANCE_MARGIN_RATE_DEFAULT = BigDecimal.valueOf(0.005);
-
     public PositionSide toPositionSide(OrderSide orderSide) {
         if (orderSide == null) {
             return null;
         }
         return orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
-    }
-
-    public boolean shouldSplitTrade(Position position, PositionSide targetSide, BigDecimal quantity) {
-        if (position == null) {
-            return false;
-        }
-        BigDecimal existingQuantity = position.getQuantity();
-        return position.getSide() != targetSide && existingQuantity.compareTo(quantity) < 0;
-    }
-
-    public TradeSplit calculateTradeSplit(Position position, BigDecimal quantity) {
-        BigDecimal closeQty = position.getQuantity();
-        BigDecimal flipQty = quantity.subtract(closeQty);
-        return new TradeSplit(closeQty, flipQty);
     }
 
     public Collection<Position> openPosition(@NotNull Long userId,
@@ -100,12 +84,13 @@ public class PositionDomainService {
                         .eq(PositionPO::getUserId, userId)
                         .eq(PositionPO::getInstrumentId, instrumentId)
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                .orElseGet(() -> Position.createDefault(userId, instrumentId, side, requireDefaultLeverage(instrumentId)));
+                .orElseGet(() -> Position.createDefault(userId, instrumentId, side,
+                        InstrumentCache.requireDefaultLeverage(instrumentCache, instrumentId)));
 
         // 開倉 因併發訂單，變為平倉，需釋放保證金，並處理flip的情況
         if (position.getSide() != side) {
-            if (shouldSplitTrade(position, side, quantity)) {
-                TradeSplit split = calculateTradeSplit(position, quantity);
+            if (position.shouldSplitTrade(side, quantity)) {
+                Position.TradeSplit split = position.calculateTradeSplit(quantity);
 
                 BigDecimal flipRatio = split.flipQuantity().divide(quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
                 BigDecimal flipMargin = marginUsed.multiply(flipRatio);
@@ -256,9 +241,6 @@ public class PositionDomainService {
         return new PositionCloseResult(updatedPosition, closeMetrics.pnl(), closeMetrics.marginReleased());
     }
 
-    public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
-    }
-
     @Transactional(propagation = Propagation.NEVER)
     public void updateMarkPrice(@NotNull Long instrumentId, @NotNull BigDecimal markPrice) {
         List<Position> positions = positionRepository.findBy(
@@ -344,26 +326,6 @@ public class PositionDomainService {
         }
     }
 
-    private BigDecimal requireContractSize(Long instrumentId) {
-        return instrumentCache.get(instrumentId)
-                .map(instrument -> instrument.contractSize())
-                .filter(contractSize -> contractSize != null && contractSize.compareTo(BigDecimal.ZERO) > 0)
-                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid contractSize for instrumentId=" + instrumentId));
-    }
-
-    private Integer requireDefaultLeverage(Long instrumentId) {
-        return instrumentCache.get(instrumentId)
-                .map(instrument -> instrument.defaultLeverage())
-                .filter(leverage -> leverage != null && leverage > 0)
-                .orElseThrow(() -> new IllegalStateException("Instrument cache missing or invalid defaultLeverage for instrumentId=" + instrumentId));
-    }
-
-    private BigDecimal resolveMaintenanceMarginRate(Long instrumentId) {
-        return riskLimitCache.get(instrumentId)
-                .map(riskLimit -> riskLimit.maintenanceMarginRate() != null ? riskLimit.maintenanceMarginRate() : MAINTENANCE_MARGIN_RATE_DEFAULT)
-                .orElse(MAINTENANCE_MARGIN_RATE_DEFAULT);
-    }
-
     private BigDecimal resolveEffectiveMarkPrice(Position position,
                                                  Long instrumentId,
                                                  BigDecimal fallbackPrice) {
@@ -426,16 +388,23 @@ public class PositionDomainService {
             }
         }
 
-        updateRiskMetrics(updatedPosition, instrumentId, input.tradePrice());
+        updateRiskMetrics(updatedPosition, instrumentId, input.tradePrice(), input.type());
         return new PositionUpdateResult(updatedPosition, closeMetrics);
     }
 
     private void updateRiskMetrics(Position updatedPosition,
                                    Long instrumentId,
-                                   BigDecimal fallbackPrice) {
-        BigDecimal contractMultiplier = requireContractSize(instrumentId);
-        BigDecimal maintenanceMarginRate = resolveMaintenanceMarginRate(instrumentId);
-        BigDecimal effectiveMarkPrice = resolveEffectiveMarkPrice(updatedPosition, instrumentId, fallbackPrice);
+                                   BigDecimal fallbackPrice,
+                                   PositionUpdateType updateType) {
+        BigDecimal contractMultiplier = InstrumentCache.requireContractSize(instrumentCache, instrumentId);
+        BigDecimal maintenanceMarginRate = RiskLimitCache.resolveMaintenanceMarginRate(riskLimitCache, instrumentId);
+        BigDecimal effectiveMarkPrice;
+        if (updateType == PositionUpdateType.MARK_PRICE) {
+            updatedPosition.setMarkPrice(fallbackPrice);
+            effectiveMarkPrice = fallbackPrice;
+        } else {
+            effectiveMarkPrice = resolveEffectiveMarkPrice(updatedPosition, instrumentId, fallbackPrice);
+        }
         BigDecimal newQuantity = updatedPosition.getQuantity();
         if (newQuantity.compareTo(BigDecimal.ZERO) > 0) {
             if (updatedPosition.getSide() == PositionSide.LONG) {
@@ -489,7 +458,7 @@ public class PositionDomainService {
         BigDecimal marginReleased = position.getMargin()
                 .multiply(quantity)
                 .divide(existingQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
-        BigDecimal contractMultiplier = requireContractSize(instrumentId);
+        BigDecimal contractMultiplier = InstrumentCache.requireContractSize(instrumentCache, instrumentId);
         BigDecimal pnl = calculateRealizedPnl(position.getSide(),
                 position.getEntryPrice(),
                 price,

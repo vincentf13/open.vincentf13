@@ -105,6 +105,22 @@ public class Position {
         }
         return side == otherSide;
     }
+
+    public boolean shouldSplitTrade(PositionSide targetSide, BigDecimal quantity) {
+        if (targetSide == null || quantity == null) {
+            return false;
+        }
+        return side != targetSide && this.quantity.compareTo(quantity) < 0;
+    }
+
+    public TradeSplit calculateTradeSplit(BigDecimal quantity) {
+        BigDecimal closeQty = this.quantity;
+        BigDecimal flipQty = quantity.subtract(closeQty);
+        return new TradeSplit(closeQty, flipQty);
+    }
+
+    public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
+    }
     
     public PositionIntentType evaluateIntent(PositionSide requestSide,
                                              BigDecimal requestedQuantity) {
