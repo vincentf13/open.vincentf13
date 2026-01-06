@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.order.controller;
 
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.sdk.rest.api.OrderApi;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderEventResponse;
@@ -8,6 +9,7 @@ import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.order.service.OrderCommandService;
 import open.vincentf13.exchange.order.service.OrderQueryService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
+import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,7 +26,9 @@ public class OrderController implements OrderApi {
     
     @Override
     public OpenApiResponse<OrderResponse> create(OrderCreateRequest request) {
-        return OpenApiResponse.success(orderCommandService.createOrder(request));
+        Long userId = OpenJwtLoginUserHolder.currentUserIdOrThrow(() ->
+                OpenException.of(OrderErrorCode.ORDER_NOT_FOUND));
+        return OpenApiResponse.success(orderCommandService.createOrder(userId, request));
     }
     
     @Override

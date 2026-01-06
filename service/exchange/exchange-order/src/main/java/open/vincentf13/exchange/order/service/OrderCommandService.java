@@ -2,6 +2,7 @@ package open.vincentf13.exchange.order.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.exchange.order.domain.model.Order;
@@ -24,7 +25,6 @@ import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckResponse;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
-import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -36,9 +36,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -52,8 +50,104 @@ public class OrderCommandService {
     private final ExchangeRiskClient exchangeRiskClient;
     private final TransactionTemplate transactionTemplate;
     
-    public OrderResponse createOrder(@Valid OrderCreateRequest request) {
-        Long userId = currentUserId();
+    private static final String ACTOR_ACCOUNT = "ACCOUNT_SERVICE";
+    private static final String ACTOR_MATCHING = "MATCHING_ENGINE";
+    private static final Set<OrderStatus> UPDATABLE_STATUSES =
+            EnumSet.of(OrderStatus.NEW,
+                       OrderStatus.PARTIALLY_FILLED,
+                       OrderStatus.FILLED,
+                       OrderStatus.CANCELLING,
+                       OrderStatus.CANCELLED);
+
+    public void processFundsFrozen(Long orderId, Instant eventTime) {
+        transactionTemplate.executeWithoutResult(status -> {
+            Order order = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
+                                         .orElse(null);
+            if (order == null) {
+                OpenLog.warn(OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", orderId));
+                return;
+            }
+            
+            int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
+            
+            order.onFundsFrozen(eventTime);
+            
+            if (order.getStatus() == order.getStatus()) {
+                return;
+            }
+            
+            order.incrementVersion();
+
+            boolean updated = orderRepository.updateSelective(
+                    order,
+                    Wrappers.<OrderPO>lambdaUpdate()
+                            .eq(OrderPO::getOrderId, orderId)
+                            .eq(OrderPO::getStatus, order.getStatus())
+                            .eq(OrderPO::getVersion, expectedVersion));
+
+            if (!updated) {
+                OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", orderId));
+                status.setRollbackOnly();
+                return;
+            }
+
+            orderEventPublisher.publishOrderCreated(new OrderCreatedEvent(
+                    order.getOrderId(),
+                    order.getUserId(),
+                    order.getInstrumentId(),
+                    order.getSide(),
+                    order.getType(),
+                    order.getIntent(),
+                    TradeType.NORMAL,
+                    order.getPrice(),
+                    order.getQuantity(),
+                    order.getClientOrderId(),
+                    order.getSubmittedAt()
+            ));
+            
+            orderEventRepository.append(order, OrderEventType.ORDER_SUBMITTED, ACTOR_ACCOUNT, eventTime, Map.of("status", order.getStatus().name(),
+                                                                                                                "submittedAt", order.getSubmittedAt()), OrderEventReferenceType.ACCOUNT_EVENT, null);
+        });
+    }
+
+    public void processFundsFreezeFailed(Long orderId, String reason, Instant eventTime) {
+        transactionTemplate.executeWithoutResult(status -> {
+            Order order = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
+                                         .orElse(null);
+            if (order == null) {
+                OpenLog.warn(OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", orderId));
+                return;
+            }
+            
+            int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
+
+            order.onFundsFreezeFailed(reason, eventTime);
+
+            if (order.getStatus() == order.getStatus()) {
+                return;
+            }
+
+            order.incrementVersion();
+
+            boolean updated = orderRepository.updateSelective(
+                    order,
+                    Wrappers.<OrderPO>lambdaUpdate()
+                            .eq(OrderPO::getOrderId, orderId)
+                            .eq(OrderPO::getStatus, order.getStatus())
+                            .eq(OrderPO::getVersion, expectedVersion));
+
+            if (!updated) {
+                OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", orderId));
+                status.setRollbackOnly();
+                return;
+            }
+            
+            orderEventRepository.append(order, OrderEventType.ORDER_REJECTED, ACTOR_ACCOUNT, eventTime, Map.of("status", order.getStatus().name(),
+                                                                                                               "reason", order.getRejectedReason()), OrderEventReferenceType.ACCOUNT_EVENT, null);
+        });
+    }
+    
+    public OrderResponse createOrder(@NotNull Long userId, @Valid OrderCreateRequest request) {
         try {
             Order order = Order.createNew(userId, request);
             PositionIntentResponse intentResponse = OpenApiClientInvoker.call(
@@ -62,32 +156,28 @@ public class OrderCommandService {
                                             Map.of("userId", userId, "instrumentId", request.instrumentId(), "remoteMessage", msg))
                                                                              );
             PositionIntentType intentType = intentResponse.intentType();
-            order.setIntent(intentType);
-            if (intentResponse.intentType() == null) {
+            
+            if (intentType == null) {
                 return rejectOrder(order, "intentMissing");
             }
             if (intentResponse.rejectReason() != null) {
                 return rejectOrder(order, intentResponse.rejectReason());
             }
-            
-            
+
             OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, intentResponse.positionSnapshot());
             if (!precheck.isAllow()) {
                 return rejectOrder(order, Optional.ofNullable(precheck.getReason()).orElse("riskRejected"));
             }
+
+            order.onPositionIntentDetermined(intentType);
             
             if (intentType == PositionIntentType.INCREASE) {
-                order.setStatus(OrderStatus.FREEZING_MARGIN);
                 Instant eventTime = Instant.now();
                 transactionTemplate.executeWithoutResult(status -> {
                     orderRepository.insertSelective(order);
-                    recordOrderEvent(order,
-                                     OrderEventType.ORDER_CREATED,
-                                     actorFromUser(userId),
-                                     Instant.now(),
-                                     orderCreatedPayload(order),
-                                     OrderEventReferenceType.REQUEST,
-                                     null);
+                    Instant occurredAt = Instant.now();
+                    Object payload = orderCreatedPayload(order);
+                    orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), occurredAt, payload, OrderEventReferenceType.REQUEST, null);
                     orderEventPublisher.publishFundsFreezeRequested(new FundsFreezeRequestedEvent(
                             order.getOrderId(),
                             userId,
@@ -98,18 +188,10 @@ public class OrderCommandService {
                     ));
                 });
             } else {
-                order.setStatus(OrderStatus.NEW);
-                Instant submittedAt = Instant.now();
-                order.setSubmittedAt(submittedAt);
                 transactionTemplate.executeWithoutResult(status -> {
                     orderRepository.insertSelective(order);
-                    recordOrderEvent(order,
-                                     OrderEventType.ORDER_CREATED,
-                                     actorFromUser(userId),
-                                     submittedAt,
-                                     orderCreatedPayload(order),
-                                     OrderEventReferenceType.REQUEST,
-                                     null);
+                    Object payload = orderCreatedPayload(order);
+                    orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), order.getSubmittedAt(), payload, OrderEventReferenceType.REQUEST, null);
                     orderEventPublisher.publishOrderCreated(new OrderCreatedEvent(
                             order.getOrderId(),
                             userId,
@@ -121,7 +203,7 @@ public class OrderCommandService {
                             order.getPrice(),
                             order.getQuantity(),
                             order.getClientOrderId(),
-                            submittedAt
+                            order.getSubmittedAt()
                     ));
                 });
             }
@@ -142,11 +224,62 @@ public class OrderCommandService {
         }
     }
     
-    private Long currentUserId() {
-        return OpenJwtLoginUserHolder.currentUserIdOrThrow(() ->
-                                                                   OpenException.of(OrderErrorCode.ORDER_NOT_FOUND));
+    public void processTradeExecution(Long orderId,
+                                      Long tradeId,
+                                      BigDecimal price,
+                                      BigDecimal filledQuantity,
+                                      BigDecimal feeDelta,
+                                      Instant executedAt) {
+        transactionTemplate.executeWithoutResult(status -> {
+            if (orderEventRepository.existsByReference(orderId, OrderEventReferenceType.TRADE, tradeId)) {
+                return;
+            }
+            
+            Order order = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
+                                         .orElse(null);
+            
+            if (order == null) {
+                OpenLog.warn(OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE,
+                             Map.of("orderId", orderId, "tradeId", tradeId));
+                return;
+            }
+
+            if (!UPDATABLE_STATUSES.contains(order.getStatus())) {
+                return;
+            }
+
+            int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
+            
+            order.onTradeExecuted(price, filledQuantity, feeDelta, executedAt);
+            
+            order.incrementVersion();
+
+            boolean updated = orderRepository.updateSelective(
+                    order,
+                    Wrappers.<OrderPO>lambdaUpdate()
+                            .eq(OrderPO::getOrderId, orderId)
+                            .eq(OrderPO::getVersion, expectedVersion));
+
+            if (!updated) {
+                OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK,
+                             Map.of("orderId", orderId, "tradeId", tradeId));
+                status.setRollbackOnly();
+                return;
+            }
+            
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("tradeId", tradeId);
+            payload.put("fillPrice", normalizePayloadDecimal(price));
+            payload.put("fillQuantity", normalizePayloadDecimal(filledQuantity));
+            payload.put("feeDelta", normalizePayloadDecimal(feeDelta));
+            payload.put("filledQuantity", normalizePayloadDecimal(order.getFilledQuantity()));
+            payload.put("remainingQuantity", normalizePayloadDecimal(order.getRemainingQuantity()));
+            payload.put("status", order.getStatus().name());
+            
+            orderEventRepository.append(order, OrderEventType.ORDER_TRADE_FILLED, ACTOR_MATCHING, executedAt, payload, OrderEventReferenceType.TRADE, tradeId);
+        });
     }
-    
+
     private OrderPrecheckResponse precheckOrder(Long userId,
                                                 Order order,
                                                 PositionIntentType intentType,
@@ -203,13 +336,8 @@ public class OrderCommandService {
         order.setRejectedReason(truncatedReason);
         transactionTemplate.executeWithoutResult(status -> {
             orderRepository.insertSelective(order);
-            recordOrderEvent(order,
-                             OrderEventType.ORDER_REJECTED,
-                             actorFromUser(order.getUserId()),
-                             Instant.now(),
-                             Map.of("reason", Optional.ofNullable(truncatedReason).orElse("")),
-                             OrderEventReferenceType.RISK_CHECK,
-                             null);
+            Instant occurredAt = Instant.now();
+            orderEventRepository.append(order, OrderEventType.ORDER_REJECTED, actorFromUser(order.getUserId()), occurredAt, Map.of("reason", Optional.ofNullable(truncatedReason).orElse("")), OrderEventReferenceType.RISK_CHECK, null);
         });
         return loadPersistedOrder(order.getOrderId())
                        .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
@@ -243,13 +371,4 @@ public class OrderCommandService {
         return normalized.scale() < 0 ? normalized.setScale(0) : normalized;
     }
     
-    private void recordOrderEvent(Order order,
-                                  OrderEventType eventType,
-                                  String actor,
-                                  Instant occurredAt,
-                                  Object payload,
-                                  OrderEventReferenceType referenceType,
-                                  Long referenceId) {
-        orderEventRepository.append(order, eventType, actor, occurredAt, payload, referenceType, referenceId);
-    }
 }

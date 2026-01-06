@@ -124,6 +124,71 @@ public class Order {
         this.status = newStatus;
         this.updatedAt = updatedAt;
     }
+
+    public void onFundsFrozen(Instant eventTime) {
+        if (this.status != OrderStatus.FREEZING_MARGIN) {
+            return;
+        }
+        this.status = OrderStatus.NEW;
+        this.submittedAt = eventTime;
+    }
+
+    public void onFundsFreezeFailed(String reason, Instant eventTime) {
+        if (this.status != OrderStatus.FREEZING_MARGIN) {
+            return;
+        }
+        this.status = OrderStatus.REJECTED;
+        this.rejectedReason = reason != null ? reason : "FundsFreezeFailed";
+    }
+
+    public void onTradeExecuted(BigDecimal fillPrice,
+                                BigDecimal fillQuantity,
+                                BigDecimal feeDelta,
+                                Instant executedAt) {
+        BigDecimal previousFilled = this.filledQuantity == null ? BigDecimal.ZERO : this.filledQuantity;
+        BigDecimal orderQuantity = this.quantity;
+        
+        BigDecimal newFilled = previousFilled.add(fillQuantity);
+        if (newFilled.compareTo(orderQuantity) > 0) {
+            newFilled = orderQuantity;
+        }
+        
+        BigDecimal newRemaining = orderQuantity.subtract(newFilled);
+        if (newRemaining.compareTo(BigDecimal.ZERO) < 0) {
+            newRemaining = BigDecimal.ZERO;
+        }
+
+        BigDecimal totalValueBefore = this.avgFillPrice == null
+                                      ? BigDecimal.ZERO
+                                      : this.avgFillPrice.multiply(previousFilled);
+        BigDecimal totalValueAfter = totalValueBefore.add(fillPrice.multiply(fillQuantity));
+        
+        BigDecimal newAvgPrice = newFilled.compareTo(BigDecimal.ZERO) == 0
+                                 ? this.avgFillPrice
+                                 : totalValueAfter.divide(newFilled, ValidationConstant.Names.COMMON_SCALE, java.math.RoundingMode.HALF_UP);
+
+        this.filledQuantity = newFilled;
+        this.remainingQuantity = newRemaining;
+        this.avgFillPrice = newAvgPrice;
+        this.fee = this.fee == null ? feeDelta : this.fee.add(feeDelta);
+
+        boolean orderFilled = newRemaining.compareTo(BigDecimal.ZERO) == 0;
+        this.status = orderFilled ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
+        
+        if (orderFilled && this.filledAt == null) {
+            this.filledAt = executedAt;
+        }
+    }
+    
+    public void onPositionIntentDetermined(PositionIntentType intentType) {
+        this.intent = intentType;
+        if (intentType == PositionIntentType.INCREASE) {
+            this.status = OrderStatus.FREEZING_MARGIN;
+        } else {
+            this.status = OrderStatus.NEW;
+            this.submittedAt = Instant.now();
+        }
+    }
     
     public void incrementVersion() {
         if (version == null) {
