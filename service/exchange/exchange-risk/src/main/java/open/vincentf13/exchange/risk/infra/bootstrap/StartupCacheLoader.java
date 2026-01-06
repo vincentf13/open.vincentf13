@@ -18,8 +18,7 @@ import java.util.List;
 @Slf4j
 public class StartupCacheLoader {
 
-    private static final int MAX_RETRY_ATTEMPTS = 3;
-    private static final long RETRY_DELAY_MS = 2000;
+    private static final long RETRY_DELAY_MS = 3000;
 
     private final ExchangeAdminClient adminClient;
     private final ExchangeMarketClient marketClient;
@@ -30,10 +29,10 @@ public class StartupCacheLoader {
         OpenLog.info(RiskEvent.STARTUP_CACHE_LOADING);
 
         int attempt = 0;
-        while (attempt < MAX_RETRY_ATTEMPTS) {
+        while (true) {
             try {
                 attempt++;
-                OpenLog.info(RiskEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
+                OpenLog.info(RiskEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
 
                 loadInstruments();
                 loadMarkPrices();
@@ -42,11 +41,7 @@ public class StartupCacheLoader {
                 return;
 
             } catch (Exception e) {
-                OpenLog.error(RiskEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
-
-                if (attempt >= MAX_RETRY_ATTEMPTS) {
-                    throw new RuntimeException("Failed to load caches after " + MAX_RETRY_ATTEMPTS + " attempts", e);
-                }
+                OpenLog.error(RiskEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
 
                 try {
                     Thread.sleep(RETRY_DELAY_MS);

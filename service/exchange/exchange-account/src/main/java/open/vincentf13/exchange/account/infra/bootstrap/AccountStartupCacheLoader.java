@@ -20,8 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 public class AccountStartupCacheLoader {
 
-    private static final int MAX_RETRY_ATTEMPTS = 3;
-    private static final long RETRY_DELAY_MS = 2000;
+    private static final long RETRY_DELAY_MS = 3000;
 
     private final ExchangeAdminClient adminClient;
     private final InstrumentCache instrumentCache;
@@ -30,10 +29,10 @@ public class AccountStartupCacheLoader {
         OpenLog.info(AccountEvent.STARTUP_CACHE_LOADING);
 
         int attempt = 0;
-        while (attempt < MAX_RETRY_ATTEMPTS) {
+        while (true) {
             try {
                 attempt++;
-                OpenLog.info(AccountEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
+                OpenLog.info(AccountEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
 
                 loadInstruments();
 
@@ -41,11 +40,7 @@ public class AccountStartupCacheLoader {
                 return;
 
             } catch (Exception e) {
-                OpenLog.error(AccountEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
-
-                if (attempt >= MAX_RETRY_ATTEMPTS) {
-                    throw new RuntimeException("Failed to load caches after " + MAX_RETRY_ATTEMPTS + " attempts", e);
-                }
+                OpenLog.error(AccountEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
 
                 try {
                     Thread.sleep(RETRY_DELAY_MS);

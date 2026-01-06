@@ -14,8 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MarketStartupCacheLoader {
 
-    private static final int MAX_RETRY_ATTEMPTS = 3;
-    private static final long RETRY_DELAY_MS = 2000;
+    private static final long RETRY_DELAY_MS = 3000;
 
     private final ExchangeAdminClient adminClient;
     private final InstrumentCache instrumentCache;
@@ -24,21 +23,17 @@ public class MarketStartupCacheLoader {
         OpenLog.info(MarketEvent.STARTUP_CACHE_LOADING);
 
         int attempt = 0;
-        while (attempt < MAX_RETRY_ATTEMPTS) {
+        while (true) {
             try {
                 attempt++;
-                OpenLog.info(MarketEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
+                OpenLog.info(MarketEvent.STARTUP_CACHE_LOADING, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
 
                 loadInstruments();
 
                 OpenLog.info(MarketEvent.STARTUP_CACHE_LOADED, "instruments", instrumentCache.size());
                 return;
             } catch (Exception e) {
-                OpenLog.error(MarketEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "maxAttempts", MAX_RETRY_ATTEMPTS);
-
-                if (attempt >= MAX_RETRY_ATTEMPTS) {
-                    throw new RuntimeException("Failed to load caches after " + MAX_RETRY_ATTEMPTS + " attempts", e);
-                }
+                OpenLog.error(MarketEvent.STARTUP_CACHE_LOAD_FAILED, e, "attempt", attempt, "retryDelayMs", RETRY_DELAY_MS);
 
                 try {
                     Thread.sleep(RETRY_DELAY_MS);
