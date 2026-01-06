@@ -69,6 +69,7 @@ public class OrderCommandService {
             }
             
             int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
+            OrderStatus originalStatus = order.getStatus();
             
             order.onFundsFrozen(eventTime);
             
@@ -82,7 +83,7 @@ public class OrderCommandService {
                     order,
                     Wrappers.<OrderPO>lambdaUpdate()
                             .eq(OrderPO::getOrderId, orderId)
-                            .eq(OrderPO::getStatus, order.getStatus())
+                            .eq(OrderPO::getStatus, originalStatus)
                             .eq(OrderPO::getVersion, expectedVersion));
 
             if (!updated) {
@@ -120,6 +121,7 @@ public class OrderCommandService {
             }
             
             int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
+            OrderStatus originalStatus = order.getStatus();
 
             order.onFundsFreezeFailed(reason, eventTime);
 
@@ -133,7 +135,7 @@ public class OrderCommandService {
                     order,
                     Wrappers.<OrderPO>lambdaUpdate()
                             .eq(OrderPO::getOrderId, orderId)
-                            .eq(OrderPO::getStatus, order.getStatus())
+                            .eq(OrderPO::getStatus, originalStatus)
                             .eq(OrderPO::getVersion, expectedVersion));
 
             if (!updated) {
