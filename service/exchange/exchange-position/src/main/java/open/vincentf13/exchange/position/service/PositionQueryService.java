@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.model.PositionEvent;
@@ -14,11 +13,7 @@ import open.vincentf13.exchange.position.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventItem;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventResponse;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.*;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
@@ -45,30 +40,23 @@ public class PositionQueryService {
         BigDecimal multiplier = InstrumentCache.requireContractSize(instrumentCache, request.getInstrumentId());
         request.setQuantity(request.getQuantity().multiply(multiplier));
 
-        var activePosition = positionRepository.findOne(
-                Wrappers.lambdaQuery(PositionPO.class)
-                        .eq(PositionPO::getUserId, request.userId())
-                        .eq(PositionPO::getInstrumentId, request.instrumentId())
-                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
-        if (activePosition.isEmpty()) {
-            return PositionIntentResponse.of(PositionIntentType.INCREASE, BigDecimal.ZERO, null);
-        }
-        Position position = activePosition.get();
-        BigDecimal existing = position.getQuantity();
-        PositionIntentType intentType = position.evaluateIntent(request.side(), request.quantity());
-        if (intentType == PositionIntentType.INCREASE) {
-            return PositionIntentResponse.of(intentType, existing, OpenObjectMapper.convert(position, PositionResponse.class));
-        }
+        PositionDomainService.PositionIntentResult result = positionDomainService.processIntent(
+                request.userId(),
+                request.getInstrumentId(),
+                request.side(),
+                request.getQuantity(),
+                request.clientOrderId()
+        );
+
+        BigDecimal existing = result.position() == null ? BigDecimal.ZERO : result.position().getQuantity();
         
-        try {
-            positionDomainService.reserveClosingPosition(position, request.quantity(), request.clientOrderId());
-        } catch (OpenException e) {
-            return PositionIntentResponse.ofRejected(intentType, existing, e.getCode().message());
+        if (result.errorMessage() != null) {
+            return PositionIntentResponse.ofRejected(result.intentType(), existing, result.errorMessage());
         }
-        
-        return PositionIntentResponse.of(intentType,
+
+        return PositionIntentResponse.of(result.intentType(),
                                          existing,
-                                         OpenObjectMapper.convert(position, PositionResponse.class));
+                                         result.position() == null ? null : OpenObjectMapper.convert(result.position(), PositionResponse.class));
     }
     
     public PositionResponse getPosition(@NotNull Long userId,

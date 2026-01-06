@@ -5,10 +5,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
-import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.exchange.common.sdk.enums.OrderSide;
-import open.vincentf13.exchange.common.sdk.enums.PositionSide;
-import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
+import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.model.PositionEvent;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
@@ -43,6 +40,33 @@ public class PositionDomainService {
     private final MarkPriceCache markPriceCache;
     private final RiskLimitCache riskLimitCache;
     private final InstrumentCache instrumentCache;
+
+    public PositionIntentResult processIntent(Long userId, Long instrumentId, PositionSide side, BigDecimal quantity, String clientOrderId) {
+        var activePosition = positionRepository.findOne(
+                Wrappers.lambdaQuery(PositionPO.class)
+                        .eq(PositionPO::getUserId, userId)
+                        .eq(PositionPO::getInstrumentId, instrumentId)
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
+        
+        if (activePosition.isEmpty()) {
+            return new PositionIntentResult(PositionIntentType.INCREASE, null, null);
+        }
+        
+        Position position = activePosition.get();
+        PositionIntentType intentType = position.evaluateIntent(side, quantity);
+        
+        try {
+            if (intentType != PositionIntentType.INCREASE) {
+                reserveClosingPosition(position, quantity, clientOrderId);
+            }
+            return new PositionIntentResult(intentType, position, null);
+        } catch (OpenException e) {
+            return new PositionIntentResult(intentType, position, e.getCode().message());
+        }
+    }
+
+    public record PositionIntentResult(PositionIntentType intentType, Position position, String errorMessage) {
+    }
 
     @Transactional(rollbackFor = Exception.class)
     public void reserveClosingPosition(Position position, BigDecimal reservedQuantity, String clientOrderId) {
