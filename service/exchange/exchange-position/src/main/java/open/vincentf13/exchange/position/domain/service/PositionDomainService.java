@@ -316,6 +316,7 @@ public class PositionDomainService {
         }
 
         List<PositionRepository.PositionUpdateTask> updateTasks = new ArrayList<>(positions.size());
+        List<PositionEvent> eventTasks = new ArrayList<>();
         Instant now = Instant.now();
         
         for (Position position : positions) {
@@ -330,26 +331,18 @@ public class PositionDomainService {
             
             String payload = Position.buildPayload(position, updatedPosition);
             if (!"{}".equals(payload)) {
-                PositionEvent event = PositionEvent.createMarkPriceEvent(
+                eventTasks.add(PositionEvent.createMarkPriceEvent(
                         updatedPosition.getPositionId(),
                         updatedPosition.getUserId(),
                         updatedPosition.getInstrumentId(),
                         payload,
                         now
-                );
-                try {
-                    positionEventRepository.insert(event);
-                } catch (Exception e) {
-                    // Log error but don't fail the whole batch update task? 
-                    // But here we are outside transaction? 
-                    // Repository insert might handle its own tx?
-                    // Let's assume best effort or just let it fail if critical.
-                    // Given high frequency, maybe log error.
-                    // For now, I won't catch, let it bubble up if failure.
-                }
+                ));
             }
         }
         positionRepository.updateSelectiveBatch(updateTasks);
+        // 不紀錄
+        //positionEventRepository.insertBatch(eventTasks);
     }
 
     public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased) {
@@ -418,30 +411,28 @@ public class PositionDomainService {
         Position.CloseMetrics closeMetrics = null;
         switch (input.type()) {
             case OPEN -> {
-                BigDecimal effectiveMarkPrice = MarkPriceCache.resolveEffectiveMarkPrice(markPriceCache, instrumentId, input.tradePrice());
                 updatedPosition.applyOpen(input.tradePrice(),
-                        effectiveMarkPrice,
-                        input.quantity(),
-                        input.marginDelta(),
-                        input.feeCharged(),
-                        contractMultiplier,
-                        maintenanceMarginRate);
+                                          input.tradePrice(),
+                                          input.quantity(),
+                                          input.marginDelta(),
+                                          input.feeCharged(),
+                                          contractMultiplier,
+                                          maintenanceMarginRate);
             }
             case CLOSE -> {
-                BigDecimal effectiveMarkPrice = MarkPriceCache.resolveEffectiveMarkPrice(markPriceCache, instrumentId, input.tradePrice());
                 closeMetrics = updatedPosition.applyClose(input.tradePrice(),
-                        effectiveMarkPrice,
-                        input.quantity(),
-                        input.feeCharged(),
-                        input.isFlip(),
-                        input.executedAt(),
-                        contractMultiplier,
-                        maintenanceMarginRate);
+                                                          input.tradePrice(),
+                                                          input.quantity(),
+                                                          input.feeCharged(),
+                                                          input.isFlip(),
+                                                          input.executedAt(),
+                                                          contractMultiplier,
+                                                          maintenanceMarginRate);
             }
             case MARK_PRICE -> {
                 updatedPosition.applyMarkPrice(input.tradePrice(),
-                        contractMultiplier,
-                        maintenanceMarginRate);
+                                               contractMultiplier,
+                                               maintenanceMarginRate);
             }
         }
 

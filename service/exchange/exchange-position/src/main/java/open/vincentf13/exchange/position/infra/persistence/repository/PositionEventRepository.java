@@ -12,6 +12,8 @@ import open.vincentf13.exchange.position.infra.persistence.po.PositionEventPO;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
@@ -27,6 +29,7 @@ public class PositionEventRepository {
 
     private final PositionEventMapper mapper;
     private final DefaultIdGenerator idGenerator;
+    private final SqlSessionFactory sqlSessionFactory;
 
     public void insert(@NotNull @Valid PositionEvent event) {
         if (event.getEventId() == null) {
@@ -39,6 +42,26 @@ public class PositionEventRepository {
         }
         PositionEventPO po = OpenObjectMapper.convert(event, PositionEventPO.class);
         mapper.insert(po);
+    }
+
+    public void insertBatch(@NotNull List<@Valid PositionEvent> events) {
+        if (events.isEmpty()) {
+            return;
+        }
+        OpenMybatisBatchExecutor batchExecutor = new OpenMybatisBatchExecutor(sqlSessionFactory);
+        batchExecutor.execute(events, (session, event) -> {
+            PositionEventMapper batchMapper = session.getMapper(PositionEventMapper.class);
+            if (event.getEventId() == null) {
+                event.setEventId(idGenerator.newLong());
+            }
+            if (event.getSequenceNumber() == null) {
+                Long current = batchMapper.selectMaxSequenceForUpdate(event.getPositionId());
+                long nextSequence = current == null ? 1L : current + 1L;
+                event.setSequenceNumber(nextSequence);
+            }
+            PositionEventPO po = OpenObjectMapper.convert(event, PositionEventPO.class);
+            batchMapper.insert(po);
+        });
     }
 
     public boolean existsByReference(@NotNull PositionReferenceType referenceType,
