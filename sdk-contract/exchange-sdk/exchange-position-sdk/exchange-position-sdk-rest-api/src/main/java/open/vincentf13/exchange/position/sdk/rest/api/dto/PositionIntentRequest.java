@@ -11,6 +11,7 @@ public record PositionIntentRequest(
         @NotNull Long userId,
         @NotNull Long instrumentId,
         @NotNull PositionSide side,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true) BigDecimal quantity
+        @NotNull @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true) BigDecimal quantity,
+        String clientOrderId
 ) {
 }

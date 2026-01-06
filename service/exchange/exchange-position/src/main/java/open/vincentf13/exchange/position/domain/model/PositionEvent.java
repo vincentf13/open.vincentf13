@@ -69,4 +69,23 @@ public class PositionEvent {
                 .occurredAt(occurredAt)
                 .build();
     }
+
+    public static PositionEvent createReservationEvent(Long positionId,
+                                                       Long userId,
+                                                       Long instrumentId,
+                                                       String payload,
+                                                       String clientOrderId,
+                                                       Instant occurredAt) {
+        return PositionEvent.builder()
+                .positionId(positionId)
+                .userId(userId)
+                .instrumentId(instrumentId)
+                .eventType(PositionEventType.CLOSING_RESERVED)
+                .sequenceNumber(null)
+                .payload(payload == null ? "{}" : payload)
+                .referenceId(clientOrderId)
+                .referenceType(PositionReferenceType.RESERVATION)
+                .occurredAt(occurredAt)
+                .build();
+    }
 }

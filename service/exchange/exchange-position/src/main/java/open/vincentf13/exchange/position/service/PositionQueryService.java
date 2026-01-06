@@ -52,7 +52,7 @@ public class PositionQueryService {
         }
         
         try {
-            positionDomainService.reserveClosingPosition(position, request.quantity());
+            positionDomainService.reserveClosingPosition(position, request.quantity(), request.clientOrderId());
         } catch (OpenException e) {
             return PositionIntentResponse.ofRejected(intentType, existing, e.getCode().message());
         }

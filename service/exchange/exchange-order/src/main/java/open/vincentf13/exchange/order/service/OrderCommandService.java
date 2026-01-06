@@ -153,7 +153,7 @@ public class OrderCommandService {
         try {
             Order order = Order.createNew(userId, request);
             PositionIntentResponse intentResponse = OpenApiClientInvoker.call(
-                    () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity())),
+                    () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.instrumentId(), toPositionSide(request.side()), request.quantity(), request.clientOrderId())),
                     msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
                                             Map.of("userId", userId, "instrumentId", request.instrumentId(), "remoteMessage", msg))
                                                                              );

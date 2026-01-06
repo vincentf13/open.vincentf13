@@ -44,7 +44,7 @@ public class PositionDomainService {
     private final RiskLimitCache riskLimitCache;
     private final InstrumentCache instrumentCache;
 
-    public void reserveClosingPosition(Position position, BigDecimal reservedQuantity) {
+    public void reserveClosingPosition(Position position, BigDecimal reservedQuantity, String clientOrderId) {
         BigDecimal availableToClose = position.availableToClose();
         // prevent flip when all quantity is reserved for closing.
         if (availableToClose.compareTo(BigDecimal.ZERO) <= 0) {
@@ -53,6 +53,8 @@ public class PositionDomainService {
         if (availableToClose.compareTo(reservedQuantity) < 0) {
             throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE);
         }
+        
+        Position originalPosition = OpenObjectMapper.convert(position, Position.class);
         int expectedVersion = position.safeVersion();
         position.setClosingReservedQuantity(position.getClosingReservedQuantity().add(reservedQuantity));
         position.setVersion(expectedVersion + 1);
@@ -67,6 +69,17 @@ public class PositionDomainService {
         if (!updated) {
             throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE);
         }
+        
+        String payload = Position.buildPayload(originalPosition, position);
+        PositionEvent event = PositionEvent.createReservationEvent(
+                position.getPositionId(),
+                position.getUserId(),
+                position.getInstrumentId(),
+                payload,
+                clientOrderId,
+                Instant.now()
+        );
+        positionEventRepository.insert(event);
     }
 
     public PositionSide toPositionSide(OrderSide orderSide) {
