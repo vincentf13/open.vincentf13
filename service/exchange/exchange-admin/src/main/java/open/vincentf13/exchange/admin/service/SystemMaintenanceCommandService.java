@@ -12,10 +12,11 @@ import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -61,67 +62,72 @@ public class SystemMaintenanceCommandService {
     /**
      * 重置系統數據
      */
-    @Transactional(rollbackFor = Exception.class)
     public void resetData() {
-        // 1. 清理 Kafka Topics
-        clearKafkaTopics();
+        // 1. 併發執行：清理 Kafka Topics 與 清理資料庫表
+        CompletableFuture<Void> kafkaTask = CompletableFuture.runAsync(this::clearKafkaTopics);
+        CompletableFuture<Void> dbTask = CompletableFuture.runAsync(this::clearDatabaseTables);
 
-        // 2. 清理資料庫表
-        clearDatabaseTables();
+        // 等待這兩個核心清理任務完成
+        CompletableFuture.allOf(kafkaTask, dbTask).join();
 
-        // 3. 等待異步清理完成 (Kafka 刪除 Topic 是異步的)
+        // 2. 等待異步清理後續效應 (Kafka 刪除 Topic 是異步的，給予緩衝)
         try {
-            Thread.sleep(3000);
+            TimeUnit.SECONDS.sleep(2);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        // 4. 觸發各服務重新載入快取或重置內存
+        // 3. 併發觸發各服務重新載入快取或重置內存
         resetServiceCaches();
     }
 
     private void resetServiceCaches() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
         // Risk
-        try {
-            riskMaintenanceClient.reloadCaches();
-        } catch (Exception e) {
-            System.err.println("Failed to trigger Risk cache reload: " + e.getMessage());
-        }
+        futures.add(CompletableFuture.runAsync(() -> {
+            try { riskMaintenanceClient.reloadCaches(); } catch (Exception e) {
+                System.err.println("Failed to trigger Risk cache reload: " + e.getMessage());
+            }
+        }));
 
         // Position
-        try {
-            positionMaintenanceClient.reloadCaches();
-        } catch (Exception e) {
-            System.err.println("Failed to trigger Position cache reload: " + e.getMessage());
-        }
+        futures.add(CompletableFuture.runAsync(() -> {
+            try { positionMaintenanceClient.reloadCaches(); } catch (Exception e) {
+                System.err.println("Failed to trigger Position cache reload: " + e.getMessage());
+            }
+        }));
 
         // Matching
-        try {
-            matchingMaintenanceClient.reset();
-        } catch (Exception e) {
-            System.err.println("Failed to trigger Matching engine reset: " + e.getMessage());
-        }
+        futures.add(CompletableFuture.runAsync(() -> {
+            try { matchingMaintenanceClient.reset(); } catch (Exception e) {
+                System.err.println("Failed to trigger Matching engine reset: " + e.getMessage());
+            }
+        }));
 
         // Market
-        try {
-            marketMaintenanceClient.reset();
-        } catch (Exception e) {
-            System.err.println("Failed to trigger Market cache reset: " + e.getMessage());
-        }
+        futures.add(CompletableFuture.runAsync(() -> {
+            try { marketMaintenanceClient.reset(); } catch (Exception e) {
+                System.err.println("Failed to trigger Market cache reset: " + e.getMessage());
+            }
+        }));
 
         // Account
-        try {
-            accountMaintenanceClient.reloadCaches();
-        } catch (Exception e) {
-            System.err.println("Failed to trigger Account cache reload: " + e.getMessage());
-        }
+        futures.add(CompletableFuture.runAsync(() -> {
+            try { accountMaintenanceClient.reloadCaches(); } catch (Exception e) {
+                System.err.println("Failed to trigger Account cache reload: " + e.getMessage());
+            }
+        }));
 
         // Order
-        try {
-            orderMaintenanceClient.reset();
-        } catch (Exception e) {
-            System.err.println("Failed to trigger Order cache reset: " + e.getMessage());
-        }
+        futures.add(CompletableFuture.runAsync(() -> {
+            try { orderMaintenanceClient.reset(); } catch (Exception e) {
+                System.err.println("Failed to trigger Order cache reset: " + e.getMessage());
+            }
+        }));
+
+        // 等待所有服務重置請求發出完成
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
     }
 
     private void clearKafkaTopics() {
@@ -140,18 +146,18 @@ public class SystemMaintenanceCommandService {
     }
 
     private void clearDatabaseTables() {
-        jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0");
-        try {
-            for (String table : TABLES_TO_CLEAR) {
-                System.out.println("Clearing table: " + table);
-                if ("mq_outbox".equals(table)) {
-                    jdbcTemplate.execute("DELETE FROM " + table);
-                } else {
-                    jdbcTemplate.execute("TRUNCATE TABLE " + table);
-                }
+        List<String> sqls = new ArrayList<>();
+        sqls.add("SET FOREIGN_KEY_CHECKS = 0");
+        for (String table : TABLES_TO_CLEAR) {
+            if ("mq_outbox".equals(table)) {
+                sqls.add("DELETE FROM " + table);
+            } else {
+                sqls.add("TRUNCATE TABLE " + table);
             }
-        } finally {
-            jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
         }
+        sqls.add("SET FOREIGN_KEY_CHECKS = 1");
+        
+        System.out.println("Executing batch DB clear...");
+        jdbcTemplate.batchUpdate(sqls.toArray(new String[0]));
     }
 }
