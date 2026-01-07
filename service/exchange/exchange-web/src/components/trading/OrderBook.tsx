@@ -164,7 +164,7 @@ export default function OrderBook({ instrumentId, contractSize, refreshTrigger }
           overlayClassName="liquid-tooltip"
           styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
         >
-          <h3 className="text-sm font-semibold text-slate-700 cursor-help border-b border-dotted border-slate-400 inline-block">
+          <h3 className="liquid-tooltip-trigger text-sm font-semibold text-slate-700 cursor-help border-b border-dotted border-slate-400 inline-block">
             Order Book
           </h3>
         </Tooltip>

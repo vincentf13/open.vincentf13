@@ -290,11 +290,10 @@ export default function MarketStats({
                                     </div>
                                 )}
                                 placement="bottomRight"
-                                overlayClassName="liquid-tooltip"
-                                styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-                            >
-                                <div className="grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-x-6 gap-y-3 text-xs text-slate-600 items-start cursor-help">
-                                    <div className="flex items-center gap-2">
+                                                overlayClassName="liquid-tooltip"
+                                                styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+                                            >
+                                                <div className="liquid-tooltip-trigger grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-x-6 gap-y-3 text-xs text-slate-600 items-start cursor-help">                                    <div className="flex items-center gap-2">
                                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Mark</span>
                                         <span className="font-mono font-medium text-slate-700">
                                             {markPriceLoading ? '...' : formatTickerNumber(markPrice?.markPrice)}

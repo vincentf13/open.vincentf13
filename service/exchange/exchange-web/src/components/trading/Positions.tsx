@@ -1024,7 +1024,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
             overlayClassName="liquid-tooltip"
             styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           >
-            <div>
+            <div className="liquid-tooltip-trigger">
               <table className="min-w-[2600px] w-full text-xs text-right text-slate-600">
                 <thead>
                   <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
@@ -1202,7 +1202,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
             overlayClassName="liquid-tooltip"
             styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           >
-            <div>
+            <div className="liquid-tooltip-trigger">
               <table className="min-w-[2400px] w-full text-xs text-right text-slate-600">
                 <thead>
                   <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">

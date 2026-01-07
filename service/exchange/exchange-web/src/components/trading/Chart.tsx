@@ -567,7 +567,7 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
         overlayClassName="liquid-tooltip"
         styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
       >
-        <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">
+        <div className="liquid-tooltip-trigger relative flex-1 w-full min-h-[320px] px-2 py-4">
           <div
             ref={chartContainerRef}
             className={`absolute inset-0 right-12 bottom-6 overscroll-contain ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}

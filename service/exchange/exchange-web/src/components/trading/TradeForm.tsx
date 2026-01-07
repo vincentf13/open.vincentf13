@@ -202,7 +202,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
           open={amountTooltipHovered || amountTooltipFocused}
         >
           <div
-            className="space-y-1.5"
+            className="liquid-tooltip-trigger space-y-1.5"
             onMouseEnter={() => setAmountTooltipHovered(true)}
             onMouseLeave={() => setAmountTooltipHovered(false)}
           >
@@ -267,7 +267,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
                 overlayClassName="liquid-tooltip"
                 styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
               >
-                <span className="text-slate-700 font-medium cursor-help border-b border-dotted border-slate-400">
+                <span className="liquid-tooltip-trigger text-slate-700 font-medium cursor-help border-b border-dotted border-slate-400">
                   {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
                 </span>
               </Tooltip>

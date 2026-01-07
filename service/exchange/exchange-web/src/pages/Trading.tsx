@@ -45,6 +45,31 @@ const REFRESH_AFTER_LOGIN_KEY = 'refreshAfterLogin';
 export default function Trading() {
   const [authOpen, setAuthOpen] = useState(() => !hasToken());
   const [resetting, setResetting] = useState(false);
+
+  // 全域點擊關閉提示窗邏輯
+  useEffect(() => {
+    let triggerAtClick = null;
+    const handleMouseDown = (e) => {
+      document.body.classList.add('hide-tooltips');
+      triggerAtClick = e.target.closest('.liquid-tooltip-trigger');
+    };
+    const handleMouseMove = (e) => {
+      if (!document.body.classList.contains('hide-tooltips')) return;
+      const currentTrigger = e.target.closest('.liquid-tooltip-trigger');
+      if (currentTrigger !== triggerAtClick) {
+        document.body.classList.remove('hide-tooltips');
+        triggerAtClick = null;
+      }
+    };
+    window.addEventListener('mousedown', handleMouseDown, true);
+    window.addEventListener('mousemove', handleMouseMove, true);
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown, true);
+      window.removeEventListener('mousemove', handleMouseMove, true);
+      document.body.classList.remove('hide-tooltips');
+    };
+  }, []);
+
   const [instruments, setInstruments] = useState<InstrumentSummary[]>(() => getCachedInstrumentSummaries());
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string | null>(() => {
     const cachedId = getCachedInstrumentId();
@@ -740,7 +765,7 @@ export default function Trading() {
                         styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
                       >
                         <div
-                          className="relative flex flex-col rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
+                          className="liquid-tooltip-trigger relative flex flex-col rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
                           style={balanceSheetMaxHeight != null ? { maxHeight: `${balanceSheetMaxHeight}px` } : undefined}
                         >
                         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border border-white/70 bg-white/95" />
@@ -990,7 +1015,7 @@ export default function Trading() {
                     <button
                       onClick={handleResetData}
                       disabled={resetting}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                      className="liquid-tooltip-trigger flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
                     >
                       <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                       {resetting ? 'Resetting...' : 'Reset System Data'}
@@ -1013,7 +1038,7 @@ export default function Trading() {
                   >
                     <button
                       onClick={handleRefresh}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
+                      className="liquid-tooltip-trigger flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
                     >
                       <span className="text-xs">⟳</span>
                       Refresh Data
