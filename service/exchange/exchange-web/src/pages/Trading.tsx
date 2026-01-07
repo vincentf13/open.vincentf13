@@ -722,12 +722,17 @@ export default function Trading() {
                       <Tooltip
                         title={(
                           <div className="text-xs">
-                            <div className="whitespace-nowrap">依照會計準則，復現用戶與交易所資產負債表。</div>
-                            <div className="whitespace-nowrap">每個帳戶明細內，可查詢到所有交易的分錄。</div>
-                            <div className="whitespace-nowrap">完全依照會計準則，未來需要融資等業務時，擁有擴展性。</div>
-                            <div className="whitespace-nowrap">Built per accounting standards to mirror user and exchange balance sheets.</div>
-                            <div className="whitespace-nowrap">Each account detail lets you query all trade journals.</div>
-                            <div className="whitespace-nowrap">Fully aligned with accounting standards for future extensibility (e.g., financing).</div>
+                            <div className="whitespace-nowrap font-bold mb-1">用戶與公司資產負債表</div>
+                            <div className="whitespace-nowrap">可查詢帳戶分錄，以及該筆分錄的所有相關帳戶操作。</div>
+                            <div className="whitespace-nowrap">帳戶體系設計可以支撐會計原則，體現每一筆錢。</div>
+                            <div className="whitespace-nowrap">支持歷史資產負債表狀態查詢。</div>
+                            <div className="whitespace-nowrap">若未來有融資業務，也可支持。</div>
+                            <div className="h-px bg-white/20 my-1" />
+                            <div className="whitespace-nowrap font-bold mb-1">User and Corporate Balance Sheets</div>
+                            <div className="whitespace-nowrap">Query account journals and all related entries for each transaction.</div>
+                            <div className="whitespace-nowrap">System designed to uphold accounting principles, tracking every flow of funds.</div>
+                            <div className="whitespace-nowrap">Supports historical balance sheet state snapshots.</div>
+                            <div className="whitespace-nowrap">Extensible for future financing and margin trading business.</div>
                           </div>
                         )}
                         overlayStyle={{ maxWidth: 'none' }}
