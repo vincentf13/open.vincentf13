@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { message } from 'antd';
+import { message, Tooltip } from 'antd';
 
 import {
   AUTH_REQUIRED_EVENT,
@@ -125,6 +125,8 @@ export default function Trading() {
   };
 
   const handleOpenReferenceJournals = (type: string, id: string) => {
+    setAccountJournalOpen(false);
+    setPlatformAccountJournalOpen(false);
     setReferenceJournalOpen(true);
     setReferenceJournalLoading(true);
     getJournalsByReference(type, id).then(res => { if(String(res?.code)==='0') setReferenceJournalData(res.data); }).finally(() => setReferenceJournalLoading(false));
@@ -139,16 +141,16 @@ export default function Trading() {
           <thead>
             <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
               <th className="py-1 pr-1 font-semibold text-left w-[100px]">journalId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[70px]">userId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[100px]">accountId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[60px]">accCode</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[75px]">accName</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[60px]">userId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[70px]">accountId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[80px]">accCode</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[80px]">accName</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[60px]">category</th>
               <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
-              <th className="py-1 pr-1 font-semibold w-[100px]">amount</th>
+              <th className="py-1 pr-1 font-semibold w-[80px]">amount</th>
               <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[80px]">referenceType</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[110px]">referenceType</th>
               <th className="py-1 pr-1 font-semibold text-left w-[120px]">referenceId</th>
               <th className="py-1 pr-1 font-semibold w-[30px]">seq</th>
               <th className="py-1 pr-1 font-semibold text-left w-[150px]">description</th>
@@ -213,7 +215,7 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold w-[100px]">amount</th>
               <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[80px]">referenceType</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[110px]">referenceType</th>
               <th className="py-1 pr-1 font-semibold text-left w-[120px]">referenceId</th>
               <th className="py-1 pr-1 font-semibold w-[30px]">seq</th>
               <th className="py-1 pr-1 font-semibold text-left w-[150px]">description</th>
@@ -395,23 +397,31 @@ export default function Trading() {
             <div className="flex-none bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
               <TradeForm instrument={selectedInstrument} refreshTrigger={refreshTrigger} onOrderCreated={handleRefresh} isPaused={isPaused} />
             </div>
-            <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col relative min-h-0">
-              <div className="absolute top-3 right-3 z-10">
-                <button onClick={handleOpenBalanceSheet} className="h-8 w-8 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-white hover:scale-105 transition-all shadow-sm">📊</button>
-              </div>
-              <AccountPanel refreshTrigger={refreshTrigger} onOpenBalanceSheet={handleOpenBalanceSheet} />
-            </div>
+                        <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col relative min-h-0">
+                          <AccountPanel refreshTrigger={refreshTrigger} onOpenBalanceSheet={handleOpenBalanceSheet} />
+                        </div>
           </div>
         </div>
       </main>
 
       {balanceSheetOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md"
+          onClick={(e) => { if (e.target === e.currentTarget) handleCloseBalanceSheet(); }}
+        >
           <div className="relative w-[96vw] max-w-[1860px] bg-white/95 backdrop-blur-sm rounded-3xl border border-white/70 shadow-2xl p-6 overflow-hidden flex flex-col max-h-[95vh]">
             {(accountJournalOpen || referenceJournalOpen || platformAccountJournalOpen) && (
-              <div className="absolute inset-0 z-[110] flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" />
-                <div ref={accountJournalOpen ? accountJournalRef : (referenceJournalOpen ? referenceJournalRef : platformAccountJournalRef)} className="relative w-full max-w-[90%] rounded-2xl border border-white bg-white/95 p-6 shadow-2xl flex flex-col">
+              <div 
+                className="absolute inset-0 z-[110] flex items-center justify-center p-4"
+                onClick={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (accountJournalOpen) handleCloseAccountJournal();
+                  if (referenceJournalOpen) handleCloseReferenceJournals();
+                  if (platformAccountJournalOpen) handleClosePlatformAccountJournal();
+                }}
+              >
+                <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm pointer-events-none" />
+                <div ref={accountJournalOpen ? accountJournalRef : (referenceJournalOpen ? referenceJournalRef : platformAccountJournalRef)} className="relative w-full max-w-[90%] rounded-2xl border border-white bg-white/95 p-6 shadow-2xl flex flex-col pointer-events-auto">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-xs font-bold uppercase text-slate-500 tracking-widest">
                       {accountJournalOpen ? `Account Journal` : (referenceJournalOpen ? `Related Journals` : `Platform Journal`)}
