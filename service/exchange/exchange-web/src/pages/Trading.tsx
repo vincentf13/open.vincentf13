@@ -199,7 +199,6 @@ export default function Trading() {
           <thead>
             <tr className="text-[10px] uppercase text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
               <th className="py-1 px-1 font-semibold text-left w-[100px]">journalId</th>
-              <th className="py-1 px-1 font-semibold text-left w-[60px]">userId</th>
               <th className="py-1 px-1 font-semibold text-left w-[70px]">accountId</th>
               <th className="py-1 px-1 font-semibold text-left w-[80px]">accCode</th>
               <th className="py-1 px-1 font-semibold text-left w-[80px]">accName</th>
@@ -265,7 +264,6 @@ export default function Trading() {
               return (
                 <tr key={index} className={`text-right align-top whitespace-nowrap ${rowClass}`}>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
-                  <td className="py-1 px-1 text-left overflow-hidden text-slate-400">&nbsp;</td>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountId ?? '-')}</td>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountCode ?? '-')}</td>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountName ?? '-')}</td>
@@ -316,7 +314,6 @@ export default function Trading() {
           <thead>
             <tr className="text-[10px] uppercase text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
               <th className="py-1 pr-1 font-semibold text-left w-[100px]">journalId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[60px]">&nbsp;</th>
               <th className="py-1 pr-1 font-semibold text-left w-[70px]">accountId</th>
               <th className="py-1 pr-1 font-semibold text-left w-[80px]">accCode</th>
               <th className="py-1 pr-1 font-semibold text-left w-[80px]">accName</th>
@@ -382,7 +379,6 @@ export default function Trading() {
               return (
                 <tr key={index} className={`text-right align-top whitespace-nowrap ${rowClass}`}>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
-                  <td className="py-1 px-1 text-left overflow-hidden text-slate-400">&nbsp;</td>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountId ?? '-')}</td>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountCode ?? '-')}</td>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountName ?? '-')}</td>
