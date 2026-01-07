@@ -74,7 +74,8 @@ public class UserJournalRepository {
                 .eq(UserJournalPO::getUserId, userId)
                 .eq(UserJournalPO::getAccountId, accountId)
                 .orderByDesc(UserJournalPO::getCreatedAt)
-                .orderByDesc(UserJournalPO::getSeq);
+                .orderByDesc(UserJournalPO::getSeq)
+                .orderByDesc(UserJournalPO::getJournalId);
         return mapper.selectList(wrapper)
                      .stream()
                      .map(po -> OpenObjectMapper.convert(po, UserJournal.class))
@@ -92,7 +93,8 @@ public class UserJournalRepository {
                 .eq(UserJournalPO::getReferenceType, referenceType)
                 .eq(UserJournalPO::getReferenceId, referenceId)
                 .orderByDesc(UserJournalPO::getCreatedAt)
-                .orderByDesc(UserJournalPO::getSeq);
+                .orderByDesc(UserJournalPO::getSeq)
+                .orderByDesc(UserJournalPO::getJournalId);
         return mapper.selectList(wrapper)
                      .stream()
                      .map(po -> OpenObjectMapper.convert(po, UserJournal.class))
