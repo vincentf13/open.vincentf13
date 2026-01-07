@@ -191,6 +191,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const renderCellValue = (p: any, k: string) => {
     const v = p[k];
     if (v === null) return 'Removed';
+    if (k === 'positionId') {
+      return <span className="text-slate-600 font-mono">{String(v)}</span>;
+    }
     if (k === 'instrumentId') return instrumentMap.get(String(v)) || String(v);
     if (k === 'status') {
       const status = String(v || '').toUpperCase();
@@ -240,6 +243,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const renderOrderCellValue = (o: any, k: string) => {
     const v = o[k];
     if (v === null) return 'Removed';
+    if (k === 'orderId') {
+      return <span className="text-slate-600 font-mono">{String(v)}</span>;
+    }
     if (k === 'instrumentId') return instrumentMap.get(String(v)) || String(v);
     if (k === 'status') {
       const status = String(v || '').toUpperCase();
@@ -476,15 +482,67 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
         {activeTab === 'Traders' && (
           <div className="min-w-max">
             <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
-              <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-white/10"><th className="py-2">Price</th><th className="py-2">Quantity</th><th className="py-2">Time</th></tr></thead>
+              <thead>
+                <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
+                  <th className="py-2">Trade Id</th>
+                  <th className="py-2">Trade Type</th>
+                  <th className="py-2">Taker Intent</th>
+                  <th className="py-2">Maker Intent</th>
+                  <th className="py-2">Taker Order Id</th>
+                  <th className="py-2">Maker Order Id</th>
+                  <th className="py-2">Taker User Id</th>
+                  <th className="py-2">Maker User Id</th>
+                  <th className="py-2">Side</th>
+                  <th className="py-2">Price</th>
+                  <th className="py-2">Quantity</th>
+                  <th className="py-2">Taker Fee</th>
+                  <th className="py-2">Maker Fee</th>
+                  <th className="py-2">Time</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-white/5">
-                {instrumentTrades.length === 0 ? <tr><td colSpan={3} className="py-8 text-center text-slate-400">No trades</td></tr> : instrumentTrades.map(t => (
-                  <tr key={t.tradeId} className="hover:bg-white/10">
-                    <td className="py-2 font-mono">{formatNumber(t.price)}</td>
-                    <td className="py-2 font-mono">{formatNumber(t.quantity)}</td>
-                    <td className="py-2 font-mono text-slate-400">{formatPayloadValue('executedAt', t.executedAt)}</td>
-                  </tr>
-                ))}
+                {instrumentTrades.length === 0 ? <tr><td colSpan={14} className="py-8 text-center text-slate-400">No trades</td></tr> : instrumentTrades.map(t => {
+                  const isTaker = t.takerUserId === Number(currentUserId);
+                  const isMaker = t.makerUserId === Number(currentUserId);
+                  const takerBg = isTaker ? 'bg-yellow-200/50' : '';
+                  const makerBg = isMaker ? 'bg-yellow-200/50' : '';
+                  const sideClass = t.orderSide === 'BUY' ? 'text-emerald-600' : 'text-rose-600';
+                  
+                  return (
+                    <tr key={t.tradeId} className="hover:bg-white/10 transition-colors">
+                      <td className="py-2 px-2 font-mono text-slate-500">{t.tradeId}</td>
+                      <td className="py-2 px-2">
+                        <span className="px-1.5 py-0.5 rounded-md border border-violet-200 bg-violet-50 text-violet-600 text-[9px] font-black uppercase tracking-tighter">
+                          {t.tradeType || '-'}
+                        </span>
+                      </td>
+                      <td className={`py-2 px-2 ${takerBg}`}>
+                        <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
+                          {t.takerIntent || '-'}
+                        </span>
+                      </td>
+                      <td className={`py-2 px-2 ${makerBg}`}>
+                        <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
+                          {t.makerIntent || '-'}
+                        </span>
+                      </td>
+                      <td className={`py-2 px-2 font-mono ${takerBg} text-slate-600`}>{t.orderId}</td>
+                      <td className={`py-2 px-2 font-mono ${makerBg} text-slate-600`}>{t.counterpartyOrderId}</td>
+                      <td className={`py-2 px-2 ${takerBg} text-slate-600`}>{t.takerUserId}</td>
+                      <td className={`py-2 px-2 ${makerBg} text-slate-600`}>{t.makerUserId}</td>
+                      <td className="py-2 px-2">
+                        <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${t.orderSide === 'BUY' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
+                          {t.orderSide}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 font-mono font-bold text-sky-600">{formatNumber(t.price)}</td>
+                      <td className="py-2 px-2 font-mono font-bold text-sky-600">{formatNumber(t.quantity)}</td>
+                      <td className={`py-2 px-2 font-mono ${takerBg} ${isTaker ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>{formatNumber(t.takerFee)}</td>
+                      <td className={`py-2 px-2 font-mono ${makerBg} ${isMaker ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>{formatNumber(t.makerFee)}</td>
+                      <td className="py-2 px-2 font-mono text-slate-400">{formatPayloadValue('executedAt', t.executedAt)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
