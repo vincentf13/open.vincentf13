@@ -973,10 +973,16 @@ export default function Trading() {
                   <Tooltip
                     title={(
                       <div className="text-xs">
-                        <div className="whitespace-nowrap">重置所有交易、帳務數據與Kafka，加速測試效率。</div>
-                        <div className="whitespace-nowrap">Resets all trading/account data and Kafka to speed up testing.</div>
+                        <div className="whitespace-nowrap font-bold mb-1">系統數據重置</div>
+                        <div className="whitespace-nowrap">將清空所有交易、帳務數據與 Kafka Topics。</div>
+                        <div className="whitespace-nowrap">用於加速測試開發效率。</div>
+                        <div className="h-px bg-white/20 my-1" />
+                        <div className="whitespace-nowrap font-bold mb-1">System Data Reset</div>
+                        <div className="whitespace-nowrap">Clears all trading, account data, and Kafka topics.</div>
+                        <div className="whitespace-nowrap">Used to speed up testing and development.</div>
                       </div>
                     )}
+                    placement="bottomRight"
                     overlayStyle={{ maxWidth: 'none' }}
                     overlayInnerStyle={{ maxWidth: 'none' }}
                   >
@@ -993,10 +999,14 @@ export default function Trading() {
                   <Tooltip
                     title={(
                       <div className="text-xs">
-                        <div className="whitespace-nowrap">重載所有頁面數據，加速測試。</div>
-                        <div className="whitespace-nowrap">Reloads all page data to speed up testing.</div>
+                        <div className="whitespace-nowrap font-bold mb-1">數據刷新</div>
+                        <div className="whitespace-nowrap">強制重新載入所有頁面數據與服務快取。</div>
+                        <div className="h-px bg-white/20 my-1" />
+                        <div className="whitespace-nowrap font-bold mb-1">Data Refresh</div>
+                        <div className="whitespace-nowrap">Force reloads all page data and service caches.</div>
                       </div>
                     )}
+                    placement="bottomRight"
                     overlayStyle={{ maxWidth: 'none' }}
                     overlayInnerStyle={{ maxWidth: 'none' }}
                   >

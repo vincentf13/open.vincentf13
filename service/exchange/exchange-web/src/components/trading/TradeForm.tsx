@@ -263,7 +263,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
                     <div className="whitespace-nowrap">The difference will be refunded if filled as a Maker.</div>
                   </div>
                 )}
-                placement="left"
+                placement="bottomRight"
                 overlayStyle={{ maxWidth: 'none' }}
                 overlayInnerStyle={{ maxWidth: 'none' }}
               >
