@@ -765,9 +765,8 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
               {tick.label}
             </div>
           ))}
-          </div>
         </div>
-      </Tooltip>
+      </div>
     </div>
   );
 }
