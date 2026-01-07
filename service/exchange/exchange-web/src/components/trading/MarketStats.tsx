@@ -357,7 +357,15 @@ export default function MarketStats({
                             </span>
                         </div>
                     )}
-                    <div className="flex flex-col items-end gap-2 sm:col-start-5 sm:row-start-1 sm:row-span-2">
+                    <div className="flex items-center gap-2 sm:col-start-5 sm:row-start-1 sm:row-span-2 justify-end">
+                        <button
+                            type="button"
+                            onClick={() => setShowExtraStats((prev) => !prev)}
+                            className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/70 px-2.5 py-1 text-[10px] uppercase font-semibold tracking-wider text-slate-600 shadow-sm transition-all hover:bg-white hover:text-slate-800"
+                        >
+                            {showExtraStats ? 'Less' : 'More'}
+                            <span className="text-[9px]">{showExtraStats ? '˄' : '˅'}</span>
+                        </button>
                         <Tooltip
                             title={(
                                 <div className="text-xs">
@@ -378,14 +386,6 @@ export default function MarketStats({
                         >
                             <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 cursor-help border border-slate-200">?</div>
                         </Tooltip>
-                        <button
-                            type="button"
-                            onClick={() => setShowExtraStats((prev) => !prev)}
-                            className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/70 px-2.5 py-1 text-[10px] uppercase font-semibold tracking-wider text-slate-600 shadow-sm transition-all hover:bg-white hover:text-slate-800"
-                        >
-                            {showExtraStats ? 'Less' : 'More'}
-                            <span className="text-[9px]">{showExtraStats ? '˄' : '˅'}</span>
-                        </button>
                     </div>
                 </div>
             </div>
