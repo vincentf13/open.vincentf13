@@ -95,7 +95,36 @@ export default function Trading() {
       setInstruments(list);
       setSelectedInstrumentId(curr => list.find(i => i.instrumentId === curr)?.instrumentId || list[0]?.instrumentId || null);
     });
-  }, []);
+  }, [refreshTrigger]);
+
+  useEffect(() => {
+    if (balanceSheetOpen) {
+      setBalanceSheetLoading(true);
+      getBalanceSheet().then(res => { if (String(res?.code)==='0') setBalanceSheetData(res.data); }).finally(() => setBalanceSheetLoading(false));
+      getPlatformAccounts().then(res => { if (String(res?.code)==='0') setPlatformAccountsData(res.data); });
+    }
+  }, [balanceSheetOpen, refreshTrigger]);
+
+  useEffect(() => {
+    if (accountJournalOpen && accountJournalData?.accountId) {
+      setAccountJournalLoading(true);
+      getAccountJournals(accountJournalData.accountId).then(res => { if(String(res?.code)==='0') setAccountJournalData(res.data); }).finally(() => setAccountJournalLoading(false));
+    }
+  }, [refreshTrigger]);
+
+  useEffect(() => {
+    if (platformAccountJournalOpen && platformAccountJournalData?.accountId) {
+      setPlatformAccountJournalLoading(true);
+      getPlatformAccountJournals(platformAccountJournalData.accountId).then(res => { if(String(res?.code)==='0') setPlatformAccountJournalResponse(res.data); }).finally(() => setPlatformAccountJournalLoading(false));
+    }
+  }, [refreshTrigger]);
+
+  useEffect(() => {
+    if (referenceJournalOpen && referenceJournalData?.referenceType && referenceJournalData?.referenceId) {
+      setReferenceJournalLoading(true);
+      getJournalsByReference(referenceJournalData.referenceType, referenceJournalData.referenceId).then(res => { if(String(res?.code)==='0') setReferenceJournalData(res.data); }).finally(() => setReferenceJournalLoading(false));
+    }
+  }, [refreshTrigger]);
 
   const handleRefresh = () => setRefreshTrigger(v => v + 1);
   const selectedInstrument = instruments.find(i => i.instrumentId === selectedInstrumentId) || instruments[0] || null;
@@ -390,7 +419,7 @@ export default function Trading() {
                   <MarketStats instruments={instruments} selectedInstrument={selectedInstrument} onSelectInstrument={i => setSelectedInstrumentId(i.instrumentId)} refreshTrigger={refreshTrigger} isPaused={isPaused} />
                 </div>
                 <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                  <Chart selectedInstrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} />
+                  <Chart instrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} />
                 </div>
               </div>
               <div className="w-[300px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">

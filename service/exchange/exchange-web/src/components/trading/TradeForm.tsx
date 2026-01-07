@@ -28,7 +28,7 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
   }, [instrument?.instrumentId]);
   useEffect(() => {
     let cancelled = false;
-    if (!instrument?.instrumentId || isPaused) {
+    if (!instrument?.instrumentId) {
       setRiskLimit(null);
       return () => {
         cancelled = true;

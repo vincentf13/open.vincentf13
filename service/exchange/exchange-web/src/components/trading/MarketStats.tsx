@@ -122,7 +122,7 @@ export default function MarketStats({
     }, [selectedInstrument?.instrumentId]);
 
     useEffect(() => {
-        if (!selectedInstrument?.instrumentId || isPaused || !isTabVisible) {
+        if (!selectedInstrument?.instrumentId || !isTabVisible) {
             if (!selectedInstrument?.instrumentId) setTicker(null);
             return;
         }
@@ -156,7 +156,7 @@ export default function MarketStats({
     }, [selectedInstrument?.instrumentId, refreshTrigger, isPaused, isTabVisible]);
 
     useEffect(() => {
-        if (!selectedInstrument?.instrumentId || isPaused || !isTabVisible) {
+        if (!selectedInstrument?.instrumentId || !isTabVisible) {
             if (!selectedInstrument?.instrumentId) setMarkPrice(null);
             return;
         }

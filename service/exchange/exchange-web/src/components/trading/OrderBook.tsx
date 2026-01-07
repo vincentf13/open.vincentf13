@@ -76,7 +76,7 @@ export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaus
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!selectedInstrumentId || isPaused) {
+    if (!selectedInstrumentId) {
       if (!selectedInstrumentId) setOrderBook(null);
       return;
     }

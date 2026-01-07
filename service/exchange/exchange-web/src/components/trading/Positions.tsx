@@ -80,7 +80,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   };
 
   const fetchPositions = async () => {
-    if (isPaused || !isTabVisible) return;
+    if (!isTabVisible) return;
     try {
       const res = await getPositions(selectedInstrumentId || undefined);
       if (String(res?.code) === '0') {
@@ -103,7 +103,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   };
 
   const fetchOrders = async () => {
-    if (isPaused || !isTabVisible) return;
+    if (!isTabVisible) return;
     try {
       const res = await getOrders(selectedInstrumentId || undefined);
       if (String(res?.code) === '0') {
@@ -126,7 +126,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   };
 
   const fetchInstrumentTrades = async () => {
-    if (isPaused || !isTabVisible || !selectedInstrumentId) return;
+    if (!isTabVisible || !selectedInstrumentId) return;
     try {
       const res = await getTradesByInstrument(selectedInstrumentId);
       if (String(res?.code) === '0') setInstrumentTrades(res.data || []);
@@ -347,7 +347,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                   <tr key={t.tradeId} className="hover:bg-white/10">
                     <td className="py-2 font-mono">{formatNumber(t.price)}</td>
                     <td className="py-2 font-mono">{formatNumber(t.quantity)}</td>
-                    <td className="py-2 font-mono text-slate-400">{formatDateTime(t.executedAt)}</td>
+                    <td className="py-2 font-mono text-slate-400">{formatPayloadValue('executedAt', t.executedAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -358,22 +358,28 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     </div>
   );
 
+  useEffect(() => {
+    if (expandedPositionId) {
+        setPositionEventsLoading(v => ({...v, [expandedPositionId]: true}));
+        getPositionEvents(expandedPositionId).then(res => { if(String(res?.code)==='0') setPositionEvents(v => ({...v, [expandedPositionId]: res.data?.events || []})); }).finally(() => setPositionEventsLoading(v => ({...v, [expandedPositionId]: false})));
+    }
+  }, [expandedPositionId, refreshTrigger]);
+
+  useEffect(() => {
+    if (expandedOrderId) {
+        setOrderEventsLoading(v => ({...v, [expandedOrderId]: true}));
+        getOrderEvents(expandedOrderId).then(res => { if(String(res?.code)==='0') setOrderEvents(v => ({...v, [expandedOrderId]: res.data?.events || []})); }).finally(() => setOrderEventsLoading(v => ({...v, [expandedOrderId]: false})));
+        getTradesByOrderId(expandedOrderId).then(res => { if(String(res?.code)==='0') setOrderTrades(v => ({...v, [expandedOrderId]: res.data || []})); });
+    }
+  }, [expandedOrderId, refreshTrigger]);
+
   function togglePosition(id: number) {
     if (expandedPositionId === id) { setExpandedPositionId(null); return; }
     setExpandedPositionId(id);
-    if (!positionEvents[id]) {
-      setPositionEventsLoading(v => ({...v, [id]: true}));
-      getPositionEvents(id).then(res => { if(String(res?.code)==='0') setPositionEvents(v => ({...v, [id]: res.data?.events || []})); }).finally(() => setPositionEventsLoading(v => ({...v, [id]: false})));
-    }
   }
 
   function toggleOrder(id: number) {
     if (expandedOrderId === id) { setExpandedOrderId(null); return; }
     setExpandedOrderId(id);
-    if (!orderEvents[id]) {
-      setOrderEventsLoading(v => ({...v, [id]: true}));
-      getOrderEvents(id).then(res => { if(String(res?.code)==='0') setOrderEvents(v => ({...v, [id]: res.data?.events || []})); }).finally(() => setOrderEventsLoading(v => ({...v, [id]: false})));
-      getTradesByOrderId(id).then(res => { if(String(res?.code)==='0') setOrderTrades(v => ({...v, [id]: res.data || []})); });
-    }
   }
 }
