@@ -164,8 +164,8 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
 
         {/* Price Input */}
         <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Price</label>
-            <div className={`liquid-input-group ${type === 'MARKET' ? 'bg-slate-100 cursor-not-allowed' : ''}`}>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Price</label>
+            <div className={`liquid-input-group ${type === 'MARKET' ? 'bg-slate-100 cursor-not-allowed border-slate-200' : 'border-slate-300'}`}>
                 <input 
                   type="number" 
                   step="0.01"
@@ -173,12 +173,12 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
                   onChange={(e) => setPrice(e.target.value)}
                   disabled={type === 'MARKET'}
                   placeholder={type === 'MARKET' ? 'Market Price' : '0.00'}
-                  className={`flex-1 bg-transparent border-none outline-none py-2 pl-3 pr-1 text-right font-mono min-w-0 ${
+                  className={`flex-1 bg-transparent border-none outline-none py-1.5 pl-3 pr-2 text-right font-mono text-sm text-slate-700 min-w-0 ${
                     type === 'MARKET' ? 'placeholder-slate-400 cursor-not-allowed' : ''
                   }`} 
                 />
-                <div className="flex items-center justify-end w-[52px] pr-2 border-l border-white/20 bg-white/5">
-                  <span className="text-xs text-slate-400 font-medium whitespace-nowrap select-none text-right">
+                <div className="flex items-center justify-end w-[60px] pr-3 border-l border-slate-200 bg-slate-50/50">
+                  <span className="text-xs text-slate-500 font-bold whitespace-nowrap select-none text-right">
                     {instrument?.quoteAsset || ''}
                   </span>
                 </div>
@@ -208,19 +208,19 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
             onMouseEnter={() => setAmountTooltipHovered(true)}
             onMouseLeave={() => setAmountTooltipHovered(false)}
           >
-              <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</label>
-              <div className="liquid-input-group">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Amount</label>
+              <div className="liquid-input-group border-slate-300">
                   <input
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     onFocus={() => setAmountTooltipFocused(true)}
                     onBlur={() => setAmountTooltipFocused(false)}
-                    className="flex-1 bg-transparent border-none outline-none py-2 pl-3 pr-1 text-right font-mono min-w-0"
+                    className="flex-1 bg-transparent border-none outline-none py-1.5 pl-3 pr-2 text-right font-mono text-sm text-slate-700 min-w-0"
                     placeholder="0.00"
                   />
-                  <div className="flex items-center justify-start w-[52px] pl-2 border-l border-white/20 bg-white/5">
-                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap select-none">
+                  <div className="flex items-center justify-start w-[60px] pl-3 border-l border-slate-200 bg-slate-50/50">
+                    <span className="text-xs text-slate-500 font-bold whitespace-nowrap select-none">
                       {instrument?.baseAsset || ''}
                     </span>
                   </div>
