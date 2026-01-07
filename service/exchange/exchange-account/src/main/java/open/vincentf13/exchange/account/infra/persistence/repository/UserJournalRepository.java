@@ -60,7 +60,7 @@ public class UserJournalRepository {
                 .eq(UserJournalPO::getAsset, asset)
                 .eq(UserJournalPO::getReferenceType, referenceType)
                 .eq(UserJournalPO::getReferenceId, referenceId)
-                .orderByDesc(UserJournalPO::getEventTime)
+                .orderByDesc(UserJournalPO::getCreatedAt)
                 .last("LIMIT 1");
         return mapper.selectList(wrapper)
                      .stream()
@@ -73,8 +73,8 @@ public class UserJournalRepository {
         var wrapper = Wrappers.<UserJournalPO>lambdaQuery()
                 .eq(UserJournalPO::getUserId, userId)
                 .eq(UserJournalPO::getAccountId, accountId)
-                .orderByDesc(UserJournalPO::getEventTime)
-                .orderByDesc(UserJournalPO::getJournalId);
+                .orderByDesc(UserJournalPO::getCreatedAt)
+                .orderByDesc(UserJournalPO::getSeq);
         return mapper.selectList(wrapper)
                      .stream()
                      .map(po -> OpenObjectMapper.convert(po, UserJournal.class))
@@ -91,8 +91,8 @@ public class UserJournalRepository {
                 .eq(UserJournalPO::getUserId, userId)
                 .eq(UserJournalPO::getReferenceType, referenceType)
                 .eq(UserJournalPO::getReferenceId, referenceId)
-                .orderByDesc(UserJournalPO::getEventTime)
-                .orderByDesc(UserJournalPO::getJournalId);
+                .orderByDesc(UserJournalPO::getCreatedAt)
+                .orderByDesc(UserJournalPO::getSeq);
         return mapper.selectList(wrapper)
                      .stream()
                      .map(po -> OpenObjectMapper.convert(po, UserJournal.class))

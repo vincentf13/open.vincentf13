@@ -19,6 +19,8 @@ import open.vincentf13.exchange.account.infra.cache.InstrumentCache;
 import open.vincentf13.exchange.account.sdk.mq.event.TradeMarginSettledEvent;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositRequest;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalRequest;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountDepositResponse;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountWithdrawalResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
@@ -116,10 +118,13 @@ public class AccountTransactionDomainService {
         PlatformAccount updatedPlatformAsset = platformAssetAccount.apply(Direction.DEBIT, request.getAmount());
         PlatformAccount updatedPlatformLiability = platformLiabilityAccount.apply(Direction.CREDIT, request.getAmount());
         
-        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.DEBIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), "User deposit", eventTime);
-        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.CREDIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), "User equity increase", eventTime);
-        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.DEBIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), "Platform asset increase", eventTime);
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.CREDIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), "Platform liability increase", eventTime);
+        int uSeq = 1;
+        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.DEBIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), uSeq++, "User deposit", eventTime);
+        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.CREDIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), uSeq++, "User equity increase", eventTime);
+        
+        int pSeq = 1;
+        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.DEBIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), pSeq++, "Platform asset increase", eventTime);
+        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.CREDIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), pSeq++, "Platform liability increase", eventTime);
         
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedUserAsset, updatedUserEquity),
@@ -157,12 +162,14 @@ public class AccountTransactionDomainService {
                                    Map.of("userId", event.userId(), "asset", asset, "available", userSpot.getAvailable(), "amount", totalAmount));
         }
         UserAccount marginFrozenAccount = applyUserFreeze(userSpot, requiredMargin);
+        int uSeq = 1;
         UserJournal marginReserveJournal = buildUserJournal(
                 marginFrozenAccount,
                 Direction.DEBIT,
                 requiredMargin,
                 ReferenceType.ORDER_MARGIN_FROZEN,
                 event.orderId().toString(),
+                uSeq++,
                 "Margin reserved for order",
                 event.createdAt());
         UserJournal marginAvailableJournal = buildUserJournal(
@@ -171,6 +178,7 @@ public class AccountTransactionDomainService {
                 requiredMargin,
                 ReferenceType.ORDER_MARGIN_FROZEN,
                 event.orderId().toString(),
+                uSeq++,
                 "Margin moved from available",
                 event.createdAt());
         UserAccount feeFrozenAccount = applyUserFreeze(marginFrozenAccount, fee);
@@ -180,6 +188,7 @@ public class AccountTransactionDomainService {
                 fee,
                 ReferenceType.ORDER_FEE_FROZEN,
                 event.orderId().toString(),
+                uSeq++,
                 "Fee reserved for order",
                 event.createdAt());
         UserJournal feeAvailableJournal = buildUserJournal(
@@ -188,6 +197,7 @@ public class AccountTransactionDomainService {
                 fee,
                 ReferenceType.ORDER_FEE_FROZEN,
                 event.orderId().toString(),
+                uSeq++,
                 "Fee moved from available",
                 event.createdAt());
         userAccountRepository.updateSelectiveBatch(
@@ -234,10 +244,13 @@ public class AccountTransactionDomainService {
         PlatformAccount updatedPlatformAsset = platformAssetAccount.apply(Direction.CREDIT, request.getAmount());
         PlatformAccount updatedPlatformLiability = platformLiabilityAccount.apply(Direction.DEBIT, request.getAmount());
         
-        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.CREDIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), "User withdrawal", eventTime);
-        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.DEBIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), "User equity decrease", eventTime);
-        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.CREDIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), "Platform payout", eventTime);
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.DEBIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), "Platform liability decrease", eventTime);
+        int uSeq = 1;
+        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.CREDIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), uSeq++, "User withdrawal", eventTime);
+        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.DEBIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), uSeq++, "User equity decrease", eventTime);
+        
+        int pSeq = 1;
+        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.CREDIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), pSeq++, "Platform payout", eventTime);
+        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.DEBIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), pSeq++, "Platform liability decrease", eventTime);
         
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedUserAsset, updatedUserEquity),
@@ -260,6 +273,7 @@ public class AccountTransactionDomainService {
                                          BigDecimal amount,
                                          ReferenceType referenceType,
                                          String referenceId,
+                                         Integer seq,
                                          String description,
                                          Instant eventTime) {
         return UserJournal.builder()
@@ -273,6 +287,7 @@ public class AccountTransactionDomainService {
                           .balanceAfter(account.getBalance())
                           .referenceType(referenceType)
                           .referenceId(referenceId)
+                          .seq(seq)
                           .description(description)
                           .eventTime(eventTime)
                           .build();
@@ -283,6 +298,7 @@ public class AccountTransactionDomainService {
                                                  BigDecimal amount,
                                                  ReferenceType referenceType,
                                                  String referenceId,
+                                                 Integer seq,
                                                  String description,
                                                  Instant eventTime) {
         return PlatformJournal.builder()
@@ -295,6 +311,7 @@ public class AccountTransactionDomainService {
                               .balanceAfter(account.getBalance())
                               .referenceType(referenceType)
                               .referenceId(referenceId)
+                              .seq(seq)
                           .description(description)
                           .eventTime(eventTime)
                           .build();
@@ -486,12 +503,15 @@ public class AccountTransactionDomainService {
                 List.of(updatedPlatformLiability, updatedRevenue, updatedPlatformFeeEquity),
                 List.of(platformLiability.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
                 "trade-settle");
+        
+        int uSeq = 1;
         UserJournal marginJournal = buildUserJournal(
                 updatedMargin,
                 Direction.DEBIT,
                 marginPortion,
                 ReferenceType.TRADE_MARGIN_SETTLED,
                 refIdWithSide,
+                uSeq++,
                 "Margin allocated to isolated account",
                 event.executedAt());
         UserJournal marginOutJournal = buildUserJournal(
@@ -500,6 +520,7 @@ public class AccountTransactionDomainService {
                 marginPortion,
                 ReferenceType.TRADE_MARGIN_SETTLED,
                 refIdWithSide,
+                uSeq++,
                 "Margin transferred from spot",
                 event.executedAt());
         UserJournal feeJournal = buildUserJournal(
@@ -508,6 +529,7 @@ public class AccountTransactionDomainService {
                 feeReservedPortion,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                uSeq++,
                 "Trading fee deducted",
                 event.executedAt());
         UserJournal feeExpenseJournal = buildUserJournal(
@@ -516,6 +538,7 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                uSeq++,
                 "Trading fee expense",
                 event.executedAt());
         UserJournal feeEquityJournal = buildUserJournal(
@@ -524,6 +547,7 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                uSeq++,
                 "Trading fee equity",
                 event.executedAt());
         if (feeRefund.signum() > 0) {
@@ -533,18 +557,22 @@ public class AccountTransactionDomainService {
                     feeRefund,
                     ReferenceType.TRADE_FEE_REFUND,
                     refIdWithSide,
+                    uSeq++,
                     "Maker fee refund",
                     event.executedAt());
             userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal, refundJournal));
         } else {
             userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal));
         }
+        
+        int pSeq = 1;
         PlatformJournal platformLiabilityJournal = buildPlatformJournal(
                 updatedPlatformLiability,
                 Direction.DEBIT,
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                pSeq++,
                 "User liability decreased by trading fee",
                 event.executedAt());
         PlatformJournal revenueJournal = buildPlatformJournal(
@@ -553,6 +581,7 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                pSeq++,
                 "Trading fee revenue",
                 event.executedAt());
         PlatformJournal platformFeeEquityJournal = buildPlatformJournal(
@@ -561,6 +590,7 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                pSeq++,
                 "Trading fee equity",
                 event.executedAt());
         platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));
@@ -619,12 +649,14 @@ public class AccountTransactionDomainService {
                 List.of(platformLiability.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
                 "close-to-open-compensation");
 
+        int uSeq = 1;
         UserJournal marginJournal = buildUserJournal(
                 updatedMargin,
                 Direction.DEBIT,
                 marginUsed,
                 ReferenceType.TRADE_MARGIN_SETTLED,
                 refIdWithSide,
+                uSeq++,
                 "Margin allocated by close-to-open compensation",
                 event.executedAt());
         UserJournal marginOutJournal = buildUserJournal(
@@ -633,6 +665,7 @@ public class AccountTransactionDomainService {
                 marginUsed,
                 ReferenceType.TRADE_MARGIN_SETTLED,
                 refIdWithSide,
+                uSeq++,
                 "Margin transferred from spot (close-to-open compensation)",
                 event.executedAt());
         UserJournal feeJournal = buildUserJournal(
@@ -641,6 +674,7 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                uSeq++,
                 "Trading fee deducted (close-to-open compensation)",
                 event.executedAt());
         UserJournal feeExpenseJournal = buildUserJournal(
@@ -649,6 +683,7 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                uSeq++,
                 "Trading fee expense",
                 event.executedAt());
         UserJournal feeEquityJournal = buildUserJournal(
@@ -657,16 +692,19 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                uSeq++,
                 "Trading fee equity",
                 event.executedAt());
         userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal));
 
+        int pSeq = 1;
         PlatformJournal platformLiabilityJournal = buildPlatformJournal(
                 updatedPlatformLiability,
                 Direction.DEBIT,
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                pSeq++,
                 "User liability decreased by trading fee (invalid fill)",
                 event.executedAt());
         PlatformJournal revenueJournal = buildPlatformJournal(
@@ -675,6 +713,7 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                pSeq++,
                 "Trading fee revenue (invalid fill)",
                 event.executedAt());
         PlatformJournal platformFeeEquityJournal = buildPlatformJournal(
@@ -683,6 +722,7 @@ public class AccountTransactionDomainService {
                 actualFee,
                 ReferenceType.TRADE_FEE,
                 refIdWithSide,
+                pSeq++,
                 "Trading fee equity",
                 event.executedAt());
         platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));

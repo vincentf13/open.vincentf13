@@ -37,6 +37,8 @@ public class PlatformJournal {
     private ReferenceType referenceType;
     @NotNull
     private String referenceId;
+    @NotNull
+    private Integer seq;
     private String description;
     @NotNull
     private Instant eventTime;

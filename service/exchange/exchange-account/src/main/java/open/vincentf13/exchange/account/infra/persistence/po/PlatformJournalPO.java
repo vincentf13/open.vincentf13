@@ -32,6 +32,7 @@ public class PlatformJournalPO {
     private BigDecimal balanceAfter;
     private ReferenceType referenceType;
     private String referenceId;
+    private Integer seq;
     private String description;
     private Instant eventTime;
     private Instant createdAt;

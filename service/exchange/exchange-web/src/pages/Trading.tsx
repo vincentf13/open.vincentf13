@@ -276,6 +276,7 @@ export default function Trading() {
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Balance After</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reference Type</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reference ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Seq</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Description</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Event Time</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Created At</th>
@@ -321,6 +322,7 @@ export default function Trading() {
                     '-'
                   )}
                 </td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.seq ?? '-')}</td>
                 <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
                 <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
                 <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
@@ -348,6 +350,7 @@ export default function Trading() {
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Balance After</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reference Type</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Reference ID</th>
+            <th className="py-1 pr-2 font-semibold whitespace-nowrap">Seq</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Description</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Event Time</th>
             <th className="py-1 pr-2 font-semibold whitespace-nowrap">Created At</th>
@@ -390,6 +393,7 @@ export default function Trading() {
                     '-'
                   )}
                 </td>
+                <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.seq ?? '-')}</td>
                 <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.description ?? '-')}</td>
                 <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.eventTime ?? '-')}</td>
                 <td className="py-1 pr-2 whitespace-nowrap text-slate-700">{String(item?.createdAt ?? '-')}</td>
