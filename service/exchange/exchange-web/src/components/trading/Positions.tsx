@@ -357,7 +357,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                     return (
                                       <tr key={e.eventId} className="hover:bg-white/5">
                                         <td className="py-1 px-2 font-mono text-slate-400">{e.sequenceNumber}</td>
-                                        <td className="py-1 px-2 text-slate-500 font-medium">{e.eventType}</td>
+                                        <td className="py-1 px-2">
+                                          <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
+                                            {e.eventType}
+                                          </span>
+                                        </td>
                                         {columns.map((c, i) => {
                                           const val = payload[c.key];
                                           const hasValue = val !== undefined && val !== null;
@@ -426,7 +430,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                       return (
                                         <tr key={e.eventId} className="hover:bg-white/5">
                                           <td className="py-1 px-2 font-mono text-slate-400">{e.sequenceNumber}</td>
-                                          <td className="py-1 px-2 text-slate-500 font-medium">{e.eventType}</td>
+                                          <td className="py-1 px-2">
+                                            <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
+                                              {e.eventType}
+                                            </span>
+                                          </td>
                                           {orderColumns.map((c, i) => {
                                             const val = payload[c.key];
                                             const hasValue = val !== undefined && val !== null;
@@ -481,70 +489,79 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
         {activeTab === 'Traders' && (
           <div className="min-w-max">
-            <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
-              <thead>
-                <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
-                  <th className="py-2">Trade Id</th>
-                  <th className="py-2">Trade Type</th>
-                  <th className="py-2">Taker Intent</th>
-                  <th className="py-2">Maker Intent</th>
-                  <th className="py-2">Taker Order Id</th>
-                  <th className="py-2">Maker Order Id</th>
-                  <th className="py-2">Taker User Id</th>
-                  <th className="py-2">Maker User Id</th>
-                  <th className="py-2">Side</th>
-                  <th className="py-2">Price</th>
-                  <th className="py-2">Quantity</th>
-                  <th className="py-2">Taker Fee</th>
-                  <th className="py-2">Maker Fee</th>
-                  <th className="py-2">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {instrumentTrades.length === 0 ? <tr><td colSpan={14} className="py-8 text-center text-slate-400">No trades</td></tr> : instrumentTrades.map(t => {
-                  const isTaker = t.takerUserId === Number(currentUserId);
-                  const isMaker = t.makerUserId === Number(currentUserId);
-                  const takerBg = isTaker ? 'bg-yellow-200/50' : '';
-                  const makerBg = isMaker ? 'bg-yellow-200/50' : '';
-                  const sideClass = t.orderSide === 'BUY' ? 'text-emerald-600' : 'text-rose-600';
-                  
-                  return (
-                    <tr key={t.tradeId} className="hover:bg-white/10 transition-colors">
-                      <td className="py-2 px-2 font-mono text-slate-500">{t.tradeId}</td>
-                      <td className="py-2 px-2">
-                        <span className="px-1.5 py-0.5 rounded-md border border-violet-200 bg-violet-50 text-violet-600 text-[9px] font-black uppercase tracking-tighter">
-                          {t.tradeType || '-'}
-                        </span>
-                      </td>
-                      <td className={`py-2 px-2 ${takerBg}`}>
-                        <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
-                          {t.takerIntent || '-'}
-                        </span>
-                      </td>
-                      <td className={`py-2 px-2 ${makerBg}`}>
-                        <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
-                          {t.makerIntent || '-'}
-                        </span>
-                      </td>
-                      <td className={`py-2 px-2 font-mono ${takerBg} text-slate-600`}>{t.orderId}</td>
-                      <td className={`py-2 px-2 font-mono ${makerBg} text-slate-600`}>{t.counterpartyOrderId}</td>
-                      <td className={`py-2 px-2 ${takerBg} text-slate-600`}>{t.takerUserId}</td>
-                      <td className={`py-2 px-2 ${makerBg} text-slate-600`}>{t.makerUserId}</td>
-                      <td className="py-2 px-2">
-                        <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${t.orderSide === 'BUY' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
-                          {t.orderSide}
-                        </span>
-                      </td>
-                      <td className="py-2 px-2 font-mono font-bold text-sky-600">{formatNumber(t.price)}</td>
-                      <td className="py-2 px-2 font-mono font-bold text-sky-600">{formatNumber(t.quantity)}</td>
-                      <td className={`py-2 px-2 font-mono ${takerBg} ${isTaker ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>{formatNumber(t.takerFee)}</td>
-                      <td className={`py-2 px-2 font-mono ${makerBg} ${isMaker ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>{formatNumber(t.makerFee)}</td>
-                      <td className="py-2 px-2 font-mono text-slate-400">{formatPayloadValue('executedAt', t.executedAt)}</td>
+            {(() => {
+              const hasMyTaker = instrumentTrades.some(t => t.takerUserId === Number(currentUserId));
+              const hasMyMaker = instrumentTrades.some(t => t.makerUserId === Number(currentUserId));
+              const takerHeaderBg = hasMyTaker ? 'bg-yellow-200/50' : '';
+              const makerHeaderBg = hasMyMaker ? 'bg-yellow-200/50' : '';
+              
+              return (
+                <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
+                  <thead>
+                    <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
+                      <th className="py-2 px-2">Trade Id</th>
+                      <th className="py-2 px-2">Trade Type</th>
+                      <th className={`py-2 px-2 ${takerHeaderBg} ${hasMyTaker ? 'rounded-tl-md' : ''}`}>Taker Intent</th>
+                      <th className={`py-2 px-2 ${makerHeaderBg} ${!hasMyTaker && hasMyMaker ? 'rounded-tl-md' : ''}`}>Maker Intent</th>
+                      <th className={`py-2 px-2 ${takerHeaderBg}`}>Taker Order Id</th>
+                      <th className={`py-2 px-2 ${makerHeaderBg}`}>Maker Order Id</th>
+                      <th className={`py-2 px-2 ${takerHeaderBg}`}>Taker User Id</th>
+                      <th className={`py-2 px-2 ${makerHeaderBg}`}>Maker User Id</th>
+                      <th className="py-2 px-2">Side</th>
+                      <th className="py-2 px-2">Price</th>
+                      <th className="py-2 px-2">Quantity</th>
+                      <th className={`py-2 px-2 ${takerHeaderBg}`}>Taker Fee</th>
+                      <th className={`py-2 px-2 ${makerHeaderBg} ${hasMyMaker ? 'rounded-tr-md' : ''}`}>Maker Fee</th>
+                      <th className="py-2 px-2">Time</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {instrumentTrades.length === 0 ? <tr><td colSpan={14} className="py-8 text-center text-slate-400">No trades</td></tr> : instrumentTrades.map(t => {
+                      const isTaker = t.takerUserId === Number(currentUserId);
+                      const isMaker = t.makerUserId === Number(currentUserId);
+                      const takerBg = isTaker ? 'bg-yellow-200/50' : '';
+                      const makerBg = isMaker ? 'bg-yellow-200/50' : '';
+                      const sideClass = t.orderSide === 'BUY' ? 'text-emerald-600' : 'text-rose-600';
+                      
+                      return (
+                        <tr key={t.tradeId} className="hover:bg-white/10 transition-colors">
+                          <td className="py-2 px-2 font-mono text-slate-500">{t.tradeId}</td>
+                          <td className="py-2 px-2">
+                            <span className="px-1.5 py-0.5 rounded-md border border-violet-200 bg-violet-50 text-violet-600 text-[9px] font-black uppercase tracking-tighter">
+                              {t.tradeType || '-'}
+                            </span>
+                          </td>
+                          <td className={`py-2 px-2 ${takerBg}`}>
+                            <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
+                              {t.takerIntent || '-'}
+                            </span>
+                          </td>
+                          <td className={`py-2 px-2 ${makerBg}`}>
+                            <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
+                              {t.makerIntent || '-'}
+                            </span>
+                          </td>
+                          <td className={`py-2 px-2 font-mono ${takerBg} text-slate-600`}>{t.orderId}</td>
+                          <td className={`py-2 px-2 font-mono ${makerBg} text-slate-600`}>{t.counterpartyOrderId}</td>
+                          <td className={`py-2 px-2 ${takerBg} text-slate-600`}>{t.takerUserId}</td>
+                          <td className={`py-2 px-2 ${makerBg} text-slate-600`}>{t.makerUserId}</td>
+                          <td className="py-2 px-2">
+                            <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${t.orderSide === 'BUY' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
+                              {t.orderSide}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 font-mono font-bold text-sky-600">{formatNumber(t.price)}</td>
+                          <td className="py-2 px-2 font-mono font-bold text-sky-600">{formatNumber(t.quantity)}</td>
+                          <td className={`py-2 px-2 font-mono ${takerBg} ${isTaker ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>{formatNumber(t.takerFee)}</td>
+                          <td className={`py-2 px-2 font-mono ${makerBg} ${isMaker ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>{formatNumber(t.makerFee)}</td>
+                          <td className="py-2 px-2 font-mono text-slate-400">{formatPayloadValue('executedAt', t.executedAt)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              );
+            })()}
           </div>
         )}
       </div>
