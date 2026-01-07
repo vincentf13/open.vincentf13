@@ -456,6 +456,7 @@ export default function Trading() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setIsPaused(!isPaused)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all ${isPaused ? 'bg-amber-500/20 border-amber-500/40 text-amber-600' : 'bg-slate-500/10 border-slate-500/20 text-slate-500'}`}>
+            {!isPaused && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]" />}
             {isPaused ? 'Paused' : 'Syncing'}
             <Tooltip title={(
               <div className="text-[10px] leading-relaxed">
