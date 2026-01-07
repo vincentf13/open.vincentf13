@@ -169,9 +169,11 @@ export default function Trading() {
             {rows.map((item, index) => {
               const category = String(item?.category ?? '').toUpperCase();
               const direction = String(item?.direction ?? '').toUpperCase();
+              const refType = String(item?.referenceType ?? '').toUpperCase();
+              const isFrozen = refType === 'ORDER_FEE_FROZEN' || refType === 'ORDER_MARGIN_FROZEN';
               const highlightCredit = (category === 'ASSET' || category === 'EXPENSE') && direction === 'CREDIT';
               const highlightDebit = (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE') && direction === 'DEBIT';
-              const highlightClass = (highlightCredit || highlightDebit) ? 'text-rose-600 font-medium' : 'text-slate-700';
+              const highlightClass = (!isFrozen && (highlightCredit || highlightDebit)) ? 'text-rose-600 font-medium' : 'text-slate-700';
               return (
                 <tr key={index} className="text-right align-top whitespace-nowrap">
                   <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
