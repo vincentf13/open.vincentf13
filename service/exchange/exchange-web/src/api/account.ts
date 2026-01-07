@@ -95,6 +95,8 @@ export const getAccountJournals = async (accountId: number) => {
 export type PlatformJournalItem = {
   journalId: number;
   accountId: number;
+  accountCode?: string;
+  accountName?: string;
   category: string;
   asset: string;
   amount: string;

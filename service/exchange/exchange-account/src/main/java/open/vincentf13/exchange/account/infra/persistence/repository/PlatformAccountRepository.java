@@ -20,7 +20,10 @@ import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 @Validated
@@ -83,6 +86,17 @@ public class PlatformAccountRepository {
 
     public List<PlatformAccount> findAll() {
         return findBy(Wrappers.lambdaQuery(PlatformAccountPO.class));
+    }
+
+    public List<PlatformAccount> findByAccountIds(@NotNull List<Long> accountIds) {
+        Set<Long> uniqueIds = accountIds.stream()
+                                        .filter(Objects::nonNull)
+                                        .collect(Collectors.toSet());
+        if (uniqueIds.isEmpty()) {
+            return List.of();
+        }
+        return findBy(Wrappers.lambdaQuery(PlatformAccountPO.class)
+                              .in(PlatformAccountPO::getAccountId, uniqueIds));
     }
     
     public PlatformAccount getOrCreate(@NotNull PlatformAccountCode code,

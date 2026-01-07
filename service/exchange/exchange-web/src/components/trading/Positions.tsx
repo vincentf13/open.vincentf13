@@ -303,6 +303,53 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
   const parsePayload = (p?: string | null) => { if (!p) return null; try { return JSON.parse(p); } catch { return null; } };
 
+  useEffect(() => {
+    if (expandedPositionId) {
+        // Always fetch latest events when expanded or refreshed
+        setPositionEventsLoading(v => ({...v, [expandedPositionId]: true}));
+        getPositionEvents(expandedPositionId).then(res => { 
+            if(String(res?.code)==='0') {
+                setPositionEvents(v => ({...v, [expandedPositionId]: res.data?.events || []}));
+            }
+        }).finally(() => setPositionEventsLoading(v => ({...v, [expandedPositionId]: false})));
+    }
+  }, [expandedPositionId, refreshTrigger]);
+
+  useEffect(() => {
+    if (expandedOrderId) {
+        setOrderEventsLoading(v => ({...v, [expandedOrderId]: true}));
+        getOrderEvents(expandedOrderId).then(res => { if(String(res?.code)==='0') setOrderEvents(v => ({...v, [expandedOrderId]: res.data?.events || []})); }).finally(() => setOrderEventsLoading(v => ({...v, [expandedOrderId]: false})));
+        getTradesByOrderId(expandedOrderId).then(res => { if(String(res?.code)==='0') setOrderTrades(v => ({...v, [expandedOrderId]: res.data || []})); });
+    }
+  }, [expandedOrderId, refreshTrigger]);
+
+  function togglePosition(id: number) {
+    if (expandedPositionId === id) { setExpandedPositionId(null); return; }
+    setExpandedPositionId(id);
+    if (!positionEvents[id]) {
+        setPositionEventsLoading(v => ({...v, [id]: true}));
+        getPositionEvents(id).then(res => {
+            if (String(res?.code) === '0') {
+                setPositionEvents(v => ({...v, [id]: res.data?.events || []}));
+            }
+        }).finally(() => setPositionEventsLoading(v => ({...v, [id]: false})));
+    }
+  }
+
+  function toggleOrder(id: number) {
+    if (expandedOrderId === id) { setExpandedOrderId(null); return; }
+    setExpandedOrderId(id);
+    if (!orderEvents[id]) {
+        setOrderEventsLoading(v => ({...v, [id]: true}));
+        getOrderEvents(id).then(res => {
+            if (String(res?.code) === '0') {
+                setOrderEvents(v => ({...v, [id]: res.data?.events || []}));
+            }
+        }).finally(() => setOrderEventsLoading(v => ({...v, [id]: false})));
+        getTradesByOrderId(id).then(res => { if(String(res?.code)==='0') setOrderTrades(v => ({...v, [id]: res.data || []})); });
+    }
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div id="positions-tabs-bar" className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/5">
@@ -567,51 +614,4 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       </div>
     </div>
   );
-
-  useEffect(() => {
-    if (expandedPositionId) {
-        // Always fetch latest events when expanded or refreshed
-        setPositionEventsLoading(v => ({...v, [expandedPositionId]: true}));
-        getPositionEvents(expandedPositionId).then(res => { 
-            if(String(res?.code)==='0') {
-                setPositionEvents(v => ({...v, [expandedPositionId]: res.data?.events || []}));
-            }
-        }).finally(() => setPositionEventsLoading(v => ({...v, [expandedPositionId]: false})));
-    }
-  }, [expandedPositionId, refreshTrigger]);
-
-  useEffect(() => {
-    if (expandedOrderId) {
-        setOrderEventsLoading(v => ({...v, [expandedOrderId]: true}));
-        getOrderEvents(expandedOrderId).then(res => { if(String(res?.code)==='0') setOrderEvents(v => ({...v, [expandedOrderId]: res.data?.events || []})); }).finally(() => setOrderEventsLoading(v => ({...v, [expandedOrderId]: false})));
-        getTradesByOrderId(expandedOrderId).then(res => { if(String(res?.code)==='0') setOrderTrades(v => ({...v, [expandedOrderId]: res.data || []})); });
-    }
-  }, [expandedOrderId, refreshTrigger]);
-
-  function togglePosition(id: number) {
-    if (expandedPositionId === id) { setExpandedPositionId(null); return; }
-    setExpandedPositionId(id);
-    if (!positionEvents[id]) {
-        setPositionEventsLoading(v => ({...v, [id]: true}));
-        getPositionEvents(id).then(res => {
-            if (String(res?.code) === '0') {
-                setPositionEvents(v => ({...v, [id]: res.data?.events || []}));
-            }
-        }).finally(() => setPositionEventsLoading(v => ({...v, [id]: false})));
-    }
-  }
-
-  function toggleOrder(id: number) {
-    if (expandedOrderId === id) { setExpandedOrderId(null); return; }
-    setExpandedOrderId(id);
-    if (!orderEvents[id]) {
-        setOrderEventsLoading(v => ({...v, [id]: true}));
-        getOrderEvents(id).then(res => {
-            if (String(res?.code) === '0') {
-                setOrderEvents(v => ({...v, [id]: res.data?.events || []}));
-            }
-        }).finally(() => setOrderEventsLoading(v => ({...v, [id]: false})));
-        getTradesByOrderId(id).then(res => { if(String(res?.code)==='0') setOrderTrades(v => ({...v, [id]: res.data || []})); });
-    }
-  }
 }

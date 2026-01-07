@@ -166,34 +166,56 @@ export default function Trading() {
     getJournalsByReference(type, id).then(res => { if(String(res?.code)==='0') setReferenceJournalData(res.data); }).finally(() => setReferenceJournalLoading(false));
   };
 
-  const renderJournalRows = (items?: AccountJournalItem[], options?: { disableReferenceLink?: boolean }) => {
+  const splitExpenseRevenue = <T extends { category?: string | null }>(items?: T[]) => {
+    const rows = items ?? [];
+    const expenseRevenue = rows.filter(item => {
+      const category = String(item?.category ?? '').toUpperCase();
+      return category === 'EXPENSE' || category === 'REVENUE';
+    });
+    const core = rows.filter(item => {
+      const category = String(item?.category ?? '').toUpperCase();
+      return category !== 'EXPENSE' && category !== 'REVENUE';
+    });
+    return { core, expenseRevenue };
+  };
+
+  const renderCategoryChip = (value?: string | null) => {
+    const text = String(value ?? '-');
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+        {text}
+      </span>
+    );
+  };
+
+  const renderJournalRows = (items?: AccountJournalItem[], options?: { disableReferenceLink?: boolean; highlightMode?: 'background' | 'text' }) => {
     const rows = items && items.length > 0 ? items : [null];
     const disableReferenceLink = options?.disableReferenceLink ?? false;
+    const highlightMode = options?.highlightMode ?? 'background';
+    const textOnlyHighlight = highlightMode === 'text';
     return (
       <div className="overflow-x-auto">
-        <table className="w-full text-[10px] text-slate-600 border-collapse table-fixed">
+        <table className="w-full text-xs text-slate-600 border-separate border-spacing-x-0 table-fixed">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
-              <th className="py-1 pr-1 font-semibold text-left w-[100px]">journalId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[60px]">userId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[70px]">accountId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[80px]">accCode</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[80px]">accName</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[60px]">category</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[40px]">asset</th>
-              <th className="py-1 pr-1 font-semibold w-[80px]">amount</th>
-              <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
-              <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[110px]">referenceType</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[120px]">
-                <div className="flex items-center gap-1">
-                  referenceId
+            <tr className="text-[10px] uppercase text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
+              <th className="py-1 px-1 font-semibold text-left w-[100px]">journalId</th>
+              <th className="py-1 px-1 font-semibold text-left w-[60px]">userId</th>
+              <th className="py-1 px-1 font-semibold text-left w-[70px]">accountId</th>
+              <th className="py-1 px-1 font-semibold text-left w-[80px]">accCode</th>
+              <th className="py-1 px-1 font-semibold text-left w-[80px]">accName</th>
+              <th className="py-1 px-1 font-semibold text-left w-[60px]">category</th>
+              <th className="py-1 px-1 font-semibold text-left w-[40px]">asset</th>
+              <th className="py-1 px-1 font-semibold w-[80px]">amount</th>
+              <th className="py-1 px-1 font-semibold w-[60px]">
+                <div className="flex items-center gap-1 justify-end">
+                  direction
                   <Tooltip 
                     title={(
-                      <div className="text-[10px] leading-relaxed min-w-[240px]">
-                        <p className="font-bold text-sky-400 border-b border-white/10 pb-1 mb-1">關聯查詢 (Reference Query)</p>
-                        <p>點擊 ID 可查詢該筆業務操作（如撮合、手續費）產生的所有關聯帳戶分錄。</p>
-                        <p className="text-slate-300 mt-1">Click to view all journal entries (e.g., matching, fees) related to this transaction.</p>
+                      <div className="text-[10px] leading-relaxed min-w-[220px]">
+                        <p className="font-bold text-emerald-400 border-b border-white/10 pb-1 mb-1">借貸方向 (Debit / Credit)</p>
+                        <p>資產 (Assets)、費用 (Expenses)：DEBIT 增加，CREDIT 減少。</p>
+                        <p>負債 (Liabilities)、權益 (Equity)、收入 (Revenue)：CREDIT 增加，DEBIT 減少。</p>
+                        <p className="text-slate-300 mt-1">Assets/Expenses: DEBIT increases, CREDIT decreases. Liabilities/Equity/Revenue: CREDIT increases, DEBIT decreases.</p>
                       </div>
                     )}
                     styles={{ root: { maxWidth: 'none' } }}
@@ -202,10 +224,29 @@ export default function Trading() {
                   </Tooltip>
                 </div>
               </th>
-              <th className="py-1 pr-1 font-semibold w-[30px]">seq</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[150px]">description</th>
-              <th className="py-1 pr-1 font-semibold w-[100px]">eventTime</th>
-              <th className="py-1 pr-1 font-semibold w-[100px]">createdAt</th>
+              <th className="py-1 px-1 font-semibold w-[85px]">balanceAfter</th>
+              <th className="py-1 px-1 font-semibold text-left w-[110px]">referenceType</th>
+              <th className="py-1 px-1 font-semibold text-left w-[120px]">
+                <div className="flex items-center gap-1">
+                  referenceId
+                  <Tooltip 
+                    title={(
+                      <div className="text-[10px] leading-relaxed min-w-[240px]">
+                        <p className="font-bold text-sky-400 border-b border-white/10 pb-1 mb-1">關聯查詢 (Reference Query)</p>
+                        <p>點擊 ID 可查詢該筆業務操作（如撮合、手續費）產生的所有關聯帳戶分錄。</p>
+                        <p className="text-slate-300 mt-1">Click to view all journal entries (e.g., matching, fees) related to this transaction).</p>
+                      </div>
+                    )}
+                    styles={{ root: { maxWidth: 'none' } }}
+                  >
+                    <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                  </Tooltip>
+                </div>
+              </th>
+              <th className="py-1 px-1 font-semibold w-[30px]">seq</th>
+              <th className="py-1 px-1 font-semibold text-left w-[150px]">description</th>
+              <th className="py-1 px-1 font-semibold w-[100px]">eventTime</th>
+              <th className="py-1 px-1 font-semibold w-[100px]">createdAt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
@@ -216,20 +257,32 @@ export default function Trading() {
               const isFrozen = refType === 'ORDER_FEE_FROZEN' || refType === 'ORDER_MARGIN_FROZEN';
               const highlightCredit = (category === 'ASSET' || category === 'EXPENSE') && direction === 'CREDIT';
               const highlightDebit = (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE') && direction === 'DEBIT';
-              const highlightClass = (!isFrozen && (highlightCredit || highlightDebit)) ? 'text-rose-600 font-medium' : 'text-slate-700';
+              const highlightBackground = !isFrozen && highlightDebit && !textOnlyHighlight;
+              const highlightText = !isFrozen && (highlightCredit || (textOnlyHighlight && highlightDebit));
+              const baseHighlight = highlightBackground ? 'bg-red-100' : '';
+              const rowClass = isFrozen ? 'text-slate-300 font-normal' : 'text-slate-600';
+              
               return (
-                <tr key={index} className="text-right align-top whitespace-nowrap">
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.userId ?? '-')}</td>
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.accountId ?? '-')}</td>
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.accountCode ?? '-')}</td>
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.accountName ?? '-')}</td>
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.category ?? '-')}</td>
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.asset ?? '-')}</td>
-                  <td className={`py-1 pr-1 font-mono ${highlightClass} overflow-hidden`}>{String(item?.amount ?? '-')}</td>
-                  <td className={`py-1 pr-1 ${highlightClass} overflow-hidden`}>{String(item?.direction ?? '-')}</td>
-                  <td className={`py-1 pr-1 font-mono ${highlightClass} overflow-hidden`}>{String(item?.balanceAfter ?? '-')}</td>
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.referenceType ?? '-')}</td>
+                <tr key={index} className={`text-right align-top whitespace-nowrap ${rowClass}`}>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden text-slate-400">&nbsp;</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountId ?? '-')}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountCode ?? '-')}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountName ?? '-')}</td>
+                  <td className={`py-1 px-1 text-left overflow-hidden ${baseHighlight}`}>{renderCategoryChip(item?.category)}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.asset ?? '-')}</td>
+                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${highlightBackground ? 'rounded-l' : ''}`}>{renderNumberCell(item?.amount, highlightBackground, highlightText ? 'text-rose-600' : undefined, isFrozen)}</td>
+                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight}`}>
+                    <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${isFrozen ? 'border-slate-200 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+                      {direction}
+                    </span>
+                  </td>
+                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${highlightBackground ? 'rounded-r' : ''}`}>{renderNumberCell(item?.balanceAfter, highlightBackground, highlightText ? 'text-rose-600' : undefined, isFrozen)}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">
+                    <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${isFrozen ? 'border-slate-200 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+                      {String(item?.referenceType ?? '-')}
+                    </span>
+                  </td>
                   <td className="py-1 pr-1 text-left overflow-hidden">
                     {item?.referenceId ? (
                       disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
@@ -240,7 +293,7 @@ export default function Trading() {
                     ) : '-'}
                   </td>
                   <td className="py-1 pr-1 font-mono overflow-hidden">{String(item?.seq ?? '-')}</td>
-                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.description ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden bg-yellow-200/50">{String(item?.description ?? '-')}</td>
                   <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.eventTime ?? '-')}</td>
                   <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.createdAt ?? '-')}</td>
                 </tr>
@@ -252,20 +305,42 @@ export default function Trading() {
     );
   };
 
-  const renderPlatformJournalRows = (items?: PlatformJournalItem[], options?: { disableReferenceLink?: boolean }) => {
+  const renderPlatformJournalRows = (items?: PlatformJournalItem[], options?: { disableReferenceLink?: boolean; highlightMode?: 'background' | 'text' }) => {
     const rows = items && items.length > 0 ? items : [null];
     const disableReferenceLink = options?.disableReferenceLink ?? false;
+    const highlightMode = options?.highlightMode ?? 'background';
+    const textOnlyHighlight = highlightMode === 'text';
     return (
       <div className="overflow-x-auto">
-        <table className="w-full text-[10px] text-slate-600 border-collapse table-fixed">
+        <table className="w-full text-xs text-slate-600 border-collapse table-fixed">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
+            <tr className="text-[10px] uppercase text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
               <th className="py-1 pr-1 font-semibold text-left w-[100px]">journalId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[100px]">accountId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[60px]">&nbsp;</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[70px]">accountId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[80px]">accCode</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[80px]">accName</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[60px]">category</th>
               <th className="py-1 pr-1 font-semibold text-left w-[40px]">asset</th>
               <th className="py-1 pr-1 font-semibold w-[100px]">amount</th>
-              <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
+              <th className="py-1 pr-1 font-semibold w-[60px]">
+                <div className="flex items-center gap-1 justify-end">
+                  direction
+                  <Tooltip 
+                    title={(
+                      <div className="text-[10px] leading-relaxed min-w-[220px]">
+                        <p className="font-bold text-indigo-400 border-b border-white/10 pb-1 mb-1">借貸方向 (Debit / Credit)</p>
+                        <p>資產 (Assets)、費用 (Expenses)：DEBIT 增加，CREDIT 減少。</p>
+                        <p>負債 (Liabilities)、權益 (Equity)、收入 (Revenue)：CREDIT 增加，DEBIT 減少。</p>
+                        <p className="text-slate-300 mt-1">Assets/Expenses: DEBIT increases, CREDIT decreases. Liabilities/Equity/Revenue: CREDIT increases, DEBIT decreases.</p>
+                      </div>
+                    )}
+                    styles={{ root: { maxWidth: 'none' } }}
+                  >
+                    <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                  </Tooltip>
+                </div>
+              </th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
               <th className="py-1 pr-1 font-semibold text-left w-[110px]">referenceType</th>
               <th className="py-1 pr-1 font-semibold text-left w-[120px]">
@@ -292,16 +367,39 @@ export default function Trading() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
-            {rows.map((item, index) => (
-              <tr key={index} className="text-right align-top whitespace-nowrap">
-                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.accountId ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.category ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.asset ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden">{String(item?.amount ?? '-')}</td>
-                <td className="py-1 pr-1 text-slate-700 overflow-hidden">{String(item?.direction ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden">{String(item?.balanceAfter ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.referenceType ?? '-')}</td>
+            {rows.map((item, index) => {
+              const category = String(item?.category ?? '').toUpperCase();
+              const direction = String(item?.direction ?? '').toUpperCase();
+              const refType = String(item?.referenceType ?? '').toUpperCase();
+              const isFrozen = refType === 'ORDER_FEE_FROZEN' || refType === 'ORDER_MARGIN_FROZEN';
+              const highlightCredit = (category === 'ASSET' || category === 'EXPENSE') && direction === 'CREDIT';
+              const highlightDebit = (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE') && direction === 'DEBIT';
+              const isHighlighted = !isFrozen && (highlightCredit || highlightDebit) && !textOnlyHighlight;
+              const highlightText = !isFrozen && (highlightCredit || highlightDebit) && textOnlyHighlight;
+              const baseHighlight = isHighlighted ? 'bg-red-100' : '';
+              const rowClass = isFrozen ? 'text-slate-300 font-normal' : 'text-slate-600';
+
+              return (
+                <tr key={index} className={`text-right align-top whitespace-nowrap ${rowClass}`}>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden text-slate-400">&nbsp;</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountId ?? '-')}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountCode ?? '-')}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountName ?? '-')}</td>
+                  <td className={`py-1 px-1 text-left overflow-hidden ${baseHighlight}`}>{renderCategoryChip(item?.category)}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">{String(item?.asset ?? '-')}</td>
+                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${isHighlighted ? 'rounded-l' : ''}`}>{renderNumberCell(item?.amount, isHighlighted, highlightText ? 'text-rose-600' : undefined, isFrozen)}</td>
+                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight}`}>
+                    <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${isFrozen ? 'border-slate-200 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+                      {direction}
+                    </span>
+                  </td>
+                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${isHighlighted ? 'rounded-r' : ''}`}>{renderNumberCell(item?.balanceAfter, isHighlighted, highlightText ? 'text-rose-600' : undefined, isFrozen)}</td>
+                  <td className="py-1 px-1 text-left overflow-hidden">
+                    <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${isFrozen ? 'border-slate-200 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+                      {item?.referenceType ?? '-'}
+                    </span>
+                  </td>
                 <td className="py-1 pr-1 text-left overflow-hidden">
                   {item?.referenceId ? (
                     disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
@@ -312,26 +410,30 @@ export default function Trading() {
                   ) : '-'}
                 </td>
                 <td className="py-1 pr-1 font-mono overflow-hidden">{String(item?.seq ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.description ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden bg-yellow-200/50">{String(item?.description ?? '-')}</td>
                 <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.eventTime ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.createdAt ?? '-')}</td>
+                                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.createdAt ?? '-')}</td>
               </tr>
-            ))}
-          </tbody>
+            );
+          })}
+        </tbody>
         </table>
       </div>
     );
   };
 
   const instrumentMap = useMemo(() => new Map(instruments.map(i => [String(i.instrumentId), i.name || i.symbol || String(i.instrumentId)])), [instruments]);
+  const referenceUserSplit = splitExpenseRevenue(referenceJournalData?.accountJournals);
+  const referencePlatformSplit = splitExpenseRevenue(referenceJournalData?.platformJournals);
+  const referenceUserRows = referenceUserSplit.core;
 
   const renderAccountItems = (items?: AccountBalanceItem[]) => {
     const rows = items && items.length > 0 ? items : [null];
     return (
       <div className="overflow-x-auto">
-        <table className="w-full text-[10px] text-slate-600 border-collapse table-fixed">
+        <table className="w-full text-xs text-slate-600 border-collapse table-fixed">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
+            <tr className="text-[10px] uppercase text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
               <th className="py-1 pr-1 font-semibold text-left w-[90px]">accountId</th>
               <th className="py-1 pr-1 font-semibold text-left w-[60px]">accCode</th>
               <th className="py-1 pr-1 font-semibold text-left w-[75px]">accName</th>
@@ -347,28 +449,32 @@ export default function Trading() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
-            {rows.map((item, index) => (
-              <tr key={index} className="text-right whitespace-nowrap">
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
-                  {item?.accountId != null ? (
-                    <button onClick={() => handleOpenAccountJournal(Number(item.accountId))} className="text-sky-500 underline">{item.accountId}</button>
-                  ) : '-'}
-                </td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.accountCode ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.accountName ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.category ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
-                  {item?.instrumentId ? (instrumentMap.get(String(item.instrumentId)) || String(item.instrumentId)) : ''}
-                </td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.asset ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{String(item?.balance ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{String(item?.available ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{String(item?.reserved ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono overflow-hidden text-ellipsis">{String(item?.version ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{String(item?.createdAt ?? '-')}</td>
-                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{String(item?.updatedAt ?? '-')}</td>
-              </tr>
-            ))}
+            {rows.map((item, index) => {
+              const isExpense = String(item?.category ?? '').toUpperCase() === 'EXPENSE';
+              const forceRed = isExpense ? 'text-rose-600' : undefined;
+              return (
+                <tr key={index} className="text-right whitespace-nowrap">
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
+                    {item?.accountId != null ? (
+                      <button onClick={() => handleOpenAccountJournal(Number(item.accountId))} className="text-sky-500 underline">{item.accountId}</button>
+                    ) : '-'}
+                  </td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.accountCode ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.accountName ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{renderCategoryChip(item?.category)}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
+                    {item?.instrumentId ? (instrumentMap.get(String(item.instrumentId)) || String(item.instrumentId)) : ''}
+                  </td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.asset ?? '-')}</td>
+                  <td className="py-1 pr-1 overflow-hidden text-ellipsis">{renderNumberCell(item?.balance, false, forceRed)}</td>
+                  <td className="py-1 pr-1 overflow-hidden text-ellipsis">{renderNumberCell(item?.available, false, forceRed)}</td>
+                  <td className="py-1 pr-1 overflow-hidden text-ellipsis">{renderNumberCell(item?.reserved, false)}</td>
+                  <td className="py-1 pr-1 font-mono overflow-hidden text-ellipsis">{String(item?.version ?? '-')}</td>
+                  <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{String(item?.createdAt ?? '-')}</td>
+                  <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{String(item?.updatedAt ?? '-')}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -379,9 +485,9 @@ export default function Trading() {
     const rows = items && items.length > 0 ? items : [null];
     return (
       <div className="overflow-x-auto">
-        <table className="w-full text-[10px] text-slate-600 border-collapse table-fixed">
+        <table className="w-full text-xs text-slate-600 border-collapse table-fixed">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
+            <tr className="text-[10px] uppercase text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
               <th className="py-1 pr-1 font-semibold text-left w-[100px]">accountId</th>
               <th className="py-1 pr-1 font-semibold text-left w-[60px]">accCode</th>
               <th className="py-1 pr-1 font-semibold text-left w-[75px]">accName</th>
@@ -394,23 +500,27 @@ export default function Trading() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
-            {rows.map((item, index) => (
-              <tr key={index} className="text-right whitespace-nowrap">
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
-                  {item?.accountId != null ? (
-                    <button onClick={() => handleOpenPlatformAccountJournal(Number(item.accountId))} className="text-sky-500 underline">{item.accountId}</button>
-                  ) : '-'}
-                </td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.accountCode}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.accountName}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.category}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.asset}</td>
-                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{item?.balance}</td>
-                <td className="py-1 pr-1 font-mono overflow-hidden text-ellipsis">{item?.version}</td>
-                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{item?.createdAt}</td>
-                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{item?.updatedAt}</td>
-              </tr>
-            ))}
+            {rows.map((item, index) => {
+              const isExpense = String(item?.category ?? '').toUpperCase() === 'EXPENSE';
+              const forceRed = isExpense ? 'text-rose-600' : undefined;
+              return (
+                <tr key={index} className="text-right whitespace-nowrap">
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
+                    {item?.accountId != null ? (
+                      <button onClick={() => handleOpenPlatformAccountJournal(Number(item.accountId))} className="text-sky-500 underline">{item.accountId}</button>
+                    ) : '-'}
+                  </td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.accountCode}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.accountName}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{renderCategoryChip(item?.category)}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.asset}</td>
+                  <td className="py-1 pr-1 overflow-hidden text-ellipsis">{renderNumberCell(item?.balance, false, forceRed)}</td>
+                  <td className="py-1 pr-1 font-mono overflow-hidden text-ellipsis">{item?.version}</td>
+                  <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{item?.createdAt}</td>
+                  <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{item?.updatedAt}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -450,6 +560,20 @@ export default function Trading() {
       else message.error(res?.message || 'Failed');
     } catch { message.error('Error'); }
     finally { setResetting(false); }
+  };
+
+  const formatValue = (v: any) => {
+    const n = Number(v);
+    if (isNaN(n)) return String(v ?? '-');
+    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+  };
+
+  const renderNumberCell = (v: any, isHighlighted: boolean = false, colorOverride?: string, isFrozen?: boolean) => {
+    const n = Number(v);
+    if (isNaN(n)) return <span className={isFrozen ? "text-slate-300" : "font-bold"}>{String(v ?? '-')}</span>;
+    let colorClass = colorOverride || (isHighlighted ? 'text-slate-900' : (n > 0 ? 'text-emerald-600' : (n < 0 ? 'text-rose-600' : 'text-slate-600')));
+    if (isFrozen) colorClass = 'text-slate-300';
+    return <span className={`font-mono ${isFrozen ? "" : "font-bold"} ${colorClass}`}>{formatValue(v)}</span>;
   };
 
   return (
@@ -571,7 +695,7 @@ export default function Trading() {
                 <div ref={referenceJournalOpen ? referenceJournalRef : (accountJournalOpen ? accountJournalRef : platformAccountJournalRef)} className="relative w-full max-w-[90%] rounded-2xl border border-white bg-white/95 p-6 shadow-2xl flex flex-col pointer-events-auto">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-xs font-bold uppercase text-slate-500 tracking-widest">
-                      {referenceJournalOpen ? `Related Journals` : (accountJournalOpen ? `Account Journal` : `Platform Journal`)}
+                      {referenceJournalOpen ? `Related Journals` : (accountJournalOpen ? `Account Journal` : `Exchange Journal`)}
                     </div>
                     <button 
                       onClick={() => {
@@ -592,27 +716,45 @@ export default function Trading() {
                       referenceJournalLoading && !referenceJournalData ? (
                         <div className="p-8 text-center text-xs text-slate-400">Loading...</div>
                       ) : (
-                        <div className="space-y-6">
+                        <div className="space-y-8">
                           <div>
                             <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
                               <div className="w-1 h-1 rounded-full bg-slate-400"></div>
-                              User Journals
+                              User
                             </div>
-                            {renderJournalRows(referenceJournalData?.accountJournals, { disableReferenceLink: true })}
+                            {renderJournalRows(referenceUserRows, { disableReferenceLink: true, highlightMode: 'text' })}
                           </div>
+                          <div className="border-t border-slate-200/80" />
                           <div>
                             <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
                               <div className="w-1 h-1 rounded-full bg-slate-400"></div>
-                              Platform Journals
+                              Exchange
                             </div>
-                            {renderPlatformJournalRows(referenceJournalData?.platformJournals, { disableReferenceLink: true })}
+                            {(referencePlatformSplit.core.length > 0 || referencePlatformSplit.expenseRevenue.length === 0) && renderPlatformJournalRows(referencePlatformSplit.core, { disableReferenceLink: true, highlightMode: 'text' })}
+                          </div>
+                          <div className="border-t border-slate-200/80" />
+                          <div>
+                            <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
+                              <div className="w-1 h-1 rounded-full bg-slate-400"></div>
+                              Expense & Revenue
+                            </div>
+                            <div className="flex flex-col gap-6">
+                              <div className="space-y-2">
+                                <div className="text-[10px] font-semibold uppercase text-slate-500">User</div>
+                                {renderJournalRows(referenceUserSplit.expenseRevenue, { disableReferenceLink: true, highlightMode: 'text' })}
+                              </div>
+                              <div className="space-y-2">
+                                <div className="text-[10px] font-semibold uppercase text-slate-500">Exchange</div>
+                                {renderPlatformJournalRows(referencePlatformSplit.expenseRevenue, { disableReferenceLink: true, highlightMode: 'text' })}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )
                     ) : (
                       <>
-                        {accountJournalOpen && (accountJournalLoading && !accountJournalData ? <div className="p-8 text-center text-xs text-slate-400">Loading...</div> : renderJournalRows(accountJournalData?.journals))}
-                        {platformAccountJournalOpen && (platformAccountJournalLoading && !platformAccountJournalData ? <div className="p-8 text-center text-xs text-slate-400">Loading...</div> : renderPlatformJournalRows(platformAccountJournalData?.journals))}
+                        {accountJournalOpen && (accountJournalLoading && !accountJournalData ? <div className="p-8 text-center text-xs text-slate-400">Loading...</div> : renderJournalRows(accountJournalData?.journals, { highlightMode: 'text' }))}
+                        {platformAccountJournalOpen && (platformAccountJournalLoading && !platformAccountJournalData ? <div className="p-8 text-center text-xs text-slate-400">Loading...</div> : renderPlatformJournalRows(platformAccountJournalData?.journals, { highlightMode: 'text' }))}
                       </>
                     )}
                   </div>
@@ -628,7 +770,7 @@ export default function Trading() {
                 {/* User Ledger */}
                 <section>
                   <div className="flex items-center gap-2 mb-4 border-b-2 border-sky-100 pb-1">
-                    <div className="text-xs font-black uppercase tracking-widest text-sky-600">User Ledger</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-sky-600">User</div>
                     <Tooltip 
                       title={(
                         <div className="text-[10px] leading-relaxed min-w-[520px]">
@@ -639,7 +781,7 @@ export default function Trading() {
                               <p>遵循 <span className="text-sky-600 font-mono">資產 = 負債 + 權益 + (收入 - 費用)</span></p>
                               <ul className="list-disc pl-4 space-y-1">
                                 <li><span className="font-semibold text-emerald-600">Assets (資產)</span>: 用戶實際持有的代幣。</li>
-                                <li><span className="font-semibold text-rose-600">Liabilities (負債)</span>: 用戶對平台的欠款。</li>
+                                <li><span className="font-semibold text-rose-600">Liabilities (負債)</span>: 用戶對交易所的欠款。</li>
                                 <li><span className="font-semibold text-sky-600">Equity (權益)</span>: 用戶的淨資產。</li>
                                 <li><span className="font-semibold text-amber-600">Revenue (收入)</span>: 交易獲利或入金。</li>
                                 <li><span className="font-semibold text-slate-500">Expenses (費用)</span>: 交易虧損或手續費。</li>
@@ -655,7 +797,7 @@ export default function Trading() {
                               <p className="font-mono text-sky-600 text-[9px]">Assets = Liabilities + Equity + (Revenue - Expenses)</p>
                               <ul className="list-disc pl-4 space-y-1">
                                 <li><span className="font-semibold text-emerald-600">Assets</span>: Funds/Tokens owned by user.</li>
-                                <li><span className="font-semibold text-rose-600">Liabilities</span>: Debts or loans owed to platform.</li>
+                                <li><span className="font-semibold text-rose-600">Liabilities</span>: Debts or loans owed to the exchange.</li>
                                 <li><span className="font-semibold text-sky-600">Equity</span>: Net worth of the account.</li>
                                 <li><span className="font-semibold text-amber-600">Revenue</span>: Trading gains or deposits.</li>
                                 <li><span className="font-semibold text-slate-500">Expenses</span>: Trading losses or fees paid.</li>
@@ -708,7 +850,7 @@ export default function Trading() {
                 {/* Exchange Ledger */}
                 <section>
                   <div className="flex items-center gap-2 mb-4 border-b-2 border-indigo-100 pb-1">
-                    <div className="text-xs font-black uppercase tracking-widest text-indigo-600">Exchange Ledger</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-indigo-600">Exchange</div>
                     <Tooltip 
                       title={(
                         <div className="text-[10px] leading-relaxed min-w-[520px]">
@@ -717,17 +859,17 @@ export default function Trading() {
                             <div className="space-y-2 text-slate-700">
                               <p className="font-bold text-indigo-600 border-b border-slate-200 pb-1">交易所內部記帳</p>
                               <p>交易所作為託管方，其內部的 <span className="text-indigo-600 font-semibold">資產</span> 必須恆等於對所有用戶的 <span className="text-indigo-600 font-semibold">總負債</span>。</p>
-                              <p>這裡展示的是平台帳戶（庫存、手續費收入等）與整體系統平衡狀態。</p>
+                              <p>這裡展示的是交易所帳戶（庫存、手續費收入等）與整體系統平衡狀態。</p>
                               <div className="pt-1 border-t border-slate-200">
                                 <p className="font-bold text-slate-600">分錄 (Journal Entries)</p>
-                                <p>系統自動化生成分錄，記錄每一分錢的流向。分錄是審計的基礎，確保平台資產與用戶權益隨時對齊。</p>
+                                <p>系統自動化生成分錄，記錄每一分錢的流向。分錄是審計的基礎，確保交易所資產與用戶權益隨時對齊。</p>
                               </div>
                             </div>
                             {/* English Column */}
                             <div className="space-y-2 text-slate-700">
                               <p className="font-bold text-indigo-600 border-b border-slate-200 pb-1">Exchange Accounting</p>
                               <p>As a custodian, the exchange's <span className="text-indigo-500 font-semibold">Assets</span> must always equal its <span className="text-indigo-500 font-semibold">Total Liabilities</span> to users.</p>
-                              <p>This section displays platform accounts (inventory, fees) and overall system equilibrium.</p>
+                              <p>This section displays exchange accounts (inventory, fees) and overall system equilibrium.</p>
                               <div className="pt-1 border-t border-slate-200">
                                 <p className="font-bold text-slate-600">Journal Entries</p>
                                 <p>Automated journals record every movement of funds. They are the foundation for auditing and asset-equity alignment.</p>

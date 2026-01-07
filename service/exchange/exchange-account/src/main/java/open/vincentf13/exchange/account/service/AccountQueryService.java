@@ -98,10 +98,7 @@ public class AccountQueryService {
         List<UserJournal> accountJournals = userJournalRepository.findByReference(userId, referenceType, normalizedReferenceId);
         List<AccountJournalItem> accountItems = buildAccountJournalItems(userId, accountJournals);
         List<PlatformJournal> platformJournals = platformJournalRepository.findByReference(referenceType, normalizedReferenceId);
-        List<PlatformJournalItem> platformItems = platformJournals.stream()
-                                                                  .map(item -> OpenObjectMapper.convert(item, PlatformJournalItem.class))
-                                                                  .filter(Objects::nonNull)
-                                                                  .toList();
+        List<PlatformJournalItem> platformItems = buildPlatformJournalItems(platformJournals);
         Instant snapshotAt = Instant.now();
         return new AccountReferenceJournalResponse(userId, referenceType, normalizedReferenceId, snapshotAt, accountItems, platformItems);
     }
@@ -167,12 +164,51 @@ public class AccountQueryService {
 
     public PlatformAccountJournalResponse getPlatformAccountJournals(@NotNull Long accountId) {
         List<PlatformJournal> journals = platformJournalRepository.findByAccountId(accountId);
-        List<PlatformJournalItem> items = journals.stream()
-                                                  .map(item -> OpenObjectMapper.convert(item, PlatformJournalItem.class))
-                                                  .filter(Objects::nonNull)
-                                                  .toList();
+        List<PlatformJournalItem> items = buildPlatformJournalItems(journals);
         Instant snapshotAt = journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
         return new PlatformAccountJournalResponse(accountId, snapshotAt, items);
+    }
+
+    private List<PlatformJournalItem> buildPlatformJournalItems(@NotNull List<PlatformJournal> journals) {
+        if (journals.isEmpty()) {
+            return List.of();
+        }
+        List<Long> accountIds = journals.stream()
+                                        .map(PlatformJournal::getAccountId)
+                                        .filter(Objects::nonNull)
+                                        .distinct()
+                                        .toList();
+        Map<Long, PlatformAccount> accountMap = platformAccountRepository.findByAccountIds(accountIds).stream()
+                                                                         .filter(Objects::nonNull)
+                                                                         .filter(item -> item.getAccountId() != null)
+                                                                         .collect(Collectors.toMap(PlatformAccount::getAccountId, Function.identity(), (left, right) -> left, HashMap::new));
+        return journals.stream()
+                       .map(item -> {
+                           PlatformJournalItem base = OpenObjectMapper.convert(item, PlatformJournalItem.class);
+                           if (base == null) {
+                               return null;
+                           }
+                           PlatformAccount account = accountMap.get(item.getAccountId());
+                           return new PlatformJournalItem(
+                                   base.journalId(),
+                                   base.accountId(),
+                                   account != null ? account.getAccountCode() : null,
+                                   account != null ? account.getAccountName() : null,
+                                   base.category(),
+                                   base.asset(),
+                                   base.amount(),
+                                   base.direction(),
+                                   base.balanceAfter(),
+                                   base.referenceType(),
+                                   base.referenceId(),
+                                   base.seq(),
+                                   base.description(),
+                                   base.eventTime(),
+                                   base.createdAt()
+                           );
+                       })
+                       .filter(Objects::nonNull)
+                       .toList();
     }
 
 }
