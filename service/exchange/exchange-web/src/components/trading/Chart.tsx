@@ -154,7 +154,7 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
     }
     let cancelled = false;
     const loadKlines = async () => {
-      setLoading(true);
+      if (klines.length === 0) setLoading(true);
       try {
         const response = await getKlines(instrumentId, period, 200);
         if (cancelled) {
@@ -162,11 +162,11 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
         }
         if (String(response?.code) === '0' && Array.isArray(response?.data)) {
           setKlines(response.data);
-        } else {
+        } else if (klines.length === 0) {
           setKlines([]);
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && klines.length === 0) {
           setKlines([]);
         }
       } finally {

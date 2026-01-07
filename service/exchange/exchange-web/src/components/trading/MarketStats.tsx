@@ -128,7 +128,7 @@ export default function MarketStats({
         }
         let cancelled = false;
         const loadTicker = async () => {
-            setTickerLoading(true);
+            if (!ticker) setTickerLoading(true);
             try {
                 const response = await getTicker(selectedInstrument.instrumentId);
                 if (cancelled) {
@@ -136,11 +136,11 @@ export default function MarketStats({
                 }
                 if (String(response?.code) === '0') {
                     setTicker(response?.data || null);
-                } else {
+                } else if (!ticker) {
                     setTicker(null);
                 }
             } catch (error) {
-                if (!cancelled) {
+                if (!cancelled && !ticker) {
                     setTicker(null);
                 }
             } finally {
@@ -162,7 +162,7 @@ export default function MarketStats({
         }
         let cancelled = false;
         const loadMarkPrice = async () => {
-            setMarkPriceLoading(true);
+            if (!markPrice) setMarkPriceLoading(true);
             try {
                 const response = await getMarkPrice(selectedInstrument.instrumentId);
                 if (cancelled) {
@@ -176,12 +176,12 @@ export default function MarketStats({
                     } else {
                         setMarkPriceChangePercent(0);
                     }
-                } else {
+                } else if (!markPrice) {
                     setMarkPrice(null);
                     setMarkPriceChangePercent(0);
                 }
             } catch (error) {
-                if (!cancelled) {
+                if (!cancelled && !markPrice) {
                     setMarkPrice(null);
                     setMarkPriceChangePercent(0);
                 }

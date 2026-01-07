@@ -86,7 +86,7 @@ export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaus
     }
     let cancelled = false;
     const loadOrderBook = async () => {
-      setLoading(true);
+      if (!orderBook) setLoading(true);
       try {
         const response = await getOrderBook(selectedInstrumentId);
         if (cancelled) {
@@ -94,11 +94,11 @@ export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaus
         }
         if (String(response?.code) === '0') {
           setOrderBook(response?.data || null);
-        } else {
+        } else if (!orderBook) {
           setOrderBook(null);
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !orderBook) {
           setOrderBook(null);
         }
       } finally {

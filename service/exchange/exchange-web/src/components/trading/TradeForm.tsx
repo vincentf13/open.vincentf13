@@ -32,23 +32,25 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
         cancelled = true;
       };
     }
-    setRiskLimit(null);
-    getRiskLimit(instrument.instrumentId)
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
-        if (String(response?.code) === '0') {
-          setRiskLimit(response?.data ?? null);
-        } else {
-          setRiskLimit(null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setRiskLimit(null);
-        }
-      });
+    const fetchRiskLimit = () => {
+      getRiskLimit(instrument.instrumentId)
+        .then((response) => {
+          if (cancelled) {
+            return;
+          }
+          if (String(response?.code) === '0') {
+            setRiskLimit(response?.data ?? null);
+          } else if (!riskLimit) {
+            setRiskLimit(null);
+          }
+        })
+        .catch(() => {
+          if (!cancelled && !riskLimit) {
+            setRiskLimit(null);
+          }
+        });
+    };
+    fetchRiskLimit();
     return () => {
       cancelled = true;
     };
