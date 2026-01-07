@@ -204,6 +204,7 @@ export default function MarketStats({
                 </div>
             )}
             placement="bottomLeft"
+            overlayClassName="liquid-tooltip"
             styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
         >
             <div className="p-4">

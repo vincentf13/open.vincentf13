@@ -735,6 +735,7 @@ export default function Trading() {
                             <div className="whitespace-nowrap">Extensible for future financing and margin trading business.</div>
                           </div>
                         )}
+                        overlayClassName="liquid-tooltip"
                         styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
                       >
                         <div
@@ -982,6 +983,7 @@ export default function Trading() {
                       </div>
                     )}
                     placement="bottomRight"
+                    overlayClassName="liquid-tooltip"
                     styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
                   >
                     <button
@@ -1005,6 +1007,7 @@ export default function Trading() {
                       </div>
                     )}
                     placement="bottomRight"
+                    overlayClassName="liquid-tooltip"
                     styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
                   >
                     <button

@@ -156,7 +156,20 @@ input[type=number] {
   transform: scale(0.97);
 }
 
-/* Chart Gradients */
 .chart-gradient-area {
   fill: url(#chartGradient);
+}
+
+/* Glassmorphism Tooltip */
+.liquid-tooltip .ant-tooltip-inner {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  color: #1e293b !important;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15) !important;
+  border-radius: 12px !important;
+}
+
+.liquid-tooltip .ant-tooltip-arrow::before {
+  background-color: rgba(255, 255, 255, 0.75) !important;
 }

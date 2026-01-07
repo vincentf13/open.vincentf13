@@ -564,6 +564,7 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
           </div>
         )}
         placement="bottomLeft"
+        overlayClassName="liquid-tooltip"
         styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
       >
         <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">

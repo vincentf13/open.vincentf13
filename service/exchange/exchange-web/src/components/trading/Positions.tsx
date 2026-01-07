@@ -1021,6 +1021,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               </div>
             )}
             placement="bottomLeft"
+            overlayClassName="liquid-tooltip"
             styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           >
             <div>
@@ -1198,6 +1199,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               </div>
             )}
             placement="bottomLeft"
+            overlayClassName="liquid-tooltip"
             styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           >
             <div>

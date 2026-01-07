@@ -188,15 +188,16 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
           title={(
             <div className="text-xs">
               <div className="whitespace-nowrap font-bold mb-1">下單數量說明</div>
-              <div className="whitespace-nowrap">Amount * contract size 會是最終下單的 Quantity。</div>
+              <div className="whitespace-nowrap">Amount / contract size 會是最終下單的 Quantity。</div>
               <div className="whitespace-nowrap">用於提升系統內部浮點數運算效率。</div>
               <div className="h-px bg-white/20 my-1" />
               <div className="whitespace-nowrap font-bold mb-1">Order Quantity Explanation</div>
-              <div className="whitespace-nowrap">Amount * contract size results in the final order Quantity.</div>
+              <div className="whitespace-nowrap">Amount / contract size results in the final order Quantity.</div>
               <div className="whitespace-nowrap">Designed to improve internal floating-point calculation efficiency.</div>
             </div>
           )}
           placement="bottomLeft"
+          overlayClassName="liquid-tooltip"
           styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           open={amountTooltipHovered || amountTooltipFocused}
         >
@@ -263,6 +264,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
                   </div>
                 )}
                 placement="bottomRight"
+                overlayClassName="liquid-tooltip"
                 styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
               >
                 <span className="text-slate-700 font-medium cursor-help border-b border-dotted border-slate-400">
