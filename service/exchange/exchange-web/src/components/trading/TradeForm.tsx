@@ -197,8 +197,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
             </div>
           )}
           placement="bottomLeft"
-          overlayStyle={{ maxWidth: 'none' }}
-          overlayInnerStyle={{ maxWidth: 'none' }}
+          styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           open={amountTooltipHovered || amountTooltipFocused}
         >
           <div
@@ -264,8 +263,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
                   </div>
                 )}
                 placement="bottomRight"
-                overlayStyle={{ maxWidth: 'none' }}
-                overlayInnerStyle={{ maxWidth: 'none' }}
+                styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
               >
                 <span className="text-slate-700 font-medium cursor-help border-b border-dotted border-slate-400">
                   {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}

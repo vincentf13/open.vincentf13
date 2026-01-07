@@ -735,8 +735,7 @@ export default function Trading() {
                             <div className="whitespace-nowrap">Extensible for future financing and margin trading business.</div>
                           </div>
                         )}
-                        overlayStyle={{ maxWidth: 'none' }}
-                        overlayInnerStyle={{ maxWidth: 'none' }}
+                        styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
                       >
                         <div
                           className="relative flex flex-col rounded-2xl border border-white/70 bg-white/95 shadow-xl backdrop-blur-sm p-4"
@@ -983,8 +982,7 @@ export default function Trading() {
                       </div>
                     )}
                     placement="bottomRight"
-                    overlayStyle={{ maxWidth: 'none' }}
-                    overlayInnerStyle={{ maxWidth: 'none' }}
+                    styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
                   >
                     <button
                       onClick={handleResetData}
@@ -1007,8 +1005,7 @@ export default function Trading() {
                       </div>
                     )}
                     placement="bottomRight"
-                    overlayStyle={{ maxWidth: 'none' }}
-                    overlayInnerStyle={{ maxWidth: 'none' }}
+                    styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
                   >
                     <button
                       onClick={handleRefresh}

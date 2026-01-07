@@ -546,9 +546,16 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   useEffect(() => {
     if (activeTab === 'Positions') {
       fetchPositions();
+      if (expandedPositionId !== null) {
+        fetchPositionEvents(expandedPositionId);
+      }
     }
     if (activeTab === 'Orders') {
       fetchOrders();
+      if (expandedOrderId !== null) {
+        fetchTrades(expandedOrderId);
+        fetchOrderEvents(expandedOrderId);
+      }
     }
     if (activeTab === 'Traders') {
       fetchInstrumentTrades();
@@ -999,6 +1006,24 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
       <div className="p-4 overflow-x-auto">
         {activeTab === 'Positions' && (
+          <Tooltip
+            title={(
+              <div className="text-xs">
+                <div className="whitespace-nowrap font-bold mb-1">倉位系統說明</div>
+                <div className="whitespace-nowrap">倉位服務負責更新持有部位、均價與風險指標。</div>
+                <div className="whitespace-nowrap">採用 Event Sourcing 模式，所有變更皆有跡可循。</div>
+                <div className="whitespace-nowrap">浮動盈虧基於標記價格實時重算，強平價動態調整。</div>
+                <div className="h-px bg-white/20 my-1" />
+                <div className="whitespace-nowrap font-bold mb-1">Position System Explanation</div>
+                <div className="whitespace-nowrap">Updates holdings, average price, and risk metrics.</div>
+                <div className="whitespace-nowrap">Built on Event Sourcing; every change is traceable.</div>
+                <div className="whitespace-nowrap">Unrealized PnL and Liq. Price are updated in real-time.</div>
+              </div>
+            )}
+            placement="bottomLeft"
+            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+          >
+            <div>
           <table className="min-w-[2600px] w-full text-xs text-right text-slate-600">
             <thead>
               <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
@@ -1154,27 +1179,26 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               })}
             </tbody>
           </table>
+          </div>
+          </Tooltip>
         )}
         {activeTab === 'Orders' && (
           <Tooltip
             title={(
               <div className="text-xs">
-                <div className="whitespace-nowrap">
-                  每當成交時，訂單數據變化的部分將會上色，方便了解交易動態。
-                </div>
-                <div className="whitespace-nowrap">
-                  每個訂單下拉框內的成交明細中，左下角附有成交紀錄的統計數據，可以了解該筆訂單剩餘的開倉佔用保證金、平均成交價格與最終手續費。(此數據用於與Order紀錄的數據雙重核對)
-                </div>
-                <div className="whitespace-nowrap">
-                  When trades execute, changed order fields are highlighted to make trade activity easier to follow.
-                </div>
-                <div className="whitespace-nowrap">
-                  Each order’s expanded trade details include summary stats at the bottom-left to review remaining open-position margin, average fill price, and final fees. (Used to cross-check against the Order record.)
-                </div>
+                <div className="whitespace-nowrap font-bold mb-1">訂單系統說明</div>
+                <div className="whitespace-nowrap">訂單服務負責委託建檔、風控預檢與資產凍結。</div>
+                <div className="whitespace-nowrap">成交數據通過消費撮合引擎發布的 Kafka 事件實時更新。</div>
+                <div className="whitespace-nowrap">變更部分會以高亮標示，方便追蹤交易動態。</div>
+                <div className="h-px bg-white/20 my-1" />
+                <div className="whitespace-nowrap font-bold mb-1">Order System Explanation</div>
+                <div className="whitespace-nowrap">Handles order creation, risk pre-check, and funds freezing.</div>
+                <div className="whitespace-nowrap">Trade data is updated in real-time via Kafka events from the engine.</div>
+                <div className="whitespace-nowrap">Changes are highlighted to facilitate trade tracking.</div>
               </div>
             )}
-            overlayStyle={{ maxWidth: 'none' }}
-            overlayInnerStyle={{ maxWidth: 'none' }}
+            placement="bottomLeft"
+            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           >
             <div>
             <table className="min-w-[2400px] w-full text-xs text-right text-slate-600">
@@ -1358,6 +1382,28 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                   </tbody>
                                 </table>
                               </div>
+                              <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left space-y-0.5">
+                                <div>
+                                  Total Fill Price: {hasTradeSummary ? formatNumber(tradeSummary.fillTotal) : '-'}
+                                  <span className="ml-2 font-normal opacity-60">(Σ Price * Qty * Mult)</span>
+                                </div>
+                                <div>
+                                  Average Fill Price: {hasTradeSummary ? formatNumber(averageFillPrice) : '-'}
+                                  <span className="ml-2 font-normal opacity-60">(Total Fill Price / Total Filled Qty)</span>
+                                </div>
+                                <div>
+                                  Total Fee: {hasTradeSummary ? formatNumber(tradeSummary.feeTotal) : '-'}
+                                  <span className="ml-2 font-normal opacity-60">(Σ Trade Fee)</span>
+                                </div>
+                                <div>
+                                  Reserved Balance: {reservedValue !== null ? formatNumber(reservedValue) : '-'}
+                                  <span className="ml-2 font-normal opacity-60">(Remaining Qty * Price * Mult * Initial Margin Rate)</span>
+                                </div>
+                                <div>
+                                  Reserved Fee: {reservedFeeValue !== null ? formatNumber(reservedFeeValue) : '-'}
+                                  <span className="ml-2 font-normal opacity-60">(Remaining Qty * Price * Mult * Taker Fee Rate)</span>
+                                </div>
+                              </div>
                               <div className="mb-2 mt-4 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
                                 Trades
                               </div>
@@ -1409,17 +1455,6 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                   </tbody>
                                 </table>
                               </div>
-                              <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
-                                Total Fill Price: {hasTradeSummary ? formatNumber(tradeSummary.fillTotal) : '-'}
-                                <br />
-                                Average Fill Price: {hasTradeSummary ? formatNumber(averageFillPrice) : '-'}
-                                <br />
-                                Total Fee: {hasTradeSummary ? formatNumber(tradeSummary.feeTotal) : '-'}
-                                <br />
-                                Reserved Balance: {reservedValue !== null ? formatNumber(reservedValue) : '-'}
-                                <br />
-                                Reserved Fee: {reservedFeeValue !== null ? formatNumber(reservedFeeValue) : '-'}
-                              </div>
                             </div>
                           </td>
                         </tr>
@@ -1429,12 +1464,19 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                 })}
               </tbody>
             </table>
-            <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
-              Total Fee: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
-              <br />
-              Reserved Balance: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
-              <br />
-              Reserved Fee: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
+            <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left space-y-0.5">
+              <div>
+                Total Fee: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
+                <span className="ml-2 font-normal opacity-60">(Σ all non-rejected orders fee)</span>
+              </div>
+              <div>
+                Reserved Balance: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
+                <span className="ml-2 font-normal opacity-60">(Σ all opening orders reserved margin)</span>
+              </div>
+              <div>
+                Reserved Fee: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
+                <span className="ml-2 font-normal opacity-60">(Σ all opening orders reserved fee)</span>
+              </div>
             </div>
           </div>
           </Tooltip>
