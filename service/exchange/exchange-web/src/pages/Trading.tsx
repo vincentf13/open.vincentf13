@@ -196,7 +196,7 @@ export default function Trading() {
                         <p className="text-slate-300 mt-1">Click to view all journal entries (e.g., matching, fees) related to this transaction.</p>
                       </div>
                     )}
-                    overlayStyle={{ maxWidth: 'none' }}
+                    styles={{ root: { maxWidth: 'none' } }}
                   >
                     <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
                   </Tooltip>
@@ -279,7 +279,7 @@ export default function Trading() {
                         <p className="text-slate-300 mt-1">Click to view all journal entries related to this transaction.</p>
                       </div>
                     )}
-                    overlayStyle={{ maxWidth: 'none' }}
+                    styles={{ root: { maxWidth: 'none' } }}
                   >
                     <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
                   </Tooltip>
@@ -424,17 +424,22 @@ export default function Trading() {
       if (String(res?.code) === '0' && res.data) {
         setCurrentUser(res.data);
         setAuthOpen(false);
-        setIsPaused(false);
       } else {
         setAuthOpen(true);
       }
     }).catch(() => setAuthOpen(true));
   }, [refreshTrigger]);
 
+  const handleLoginSuccess = () => {
+    setIsPaused(false);
+    handleRefresh();
+  };
+
   const handleLogout = () => { 
     localStorage.removeItem('accessToken'); 
     setCurrentUser(null);
     setAuthOpen(true); 
+    setIsPaused(true);
   };
   const handleResetData = async () => {
     if (!window.confirm('Are you sure?')) return;
@@ -463,7 +468,7 @@ export default function Trading() {
                 <p>「同步中」每 3 秒自動更新數據；「已暫停」則停止自動輪詢。</p>
                 <p className="text-slate-400 mt-1">"Syncing" auto-updates every 3s; "Paused" stops auto-polling.</p>
               </div>
-            )} overlayStyle={{ maxWidth: 'none' }}>
+            )} styles={{ root: { maxWidth: 'none' } }}>
               <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-white/50 flex items-center justify-center text-[9px] cursor-help border border-white/30">?</div>
             </Tooltip>
           </button>
@@ -475,7 +480,7 @@ export default function Trading() {
                 <p>重置所有交易數據、餘額與分錄（僅測試環境）。</p>
                 <p className="text-slate-400 mt-1">Resets all trades, balances, and journals (Test only).</p>
               </div>
-            )} overlayStyle={{ maxWidth: 'none' }}>
+            )} styles={{ root: { maxWidth: 'none' } }}>
               <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-rose-200/50 group-hover:bg-white/20 flex items-center justify-center text-[9px] cursor-help border border-rose-300/50 group-hover:border-white/30">?</div>
             </Tooltip>
           </button>
@@ -487,7 +492,7 @@ export default function Trading() {
                 <p>手動強制刷新當前頁面所有可見數據。</p>
                 <p className="text-slate-400 mt-1">Manually force refresh all visible data on the page.</p>
               </div>
-            )} overlayStyle={{ maxWidth: 'none' }}>
+            )} styles={{ root: { maxWidth: 'none' } }}>
               <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-emerald-200/50 group-hover:bg-white/20 flex items-center justify-center text-[9px] cursor-help border border-emerald-300/50 group-hover:border-white/30">?</div>
             </Tooltip>
           </button>
@@ -523,7 +528,7 @@ export default function Trading() {
                 </div>
               </div>
               <div className="w-[300px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                <OrderBook selectedInstrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} isPaused={isPaused} />
+                <OrderBook selectedInstrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} isPaused={isPaused} contractSize={Number(selectedInstrument?.contractSize || 1)} />
               </div>
             </div>
             <div className="flex-[2] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
@@ -665,7 +670,7 @@ export default function Trading() {
                       )}
                       placement="right"
                       classNames={{ root: 'liquid-tooltip' }}
-                      overlayStyle={{ maxWidth: 'none' }}
+                      styles={{ root: { maxWidth: 'none' } }}
                     >
                       <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-sky-50 flex items-center justify-center text-[10px] text-sky-400 cursor-help border border-sky-200">?</div>
                     </Tooltip>
@@ -733,7 +738,7 @@ export default function Trading() {
                       )}
                       placement="right"
                       classNames={{ root: 'liquid-tooltip' }}
-                      overlayStyle={{ maxWidth: 'none' }}
+                      styles={{ root: { maxWidth: 'none' } }}
                     >
                       <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] text-indigo-400 cursor-help border border-indigo-200">?</div>
                     </Tooltip>
@@ -773,7 +778,7 @@ export default function Trading() {
         </div>
       )}
 
-      <AuthModal open={authOpen} onSuccess={handleRefresh} />
+      <AuthModal open={authOpen} onSuccess={handleLoginSuccess} />
     </div>
   );
 }

@@ -223,7 +223,12 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     if (['margin', 'marginRatio'].includes(k)) {
       return <span className="text-sky-600 font-bold">{k === 'marginRatio' ? formatPercent(v) : formatNumber(v)}</span>;
     }
-    if (['entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'liquidationPrice'].includes(k)) return formatNumber(v);
+    if (['entryPrice', 'quantity', 'markPrice', 'liquidationPrice'].includes(k)) {
+      return <span className="text-sky-600 font-bold">{formatNumber(v)}</span>;
+    }
+    if (k === 'closingReservedQuantity') {
+      return <span className="text-amber-600 font-bold">{formatNumber(v)}</span>;
+    }
     if (['createdAt', 'updatedAt', 'closedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
       if (!v) return '-';
       const d = new Date(v);
@@ -259,7 +264,29 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
         </span>
       );
     }
-    if (['price', 'quantity', 'filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee'].includes(k)) return formatNumber(v);
+    if (k === 'type') {
+      return (
+        <span className="px-1.5 py-0.5 rounded-md border border-violet-200 bg-violet-50 text-violet-600 text-[9px] font-black uppercase tracking-tighter">
+          {String(v || '-')}
+        </span>
+      );
+    }
+    if (k === 'intent') {
+      return (
+        <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
+          {String(v || '-')}
+        </span>
+      );
+    }
+    if (['price', 'quantity'].includes(k)) {
+      return <span className="text-sky-600 font-bold">{formatNumber(v)}</span>;
+    }
+    if (['filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee'].includes(k)) {
+      return <span className="text-amber-600 font-bold">{formatNumber(v)}</span>;
+    }
+    if (k === 'rejectedReason') {
+      return <span className="text-rose-600">{v || '-'}</span>;
+    }
     if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
       if (!v) return '-';
       const d = new Date(v);
@@ -410,13 +437,21 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                   </tbody>
                                 </table>
                               </div>
-                              <div className="bg-amber-50/30 rounded-xl p-3 border border-amber-200/20">
-                                <div className="text-[9px] uppercase font-bold text-amber-600/60 mb-2">Fills / Trades</div>
-                                <table className="w-full text-[10px] text-right">
-                                  <thead><tr className="text-amber-600/40 border-b border-amber-200/10"><th className="py-1">Trade ID</th><th className="py-1">Price</th><th className="py-1">Qty</th><th className="py-1">Fee</th><th className="py-1">Time</th></tr></thead>
+                              <div className="bg-slate-50/30 rounded-xl p-3 border border-white/20">
+                                <div className="text-[9px] uppercase font-bold text-slate-400 mb-2 text-left">Fills / Trades</div>
+                                <table className="w-full text-[10px] text-left">
+                                  <thead>
+                                    <tr className="text-slate-400 border-b border-white/10">
+                                      <th className="py-1">Trade ID</th>
+                                      <th className="py-1">Price</th>
+                                      <th className="py-1">Qty</th>
+                                      <th className="py-1">Fee</th>
+                                      <th className="py-1">Time</th>
+                                    </tr>
+                                  </thead>
                                   <tbody>
                                     {orderTrades[o.orderId]?.map(t => (
-                                      <tr key={t.tradeId} className="border-b border-amber-200/5">
+                                      <tr key={t.tradeId} className="border-b border-white/5">
                                         <td className="py-1 font-mono">{t.tradeId}</td>
                                         <td className="py-1 font-mono">{formatNumber(t.price)}</td>
                                         <td className="py-1 font-mono">{formatNumber(t.quantity)}</td>

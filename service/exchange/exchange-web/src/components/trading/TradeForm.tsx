@@ -202,7 +202,6 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
                 placement="bottomLeft"
                 classNames={{ root: 'liquid-tooltip' }}
                 styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-                overlayStyle={{ maxWidth: 'none' }}
               >
                 <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
               </Tooltip>

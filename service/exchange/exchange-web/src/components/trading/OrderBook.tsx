@@ -7,6 +7,7 @@ type OrderBookProps = {
   selectedInstrumentId: string | null;
   refreshTrigger?: number;
   isPaused?: boolean;
+  contractSize?: number;
 };
 
 type RowData = {
@@ -42,16 +43,19 @@ const formatTotal = (value: number) => {
   });
 };
 
-const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean) => {
+const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean, contractSize = 1) => {
   if (!levels || !levels.length) {
     return [];
   }
   const sorted = [...levels]
-    .map((level) => ({
-      price: toNumber(level.price),
-      amount: toNumber(level.quantity),
-    }))
-    .filter((item): item is { price: number; amount: number } => item.price !== null && item.amount !== null)
+    .map((level) => {
+      const q = toNumber(level.quantity) || 0;
+      return {
+        price: toNumber(level.price),
+        amount: q * contractSize,
+      };
+    })
+    .filter((item): item is { price: number; amount: number } => item.price !== null)
     .sort((a, b) => (sortDesc ? b.price - a.price : a.price - b.price));
 
   let cumulative = 0;
@@ -71,7 +75,7 @@ const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolea
   }));
 };
 
-export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaused }: OrderBookProps) {
+export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaused, contractSize = 1 }: OrderBookProps) {
   const [orderBook, setOrderBook] = useState<OrderBookResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -109,8 +113,8 @@ export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaus
     };
   }, [selectedInstrumentId, refreshTrigger, isPaused]);
 
-  const asks = useMemo(() => buildRows(orderBook?.asks, false).slice(0, 5), [orderBook?.asks]);
-  const bids = useMemo(() => buildRows(orderBook?.bids, true).slice(0, 5), [orderBook?.bids]);
+  const asks = useMemo(() => buildRows(orderBook?.asks, false, contractSize).slice(0, 5), [orderBook?.asks, contractSize]);
+  const bids = useMemo(() => buildRows(orderBook?.bids, true, contractSize).slice(0, 5), [orderBook?.bids, contractSize]);
   const midPrice = useMemo(() => {
     const mid = toNumber(orderBook?.midPrice);
     if (mid !== null) {
@@ -166,10 +170,28 @@ export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaus
       </div>
 
       <div className="relative flex-1 overflow-hidden p-2">
-          <div className="grid grid-cols-3 text-[10px] uppercase text-slate-400 font-bold tracking-wider px-2 mb-2">
+          <div className="grid grid-cols-3 text-[10px] uppercase text-slate-400 font-bold tracking-wider px-2 mb-2 items-center">
               <span>Price</span>
               <span className="text-right">Amount</span>
-              <span className="text-right">Total</span>
+              <div className="flex items-center justify-end gap-1">
+                <span>Total</span>
+                <Tooltip
+                  title={(
+                    <div className="text-xs">
+                      <div className="whitespace-nowrap font-bold mb-1">累計總量 (Total)</div>
+                      <div className="whitespace-nowrap">計算方式：該檔位及以上所有檔位的 Amount 累加總和</div>
+                      <div className="h-px bg-white/20 my-1" />
+                      <div className="whitespace-nowrap font-bold mb-1">Cumulative Total</div>
+                      <div className="whitespace-nowrap">Sum of all amounts from the best price level down to this level.</div>
+                    </div>
+                  )}
+                  placement="topRight"
+                  classNames={{ root: 'liquid-tooltip' }}
+                  styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+                >
+                  <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                </Tooltip>
+              </div>
           </div>
 
           <div className="space-y-0.5">
