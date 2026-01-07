@@ -318,21 +318,21 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       <div className="flex-1 min-h-0 overflow-auto p-4">
         {activeTab === 'Positions' && (
           <div className="min-w-max">
-            <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
+            <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-0">
                 <thead>
                   <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
-                    <th className="py-2"></th>
-                    {columns.map(c => <th key={c.key} className="py-2 font-semibold">{c.label}</th>)}
+                    <th className="py-2 px-2"></th>
+                    {columns.map(c => <th key={c.key} className="py-2 px-2 font-semibold">{c.label}</th>)}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {positions.length === 0 ? <tr><td colSpan={columns.length+1} className="py-8 text-center text-slate-400">No positions</td></tr> : positions.map(p => (
                     <Fragment key={p.positionId}>
                       <tr className="hover:bg-white/10 transition-colors">
-                        <td className="py-2"><button onClick={() => togglePosition(p.positionId)} className="w-4 h-4 rounded border border-white/30 text-[10px]">{expandedPositionId === p.positionId ? 'v' : '>'}</button></td>
+                        <td className="py-2 px-2"><button onClick={() => togglePosition(p.positionId)} className="w-4 h-4 rounded border border-white/30 text-[10px]">{expandedPositionId === p.positionId ? 'v' : '>'}</button></td>
                         {columns.map(c => {
                           const changed = positionChangedFieldsRef.current.get(String(p.positionId))?.has(c.key);
-                          return <td key={c.key} className={`py-2 font-mono ${changed ? 'bg-rose-100/50 text-rose-900' : ''}`}>{renderCellValue(p, c.key)}</td>
+                          return <td key={c.key} className={`py-2 px-2 font-mono ${changed ? 'bg-rose-100/50 text-rose-900' : ''}`}>{renderCellValue(p, c.key)}</td>
                         })}
                       </tr>
                       {expandedPositionId === p.positionId && (
@@ -390,21 +390,21 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
         {activeTab === 'Orders' && (
           <div className="liquid-tooltip-trigger min-w-max">
-            <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
+            <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-0">
                 <thead>
                   <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
-                    <th className="py-2"></th>
-                    {orderColumns.map(c => <th key={c.key} className="py-2 font-semibold">{c.label}</th>)}
+                    <th className="py-2 px-2"></th>
+                    {orderColumns.map(c => <th key={c.key} className="py-2 px-2 font-semibold">{c.label}</th>)}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {orders.length === 0 ? <tr><td colSpan={orderColumns.length+1} className="py-8 text-center text-slate-400">No orders</td></tr> : orders.map(o => (
                     <Fragment key={o.orderId}>
                       <tr className="hover:bg-white/10 transition-colors">
-                        <td className="py-2"><button onClick={() => toggleOrder(o.orderId)} className="w-4 h-4 rounded border border-white/30 text-[10px]">{expandedOrderId === o.orderId ? 'v' : '>'}</button></td>
+                        <td className="py-2 px-2"><button onClick={() => toggleOrder(o.orderId)} className="w-4 h-4 rounded border border-white/30 text-[10px]">{expandedOrderId === o.orderId ? 'v' : '>'}</button></td>
                         {orderColumns.map(c => {
                           const changed = orderChangedFieldsRef.current.get(String(o.orderId))?.has(c.key);
-                          return <td key={c.key} className={`py-2 font-mono ${changed ? 'bg-rose-100/50 text-rose-900' : ''}`}>{renderOrderCellValue(o, c.key)}</td>
+                          return <td key={c.key} className={`py-2 px-2 font-mono ${changed ? 'bg-rose-100/50 text-rose-900' : ''}`}>{renderOrderCellValue(o, c.key)}</td>
                         })}
                       </tr>
                       {expandedOrderId === o.orderId && (
@@ -496,7 +496,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               const makerHeaderBg = hasMyMaker ? 'bg-yellow-200/50' : '';
               
               return (
-                <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
+                <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-0">
                   <thead>
                     <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
                       <th className="py-2 px-2">Trade Id</th>
