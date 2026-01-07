@@ -107,26 +107,33 @@ export default function Trading() {
     getPlatformAccounts().then(res => { if (String(res?.code)==='0') setPlatformAccountsData(res.data); });
   };
 
-  const handleCloseBalanceSheet = () => setBalanceSheetOpen(false);
+  const handleCloseBalanceSheet = () => {
+    setBalanceSheetOpen(false);
+    setAccountJournalOpen(false);
+    setPlatformAccountJournalOpen(false);
+    setReferenceJournalOpen(false);
+  };
   const handleCloseAccountJournal = () => setAccountJournalOpen(false);
   const handleClosePlatformAccountJournal = () => setPlatformAccountJournalOpen(false);
   const handleCloseReferenceJournals = () => setReferenceJournalOpen(false);
 
   const handleOpenAccountJournal = (accountId: number) => {
+    setPlatformAccountJournalOpen(false);
+    setReferenceJournalOpen(false);
     setAccountJournalOpen(true);
     setAccountJournalLoading(true);
     getAccountJournals(accountId).then(res => { if(String(res?.code)==='0') setAccountJournalData(res.data); }).finally(() => setAccountJournalLoading(false));
   };
 
   const handleOpenPlatformAccountJournal = (accountId: number) => {
+    setAccountJournalOpen(false);
+    setReferenceJournalOpen(false);
     setPlatformAccountJournalOpen(true);
     setPlatformAccountJournalLoading(true);
     getPlatformAccountJournals(accountId).then(res => { if(String(res?.code)==='0') setPlatformAccountJournalResponse(res.data); }).finally(() => setPlatformAccountJournalLoading(false));
   };
 
   const handleOpenReferenceJournals = (type: string, id: string) => {
-    setAccountJournalOpen(false);
-    setPlatformAccountJournalOpen(false);
     setReferenceJournalOpen(true);
     setReferenceJournalLoading(true);
     getJournalsByReference(type, id).then(res => { if(String(res?.code)==='0') setReferenceJournalData(res.data); }).finally(() => setReferenceJournalLoading(false));
@@ -415,27 +422,60 @@ export default function Trading() {
                 className="absolute inset-0 z-[110] flex items-center justify-center p-4"
                 onClick={(e) => {
                   if (e.target !== e.currentTarget) return;
-                  if (accountJournalOpen) handleCloseAccountJournal();
-                  if (referenceJournalOpen) handleCloseReferenceJournals();
-                  if (platformAccountJournalOpen) handleClosePlatformAccountJournal();
+                  if (referenceJournalOpen) {
+                    handleCloseReferenceJournals();
+                  } else {
+                    handleCloseAccountJournal();
+                    handleClosePlatformAccountJournal();
+                    handleCloseReferenceJournals();
+                  }
                 }}
               >
                 <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm pointer-events-none" />
-                <div ref={accountJournalOpen ? accountJournalRef : (referenceJournalOpen ? referenceJournalRef : platformAccountJournalRef)} className="relative w-full max-w-[90%] rounded-2xl border border-white bg-white/95 p-6 shadow-2xl flex flex-col pointer-events-auto">
+                <div ref={referenceJournalOpen ? referenceJournalRef : (accountJournalOpen ? accountJournalRef : platformAccountJournalRef)} className="relative w-full max-w-[90%] rounded-2xl border border-white bg-white/95 p-6 shadow-2xl flex flex-col pointer-events-auto">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-xs font-bold uppercase text-slate-500 tracking-widest">
-                      {accountJournalOpen ? `Account Journal` : (referenceJournalOpen ? `Related Journals` : `Platform Journal`)}
+                      {referenceJournalOpen ? `Related Journals` : (accountJournalOpen ? `Account Journal` : `Platform Journal`)}
                     </div>
-                    <button onClick={accountJournalOpen ? handleCloseAccountJournal : (referenceJournalOpen ? handleCloseReferenceJournals : handleClosePlatformAccountJournal)} className="h-8 w-8 flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-700">X</button>
+                    <button 
+                      onClick={() => {
+                        if (referenceJournalOpen) {
+                          handleCloseReferenceJournals();
+                        } else {
+                          handleCloseAccountJournal();
+                          handleClosePlatformAccountJournal();
+                        }
+                      }} 
+                      className="px-4 py-1.5 rounded-full border border-slate-200 bg-white text-[10px] font-bold uppercase text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                    >
+                      Back
+                    </button>
                   </div>
                   <div className="overflow-auto max-h-[70vh]">
-                    {accountJournalOpen && !accountJournalLoading && renderJournalRows(accountJournalData?.journals)}
-                    {platformAccountJournalOpen && !platformAccountJournalLoading && renderPlatformJournalRows(platformAccountJournalData?.journals)}
-                    {referenceJournalOpen && !referenceJournalLoading && (
-                      <div className="space-y-6">
-                        <div><div className="text-[10px] font-bold text-slate-400 mb-2 uppercase">User Journals</div>{renderJournalRows(referenceJournalData?.accountJournals, { disableReferenceLink: true })}</div>
-                        <div><div className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Platform Journals</div>{renderPlatformJournalRows(referenceJournalData?.platformJournals, { disableReferenceLink: true })}</div>
-                      </div>
+                    {referenceJournalOpen ? (
+                      !referenceJournalLoading && (
+                        <div className="space-y-6">
+                          <div>
+                            <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
+                              <div className="w-1 h-1 rounded-full bg-slate-400"></div>
+                              User Journals
+                            </div>
+                            {renderJournalRows(referenceJournalData?.accountJournals, { disableReferenceLink: true })}
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
+                              <div className="w-1 h-1 rounded-full bg-slate-400"></div>
+                              Platform Journals
+                            </div>
+                            {renderPlatformJournalRows(referenceJournalData?.platformJournals, { disableReferenceLink: true })}
+                          </div>
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        {accountJournalOpen && !accountJournalLoading && renderJournalRows(accountJournalData?.journals)}
+                        {platformAccountJournalOpen && !platformAccountJournalLoading && renderPlatformJournalRows(platformAccountJournalData?.journals)}
+                      </>
                     )}
                   </div>
                 </div>
