@@ -1,5 +1,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
+import { Tooltip } from 'antd';
 
 import { getOrderBook, type OrderBookLevel, type OrderBookResponse } from '../../api/market';
 
@@ -147,7 +148,25 @@ export default function OrderBook({ instrumentId, contractSize, refreshTrigger }
   return (
     <div className="relative flex flex-col h-full w-[80%] ml-auto border-l border-white/30 bg-gradient-to-b from-white/15 via-white/5 to-transparent">
       <div className="relative p-4 border-b border-white/20 bg-white/5">
-          <h3 className="text-sm font-semibold text-slate-700">Order Book</h3>
+        <Tooltip
+          title={(
+            <div className="text-xs">
+              <div className="whitespace-nowrap font-bold mb-1">訂單簿說明</div>
+              <div className="whitespace-nowrap">展示當前市場的買賣盤深度。</div>
+              <div className="whitespace-nowrap">採用 LMAX 高性能內存撮合架構，撮合結果異步推送。</div>
+              <div className="h-px bg-white/20 my-1" />
+              <div className="whitespace-nowrap font-bold mb-1">Order Book Explanation</div>
+              <div className="whitespace-nowrap">Displays real-time market depth.</div>
+              <div className="whitespace-nowrap">Powered by LMAX-style high-performance in-memory matching.</div>
+            </div>
+          )}
+          placement="bottomRight"
+          styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+        >
+          <h3 className="text-sm font-semibold text-slate-700 cursor-help border-b border-dotted border-slate-400 inline-block">
+            Order Book
+          </h3>
+        </Tooltip>
       </div>
 
       <div className="relative flex-1 overflow-hidden p-2">

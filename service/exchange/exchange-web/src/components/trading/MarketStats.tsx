@@ -192,16 +192,19 @@ export default function MarketStats({
         <Tooltip
             title={(
                 <div className="text-xs">
-                    <div className="whitespace-nowrap">
-                        這裡的行情統計僅持久化最後成交價跟K線，其餘的統計只統計在內存中，每當行情服務重新啟動時，統計將會重置重新統計。
-                    </div>
-                    <div className="whitespace-nowrap">
-                        Only the last traded price and kline are persisted here; other stats live in memory and will reset and be recalculated whenever the market service restarts.
-                    </div>
+                    <div className="whitespace-nowrap font-bold mb-1">行情統計說明</div>
+                    <div className="whitespace-nowrap">行情服務僅持久化最後成交價與 K 線。</div>
+                    <div className="whitespace-nowrap">其餘 24h 指標採內存即時計算，若服務重啟則會重置。</div>
+                    <div className="whitespace-nowrap">採用本地 WAL + CDC Outbox 模式，性能極高。</div>
+                    <div className="h-px bg-white/20 my-1" />
+                    <div className="whitespace-nowrap font-bold mb-1">Market Stats Explanation</div>
+                    <div className="whitespace-nowrap">Only the last price and K-line data are persisted.</div>
+                    <div className="whitespace-nowrap">Other 24h metrics are in-memory and will reset on service restart.</div>
+                    <div className="whitespace-nowrap">Powered by high-performance local WAL + CDC outbox.</div>
                 </div>
             )}
-            overlayStyle={{ maxWidth: 'none' }}
-            overlayInnerStyle={{ maxWidth: 'none' }}
+            placement="bottomLeft"
+            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
         >
             <div className="p-4">
                 <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-4 items-start">
@@ -211,7 +214,7 @@ export default function MarketStats({
                             trigger={['click']}
                             open={dropdownOpen}
                             onOpenChange={setDropdownOpen}
-                            dropdownRender={() => (
+                            popupRender={() => (
                                 <div className="flex w-[520px] rounded-xl border border-white/60 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
                                     <div className="w-[200px] border-r border-slate-200 max-h-64 overflow-auto">
                                         {instruments.length ? (
