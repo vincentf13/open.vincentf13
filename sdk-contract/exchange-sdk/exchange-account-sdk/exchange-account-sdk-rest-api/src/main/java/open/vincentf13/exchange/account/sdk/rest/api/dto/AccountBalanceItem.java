@@ -18,6 +18,7 @@ public record AccountBalanceItem(
         BigDecimal available,
         BigDecimal reserved,
         Integer version,
+        Instant createdAt,
         Instant updatedAt
 ) {
 }

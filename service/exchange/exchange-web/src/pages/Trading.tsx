@@ -135,25 +135,25 @@ export default function Trading() {
     const disableReferenceLink = options?.disableReferenceLink ?? false;
     return (
       <div className="overflow-x-auto">
-        <table className="w-max text-[10px] text-left text-slate-600">
+        <table className="w-full text-[10px] text-slate-600 border-collapse table-fixed">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60">
-              <th className="py-1 pr-2 font-semibold">ID</th>
-              <th className="py-1 pr-2 font-semibold">User</th>
-              <th className="py-1 pr-2 font-semibold">Account</th>
-              <th className="py-1 pr-2 font-semibold">Code</th>
-              <th className="py-1 pr-2 font-semibold">Name</th>
-              <th className="py-1 pr-2 font-semibold">Category</th>
-              <th className="py-1 pr-2 font-semibold">Asset</th>
-              <th className="py-1 pr-2 font-semibold">Amount</th>
-              <th className="py-1 pr-2 font-semibold">Direct</th>
-              <th className="py-1 pr-2 font-semibold">After</th>
-              <th className="py-1 pr-2 font-semibold">RefType</th>
-              <th className="py-1 pr-2 font-semibold">RefID</th>
-              <th className="py-1 pr-2 font-semibold">Seq</th>
-              <th className="py-1 pr-2 font-semibold">Description</th>
-              <th className="py-1 pr-2 font-semibold">Time</th>
-              <th className="py-1 pr-2 font-semibold">Created</th>
+            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
+              <th className="py-1 pr-1 font-semibold text-left w-[100px]">journalId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[70px]">userId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[100px]">accountId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[60px]">accCode</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[75px]">accName</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
+              <th className="py-1 pr-1 font-semibold w-[100px]">amount</th>
+              <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
+              <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[80px]">referenceType</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[120px]">referenceId</th>
+              <th className="py-1 pr-1 font-semibold w-[30px]">seq</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[150px]">description</th>
+              <th className="py-1 pr-1 font-semibold w-[100px]">eventTime</th>
+              <th className="py-1 pr-1 font-semibold w-[100px]">createdAt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
@@ -162,33 +162,33 @@ export default function Trading() {
               const direction = String(item?.direction ?? '').toUpperCase();
               const highlightCredit = (category === 'ASSET' || category === 'EXPENSE') && direction === 'CREDIT';
               const highlightDebit = (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE') && direction === 'DEBIT';
-              const highlightClass = (highlightCredit || highlightDebit) ? 'bg-rose-100/70 text-rose-900' : 'text-slate-700';
+              const highlightClass = (highlightCredit || highlightDebit) ? 'text-rose-600 font-medium' : 'text-slate-700';
               return (
-                <tr key={index} className="text-slate-700">
-                  <td className="py-1 pr-2">{String(item?.journalId ?? '-')}</td>
-                  <td className="py-1 pr-2">{String(item?.userId ?? '-')}</td>
-                  <td className="py-1 pr-2">{String(item?.accountId ?? '-')}</td>
-                  <td className="py-1 pr-2">{String(item?.accountCode ?? '-')}</td>
-                  <td className="py-1 pr-2">{String(item?.accountName ?? '-')}</td>
-                  <td className="py-1 pr-2">{String(item?.category ?? '-')}</td>
-                  <td className="py-1 pr-2">{String(item?.asset ?? '-')}</td>
-                  <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.amount ?? '-')}</td>
-                  <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.direction ?? '-')}</td>
-                  <td className={`py-1 pr-2 whitespace-nowrap ${highlightClass}`}>{String(item?.balanceAfter ?? '-')}</td>
-                  <td className="py-1 pr-2">{String(item?.referenceType ?? '-')}</td>
-                  <td className="py-1 pr-2">
+                <tr key={index} className="text-right align-top whitespace-nowrap">
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.userId ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.accountId ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.accountCode ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.accountName ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.category ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.asset ?? '-')}</td>
+                  <td className={`py-1 pr-1 font-mono ${highlightClass} overflow-hidden`}>{String(item?.amount ?? '-')}</td>
+                  <td className={`py-1 pr-1 ${highlightClass} overflow-hidden`}>{String(item?.direction ?? '-')}</td>
+                  <td className={`py-1 pr-1 font-mono ${highlightClass} overflow-hidden`}>{String(item?.balanceAfter ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.referenceType ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">
                     {item?.referenceId ? (
-                      disableReferenceLink ? String(item.referenceId) : (
+                      disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
                         <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
                           {String(item.referenceId)}
                         </button>
                       )
                     ) : '-'}
                   </td>
-                  <td className="py-1 pr-2">{String(item?.seq ?? '-')}</td>
-                  <td className="py-1 pr-2 whitespace-nowrap">{String(item?.description ?? '-')}</td>
-                  <td className="py-1 pr-2 whitespace-nowrap">{String(item?.eventTime ?? '-')}</td>
-                  <td className="py-1 pr-2 whitespace-nowrap">{String(item?.createdAt ?? '-')}</td>
+                  <td className="py-1 pr-1 font-mono overflow-hidden">{String(item?.seq ?? '-')}</td>
+                  <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.description ?? '-')}</td>
+                  <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.eventTime ?? '-')}</td>
+                  <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.createdAt ?? '-')}</td>
                 </tr>
               );
             })}
@@ -203,48 +203,48 @@ export default function Trading() {
     const disableReferenceLink = options?.disableReferenceLink ?? false;
     return (
       <div className="overflow-x-auto">
-        <table className="w-max text-[10px] text-left text-slate-600">
+        <table className="w-full text-[10px] text-slate-600 border-collapse table-fixed">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60">
-              <th className="py-1 pr-2 font-semibold">ID</th>
-              <th className="py-1 pr-2 font-semibold">Account</th>
-              <th className="py-1 pr-2 font-semibold">Category</th>
-              <th className="py-1 pr-2 font-semibold">Asset</th>
-              <th className="py-1 pr-2 font-semibold">Amount</th>
-              <th className="py-1 pr-2 font-semibold">Direct</th>
-              <th className="py-1 pr-2 font-semibold">After</th>
-              <th className="py-1 pr-2 font-semibold">RefType</th>
-              <th className="py-1 pr-2 font-semibold">RefID</th>
-              <th className="py-1 pr-2 font-semibold">Seq</th>
-              <th className="py-1 pr-2 font-semibold">Description</th>
-              <th className="py-1 pr-2 font-semibold">Time</th>
-              <th className="py-1 pr-2 font-semibold">Created</th>
+            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
+              <th className="py-1 pr-1 font-semibold text-left w-[100px]">journalId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[100px]">accountId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
+              <th className="py-1 pr-1 font-semibold w-[100px]">amount</th>
+              <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
+              <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[80px]">referenceType</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[120px]">referenceId</th>
+              <th className="py-1 pr-1 font-semibold w-[30px]">seq</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[150px]">description</th>
+              <th className="py-1 pr-1 font-semibold w-[100px]">eventTime</th>
+              <th className="py-1 pr-1 font-semibold w-[100px]">createdAt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
             {rows.map((item, index) => (
-              <tr key={index} className="text-slate-700">
-                <td className="py-1 pr-2">{String(item?.journalId ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.accountId ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.category ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.asset ?? '-')}</td>
-                <td className={`py-1 pr-2 whitespace-nowrap text-slate-700`}>{String(item?.amount ?? '-')}</td>
-                <td className={`py-1 pr-2 whitespace-nowrap text-slate-700`}>{String(item?.direction ?? '-')}</td>
-                <td className={`py-1 pr-2 whitespace-nowrap text-slate-700`}>{String(item?.balanceAfter ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.referenceType ?? '-')}</td>
-                <td className="py-1 pr-2">
+              <tr key={index} className="text-right align-top whitespace-nowrap">
+                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.journalId ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.accountId ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.category ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.asset ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden">{String(item?.amount ?? '-')}</td>
+                <td className="py-1 pr-1 text-slate-700 overflow-hidden">{String(item?.direction ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden">{String(item?.balanceAfter ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.referenceType ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden">
                   {item?.referenceId ? (
-                    disableReferenceLink ? String(item.referenceId) : (
+                    disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
                       <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
                         {String(item.referenceId)}
                       </button>
                     )
                   ) : '-'}
                 </td>
-                <td className="py-1 pr-2">{String(item?.seq ?? '-')}</td>
-                <td className="py-1 pr-2 whitespace-nowrap">{String(item?.description ?? '-')}</td>
-                <td className="py-1 pr-2 whitespace-nowrap">{String(item?.eventTime ?? '-')}</td>
-                <td className="py-1 pr-2 whitespace-nowrap">{String(item?.createdAt ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono overflow-hidden">{String(item?.seq ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden">{String(item?.description ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.eventTime ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden">{String(item?.createdAt ?? '-')}</td>
               </tr>
             ))}
           </tbody>
@@ -257,38 +257,42 @@ export default function Trading() {
     const rows = items && items.length > 0 ? items : [null];
     return (
       <div className="overflow-x-auto">
-        <table className="w-full text-[10px] text-left text-slate-600">
+        <table className="w-full text-[10px] text-slate-600 border-collapse table-fixed">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/10">
-              <th className="py-1 pr-2 font-semibold">ID</th>
-              <th className="py-1 pr-2 font-semibold">Code</th>
-              <th className="py-1 pr-2 font-semibold">Name</th>
-              <th className="py-1 pr-2 font-semibold">Instr.</th>
-              <th className="py-1 pr-2 font-semibold">Asset</th>
-              <th className="py-1 pr-2 font-semibold">Balance</th>
-              <th className="py-1 pr-2 font-semibold">Avail</th>
-              <th className="py-1 pr-2 font-semibold">Resv</th>
-              <th className="py-1 pr-2 font-semibold">Ver</th>
-              <th className="py-1 pr-2 font-semibold whitespace-nowrap">Updated</th>
+            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
+              <th className="py-1 pr-1 font-semibold text-left w-[90px]">accountId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[60px]">accCode</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[75px]">accName</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[55px]">instId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
+              <th className="py-1 pr-1 font-semibold w-[80px]">balance</th>
+              <th className="py-1 pr-1 font-semibold w-[80px]">available</th>
+              <th className="py-1 pr-1 font-semibold w-[80px]">reserved</th>
+              <th className="py-1 pr-1 font-semibold w-[30px]">ver</th>
+              <th className="py-1 pr-1 font-semibold w-[95px]">createdAt</th>
+              <th className="py-1 pr-1 font-semibold w-[95px]">updatedAt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
             {rows.map((item, index) => (
-              <tr key={index} className="text-slate-700">
-                <td className="py-1 pr-2">
+              <tr key={index} className="text-right whitespace-nowrap">
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
                   {item?.accountId != null ? (
                     <button onClick={() => handleOpenAccountJournal(Number(item.accountId))} className="text-sky-500 underline">{item.accountId}</button>
                   ) : '-'}
                 </td>
-                <td className="py-1 pr-2">{String(item?.accountCode ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.accountName ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.instrumentId ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.asset ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.balance ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.available ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.reserved ?? '-')}</td>
-                <td className="py-1 pr-2">{String(item?.version ?? '-')}</td>
-                <td className="py-1 pr-2 whitespace-nowrap">{String(item?.updatedAt ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.accountCode ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.accountName ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.category ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.instrumentId ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.asset ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{String(item?.balance ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{String(item?.available ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{String(item?.reserved ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono overflow-hidden text-ellipsis">{String(item?.version ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{String(item?.createdAt ?? '-')}</td>
+                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{String(item?.updatedAt ?? '-')}</td>
               </tr>
             ))}
           </tbody>
@@ -301,32 +305,36 @@ export default function Trading() {
     const rows = items && items.length > 0 ? items : [null];
     return (
       <div className="overflow-x-auto">
-        <table className="w-full text-[10px] text-left text-slate-600">
+        <table className="w-full text-[10px] text-slate-600 border-collapse table-fixed">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/10">
-              <th className="py-1 pr-2 font-semibold">ID</th>
-              <th className="py-1 pr-2 font-semibold">Code</th>
-              <th className="py-1 pr-2 font-semibold">Name</th>
-              <th className="py-1 pr-2 font-semibold">Asset</th>
-              <th className="py-1 pr-2 font-semibold">Balance</th>
-              <th className="py-1 pr-2 font-semibold">Ver</th>
-              <th className="py-1 pr-2 font-semibold whitespace-nowrap">Updated</th>
+            <tr className="text-[9px] uppercase tracking-wider text-slate-400 border-b border-white/60 text-right whitespace-nowrap">
+              <th className="py-1 pr-1 font-semibold text-left w-[100px]">accountId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[60px]">accCode</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[75px]">accName</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
+              <th className="py-1 pr-1 font-semibold w-[85px]">balance</th>
+              <th className="py-1 pr-1 font-semibold w-[30px]">ver</th>
+              <th className="py-1 pr-1 font-semibold w-[100px]">createdAt</th>
+              <th className="py-1 pr-1 font-semibold w-[100px]">updatedAt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
             {rows.map((item, index) => (
-              <tr key={index} className="text-slate-700">
-                <td className="py-1 pr-2">
+              <tr key={index} className="text-right whitespace-nowrap">
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
                   {item?.accountId != null ? (
                     <button onClick={() => handleOpenPlatformAccountJournal(Number(item.accountId))} className="text-sky-500 underline">{item.accountId}</button>
                   ) : '-'}
                 </td>
-                <td className="py-1 pr-2">{item?.accountCode}</td>
-                <td className="py-1 pr-2">{item?.accountName}</td>
-                <td className="py-1 pr-2">{item?.asset}</td>
-                <td className="py-1 pr-2">{item?.balance}</td>
-                <td className="py-1 pr-2">{item?.version}</td>
-                <td className="py-1 pr-2 whitespace-nowrap">{item?.updatedAt}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.accountCode}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.accountName}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.category}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.asset}</td>
+                <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{item?.balance}</td>
+                <td className="py-1 pr-1 font-mono overflow-hidden text-ellipsis">{item?.version}</td>
+                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{item?.createdAt}</td>
+                <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{item?.updatedAt}</td>
               </tr>
             ))}
           </tbody>
@@ -397,21 +405,20 @@ export default function Trading() {
         </div>
       </main>
 
-      {/* Balance Sheet Overlay */}
       {balanceSheetOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
-          <div className="relative w-[95vw] max-w-[1600px] bg-white/95 backdrop-blur-sm rounded-3xl border border-white/70 shadow-2xl p-6 overflow-hidden flex flex-col max-h-[95vh]">
+          <div className="relative w-[96vw] max-w-[1860px] bg-white/95 backdrop-blur-sm rounded-3xl border border-white/70 shadow-2xl p-6 overflow-hidden flex flex-col max-h-[95vh]">
             {(accountJournalOpen || referenceJournalOpen || platformAccountJournalOpen) && (
               <div className="absolute inset-0 z-[110] flex items-center justify-center p-4">
                 <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" />
-                <div ref={accountJournalOpen ? accountJournalRef : (referenceJournalOpen ? referenceJournalRef : platformAccountJournalRef)} className="relative w-full max-w-5xl rounded-2xl border border-white bg-white/95 p-6 shadow-2xl flex flex-col">
+                <div ref={accountJournalOpen ? accountJournalRef : (referenceJournalOpen ? referenceJournalRef : platformAccountJournalRef)} className="relative w-full max-w-[90%] rounded-2xl border border-white bg-white/95 p-6 shadow-2xl flex flex-col">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-xs font-bold uppercase text-slate-500 tracking-widest">
                       {accountJournalOpen ? `Account Journal` : (referenceJournalOpen ? `Related Journals` : `Platform Journal`)}
                     </div>
                     <button onClick={accountJournalOpen ? handleCloseAccountJournal : (referenceJournalOpen ? handleCloseReferenceJournals : handleClosePlatformAccountJournal)} className="h-8 w-8 flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-700">X</button>
                   </div>
-                  <div className="overflow-auto max-h-[60vh]">
+                  <div className="overflow-auto max-h-[70vh]">
                     {accountJournalOpen && !accountJournalLoading && renderJournalRows(accountJournalData?.journals)}
                     {platformAccountJournalOpen && !platformAccountJournalLoading && renderPlatformJournalRows(platformAccountJournalData?.journals)}
                     {referenceJournalOpen && !referenceJournalLoading && (
@@ -426,31 +433,31 @@ export default function Trading() {
             )}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-sm font-bold uppercase tracking-widest text-slate-800">Balance Sheet</h2>
-              <button onClick={handleCloseBalanceSheet} className="h-8 w-8 flex items-center justify-center rounded-full border border-white/60 bg-white/70 text-[10px] text-slate-500 hover:text-slate-700">X</button>
+              <button onClick={handleCloseBalanceSheet} className="h-8 w-8 flex items-center justify-center rounded-full border border-white/60 bg-white/70 text-slate-500 hover:text-slate-700">X</button>
             </div>
             <div className="flex-1 overflow-y-auto">
               <div className="space-y-12">
-                {/* User Ledger Section */}
+                {/* User Ledger */}
                 <section>
                   <div className="text-xs font-black uppercase tracking-widest text-sky-600 mb-4 border-b-2 border-sky-100 pb-1">User</div>
                   <div className="flex flex-col border border-slate-200/80 divide-y divide-slate-200/80">
-                    <div className="grid grid-cols-2 divide-x divide-slate-200/80">
+                    <div className="flex flex-col divide-y divide-slate-200/80 min-[1600px]:grid min-[1600px]:grid-cols-2 min-[1600px]:divide-x min-[1600px]:divide-y-0">
                       <div className="p-4 flex flex-col">
                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">Assets</div>
                         <div className="flex-1">{renderAccountItems(balanceSheetData?.assets)}</div>
                       </div>
                       <div className="flex flex-col divide-y divide-slate-200/80">
-                        <div className="p-4 flex flex-col">
+                        <div className="p-4 flex flex-col flex-1">
                           <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">Liabilities</div>
                           <div className="flex-1">{renderAccountItems(balanceSheetData?.liabilities)}</div>
                         </div>
-                        <div className="p-4 flex flex-col">
+                        <div className="p-4 flex flex-col flex-1">
                           <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">Equity</div>
                           <div className="flex-1">{renderAccountItems(balanceSheetData?.equity)}</div>
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 divide-x divide-slate-200/80">
+                    <div className="flex flex-col divide-y divide-slate-200/80 min-[1600px]:grid min-[1600px]:grid-cols-2 min-[1600px]:divide-x min-[1600px]:divide-y-0">
                       <div className="p-4 flex flex-col">
                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">Expenses</div>
                         <div className="flex-1">{renderAccountItems(balanceSheetData?.expenses)}</div>
@@ -463,27 +470,27 @@ export default function Trading() {
                   </div>
                 </section>
 
-                {/* Exchange Ledger Section */}
+                {/* Exchange Ledger */}
                 <section>
                   <div className="text-xs font-black uppercase tracking-widest text-indigo-600 mb-4 border-b-2 border-indigo-100 pb-1">Exchange</div>
                   <div className="flex flex-col border border-slate-200/80 divide-y divide-slate-200/80">
-                    <div className="grid grid-cols-2 divide-x divide-slate-200/80">
+                    <div className="flex flex-col divide-y divide-slate-200/80 min-[1600px]:grid min-[1600px]:grid-cols-2 min-[1600px]:divide-x min-[1600px]:divide-y-0">
                       <div className="p-4 flex flex-col">
                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">Assets</div>
                         <div className="flex-1">{renderPlatformAccountRows(platformAccountsData?.assets)}</div>
                       </div>
                       <div className="flex flex-col divide-y divide-slate-200/80">
-                        <div className="p-4 flex flex-col">
+                        <div className="p-4 flex flex-col flex-1">
                           <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">Liabilities</div>
                           <div className="flex-1">{renderPlatformAccountRows(platformAccountsData?.liabilities)}</div>
                         </div>
-                        <div className="p-4 flex flex-col">
+                        <div className="p-4 flex flex-col flex-1">
                           <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">Equity</div>
                           <div className="flex-1">{renderPlatformAccountRows(platformAccountsData?.equity)}</div>
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 divide-x divide-slate-200/80">
+                    <div className="flex flex-col divide-y divide-slate-200/80 min-[1600px]:grid min-[1600px]:grid-cols-2 min-[1600px]:divide-x min-[1600px]:divide-y-0">
                       <div className="p-4 flex flex-col">
                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">Expenses</div>
                         <div className="flex-1">{renderPlatformAccountRows(platformAccountsData?.expenses)}</div>

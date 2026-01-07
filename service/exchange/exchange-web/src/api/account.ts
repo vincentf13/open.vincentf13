@@ -40,6 +40,7 @@ export type AccountBalanceItem = {
   available: string;
   reserved: string;
   version: number;
+  createdAt: string;
   updatedAt: string;
 };
 
