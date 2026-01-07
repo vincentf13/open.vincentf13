@@ -144,20 +144,50 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   }, []);
 
   const orderColumns = [
-    { key: 'instrumentId', label: 'Instrument' }, { key: 'side', label: 'Side' }, { key: 'type', label: 'Type' },
-    { key: 'price', label: 'Price' }, { key: 'quantity', label: 'Quantity' }, { key: 'intent', label: 'Intent' },
-    { key: 'status', label: 'Status' }, { key: 'filledQuantity', label: 'Filled' }, { key: 'remainingQuantity', label: 'Remain' },
-    { key: 'avgFillPrice', label: 'Avg Price' }, { key: 'fee', label: 'Fee' }, { key: 'rejectedReason', label: 'Reason' },
-    { key: 'createdAt', label: 'Created' }, { key: 'updatedAt', label: 'Updated' }
+    { key: 'orderId', label: 'Order Id' },
+    { key: 'userId', label: 'User Id' },
+    { key: 'instrumentId', label: 'Instrument Id' },
+    { key: 'clientOrderId', label: 'Client Order Id' },
+    { key: 'side', label: 'Side' },
+    { key: 'type', label: 'Type' },
+    { key: 'price', label: 'Price' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'intent', label: 'Intent' },
+    { key: 'filledQuantity', label: 'Filled Quantity' },
+    { key: 'remainingQuantity', label: 'Remaining Quantity' },
+    { key: 'avgFillPrice', label: 'Avg Fill Price' },
+    { key: 'fee', label: 'Fee' },
+    { key: 'status', label: 'Status' },
+    { key: 'rejectedReason', label: 'Rejected Reason' },
+    { key: 'version', label: 'Version' },
+    { key: 'createdAt', label: 'Created At' },
+    { key: 'updatedAt', label: 'Updated At' },
+    { key: 'submittedAt', label: 'Submitted At' },
+    { key: 'filledAt', label: 'Filled At' },
+    { key: 'cancelledAt', label: 'Cancelled At' }
   ];
 
   const columns = [
-    { key: 'instrumentId', label: 'Instrument' }, { key: 'side', label: 'Side' }, { key: 'status', label: 'Status' },
-    { key: 'entryPrice', label: 'Entry' }, { key: 'quantity', label: 'Qty' }, { key: 'closingReservedQuantity', label: 'Reserved' },
-    { key: 'markPrice', label: 'Mark' }, { key: 'liquidationPrice', label: 'Liq' }, { key: 'unrealizedPnl', label: 'UPnL' },
-    { key: 'cumRealizedPnl', label: 'RPnL' }, { key: 'cumFee', label: 'Fee' }, { key: 'cumFundingFee', label: 'Funding' },
-    { key: 'leverage', label: 'Lev' }, { key: 'margin', label: 'Margin' }, { key: 'marginRatio', label: 'Ratio' },
-    { key: 'updatedAt', label: 'Updated' }
+    { key: 'positionId', label: 'Position Id' },
+    { key: 'userId', label: 'User Id' },
+    { key: 'instrumentId', label: 'Instrument Id' },
+    { key: 'side', label: 'Side' },
+    { key: 'leverage', label: 'Leverage' },
+    { key: 'margin', label: 'Margin' },
+    { key: 'entryPrice', label: 'Entry Price' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'closingReservedQuantity', label: 'Closing Reserved Quantity' },
+    { key: 'markPrice', label: 'Mark Price' },
+    { key: 'marginRatio', label: 'Margin Ratio' },
+    { key: 'unrealizedPnl', label: 'Unrealized Pnl' },
+    { key: 'cumRealizedPnl', label: 'Cum Realized Pnl' },
+    { key: 'cumFee', label: 'Cum Fee' },
+    { key: 'cumFundingFee', label: 'Cum Funding Fee' },
+    { key: 'liquidationPrice', label: 'Liquidation Price' },
+    { key: 'status', label: 'Status' },
+    { key: 'createdAt', label: 'Created At' },
+    { key: 'updatedAt', label: 'Updated At' },
+    { key: 'closedAt', label: 'Closed At' }
   ];
 
   const renderCellValue = (p: any, k: string) => {
@@ -201,9 +231,8 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
       <div className="flex-1 min-h-0 overflow-auto p-4">
         {activeTab === 'Positions' && (
-          <Tooltip title={<div className="text-xs font-bold">倉位系統 (Position System)</div>} placement="bottomLeft" classNames={{ root: 'liquid-tooltip' }}>
-            <div className="liquid-tooltip-trigger min-w-max">
-              <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
+          <div className="min-w-max">
+            <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
                 <thead>
                   <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
                     <th className="py-2"></th>
@@ -260,13 +289,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                 </tbody>
               </table>
             </div>
-          </Tooltip>
-        )}
+          )}
 
         {activeTab === 'Orders' && (
-          <Tooltip title={<div className="text-xs font-bold">訂單系統 (Order System)</div>} placement="bottomLeft" classNames={{ root: 'liquid-tooltip' }}>
-            <div className="liquid-tooltip-trigger min-w-max">
-              <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
+          <div className="liquid-tooltip-trigger min-w-max">
+            <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
                 <thead>
                   <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
                     <th className="py-2"></th>
@@ -335,13 +362,12 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                 </tbody>
               </table>
             </div>
-          </Tooltip>
-        )}
+          )}
 
         {activeTab === 'Traders' && (
           <div className="min-w-max">
             <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
-              <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-white/10"><th className="py-2">Price</th><th className="py-2">Qty</th><th className="py-2">Time</th></tr></thead>
+              <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-white/10"><th className="py-2">Price</th><th className="py-2">Quantity</th><th className="py-2">Time</th></tr></thead>
               <tbody className="divide-y divide-white/5">
                 {instrumentTrades.length === 0 ? <tr><td colSpan={3} className="py-8 text-center text-slate-400">No trades</td></tr> : instrumentTrades.map(t => (
                   <tr key={t.tradeId} className="hover:bg-white/10">

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { message, Tooltip } from 'antd';
 
@@ -179,7 +179,7 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold text-left w-[80px]">accCode</th>
               <th className="py-1 pr-1 font-semibold text-left w-[80px]">accName</th>
               <th className="py-1 pr-1 font-semibold text-left w-[60px]">category</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[40px]">asset</th>
               <th className="py-1 pr-1 font-semibold w-[80px]">amount</th>
               <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
@@ -262,7 +262,7 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold text-left w-[100px]">journalId</th>
               <th className="py-1 pr-1 font-semibold text-left w-[100px]">accountId</th>
               <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[40px]">asset</th>
               <th className="py-1 pr-1 font-semibold w-[100px]">amount</th>
               <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
@@ -322,6 +322,8 @@ export default function Trading() {
     );
   };
 
+  const instrumentMap = useMemo(() => new Map(instruments.map(i => [String(i.instrumentId), i.name || i.symbol || String(i.instrumentId)])), [instruments]);
+
   const renderAccountItems = (items?: AccountBalanceItem[]) => {
     const rows = items && items.length > 0 ? items : [null];
     return (
@@ -333,8 +335,8 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold text-left w-[60px]">accCode</th>
               <th className="py-1 pr-1 font-semibold text-left w-[75px]">accName</th>
               <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[55px]">instId</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[70px]">Inst</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[40px]">asset</th>
               <th className="py-1 pr-1 font-semibold w-[80px]">balance</th>
               <th className="py-1 pr-1 font-semibold w-[80px]">available</th>
               <th className="py-1 pr-1 font-semibold w-[80px]">reserved</th>
@@ -354,7 +356,9 @@ export default function Trading() {
                 <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.accountCode ?? '-')}</td>
                 <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.accountName ?? '-')}</td>
                 <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.category ?? '-')}</td>
-                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.instrumentId ?? '-')}</td>
+                <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">
+                  {item?.instrumentId ? (instrumentMap.get(String(item.instrumentId)) || String(item.instrumentId)) : ''}
+                </td>
                 <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{String(item?.asset ?? '-')}</td>
                 <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{String(item?.balance ?? '-')}</td>
                 <td className="py-1 pr-1 font-mono text-slate-700 overflow-hidden text-ellipsis">{String(item?.available ?? '-')}</td>
@@ -381,7 +385,7 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold text-left w-[60px]">accCode</th>
               <th className="py-1 pr-1 font-semibold text-left w-[75px]">accName</th>
               <th className="py-1 pr-1 font-semibold text-left w-[55px]">category</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[50px]">asset</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[40px]">asset</th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balance</th>
               <th className="py-1 pr-1 font-semibold w-[30px]">ver</th>
               <th className="py-1 pr-1 font-semibold w-[100px]">createdAt</th>
