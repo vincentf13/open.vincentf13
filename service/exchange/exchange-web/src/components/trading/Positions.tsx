@@ -346,7 +346,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                     <th className="py-1 px-2 whitespace-nowrap font-bold">Seq</th>
                                     <th className="py-1 px-2 whitespace-nowrap font-bold">Event</th>
                                     {columns.map((c, i) => (
-                                      <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-50/40 ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
+                                      <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-200/50 ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
                                     ))}
                                     <th className="py-1 px-2 whitespace-nowrap font-bold">Time</th>
                                   </tr>
@@ -366,7 +366,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                           const val = payload[c.key];
                                           const hasValue = val !== undefined && val !== null;
                                           return (
-                                            <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-50/40 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>
+                                            <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-200/50 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>
                                               {hasValue ? renderCellValue(payload, c.key) : '-'}
                                             </td>
                                           );
@@ -419,7 +419,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                       <th className="py-1 px-2 whitespace-nowrap font-bold">Seq</th>
                                       <th className="py-1 px-2 whitespace-nowrap font-bold">Event</th>
                                       {orderColumns.map((c, i) => (
-                                        <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-50/40 ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
+                                        <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-200/50 ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
                                       ))}
                                       <th className="py-1 px-2 whitespace-nowrap font-bold">Time</th>
                                     </tr>
@@ -439,7 +439,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                             const val = payload[c.key];
                                             const hasValue = val !== undefined && val !== null;
                                             return (
-                                              <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-50/40 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>
+                                              <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-200/50 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>
                                                 {hasValue ? renderOrderCellValue(payload, c.key) : '-'}
                                               </td>
                                             );
