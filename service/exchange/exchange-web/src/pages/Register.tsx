@@ -14,7 +14,7 @@ export default function Register() {
     confirm: string;
   }) => {
     if (values.password !== values.confirm) {
-      message.error('兩次密碼輸入不一致');
+      message.error('Passwords do not match');
       return;
     }
 
@@ -23,13 +23,13 @@ export default function Register() {
       const result = await register(values.email, values.password);
 
       if (result.code === '0') {
-        message.success('註冊成功！請登入');
+        message.success('Registration successful! Please login');
         navigate('/login');
       } else {
-        message.error(result.message || '註冊失敗');
+        message.error(result.message || 'Registration failed');
       }
     } catch (error: any) {
-      message.error(error.response?.data?.message || '註冊失敗');
+      message.error(error.response?.data?.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -43,41 +43,41 @@ export default function Register() {
       minHeight: '100vh',
       background: 'transparent'
     }}>
-      <Card title="註冊帳號" style={{ width: 400 }}>
+      <Card title="Register Account" style={{ width: 400 }}>
         <Form onFinish={handleRegister}>
           <Form.Item
             name="email"
             rules={[
-              { required: true, message: '請輸入信箱' },
-              { type: 'email', message: '請輸入有效的信箱' }
+              { required: true, message: 'Please enter your email' },
+              { type: 'email', message: 'Please enter a valid email' }
             ]}
           >
             <Input
               prefix={<UserOutlined />}
-              placeholder="信箱"
+              placeholder="Email"
             />
           </Form.Item>
 
           <Form.Item
             name="password"
             rules={[
-              { required: true, message: '請輸入密碼' },
-              { min: 8, message: '密碼至少 8 位' }
+              { required: true, message: 'Please enter your password' },
+              { min: 8, message: 'Password must be at least 8 characters' }
             ]}
           >
             <Input.Password
               prefix={<LockOutlined />}
-              placeholder="密碼"
+              placeholder="Password"
             />
           </Form.Item>
 
           <Form.Item
             name="confirm"
-            rules={[{ required: true, message: '請確認密碼' }]}
+            rules={[{ required: true, message: 'Please confirm your password' }]}
           >
             <Input.Password
               prefix={<LockOutlined />}
-              placeholder="確認密碼"
+              placeholder="Confirm Password"
             />
           </Form.Item>
 
@@ -88,12 +88,12 @@ export default function Register() {
               loading={loading}
               block
             >
-              註冊
+              Register
             </Button>
           </Form.Item>
 
           <Button type="link" onClick={() => navigate('/login')} block>
-            已有帳號？立即登入
+            Already have an account? Login now
           </Button>
         </Form>
       </Card>

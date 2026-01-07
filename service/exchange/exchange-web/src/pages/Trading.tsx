@@ -31,6 +31,7 @@ import {
   type InstrumentSummary,
 } from '../api/instrument';
 import { resetSystemData } from '../api/admin';
+import { getCurrentUser } from '../api/user';
 
 import AuthModal from '../components/auth/AuthModal';
 import AccountPanel from '../components/trading/AccountPanel';
@@ -416,7 +417,24 @@ export default function Trading() {
     );
   };
 
-  const handleLogout = () => { localStorage.removeItem('accessToken'); setAuthOpen(true); };
+  const [currentUser, setCurrentUser] = useState<{ id: number; email?: string } | null>(null);
+
+  useEffect(() => {
+    getCurrentUser().then(res => {
+      if (String(res?.code) === '0' && res.data) {
+        setCurrentUser(res.data);
+        setAuthOpen(false);
+      } else {
+        setAuthOpen(true);
+      }
+    }).catch(() => setAuthOpen(true));
+  }, [refreshTrigger]);
+
+  const handleLogout = () => { 
+    localStorage.removeItem('accessToken'); 
+    setCurrentUser(null);
+    setAuthOpen(true); 
+  };
   const handleResetData = async () => {
     if (!window.confirm('Are you sure?')) return;
     setResetting(true);
@@ -472,7 +490,21 @@ export default function Trading() {
             </Tooltip>
           </div>
 
-          <button onClick={handleLogout} className="ml-4 rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50">Switch Account</button>
+          <div className="ml-4 flex items-center gap-2 border-l border-slate-200 pl-4">
+            {currentUser ? (
+              <>
+                <div className="flex flex-col items-end mr-2">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">User ID</span>
+                  <span className="text-xs font-mono font-semibold text-indigo-600">{currentUser.id}</span>
+                </div>
+                <button onClick={handleLogout} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 hover:text-rose-600 transition-colors">
+                  Logout
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-slate-400 italic">Not logged in</span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -739,7 +771,7 @@ export default function Trading() {
         </div>
       )}
 
-      <AuthModal open={authOpen} onCancel={() => setAuthOpen(false)} onLoginSuccess={handleRefresh} />
+      <AuthModal open={authOpen} onSuccess={handleRefresh} />
     </div>
   );
 }

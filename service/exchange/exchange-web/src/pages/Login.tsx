@@ -22,13 +22,13 @@ export default function Login() {
           localStorage.setItem('accessToken', accessToken);
         }
         localStorage.setItem('refreshAfterLogin', '1');
-        message.success('登入成功！');
+        message.success('Login successful');
         navigate('/trading');
       } else {
-        setLoginError(result.message || '登入失敗');
+        setLoginError(result.message || 'Login failed');
       }
     } catch (error: any) {
-      setLoginError(error.response?.data?.message || '登入失敗');
+      setLoginError(error.response?.data?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -42,7 +42,7 @@ export default function Login() {
       minHeight: '100vh',
       background: 'transparent'
     }}>
-      <Card title="交易所登入" style={{ width: 400 }}>
+      <Card title="Exchange Login" style={{ width: 400 }}>
         <Form onFinish={handleLogin}>
           {loginError && (
             <Form.Item>
@@ -51,21 +51,21 @@ export default function Login() {
           )}
           <Form.Item
             name="email"
-            rules={[{ required: true, message: '請輸入信箱' }]}
+            rules={[{ required: true, message: 'Please enter your email' }]}
           >
             <Input
               prefix={<UserOutlined />}
-              placeholder="信箱"
+              placeholder="Email"
             />
           </Form.Item>
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: '請輸入密碼' }]}
+            rules={[{ required: true, message: 'Please enter your password' }]}
           >
             <Input.Password
               prefix={<LockOutlined />}
-              placeholder="密碼"
+              placeholder="Password"
             />
           </Form.Item>
 
@@ -76,12 +76,12 @@ export default function Login() {
               loading={loading}
               block
             >
-              登入
+              Login
             </Button>
           </Form.Item>
 
           <Button type="link" onClick={() => navigate('/register')} block>
-            沒有帳號？立即註冊
+            Don't have an account? Register now
           </Button>
         </Form>
       </Card>
