@@ -30,11 +30,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -83,7 +85,7 @@ public class AccountQueryService {
     public AccountJournalResponse getAccountJournals(@NotNull Long userId,
                                                      @NotNull Long accountId) {
         List<UserJournal> journals = userJournalRepository.findByAccountId(userId, accountId);
-        List<AccountJournalItem> items = buildAccountJournalItems(userId, journals);
+        List<AccountJournalItem> items = buildAccountJournalItems(journals);
         Instant snapshotAt = journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
         return new AccountJournalResponse(userId, accountId, snapshotAt, items);
     }
@@ -95,23 +97,27 @@ public class AccountQueryService {
         if (normalizedReferenceId.isBlank()) {
             return new AccountReferenceJournalResponse(userId, referenceType, normalizedReferenceId, Instant.now(), List.of(), List.of());
         }
-        List<UserJournal> accountJournals = userJournalRepository.findByReference(userId, referenceType, normalizedReferenceId);
-        List<AccountJournalItem> accountItems = buildAccountJournalItems(userId, accountJournals);
+        List<UserJournal> accountJournals = userJournalRepository.findByReference(referenceType, normalizedReferenceId);
+        List<AccountJournalItem> accountItems = buildAccountJournalItems(accountJournals);
         List<PlatformJournal> platformJournals = platformJournalRepository.findByReference(referenceType, normalizedReferenceId);
         List<PlatformJournalItem> platformItems = buildPlatformJournalItems(platformJournals);
         Instant snapshotAt = Instant.now();
         return new AccountReferenceJournalResponse(userId, referenceType, normalizedReferenceId, snapshotAt, accountItems, platformItems);
     }
 
-    private List<AccountJournalItem> buildAccountJournalItems(@NotNull Long userId,
-                                                              @NotNull List<UserJournal> journals) {
+    private List<AccountJournalItem> buildAccountJournalItems(@NotNull List<UserJournal> journals) {
         if (journals.isEmpty()) {
             return List.of();
         }
-        Map<Long, UserAccount> accountMap = userAccountRepository.findByUserId(userId).stream()
-                                                                 .filter(Objects::nonNull)
-                                                                 .filter(item -> item.getAccountId() != null)
-                                                                 .collect(Collectors.toMap(UserAccount::getAccountId, Function.identity(), (left, right) -> left, HashMap::new));
+        Set<Long> userIds = journals.stream()
+                                    .map(UserJournal::getUserId)
+                                    .filter(Objects::nonNull)
+                                    .collect(Collectors.toSet());
+        List<UserAccount> accounts = userIds.isEmpty() ? List.of() : userAccountRepository.findByUserIds(new ArrayList<>(userIds));
+        Map<Long, UserAccount> accountMap = accounts.stream()
+                                                    .filter(Objects::nonNull)
+                                                    .filter(item -> item.getAccountId() != null)
+                                                    .collect(Collectors.toMap(UserAccount::getAccountId, Function.identity(), (left, right) -> left, HashMap::new));
         return journals.stream()
                        .map(item -> {
                            AccountJournalItem base = OpenObjectMapper.convert(item, AccountJournalItem.class);

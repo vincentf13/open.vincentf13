@@ -84,14 +84,12 @@ public class UserJournalRepository {
                      .toList();
     }
 
-    public List<UserJournal> findByReference(@NotNull Long userId,
-                                             @NotNull ReferenceType referenceType,
+    public List<UserJournal> findByReference(@NotNull ReferenceType referenceType,
                                              @NotNull String referenceId) {
         if (referenceId.isBlank()) {
             return List.of();
         }
         var wrapper = Wrappers.<UserJournalPO>lambdaQuery()
-                .eq(UserJournalPO::getUserId, userId)
                 .eq(UserJournalPO::getReferenceType, referenceType)
                 .eq(UserJournalPO::getReferenceId, referenceId)
                 .orderByDesc(UserJournalPO::getCreatedAt)

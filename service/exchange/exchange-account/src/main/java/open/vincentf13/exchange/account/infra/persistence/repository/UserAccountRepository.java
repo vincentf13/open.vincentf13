@@ -22,7 +22,10 @@ import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 @Validated
@@ -103,6 +106,15 @@ public class UserAccountRepository {
     public List<UserAccount> findByUserId(@NotNull Long userId) {
         return findBy(Wrappers.lambdaQuery(UserAccountPO.class)
                               .eq(UserAccountPO::getUserId, userId));
+    }
+
+    public List<UserAccount> findByUserIds(@NotNull List<Long> userIds) {
+        Set<Long> unique = userIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+        if (unique.isEmpty()) {
+            return List.of();
+        }
+        return findBy(Wrappers.lambdaQuery(UserAccountPO.class)
+                              .in(UserAccountPO::getUserId, unique));
     }
 
     public UserAccount getOrCreate(@NotNull Long userId,

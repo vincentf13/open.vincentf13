@@ -188,11 +188,12 @@ export default function Trading() {
     );
   };
 
-  const renderJournalRows = (items?: AccountJournalItem[], options?: { disableReferenceLink?: boolean; highlightMode?: 'background' | 'text' }) => {
+  const renderJournalRows = (items?: AccountJournalItem[], options?: { disableReferenceLink?: boolean; highlightMode?: 'background' | 'text'; highlightExpenses?: boolean }) => {
     const rows = items && items.length > 0 ? items : [null];
     const disableReferenceLink = options?.disableReferenceLink ?? false;
     const highlightMode = options?.highlightMode ?? 'background';
     const textOnlyHighlight = highlightMode === 'text';
+    const highlightExpenses = options?.highlightExpenses ?? false;
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-xs text-slate-600 border-separate border-spacing-x-0 table-fixed">
@@ -212,9 +213,8 @@ export default function Trading() {
                     title={(
                       <div className="text-[10px] leading-relaxed min-w-[220px]">
                         <p className="font-bold text-emerald-400 border-b border-white/10 pb-1 mb-1">借貸方向 (Debit / Credit)</p>
-                        <p>資產 (Assets)、費用 (Expenses)：DEBIT 增加，CREDIT 減少。</p>
-                        <p>負債 (Liabilities)、權益 (Equity)、收入 (Revenue)：CREDIT 增加，DEBIT 減少。</p>
-                        <p className="text-slate-300 mt-1">Assets/Expenses: DEBIT increases, CREDIT decreases. Liabilities/Equity/Revenue: CREDIT increases, DEBIT decreases.</p>
+                        <p>按照會計科目屬性：Assets (資產) 與 Expenses (費用) ，DEBIT 表示增加該科目金額，CREDIT 表示扣減；相反地，Liabilities (負債)、Equity (權益)、Revenue (收入) 的金額則由 CREDIT 增加、DEBIT 減少。</p>
+                        <p className="text-slate-300 mt-1">Accounting rule: DEBIT increases Assets/Expenses and decreases Liabilities/Equity/Revenue; CREDIT does the reverse, increasing Liabilities/Equity/Revenue while reducing Assets/Expenses.</p>
                       </div>
                     )}
                     styles={{ root: { maxWidth: 'none' } }}
@@ -258,8 +258,9 @@ export default function Trading() {
               const highlightDebit = (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE') && direction === 'DEBIT';
               const highlightBackground = !isFrozen && highlightDebit && !textOnlyHighlight;
               const highlightText = !isFrozen && (highlightCredit || (textOnlyHighlight && highlightDebit));
-              const baseHighlight = highlightBackground ? 'bg-red-100' : '';
-              const rowClass = isFrozen ? 'text-slate-300 font-normal' : 'text-slate-600';
+      const baseHighlight = highlightBackground ? 'bg-red-100' : '';
+      const rowClass = isFrozen ? 'text-slate-300 font-normal' : 'text-slate-600';
+      const expenseHighlight = highlightExpenses && category === 'EXPENSE';
               
               return (
                 <tr key={index} className={`text-right align-top whitespace-nowrap ${rowClass}`}>
@@ -269,13 +270,13 @@ export default function Trading() {
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountName ?? '-')}</td>
                   <td className={`py-1 px-1 text-left overflow-hidden ${baseHighlight}`}>{renderCategoryChip(item?.category)}</td>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.asset ?? '-')}</td>
-                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${highlightBackground ? 'rounded-l' : ''}`}>{renderNumberCell(item?.amount, highlightBackground, highlightText ? 'text-rose-600' : undefined, isFrozen)}</td>
+        <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${highlightBackground ? 'rounded-l' : ''}`}>{renderNumberCell(item?.amount, highlightBackground, expenseHighlight ? 'text-rose-600' : (highlightText ? 'text-rose-600' : undefined), isFrozen)}</td>
                   <td className={`py-1 px-1 overflow-hidden ${baseHighlight}`}>
                     <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${isFrozen ? 'border-slate-200 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
                       {direction}
                     </span>
                   </td>
-                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${highlightBackground ? 'rounded-r' : ''}`}>{renderNumberCell(item?.balanceAfter, highlightBackground, highlightText ? 'text-rose-600' : undefined, isFrozen)}</td>
+        <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${highlightBackground ? 'rounded-r' : ''}`}>{renderNumberCell(item?.balanceAfter, highlightBackground, expenseHighlight ? 'text-rose-600' : (highlightText ? 'text-rose-600' : undefined), isFrozen)}</td>
                   <td className="py-1 px-1 text-left overflow-hidden">
                     <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${isFrozen ? 'border-slate-200 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
                       {String(item?.referenceType ?? '-')}
@@ -303,11 +304,12 @@ export default function Trading() {
     );
   };
 
-  const renderPlatformJournalRows = (items?: PlatformJournalItem[], options?: { disableReferenceLink?: boolean; highlightMode?: 'background' | 'text' }) => {
+  const renderPlatformJournalRows = (items?: PlatformJournalItem[], options?: { disableReferenceLink?: boolean; highlightMode?: 'background' | 'text'; highlightExpenses?: boolean }) => {
     const rows = items && items.length > 0 ? items : [null];
     const disableReferenceLink = options?.disableReferenceLink ?? false;
     const highlightMode = options?.highlightMode ?? 'background';
     const textOnlyHighlight = highlightMode === 'text';
+    const highlightExpenses = options?.highlightExpenses ?? false;
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-xs text-slate-600 border-collapse table-fixed">
@@ -327,9 +329,8 @@ export default function Trading() {
                     title={(
                       <div className="text-[10px] leading-relaxed min-w-[220px]">
                         <p className="font-bold text-indigo-400 border-b border-white/10 pb-1 mb-1">借貸方向 (Debit / Credit)</p>
-                        <p>資產 (Assets)、費用 (Expenses)：DEBIT 增加，CREDIT 減少。</p>
-                        <p>負債 (Liabilities)、權益 (Equity)、收入 (Revenue)：CREDIT 增加，DEBIT 減少。</p>
-                        <p className="text-slate-300 mt-1">Assets/Expenses: DEBIT increases, CREDIT decreases. Liabilities/Equity/Revenue: CREDIT increases, DEBIT decreases.</p>
+                        <p>Assets/Expenses 屬於「借方增加」的科目，Liabilities/Equity/Revenue 屬於「貸方增加」，因此 DEBIT 增加前者、CREDIT 增加後者，反向則減少該科目金額。</p>
+                        <p className="text-slate-300 mt-1">Assets/Expenses are debit-increasing accounts while Liabilities/Equity/Revenue are credit-increasing; a DEBIT raises the former and lowers the latter, CREDIT does the opposite.</p>
                       </div>
                     )}
                     styles={{ root: { maxWidth: 'none' } }}
@@ -373,8 +374,9 @@ export default function Trading() {
               const highlightDebit = (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE') && direction === 'DEBIT';
               const isHighlighted = !isFrozen && (highlightCredit || highlightDebit) && !textOnlyHighlight;
               const highlightText = !isFrozen && (highlightCredit || highlightDebit) && textOnlyHighlight;
-              const baseHighlight = isHighlighted ? 'bg-red-100' : '';
-              const rowClass = isFrozen ? 'text-slate-300 font-normal' : 'text-slate-600';
+      const baseHighlight = isHighlighted ? 'bg-red-100' : '';
+      const rowClass = isFrozen ? 'text-slate-300 font-normal' : 'text-slate-600';
+      const expenseHighlight = highlightExpenses && category === 'EXPENSE';
 
               return (
                 <tr key={index} className={`text-right align-top whitespace-nowrap ${rowClass}`}>
@@ -384,13 +386,13 @@ export default function Trading() {
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.accountName ?? '-')}</td>
                   <td className={`py-1 px-1 text-left overflow-hidden ${baseHighlight}`}>{renderCategoryChip(item?.category)}</td>
                   <td className="py-1 px-1 text-left overflow-hidden">{String(item?.asset ?? '-')}</td>
-                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${isHighlighted ? 'rounded-l' : ''}`}>{renderNumberCell(item?.amount, isHighlighted, highlightText ? 'text-rose-600' : undefined, isFrozen)}</td>
+        <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${isHighlighted ? 'rounded-l' : ''}`}>{renderNumberCell(item?.amount, isHighlighted, expenseHighlight ? 'text-rose-600' : (highlightText ? 'text-rose-600' : undefined), isFrozen)}</td>
                   <td className={`py-1 px-1 overflow-hidden ${baseHighlight}`}>
                     <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${isFrozen ? 'border-slate-200 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
                       {direction}
                     </span>
                   </td>
-                  <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${isHighlighted ? 'rounded-r' : ''}`}>{renderNumberCell(item?.balanceAfter, isHighlighted, highlightText ? 'text-rose-600' : undefined, isFrozen)}</td>
+        <td className={`py-1 px-1 overflow-hidden ${baseHighlight} ${isHighlighted ? 'rounded-r' : ''}`}>{renderNumberCell(item?.balanceAfter, isHighlighted, expenseHighlight ? 'text-rose-600' : (highlightText ? 'text-rose-600' : undefined), isFrozen)}</td>
                   <td className="py-1 px-1 text-left overflow-hidden">
                     <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${isFrozen ? 'border-slate-200 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
                       {item?.referenceType ?? '-'}
@@ -440,7 +442,6 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold w-[80px]">available</th>
               <th className="py-1 pr-1 font-semibold w-[80px]">reserved</th>
               <th className="py-1 pr-1 font-semibold w-[30px]">ver</th>
-              <th className="py-1 pr-1 font-semibold w-[95px]">createdAt</th>
               <th className="py-1 pr-1 font-semibold w-[95px]">updatedAt</th>
             </tr>
           </thead>
@@ -466,7 +467,6 @@ export default function Trading() {
                   <td className="py-1 pr-1 overflow-hidden text-ellipsis">{renderNumberCell(item?.available, false, forceRed)}</td>
                   <td className="py-1 pr-1 overflow-hidden text-ellipsis">{renderNumberCell(item?.reserved, false)}</td>
                   <td className="py-1 pr-1 font-mono overflow-hidden text-ellipsis">{String(item?.version ?? '-')}</td>
-                  <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{String(item?.createdAt ?? '-')}</td>
                   <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{String(item?.updatedAt ?? '-')}</td>
                 </tr>
               );
@@ -491,7 +491,6 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold text-left w-[40px]">asset</th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balance</th>
               <th className="py-1 pr-1 font-semibold w-[30px]">ver</th>
-              <th className="py-1 pr-1 font-semibold w-[100px]">createdAt</th>
               <th className="py-1 pr-1 font-semibold w-[100px]">updatedAt</th>
             </tr>
           </thead>
@@ -512,7 +511,6 @@ export default function Trading() {
                   <td className="py-1 pr-1 text-left overflow-hidden text-ellipsis">{item?.asset}</td>
                   <td className="py-1 pr-1 overflow-hidden text-ellipsis">{renderNumberCell(item?.balance, false, forceRed)}</td>
                   <td className="py-1 pr-1 font-mono overflow-hidden text-ellipsis">{item?.version}</td>
-                  <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{item?.createdAt}</td>
                   <td className="py-1 pr-1 font-mono text-[9px] overflow-hidden text-ellipsis">{item?.updatedAt}</td>
                 </tr>
               );
@@ -737,11 +735,11 @@ export default function Trading() {
                             <div className="flex flex-col gap-6">
                               <div className="space-y-2">
                                 <div className="text-[10px] font-semibold uppercase text-slate-500">User</div>
-                                {renderJournalRows(referenceUserSplit.expenseRevenue, { disableReferenceLink: true, highlightMode: 'text' })}
+                                {renderJournalRows(referenceUserSplit.expenseRevenue, { disableReferenceLink: true, highlightMode: 'text', highlightExpenses: true })}
                               </div>
                               <div className="space-y-2">
                                 <div className="text-[10px] font-semibold uppercase text-slate-500">Exchange</div>
-                                {renderPlatformJournalRows(referencePlatformSplit.expenseRevenue, { disableReferenceLink: true, highlightMode: 'text' })}
+                                {renderPlatformJournalRows(referencePlatformSplit.expenseRevenue, { disableReferenceLink: true, highlightMode: 'text', highlightExpenses: true })}
                               </div>
                             </div>
                           </div>
