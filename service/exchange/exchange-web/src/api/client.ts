@@ -1,6 +1,12 @@
 import axios from 'axios';
 
 export const AUTH_REQUIRED_EVENT = 'auth:required';
+export const REFRESH_AFTER_LOGIN_KEY = 'refresh_after_login';
+
+export const hasToken = () => {
+  const token = localStorage.getItem('accessToken');
+  return !!token && token !== 'undefined' && token !== 'null';
+};
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:12345',
@@ -30,7 +36,7 @@ apiClient.interceptors.response.use(
     const errorCode = error.response?.data?.code;
     const isLoginRequest = requestUrl.includes('/auth/api/login');
 
-    if (status === 401 && !isLoginRequest && errorCode !== 'AUTH_BAD_CREDENTIALS') {
+    if ((status === 401 || status === 403) && !isLoginRequest && errorCode !== 'AUTH_BAD_CREDENTIALS') {
       localStorage.removeItem('accessToken');
       window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
     }

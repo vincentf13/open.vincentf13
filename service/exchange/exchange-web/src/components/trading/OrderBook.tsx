@@ -1,13 +1,12 @@
-
 import { useEffect, useMemo, useState } from 'react';
 import { Tooltip } from 'antd';
 
 import { getOrderBook, type OrderBookLevel, type OrderBookResponse } from '../../api/market';
 
 type OrderBookProps = {
-  instrumentId: string | null;
-  contractSize?: number | string | null;
+  selectedInstrumentId: string | null;
   refreshTrigger?: number;
+  isPaused?: boolean;
 };
 
 type RowData = {
@@ -43,7 +42,7 @@ const formatTotal = (value: number) => {
   });
 };
 
-const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean, contractMultiplier: number) => {
+const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean) => {
   if (!levels || !levels.length) {
     return [];
   }
@@ -57,11 +56,10 @@ const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolea
 
   let cumulative = 0;
   const rows = sorted.map((item) => {
-    const normalizedAmount = contractMultiplier > 0 ? item.amount * contractMultiplier : item.amount;
-    cumulative += normalizedAmount;
+    cumulative += item.amount;
     return {
       price: item.price,
-      amount: normalizedAmount,
+      amount: item.amount,
       total: cumulative,
       depth: 0,
     };
@@ -73,20 +71,20 @@ const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolea
   }));
 };
 
-export default function OrderBook({ instrumentId, contractSize, refreshTrigger }: OrderBookProps) {
+export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaused }: OrderBookProps) {
   const [orderBook, setOrderBook] = useState<OrderBookResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!instrumentId) {
-      setOrderBook(null);
+    if (!selectedInstrumentId || isPaused) {
+      if (!selectedInstrumentId) setOrderBook(null);
       return;
     }
     let cancelled = false;
     const loadOrderBook = async () => {
       setLoading(true);
       try {
-        const response = await getOrderBook(instrumentId);
+        const response = await getOrderBook(selectedInstrumentId);
         if (cancelled) {
           return;
         }
@@ -109,12 +107,10 @@ export default function OrderBook({ instrumentId, contractSize, refreshTrigger }
     return () => {
       cancelled = true;
     };
-  }, [instrumentId, refreshTrigger]);
+  }, [selectedInstrumentId, refreshTrigger, isPaused]);
 
-  const contractSizeValue = Number(contractSize);
-  const contractMultiplier = Number.isFinite(contractSizeValue) && contractSizeValue > 0 ? contractSizeValue : 1;
-  const asks = useMemo(() => buildRows(orderBook?.asks, false, contractMultiplier).slice(0, 5), [orderBook?.asks, contractMultiplier]);
-  const bids = useMemo(() => buildRows(orderBook?.bids, true, contractMultiplier).slice(0, 5), [orderBook?.bids, contractMultiplier]);
+  const asks = useMemo(() => buildRows(orderBook?.asks, false).slice(0, 5), [orderBook?.asks]);
+  const bids = useMemo(() => buildRows(orderBook?.bids, true).slice(0, 5), [orderBook?.bids]);
   const midPrice = useMemo(() => {
     const mid = toNumber(orderBook?.midPrice);
     if (mid !== null) {
@@ -146,7 +142,7 @@ export default function OrderBook({ instrumentId, contractSize, refreshTrigger }
   );
 
   return (
-    <div className="relative flex flex-col h-full w-[80%] ml-auto border-l border-white/30 bg-gradient-to-b from-white/15 via-white/5 to-transparent">
+    <div className="relative flex flex-col flex-1 min-h-0 bg-gradient-to-b from-white/15 via-white/5 to-transparent">
       <div className="relative p-4 border-b border-white/20 bg-white/5">
         <Tooltip
           title={(
@@ -161,7 +157,7 @@ export default function OrderBook({ instrumentId, contractSize, refreshTrigger }
             </div>
           )}
           placement="bottomRight"
-          overlayClassName="liquid-tooltip"
+          classNames={{ root: 'liquid-tooltip' }}
           styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
         >
           <h3 className="liquid-tooltip-trigger text-sm font-semibold text-slate-700 cursor-help border-b border-dotted border-slate-400 inline-block">

@@ -12,1535 +12,368 @@ type PositionsProps = {
   instruments: InstrumentSummary[];
   selectedInstrumentId: string | null;
   refreshTrigger?: number;
+  isPaused?: boolean;
 };
 
 const formatNumber = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined || value === '') {
-    return '-';
-  }
+  if (value === null || value === undefined || value === '') return '-';
   const numeric = Number(value);
-  if (Number.isNaN(numeric)) {
-    return String(value);
-  }
-  return numeric.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 6,
-  });
+  if (Number.isNaN(numeric)) return String(value);
+  return numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
 };
 
 const formatPercent = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined || value === '') {
-    return '-';
-  }
+  if (value === null || value === undefined || value === '') return '-';
   const numeric = Number(value);
-  if (Number.isNaN(numeric)) {
-    return String(value);
-  }
-  return `${(numeric * 100).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  })}%`;
+  if (Number.isNaN(numeric)) return String(value);
+  return `${(numeric * 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
 };
 
-const trimTrailingZeros = (value: string) => {
-  if (!value.includes('.')) {
-    return value;
+const trimTrailingZeros = (v: string) => v.includes('.') ? v.replace(/(?:\.0+|(\.\d*?[1-9])0+)$/, '$1').replace(/\.$/, '') : v;
+
+const formatPayloadValue = (key: string, value: any) => {
+  if (value === null || value === undefined) return '-';
+  if (['createdAt', 'updatedAt', 'closedAt', 'occurredAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(key)) {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? String(value) : `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
   }
-  const trimmed = value.replace(/(?:\.0+|(\.\d*?[1-9])0+)$/, '$1');
-  return trimmed.endsWith('.') ? trimmed.slice(0, -1) : trimmed;
+  if (key === 'marginRatio') return formatPercent(value);
+  const n = Number(value);
+  return isNaN(n) ? String(value) : trimTrailingZeros(n.toString());
 };
 
-const formatPayloadNumber = (value: unknown) => {
-  if (value === null || value === undefined || value === '') {
-    return '-';
-  }
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) {
-      return String(value);
-    }
-    return trimTrailingZeros(value.toString());
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed === '') {
-      return '-';
-    }
-    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-      return trimTrailingZeros(trimmed);
-    }
-    return value;
-  }
-  return String(value);
-};
-
-const formatPayloadPercent = (value: unknown) => {
-  if (value === null || value === undefined || value === '') {
-    return '-';
-  }
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return String(value);
-  }
-  return `${trimTrailingZeros((numeric * 100).toString())}%`;
-};
-
-const formatDateTime = (value: string | number | null | undefined) => {
-  if (!value) {
-    return '-';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
-
-export default function Positions({ instruments, selectedInstrumentId, refreshTrigger }: PositionsProps) {
+export default function Positions({ instruments, selectedInstrumentId, refreshTrigger, isPaused }: PositionsProps) {
   const [activeTab, setActiveTab] = useState('Positions');
+  const [isTabVisible, setIsTabVisible] = useState(true);
   const [positions, setPositions] = useState<PositionResponse[]>([]);
-  const [loading, setLoading] = useState(false);
   const [expandedPositionId, setExpandedPositionId] = useState<number | null>(null);
   const [positionEvents, setPositionEvents] = useState<Record<string, PositionEventItem[]>>({});
   const [positionEventsLoading, setPositionEventsLoading] = useState<Record<string, boolean>>({});
   const [orders, setOrders] = useState<OrderResponse[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
-  const [orderRiskLimit, setOrderRiskLimit] = useState<RiskLimitResponse | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [orderTrades, setOrderTrades] = useState<Record<string, TradeResponse[]>>({});
-  const [tradesLoading, setTradesLoading] = useState<Record<string, boolean>>({});
   const [orderEvents, setOrderEvents] = useState<Record<string, OrderEventItem[]>>({});
   const [orderEventsLoading, setOrderEventsLoading] = useState<Record<string, boolean>>({});
   const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
-  const [instrumentTradesLoading, setInstrumentTradesLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   const previousPositionsRef = useRef<Map<string, PositionResponse>>(new Map());
   const positionChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
-  const positionsInitializedRef = useRef(false);
   const previousOrdersRef = useRef<Map<string, OrderResponse>>(new Map());
   const orderChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
-  const ordersInitializedRef = useRef(false);
 
-  const instrumentMap = useMemo(() => {
-    return new Map(
-      instruments.map((item) => [String(item.instrumentId), item.name || item.symbol || String(item.instrumentId)])
-    );
-  }, [instruments]);
-  const instrumentContractSizeMap = useMemo(() => {
-    return new Map(
-      instruments.map((item) => {
-        const rawSize = Number(item.contractSize);
-        const size = Number.isFinite(rawSize) && rawSize > 0 ? rawSize : 1;
-        return [String(item.instrumentId), size];
-      })
-    );
-  }, [instruments]);
-  const instrumentTakerFeeRateMap = useMemo(() => {
-    return new Map(
-      instruments.map((item) => {
-        const rawRate = Number(item.takerFeeRate);
-        const rate = Number.isFinite(rawRate) && rawRate >= 0 ? rawRate : 0;
-        return [String(item.instrumentId), rate];
-      })
-    );
-  }, [instruments]);
-  const orderHighlightKeys = new Set([
-    'status',
-    'filledQuantity',
-    'remainingQuantity',
-    'avgFillPrice',
-    'fee',
-    'rejectedReason',
-  ]);
-  const positionHighlightKeys = new Set([
-    'instrumentId',
-    'side',
-    'status',
-    'entryPrice',
-    'quantity',
-    'closingReservedQuantity',
-    'markPrice',
-    'liquidationPrice',
-    'unrealizedPnl',
-    'cumRealizedPnl',
-    'cumFee',
-    'cumFundingFee',
-    'leverage',
-    'margin',
-    'marginRatio',
-    'createdAt',
-    'updatedAt',
-    'closedAt',
-  ]);
-  const positionNumericKeys = new Set([
-    'positionId',
-    'userId',
-    'instrumentId',
-    'leverage',
-    'margin',
-    'entryPrice',
-    'quantity',
-    'closingReservedQuantity',
-    'markPrice',
-    'marginRatio',
-    'unrealizedPnl',
-    'liquidationPrice',
-    'cumRealizedPnl',
-    'cumFee',
-    'cumFundingFee',
-    'version',
-  ]);
-  const getOrderCompareValue = (order: OrderResponse, key: string) => {
-    const value = (order as any)[key];
-    return value === null || value === undefined ? '' : String(value);
-  };
-  const getPositionCompareValue = (position: PositionResponse, key: string) => {
-    const value = (position as any)[key];
-    if (value === null || value === undefined) {
-      return '';
-    }
-    if (positionNumericKeys.has(key)) {
-      const numeric = Number(value);
-      if (Number.isFinite(numeric)) {
-        return numeric.toString();
-      }
-    }
-    return String(value);
-  };
-  const hasAnyOrderFieldChanged = (order: OrderResponse, previousOrder: OrderResponse) => {
-    const keys = new Set([...Object.keys(order), ...Object.keys(previousOrder)]);
-    for (const key of keys) {
-      if (getOrderCompareValue(order, key) !== getOrderCompareValue(previousOrder, key)) {
-        return true;
-      }
-    }
-    return false;
-  };
-  const hasAnyPositionFieldChanged = (position: PositionResponse, previousPosition: PositionResponse) => {
-    const keys = new Set([...Object.keys(position), ...Object.keys(previousPosition)]);
-    for (const key of keys) {
-      if (getPositionCompareValue(position, key) !== getPositionCompareValue(previousPosition, key)) {
-        return true;
-      }
-    }
-    return false;
+  useEffect(() => {
+    const h = () => setIsTabVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', h);
+    return () => document.removeEventListener('visibilitychange', h);
+  }, []);
+
+  const instrumentMap = useMemo(() => new Map(instruments.map(i => [String(i.instrumentId), i.name || i.symbol || String(i.instrumentId)])), [instruments]);
+  const orderHighlightKeys = new Set(['status', 'filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee', 'rejectedReason']);
+  const positionHighlightKeys = new Set(['instrumentId', 'side', 'status', 'entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'liquidationPrice', 'unrealizedPnl', 'cumRealizedPnl', 'cumFee', 'cumFundingFee', 'leverage', 'margin', 'marginRatio', 'updatedAt']);
+
+  const getCompareValue = (obj: any, key: string) => {
+    const v = obj[key];
+    if (v === null || v === undefined) return '';
+    const n = Number(v);
+    return isNaN(n) ? String(v) : n.toString();
   };
 
   const fetchPositions = async () => {
-    setLoading(true);
+    if (isPaused || !isTabVisible) return;
     try {
-      const response = await getPositions(selectedInstrumentId || undefined);
-      if (String(response?.code) === '0') {
-        const nextPositions = Array.isArray(response?.data) ? response.data : [];
-        const previousMap = previousPositionsRef.current;
-        const nextMap = new Map(nextPositions.map((position) => [String(position.positionId), position]));
-        if (!positionsInitializedRef.current) {
-          previousPositionsRef.current = nextMap;
-          positionChangedFieldsRef.current = new Map();
-          positionsInitializedRef.current = true;
-          setPositions(nextPositions);
-          return;
-        }
-        let hasAnyListChange = previousMap.size !== nextMap.size;
-        if (!hasAnyListChange) {
-          for (const positionId of previousMap.keys()) {
-            if (!nextMap.has(positionId)) {
-              hasAnyListChange = true;
-              break;
-            }
-          }
-        }
-        if (!hasAnyListChange) {
-          for (const position of nextPositions) {
-            const positionId = String(position.positionId);
-            const previousPosition = previousMap.get(positionId);
-            if (!previousPosition || hasAnyPositionFieldChanged(position, previousPosition)) {
-              hasAnyListChange = true;
-              break;
-            }
-          }
-        }
-        let nextChangeMap = positionChangedFieldsRef.current;
-        if (hasAnyListChange) {
-          const rebuiltChangeMap = new Map<string, Set<string>>();
-          nextPositions.forEach((position) => {
-            const positionId = String(position.positionId);
-            const previousPosition = previousMap.get(positionId);
-            if (!previousPosition) {
-              rebuiltChangeMap.set(positionId, new Set(positionHighlightKeys));
-              return;
-            }
-            const changedKeys = new Set<string>();
-            positionHighlightKeys.forEach((key) => {
-              if (getPositionCompareValue(position, key) !== getPositionCompareValue(previousPosition, key)) {
-                changedKeys.add(key);
-              }
-            });
-            if (changedKeys.size > 0) {
-              rebuiltChangeMap.set(positionId, changedKeys);
-            }
-          });
-          nextChangeMap = rebuiltChangeMap;
-        }
+      const res = await getPositions(selectedInstrumentId || undefined);
+      if (String(res?.code) === '0') {
+        const next = res.data || [];
+        const prevMap = previousPositionsRef.current;
+        const nextMap = new Map(next.map((p: any) => [String(p.positionId), p]));
+        const changeMap = new Map<string, Set<string>>();
+        next.forEach((p: any) => {
+          const id = String(p.positionId);
+          const prev = prevMap.get(id);
+          const changed = new Set<string>();
+          positionHighlightKeys.forEach(k => { if (!prev || getCompareValue(p, k) !== getCompareValue(prev, k)) changed.add(k); });
+          if (changed.size > 0) changeMap.set(id, changed);
+        });
         previousPositionsRef.current = nextMap;
-        positionChangedFieldsRef.current = nextChangeMap;
-        setPositions(nextPositions);
-      } else {
-        setPositions([]);
-        if (response?.message) {
-          message.error(response.message);
-        }
+        positionChangedFieldsRef.current = changeMap;
+        setPositions(next);
       }
-    } catch (error: any) {
-      setPositions([]);
-      if (error?.response?.data?.message) {
-        message.error(error.response.data.message);
-      }
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
   };
 
   const fetchOrders = async () => {
-    setOrdersLoading(true);
+    if (isPaused || !isTabVisible) return;
     try {
-      const response = await getOrders(selectedInstrumentId || undefined);
-      if (String(response?.code) === '0') {
-        const nextOrders = Array.isArray(response?.data) ? response.data : [];
-        const previousMap = previousOrdersRef.current;
-        const nextMap = new Map(nextOrders.map((order) => [String(order.orderId), order]));
-        if (!ordersInitializedRef.current) {
-          previousOrdersRef.current = nextMap;
-          orderChangedFieldsRef.current = new Map();
-          ordersInitializedRef.current = true;
-          setOrders(nextOrders);
-          return;
-        }
-        let hasAnyListChange = previousMap.size !== nextMap.size;
-        if (!hasAnyListChange) {
-          for (const orderId of previousMap.keys()) {
-            if (!nextMap.has(orderId)) {
-              hasAnyListChange = true;
-              break;
-            }
-          }
-        }
-        if (!hasAnyListChange) {
-          for (const order of nextOrders) {
-            const orderId = String(order.orderId);
-            const previousOrder = previousMap.get(orderId);
-            if (!previousOrder || hasAnyOrderFieldChanged(order, previousOrder)) {
-              hasAnyListChange = true;
-              break;
-            }
-          }
-        }
-        let nextChangeMap = orderChangedFieldsRef.current;
-        if (hasAnyListChange) {
-          const rebuiltChangeMap = new Map<string, Set<string>>();
-          nextOrders.forEach((order) => {
-            const orderId = String(order.orderId);
-            const previousOrder = previousMap.get(orderId);
-            if (!previousOrder) {
-              rebuiltChangeMap.set(orderId, new Set(orderHighlightKeys));
-              return;
-            }
-            const changedKeys = new Set<string>();
-            orderHighlightKeys.forEach((key) => {
-              if (getOrderCompareValue(order, key) !== getOrderCompareValue(previousOrder, key)) {
-                changedKeys.add(key);
-              }
-            });
-            if (changedKeys.size > 0) {
-              rebuiltChangeMap.set(orderId, changedKeys);
-            }
-          });
-          nextChangeMap = rebuiltChangeMap;
-        }
+      const res = await getOrders(selectedInstrumentId || undefined);
+      if (String(res?.code) === '0') {
+        const next = res.data || [];
+        const prevMap = previousOrdersRef.current;
+        const nextMap = new Map(next.map((o: any) => [String(o.orderId), o]));
+        const changeMap = new Map<string, Set<string>>();
+        next.forEach((o: any) => {
+          const id = String(o.orderId);
+          const prev = prevMap.get(id);
+          const changed = new Set<string>();
+          orderHighlightKeys.forEach(k => { if (!prev || getCompareValue(o, k) !== getCompareValue(prev, k)) changed.add(k); });
+          if (changed.size > 0) changeMap.set(id, changed);
+        });
         previousOrdersRef.current = nextMap;
-        orderChangedFieldsRef.current = nextChangeMap;
-        setOrders(nextOrders);
-      } else {
-        setOrders([]);
-        if (response?.message) {
-          message.error(response.message);
-        }
+        orderChangedFieldsRef.current = changeMap;
+        setOrders(next);
       }
-    } catch (error: any) {
-      setOrders([]);
-      if (error?.response?.data?.message) {
-        message.error(error.response.data.message);
-      }
-    } finally {
-      setOrdersLoading(false);
-    }
-  };
-
-  const fetchTrades = async (orderId: number) => {
-    setTradesLoading((prev) => ({ ...prev, [orderId]: true }));
-    try {
-      const response = await getTradesByOrderId(orderId);
-      if (String(response?.code) === '0') {
-        setOrderTrades((prev) => ({
-          ...prev,
-          [orderId]: Array.isArray(response?.data) ? response.data : [],
-        }));
-      } else {
-        setOrderTrades((prev) => ({ ...prev, [orderId]: [] }));
-        if (response?.message) {
-          message.error(response.message);
-        }
-      }
-    } catch (error: any) {
-      setOrderTrades((prev) => ({ ...prev, [orderId]: [] }));
-      if (error?.response?.data?.message) {
-        message.error(error.response.data.message);
-      }
-    } finally {
-      setTradesLoading((prev) => ({ ...prev, [orderId]: false }));
-    }
-  };
-
-  const fetchPositionEvents = async (positionId: number) => {
-    setPositionEventsLoading((prev) => ({ ...prev, [positionId]: true }));
-    try {
-      const response = await getPositionEvents(positionId);
-      if (String(response?.code) === '0') {
-        const data = response?.data as PositionEventResponse | null;
-        setPositionEvents((prev) => ({
-          ...prev,
-          [positionId]: Array.isArray(data?.events) ? data.events : [],
-        }));
-      } else {
-        setPositionEvents((prev) => ({ ...prev, [positionId]: [] }));
-        if (response?.message) {
-          message.error(response.message);
-        }
-      }
-    } catch (error: any) {
-      setPositionEvents((prev) => ({ ...prev, [positionId]: [] }));
-      if (error?.response?.data?.message) {
-        message.error(error.response.data.message);
-      }
-    } finally {
-      setPositionEventsLoading((prev) => ({ ...prev, [positionId]: false }));
-    }
-  };
-
-  const fetchOrderEvents = async (orderId: number) => {
-    setOrderEventsLoading((prev) => ({ ...prev, [orderId]: true }));
-    try {
-      const response = await getOrderEvents(orderId);
-      if (String(response?.code) === '0') {
-        const data = response?.data as OrderEventResponse | null;
-        setOrderEvents((prev) => ({
-          ...prev,
-          [orderId]: Array.isArray(data?.events) ? data.events : [],
-        }));
-      } else {
-        setOrderEvents((prev) => ({ ...prev, [orderId]: [] }));
-        if (response?.message) {
-          message.error(response.message);
-        }
-      }
-    } catch (error: any) {
-      setOrderEvents((prev) => ({ ...prev, [orderId]: [] }));
-      if (error?.response?.data?.message) {
-        message.error(error.response.data.message);
-      }
-    } finally {
-      setOrderEventsLoading((prev) => ({ ...prev, [orderId]: false }));
-    }
+    } catch {}
   };
 
   const fetchInstrumentTrades = async () => {
-    if (!selectedInstrumentId) {
-      setInstrumentTrades([]);
-      return;
-    }
-    setInstrumentTradesLoading(true);
+    if (isPaused || !isTabVisible || !selectedInstrumentId) return;
     try {
-      const response = await getTradesByInstrument(selectedInstrumentId);
-      if (String(response?.code) === '0') {
-        setInstrumentTrades(Array.isArray(response?.data) ? response.data : []);
-      } else {
-        setInstrumentTrades([]);
-        if (response?.message) {
-          message.error(response.message);
-        }
-      }
-    } catch (error: any) {
-      setInstrumentTrades([]);
-      if (error?.response?.data?.message) {
-        message.error(error.response.data.message);
-      }
-    } finally {
-      setInstrumentTradesLoading(false);
-    }
+      const res = await getTradesByInstrument(selectedInstrumentId);
+      if (String(res?.code) === '0') setInstrumentTrades(res.data || []);
+    } catch {}
   };
 
   useEffect(() => {
-    fetchPositions();
+    if (activeTab === 'Positions') fetchPositions();
+    else if (activeTab === 'Orders') fetchOrders();
+    else if (activeTab === 'Traders') fetchInstrumentTrades();
+  }, [activeTab, selectedInstrumentId, refreshTrigger, isPaused, isTabVisible]);
+
+  useEffect(() => {
+    getCurrentUser().then(res => { if (String(res?.code) === '0' && res.data?.id) setCurrentUserId(String(res.data.id)); }).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadCurrentUser = async () => {
-      try {
-        const response = await getCurrentUser();
-        if (cancelled) {
-          return;
-        }
-        if (String(response?.code) === '0' && response?.data?.id != null) {
-          setCurrentUserId(String(response.data.id));
-        } else {
-          setCurrentUserId(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setCurrentUserId(null);
-        }
-      }
-    };
-    loadCurrentUser();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!selectedInstrumentId) {
-      setOrderRiskLimit(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-    setOrderRiskLimit(null);
-    getRiskLimit(selectedInstrumentId)
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
-        if (String(response?.code) === '0') {
-          setOrderRiskLimit(response?.data ?? null);
-        } else {
-          setOrderRiskLimit(null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOrderRiskLimit(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedInstrumentId]);
-
-  useEffect(() => {
-    if (activeTab === 'Positions') {
-      fetchPositions();
-      if (expandedPositionId !== null) {
-        fetchPositionEvents(expandedPositionId);
-      }
-    }
-    if (activeTab === 'Orders') {
-      fetchOrders();
-      if (expandedOrderId !== null) {
-        fetchTrades(expandedOrderId);
-        fetchOrderEvents(expandedOrderId);
-      }
-    }
-    if (activeTab === 'Traders') {
-      fetchInstrumentTrades();
-    }
-  }, [activeTab, selectedInstrumentId, refreshTrigger]);
-
-  const resolveContractSize = (instrumentId: string | number | null | undefined) => {
-    if (instrumentId === null || instrumentId === undefined) {
-      return 1;
-    }
-    const size = instrumentContractSizeMap.get(String(instrumentId));
-    return size ?? 1;
-  };
-  const resolveTakerFeeRate = (instrumentId: string | number | null | undefined) => {
-    if (instrumentId === null || instrumentId === undefined) {
-      return 0;
-    }
-    const rate = instrumentTakerFeeRateMap.get(String(instrumentId));
-    return rate ?? 0;
-  };
-  const tradersSummary = useMemo(() => {
-    return instrumentTrades.reduce(
-      (acc, trade) => {
-        const isMaker =
-          currentUserId != null &&
-          trade.makerUserId != null &&
-          String(trade.makerUserId) === currentUserId;
-        const isTaker =
-          currentUserId != null &&
-          trade.takerUserId != null &&
-          String(trade.takerUserId) === currentUserId;
-        if (!isMaker && !isTaker) {
-          return acc;
-        }
-        const priceValue = Number(trade.price);
-        const quantityValue = Number(trade.quantity);
-        const contractSize = resolveContractSize(trade.instrumentId);
-        if (Number.isFinite(priceValue) && Number.isFinite(quantityValue)) {
-          const totalValue = priceValue * quantityValue * contractSize;
-          if (isMaker) {
-            const makerSide = trade.orderSide ? String(trade.orderSide).toUpperCase() : '';
-            if (makerSide === 'BUY') {
-              acc.buyTotal += totalValue;
-            }
-            if (makerSide === 'SELL') {
-              acc.sellTotal += totalValue;
-            }
-          }
-          if (isTaker) {
-            const takerSide = trade.counterpartyOrderSide ? String(trade.counterpartyOrderSide).toUpperCase() : '';
-            if (takerSide === 'BUY') {
-              acc.buyTotal += totalValue;
-            }
-            if (takerSide === 'SELL') {
-              acc.sellTotal += totalValue;
-            }
-          }
-        }
-        const makerFeeValue = Number(trade.makerFee);
-        if (isMaker && Number.isFinite(makerFeeValue)) {
-          acc.totalFee += makerFeeValue;
-        }
-        const takerFeeValue = Number(trade.takerFee);
-        if (isTaker && Number.isFinite(takerFeeValue)) {
-          acc.totalFee += takerFeeValue;
-        }
-        return acc;
-      },
-      { buyTotal: 0, sellTotal: 0, totalFee: 0 }
-    );
-  }, [currentUserId, instrumentTrades, instrumentContractSizeMap]);
-  const isOrderRejected = (order: OrderResponse) =>
-    String(order.status ?? '').toUpperCase() === 'REJECTED';
-  const isOrderOpening = (order: OrderResponse) =>
-    String(order.intent ?? '').toUpperCase() === 'INCREASE';
-  const ordersForSummary = useMemo(() => orders.filter((order) => !isOrderRejected(order)), [orders]);
-  const ordersReservedSummary = useMemo(() => {
-    const initialMarginRateValue = Number(orderRiskLimit?.initialMarginRate);
-    const initialMarginRate = Number.isFinite(initialMarginRateValue) ? initialMarginRateValue : 1;
-    return ordersForSummary.reduce(
-      (acc, order) => {
-        if (!isOrderOpening(order)) {
-          return acc;
-        }
-        const remainingQuantityValue = Number(order.remainingQuantity);
-        const orderPriceValue = Number(order.price);
-        if (!Number.isFinite(remainingQuantityValue) || !Number.isFinite(orderPriceValue)) {
-          return acc;
-        }
-        const contractSize = resolveContractSize(order.instrumentId);
-        const notionalValue = remainingQuantityValue * orderPriceValue * contractSize;
-        if (Number.isFinite(notionalValue)) {
-          acc.reservedTotal += notionalValue * initialMarginRate;
-          const takerFeeRate = resolveTakerFeeRate(order.instrumentId);
-          if (Number.isFinite(takerFeeRate)) {
-            acc.reservedFeeTotal += notionalValue * takerFeeRate;
-          }
-        }
-        return acc;
-      },
-      { reservedTotal: 0, reservedFeeTotal: 0 }
-    );
-  }, [ordersForSummary, instrumentContractSizeMap, instrumentTakerFeeRateMap, orderRiskLimit]);
-  const ordersFillSummary = useMemo(() => {
-    return ordersForSummary.reduce(
-      (acc, order) => {
-        const filledQuantityValue = Number(order.filledQuantity);
-        const averageFillPriceValue = Number(order.avgFillPrice);
-        if (Number.isFinite(filledQuantityValue) && Number.isFinite(averageFillPriceValue)) {
-          const contractSize = resolveContractSize(order.instrumentId);
-          acc.totalFillPrice += filledQuantityValue * averageFillPriceValue * contractSize;
-        }
-        const feeValue = Number(order.fee);
-        if (Number.isFinite(feeValue)) {
-          acc.totalFee += feeValue;
-        }
-        return acc;
-      },
-      { totalFillPrice: 0, totalFee: 0 }
-    );
-  }, [ordersForSummary, instrumentContractSizeMap]);
 
   const orderColumns = [
-    { key: 'instrumentId', label: 'Instrument' },
-    { key: 'side', label: 'Side' },
-    { key: 'type', label: 'Order Type' },
-    { key: 'price', label: 'Price' },
-    { key: 'quantity', label: 'Quantity' },
-    { key: 'intent', label: 'Position Intent' },
-    { key: 'status', label: 'Status' },
-    { key: 'filledQuantity', label: 'Filled Quantity' },
-    { key: 'remainingQuantity', label: 'Remaining Quantity' },
-    { key: 'avgFillPrice', label: 'Average Fill Price' },
-    { key: 'fee', label: 'Fee' },
-    { key: 'rejectedReason', label: 'Rejected Reason' },
-    { key: 'createdAt', label: 'Created Time' },
-    { key: 'updatedAt', label: 'Updated Time' },
-    { key: 'submittedAt', label: 'Submitted Time' },
-    { key: 'filledAt', label: 'Filled Time' },
-    { key: 'cancelledAt', label: 'Cancelled Time' },
+    { key: 'instrumentId', label: 'Instrument' }, { key: 'side', label: 'Side' }, { key: 'type', label: 'Type' },
+    { key: 'price', label: 'Price' }, { key: 'quantity', label: 'Quantity' }, { key: 'intent', label: 'Intent' },
+    { key: 'status', label: 'Status' }, { key: 'filledQuantity', label: 'Filled' }, { key: 'remainingQuantity', label: 'Remain' },
+    { key: 'avgFillPrice', label: 'Avg Price' }, { key: 'fee', label: 'Fee' }, { key: 'rejectedReason', label: 'Reason' },
+    { key: 'createdAt', label: 'Created' }, { key: 'updatedAt', label: 'Updated' }
   ];
-  const isOrderFieldHighlighted = (order: OrderResponse, key: string) => {
-    const changedFields = orderChangedFieldsRef.current.get(String(order.orderId));
-    return Boolean(changedFields && changedFields.has(key));
-  };
-
-  const tradeColumns = [
-    { key: 'tradeId', label: 'Trade ID' },
-    { key: 'instrumentId', label: 'Instrument' },
-    { key: 'makerUserId', label: 'Maker User ID' },
-    { key: 'takerUserId', label: 'Taker User ID' },
-    { key: 'orderId', label: 'Order ID' },
-    { key: 'counterpartyOrderId', label: 'Counterparty Order ID' },
-    { key: 'orderSide', label: 'Order Side' },
-    { key: 'counterpartyOrderSide', label: 'Counterparty Order Side' },
-    { key: 'makerIntent', label: 'Maker Intent' },
-    { key: 'takerIntent', label: 'Taker Intent' },
-    { key: 'tradeType', label: 'Trade Type' },
-    { key: 'price', label: 'Price' },
-    { key: 'quantity', label: 'Quantity' },
-    { key: 'totalValue', label: 'Total Value' },
-    { key: 'makerFee', label: 'Maker Fee' },
-    { key: 'takerFee', label: 'Taker Fee' },
-    { key: 'executedAt', label: 'Executed Time' },
-    { key: 'createdAt', label: 'Created Time' },
-  ];
-
-  const orderEventColumns = [
-    { key: 'eventId', label: 'Event ID' },
-    { key: 'sequenceNumber', label: 'Seq' },
-    { key: 'eventType', label: 'Event Type' },
-    { key: 'referenceType', label: 'Reference Type' },
-    { key: 'referenceId', label: 'Reference ID' },
-    { key: 'actor', label: 'Actor' },
-    { key: 'occurredAt', label: 'Occurred Time' },
-    { key: 'createdAt', label: 'Created Time' },
-  ];
-  const orderPayloadOrder = orderColumns.map((column) => column.key);
-
-  const makerHighlightKeys = new Set([
-    'makerUserId',
-    'orderId',
-    'orderSide',
-    'makerIntent',
-    'makerFee',
-  ]);
-  const takerHighlightKeys = new Set([
-    'takerUserId',
-    'counterpartyOrderId',
-    'counterpartyOrderSide',
-    'takerIntent',
-    'takerFee',
-  ]);
-
-  const renderOrderCellValue = (order: OrderResponse, key: string) => {
-    if ((order as any)[key] === null) {
-      return 'Removed';
-    }
-    if (key === 'instrumentId') {
-      return instrumentMap.get(String(order.instrumentId)) || String(order.instrumentId);
-    }
-    if (
-      ['price', 'quantity', 'filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee'].includes(key)
-    ) {
-      return formatNumber((order as any)[key]);
-    }
-    if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(key)) {
-      return formatDateTime((order as any)[key]);
-    }
-    return (order as any)[key] ?? '-';
-  };
-
-  const renderTradeCellValue = (trade: TradeResponse, key: string) => {
-    if (key === 'instrumentId') {
-      return instrumentMap.get(String(trade.instrumentId)) || String(trade.instrumentId);
-    }
-    if (['price', 'quantity', 'totalValue', 'makerFee', 'takerFee'].includes(key)) {
-      return formatNumber((trade as any)[key]);
-    }
-    if (['executedAt', 'createdAt'].includes(key)) {
-      return formatDateTime((trade as any)[key]);
-    }
-    return (trade as any)[key] ?? '-';
-  };
 
   const columns = [
-    { key: 'instrumentId', label: 'Instrument' },
-    { key: 'side', label: 'Side' },
-    { key: 'status', label: 'Status' },
-    { key: 'entryPrice', label: 'Entry Price' },
-    { key: 'quantity', label: 'Quantity' },
-    { key: 'closingReservedQuantity', label: 'Closing Reserved' },
-    { key: 'markPrice', label: 'Mark Price' },
-    { key: 'liquidationPrice', label: 'Liquidation Price' },
-    { key: 'unrealizedPnl', label: 'Unrealized PnL' },
-    { key: 'cumRealizedPnl', label: 'cum Realized Pnl' },
-    { key: 'cumFee', label: 'cum Fee' },
-    { key: 'cumFundingFee', label: 'cum Funding Fee' },
-    { key: 'leverage', label: 'Leverage' },
-    { key: 'margin', label: 'Margin' },
-    { key: 'marginRatio', label: 'Margin Ratio' },
-    { key: 'createdAt', label: 'Created Time' },
-    { key: 'updatedAt', label: 'Updated Time' },
-    { key: 'closedAt', label: 'Closed Time' },
+    { key: 'instrumentId', label: 'Instrument' }, { key: 'side', label: 'Side' }, { key: 'status', label: 'Status' },
+    { key: 'entryPrice', label: 'Entry' }, { key: 'quantity', label: 'Qty' }, { key: 'closingReservedQuantity', label: 'Reserved' },
+    { key: 'markPrice', label: 'Mark' }, { key: 'liquidationPrice', label: 'Liq' }, { key: 'unrealizedPnl', label: 'UPnL' },
+    { key: 'cumRealizedPnl', label: 'RPnL' }, { key: 'cumFee', label: 'Fee' }, { key: 'cumFundingFee', label: 'Funding' },
+    { key: 'leverage', label: 'Lev' }, { key: 'margin', label: 'Margin' }, { key: 'marginRatio', label: 'Ratio' },
+    { key: 'updatedAt', label: 'Updated' }
   ];
 
-  const renderCellValue = (position: PositionResponse, key: string) => {
-    if ((position as any)[key] === null) {
-      return 'Removed';
+  const renderCellValue = (p: any, k: string) => {
+    const v = p[k];
+    if (v === null) return 'Removed';
+    if (k === 'instrumentId') return instrumentMap.get(String(v)) || String(v);
+    if (['margin', 'entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'cumRealizedPnl', 'cumFee', 'cumFundingFee', 'liquidationPrice', 'unrealizedPnl'].includes(k)) return formatNumber(v);
+    if (k === 'marginRatio') return formatPercent(v);
+    if (['createdAt', 'updatedAt', 'closedAt'].includes(k)) {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? String(v) : `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
     }
-    if (key === 'instrumentId') {
-      return instrumentMap.get(String(position.instrumentId)) || String(position.instrumentId);
-    }
-    if (key === 'unrealizedPnl') {
-      return formatNumber(position.unrealizedPnl);
-    }
-    if (
-      ['margin', 'entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'marginRatio', 'cumRealizedPnl', 'cumFee',
-        'cumFundingFee', 'liquidationPrice'].includes(key)
-    ) {
-      if (key === 'marginRatio') {
-        return formatPercent((position as any)[key]);
-      }
-      return formatNumber((position as any)[key]);
-    }
-    if (['createdAt', 'updatedAt', 'closedAt'].includes(key)) {
-      return formatDateTime((position as any)[key]);
-    }
-    return (position as any)[key] ?? '-';
-  };
-  const isPositionFieldHighlighted = (position: PositionResponse, key: string) => {
-    const changedFields = positionChangedFieldsRef.current.get(String(position.positionId));
-    return Boolean(changedFields && changedFields.has(key));
+    return v ?? '-';
   };
 
-  const positionEventColumns = [
-    { key: 'eventId', label: 'Event ID' },
-    { key: 'sequenceNumber', label: 'Seq' },
-    { key: 'eventType', label: 'Event Type' },
-    { key: 'referenceType', label: 'Reference Type' },
-    { key: 'referenceId', label: 'Reference ID' },
-    { key: 'occurredAt', label: 'Occurred Time' },
-    { key: 'createdAt', label: 'Created Time' },
-  ];
-  const positionPayloadOrder = columns.map((column) => column.key);
-  const positionPayloadIgnoredKeys = new Set(['userId', 'positionId']);
-
-  const parseOrderPayload = (payload?: string | null) => {
-    if (!payload) {
-      return null;
+  const renderOrderCellValue = (o: any, k: string) => {
+    const v = o[k];
+    if (v === null) return 'Removed';
+    if (k === 'instrumentId') return instrumentMap.get(String(v)) || String(v);
+    if (['price', 'quantity', 'filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee'].includes(k)) return formatNumber(v);
+    if (['createdAt', 'updatedAt'].includes(k)) {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? String(v) : `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
     }
-    try {
-      const parsed = JSON.parse(payload);
-      if (parsed && typeof parsed === 'object') {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      return null;
-    }
-    return null;
+    return v ?? '-';
   };
 
-  const parsePositionPayload = (payload?: string | null) => {
-    if (!payload) {
-      return null;
-    }
-    try {
-      const parsed = JSON.parse(payload);
-      if (parsed && typeof parsed === 'object') {
-        return parsed as Record<string, unknown>;
-      }
-    } catch {
-      return null;
-    }
-    return null;
-  };
-
-  const collectOrderPayloadKeys = (
-    entries: Array<{ payload: Record<string, unknown> | null }>
-  ) => {
-    const payloadKeys = new Set<string>();
-    entries.forEach((entry) => {
-      if (!entry.payload) {
-        return;
-      }
-      Object.keys(entry.payload).forEach((key) => payloadKeys.add(key));
-    });
-    const ordered: string[] = [];
-    const seen = new Set<string>();
-    orderPayloadOrder.forEach((key) => {
-      if (payloadKeys.has(key)) {
-        ordered.push(key);
-        seen.add(key);
-      }
-    });
-    entries.forEach((entry) => {
-      if (!entry.payload) {
-        return;
-      }
-      Object.keys(entry.payload).forEach((key) => {
-        if (!seen.has(key)) {
-          ordered.push(key);
-          seen.add(key);
-        }
-      });
-    });
-    return ordered;
-  };
-
-  const collectPositionPayloadKeys = (
-    entries: Array<{ payload: Record<string, unknown> | null }>
-  ) => {
-    const payloadKeys = new Set<string>();
-    entries.forEach((entry) => {
-      if (!entry.payload) {
-        return;
-      }
-      Object.keys(entry.payload).forEach((key) => {
-        if (!positionPayloadIgnoredKeys.has(key)) {
-          payloadKeys.add(key);
-        }
-      });
-    });
-    const ordered: string[] = [];
-    const seen = new Set<string>();
-    positionPayloadOrder.forEach((key) => {
-      if (payloadKeys.has(key)) {
-        ordered.push(key);
-        seen.add(key);
-      }
-    });
-    entries.forEach((entry) => {
-      if (!entry.payload) {
-        return;
-      }
-      Object.keys(entry.payload).forEach((key) => {
-        if (positionPayloadIgnoredKeys.has(key)) {
-          return;
-        }
-        if (!seen.has(key)) {
-          ordered.push(key);
-          seen.add(key);
-        }
-      });
-    });
-    return ordered;
-  };
-
-  const formatOrderPayloadValue = (key: string, value: unknown) => {
-    if (value === null) {
-      return 'Removed';
-    }
-    if (value === undefined || value === '') {
-      return '-';
-    }
-    if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(key)) {
-      return formatDateTime(String(value));
-    }
-    return formatPayloadNumber(value);
-  };
-
-  const formatPositionPayloadValue = (key: string, value: unknown) => {
-    if (value === null) {
-      return 'Removed';
-    }
-    if (value === undefined || value === '') {
-      return '-';
-    }
-    if (['createdAt', 'updatedAt', 'closedAt'].includes(key)) {
-      return formatDateTime(String(value));
-    }
-    if (key === 'marginRatio') {
-      return formatPayloadPercent(value);
-    }
-    return formatPayloadNumber(value);
-  };
+  const parsePayload = (p?: string | null) => { if (!p) return null; try { return JSON.parse(p); } catch { return null; } };
 
   return (
-    <div className="flex flex-col overflow-hidden bg-white/5">
-      <div id="positions-tabs-bar" className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-        <div className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 p-1">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div id="positions-tabs-bar" className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/5">
+        <div className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/5 p-1">
           {['Positions', 'Orders', 'Traders'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                if (tab === 'Positions') {
-                  fetchPositions();
-                }
-                if (tab === 'Orders') {
-                  fetchOrders();
-                }
-                if (tab === 'Traders') {
-                  fetchInstrumentTrades();
-                }
-              }}
-              className={`px-3 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-wider transition-all ${
-                tab === activeTab
-                  ? 'bg-white text-slate-800 shadow-sm border border-white/80'
-                  : 'text-slate-500 border border-transparent hover:text-slate-700 hover:bg-white/30'
-              }`}
-            >
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${tab === activeTab ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white/20'}`}>
               {tab}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="p-4 overflow-x-auto">
+      <div className="flex-1 min-h-0 overflow-auto p-4">
         {activeTab === 'Positions' && (
-          <Tooltip
-            title={(
-              <div className="text-xs">
-                <div className="whitespace-nowrap font-bold mb-1">倉位系統說明</div>
-                <div className="whitespace-nowrap">倉位服務負責更新持有部位、均價與風險指標。</div>
-                <div className="whitespace-nowrap">採用 Event Sourcing 模式，所有變更皆有跡可循。</div>
-                <div className="whitespace-nowrap">浮動盈虧基於標記價格實時重算，強平價動態調整。</div>
-                <div className="h-px bg-white/20 my-1" />
-                <div className="whitespace-nowrap font-bold mb-1">Position System Explanation</div>
-                <div className="whitespace-nowrap">Updates holdings, average price, and risk metrics.</div>
-                <div className="whitespace-nowrap">Built on Event Sourcing; every change is traceable.</div>
-                <div className="whitespace-nowrap">Unrealized PnL and Liq. Price are updated in real-time.</div>
-              </div>
-            )}
-            placement="bottomLeft"
-            overlayClassName="liquid-tooltip"
-            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-          >
-            <div className="liquid-tooltip-trigger">
-              <table className="min-w-[2600px] w-full text-xs text-right text-slate-600">
+          <Tooltip title={<div className="text-xs font-bold">倉位系統 (Position System)</div>} placement="bottomLeft" classNames={{ root: 'liquid-tooltip' }}>
+            <div className="liquid-tooltip-trigger min-w-max">
+              <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
                 <thead>
-                  <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                    <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
-                    {columns.map((column) => (
-                      <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                        {column.label}
-                      </th>
-                    ))}
+                  <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
+                    <th className="py-2"></th>
+                    {columns.map(c => <th key={c.key} className="py-2 font-semibold">{c.label}</th>)}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
-                  {positions.length === 0 && (
-                    <tr>
-                      <td className="py-6 text-center text-slate-400 text-xs" colSpan={columns.length + 1}>
-                        {loading ? 'Loading...' : 'No positions'}
-                      </td>
-                    </tr>
-                  )}
-                  {positions.map((position) => {
-                    const isExpanded = expandedPositionId === position.positionId;
-                    const eventsForPosition = positionEvents[position.positionId] || [];
-                    const eventsLoading = positionEventsLoading[position.positionId];
-                    const eventPayloadEntries = eventsForPosition.map((event) => ({
-                      event,
-                      payload: parsePositionPayload(event.payload),
-                    }));
-                    const positionPayloadKeys = collectPositionPayloadKeys(eventPayloadEntries);
-                    return (
-                      <Fragment key={position.positionId}>
-                        <tr className="hover:bg-white/20 transition-colors">
-                          <td className="py-3 px-2 text-right">
-                            <button
-                              type="button"
-                              className="h-5 w-5 rounded-md border border-white/50 bg-white/30 text-[10px] text-slate-600 hover:bg-white/50"
-                              onClick={() => {
-                                const next = isExpanded ? null : position.positionId;
-                                setExpandedPositionId(next);
-                                if (!isExpanded) {
-                                  fetchPositionEvents(position.positionId);
-                                }
-                              }}
-                            >
-                              {isExpanded ? 'v' : '>'}
-                            </button>
+                <tbody className="divide-y divide-white/5">
+                  {positions.length === 0 ? <tr><td colSpan={columns.length+1} className="py-8 text-center text-slate-400">No positions</td></tr> : positions.map(p => (
+                    <Fragment key={p.positionId}>
+                      <tr className="hover:bg-white/10 transition-colors">
+                        <td className="py-2"><button onClick={() => togglePosition(p.positionId)} className="w-4 h-4 rounded border border-white/30 text-[10px]">{expandedPositionId === p.positionId ? 'v' : '>'}</button></td>
+                        {columns.map(c => {
+                          const changed = positionChangedFieldsRef.current.get(String(p.positionId))?.has(c.key);
+                          return <td key={c.key} className={`py-2 font-mono ${changed ? 'bg-rose-100/50 text-rose-900' : ''}`}>{renderCellValue(p, c.key)}</td>
+                        })}
+                      </tr>
+                      {expandedPositionId === p.positionId && (
+                        <tr>
+                          <td colSpan={columns.length + 1} className="p-2">
+                            <div className="bg-slate-50/50 rounded-xl p-3 border border-white/20">
+                              <div className="text-[9px] uppercase font-bold text-slate-400 mb-2">Position Events (Diff)</div>
+                              <table className="w-full text-[10px] text-right">
+                                <thead>
+                                  <tr className="text-slate-400 border-b border-white/10">
+                                    <th className="py-1">Seq</th><th className="py-1">Event</th><th className="py-1">Changes</th><th className="py-1">Time</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {positionEvents[p.positionId]?.map(e => {
+                                    const payload = parsePayload(e.payload);
+                                    return (
+                                      <tr key={e.eventId} className="border-b border-white/5">
+                                        <td className="py-1 font-mono">{e.sequenceNumber}</td>
+                                        <td className="py-1 text-slate-500">{e.eventType}</td>
+                                        <td className="py-1 font-mono text-[9px]">
+                                          <div className="flex flex-wrap gap-x-2 justify-end">
+                                            {payload && Object.entries(payload).map(([k, v]) => (
+                                              <span key={k} className="text-slate-700 bg-white/40 px-1 rounded">{k}: {formatPayloadValue(k, v)}</span>
+                                            ))}
+                                          </div>
+                                        </td>
+                                        <td className="py-1 text-slate-400">{formatPayloadValue('occurredAt', e.occurredAt)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
                           </td>
-                          {columns.map((column) => {
-                            const value = renderCellValue(position, column.key);
-                            const isPnl = column.key === 'unrealizedPnl' || column.key === 'cumRealizedPnl';
-                            const isFee = column.key === 'cumFee' || column.key === 'cumFundingFee';
-                            const isTag = column.key === 'side' || column.key === 'status';
-                            const sideValue = column.key === 'side' ? String(value).toUpperCase() : '';
-                            const pnlValue = isPnl ? Number((position as any)[column.key] || 0) : 0;
-                            const pnlClass = isPnl ? (pnlValue >= 0 ? 'text-emerald-600' : 'text-rose-500') : '';
-                            const feeClass = isFee ? 'text-rose-500' : '';
-                            const highlightClass = isPositionFieldHighlighted(position, column.key)
-                              ? 'bg-rose-100/70 text-rose-900'
-                              : '';
-                            const cellClass = [feeClass || pnlClass, highlightClass].filter(Boolean).join(' ');
-                            const tagBaseClass =
-                              'inline-flex items-center justify-center text-[10px] uppercase font-semibold tracking-wider rounded-md px-1.5 py-0.5 border';
-                            const sideTagClass =
-                              sideValue === 'LONG'
-                                ? 'text-emerald-700 bg-emerald-400/20 border-emerald-400/40'
-                                : sideValue === 'SHORT'
-                                  ? 'text-rose-700 bg-rose-400/20 border-rose-400/40'
-                                  : 'text-slate-600 bg-white/40 border-white/50';
-                            const statusTagClass = 'text-slate-600 bg-white/40 border-white/50';
-                            const cellContent = isTag ? (
-                              <span className={`${tagBaseClass} ${column.key === 'side' ? sideTagClass : statusTagClass}`}>
-                                {String(value)}
-                              </span>
-                            ) : (
-                              value
-                            );
-                            return (
-                              <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
-                                {cellContent}
-                              </td>
-                            );
-                          })}
                         </tr>
-                        {isExpanded && (
-                          <tr>
-                            <td className="py-3 px-2" colSpan={columns.length + 1}>
-                              <div className="rounded-xl border border-white/40 bg-white/20 p-3">
-                                <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
-                                  Position Events
-                                </div>
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-[1600px] w-full text-[11px] text-right text-slate-600">
-                                    <thead>
-                                      <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                                        {positionEventColumns.map((column) => (
-                                          <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                                            {column.label}
-                                          </th>
-                                        ))}
-                                        {positionPayloadKeys.map((key) => (
-                                          <th
-                                            key={key}
-                                            className="py-2 px-2 font-semibold text-right whitespace-nowrap normal-case"
-                                          >
-                                            {key}
-                                          </th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/10">
-                                      {eventsForPosition.length === 0 && (
-                                        <tr>
-                                          <td
-                                            className="py-4 text-center text-slate-400 text-xs"
-                                            colSpan={positionEventColumns.length + positionPayloadKeys.length}
-                                          >
-                                            {eventsLoading ? 'Loading...' : 'No events'}
-                                          </td>
-                                        </tr>
-                                      )}
-                                      {eventsForPosition.map((event, index) => (
-                                        <tr key={event.eventId}>
-                                          {positionEventColumns.map((column) => {
-                                            let value: string | number | null | undefined = (event as any)[column.key];
-                                            if (column.key === 'occurredAt' || column.key === 'createdAt') {
-                                              value = formatDateTime(value);
-                                            }
-                                            return (
-                                              <td key={column.key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
-                                                {value === null || value === undefined || value === '' ? '-' : String(value)}
-                                              </td>
-                                            );
-                                          })}
-                                          {positionPayloadKeys.map((key) => {
-                                            const payload = eventPayloadEntries[index]?.payload;
-                                            const value = payload ? payload[key] : undefined;
-                                            return (
-                                              <td key={key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
-                                                {formatPositionPayloadValue(key, value)}
-                                              </td>
-                                            );
-                                          })}
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Tooltip>
-        )}
-        {activeTab === 'Orders' && (
-          <Tooltip
-            title={(
-              <div className="text-xs">
-                <div className="whitespace-nowrap font-bold mb-1">訂單系統說明</div>
-                <div className="whitespace-nowrap">訂單服務負責委託建檔、風控預檢與資產凍結。</div>
-                <div className="whitespace-nowrap">成交數據通過消費撮合引擎發布的 Kafka 事件實時更新。</div>
-                <div className="whitespace-nowrap">變更部分會以高亮標示，方便追蹤交易動態。</div>
-                <div className="h-px bg-white/20 my-1" />
-                <div className="whitespace-nowrap font-bold mb-1">Order System Explanation</div>
-                <div className="whitespace-nowrap">Handles order creation, risk pre-check, and funds freezing.</div>
-                <div className="whitespace-nowrap">Trade data is updated in real-time via Kafka events from the engine.</div>
-                <div className="whitespace-nowrap">Changes are highlighted to facilitate trade tracking.</div>
-              </div>
-            )}
-            placement="bottomLeft"
-            overlayClassName="liquid-tooltip"
-            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-          >
-            <div className="liquid-tooltip-trigger">
-              <table className="min-w-[2400px] w-full text-xs text-right text-slate-600">
-                <thead>
-                  <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                    <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
-                    {orderColumns.map((column) => (
-                      <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                        {column.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10">
-                  {orders.length === 0 && (
-                    <tr>
-                      <td className="py-6 text-center text-slate-400 text-xs" colSpan={orderColumns.length + 1}>
-                        {ordersLoading ? 'Loading...' : 'No orders'}
-                      </td>
-                    </tr>
-                  )}
-                  {orders.map((order) => {
-                    const isExpanded = expandedOrderId === order.orderId;
-                    const tradesForOrder = orderTrades[order.orderId] || [];
-                    const orderEventsForOrder = orderEvents[order.orderId] || [];
-                    const eventsLoading = orderEventsLoading[order.orderId];
-                    const orderEventPayloadEntries = orderEventsForOrder.map((event) => ({
-                      event,
-                      payload: parseOrderPayload(event.payload),
-                    }));
-                    const orderPayloadKeys = collectOrderPayloadKeys(orderEventPayloadEntries);
-                    const tradeSummary = tradesForOrder.reduce(
-                      (acc, trade) => {
-                        const isMakerForOrder =
-                          trade.orderId != null &&
-                          order.orderId != null &&
-                          String(trade.orderId) === String(order.orderId);
-                        const isTakerForOrder =
-                          trade.counterpartyOrderId != null &&
-                          order.orderId != null &&
-                          String(trade.counterpartyOrderId) === String(order.orderId);
-                        if (!isMakerForOrder && !isTakerForOrder) {
-                          return acc;
-                        }
-                        const priceValue = Number(trade.price);
-                        const quantityValue = Number(trade.quantity);
-                        const contractSize = resolveContractSize(trade.instrumentId ?? order.instrumentId);
-                        if (Number.isFinite(priceValue) && Number.isFinite(quantityValue)) {
-                          acc.fillTotal += priceValue * quantityValue * contractSize;
-                          acc.quantityTotal += quantityValue * contractSize;
-                        }
-                        const feeValue = Number(isMakerForOrder ? trade.makerFee : trade.takerFee);
-                        if (Number.isFinite(feeValue)) {
-                          acc.feeTotal += feeValue;
-                        }
-                        acc.matchedCount += 1;
-                        return acc;
-                      },
-                      { fillTotal: 0, feeTotal: 0, matchedCount: 0, quantityTotal: 0 }
-                    );
-                    const hasTradeSummary = tradeSummary.matchedCount > 0;
-                    const averageFillPrice =
-                      tradeSummary.quantityTotal > 0
-                        ? tradeSummary.fillTotal / tradeSummary.quantityTotal
-                        : null;
-                    const remainingQuantityValue = Number(order.remainingQuantity);
-                    const orderPriceValue = Number(order.price);
-                    const orderContractSize = resolveContractSize(order.instrumentId);
-                    const orderTakerFeeRate = resolveTakerFeeRate(order.instrumentId);
-                    const initialMarginRateValue = Number(orderRiskLimit?.initialMarginRate);
-                    const initialMarginRate =
-                      Number.isFinite(initialMarginRateValue) ? initialMarginRateValue : 1;
-                    const orderNotionalValue =
-                      Number.isFinite(remainingQuantityValue) && Number.isFinite(orderPriceValue)
-                        ? remainingQuantityValue * orderPriceValue * orderContractSize
-                        : null;
-                    const reservedValue =
-                      isOrderOpening(order) && orderNotionalValue !== null
-                        ? orderNotionalValue * initialMarginRate
-                        : null;
-                    const reservedFeeValue =
-                      isOrderOpening(order) && orderNotionalValue !== null && Number.isFinite(orderTakerFeeRate)
-                        ? orderNotionalValue * orderTakerFeeRate
-                        : null;
-                    return (
-                      <Fragment key={order.orderId}>
-                        <tr className="hover:bg-white/20 transition-colors">
-                          <td className="py-3 px-2 text-right">
-                            <button
-                              type="button"
-                              className="h-5 w-5 rounded-md border border-white/50 bg-white/30 text-[10px] text-slate-600 hover:bg-white/50"
-                              onClick={() => {
-                                const next = isExpanded ? null : order.orderId;
-                                setExpandedOrderId(next);
-                                if (!isExpanded) {
-                                  fetchTrades(order.orderId);
-                                  fetchOrderEvents(order.orderId);
-                                }
-                              }}
-                            >
-                              {isExpanded ? 'v' : '>'}
-                            </button>
-                          </td>
-                          {orderColumns.map((column) => {
-                            const value = renderOrderCellValue(order, column.key);
-                            const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
-                            const tagClass =
-                              'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
-                            const cellClass = isOrderFieldHighlighted(order, column.key) ? 'bg-rose-100/70 text-rose-900' : '';
-                            return (
-                              <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
-                                {isTag ? <span className={tagClass}>{String(value)}</span> : value}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                        {isExpanded && (
-                          <tr>
-                            <td className="py-3 px-2" colSpan={orderColumns.length + 1}>
-                              <div className="rounded-xl border border-white/40 bg-white/20 p-3">
-                                <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
-                                  Order Events
-                                </div>
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-[1600px] w-full text-[11px] text-right text-slate-600">
-                                    <thead>
-                                      <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                                        {orderEventColumns.map((column) => (
-                                          <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                                            {column.label}
-                                          </th>
-                                        ))}
-                                        {orderPayloadKeys.map((key) => (
-                                          <th
-                                            key={key}
-                                            className="py-2 px-2 font-semibold text-right whitespace-nowrap normal-case"
-                                          >
-                                            {key}
-                                          </th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/10">
-                                      {orderEventsForOrder.length === 0 && (
-                                        <tr>
-                                          <td
-                                            className="py-4 text-center text-slate-400 text-xs"
-                                            colSpan={orderEventColumns.length + orderPayloadKeys.length}
-                                          >
-                                            {eventsLoading ? 'Loading...' : 'No events'}
-                                          </td>
-                                        </tr>
-                                      )}
-                                      {orderEventsForOrder.map((event, index) => (
-                                        <tr key={event.eventId}>
-                                          {orderEventColumns.map((column) => {
-                                            let value: string | number | null | undefined = (event as any)[column.key];
-                                            if (column.key === 'occurredAt' || column.key === 'createdAt') {
-                                              value = formatDateTime(value);
-                                            }
-                                            return (
-                                              <td
-                                                key={column.key}
-                                                className="py-2 px-2 font-mono whitespace-nowrap text-right"
-                                              >
-                                                {value === null || value === undefined || value === '' ? '-' : String(value)}
-                                              </td>
-                                            );
-                                          })}
-                                          {orderPayloadKeys.map((key) => {
-                                            const payload = orderEventPayloadEntries[index]?.payload;
-                                            const value = payload ? payload[key] : undefined;
-                                            return (
-                                              <td key={key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
-                                                {formatOrderPayloadValue(key, value)}
-                                              </td>
-                                            );
-                                          })}
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                                <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left space-y-0.5">
-                                  <div>
-                                    Total Fill Price: {hasTradeSummary ? formatNumber(tradeSummary.fillTotal) : '-'}
-                                    <span className="ml-2 font-normal opacity-60">(Σ Price * Qty * Mult)</span>
-                                  </div>
-                                  <div>
-                                    Average Fill Price: {hasTradeSummary ? formatNumber(averageFillPrice) : '-'}
-                                    <span className="ml-2 font-normal opacity-60">(Total Fill Price / Total Filled Qty)</span>
-                                  </div>
-                                  <div>
-                                    Total Fee: {hasTradeSummary ? formatNumber(tradeSummary.feeTotal) : '-'}
-                                    <span className="ml-2 font-normal opacity-60">(Σ Trade Fee)</span>
-                                  </div>
-                                  <div>
-                                    Reserved Balance: {reservedValue !== null ? formatNumber(reservedValue) : '-'}
-                                    <span className="ml-2 font-normal opacity-60">(Remaining Qty * Price * Mult * Initial Margin Rate)</span>
-                                  </div>
-                                  <div>
-                                    Reserved Fee: {reservedFeeValue !== null ? formatNumber(reservedFeeValue) : '-'}
-                                    <span className="ml-2 font-normal opacity-60">(Remaining Qty * Price * Mult * Taker Fee Rate)</span>
-                                  </div>
-                                </div>
-                                <div className="mb-2 mt-4 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
-                                  Trades
-                                </div>
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-[2000px] w-full text-[11px] text-right text-slate-600">
-                                    <thead>
-                                      <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                                        {tradeColumns.map((column) => (
-                                          <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                                            {column.label}
-                                          </th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/10">
-                                      {tradesForOrder.length === 0 && (
-                                        <tr>
-                                          <td className="py-4 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
-                                            {tradesLoading[order.orderId] ? 'Loading...' : 'No trades'}
-                                          </td>
-                                        </tr>
-                                      )}
-                                      {tradesForOrder.map((trade) => (
-                                        <tr key={trade.tradeId}>
-                                          {tradeColumns.map((column) => {
-                                            const isTakerForOrder =
-                                              trade.counterpartyOrderId != null &&
-                                              order.orderId != null &&
-                                              String(trade.counterpartyOrderId) === String(order.orderId);
-                                            const isMakerForOrder =
-                                              trade.orderId != null &&
-                                              order.orderId != null &&
-                                              String(trade.orderId) === String(order.orderId);
-                                            const shouldHighlight =
-                                              (isTakerForOrder && takerHighlightKeys.has(column.key)) ||
-                                              (isMakerForOrder && makerHighlightKeys.has(column.key));
-                                            const cellClass = shouldHighlight ? 'bg-amber-100/70 text-amber-900' : '';
-                                            return (
-                                              <td
-                                                key={column.key}
-                                                className={`py-2 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}
-                                              >
-                                                {renderTradeCellValue(trade, column.key)}
-                                              </td>
-                                            );
-                                          })}
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left space-y-0.5">
-                <div>
-                  Total Fee: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
-                  <span className="ml-2 font-normal opacity-60">(Σ all non-rejected orders fee)</span>
-                </div>
-                <div>
-                  Reserved Balance: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
-                  <span className="ml-2 font-normal opacity-60">(Σ all opening orders reserved margin)</span>
-                </div>
-                <div>
-                  Reserved Fee: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
-                  <span className="ml-2 font-normal opacity-60">(Σ all opening orders reserved fee)</span>
-                </div>
-              </div>
-            </div>
-          </Tooltip>
-        )}
-        {activeTab === 'Traders' && (
-          <div>
-            <table className="min-w-[2000px] w-full text-xs text-right text-slate-600">
-              <thead>
-                <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                  {tradeColumns.map((column) => (
-                    <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                      {column.label}
-                    </th>
+                      )}
+                    </Fragment>
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {instrumentTrades.length === 0 && (
-                  <tr>
-                    <td className="py-6 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
-                      {instrumentTradesLoading ? 'Loading...' : 'No trades'}
-                    </td>
+                </tbody>
+              </table>
+            </div>
+          </Tooltip>
+        )}
+
+        {activeTab === 'Orders' && (
+          <Tooltip title={<div className="text-xs font-bold">訂單系統 (Order System)</div>} placement="bottomLeft" classNames={{ root: 'liquid-tooltip' }}>
+            <div className="liquid-tooltip-trigger min-w-max">
+              <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
+                <thead>
+                  <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
+                    <th className="py-2"></th>
+                    {orderColumns.map(c => <th key={c.key} className="py-2 font-semibold">{c.label}</th>)}
                   </tr>
-                )}
-                {instrumentTrades.map((trade) => (
-                  <tr key={trade.tradeId} className="hover:bg-white/20 transition-colors">
-                    {tradeColumns.map((column) => {
-                      const isMakerForUser =
-                        currentUserId != null &&
-                        trade.makerUserId != null &&
-                        String(trade.makerUserId) === currentUserId;
-                      const isTakerForUser =
-                        currentUserId != null &&
-                        trade.takerUserId != null &&
-                        String(trade.takerUserId) === currentUserId;
-                      const makerHighlight = isMakerForUser && makerHighlightKeys.has(column.key);
-                      const takerHighlight = isTakerForUser && takerHighlightKeys.has(column.key);
-                      const cellClass = makerHighlight
-                        ? 'bg-rose-100/70 text-rose-900'
-                        : takerHighlight
-                          ? 'bg-amber-100/70 text-amber-900'
-                          : '';
-                      return (
-                        <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
-                          {renderTradeCellValue(trade, column.key)}
-                        </td>
-                      );
-                    })}
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {orders.length === 0 ? <tr><td colSpan={orderColumns.length+1} className="py-8 text-center text-slate-400">No orders</td></tr> : orders.map(o => (
+                    <Fragment key={o.orderId}>
+                      <tr className="hover:bg-white/10 transition-colors">
+                        <td className="py-2"><button onClick={() => toggleOrder(o.orderId)} className="w-4 h-4 rounded border border-white/30 text-[10px]">{expandedOrderId === o.orderId ? 'v' : '>'}</button></td>
+                        {orderColumns.map(c => {
+                          const changed = orderChangedFieldsRef.current.get(String(o.orderId))?.has(c.key);
+                          return <td key={c.key} className={`py-2 font-mono ${changed ? 'bg-rose-100/50 text-rose-900' : ''}`}>{renderOrderCellValue(o, c.key)}</td>
+                        })}
+                      </tr>
+                      {expandedOrderId === o.orderId && (
+                        <tr>
+                          <td colSpan={orderColumns.length + 1} className="p-2">
+                            <div className="space-y-3">
+                              <div className="bg-slate-50/50 rounded-xl p-3 border border-white/20">
+                                <div className="text-[9px] uppercase font-bold text-slate-400 mb-2">Order Events</div>
+                                <table className="w-full text-[10px] text-right">
+                                  <thead><tr className="text-slate-400 border-b border-white/10"><th className="py-1">Seq</th><th className="py-1">Event</th><th className="py-1">Changes</th><th className="py-1">Time</th></tr></thead>
+                                  <tbody>
+                                    {orderEvents[o.orderId]?.map(e => (
+                                      <tr key={e.eventId} className="border-b border-white/5">
+                                        <td className="py-1 font-mono">{e.sequenceNumber}</td>
+                                        <td className="py-1 text-slate-500">{e.eventType}</td>
+                                        <td className="py-1 font-mono text-[9px]">
+                                          <div className="flex flex-wrap gap-x-2 justify-end">
+                                            {Object.entries(parsePayload(e.payload) || {}).map(([k, v]) => (
+                                              <span key={k} className="text-slate-700 bg-white/40 px-1 rounded">{k}: {formatPayloadValue(k, v)}</span>
+                                            ))}
+                                          </div>
+                                        </td>
+                                        <td className="py-1 text-slate-400">{formatPayloadValue('occurredAt', e.occurredAt)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              <div className="bg-amber-50/30 rounded-xl p-3 border border-amber-200/20">
+                                <div className="text-[9px] uppercase font-bold text-amber-600/60 mb-2">Fills / Trades</div>
+                                <table className="w-full text-[10px] text-right">
+                                  <thead><tr className="text-amber-600/40 border-b border-amber-200/10"><th className="py-1">Trade ID</th><th className="py-1">Price</th><th className="py-1">Qty</th><th className="py-1">Fee</th><th className="py-1">Time</th></tr></thead>
+                                  <tbody>
+                                    {orderTrades[o.orderId]?.map(t => (
+                                      <tr key={t.tradeId} className="border-b border-amber-200/5">
+                                        <td className="py-1 font-mono">{t.tradeId}</td>
+                                        <td className="py-1 font-mono">{formatNumber(t.price)}</td>
+                                        <td className="py-1 font-mono">{formatNumber(t.quantity)}</td>
+                                        <td className="py-1 font-mono text-rose-500">{formatNumber(t.takerUserId === Number(currentUserId) ? t.takerFee : t.makerFee)}</td>
+                                        <td className="py-1 text-slate-400">{formatPayloadValue('executedAt', t.executedAt)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Tooltip>
+        )}
+
+        {activeTab === 'Traders' && (
+          <div className="min-w-max">
+            <table className="w-full text-xs text-right text-slate-600 border-separate border-spacing-x-2">
+              <thead><tr className="text-[10px] uppercase text-slate-400 border-b border-white/10"><th className="py-2">Price</th><th className="py-2">Qty</th><th className="py-2">Time</th></tr></thead>
+              <tbody className="divide-y divide-white/5">
+                {instrumentTrades.length === 0 ? <tr><td colSpan={3} className="py-8 text-center text-slate-400">No trades</td></tr> : instrumentTrades.map(t => (
+                  <tr key={t.tradeId} className="hover:bg-white/10">
+                    <td className="py-2 font-mono">{formatNumber(t.price)}</td>
+                    <td className="py-2 font-mono">{formatNumber(t.quantity)}</td>
+                    <td className="py-2 font-mono text-slate-400">{formatDateTime(t.executedAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left">
-              Total Buy Value: {instrumentTrades.length ? formatNumber(tradersSummary.buyTotal) : '-'}
-              <br />
-              Total Sell Value: {instrumentTrades.length ? formatNumber(tradersSummary.sellTotal) : '-'}
-              <br />
-              Total Fee: {instrumentTrades.length ? formatNumber(tradersSummary.totalFee) : '-'}
-            </div>
           </div>
         )}
       </div>
     </div>
   );
+
+  function togglePosition(id: number) {
+    if (expandedPositionId === id) { setExpandedPositionId(null); return; }
+    setExpandedPositionId(id);
+    if (!positionEvents[id]) {
+      setPositionEventsLoading(v => ({...v, [id]: true}));
+      getPositionEvents(id).then(res => { if(String(res?.code)==='0') setPositionEvents(v => ({...v, [id]: res.data?.events || []})); }).finally(() => setPositionEventsLoading(v => ({...v, [id]: false})));
+    }
+  }
+
+  function toggleOrder(id: number) {
+    if (expandedOrderId === id) { setExpandedOrderId(null); return; }
+    setExpandedOrderId(id);
+    if (!orderEvents[id]) {
+      setOrderEventsLoading(v => ({...v, [id]: true}));
+      getOrderEvents(id).then(res => { if(String(res?.code)==='0') setOrderEvents(v => ({...v, [id]: res.data?.events || []})); }).finally(() => setOrderEventsLoading(v => ({...v, [id]: false})));
+      getTradesByOrderId(id).then(res => { if(String(res?.code)==='0') setOrderTrades(v => ({...v, [id]: res.data || []})); });
+    }
+  }
 }

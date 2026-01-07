@@ -4,12 +4,14 @@ import { createOrder, type OrderSide, type OrderType } from '../../api/order';
 import type { InstrumentSummary } from '../../api/instrument';
 import { getRiskLimit, type RiskLimitResponse } from '../../api/risk';
 
-interface TradeFormProps {
+type TradeFormProps = {
   instrument: InstrumentSummary | null;
-  onOrderPlaced?: () => void;
-}
+  onOrderCreated?: () => void;
+  refreshTrigger?: number;
+  isPaused?: boolean;
+};
 
-export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps) {
+export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, isPaused }: TradeFormProps) {
   const [side, setSide] = useState<OrderSide>('BUY');
   const [type, setType] = useState<OrderType>('LIMIT');
   const [price, setPrice] = useState<string>('');
@@ -26,7 +28,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
   }, [instrument?.instrumentId]);
   useEffect(() => {
     let cancelled = false;
-    if (!instrument?.instrumentId) {
+    if (!instrument?.instrumentId || isPaused) {
       setRiskLimit(null);
       return () => {
         cancelled = true;
@@ -52,7 +54,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
     return () => {
       cancelled = true;
     };
-  }, [instrument?.instrumentId]);
+  }, [instrument?.instrumentId, isPaused, refreshTrigger]);
 
   const handleSubmit = async () => {
     if (!instrument?.instrumentId) {
@@ -83,7 +85,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
         alert(`Error: ${result?.message || 'Failed to place order'}`);
         return;
       }
-      onOrderPlaced?.();
+      onOrderCreated?.();
       alert('Order placed successfully!');
     } catch (error: any) {
       console.error('Order creation failed:', error);
@@ -197,7 +199,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
             </div>
           )}
           placement="bottomLeft"
-          overlayClassName="liquid-tooltip"
+          classNames={{ root: 'liquid-tooltip' }}
           styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           open={amountTooltipHovered || amountTooltipFocused}
         >
@@ -264,7 +266,7 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
                   </div>
                 )}
                 placement="bottomRight"
-                overlayClassName="liquid-tooltip"
+                classNames={{ root: 'liquid-tooltip' }}
                 styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
               >
                 <span className="liquid-tooltip-trigger text-slate-700 font-medium cursor-help border-b border-dotted border-slate-400">

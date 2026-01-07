@@ -101,6 +101,7 @@ export type PlatformJournalItem = {
   balanceAfter: string;
   referenceType: string;
   referenceId: string;
+  seq: number;
   description: string | null;
   eventTime: string;
   createdAt: string | null;
