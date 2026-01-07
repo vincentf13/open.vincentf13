@@ -252,29 +252,36 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                       {expandedPositionId === p.positionId && (
                         <tr>
                           <td colSpan={columns.length + 1} className="p-2">
-                            <div className="bg-slate-50/50 rounded-xl p-3 border border-white/20">
-                              <div className="text-[9px] uppercase font-bold text-slate-400 mb-2">Position Events (Diff)</div>
-                              <table className="w-full text-[10px] text-right">
+                            <div className="bg-slate-50/30 rounded-xl p-3 border border-white/20 overflow-x-auto">
+                              <div className="text-[9px] uppercase font-bold text-slate-400 mb-2 text-left">Position Events (Diff)</div>
+                              <table className="w-full text-[10px] text-left border-separate border-spacing-x-0">
                                 <thead>
-                                  <tr className="text-slate-400 border-b border-white/10">
-                                    <th className="py-1">Seq</th><th className="py-1">Event</th><th className="py-1">Changes</th><th className="py-1">Time</th>
+                                  <tr className="text-slate-500">
+                                    <th className="py-1 px-2 whitespace-nowrap font-bold">Seq</th>
+                                    <th className="py-1 px-2 whitespace-nowrap font-bold">Event</th>
+                                    {columns.map((c, i) => (
+                                      <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-50/40 ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
+                                    ))}
+                                    <th className="py-1 px-2 whitespace-nowrap font-bold">Time</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {positionEvents[p.positionId]?.map(e => {
-                                    const payload = parsePayload(e.payload);
+                                    const payload = parsePayload(e.payload) || {};
                                     return (
-                                      <tr key={e.eventId} className="border-b border-white/5">
-                                        <td className="py-1 font-mono">{e.sequenceNumber}</td>
-                                        <td className="py-1 text-slate-500">{e.eventType}</td>
-                                        <td className="py-1 font-mono text-[9px]">
-                                          <div className="flex flex-wrap gap-x-2 justify-end">
-                                            {payload && Object.entries(payload).map(([k, v]) => (
-                                              <span key={k} className="text-slate-700 bg-white/40 px-1 rounded">{k}: {formatPayloadValue(k, v)}</span>
-                                            ))}
-                                          </div>
-                                        </td>
-                                        <td className="py-1 text-slate-400">{formatPayloadValue('occurredAt', e.occurredAt)}</td>
+                                      <tr key={e.eventId} className="hover:bg-white/5">
+                                        <td className="py-1 px-2 font-mono text-slate-400">{e.sequenceNumber}</td>
+                                        <td className="py-1 px-2 text-slate-500 font-medium">{e.eventType}</td>
+                                        {columns.map((c, i) => {
+                                          const val = payload[c.key];
+                                          const hasValue = val !== undefined && val !== null;
+                                          return (
+                                            <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-50/40 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>
+                                              {hasValue ? renderCellValue(payload, c.key) : '-'}
+                                            </td>
+                                          );
+                                        })}
+                                        <td className="py-1 px-2 text-slate-400 whitespace-nowrap">{formatPayloadValue('occurredAt', e.occurredAt)}</td>
                                       </tr>
                                     );
                                   })}
@@ -314,25 +321,39 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                         <tr>
                           <td colSpan={orderColumns.length + 1} className="p-2">
                             <div className="space-y-3">
-                              <div className="bg-slate-50/50 rounded-xl p-3 border border-white/20">
-                                <div className="text-[9px] uppercase font-bold text-slate-400 mb-2">Order Events</div>
-                                <table className="w-full text-[10px] text-right">
-                                  <thead><tr className="text-slate-400 border-b border-white/10"><th className="py-1">Seq</th><th className="py-1">Event</th><th className="py-1">Changes</th><th className="py-1">Time</th></tr></thead>
+                              <div className="bg-slate-50/30 rounded-xl p-3 border border-white/20 overflow-x-auto">
+                                <div className="text-[9px] uppercase font-bold text-slate-400 mb-2 text-left">Order Events</div>
+                                <table className="w-full text-[10px] text-left border-separate border-spacing-x-0">
+                                  <thead>
+                                    <tr className="text-slate-500">
+                                      <th className="py-1 px-2 whitespace-nowrap font-bold">Seq</th>
+                                      <th className="py-1 px-2 whitespace-nowrap font-bold">Event</th>
+                                      {orderColumns.map((c, i) => (
+                                        <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-100/50 ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
+                                      ))}
+                                      <th className="py-1 px-2 whitespace-nowrap font-bold">Time</th>
+                                    </tr>
+                                  </thead>
                                   <tbody>
-                                    {orderEvents[o.orderId]?.map(e => (
-                                      <tr key={e.eventId} className="border-b border-white/5">
-                                        <td className="py-1 font-mono">{e.sequenceNumber}</td>
-                                        <td className="py-1 text-slate-500">{e.eventType}</td>
-                                        <td className="py-1 font-mono text-[9px]">
-                                          <div className="flex flex-wrap gap-x-2 justify-end">
-                                            {Object.entries(parsePayload(e.payload) || {}).map(([k, v]) => (
-                                              <span key={k} className="text-slate-700 bg-white/40 px-1 rounded">{k}: {formatPayloadValue(k, v)}</span>
-                                            ))}
-                                          </div>
-                                        </td>
-                                        <td className="py-1 text-slate-400">{formatPayloadValue('occurredAt', e.occurredAt)}</td>
-                                      </tr>
-                                    ))}
+                                    {orderEvents[o.orderId]?.map(e => {
+                                      const payload = parsePayload(e.payload) || {};
+                                      return (
+                                        <tr key={e.eventId} className="hover:bg-white/5">
+                                          <td className="py-1 px-2 font-mono text-slate-400">{e.sequenceNumber}</td>
+                                          <td className="py-1 px-2 text-slate-500 font-medium">{e.eventType}</td>
+                                          {orderColumns.map((c, i) => {
+                                            const val = payload[c.key];
+                                            const hasValue = val !== undefined && val !== null;
+                                            return (
+                                              <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-50/40 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>
+                                                {hasValue ? renderOrderCellValue(payload, c.key) : '-'}
+                                              </td>
+                                            );
+                                          })}
+                                          <td className="py-1 px-2 text-slate-400 whitespace-nowrap">{formatPayloadValue('occurredAt', e.occurredAt)}</td>
+                                        </tr>
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
                               </div>
@@ -407,10 +428,27 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   function togglePosition(id: number) {
     if (expandedPositionId === id) { setExpandedPositionId(null); return; }
     setExpandedPositionId(id);
+    if (!positionEvents[id]) {
+        setPositionEventsLoading(v => ({...v, [id]: true}));
+        getPositionEvents(id).then(res => {
+            if (String(res?.code) === '0') {
+                setPositionEvents(v => ({...v, [id]: res.data?.events || []}));
+            }
+        }).finally(() => setPositionEventsLoading(v => ({...v, [id]: false})));
+    }
   }
 
   function toggleOrder(id: number) {
     if (expandedOrderId === id) { setExpandedOrderId(null); return; }
     setExpandedOrderId(id);
+    if (!orderEvents[id]) {
+        setOrderEventsLoading(v => ({...v, [id]: true}));
+        getOrderEvents(id).then(res => {
+            if (String(res?.code) === '0') {
+                setOrderEvents(v => ({...v, [id]: res.data?.events || []}));
+            }
+        }).finally(() => setOrderEventsLoading(v => ({...v, [id]: false})));
+        getTradesByOrderId(id).then(res => { if(String(res?.code)==='0') setOrderTrades(v => ({...v, [id]: res.data || []})); });
+    }
   }
 }
