@@ -546,30 +546,32 @@ export default function Chart({ instrumentId, refreshTrigger }: ChartProps) {
               >
                 Candle
               </button>
+              <Tooltip
+                title={(
+                  <div className="text-xs">
+                    <div className="whitespace-nowrap font-bold mb-1">K 線圖交互說明</div>
+                    <div className="whitespace-nowrap">按住左鍵左右與上下移動，可以調整時間與價格密度。</div>
+                    <div className="whitespace-nowrap">數據來源：行情服務通過消費撮合引擎發布的 WAL 事件生成。</div>
+                    <div className="h-px bg-white/20 my-1" />
+                    <div className="whitespace-nowrap font-bold mb-1">K-Line Chart Interaction</div>
+                    <div className="whitespace-nowrap">Hold left click and drag to adjust time and price density.</div>
+                    <div className="whitespace-nowrap">Source: Market service generates data from matching engine WAL events.</div>
+                  </div>
+                )}
+                placement="bottomRight"
+                classNames={{ root: 'liquid-tooltip' }}
+                styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+              >
+                <div className="liquid-tooltip-trigger w-4 h-4 ml-1 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 cursor-help border border-slate-200">?</div>
+              </Tooltip>
             </div>
           </div>
         </div>
       </div>
 
-      <Tooltip
-        title={(
-          <div className="text-xs">
-            <div className="whitespace-nowrap font-bold mb-1">K 線圖交互說明</div>
-            <div className="whitespace-nowrap">按住左鍵左右與上下移動，可以調整時間與價格密度。</div>
-            <div className="whitespace-nowrap">數據來源：行情服務通過消費撮合引擎發布的 WAL 事件生成。</div>
-            <div className="h-px bg-white/20 my-1" />
-            <div className="whitespace-nowrap font-bold mb-1">K-Line Chart Interaction</div>
-            <div className="whitespace-nowrap">Hold left click and drag to adjust time and price density.</div>
-            <div className="whitespace-nowrap">Source: Market service generates data from matching engine WAL events.</div>
-          </div>
-        )}
-        placement="bottomLeft"
-        classNames={{ root: 'liquid-tooltip' }}
-        styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-      >
-        <div className="liquid-tooltip-trigger relative flex-1 w-full min-h-[320px] px-2 py-4">
-          <div
-            ref={chartContainerRef}
+      <div className="relative flex-1 w-full min-h-[320px] px-2 py-4">
+        <div
+          ref={chartContainerRef}
             className={`absolute inset-0 right-12 bottom-6 overscroll-contain ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}

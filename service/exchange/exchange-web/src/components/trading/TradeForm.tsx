@@ -17,8 +17,6 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
   const [price, setPrice] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [amountTooltipHovered, setAmountTooltipHovered] = useState(false);
-  const [amountTooltipFocused, setAmountTooltipFocused] = useState(false);
   const [riskLimit, setRiskLimit] = useState<RiskLimitResponse | null>(null);
 
   // Reset form when instrument changes
@@ -186,53 +184,50 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
         </div>
 
         {/* Quantity Input */}
-        <Tooltip
-          title={(
-            <div className="text-xs">
-              <div className="whitespace-nowrap font-bold mb-1">下單數量說明</div>
-              <div className="whitespace-nowrap">Amount / contract size 會是最終下單的 Quantity。</div>
-              <div className="whitespace-nowrap">用於提升系統內部浮點數運算效率。</div>
-              <div className="h-px bg-white/20 my-1" />
-              <div className="whitespace-nowrap font-bold mb-1">Order Quantity Explanation</div>
-              <div className="whitespace-nowrap">Amount / contract size results in the final order Quantity.</div>
-              <div className="whitespace-nowrap">Designed to improve internal floating-point calculation efficiency.</div>
-            </div>
-          )}
-          placement="bottomLeft"
-          classNames={{ root: 'liquid-tooltip' }}
-          styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-          open={amountTooltipHovered || amountTooltipFocused}
-        >
-          <div
-            className="liquid-tooltip-trigger space-y-1.5"
-            onMouseEnter={() => setAmountTooltipHovered(true)}
-            onMouseLeave={() => setAmountTooltipHovered(false)}
-          >
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Amount</label>
-              <div className="liquid-input-group border-slate-300">
-                  <input
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    onFocus={() => setAmountTooltipFocused(true)}
-                    onBlur={() => setAmountTooltipFocused(false)}
-                    className="flex-1 bg-transparent border-none outline-none py-1.5 pl-3 pr-2 text-right font-mono text-sm text-slate-700 min-w-0"
-                    placeholder="0.00"
-                  />
-                  <div className="flex items-center justify-start w-[60px] pl-3 border-l border-slate-200 bg-slate-50/50">
-                    <span className="text-xs text-slate-500 font-bold whitespace-nowrap select-none">
-                      {instrument?.baseAsset || ''}
-                    </span>
+        <div className="space-y-1.5">
+            <div className="flex items-center gap-1 pl-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount</label>
+              <Tooltip
+                title={(
+                  <div className="text-xs">
+                    <div className="whitespace-nowrap font-bold mb-1">下單數量說明</div>
+                    <div className="whitespace-nowrap">Amount / contract size 會是最終下單的 Quantity。</div>
+                    <div className="whitespace-nowrap">用於提升系統內部浮點數運算效率。</div>
+                    <div className="h-px bg-white/20 my-1" />
+                    <div className="whitespace-nowrap font-bold mb-1">Order Quantity Explanation</div>
+                    <div className="whitespace-nowrap">Amount / contract size results in the final order Quantity.</div>
+                    <div className="whitespace-nowrap">Designed to improve internal floating-point calculation efficiency.</div>
                   </div>
-              </div>
-              <div className="text-[11px] text-slate-400 text-right pr-2">
-                Contract Size: {instrument?.contractSize ?? '--'}
-              </div>
-              <div className="text-[11px] text-slate-400 text-right pr-2">
-                Quantity: {instrument ? displayNormalizedQuantity : '--'}
-              </div>
-          </div>
-        </Tooltip>
+                )}
+                placement="bottomLeft"
+                classNames={{ root: 'liquid-tooltip' }}
+                styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+                overlayStyle={{ maxWidth: 'none' }}
+              >
+                <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+              </Tooltip>
+            </div>
+            <div className="liquid-input-group border-slate-300">
+                <input
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="flex-1 bg-transparent border-none outline-none py-1.5 pl-3 pr-2 text-right font-mono text-sm text-slate-700 min-w-0"
+                  placeholder="0.00"
+                />
+                <div className="flex items-center justify-start w-[60px] pl-3 border-l border-slate-200 bg-slate-50/50">
+                  <span className="text-xs text-slate-500 font-bold whitespace-nowrap select-none">
+                    {instrument?.baseAsset || ''}
+                  </span>
+                </div>
+            </div>
+            <div className="text-[11px] text-slate-400 text-right pr-2">
+              Contract Size: {instrument?.contractSize ?? '--'}
+            </div>
+            <div className="text-[11px] text-slate-400 text-right pr-2">
+              Quantity: {instrument ? displayNormalizedQuantity : '--'}
+            </div>
+        </div>
 
         {/* Total Value */}
         <div className="space-y-2 pt-2">
@@ -252,27 +247,30 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
             </div>
             <div className="border-t border-white/40" />
             <div className="flex justify-between text-xs text-slate-500">
-              <span>Estimated Fee</span>
-              <Tooltip
-                title={(
-                  <div className="text-xs">
-                    <div className="whitespace-nowrap font-bold mb-1">手續費說明</div>
-                    <div className="whitespace-nowrap">下單將以 Taker Fee 預留手續費。</div>
-                    <div className="whitespace-nowrap">結算時若成交為 Maker 將退回差額。</div>
-                    <div className="h-px bg-white/20 my-1" />
-                    <div className="whitespace-nowrap font-bold mb-1">Fee Explanation</div>
-                    <div className="whitespace-nowrap">Taker fee is reserved upon order placement.</div>
-                    <div className="whitespace-nowrap">The difference will be refunded if filled as a Maker.</div>
-                  </div>
-                )}
-                placement="bottomRight"
-                classNames={{ root: 'liquid-tooltip' }}
-                styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-              >
-                <span className="liquid-tooltip-trigger text-slate-700 font-medium cursor-help border-b border-dotted border-slate-400">
-                  {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
-                </span>
-              </Tooltip>
+              <div className="flex items-center gap-1">
+                <span>Estimated Fee</span>
+                <Tooltip
+                  title={(
+                    <div className="text-xs">
+                      <div className="whitespace-nowrap font-bold mb-1">手續費說明</div>
+                      <div className="whitespace-nowrap">下單將以 Taker Fee 預留手續費。</div>
+                      <div className="whitespace-nowrap">結算時若成交為 Maker 將退回差額。</div>
+                      <div className="h-px bg-white/20 my-1" />
+                      <div className="whitespace-nowrap font-bold mb-1">Fee Explanation</div>
+                      <div className="whitespace-nowrap">Taker fee is reserved upon order placement.</div>
+                      <div className="whitespace-nowrap">The difference will be refunded if filled as a Maker.</div>
+                    </div>
+                  )}
+                  placement="bottomRight"
+                  classNames={{ root: 'liquid-tooltip' }}
+                  styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+                >
+                  <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                </Tooltip>
+              </div>
+              <span className="text-slate-700 font-medium">
+                {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
+              </span>
             </div>
             <div className="flex justify-between text-xs text-slate-500">
               <span>TOTAL</span>

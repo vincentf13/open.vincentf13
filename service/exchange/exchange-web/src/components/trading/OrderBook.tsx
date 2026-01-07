@@ -143,7 +143,8 @@ export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaus
 
   return (
     <div className="relative flex flex-col flex-1 min-h-0 bg-gradient-to-b from-white/15 via-white/5 to-transparent">
-      <div className="relative p-4 border-b border-white/20 bg-white/5">
+      <div className="relative p-4 border-b border-white/20 bg-white/5 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-slate-700">Order Book</h3>
         <Tooltip
           title={(
             <div className="text-xs">
@@ -160,9 +161,7 @@ export default function OrderBook({ selectedInstrumentId, refreshTrigger, isPaus
           classNames={{ root: 'liquid-tooltip' }}
           styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
         >
-          <h3 className="liquid-tooltip-trigger text-sm font-semibold text-slate-700 cursor-help border-b border-dotted border-slate-400 inline-block">
-            Order Book
-          </h3>
+          <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 cursor-help border border-slate-200">?</div>
         </Tooltip>
       </div>
 

@@ -386,8 +386,13 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
   useEffect(() => {
     if (expandedPositionId) {
+        // Always fetch latest events when expanded or refreshed
         setPositionEventsLoading(v => ({...v, [expandedPositionId]: true}));
-        getPositionEvents(expandedPositionId).then(res => { if(String(res?.code)==='0') setPositionEvents(v => ({...v, [expandedPositionId]: res.data?.events || []})); }).finally(() => setPositionEventsLoading(v => ({...v, [expandedPositionId]: false})));
+        getPositionEvents(expandedPositionId).then(res => { 
+            if(String(res?.code)==='0') {
+                setPositionEvents(v => ({...v, [expandedPositionId]: res.data?.events || []}));
+            }
+        }).finally(() => setPositionEventsLoading(v => ({...v, [expandedPositionId]: false})));
     }
   }, [expandedPositionId, refreshTrigger]);
 

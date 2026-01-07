@@ -284,109 +284,110 @@ export default function MarketStats({
                     </div>
                 </div>
 
-                <Tooltip
-                    title={(
-                        <div className="text-xs">
-                            <div className="whitespace-nowrap font-bold mb-1">行情統計說明</div>
-                            <div className="whitespace-nowrap">行情服務僅持久化最後成交價與 K 線。</div>
-                            <div className="whitespace-nowrap">其餘 24h 指標採內存即時計算，若服務重啟則會重置。</div>
-                            <div className="whitespace-nowrap">採用本地 WAL + CDC Outbox 模式，性能極高。</div>
-                            <div className="h-px bg-white/20 my-1" />
-                            <div className="whitespace-nowrap font-bold mb-1">Market Stats Explanation</div>
-                            <div className="whitespace-nowrap">Only the last price and K-line data are persisted.</div>
-                            <div className="whitespace-nowrap">Other 24h metrics are in-memory and will reset on service restart.</div>
-                            <div className="whitespace-nowrap">Powered by high-performance local WAL + CDC outbox.</div>
+                <div className="grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-x-6 gap-y-3 text-xs text-slate-600 items-start">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Mark</span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {markPriceLoading ? '...' : formatTickerNumber(markPrice?.markPrice)}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Index</span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {markPriceLoading ? '...' : formatTickerNumber(markPrice?.markPrice)}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Funding</span>
+                        <span className="font-mono font-medium text-orange-500">-- %</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Next</span>
+                        <span className="font-mono font-medium text-slate-600">--:--:--</span>
+                    </div>
+                    <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-2">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h High</span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {tickerLoading ? '...' : formatTickerNumber(ticker?.high24h)}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-2">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Low</span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {tickerLoading ? '...' : formatTickerNumber(ticker?.low24h)}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 sm:col-start-3 sm:row-start-2">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
+                            24h Vol ({baseAssetLabel})
+                        </span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {tickerLoading ? '...' : formatTickerNumber(ticker?.volume24h)}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 sm:col-start-4 sm:row-start-2">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
+                            24h Turnover ({quoteAssetLabel})
+                        </span>
+                        <span className="font-mono font-medium text-slate-700">
+                            {tickerLoading ? '...' : formatTickerNumber(ticker?.turnover24h)}
+                        </span>
+                    </div>
+                    {showExtraStats && (
+                        <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-3">
+                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Open</span>
+                            <span className="font-mono font-medium text-slate-700">
+                                {tickerLoading ? '...' : formatTickerNumber(ticker?.open24h)}
+                            </span>
                         </div>
                     )}
-                    placement="bottomRight"
-                    classNames={{ root: 'liquid-tooltip' }}
-                    styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-                >
-                    <div className="liquid-tooltip-trigger grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-x-6 gap-y-3 text-xs text-slate-600 items-start cursor-help">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Mark</span>
-                            <span className="font-mono font-medium text-slate-700">
-                                {markPriceLoading ? '...' : formatTickerNumber(markPrice?.markPrice)}
+                    {showExtraStats && (
+                        <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-3">
+                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change</span>
+                            <span className={`font-mono font-medium ${changeClass}`}>
+                                {tickerLoading ? '...' : formatTickerNumber(ticker?.priceChange24h)}
                             </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Index</span>
-                            <span className="font-mono font-medium text-slate-700">
-                                {markPriceLoading ? '...' : formatTickerNumber(markPrice?.markPrice)}
+                    )}
+                    {showExtraStats && (
+                        <div className="flex items-center gap-2 sm:col-start-3 sm:row-start-3">
+                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change %</span>
+                            <span className={`font-mono font-medium ${changePctClass}`}>
+                                {tickerLoading ? '...' : formatTickerPercent(changePercentValue)}
                             </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Funding</span>
-                            <span className="font-mono font-medium text-orange-500">-- %</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Next</span>
-                            <span className="font-mono font-medium text-slate-600">--:--:--</span>
-                        </div>
-                        <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-2">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h High</span>
-                            <span className="font-mono font-medium text-slate-700">
-                                {tickerLoading ? '...' : formatTickerNumber(ticker?.high24h)}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-2">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Low</span>
-                            <span className="font-mono font-medium text-slate-700">
-                                {tickerLoading ? '...' : formatTickerNumber(ticker?.low24h)}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2 sm:col-start-3 sm:row-start-2">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
-                                24h Vol ({baseAssetLabel})
-                            </span>
-                            <span className="font-mono font-medium text-slate-700">
-                                {tickerLoading ? '...' : formatTickerNumber(ticker?.volume24h)}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2 sm:col-start-4 sm:row-start-2">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">
-                                24h Turnover ({quoteAssetLabel})
-                            </span>
-                            <span className="font-mono font-medium text-slate-700">
-                                {tickerLoading ? '...' : formatTickerNumber(ticker?.turnover24h)}
-                            </span>
-                        </div>
-                        {showExtraStats && (
-                            <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-3">
-                                <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Open</span>
-                                <span className="font-mono font-medium text-slate-700">
-                                    {tickerLoading ? '...' : formatTickerNumber(ticker?.open24h)}
-                                </span>
-                            </div>
-                        )}
-                        {showExtraStats && (
-                            <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-3">
-                                <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change</span>
-                                <span className={`font-mono font-medium ${changeClass}`}>
-                                    {tickerLoading ? '...' : formatTickerNumber(ticker?.priceChange24h)}
-                                </span>
-                            </div>
-                        )}
-                        {showExtraStats && (
-                            <div className="flex items-center gap-2 sm:col-start-3 sm:row-start-3">
-                                <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change %</span>
-                                <span className={`font-mono font-medium ${changePctClass}`}>
-                                    {tickerLoading ? '...' : formatTickerPercent(changePercentValue)}
-                                </span>
-                            </div>
-                        )}
-                        <div className="flex items-center justify-end sm:col-start-5 sm:row-start-2">
-                            <button
-                                type="button"
-                                onClick={() => setShowExtraStats((prev) => !prev)}
-                                className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/70 px-2.5 py-1 text-[10px] uppercase font-semibold tracking-wider text-slate-600 shadow-sm transition-all hover:bg-white hover:text-slate-800"
-                            >
-                                {showExtraStats ? 'Less' : 'More'}
-                                <span className="text-[9px]">{showExtraStats ? '˄' : '˅'}</span>
-                            </button>
-                        </div>
+                    )}
+                    <div className="flex flex-col items-end gap-2 sm:col-start-5 sm:row-start-1 sm:row-span-2">
+                        <Tooltip
+                            title={(
+                                <div className="text-xs">
+                                    <div className="whitespace-nowrap font-bold mb-1">行情統計說明</div>
+                                    <div className="whitespace-nowrap">行情服務僅持久化最後成交價與 K 線。</div>
+                                    <div className="whitespace-nowrap">其餘 24h 指標採內存即時計算，若服務重啟則會重置。</div>
+                                    <div className="whitespace-nowrap">採用本地 WAL + CDC Outbox 模式，性能極高。</div>
+                                    <div className="h-px bg-white/20 my-1" />
+                                    <div className="whitespace-nowrap font-bold mb-1">Market Stats Explanation</div>
+                                    <div className="whitespace-nowrap">Only the last price and K-line data are persisted.</div>
+                                    <div className="whitespace-nowrap">Other 24h metrics are in-memory and will reset on service restart.</div>
+                                    <div className="whitespace-nowrap">Powered by high-performance local WAL + CDC outbox.</div>
+                                </div>
+                            )}
+                            placement="bottomRight"
+                            classNames={{ root: 'liquid-tooltip' }}
+                            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+                        >
+                            <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 cursor-help border border-slate-200">?</div>
+                        </Tooltip>
+                        <button
+                            type="button"
+                            onClick={() => setShowExtraStats((prev) => !prev)}
+                            className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/70 px-2.5 py-1 text-[10px] uppercase font-semibold tracking-wider text-slate-600 shadow-sm transition-all hover:bg-white hover:text-slate-800"
+                        >
+                            {showExtraStats ? 'Less' : 'More'}
+                            <span className="text-[9px]">{showExtraStats ? '˄' : '˅'}</span>
+                        </button>
                     </div>
-                </Tooltip>
+                </div>
             </div>
         </div>
     )
