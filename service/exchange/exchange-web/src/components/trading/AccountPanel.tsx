@@ -150,7 +150,7 @@ export default function AccountPanel({ refreshTrigger, onOpenBalanceSheet }: Acc
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-slate-700">Account</div>
         <button
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/30 bg-white/20 hover:bg-white/40 text-slate-600 hover:text-slate-800 transition-all active:scale-95"
+          className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-400 transition-all active:scale-95 uppercase tracking-wider"
           onClick={() => setTransferOpen(true)}
         >
           Transfer
@@ -179,7 +179,7 @@ export default function AccountPanel({ refreshTrigger, onOpenBalanceSheet }: Acc
         <div className="flex justify-start">
           <button
             type="button"
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/30 bg-white/20 hover:bg-white/40 text-slate-600 hover:text-slate-800 transition-all active:scale-95"
+            className="w-full text-xs font-black px-3 py-2.5 rounded-xl bg-gradient-to-b from-slate-700 to-slate-800 text-white border-t border-slate-600 shadow-[0_4px_12px_rgba(0,0,0,0.15)] hover:from-slate-600 hover:to-slate-700 hover:shadow-[0_6px_16px_rgba(0,0,0,0.2)] transition-all active:translate-y-0.5 active:shadow-inner uppercase tracking-widest"
             onClick={() => onOpenBalanceSheet?.()}
           >
             Balance Sheet
