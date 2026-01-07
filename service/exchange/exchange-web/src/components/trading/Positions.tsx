@@ -1006,32 +1006,36 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
       <div className="p-4 overflow-x-auto">
         {activeTab === 'Positions' && (
-          <Tooltip
-            title={(
-              <div className="text-xs">
-                <div className="whitespace-nowrap font-bold mb-1">倉位系統說明</div>
-                <div className="whitespace-nowrap">倉位服務負責更新持有部位、均價與風險指標。</div>
-                <div className="whitespace-nowrap">採用 Event Sourcing 模式，所有變更皆有跡可循。</div>
-                <div className="whitespace-nowrap">浮動盈虧基於標記價格實時重算，強平價動態調整。</div>
-                <div className="h-px bg-white/20 my-1" />
-                <div className="whitespace-nowrap font-bold mb-1">Position System Explanation</div>
-                <div className="whitespace-nowrap">Updates holdings, average price, and risk metrics.</div>
-                <div className="whitespace-nowrap">Built on Event Sourcing; every change is traceable.</div>
-                <div className="whitespace-nowrap">Unrealized PnL and Liq. Price are updated in real-time.</div>
-              </div>
-            )}
-            placement="bottomLeft"
-            overlayClassName="liquid-tooltip"
-            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-          >
-            <div>
           <table className="min-w-[2600px] w-full text-xs text-right text-slate-600">
             <thead>
               <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
                 <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
                 {columns.map((column) => (
                   <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                    {column.label}
+                    {column.key === 'instrumentId' ? (
+                      <Tooltip
+                        title={(
+                          <div className="text-xs">
+                            <div className="whitespace-nowrap font-bold mb-1">倉位系統說明</div>
+                            <div className="whitespace-nowrap">倉位服務負責更新持有部位、均價與風險指標。</div>
+                            <div className="whitespace-nowrap">採用 Event Sourcing 模式，所有變更皆有跡可循。</div>
+                            <div className="whitespace-nowrap">浮動盈虧基於標記價格實時重算，強平價動態調整。</div>
+                            <div className="h-px bg-white/20 my-1" />
+                            <div className="whitespace-nowrap font-bold mb-1">Position System Explanation</div>
+                            <div className="whitespace-nowrap">Updates holdings, average price, and risk metrics.</div>
+                            <div className="whitespace-nowrap">Built on Event Sourcing; every change is traceable.</div>
+                            <div className="whitespace-nowrap">Unrealized PnL and Liq. Price are updated in real-time.</div>
+                          </div>
+                        )}
+                        placement="bottomLeft"
+                        overlayClassName="liquid-tooltip"
+                        styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+                      >
+                        <span className="cursor-help border-b border-dotted border-slate-400">{column.label}</span>
+                      </Tooltip>
+                    ) : (
+                      column.label
+                    )}
                   </th>
                 ))}
               </tr>
@@ -1180,8 +1184,6 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               })}
             </tbody>
           </table>
-          </div>
-          </Tooltip>
         )}
         {activeTab === 'Orders' && (
           <Tooltip
@@ -1203,284 +1205,307 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
             styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
           >
             <div>
-            <table className="min-w-[2400px] w-full text-xs text-right text-slate-600">
-              <thead>
-                <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                  <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
-                  {orderColumns.map((column) => (
-                    <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                      {column.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {orders.length === 0 && (
-                  <tr>
-                    <td className="py-6 text-center text-slate-400 text-xs" colSpan={orderColumns.length + 1}>
-                      {ordersLoading ? 'Loading...' : 'No orders'}
-                    </td>
-                  </tr>
-                )}
-                {orders.map((order) => {
-                  const isExpanded = expandedOrderId === order.orderId;
-                  const tradesForOrder = orderTrades[order.orderId] || [];
-                  const orderEventsForOrder = orderEvents[order.orderId] || [];
-                  const eventsLoading = orderEventsLoading[order.orderId];
-                  const orderEventPayloadEntries = orderEventsForOrder.map((event) => ({
-                    event,
-                    payload: parseOrderPayload(event.payload),
-                  }));
-                  const orderPayloadKeys = collectOrderPayloadKeys(orderEventPayloadEntries);
-                  const tradeSummary = tradesForOrder.reduce(
-                    (acc, trade) => {
-                      const isMakerForOrder =
-                        trade.orderId != null &&
-                        order.orderId != null &&
-                        String(trade.orderId) === String(order.orderId);
-                      const isTakerForOrder =
-                        trade.counterpartyOrderId != null &&
-                        order.orderId != null &&
-                        String(trade.counterpartyOrderId) === String(order.orderId);
-                      if (!isMakerForOrder && !isTakerForOrder) {
-                        return acc;
-                      }
-                      const priceValue = Number(trade.price);
-                      const quantityValue = Number(trade.quantity);
-                      const contractSize = resolveContractSize(trade.instrumentId ?? order.instrumentId);
-                      if (Number.isFinite(priceValue) && Number.isFinite(quantityValue)) {
-                        acc.fillTotal += priceValue * quantityValue * contractSize;
-                        acc.quantityTotal += quantityValue * contractSize;
-                      }
-                    const feeValue = Number(isMakerForOrder ? trade.makerFee : trade.takerFee);
-                    if (Number.isFinite(feeValue)) {
-                      acc.feeTotal += feeValue;
-                    }
-                      acc.matchedCount += 1;
-                      return acc;
-                    },
-                    { fillTotal: 0, feeTotal: 0, matchedCount: 0, quantityTotal: 0 }
-                  );
-                  const hasTradeSummary = tradeSummary.matchedCount > 0;
-                  const averageFillPrice =
-                    tradeSummary.quantityTotal > 0
-                      ? tradeSummary.fillTotal / tradeSummary.quantityTotal
-                      : null;
-                  const remainingQuantityValue = Number(order.remainingQuantity);
-                  const orderPriceValue = Number(order.price);
-                  const orderContractSize = resolveContractSize(order.instrumentId);
-                  const orderTakerFeeRate = resolveTakerFeeRate(order.instrumentId);
-                  const initialMarginRateValue = Number(orderRiskLimit?.initialMarginRate);
-                  const initialMarginRate =
-                    Number.isFinite(initialMarginRateValue) ? initialMarginRateValue : 1;
-                  const orderNotionalValue =
-                    Number.isFinite(remainingQuantityValue) && Number.isFinite(orderPriceValue)
-                      ? remainingQuantityValue * orderPriceValue * orderContractSize
-                      : null;
-                  const reservedValue =
-                    isOrderOpening(order) && orderNotionalValue !== null
-                      ? orderNotionalValue * initialMarginRate
-                      : null;
-                  const reservedFeeValue =
-                    isOrderOpening(order) && orderNotionalValue !== null && Number.isFinite(orderTakerFeeRate)
-                      ? orderNotionalValue * orderTakerFeeRate
-                      : null;
-                  return (
-                    <Fragment key={order.orderId}>
-                      <tr className="hover:bg-white/20 transition-colors">
-                        <td className="py-3 px-2 text-right">
-                          <button
-                            type="button"
-                            className="h-5 w-5 rounded-md border border-white/50 bg-white/30 text-[10px] text-slate-600 hover:bg-white/50"
-                            onClick={() => {
-                              const next = isExpanded ? null : order.orderId;
-                              setExpandedOrderId(next);
-                              if (!isExpanded) {
-                                fetchTrades(order.orderId);
-                                fetchOrderEvents(order.orderId);
-                              }
-                            }}
+              <table className="min-w-[2400px] w-full text-xs text-right text-slate-600">
+                <thead>
+                  <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                    <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
+                    {orderColumns.map((column) => (
+                      <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                        {column.key === 'instrumentId' ? (
+                          <Tooltip
+                            title={(
+                              <div className="text-xs">
+                                <div className="whitespace-nowrap font-bold mb-1">訂單系統說明</div>
+                                <div className="whitespace-nowrap">訂單服務負責委託建檔、風控預檢與資產凍結。</div>
+                                <div className="whitespace-nowrap">成交數據通過消費撮合引擎發布的 Kafka 事件實時更新。</div>
+                                <div className="whitespace-nowrap">變更部分會以高亮標示，方便追蹤交易動態。</div>
+                                <div className="h-px bg-white/20 my-1" />
+                                <div className="whitespace-nowrap font-bold mb-1">Order System Explanation</div>
+                                <div className="whitespace-nowrap">Handles order creation, risk pre-check, and funds freezing.</div>
+                                <div className="whitespace-nowrap">Trade data is updated in real-time via Kafka events from the engine.</div>
+                                <div className="whitespace-nowrap">Changes are highlighted to facilitate trade tracking.</div>
+                              </div>
+                            )}
+                            placement="bottomLeft"
+                            overlayClassName="liquid-tooltip"
+                            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
                           >
-                            {isExpanded ? 'v' : '>'}
-                          </button>
-                        </td>
-                      {orderColumns.map((column) => {
-                        const value = renderOrderCellValue(order, column.key);
-                        const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
-                        const tagClass =
-                          'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
-                        const cellClass = isOrderFieldHighlighted(order, column.key) ? 'bg-rose-100/70 text-rose-900' : '';
-                        return (
-                          <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
-                            {isTag ? <span className={tagClass}>{String(value)}</span> : value}
+                            <span className="cursor-help border-b border-dotted border-slate-400">{column.label}</span>
+                          </Tooltip>
+                        ) : (
+                          column.label
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {orders.length === 0 && (
+                    <tr>
+                      <td className="py-6 text-center text-slate-400 text-xs" colSpan={orderColumns.length + 1}>
+                        {ordersLoading ? 'Loading...' : 'No orders'}
+                      </td>
+                    </tr>
+                  )}
+                  {orders.map((order) => {
+                    const isExpanded = expandedOrderId === order.orderId;
+                    const tradesForOrder = orderTrades[order.orderId] || [];
+                    const orderEventsForOrder = orderEvents[order.orderId] || [];
+                    const eventsLoading = orderEventsLoading[order.orderId];
+                    const orderEventPayloadEntries = orderEventsForOrder.map((event) => ({
+                      event,
+                      payload: parseOrderPayload(event.payload),
+                    }));
+                    const orderPayloadKeys = collectOrderPayloadKeys(orderEventPayloadEntries);
+                    const tradeSummary = tradesForOrder.reduce(
+                      (acc, trade) => {
+                        const isMakerForOrder =
+                          trade.orderId != null &&
+                          order.orderId != null &&
+                          String(trade.orderId) === String(order.orderId);
+                        const isTakerForOrder =
+                          trade.counterpartyOrderId != null &&
+                          order.orderId != null &&
+                          String(trade.counterpartyOrderId) === String(order.orderId);
+                        if (!isMakerForOrder && !isTakerForOrder) {
+                          return acc;
+                        }
+                        const priceValue = Number(trade.price);
+                        const quantityValue = Number(trade.quantity);
+                        const contractSize = resolveContractSize(trade.instrumentId ?? order.instrumentId);
+                        if (Number.isFinite(priceValue) && Number.isFinite(quantityValue)) {
+                          acc.fillTotal += priceValue * quantityValue * contractSize;
+                          acc.quantityTotal += quantityValue * contractSize;
+                        }
+                        const feeValue = Number(isMakerForOrder ? trade.makerFee : trade.takerFee);
+                        if (Number.isFinite(feeValue)) {
+                          acc.feeTotal += feeValue;
+                        }
+                        acc.matchedCount += 1;
+                        return acc;
+                      },
+                      { fillTotal: 0, feeTotal: 0, matchedCount: 0, quantityTotal: 0 }
+                    );
+                    const hasTradeSummary = tradeSummary.matchedCount > 0;
+                    const averageFillPrice =
+                      tradeSummary.quantityTotal > 0
+                        ? tradeSummary.fillTotal / tradeSummary.quantityTotal
+                        : null;
+                    const remainingQuantityValue = Number(order.remainingQuantity);
+                    const orderPriceValue = Number(order.price);
+                    const orderContractSize = resolveContractSize(order.instrumentId);
+                    const orderTakerFeeRate = resolveTakerFeeRate(order.instrumentId);
+                    const initialMarginRateValue = Number(orderRiskLimit?.initialMarginRate);
+                    const initialMarginRate =
+                      Number.isFinite(initialMarginRateValue) ? initialMarginRateValue : 1;
+                    const orderNotionalValue =
+                      Number.isFinite(remainingQuantityValue) && Number.isFinite(orderPriceValue)
+                        ? remainingQuantityValue * orderPriceValue * orderContractSize
+                        : null;
+                    const reservedValue =
+                      isOrderOpening(order) && orderNotionalValue !== null
+                        ? orderNotionalValue * initialMarginRate
+                        : null;
+                    const reservedFeeValue =
+                      isOrderOpening(order) && orderNotionalValue !== null && Number.isFinite(orderTakerFeeRate)
+                        ? orderNotionalValue * orderTakerFeeRate
+                        : null;
+                    return (
+                      <Fragment key={order.orderId}>
+                        <tr className="hover:bg-white/20 transition-colors">
+                          <td className="py-3 px-2 text-right">
+                            <button
+                              type="button"
+                              className="h-5 w-5 rounded-md border border-white/50 bg-white/30 text-[10px] text-slate-600 hover:bg-white/50"
+                              onClick={() => {
+                                const next = isExpanded ? null : order.orderId;
+                                setExpandedOrderId(next);
+                                if (!isExpanded) {
+                                  fetchTrades(order.orderId);
+                                  fetchOrderEvents(order.orderId);
+                                }
+                              }}
+                            >
+                              {isExpanded ? 'v' : '>'}
+                            </button>
                           </td>
-                        );
-                      })}
-                      </tr>
-                      {isExpanded && (
-                        <tr>
-                          <td className="py-3 px-2" colSpan={orderColumns.length + 1}>
-                            <div className="rounded-xl border border-white/40 bg-white/20 p-3">
-                              <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
-                                Order Events
-                              </div>
-                              <div className="overflow-x-auto">
-                                <table className="min-w-[1600px] w-full text-[11px] text-right text-slate-600">
-                                  <thead>
-                                    <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                                      {orderEventColumns.map((column) => (
-                                        <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                                          {column.label}
-                                        </th>
-                                      ))}
-                                      {orderPayloadKeys.map((key) => (
-                                        <th
-                                          key={key}
-                                          className="py-2 px-2 font-semibold text-right whitespace-nowrap normal-case"
-                                        >
-                                          {key}
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-white/10">
-                                    {orderEventsForOrder.length === 0 && (
-                                      <tr>
-                                        <td
-                                          className="py-4 text-center text-slate-400 text-xs"
-                                          colSpan={orderEventColumns.length + orderPayloadKeys.length}
-                                        >
-                                          {eventsLoading ? 'Loading...' : 'No events'}
-                                        </td>
-                                      </tr>
-                                    )}
-                                    {orderEventsForOrder.map((event, index) => (
-                                      <tr key={event.eventId}>
-                                        {orderEventColumns.map((column) => {
-                                          let value: string | number | null | undefined = (event as any)[column.key];
-                                          if (column.key === 'occurredAt' || column.key === 'createdAt') {
-                                            value = formatDateTime(value);
-                                          }
-                                          return (
-                                            <td
-                                              key={column.key}
-                                              className="py-2 px-2 font-mono whitespace-nowrap text-right"
-                                            >
-                                              {value === null || value === undefined || value === '' ? '-' : String(value)}
-                                            </td>
-                                          );
-                                        })}
-                                        {orderPayloadKeys.map((key) => {
-                                          const payload = orderEventPayloadEntries[index]?.payload;
-                                          const value = payload ? payload[key] : undefined;
-                                          return (
-                                            <td key={key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
-                                              {formatOrderPayloadValue(key, value)}
-                                            </td>
-                                          );
-                                        })}
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                              <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left space-y-0.5">
-                                <div>
-                                  Total Fill Price: {hasTradeSummary ? formatNumber(tradeSummary.fillTotal) : '-'}
-                                  <span className="ml-2 font-normal opacity-60">(Σ Price * Qty * Mult)</span>
-                                </div>
-                                <div>
-                                  Average Fill Price: {hasTradeSummary ? formatNumber(averageFillPrice) : '-'}
-                                  <span className="ml-2 font-normal opacity-60">(Total Fill Price / Total Filled Qty)</span>
-                                </div>
-                                <div>
-                                  Total Fee: {hasTradeSummary ? formatNumber(tradeSummary.feeTotal) : '-'}
-                                  <span className="ml-2 font-normal opacity-60">(Σ Trade Fee)</span>
-                                </div>
-                                <div>
-                                  Reserved Balance: {reservedValue !== null ? formatNumber(reservedValue) : '-'}
-                                  <span className="ml-2 font-normal opacity-60">(Remaining Qty * Price * Mult * Initial Margin Rate)</span>
-                                </div>
-                                <div>
-                                  Reserved Fee: {reservedFeeValue !== null ? formatNumber(reservedFeeValue) : '-'}
-                                  <span className="ml-2 font-normal opacity-60">(Remaining Qty * Price * Mult * Taker Fee Rate)</span>
-                                </div>
-                              </div>
-                              <div className="mb-2 mt-4 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
-                                Trades
-                              </div>
-                              <div className="overflow-x-auto">
-                                <table className="min-w-[2000px] w-full text-[11px] text-right text-slate-600">
-                                  <thead>
-                                    <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                                      {tradeColumns.map((column) => (
-                                        <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                                          {column.label}
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-white/10">
-                                    {tradesForOrder.length === 0 && (
-                                      <tr>
-                                        <td className="py-4 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
-                                          {tradesLoading[order.orderId] ? 'Loading...' : 'No trades'}
-                                        </td>
-                                      </tr>
-                                    )}
-                                    {tradesForOrder.map((trade) => (
-                                      <tr key={trade.tradeId}>
-                                        {tradeColumns.map((column) => {
-                                          const isTakerForOrder =
-                                            trade.counterpartyOrderId != null &&
-                                            order.orderId != null &&
-                                            String(trade.counterpartyOrderId) === String(order.orderId);
-                                          const isMakerForOrder =
-                                            trade.orderId != null &&
-                                            order.orderId != null &&
-                                            String(trade.orderId) === String(order.orderId);
-                                          const shouldHighlight =
-                                            (isTakerForOrder && takerHighlightKeys.has(column.key)) ||
-                                            (isMakerForOrder && makerHighlightKeys.has(column.key));
-                                          const cellClass = shouldHighlight ? 'bg-amber-100/70 text-amber-900' : '';
-                                          return (
-                                            <td
-                                              key={column.key}
-                                              className={`py-2 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}
-                                            >
-                                              {renderTradeCellValue(trade, column.key)}
-                                            </td>
-                                          );
-                                        })}
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          </td>
+                          {orderColumns.map((column) => {
+                            const value = renderOrderCellValue(order, column.key);
+                            const isTag = column.key === 'side' || column.key === 'type' || column.key === 'status';
+                            const tagClass =
+                              'inline-flex items-center justify-center text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5';
+                            const cellClass = isOrderFieldHighlighted(order, column.key) ? 'bg-rose-100/70 text-rose-900' : '';
+                            return (
+                              <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
+                                {isTag ? <span className={tagClass}>{String(value)}</span> : value}
+                              </td>
+                            );
+                          })}
                         </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left space-y-0.5">
-              <div>
-                Total Fee: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
-                <span className="ml-2 font-normal opacity-60">(Σ all non-rejected orders fee)</span>
-              </div>
-              <div>
-                Reserved Balance: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
-                <span className="ml-2 font-normal opacity-60">(Σ all opening orders reserved margin)</span>
-              </div>
-              <div>
-                Reserved Fee: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
-                <span className="ml-2 font-normal opacity-60">(Σ all opening orders reserved fee)</span>
+                        {isExpanded && (
+                          <tr>
+                            <td className="py-3 px-2" colSpan={orderColumns.length + 1}>
+                              <div className="rounded-xl border border-white/40 bg-white/20 p-3">
+                                <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
+                                  Order Events
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-[1600px] w-full text-[11px] text-right text-slate-600">
+                                    <thead>
+                                      <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                                        {orderEventColumns.map((column) => (
+                                          <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                            {column.label}
+                                          </th>
+                                        ))}
+                                        {orderPayloadKeys.map((key) => (
+                                          <th
+                                            key={key}
+                                            className="py-2 px-2 font-semibold text-right whitespace-nowrap normal-case"
+                                          >
+                                            {key}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/10">
+                                      {orderEventsForOrder.length === 0 && (
+                                        <tr>
+                                          <td
+                                            className="py-4 text-center text-slate-400 text-xs"
+                                            colSpan={orderEventColumns.length + orderPayloadKeys.length}
+                                          >
+                                            {eventsLoading ? 'Loading...' : 'No events'}
+                                          </td>
+                                        </tr>
+                                      )}
+                                      {orderEventsForOrder.map((event, index) => (
+                                        <tr key={event.eventId}>
+                                          {orderEventColumns.map((column) => {
+                                            let value: string | number | null | undefined = (event as any)[column.key];
+                                            if (column.key === 'occurredAt' || column.key === 'createdAt') {
+                                              value = formatDateTime(value);
+                                            }
+                                            return (
+                                              <td
+                                                key={column.key}
+                                                className="py-2 px-2 font-mono whitespace-nowrap text-right"
+                                              >
+                                                {value === null || value === undefined || value === '' ? '-' : String(value)}
+                                              </td>
+                                            );
+                                          })}
+                                          {orderPayloadKeys.map((key) => {
+                                            const payload = orderEventPayloadEntries[index]?.payload;
+                                            const value = payload ? payload[key] : undefined;
+                                            return (
+                                              <td key={key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
+                                                {formatOrderPayloadValue(key, value)}
+                                              </td>
+                                            );
+                                          })}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left space-y-0.5">
+                                  <div>
+                                    Total Fill Price: {hasTradeSummary ? formatNumber(tradeSummary.fillTotal) : '-'}
+                                    <span className="ml-2 font-normal opacity-60">(Σ Price * Qty * Mult)</span>
+                                  </div>
+                                  <div>
+                                    Average Fill Price: {hasTradeSummary ? formatNumber(averageFillPrice) : '-'}
+                                    <span className="ml-2 font-normal opacity-60">(Total Fill Price / Total Filled Qty)</span>
+                                  </div>
+                                  <div>
+                                    Total Fee: {hasTradeSummary ? formatNumber(tradeSummary.feeTotal) : '-'}
+                                    <span className="ml-2 font-normal opacity-60">(Σ Trade Fee)</span>
+                                  </div>
+                                  <div>
+                                    Reserved Balance: {reservedValue !== null ? formatNumber(reservedValue) : '-'}
+                                    <span className="ml-2 font-normal opacity-60">(Remaining Qty * Price * Mult * Initial Margin Rate)</span>
+                                  </div>
+                                  <div>
+                                    Reserved Fee: {reservedFeeValue !== null ? formatNumber(reservedFeeValue) : '-'}
+                                    <span className="ml-2 font-normal opacity-60">(Remaining Qty * Price * Mult * Taker Fee Rate)</span>
+                                  </div>
+                                </div>
+                                <div className="mb-2 mt-4 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
+                                  Trades
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-[2000px] w-full text-[11px] text-right text-slate-600">
+                                    <thead>
+                                      <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                                        {tradeColumns.map((column) => (
+                                          <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                            {column.label}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/10">
+                                      {tradesForOrder.length === 0 && (
+                                        <tr>
+                                          <td className="py-4 text-center text-slate-400 text-xs" colSpan={tradeColumns.length}>
+                                            {tradesLoading[order.orderId] ? 'Loading...' : 'No trades'}
+                                          </td>
+                                        </tr>
+                                      )}
+                                      {tradesForOrder.map((trade) => (
+                                        <tr key={trade.tradeId}>
+                                          {tradeColumns.map((column) => {
+                                            const isTakerForOrder =
+                                              trade.counterpartyOrderId != null &&
+                                              order.orderId != null &&
+                                              String(trade.counterpartyOrderId) === String(order.orderId);
+                                            const isMakerForOrder =
+                                              trade.orderId != null &&
+                                              order.orderId != null &&
+                                              String(trade.orderId) === String(order.orderId);
+                                            const shouldHighlight =
+                                              (isTakerForOrder && takerHighlightKeys.has(column.key)) ||
+                                              (isMakerForOrder && makerHighlightKeys.has(column.key));
+                                            const cellClass = shouldHighlight ? 'bg-amber-100/70 text-amber-900' : '';
+                                            return (
+                                              <td
+                                                key={column.key}
+                                                className={`py-2 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}
+                                              >
+                                                {renderTradeCellValue(trade, column.key)}
+                                              </td>
+                                            );
+                                          })}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="mt-2 w-full text-[10px] text-slate-500 font-semibold text-left space-y-0.5">
+                <div>
+                  Total Fee: {ordersForSummary.length ? formatNumber(ordersFillSummary.totalFee) : '-'}
+                  <span className="ml-2 font-normal opacity-60">(Σ all non-rejected orders fee)</span>
+                </div>
+                <div>
+                  Reserved Balance: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedTotal) : '-'}
+                  <span className="ml-2 font-normal opacity-60">(Σ all opening orders reserved margin)</span>
+                </div>
+                <div>
+                  Reserved Fee: {ordersForSummary.length ? formatNumber(ordersReservedSummary.reservedFeeTotal) : '-'}
+                  <span className="ml-2 font-normal opacity-60">(Σ all opening orders reserved fee)</span>
+                </div>
               </div>
             </div>
-          </div>
           </Tooltip>
         )}
         {activeTab === 'Traders' && (

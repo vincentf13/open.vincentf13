@@ -189,94 +189,97 @@ export default function MarketStats({
     }, [selectedInstrument?.instrumentId, refreshTrigger]);
 
     return (
-        <Tooltip
-            title={(
-                <div className="text-xs">
-                    <div className="whitespace-nowrap font-bold mb-1">行情統計說明</div>
-                    <div className="whitespace-nowrap">行情服務僅持久化最後成交價與 K 線。</div>
-                    <div className="whitespace-nowrap">其餘 24h 指標採內存即時計算，若服務重啟則會重置。</div>
-                    <div className="whitespace-nowrap">採用本地 WAL + CDC Outbox 模式，性能極高。</div>
-                    <div className="h-px bg-white/20 my-1" />
-                    <div className="whitespace-nowrap font-bold mb-1">Market Stats Explanation</div>
-                    <div className="whitespace-nowrap">Only the last price and K-line data are persisted.</div>
-                    <div className="whitespace-nowrap">Other 24h metrics are in-memory and will reset on service restart.</div>
-                    <div className="whitespace-nowrap">Powered by high-performance local WAL + CDC outbox.</div>
-                </div>
-            )}
-            placement="bottomLeft"
-            overlayClassName="liquid-tooltip"
-            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-        >
-            <div className="p-4">
-                <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-4 items-start">
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                        <Dropdown
-                            trigger={['click']}
-                            open={dropdownOpen}
-                            onOpenChange={setDropdownOpen}
-                            popupRender={() => (
-                                <div className="flex w-[520px] rounded-xl border border-white/60 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
-                                    <div className="w-[200px] border-r border-slate-200 max-h-64 overflow-auto">
-                                        {instruments.length ? (
-                                            instruments.map((instrument) => {
-                                                const instrumentId = String(instrument.instrumentId);
-                                                const isActive = instrumentId === String(selectedInstrument?.instrumentId);
-                                                return (
-                                                    <button
-                                                        key={instrumentId}
-                                                        type="button"
-                                                        onMouseEnter={() => setPreviewInstrumentId(instrumentId)}
-                                                        onClick={() => {
-                                                            onSelectInstrument(instrument);
-                                                            setDropdownOpen(false);
-                                                        }}
-                                                        className={`w-full px-3 py-2 text-left text-xs font-medium border-b border-slate-100 transition-colors ${
-                                                            isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'
-                                                        }`}
-                                                    >
-                                                        <div className="text-slate-800">{instrument.name || instrument.symbol || instrumentId}</div>
-                                                        {instrument.symbol && instrument.name && (
-                                                            <div className="text-[10px] text-slate-400">{instrument.symbol}</div>
-                                                        )}
-                                                    </button>
-                                                );
-                                            })
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-slate-400">Loading</div>
-                                        )}
+        <div className="p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-4 items-start">
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                    <Tooltip
+                        title={(
+                            <div className="text-xs">
+                                <div className="whitespace-nowrap font-bold mb-1">行情統計說明</div>
+                                <div className="whitespace-nowrap">行情服務僅持久化最後成交價與 K 線。</div>
+                                <div className="whitespace-nowrap">其餘 24h 指標採內存即時計算，若服務重啟則會重置。</div>
+                                <div className="whitespace-nowrap">採用本地 WAL + CDC Outbox 模式，性能極高。</div>
+                                <div className="h-px bg-white/20 my-1" />
+                                <div className="whitespace-nowrap font-bold mb-1">Market Stats Explanation</div>
+                                <div className="whitespace-nowrap">Only the last price and K-line data are persisted.</div>
+                                <div className="whitespace-nowrap">Other 24h metrics are in-memory and will reset on service restart.</div>
+                                <div className="whitespace-nowrap">Powered by high-performance local WAL + CDC outbox.</div>
+                            </div>
+                        )}
+                        placement="bottomLeft"
+                        overlayClassName="liquid-tooltip"
+                        styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+                    >
+                        <div>
+                            <Dropdown
+                                trigger={['click']}
+                                open={dropdownOpen}
+                                onOpenChange={setDropdownOpen}
+                                popupRender={() => (
+                                    <div className="flex w-[520px] rounded-xl border border-white/60 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
+                                        <div className="w-[200px] border-r border-slate-200 max-h-64 overflow-auto">
+                                            {instruments.length ? (
+                                                instruments.map((instrument) => {
+                                                    const instrumentId = String(instrument.instrumentId);
+                                                    const isActive = instrumentId === String(selectedInstrument?.instrumentId);
+                                                    return (
+                                                        <button
+                                                            key={instrumentId}
+                                                            type="button"
+                                                            onMouseEnter={() => setPreviewInstrumentId(instrumentId)}
+                                                            onClick={() => {
+                                                                onSelectInstrument(instrument);
+                                                                setDropdownOpen(false);
+                                                            }}
+                                                            className={`w-full px-3 py-2 text-left text-xs font-medium border-b border-slate-100 transition-colors ${
+                                                                isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'
+                                                            }`}
+                                                        >
+                                                            <div className="text-slate-800">{instrument.name || instrument.symbol || instrumentId}</div>
+                                                            {instrument.symbol && instrument.name && (
+                                                                <div className="text-[10px] text-slate-400">{instrument.symbol}</div>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="px-3 py-2 text-xs text-slate-400">Loading</div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 max-h-64 overflow-auto p-3">
+                                            <div className="text-[11px] font-semibold text-slate-600 mb-2">Instrument Detail</div>
+                                            {detailEntries.length ? (
+                                                <div className="space-y-1">
+                                                    {detailEntries.map(([key, value]) => (
+                                                        <div key={key} className="flex items-start justify-between gap-3">
+                                                            <span className="text-[10px] uppercase text-slate-400 tracking-wider">{key}</span>
+                                                            <span className="text-[11px] text-slate-700 font-mono text-right break-all">
+                                                                {formatDetailValue(value)}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs text-slate-400">No data</div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex-1 max-h-64 overflow-auto p-3">
-                                        <div className="text-[11px] font-semibold text-slate-600 mb-2">Instrument Detail</div>
-                                        {detailEntries.length ? (
-                                            <div className="space-y-1">
-                                                {detailEntries.map(([key, value]) => (
-                                                    <div key={key} className="flex items-start justify-between gap-3">
-                                                        <span className="text-[10px] uppercase text-slate-400 tracking-wider">{key}</span>
-                                                        <span className="text-[11px] text-slate-700 font-mono text-right break-all">
-                                                            {formatDetailValue(value)}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-xs text-slate-400">No data</div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        >
-                            <button
-                                type="button"
-                                className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-3 py-1.5 text-sm font-bold text-slate-800 shadow-sm transition-all hover:bg-white hover:text-slate-900"
+                                )}
                             >
-                                {currentName}
-                                <span className="text-xs text-slate-500">v</span>
-                            </button>
-                        </Dropdown>
-                        <span className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider">{instrumentTypeLabel}</span>
-                        <span className="text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5">{quoteAssetLabel}</span>
-                    </div>
+                                <button
+                                    type="button"
+                                    className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-3 py-1.5 text-sm font-bold text-slate-800 shadow-sm transition-all hover:bg-white hover:text-slate-900"
+                                >
+                                    {currentName}
+                                    <span className="text-xs text-slate-500">v</span>
+                                </button>
+                            </Dropdown>
+                        </div>
+                    </Tooltip>
+                    <span className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider">{instrumentTypeLabel}</span>
+                    <span className="text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5">{quoteAssetLabel}</span>
+                </div>
                     <div className="flex items-center gap-3">
                         <span className="text-2xl font-bold text-slate-800">
                             {markPriceLoading ? '...' : markPriceDisplay === '-' ? '-' : `$${markPriceDisplay}`}
@@ -379,6 +382,5 @@ export default function MarketStats({
                 </div>
                 </div>
             </div>
-        </Tooltip>
     )
 }
