@@ -187,12 +187,16 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
         <Tooltip
           title={(
             <div className="text-xs">
-              <div className="whitespace-nowrap">Amount * contract size 會是最終下單的 Quantity，用於提升系統內部浮點數運算效率。</div>
-              <div className="whitespace-nowrap">下單若是開倉將以 Taker Fee 預留手續費，結算時若為 Maker 將會退回差額。</div>
-              <div className="whitespace-nowrap">Amount * contract size becomes the final order Quantity to improve internal floating-point efficiency.</div>
-              <div className="whitespace-nowrap">For opening orders, a taker fee is reserved; if filled as maker, the fee difference is refunded on settlement.</div>
+              <div className="whitespace-nowrap font-bold mb-1">下單數量說明</div>
+              <div className="whitespace-nowrap">Amount * contract size 會是最終下單的 Quantity。</div>
+              <div className="whitespace-nowrap">用於提升系統內部浮點數運算效率。</div>
+              <div className="h-px bg-white/20 my-1" />
+              <div className="whitespace-nowrap font-bold mb-1">Order Quantity Explanation</div>
+              <div className="whitespace-nowrap">Amount * contract size results in the final order Quantity.</div>
+              <div className="whitespace-nowrap">Designed to improve internal floating-point calculation efficiency.</div>
             </div>
           )}
+          placement="bottomLeft"
           overlayStyle={{ maxWidth: 'none' }}
           overlayInnerStyle={{ maxWidth: 'none' }}
           open={amountTooltipHovered || amountTooltipFocused}
@@ -247,9 +251,26 @@ export default function TradeForm({ instrument, onOrderPlaced }: TradeFormProps)
             <div className="border-t border-white/40" />
             <div className="flex justify-between text-xs text-slate-500">
               <span>Estimated Fee</span>
-              <span className="text-slate-700 font-medium">
-                {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
-              </span>
+              <Tooltip
+                title={(
+                  <div className="text-xs">
+                    <div className="whitespace-nowrap font-bold mb-1">手續費說明</div>
+                    <div className="whitespace-nowrap">下單將以 Taker Fee 預留手續費。</div>
+                    <div className="whitespace-nowrap">結算時若成交為 Maker 將退回差額。</div>
+                    <div className="h-px bg-white/20 my-1" />
+                    <div className="whitespace-nowrap font-bold mb-1">Fee Explanation</div>
+                    <div className="whitespace-nowrap">Taker fee is reserved upon order placement.</div>
+                    <div className="whitespace-nowrap">The difference will be refunded if filled as a Maker.</div>
+                  </div>
+                )}
+                placement="left"
+                overlayStyle={{ maxWidth: 'none' }}
+                overlayInnerStyle={{ maxWidth: 'none' }}
+              >
+                <span className="text-slate-700 font-medium cursor-help border-b border-dotted border-slate-400">
+                  {instrument ? `${Number(estimatedFee.toFixed(6))} ${instrument.quoteAsset || ''}` : '--'}
+                </span>
+              </Tooltip>
             </div>
             <div className="flex justify-between text-xs text-slate-500">
               <span>TOTAL</span>
