@@ -145,9 +145,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
   const orderColumns = [
     { key: 'orderId', label: 'Order Id' },
-    { key: 'userId', label: 'User Id' },
     { key: 'instrumentId', label: 'Instrument Id' },
     { key: 'clientOrderId', label: 'Client Order Id' },
+    { key: 'status', label: 'Status' },
     { key: 'side', label: 'Side' },
     { key: 'type', label: 'Type' },
     { key: 'price', label: 'Price' },
@@ -157,7 +157,6 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'remainingQuantity', label: 'Remaining Quantity' },
     { key: 'avgFillPrice', label: 'Avg Fill Price' },
     { key: 'fee', label: 'Fee' },
-    { key: 'status', label: 'Status' },
     { key: 'rejectedReason', label: 'Rejected Reason' },
     { key: 'version', label: 'Version' },
     { key: 'createdAt', label: 'Created At' },
@@ -169,8 +168,8 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
   const columns = [
     { key: 'positionId', label: 'Position Id' },
-    { key: 'userId', label: 'User Id' },
     { key: 'instrumentId', label: 'Instrument Id' },
+    { key: 'status', label: 'Status' },
     { key: 'side', label: 'Side' },
     { key: 'leverage', label: 'Leverage' },
     { key: 'margin', label: 'Margin' },
@@ -184,7 +183,6 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'cumFee', label: 'Cum Fee' },
     { key: 'cumFundingFee', label: 'Cum Funding Fee' },
     { key: 'liquidationPrice', label: 'Liquidation Price' },
-    { key: 'status', label: 'Status' },
     { key: 'createdAt', label: 'Created At' },
     { key: 'updatedAt', label: 'Updated At' },
     { key: 'closedAt', label: 'Closed At' }
@@ -194,9 +192,40 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     const v = p[k];
     if (v === null) return 'Removed';
     if (k === 'instrumentId') return instrumentMap.get(String(v)) || String(v);
-    if (['margin', 'entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'cumRealizedPnl', 'cumFee', 'cumFundingFee', 'liquidationPrice', 'unrealizedPnl'].includes(k)) return formatNumber(v);
-    if (k === 'marginRatio') return formatPercent(v);
-    if (['createdAt', 'updatedAt', 'closedAt'].includes(k)) {
+    if (k === 'status') {
+      const status = String(v || '').toUpperCase();
+      let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+      if (status === 'ACTIVE') colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+      if (status === 'CLOSED') colorClass = 'bg-rose-50 text-rose-600 border-rose-200';
+      if (status === 'LIQUIDATING') colorClass = 'bg-amber-50 text-amber-600 border-amber-200';
+      return (
+        <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${colorClass}`}>
+          {status}
+        </span>
+      );
+    }
+    if (k === 'side') {
+      const side = String(v || '').toUpperCase();
+      let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+      if (side === 'LONG' || side === 'BUY') colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+      if (side === 'SHORT' || side === 'SELL') colorClass = 'bg-rose-50 text-rose-600 border-rose-200';
+      return (
+        <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${colorClass}`}>
+          {side}
+        </span>
+      );
+    }
+    if (['unrealizedPnl', 'cumRealizedPnl', 'cumFee', 'cumFundingFee'].includes(k)) {
+      const n = Number(v);
+      const color = n > 0 ? 'text-emerald-600 font-bold' : (n < 0 ? 'text-rose-600 font-bold' : 'text-slate-500');
+      return <span className={color}>{formatNumber(v)}</span>;
+    }
+    if (['margin', 'marginRatio'].includes(k)) {
+      return <span className="text-sky-600 font-bold">{k === 'marginRatio' ? formatPercent(v) : formatNumber(v)}</span>;
+    }
+    if (['entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'liquidationPrice'].includes(k)) return formatNumber(v);
+    if (['createdAt', 'updatedAt', 'closedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
+      if (!v) return '-';
       const d = new Date(v);
       return isNaN(d.getTime()) ? String(v) : `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
     }
@@ -207,8 +236,32 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     const v = o[k];
     if (v === null) return 'Removed';
     if (k === 'instrumentId') return instrumentMap.get(String(v)) || String(v);
+    if (k === 'status') {
+      const status = String(v || '').toUpperCase();
+      let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+      if (['FILLED', 'PARTIALLY_FILLED'].includes(status)) colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+      if (['CANCELLED', 'REJECTED'].includes(status)) colorClass = 'bg-rose-50 text-rose-600 border-rose-200';
+      if (['NEW', 'PENDING_NEW'].includes(status)) colorClass = 'bg-sky-50 text-sky-600 border-sky-200';
+      return (
+        <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${colorClass}`}>
+          {status}
+        </span>
+      );
+    }
+    if (k === 'side') {
+      const side = String(v || '').toUpperCase();
+      let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+      if (side === 'BUY' || side === 'LONG') colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+      if (side === 'SELL' || side === 'SHORT') colorClass = 'bg-rose-50 text-rose-600 border-rose-200';
+      return (
+        <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${colorClass}`}>
+          {side}
+        </span>
+      );
+    }
     if (['price', 'quantity', 'filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee'].includes(k)) return formatNumber(v);
-    if (['createdAt', 'updatedAt'].includes(k)) {
+    if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
+      if (!v) return '-';
       const d = new Date(v);
       return isNaN(d.getTime()) ? String(v) : `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
     }
@@ -253,7 +306,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                         <tr>
                           <td colSpan={columns.length + 1} className="p-2">
                             <div className="bg-slate-50/30 rounded-xl p-3 border border-white/20 overflow-x-auto">
-                              <div className="text-[9px] uppercase font-bold text-slate-400 mb-2 text-left">Position Events (Diff)</div>
+                              <div className="text-[9px] uppercase font-bold text-slate-400 mb-2 text-left">Position Events</div>
                               <table className="w-full text-[10px] text-left border-separate border-spacing-x-0">
                                 <thead>
                                   <tr className="text-slate-500">
@@ -329,7 +382,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                       <th className="py-1 px-2 whitespace-nowrap font-bold">Seq</th>
                                       <th className="py-1 px-2 whitespace-nowrap font-bold">Event</th>
                                       {orderColumns.map((c, i) => (
-                                        <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-100/50 ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
+                                        <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-50/40 ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
                                       ))}
                                       <th className="py-1 px-2 whitespace-nowrap font-bold">Time</th>
                                     </tr>
