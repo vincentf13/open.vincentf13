@@ -1006,184 +1006,182 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
 
       <div className="p-4 overflow-x-auto">
         {activeTab === 'Positions' && (
-          <table className="min-w-[2600px] w-full text-xs text-right text-slate-600">
-            <thead>
-              <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
-                {columns.map((column) => (
-                  <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                    {column.key === 'instrumentId' ? (
-                      <Tooltip
-                        title={(
-                          <div className="text-xs">
-                            <div className="whitespace-nowrap font-bold mb-1">倉位系統說明</div>
-                            <div className="whitespace-nowrap">倉位服務負責更新持有部位、均價與風險指標。</div>
-                            <div className="whitespace-nowrap">採用 Event Sourcing 模式，所有變更皆有跡可循。</div>
-                            <div className="whitespace-nowrap">浮動盈虧基於標記價格實時重算，強平價動態調整。</div>
-                            <div className="h-px bg-white/20 my-1" />
-                            <div className="whitespace-nowrap font-bold mb-1">Position System Explanation</div>
-                            <div className="whitespace-nowrap">Updates holdings, average price, and risk metrics.</div>
-                            <div className="whitespace-nowrap">Built on Event Sourcing; every change is traceable.</div>
-                            <div className="whitespace-nowrap">Unrealized PnL and Liq. Price are updated in real-time.</div>
-                          </div>
-                        )}
-                        placement="bottomLeft"
-                        overlayClassName="liquid-tooltip"
-                        styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-                      >
-                        <span className="cursor-help border-b border-dotted border-slate-400">{column.label}</span>
-                      </Tooltip>
-                    ) : (
-                      column.label
-                    )}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {positions.length === 0 && (
-                <tr>
-                  <td className="py-6 text-center text-slate-400 text-xs" colSpan={columns.length + 1}>
-                    {loading ? 'Loading...' : 'No positions'}
-                  </td>
-                </tr>
-              )}
-              {positions.map((position) => {
-                const isExpanded = expandedPositionId === position.positionId;
-                const eventsForPosition = positionEvents[position.positionId] || [];
-                const eventsLoading = positionEventsLoading[position.positionId];
-                const eventPayloadEntries = eventsForPosition.map((event) => ({
-                  event,
-                  payload: parsePositionPayload(event.payload),
-                }));
-                const positionPayloadKeys = collectPositionPayloadKeys(eventPayloadEntries);
-                return (
-                  <Fragment key={position.positionId}>
-                    <tr className="hover:bg-white/20 transition-colors">
-                      <td className="py-3 px-2 text-right">
-                        <button
-                          type="button"
-                          className="h-5 w-5 rounded-md border border-white/50 bg-white/30 text-[10px] text-slate-600 hover:bg-white/50"
-                          onClick={() => {
-                            const next = isExpanded ? null : position.positionId;
-                            setExpandedPositionId(next);
-                            if (!isExpanded) {
-                              fetchPositionEvents(position.positionId);
-                            }
-                          }}
-                        >
-                          {isExpanded ? 'v' : '>'}
-                        </button>
+          <Tooltip
+            title={(
+              <div className="text-xs">
+                <div className="whitespace-nowrap font-bold mb-1">倉位系統說明</div>
+                <div className="whitespace-nowrap">倉位服務負責更新持有部位、均價與風險指標。</div>
+                <div className="whitespace-nowrap">採用 Event Sourcing 模式，所有變更皆有跡可循。</div>
+                <div className="whitespace-nowrap">浮動盈虧基於標記價格實時重算，強平價動態調整。</div>
+                <div className="h-px bg-white/20 my-1" />
+                <div className="whitespace-nowrap font-bold mb-1">Position System Explanation</div>
+                <div className="whitespace-nowrap">Updates holdings, average price, and risk metrics.</div>
+                <div className="whitespace-nowrap">Built on Event Sourcing; every change is traceable.</div>
+                <div className="whitespace-nowrap">Unrealized PnL and Liq. Price are updated in real-time.</div>
+              </div>
+            )}
+            placement="bottomLeft"
+            overlayClassName="liquid-tooltip"
+            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+          >
+            <div>
+              <table className="min-w-[2600px] w-full text-xs text-right text-slate-600">
+                <thead>
+                  <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                    <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
+                    {columns.map((column) => (
+                      <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                        {column.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {positions.length === 0 && (
+                    <tr>
+                      <td className="py-6 text-center text-slate-400 text-xs" colSpan={columns.length + 1}>
+                        {loading ? 'Loading...' : 'No positions'}
                       </td>
-                      {columns.map((column) => {
-                        const value = renderCellValue(position, column.key);
-                        const isPnl = column.key === 'unrealizedPnl' || column.key === 'cumRealizedPnl';
-                        const isFee = column.key === 'cumFee' || column.key === 'cumFundingFee';
-                        const isTag = column.key === 'side' || column.key === 'status';
-                        const sideValue = column.key === 'side' ? String(value).toUpperCase() : '';
-                        const pnlValue = isPnl ? Number((position as any)[column.key] || 0) : 0;
-                        const pnlClass = isPnl ? (pnlValue >= 0 ? 'text-emerald-600' : 'text-rose-500') : '';
-                        const feeClass = isFee ? 'text-rose-500' : '';
-                      const highlightClass = isPositionFieldHighlighted(position, column.key)
-                        ? 'bg-rose-100/70 text-rose-900'
-                        : '';
-                      const cellClass = [feeClass || pnlClass, highlightClass].filter(Boolean).join(' ');
-                        const tagBaseClass =
-                          'inline-flex items-center justify-center text-[10px] uppercase font-semibold tracking-wider rounded-md px-1.5 py-0.5 border';
-                        const sideTagClass =
-                          sideValue === 'LONG'
-                            ? 'text-emerald-700 bg-emerald-400/20 border-emerald-400/40'
-                            : sideValue === 'SHORT'
-                              ? 'text-rose-700 bg-rose-400/20 border-rose-400/40'
-                              : 'text-slate-600 bg-white/40 border-white/50';
-                        const statusTagClass = 'text-slate-600 bg-white/40 border-white/50';
-                        const cellContent = isTag ? (
-                          <span className={`${tagBaseClass} ${column.key === 'side' ? sideTagClass : statusTagClass}`}>
-                            {String(value)}
-                          </span>
-                        ) : (
-                          value
-                        );
-                        return (
-                        <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
-                          {cellContent}
-                        </td>
-                        );
-                      })}
                     </tr>
-                    {isExpanded && (
-                      <tr>
-                        <td className="py-3 px-2" colSpan={columns.length + 1}>
-                          <div className="rounded-xl border border-white/40 bg-white/20 p-3">
-                            <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
-                              Position Events
-                            </div>
-                            <div className="overflow-x-auto">
-                              <table className="min-w-[1600px] w-full text-[11px] text-right text-slate-600">
-                                <thead>
-                                  <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
-                                    {positionEventColumns.map((column) => (
-                                      <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                                        {column.label}
-                                      </th>
-                                    ))}
-                                      {positionPayloadKeys.map((key) => (
-                                        <th
-                                          key={key}
-                                          className="py-2 px-2 font-semibold text-right whitespace-nowrap normal-case"
-                                        >
-                                          {key}
-                                        </th>
+                  )}
+                  {positions.map((position) => {
+                    const isExpanded = expandedPositionId === position.positionId;
+                    const eventsForPosition = positionEvents[position.positionId] || [];
+                    const eventsLoading = positionEventsLoading[position.positionId];
+                    const eventPayloadEntries = eventsForPosition.map((event) => ({
+                      event,
+                      payload: parsePositionPayload(event.payload),
+                    }));
+                    const positionPayloadKeys = collectPositionPayloadKeys(eventPayloadEntries);
+                    return (
+                      <Fragment key={position.positionId}>
+                        <tr className="hover:bg-white/20 transition-colors">
+                          <td className="py-3 px-2 text-right">
+                            <button
+                              type="button"
+                              className="h-5 w-5 rounded-md border border-white/50 bg-white/30 text-[10px] text-slate-600 hover:bg-white/50"
+                              onClick={() => {
+                                const next = isExpanded ? null : position.positionId;
+                                setExpandedPositionId(next);
+                                if (!isExpanded) {
+                                  fetchPositionEvents(position.positionId);
+                                }
+                              }}
+                            >
+                              {isExpanded ? 'v' : '>'}
+                            </button>
+                          </td>
+                          {columns.map((column) => {
+                            const value = renderCellValue(position, column.key);
+                            const isPnl = column.key === 'unrealizedPnl' || column.key === 'cumRealizedPnl';
+                            const isFee = column.key === 'cumFee' || column.key === 'cumFundingFee';
+                            const isTag = column.key === 'side' || column.key === 'status';
+                            const sideValue = column.key === 'side' ? String(value).toUpperCase() : '';
+                            const pnlValue = isPnl ? Number((position as any)[column.key] || 0) : 0;
+                            const pnlClass = isPnl ? (pnlValue >= 0 ? 'text-emerald-600' : 'text-rose-500') : '';
+                            const feeClass = isFee ? 'text-rose-500' : '';
+                            const highlightClass = isPositionFieldHighlighted(position, column.key)
+                              ? 'bg-rose-100/70 text-rose-900'
+                              : '';
+                            const cellClass = [feeClass || pnlClass, highlightClass].filter(Boolean).join(' ');
+                            const tagBaseClass =
+                              'inline-flex items-center justify-center text-[10px] uppercase font-semibold tracking-wider rounded-md px-1.5 py-0.5 border';
+                            const sideTagClass =
+                              sideValue === 'LONG'
+                                ? 'text-emerald-700 bg-emerald-400/20 border-emerald-400/40'
+                                : sideValue === 'SHORT'
+                                  ? 'text-rose-700 bg-rose-400/20 border-rose-400/40'
+                                  : 'text-slate-600 bg-white/40 border-white/50';
+                            const statusTagClass = 'text-slate-600 bg-white/40 border-white/50';
+                            const cellContent = isTag ? (
+                              <span className={`${tagBaseClass} ${column.key === 'side' ? sideTagClass : statusTagClass}`}>
+                                {String(value)}
+                              </span>
+                            ) : (
+                              value
+                            );
+                            return (
+                              <td key={column.key} className={`py-3 px-2 font-mono whitespace-nowrap text-right ${cellClass}`}>
+                                {cellContent}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td className="py-3 px-2" colSpan={columns.length + 1}>
+                              <div className="rounded-xl border border-white/40 bg-white/20 p-3">
+                                <div className="mb-2 w-full text-left text-[10px] uppercase text-slate-500 font-semibold tracking-wider">
+                                  Position Events
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-[1600px] w-full text-[11px] text-right text-slate-600">
+                                    <thead>
+                                      <tr className="text-[10px] uppercase text-slate-400 tracking-wider border-b border-white/20">
+                                        {positionEventColumns.map((column) => (
+                                          <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
+                                            {column.label}
+                                          </th>
+                                        ))}
+                                        {positionPayloadKeys.map((key) => (
+                                          <th
+                                            key={key}
+                                            className="py-2 px-2 font-semibold text-right whitespace-nowrap normal-case"
+                                          >
+                                            {key}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/10">
+                                      {eventsForPosition.length === 0 && (
+                                        <tr>
+                                          <td
+                                            className="py-4 text-center text-slate-400 text-xs"
+                                            colSpan={positionEventColumns.length + positionPayloadKeys.length}
+                                          >
+                                            {eventsLoading ? 'Loading...' : 'No events'}
+                                          </td>
+                                        </tr>
+                                      )}
+                                      {eventsForPosition.map((event, index) => (
+                                        <tr key={event.eventId}>
+                                          {positionEventColumns.map((column) => {
+                                            let value: string | number | null | undefined = (event as any)[column.key];
+                                            if (column.key === 'occurredAt' || column.key === 'createdAt') {
+                                              value = formatDateTime(value);
+                                            }
+                                            return (
+                                              <td key={column.key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
+                                                {value === null || value === undefined || value === '' ? '-' : String(value)}
+                                              </td>
+                                            );
+                                          })}
+                                          {positionPayloadKeys.map((key) => {
+                                            const payload = eventPayloadEntries[index]?.payload;
+                                            const value = payload ? payload[key] : undefined;
+                                            return (
+                                              <td key={key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
+                                                {formatPositionPayloadValue(key, value)}
+                                              </td>
+                                            );
+                                          })}
+                                        </tr>
                                       ))}
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/10">
-                                  {eventsForPosition.length === 0 && (
-                                    <tr>
-                                      <td
-                                        className="py-4 text-center text-slate-400 text-xs"
-                                        colSpan={positionEventColumns.length + positionPayloadKeys.length}
-                                      >
-                                        {eventsLoading ? 'Loading...' : 'No events'}
-                                      </td>
-                                    </tr>
-                                  )}
-                                  {eventsForPosition.map((event, index) => (
-                                    <tr key={event.eventId}>
-                                      {positionEventColumns.map((column) => {
-                                        let value: string | number | null | undefined = (event as any)[column.key];
-                                        if (column.key === 'occurredAt' || column.key === 'createdAt') {
-                                          value = formatDateTime(value);
-                                        }
-                                        return (
-                                          <td key={column.key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
-                                            {value === null || value === undefined || value === '' ? '-' : String(value)}
-                                          </td>
-                                        );
-                                      })}
-                                      {positionPayloadKeys.map((key) => {
-                                        const payload = eventPayloadEntries[index]?.payload;
-                                        const value = payload ? payload[key] : undefined;
-                                        return (
-                                          <td key={key} className="py-2 px-2 font-mono whitespace-nowrap text-right">
-                                            {formatPositionPayloadValue(key, value)}
-                                          </td>
-                                        );
-                                      })}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Tooltip>
         )}
         {activeTab === 'Orders' && (
           <Tooltip
@@ -1211,30 +1209,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                     <th className="py-2 px-2 font-semibold text-right whitespace-nowrap"></th>
                     {orderColumns.map((column) => (
                       <th key={column.key} className="py-2 px-2 font-semibold text-right whitespace-nowrap">
-                        {column.key === 'instrumentId' ? (
-                          <Tooltip
-                            title={(
-                              <div className="text-xs">
-                                <div className="whitespace-nowrap font-bold mb-1">訂單系統說明</div>
-                                <div className="whitespace-nowrap">訂單服務負責委託建檔、風控預檢與資產凍結。</div>
-                                <div className="whitespace-nowrap">成交數據通過消費撮合引擎發布的 Kafka 事件實時更新。</div>
-                                <div className="whitespace-nowrap">變更部分會以高亮標示，方便追蹤交易動態。</div>
-                                <div className="h-px bg-white/20 my-1" />
-                                <div className="whitespace-nowrap font-bold mb-1">Order System Explanation</div>
-                                <div className="whitespace-nowrap">Handles order creation, risk pre-check, and funds freezing.</div>
-                                <div className="whitespace-nowrap">Trade data is updated in real-time via Kafka events from the engine.</div>
-                                <div className="whitespace-nowrap">Changes are highlighted to facilitate trade tracking.</div>
-                              </div>
-                            )}
-                            placement="bottomLeft"
-                            overlayClassName="liquid-tooltip"
-                            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
-                          >
-                            <span className="cursor-help border-b border-dotted border-slate-400">{column.label}</span>
-                          </Tooltip>
-                        ) : (
-                          column.label
-                        )}
+                        {column.label}
                       </th>
                     ))}
                   </tr>
