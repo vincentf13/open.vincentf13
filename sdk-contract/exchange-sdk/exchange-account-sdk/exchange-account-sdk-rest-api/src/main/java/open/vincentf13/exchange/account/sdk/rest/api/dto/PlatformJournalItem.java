@@ -18,6 +18,7 @@ public record PlatformJournalItem(
         BigDecimal balanceAfter,
         ReferenceType referenceType,
         String referenceId,
+        Integer seq,
         String description,
         Instant eventTime,
         Instant createdAt

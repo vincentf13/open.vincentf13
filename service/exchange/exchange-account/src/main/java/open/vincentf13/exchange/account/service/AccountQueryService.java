@@ -135,6 +135,7 @@ public class AccountQueryService {
                                    base.balanceAfter(),
                                    base.referenceType(),
                                    base.referenceId(),
+                                   base.seq(),
                                    base.description(),
                                    base.eventTime(),
                                    base.createdAt()

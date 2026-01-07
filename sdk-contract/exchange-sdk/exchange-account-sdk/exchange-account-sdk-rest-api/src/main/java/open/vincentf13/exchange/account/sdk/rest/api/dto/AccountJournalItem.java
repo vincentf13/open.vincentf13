@@ -22,6 +22,7 @@ public record AccountJournalItem(
         BigDecimal balanceAfter,
         ReferenceType referenceType,
         String referenceId,
+        Integer seq,
         String description,
         Instant eventTime,
         Instant createdAt
