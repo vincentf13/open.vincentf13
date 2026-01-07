@@ -61,6 +61,8 @@ public class UserJournalRepository {
                 .eq(UserJournalPO::getReferenceType, referenceType)
                 .eq(UserJournalPO::getReferenceId, referenceId)
                 .orderByDesc(UserJournalPO::getCreatedAt)
+                .orderByDesc(UserJournalPO::getSeq)
+                .orderByDesc(UserJournalPO::getJournalId)
                 .last("LIMIT 1");
         return mapper.selectList(wrapper)
                      .stream()
