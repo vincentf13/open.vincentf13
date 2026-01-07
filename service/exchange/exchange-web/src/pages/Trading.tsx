@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+
 import { message, Tooltip } from 'antd';
 
 import {
@@ -99,30 +100,26 @@ export default function Trading() {
 
   useEffect(() => {
     if (balanceSheetOpen) {
-      setBalanceSheetLoading(true);
-      getBalanceSheet().then(res => { if (String(res?.code)==='0') setBalanceSheetData(res.data); }).finally(() => setBalanceSheetLoading(false));
+      getBalanceSheet().then(res => { if (String(res?.code)==='0') setBalanceSheetData(res.data); });
       getPlatformAccounts().then(res => { if (String(res?.code)==='0') setPlatformAccountsData(res.data); });
     }
   }, [balanceSheetOpen, refreshTrigger]);
 
   useEffect(() => {
     if (accountJournalOpen && accountJournalData?.accountId) {
-      setAccountJournalLoading(true);
-      getAccountJournals(accountJournalData.accountId).then(res => { if(String(res?.code)==='0') setAccountJournalData(res.data); }).finally(() => setAccountJournalLoading(false));
+      getAccountJournals(accountJournalData.accountId).then(res => { if(String(res?.code)==='0') setAccountJournalData(res.data); });
     }
   }, [refreshTrigger]);
 
   useEffect(() => {
     if (platformAccountJournalOpen && platformAccountJournalData?.accountId) {
-      setPlatformAccountJournalLoading(true);
-      getPlatformAccountJournals(platformAccountJournalData.accountId).then(res => { if(String(res?.code)==='0') setPlatformAccountJournalResponse(res.data); }).finally(() => setPlatformAccountJournalLoading(false));
+      getPlatformAccountJournals(platformAccountJournalData.accountId).then(res => { if(String(res?.code)==='0') setPlatformAccountJournalResponse(res.data); });
     }
   }, [refreshTrigger]);
 
   useEffect(() => {
     if (referenceJournalOpen && referenceJournalData?.referenceType && referenceJournalData?.referenceId) {
-      setReferenceJournalLoading(true);
-      getJournalsByReference(referenceJournalData.referenceType, referenceJournalData.referenceId).then(res => { if(String(res?.code)==='0') setReferenceJournalData(res.data); }).finally(() => setReferenceJournalLoading(false));
+      getJournalsByReference(referenceJournalData.referenceType, referenceJournalData.referenceId).then(res => { if(String(res?.code)==='0') setReferenceJournalData(res.data); });
     }
   }, [refreshTrigger]);
 
@@ -187,7 +184,23 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
               <th className="py-1 pr-1 font-semibold text-left w-[110px]">referenceType</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[120px]">referenceId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[120px]">
+                <div className="flex items-center gap-1">
+                  referenceId
+                  <Tooltip 
+                    title={(
+                      <div className="text-[10px] leading-relaxed min-w-[240px]">
+                        <p className="font-bold text-sky-400 border-b border-white/10 pb-1 mb-1">關聯查詢 (Reference Query)</p>
+                        <p>點擊 ID 可查詢該筆業務操作（如撮合、手續費）產生的所有關聯帳戶分錄。</p>
+                        <p className="text-slate-300 mt-1">Click to view all journal entries (e.g., matching, fees) related to this transaction.</p>
+                      </div>
+                    )}
+                    overlayStyle={{ maxWidth: 'none' }}
+                  >
+                    <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                  </Tooltip>
+                </div>
+              </th>
               <th className="py-1 pr-1 font-semibold w-[30px]">seq</th>
               <th className="py-1 pr-1 font-semibold text-left w-[150px]">description</th>
               <th className="py-1 pr-1 font-semibold w-[100px]">eventTime</th>
@@ -254,7 +267,23 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold w-[60px]">direction</th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
               <th className="py-1 pr-1 font-semibold text-left w-[110px]">referenceType</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[120px]">referenceId</th>
+              <th className="py-1 pr-1 font-semibold text-left w-[120px]">
+                <div className="flex items-center gap-1">
+                  referenceId
+                  <Tooltip 
+                    title={(
+                      <div className="text-[10px] leading-relaxed min-w-[240px]">
+                        <p className="font-bold text-indigo-400 border-b border-white/10 pb-1 mb-1">關聯查詢 (Reference Query)</p>
+                        <p>點擊 ID 可查詢該筆業務操作產生的所有關聯帳戶分錄。</p>
+                        <p className="text-slate-300 mt-1">Click to view all journal entries related to this transaction.</p>
+                      </div>
+                    )}
+                    overlayStyle={{ maxWidth: 'none' }}
+                  >
+                    <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                  </Tooltip>
+                </div>
+              </th>
               <th className="py-1 pr-1 font-semibold w-[30px]">seq</th>
               <th className="py-1 pr-1 font-semibold text-left w-[150px]">description</th>
               <th className="py-1 pr-1 font-semibold w-[100px]">eventTime</th>
@@ -484,7 +513,9 @@ export default function Trading() {
                   </div>
                   <div className="overflow-auto max-h-[70vh]">
                     {referenceJournalOpen ? (
-                      !referenceJournalLoading && (
+                      referenceJournalLoading && !referenceJournalData ? (
+                        <div className="p-8 text-center text-xs text-slate-400">Loading...</div>
+                      ) : (
                         <div className="space-y-6">
                           <div>
                             <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
@@ -504,8 +535,8 @@ export default function Trading() {
                       )
                     ) : (
                       <>
-                        {accountJournalOpen && !accountJournalLoading && renderJournalRows(accountJournalData?.journals)}
-                        {platformAccountJournalOpen && !platformAccountJournalLoading && renderPlatformJournalRows(platformAccountJournalData?.journals)}
+                        {accountJournalOpen && (accountJournalLoading && !accountJournalData ? <div className="p-8 text-center text-xs text-slate-400">Loading...</div> : renderJournalRows(accountJournalData?.journals))}
+                        {platformAccountJournalOpen && (platformAccountJournalLoading && !platformAccountJournalData ? <div className="p-8 text-center text-xs text-slate-400">Loading...</div> : renderPlatformJournalRows(platformAccountJournalData?.journals))}
                       </>
                     )}
                   </div>
@@ -520,7 +551,54 @@ export default function Trading() {
               <div className="space-y-12">
                 {/* User Ledger */}
                 <section>
-                  <div className="text-xs font-black uppercase tracking-widest text-sky-600 mb-4 border-b-2 border-sky-100 pb-1">User</div>
+                  <div className="flex items-center gap-2 mb-4 border-b-2 border-sky-100 pb-1">
+                    <div className="text-xs font-black uppercase tracking-widest text-sky-600">User Ledger</div>
+                    <Tooltip 
+                      title={(
+                        <div className="text-[10px] leading-relaxed min-w-[520px]">
+                          <div className="grid grid-cols-2 gap-6">
+                            {/* Chinese Column */}
+                            <div className="space-y-2 text-slate-700">
+                              <p className="font-bold text-sky-600 border-b border-slate-200 pb-1">用戶複式記帳法</p>
+                              <p>遵循 <span className="text-sky-600 font-mono">資產 = 負債 + 權益 + (收入 - 費用)</span></p>
+                              <ul className="list-disc pl-4 space-y-1">
+                                <li><span className="font-semibold text-emerald-600">Assets (資產)</span>: 用戶實際持有的代幣。</li>
+                                <li><span className="font-semibold text-rose-600">Liabilities (負債)</span>: 用戶對平台的欠款。</li>
+                                <li><span className="font-semibold text-sky-600">Equity (權益)</span>: 用戶的淨資產。</li>
+                                <li><span className="font-semibold text-amber-600">Revenue (收入)</span>: 交易獲利或入金。</li>
+                                <li><span className="font-semibold text-slate-500">Expenses (費用)</span>: 交易虧損或手續費。</li>
+                              </ul>
+                              <div className="pt-1 border-t border-slate-200">
+                                <p className="font-bold text-slate-600">分錄 (Journal Entries)</p>
+                                <p>所有餘額變動均由「分錄」驅動。每一筆交易都會產生對應的借貸分錄，確保帳本永遠平衡。</p>
+                              </div>
+                            </div>
+                            {/* English Column */}
+                            <div className="space-y-2 text-slate-700">
+                              <p className="font-bold text-sky-600 border-b border-slate-200 pb-1">User Double-Entry Bookkeeping</p>
+                              <p className="font-mono text-sky-600 text-[9px]">Assets = Liabilities + Equity + (Revenue - Expenses)</p>
+                              <ul className="list-disc pl-4 space-y-1">
+                                <li><span className="font-semibold text-emerald-600">Assets</span>: Funds/Tokens owned by user.</li>
+                                <li><span className="font-semibold text-rose-600">Liabilities</span>: Debts or loans owed to platform.</li>
+                                <li><span className="font-semibold text-sky-600">Equity</span>: Net worth of the account.</li>
+                                <li><span className="font-semibold text-amber-600">Revenue</span>: Trading gains or deposits.</li>
+                                <li><span className="font-semibold text-slate-500">Expenses</span>: Trading losses or fees paid.</li>
+                              </ul>
+                              <div className="pt-1 border-t border-slate-200">
+                                <p className="font-bold text-slate-600">Journal Entries</p>
+                                <p>All balance changes are driven by "Journals". Every trade generates debit/credit entries, ensuring <span className="italic">Total Debits = Total Credits</span>.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      placement="right"
+                      classNames={{ root: 'liquid-tooltip' }}
+                      overlayStyle={{ maxWidth: 'none' }}
+                    >
+                      <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-sky-50 flex items-center justify-center text-[10px] text-sky-400 cursor-help border border-sky-200">?</div>
+                    </Tooltip>
+                  </div>
                   <div className="flex flex-col border border-slate-200/80 divide-y divide-slate-200/80">
                     <div className="flex flex-col divide-y divide-slate-200/80 min-[1600px]:grid min-[1600px]:grid-cols-2 min-[1600px]:divide-x min-[1600px]:divide-y-0">
                       <div className="p-4 flex flex-col">
@@ -553,7 +631,42 @@ export default function Trading() {
 
                 {/* Exchange Ledger */}
                 <section>
-                  <div className="text-xs font-black uppercase tracking-widest text-indigo-600 mb-4 border-b-2 border-indigo-100 pb-1">Exchange</div>
+                  <div className="flex items-center gap-2 mb-4 border-b-2 border-indigo-100 pb-1">
+                    <div className="text-xs font-black uppercase tracking-widest text-indigo-600">Exchange Ledger</div>
+                    <Tooltip 
+                      title={(
+                        <div className="text-[10px] leading-relaxed min-w-[520px]">
+                          <div className="grid grid-cols-2 gap-6">
+                            {/* Chinese Column */}
+                            <div className="space-y-2 text-slate-700">
+                              <p className="font-bold text-indigo-600 border-b border-slate-200 pb-1">交易所內部記帳</p>
+                              <p>交易所作為託管方，其內部的 <span className="text-indigo-600 font-semibold">資產</span> 必須恆等於對所有用戶的 <span className="text-indigo-600 font-semibold">總負債</span>。</p>
+                              <p>這裡展示的是平台帳戶（庫存、手續費收入等）與整體系統平衡狀態。</p>
+                              <div className="pt-1 border-t border-slate-200">
+                                <p className="font-bold text-slate-600">分錄 (Journal Entries)</p>
+                                <p>系統自動化生成分錄，記錄每一分錢的流向。分錄是審計的基礎，確保平台資產與用戶權益隨時對齊。</p>
+                              </div>
+                            </div>
+                            {/* English Column */}
+                            <div className="space-y-2 text-slate-700">
+                              <p className="font-bold text-indigo-600 border-b border-slate-200 pb-1">Exchange Accounting</p>
+                              <p>As a custodian, the exchange's <span className="text-indigo-500 font-semibold">Assets</span> must always equal its <span className="text-indigo-500 font-semibold">Total Liabilities</span> to users.</p>
+                              <p>This section displays platform accounts (inventory, fees) and overall system equilibrium.</p>
+                              <div className="pt-1 border-t border-slate-200">
+                                <p className="font-bold text-slate-600">Journal Entries</p>
+                                <p>Automated journals record every movement of funds. They are the foundation for auditing and asset-equity alignment.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      placement="right"
+                      classNames={{ root: 'liquid-tooltip' }}
+                      overlayStyle={{ maxWidth: 'none' }}
+                    >
+                      <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] text-indigo-400 cursor-help border border-indigo-200">?</div>
+                    </Tooltip>
+                  </div>
                   <div className="flex flex-col border border-slate-200/80 divide-y divide-slate-200/80">
                     <div className="flex flex-col divide-y divide-slate-200/80 min-[1600px]:grid min-[1600px]:grid-cols-2 min-[1600px]:divide-x min-[1600px]:divide-y-0">
                       <div className="p-4 flex flex-col">

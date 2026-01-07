@@ -168,6 +168,7 @@ input[type=number] {
   color: #1e293b !important;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15) !important;
   border-radius: 12px !important;
+  max-width: none !important; /* Allow tooltip to expand */
 }
 
 .liquid-tooltip .ant-tooltip-arrow::before {
