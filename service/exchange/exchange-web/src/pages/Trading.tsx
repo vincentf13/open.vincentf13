@@ -905,6 +905,35 @@ export default function Trading() {
                     >
                       Historical
                     </button>
+                    <Tooltip 
+                      title={(
+                        <div className="text-[10px] leading-relaxed min-w-[280px]">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2 text-slate-700">
+                              <p className="font-bold border-b border-slate-200 pb-1">快照說明</p>
+                              <ul className="space-y-1">
+                                <li><span className="font-bold text-emerald-600">Latest</span>: 顯示當前最新狀態。</li>
+                                <li><span className="font-bold text-sky-600">Historical</span>: 查詢歷史時間點的帳戶快照。</li>
+                                <li><span className="font-bold text-slate-600">Snapshot</span>: 數據對應的實際時間點。</li>
+                              </ul>
+                            </div>
+                            <div className="space-y-2 text-slate-700">
+                              <p className="font-bold border-b border-slate-200 pb-1">Snapshot Guide</p>
+                              <ul className="space-y-1">
+                                <li><span className="font-bold text-emerald-600">Latest</span>: Shows real-time state.</li>
+                                <li><span className="font-bold text-sky-600">Historical</span>: Query account state at past time.</li>
+                                <li><span className="font-bold text-slate-600">Snapshot</span>: Exact time of data.</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      placement="bottom"
+                      classNames={{ root: 'liquid-tooltip' }}
+                      styles={{ root: { maxWidth: 'none' } }}
+                    >
+                      <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                    </Tooltip>
                     <span className="text-[10px] text-slate-400">
                       Snapshot: <span className="font-mono text-[11px] text-slate-500">{balanceSheetData?.snapshotAt ?? '-'}</span>
                     </span>
