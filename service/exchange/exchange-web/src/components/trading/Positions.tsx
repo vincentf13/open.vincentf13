@@ -369,7 +369,101 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                 <thead>
                   <tr className="text-[10px] uppercase text-slate-400 border-b border-white/10">
                     <th className="py-2 px-2"></th>
-                    {columns.map(c => <th key={c.key} className="py-2 px-2 font-semibold">{c.label}</th>)}
+                    {columns.map(c => (
+                      <th key={c.key} className="py-2 px-2 font-semibold">
+                        <div className="flex items-center justify-end gap-1">
+                          {c.label}
+                          {['entryPrice', 'marginRatio', 'unrealizedPnl', 'cumRealizedPnl', 'liquidationPrice'].includes(c.key) && (
+                            <Tooltip
+                              classNames={{ root: 'liquid-tooltip' }}
+                              title={
+                                c.key === 'entryPrice' ? (
+                                  <div className="flex flex-col gap-2 p-1">
+                                    <div className="font-bold text-slate-800">Avg Entry Price</div>
+                                    <div className="text-[10px] text-slate-600">
+                                      Weighted average of all fills.
+                                    </div>
+                                    <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
+                                      Σ(Fill Price × Fill Qty) / Total Qty
+                                    </div>
+                                  </div>
+                                ) :
+                                c.key === 'marginRatio' ? (
+                                  <div className="flex flex-col gap-2 p-1">
+                                    <div className="font-bold text-slate-800">Margin Ratio</div>
+                                    <div className="text-[10px] text-slate-600">
+                                      Current position equity relative to notional value.
+                                    </div>
+                                    <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
+                                      (Margin + Unrealized PnL) / Notional
+                                    </div>
+                                    <div className="text-[9px] text-slate-500 font-medium italic">
+                                      Notional = Mark Price × Qty × Contract Size
+                                    </div>
+                                  </div>
+                                ) :
+                                c.key === 'unrealizedPnl' ? (
+                                  <div className="flex flex-col gap-2 p-1">
+                                    <div className="font-bold text-slate-800">Unrealized PnL</div>
+                                    <div className="text-[10px] text-slate-600">
+                                      Floating profit/loss based on Mark Price.
+                                    </div>
+                                    <div className="flex flex-col gap-1 mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10">
+                                      <div className="flex justify-between gap-3 text-[10px]">
+                                        <span className="text-emerald-700 font-bold">Long</span>
+                                        <span className="font-mono text-slate-700">(Mark - Entry) × Qty × Contract Size</span>
+                                      </div>
+                                      <div className="flex justify-between gap-3 text-[10px] border-t border-slate-900/5 pt-1">
+                                        <span className="text-rose-700 font-bold">Short</span>
+                                        <span className="font-mono text-slate-700">(Entry - Mark) × Qty × Contract Size</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) :
+                                c.key === 'cumRealizedPnl' ? (
+                                  <div className="flex flex-col gap-2 p-1">
+                                    <div className="font-bold text-slate-800">Cum Realized PnL</div>
+                                    <div className="text-[10px] text-slate-600">
+                                      Total realized profit/loss including fees.
+                                    </div>
+                                    <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
+                                      Σ(Close PnL) - Σ(Fees)
+                                    </div>
+                                    <div className="flex items-start gap-1.5 mt-1 p-1.5 bg-amber-500/10 border border-amber-600/20 rounded text-[9px] text-amber-800">
+                                      <span className="text-amber-600 font-bold">!</span>
+                                      <span className="font-medium">Fees are deducted immediately upon trade execution.</span>
+                                    </div>
+                                  </div>
+                                ) :
+                                c.key === 'liquidationPrice' ? (
+                                  <div className="flex flex-col gap-2 p-1">
+                                    <div className="font-bold text-slate-800">Liquidation Price</div>
+                                    <div className="text-[10px] text-slate-600">
+                                      Price at which position hits Maintenance Margin.
+                                    </div>
+                                    <div className="flex flex-col gap-1 mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10">
+                                      <div className="flex justify-between gap-3 text-[10px]">
+                                        <span className="text-emerald-700 font-bold">Long</span>
+                                        <span className="font-mono text-slate-700">(Entry - Margin/Qty) / (1 - MMR)</span>
+                                      </div>
+                                      <div className="flex justify-between gap-3 text-[10px] border-t border-slate-900/5 pt-1">
+                                        <span className="text-rose-700 font-bold">Short</span>
+                                        <span className="font-mono text-slate-700">(Entry + Margin/Qty) / (1 + MMR)</span>
+                                      </div>
+                                    </div>
+                                    <div className="text-[9px] text-slate-500 font-medium italic">
+                                      MMR = Maintenance Margin Rate
+                                    </div>
+                                  </div>
+                                ) : ''
+                              }
+                            >
+                              <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
