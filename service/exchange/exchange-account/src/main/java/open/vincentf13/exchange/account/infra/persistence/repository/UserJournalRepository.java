@@ -17,7 +17,9 @@ import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -115,5 +117,28 @@ public class UserJournalRepository {
                      .stream()
                      .findFirst()
                      .map(po -> OpenObjectMapper.convert(po, UserJournal.class));
+    }
+
+    public Map<Long, UserJournal> findLatestBefore(@NotNull List<Long> accountIds,
+                                                   @NotNull Instant snapshotAt) {
+        if (accountIds.isEmpty()) {
+            return Map.of();
+        }
+        var wrapper = Wrappers.<UserJournalPO>lambdaQuery()
+                .in(UserJournalPO::getAccountId, accountIds)
+                .le(UserJournalPO::getEventTime, snapshotAt)
+                .orderByAsc(UserJournalPO::getAccountId)
+                .orderByDesc(UserJournalPO::getEventTime)
+                .orderByDesc(UserJournalPO::getSeq)
+                .orderByDesc(UserJournalPO::getJournalId);
+        Map<Long, UserJournal> result = new HashMap<>();
+        for (UserJournalPO po : mapper.selectList(wrapper)) {
+            Long accountId = po.getAccountId();
+            if (accountId == null || result.containsKey(accountId)) {
+                continue;
+            }
+            result.put(accountId, OpenObjectMapper.convert(po, UserJournal.class));
+        }
+        return result;
     }
 }

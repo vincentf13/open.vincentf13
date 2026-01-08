@@ -125,14 +125,21 @@ public class AccountQueryService {
         if (snapshotAt == null || accounts.isEmpty()) {
             return snapshot;
         }
-        for (UserAccount account : accounts) {
-            Long accountId = account.getAccountId();
-            if (accountId == null) {
+        List<Long> accountIds = accounts.stream()
+                                        .map(UserAccount::getAccountId)
+                                        .filter(Objects::nonNull)
+                                        .distinct()
+                                        .toList();
+        if (accountIds.isEmpty()) {
+            return snapshot;
+        }
+        Map<Long, UserJournal> journals = userJournalRepository.findLatestBefore(accountIds, snapshotAt);
+        for (Map.Entry<Long, UserJournal> entry : journals.entrySet()) {
+            UserJournal journal = entry.getValue();
+            if (journal == null) {
                 continue;
             }
-            userJournalRepository.findLatestBefore(accountId, snapshotAt)
-                                 .map(UserJournal::getBalanceAfter)
-                                 .ifPresent(balance -> snapshot.put(accountId, balance));
+            snapshot.put(entry.getKey(), journal.getBalanceAfter());
         }
         return snapshot;
     }
