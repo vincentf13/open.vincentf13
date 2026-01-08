@@ -56,6 +56,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [orderEventsLoading, setOrderEventsLoading] = useState<Record<string, boolean>>({});
   const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [riskLimits, setRiskLimits] = useState<Record<string, RiskLimitResponse>>({});
 
   const previousPositionsRef = useRef<Map<string, PositionResponse>>(new Map());
   const positionChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
@@ -68,6 +69,26 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     return () => document.removeEventListener('visibilitychange', h);
   }, []);
 
+  useEffect(() => {
+    if (positions.length > 0) {
+        const uniqueIds = Array.from(new Set(positions.map(p => String(p.instrumentId))));
+        const missing = uniqueIds.filter(id => !riskLimits[id]);
+        if (missing.length > 0) {
+            Promise.all(missing.map(id => getRiskLimit(id))).then(results => {
+                setRiskLimits(prev => {
+                    const next = { ...prev };
+                    results.forEach(res => {
+                        if (String(res?.code) === '0' && res.data) {
+                            next[String(res.data.instrumentId)] = res.data;
+                        }
+                    });
+                    return next;
+                });
+            });
+        }
+    }
+  }, [positions]);
+
   const instrumentMap = useMemo(() => new Map(instruments.map(i => [String(i.instrumentId), i.name || i.symbol || String(i.instrumentId)])), [instruments]);
   const orderHighlightKeys = new Set(['status', 'filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee', 'rejectedReason']);
   const positionHighlightKeys = new Set(['instrumentId', 'side', 'status', 'entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'liquidationPrice', 'unrealizedPnl', 'cumRealizedPnl', 'cumFee', 'cumFundingFee', 'leverage', 'margin', 'marginRatio', 'updatedAt']);
@@ -77,6 +98,240 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     if (v === null || v === undefined) return '';
     const n = Number(v);
     return isNaN(n) ? String(v) : n.toString();
+  };
+
+  const renderCalculatorTooltip = (p: any, key: string) => {
+      const inst = instruments.find(i => String(i.instrumentId) === String(p.instrumentId));
+      const rl = riskLimits[String(p.instrumentId)];
+      const events = positionEvents[p.positionId] || [];
+      
+      const contractSize = Number(inst?.contractSize || 1);
+      const mmr = Number(rl?.maintenanceMarginRate || 0);
+      const mark = Number(p.markPrice || 0);
+      const qty = Number(p.quantity || 0);
+      const entry = Number(p.entryPrice || 0);
+      const margin = Number(p.margin || 0);
+      const upnl = Number(p.unrealizedPnl || 0);
+      const side = String(p.side || '').toUpperCase();
+
+      let content = null;
+
+      // Try to derive last trade info from events for Entry Price and Cum Realized PnL
+      const latestEvent = events[0];
+      const prevEvent = events[1];
+      const latestPayload = latestEvent ? parsePayload(latestEvent.payload) : null;
+      const prevPayload = prevEvent ? parsePayload(prevEvent.payload) : null;
+
+      if (key === 'entryPrice') {
+          if (latestPayload && prevPayload && latestEvent.eventType === 'TRADE_EXECUTED') {
+              const curQ = Number(latestPayload.quantity || 0);
+              const prevQ = Number(prevPayload.quantity || 0);
+              const curE = Number(latestPayload.entryPrice || 0);
+              const prevE = Number(prevPayload.entryPrice || 0);
+              const tradeQ = Math.abs(curQ - prevQ);
+              // Derived Trade Price: (CurE * CurQ - PrevE * PrevQ) / TradeQ
+              const tradeP = tradeQ === 0 ? 0 : (curE * curQ - prevE * prevQ) / (curQ - prevQ);
+              
+              content = (
+                  <div className="flex flex-col gap-1">
+                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Entry Price Transition</div>
+                      <div className="text-[9px] text-slate-500 mb-1">Last Trade (Seq {latestEvent.sequenceNumber}):</div>
+                      <div className="grid grid-cols-[auto_1fr] gap-x-2 text-[10px] text-slate-600">
+                          <span>Prev:</span> <span className="font-mono">{formatNumber(prevE)} × {formatNumber(prevQ)}</span>
+                          <span>Trade:</span> <span className="font-mono text-emerald-600">{formatNumber(tradeP)} × {formatNumber(tradeQ)}</span>
+                      </div>
+                      <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
+                          ({formatNumber(prevE)}×{prevQ} + {formatNumber(tradeP)}×{tradeQ}) / {curQ} = {formatNumber(curE)}
+                      </div>
+                  </div>
+              );
+          } else {
+              content = (
+                  <div className="flex flex-col gap-1">
+                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Entry Price Verify</div>
+                      <div className="text-[10px] text-slate-600 italic">Expand row to load event history for detailed trace.</div>
+                      <div className="font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded mt-1">
+                          Current: {formatNumber(entry)}
+                      </div>
+                  </div>
+              );
+          }
+      } else if (key === 'marginRatio') {
+          const notional = mark * qty * contractSize;
+          const equity = margin + upnl;
+          const calc = notional === 0 ? 0 : equity / notional;
+          content = (
+              <div className="flex flex-col gap-1">
+                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Margin Ratio Calc</div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
+                      <span>Equity:</span> <span className="font-mono text-right">{formatNumber(margin)} + {formatNumber(upnl)} = {formatNumber(equity)}</span>
+                      <span>Notional:</span> <span className="font-mono text-right">{formatNumber(mark)} × {formatNumber(qty)} × {contractSize} = {formatNumber(notional)}</span>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded">
+                      {formatNumber(equity)} / {formatNumber(notional)} = {formatPercent(calc)}
+                  </div>
+              </div>
+          );
+      } else if (key === 'unrealizedPnl') {
+          const diff = side === 'LONG' || side === 'BUY' ? mark - entry : entry - mark;
+          const calc = diff * qty * contractSize;
+          content = (
+              <div className="flex flex-col gap-1">
+                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Unrealized PnL Calc</div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
+                      <span>Price Diff:</span> <span className={`font-mono text-right ${diff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{side === 'LONG' || side === 'BUY' ? `${formatNumber(mark)} - ${formatNumber(entry)}` : `${formatNumber(entry)} - ${formatNumber(mark)}`} = {formatNumber(diff)}</span>
+                      <span>Volume:</span> <span className="font-mono text-right">{formatNumber(qty)} × {contractSize}</span>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded">
+                      {formatNumber(diff)} × {formatNumber(qty * contractSize)} = {formatNumber(calc)}
+                  </div>
+              </div>
+          );
+      } else if (key === 'cumRealizedPnl') {
+          if (latestPayload && prevPayload) {
+              const curR = Number(latestPayload.cumRealizedPnl || 0);
+              const prevR = Number(prevPayload.cumRealizedPnl || 0);
+              const curF = Number(latestPayload.cumFee || 0);
+              const prevF = Number(prevPayload.cumFee || 0);
+              const curQ = Number(latestPayload.quantity || 0);
+              const prevQ = Number(prevPayload.quantity || 0);
+              
+              const deltaR = curR - prevR;
+              const deltaF = curF - prevF; // Fee charged (positive value)
+              const deltaQ = prevQ - curQ; // Positive means closed quantity
+
+              let explanation = null;
+
+              if (deltaQ > 0) {
+                  // It was a close trade
+                  const rawPnl = deltaR + deltaF; // PnL before fee
+                  const prevE = Number(prevPayload.entryPrice || 0);
+                  // Reverse calculate Exit Price
+                  let exitP = 0;
+                  if (contractSize * deltaQ !== 0) {
+                      if (side === 'LONG' || side === 'BUY') {
+                          exitP = (rawPnl / (deltaQ * contractSize)) + prevE;
+                      } else {
+                          exitP = prevE - (rawPnl / (deltaQ * contractSize));
+                      }
+                  }
+
+                  explanation = (
+                      <div className="mt-1 flex flex-col gap-1.5">
+                          <div className="grid grid-cols-[1fr_auto] gap-x-4 text-[9px] text-slate-500 border-b border-slate-900/10 pb-1">
+                              <span>Closing Price:</span> <span className="font-mono text-slate-700">{formatNumber(exitP)}</span>
+                              <span>Avg Entry:</span> <span className="font-mono text-slate-700">{formatNumber(prevE)}</span>
+                              <span>Closed Qty:</span> <span className="font-mono text-slate-700">{formatNumber(deltaQ)}</span>
+                              <span>Fee Paid:</span> <span className="font-mono text-rose-600">{formatNumber(deltaF)}</span>
+                          </div>
+                          
+                          <div className="bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-800">
+                              <div className="flex justify-between mb-0.5">
+                                  <span className="text-slate-400">1. Gross PnL:</span>
+                                  <span>
+                                      {side === 'LONG' || side === 'BUY' ? `(${formatNumber(exitP)} - ${formatNumber(prevE)})` : `(${formatNumber(prevE)} - ${formatNumber(exitP)})`}
+                                      × {formatNumber(deltaQ)} × {contractSize}
+                                      = <span className="font-bold">{formatNumber(rawPnl)}</span>
+                                  </span>
+                              </div>
+                              <div className="flex justify-between mb-0.5 border-t border-slate-900/5 pt-0.5">
+                                  <span className="text-slate-400">2. Net PnL:</span>
+                                  <span>
+                                      {formatNumber(rawPnl)} - {formatNumber(deltaF)}
+                                      = <span className={`font-bold ${deltaR >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatNumber(deltaR)}</span>
+                                  </span>
+                              </div>
+                              <div className="flex justify-between border-t border-slate-900/5 pt-0.5">
+                                  <span className="text-slate-400">3. New Balance:</span>
+                                  <span>
+                                      {formatNumber(prevR)} {deltaR >= 0 ? '+' : ''}{formatNumber(deltaR)}
+                                      = <span className="font-bold text-slate-900">{formatNumber(curR)}</span>
+                                  </span>
+                              </div>
+                          </div>
+                      </div>
+                  );
+              } else {
+                  // Likely just fee deduction (Funding or Open)
+                  explanation = (
+                      <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
+                          0 - {formatNumber(deltaF)} = -{formatNumber(deltaF)}
+                          <div className="text-[8px] text-slate-400 font-sans mt-0.5 text-right">Fee Deduction Only</div>
+                      </div>
+                  );
+              }
+
+              content = (
+                  <div className="flex flex-col gap-1">
+                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Last Realized PnL</div>
+                      <div className="grid grid-cols-[auto_1fr] gap-x-2 text-[10px] text-slate-600">
+                          <span>Prev Total:</span> <span className="font-mono text-right">{formatNumber(prevR)}</span>
+                          <span>Change:</span> <span className={`font-mono text-right ${deltaR >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{deltaR >= 0 ? '+' : ''}{formatNumber(deltaR)}</span>
+                      </div>
+                      {explanation}
+                  </div>
+              );
+          } else {
+              content = (
+                  <div className="flex flex-col gap-1">
+                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Cum Realized PnL</div>
+                      <div className="text-[10px] text-slate-600">Historical Aggregate:</div>
+                      <div className="font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded mt-1">
+                          {formatNumber(p.cumRealizedPnl)}
+                      </div>
+                  </div>
+              );
+          }
+      } else if (key === 'liquidationPrice') {
+          const effectiveQty = qty * contractSize;
+          const marginPerUnit = effectiveQty === 0 ? 0 : margin / effectiveQty;
+          let numerator = 0;
+          let denominator = 0;
+          if (side === 'LONG' || side === 'BUY') {
+              numerator = entry - marginPerUnit;
+              denominator = 1 - mmr;
+          } else {
+              numerator = entry + marginPerUnit;
+              denominator = 1 + mmr;
+          }
+          const calc = denominator === 0 ? 0 : numerator / denominator;
+          
+          content = (
+               <div className="flex flex-col gap-1">
+                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Liquidation Price Calc</div>
+                   <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
+                      <span>Entry:</span> <span className="font-mono text-right">{formatNumber(entry)}</span>
+                      <span>Margin/Unit:</span> <span className="font-mono text-right">{formatNumber(margin)} / ({formatNumber(qty)}×{contractSize}) = {formatNumber(marginPerUnit)}</span>
+                      <span>MMR Factor:</span> <span className="font-mono text-right">1 {side === 'LONG' || side === 'BUY' ? '-' : '+'} {mmr} = {denominator}</span>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded">
+                      {formatNumber(numerator)} / {denominator} = {formatNumber(calc)}
+                  </div>
+               </div>
+          );
+      }
+
+      const handleMouseEnter = () => {
+          if (!positionEvents[p.positionId] && !positionEventsLoading[p.positionId]) {
+              setPositionEventsLoading(v => ({...v, [p.positionId]: true}));
+              getPositionEvents(p.positionId).then(res => {
+                  if (String(res?.code) === '0') {
+                      setPositionEvents(v => ({...v, [p.positionId]: res.data?.events || []}));
+                  }
+              }).finally(() => setPositionEventsLoading(v => ({...v, [p.positionId]: false})));
+          }
+      };
+
+      return (
+          <Tooltip classNames={{ root: 'liquid-tooltip' }} title={content}>
+             <div 
+                onMouseEnter={handleMouseEnter}
+                className="liquid-tooltip-trigger inline-flex items-center justify-center w-3 h-3 ml-1.5 rounded-sm bg-slate-100 border border-slate-200 text-[8px] text-slate-400 cursor-help hover:bg-white hover:border-blue-300 hover:text-blue-500 transition-colors"
+             >
+                =
+             </div>
+          </Tooltip>
+      );
   };
 
   const fetchPositions = async () => {
@@ -191,53 +446,59 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const renderCellValue = (p: any, k: string) => {
     const v = p[k];
     if (v === null) return 'Removed';
+    
+    let content = null;
+
     if (k === 'positionId') {
-      return <span className="text-slate-600 font-mono">{String(v)}</span>;
-    }
-    if (k === 'instrumentId') return instrumentMap.get(String(v)) || String(v);
-    if (k === 'status') {
+      content = <span className="text-slate-600 font-mono">{String(v)}</span>;
+    } else if (k === 'instrumentId') {
+      content = instrumentMap.get(String(v)) || String(v);
+    } else if (k === 'status') {
       const status = String(v || '').toUpperCase();
       let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
       if (status === 'ACTIVE') colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
       if (status === 'CLOSED') colorClass = 'bg-rose-50 text-rose-600 border-rose-200';
       if (status === 'LIQUIDATING') colorClass = 'bg-amber-50 text-amber-600 border-amber-200';
-      return (
+      content = (
         <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${colorClass}`}>
           {status}
         </span>
       );
-    }
-    if (k === 'side') {
+    } else if (k === 'side') {
       const side = String(v || '').toUpperCase();
       let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
       if (side === 'LONG' || side === 'BUY') colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
       if (side === 'SHORT' || side === 'SELL') colorClass = 'bg-rose-50 text-rose-600 border-rose-200';
-      return (
+      content = (
         <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${colorClass}`}>
           {side}
         </span>
       );
-    }
-    if (['unrealizedPnl', 'cumRealizedPnl', 'cumFee', 'cumFundingFee'].includes(k)) {
+    } else if (['unrealizedPnl', 'cumRealizedPnl', 'cumFee', 'cumFundingFee'].includes(k)) {
       const n = Number(v);
       const color = n > 0 ? 'text-emerald-600 font-bold' : (n < 0 ? 'text-rose-600 font-bold' : 'text-slate-500');
-      return <span className={color}>{formatNumber(v)}</span>;
+      content = <span className={color}>{formatNumber(v)}</span>;
+    } else if (['margin', 'marginRatio'].includes(k)) {
+      content = <span className="text-sky-600 font-bold">{k === 'marginRatio' ? formatPercent(v) : formatNumber(v)}</span>;
+    } else if (['entryPrice', 'quantity', 'markPrice', 'liquidationPrice'].includes(k)) {
+      content = <span className="text-sky-600 font-bold">{formatNumber(v)}</span>;
+    } else if (k === 'closingReservedQuantity') {
+      content = <span className="text-amber-600 font-bold">{formatNumber(v)}</span>;
+    } else if (['createdAt', 'updatedAt', 'closedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
+      if (!v) content = '-';
+      else {
+        const d = new Date(v);
+        content = isNaN(d.getTime()) ? String(v) : `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+      }
+    } else {
+      content = v ?? '-';
     }
-    if (['margin', 'marginRatio'].includes(k)) {
-      return <span className="text-sky-600 font-bold">{k === 'marginRatio' ? formatPercent(v) : formatNumber(v)}</span>;
+
+    if (['entryPrice', 'marginRatio', 'unrealizedPnl', 'cumRealizedPnl', 'liquidationPrice'].includes(k)) {
+       return <div className="flex items-center justify-end gap-1">{content}{renderCalculatorTooltip(p, k)}</div>;
     }
-    if (['entryPrice', 'quantity', 'markPrice', 'liquidationPrice'].includes(k)) {
-      return <span className="text-sky-600 font-bold">{formatNumber(v)}</span>;
-    }
-    if (k === 'closingReservedQuantity') {
-      return <span className="text-amber-600 font-bold">{formatNumber(v)}</span>;
-    }
-    if (['createdAt', 'updatedAt', 'closedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
-      if (!v) return '-';
-      const d = new Date(v);
-      return isNaN(d.getTime()) ? String(v) : `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
-    }
-    return v ?? '-';
+    
+    return content;
   };
 
   const renderOrderCellValue = (o: any, k: string) => {
@@ -493,29 +754,40 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {positionEvents[p.positionId]?.map(e => {
-                                    const payload = parsePayload(e.payload) || {};
-                                    return (
-                                      <tr key={e.eventId} className="hover:bg-white/5">
-                                        <td className="py-1 px-2 font-mono text-slate-400">{e.sequenceNumber}</td>
-                                        <td className="py-1 px-2">
-                                          <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
-                                            {e.eventType}
-                                          </span>
-                                        </td>
-                                        {columns.map((c, i) => {
-                                          const val = payload[c.key];
-                                          const hasValue = val !== undefined && val !== null;
-                                          return (
-                                            <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-200/50 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>
-                                              {hasValue ? renderCellValue(payload, c.key) : '-'}
-                                            </td>
-                                          );
-                                        })}
-                                        <td className="py-1 px-2 text-slate-400 whitespace-nowrap">{formatPayloadValue('occurredAt', e.occurredAt)}</td>
-                                      </tr>
-                                    );
-                                  })}
+                                  {(() => {
+                                    const rawEvents = positionEvents[p.positionId] || [];
+                                    const sortedEvents = [...rawEvents].sort((a, b) => Number(a.sequenceNumber) - Number(b.sequenceNumber));
+                                    
+                                    let accumulatedState: any = {};
+                                    const processedEvents = sortedEvents.map(e => {
+                                      const payload = parsePayload(e.payload) || {};
+                                      accumulatedState = { ...accumulatedState, ...payload };
+                                      return { ...e, fullState: { ...accumulatedState }, deltaPayload: payload };
+                                    });
+
+                                    return processedEvents.reverse().map(e => {
+                                      return (
+                                        <tr key={e.eventId} className="hover:bg-white/5">
+                                          <td className="py-1 px-2 font-mono text-slate-400">{e.sequenceNumber}</td>
+                                          <td className="py-1 px-2">
+                                            <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
+                                              {e.eventType}
+                                            </span>
+                                          </td>
+                                          {columns.map((c, i) => {
+                                            const val = e.deltaPayload[c.key];
+                                            const hasValue = val !== undefined && val !== null;
+                                            return (
+                                              <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-200/50 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>
+                                                {hasValue ? renderCellValue(e.fullState, c.key, p) : '-'}
+                                              </td>
+                                            );
+                                          })}
+                                          <td className="py-1 px-2 text-slate-400 whitespace-nowrap">{formatPayloadValue('occurredAt', e.occurredAt)}</td>
+                                        </tr>
+                                      );
+                                    });
+                                  })()}
                                 </tbody>
                               </table>
                             </div>
