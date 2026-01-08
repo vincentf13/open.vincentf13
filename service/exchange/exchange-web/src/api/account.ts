@@ -89,9 +89,9 @@ export type AccountJournalResponse = {
   journals: AccountJournalItem[];
 };
 
-export const getAccountJournals = async (accountId: number) => {
+export const getAccountJournals = async (accountId: number, snapshotAt?: string) => {
   const response = await apiClient.get('/account/api/account/journals', {
-    params: { accountId },
+    params: snapshotAt ? { accountId, snapshotAt } : { accountId },
   });
   return response.data;
 };
@@ -164,9 +164,9 @@ export type PlatformAccountJournalResponse = {
   journals: PlatformJournalItem[];
 };
 
-export const getPlatformAccountJournals = async (accountId: number) => {
+export const getPlatformAccountJournals = async (accountId: number, snapshotAt?: string) => {
   const response = await apiClient.get('/account/api/account/platform-accounts/journals', {
-    params: { accountId },
+    params: snapshotAt ? { accountId, snapshotAt } : { accountId },
   });
   return response.data;
 };

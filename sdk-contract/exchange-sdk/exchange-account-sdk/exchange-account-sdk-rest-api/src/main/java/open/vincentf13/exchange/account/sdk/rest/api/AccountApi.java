@@ -43,7 +43,9 @@ public interface AccountApi {
 
     @GetMapping("/journals")
     @Jwt
-    OpenApiResponse<AccountJournalResponse> getAccountJournals(@RequestParam("accountId") @NotNull Long accountId);
+    OpenApiResponse<AccountJournalResponse> getAccountJournals(@RequestParam("accountId") @NotNull Long accountId,
+                                                               @RequestParam(value = "snapshotAt", required = false)
+                                                               @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant snapshotAt);
 
     @GetMapping("/journals/by-reference")
     @Jwt
@@ -57,5 +59,7 @@ public interface AccountApi {
 
     @GetMapping("/platform-accounts/journals")
     @Jwt
-    OpenApiResponse<PlatformAccountJournalResponse> getPlatformAccountJournals(@RequestParam("accountId") @NotNull Long accountId);
+    OpenApiResponse<PlatformAccountJournalResponse> getPlatformAccountJournals(@RequestParam("accountId") @NotNull Long accountId,
+                                                                               @RequestParam(value = "snapshotAt", required = false)
+                                                                               @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant snapshotAt);
 }

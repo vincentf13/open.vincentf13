@@ -104,6 +104,22 @@ public class UserJournalRepository {
                      .toList();
     }
 
+    public List<UserJournal> findByAccountIdBefore(@NotNull Long userId,
+                                                   @NotNull Long accountId,
+                                                   @NotNull Instant snapshotAt) {
+        var wrapper = Wrappers.<UserJournalPO>lambdaQuery()
+                .eq(UserJournalPO::getUserId, userId)
+                .eq(UserJournalPO::getAccountId, accountId)
+                .le(UserJournalPO::getEventTime, snapshotAt)
+                .orderByDesc(UserJournalPO::getEventTime)
+                .orderByDesc(UserJournalPO::getSeq)
+                .orderByDesc(UserJournalPO::getJournalId);
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .map(po -> OpenObjectMapper.convert(po, UserJournal.class))
+                     .toList();
+    }
+
     public Optional<UserJournal> findLatestBefore(@NotNull Long accountId,
                                                   @NotNull Instant snapshotAt) {
         var wrapper = Wrappers.<UserJournalPO>lambdaQuery()

@@ -68,7 +68,8 @@ public class AccountController implements AccountApi {
     }
 
     @Override
-    public OpenApiResponse<AccountJournalResponse> getAccountJournals(Long accountId) {
+    public OpenApiResponse<AccountJournalResponse> getAccountJournals(Long accountId,
+                                                                      Instant snapshotAt) {
         Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
         if (jwtUserId == null) {
             throw new IllegalArgumentException("Missing user context");
@@ -76,7 +77,7 @@ public class AccountController implements AccountApi {
         if (accountId == null) {
             throw new IllegalArgumentException("Missing accountId");
         }
-        return OpenApiResponse.success(accountQueryService.getAccountJournals(jwtUserId, accountId));
+        return OpenApiResponse.success(accountQueryService.getAccountJournals(jwtUserId, accountId, snapshotAt));
     }
 
     @Override
@@ -99,7 +100,8 @@ public class AccountController implements AccountApi {
     }
 
     @Override
-    public OpenApiResponse<PlatformAccountJournalResponse> getPlatformAccountJournals(Long accountId) {
+    public OpenApiResponse<PlatformAccountJournalResponse> getPlatformAccountJournals(Long accountId,
+                                                                                       Instant snapshotAt) {
         Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
         if (jwtUserId == null) {
             throw new IllegalArgumentException("Missing user context");
@@ -107,7 +109,7 @@ public class AccountController implements AccountApi {
         if (accountId == null) {
             throw new IllegalArgumentException("Missing accountId");
         }
-        return OpenApiResponse.success(accountQueryService.getPlatformAccountJournals(accountId));
+        return OpenApiResponse.success(accountQueryService.getPlatformAccountJournals(accountId, snapshotAt));
     }
     
     

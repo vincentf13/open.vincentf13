@@ -70,6 +70,20 @@ public class PlatformJournalRepository {
                      .toList();
     }
 
+    public List<PlatformJournal> findByAccountIdBefore(@NotNull Long accountId,
+                                                       @NotNull Instant snapshotAt) {
+        var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()
+                .eq(PlatformJournalPO::getAccountId, accountId)
+                .le(PlatformJournalPO::getEventTime, snapshotAt)
+                .orderByDesc(PlatformJournalPO::getEventTime)
+                .orderByDesc(PlatformJournalPO::getSeq)
+                .orderByDesc(PlatformJournalPO::getJournalId);
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class))
+                     .toList();
+    }
+
     public Optional<PlatformJournal> findLatestBefore(@NotNull Long accountId,
                                                       @NotNull Instant snapshotAt) {
         var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()

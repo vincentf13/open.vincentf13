@@ -72,11 +72,17 @@ public class AccountQueryService {
     }
 
     public AccountJournalResponse getAccountJournals(@NotNull Long userId,
-                                                     @NotNull Long accountId) {
-        List<UserJournal> journals = userJournalRepository.findByAccountId(userId, accountId);
+                                                     @NotNull Long accountId,
+                                                     Instant snapshotAt) {
+        boolean isHistorical = snapshotAt != null;
+        List<UserJournal> journals = isHistorical
+                ? userJournalRepository.findByAccountIdBefore(userId, accountId, snapshotAt)
+                : userJournalRepository.findByAccountId(userId, accountId);
         List<AccountJournalItem> items = buildAccountJournalItems(journals);
-        Instant snapshotAt = journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
-        return new AccountJournalResponse(userId, accountId, snapshotAt, items);
+        Instant effectiveSnapshot = isHistorical
+                ? snapshotAt
+                : journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
+        return new AccountJournalResponse(userId, accountId, effectiveSnapshot, items);
     }
 
     public AccountReferenceJournalResponse getJournalsByReference(@NotNull Long userId,
@@ -280,11 +286,17 @@ public class AccountQueryService {
         return new PlatformAccountResponse(effectiveSnapshot, assets, liabilities, equity, expenses, revenue);
     }
 
-    public PlatformAccountJournalResponse getPlatformAccountJournals(@NotNull Long accountId) {
-        List<PlatformJournal> journals = platformJournalRepository.findByAccountId(accountId);
+    public PlatformAccountJournalResponse getPlatformAccountJournals(@NotNull Long accountId,
+                                                                     Instant snapshotAt) {
+        boolean isHistorical = snapshotAt != null;
+        List<PlatformJournal> journals = isHistorical
+                ? platformJournalRepository.findByAccountIdBefore(accountId, snapshotAt)
+                : platformJournalRepository.findByAccountId(accountId);
         List<PlatformJournalItem> items = buildPlatformJournalItems(journals);
-        Instant snapshotAt = journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
-        return new PlatformAccountJournalResponse(accountId, snapshotAt, items);
+        Instant effectiveSnapshot = isHistorical
+                ? snapshotAt
+                : journals.isEmpty() ? Instant.now() : journals.get(0).getEventTime();
+        return new PlatformAccountJournalResponse(accountId, effectiveSnapshot, items);
     }
 
     private List<PlatformJournalItem> buildPlatformJournalItems(@NotNull List<PlatformJournal> journals) {
