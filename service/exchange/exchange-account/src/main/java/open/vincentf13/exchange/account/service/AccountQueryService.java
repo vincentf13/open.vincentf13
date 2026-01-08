@@ -54,10 +54,7 @@ public class AccountQueryService {
         Instant latestUpdate = resolveLatestUpdate(accounts, now);
         boolean isHistorical = snapshotAt != null;
         Instant effectiveSnapshot = isHistorical ? snapshotAt : now;
-        Map<Long, BigDecimal> snapshotBalances = Map.of();
-        if (isHistorical) {
-            snapshotBalances = buildUserSnapshotBalances(accounts, snapshotAt);
-        }
+        Map<Long, BigDecimal> snapshotBalances = isHistorical ? buildUserSnapshotBalances(accounts, snapshotAt) : Map.of();
         List<AccountBalanceItem> items = accounts.stream()
                                                  .map(account -> toAccountBalanceItem(account, snapshotBalances.get(account.getAccountId()), isHistorical))
                                                  .filter(Objects::nonNull)
