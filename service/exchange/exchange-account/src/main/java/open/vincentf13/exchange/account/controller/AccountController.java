@@ -11,6 +11,8 @@ import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
+
 @RestController
 @RequestMapping("/api/account")
 @RequiredArgsConstructor
@@ -57,12 +59,12 @@ public class AccountController implements AccountApi {
     }
 
     @Override
-    public OpenApiResponse<AccountBalanceSheetResponse> getBalanceSheet() {
+    public OpenApiResponse<AccountBalanceSheetResponse> getBalanceSheet(Instant snapshotAt) {
         Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
         if (jwtUserId == null) {
             throw new IllegalArgumentException("Missing user context");
         }
-        return OpenApiResponse.success(accountQueryService.getBalanceSheet(jwtUserId));
+        return OpenApiResponse.success(accountQueryService.getBalanceSheet(jwtUserId, snapshotAt));
     }
 
     @Override
@@ -88,12 +90,12 @@ public class AccountController implements AccountApi {
     }
 
     @Override
-    public OpenApiResponse<PlatformAccountResponse> getPlatformAccounts() {
+    public OpenApiResponse<PlatformAccountResponse> getPlatformAccounts(Instant snapshotAt) {
         Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
         if (jwtUserId == null) {
             throw new IllegalArgumentException("Missing user context");
         }
-        return OpenApiResponse.success(accountQueryService.getPlatformAccounts());
+        return OpenApiResponse.success(accountQueryService.getPlatformAccounts(snapshotAt));
     }
 
     @Override

@@ -6,6 +6,8 @@ import java.util.List;
 public record AccountBalanceSheetResponse(
         Long userId,
         Instant snapshotAt,
+        Instant earliestSnapshotAt,
+        Instant latestSnapshotAt,
         List<AccountBalanceItem> assets,
         List<AccountBalanceItem> liabilities,
         List<AccountBalanceItem> equity,

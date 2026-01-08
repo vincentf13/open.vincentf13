@@ -29,6 +29,7 @@ import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -39,6 +40,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -61,16 +63,24 @@ public class AccountQueryService {
     }
 
     public AccountBalanceSheetResponse getBalanceSheet(@NotNull Long userId) {
+        return getBalanceSheet(userId, null);
+    }
+
+    public AccountBalanceSheetResponse getBalanceSheet(@NotNull Long userId,
+                                                      Instant snapshotAt) {
         List<UserAccount> accounts = userAccountRepository.findByUserId(userId);
-        Instant snapshotAt = Instant.now();
+        Instant now = Instant.now();
+        Instant earliestUpdate = resolveEarliestUpdate(accounts, now);
+        Instant latestUpdate = resolveLatestUpdate(accounts, now);
+        boolean isHistorical = snapshotAt != null;
+        Instant effectiveSnapshot = isHistorical ? snapshotAt : now;
+        Map<Long, BigDecimal> snapshotBalances = isHistorical ? buildUserSnapshotBalances(accounts, snapshotAt) : Map.of();
         List<AccountBalanceItem> items = accounts.stream()
-                                                 .map(item -> OpenObjectMapper.convert(item, AccountBalanceItem.class))
+                                                 .map(account -> toAccountBalanceItem(account, snapshotBalances.get(account.getAccountId()), isHistorical))
                                                  .filter(Objects::nonNull)
+                                                 .sorted(accountBalanceComparator())
                                                  .toList();
-        Comparator<AccountBalanceItem> comparator = Comparator
-                .comparing((AccountBalanceItem item) -> item.accountCode() != null ? item.accountCode().name() : "")
-                .thenComparing(item -> item.instrumentId() != null ? item.instrumentId() : 0L)
-                .thenComparing(item -> item.asset() != null ? item.asset().name() : "");
+        Comparator<AccountBalanceItem> comparator = accountBalanceComparator();
         Map<AccountCategory, List<AccountBalanceItem>> grouped = items.stream()
                                                                       .sorted(comparator)
                                                                       .collect(Collectors.groupingBy(AccountBalanceItem::category));
@@ -79,7 +89,7 @@ public class AccountQueryService {
         List<AccountBalanceItem> equity = grouped.getOrDefault(AccountCategory.EQUITY, List.of());
         List<AccountBalanceItem> expenses = grouped.getOrDefault(AccountCategory.EXPENSE, List.of());
         List<AccountBalanceItem> revenue = grouped.getOrDefault(AccountCategory.REVENUE, List.of());
-        return new AccountBalanceSheetResponse(userId, snapshotAt, assets, liabilities, equity, expenses, revenue);
+        return new AccountBalanceSheetResponse(userId, effectiveSnapshot, earliestUpdate, latestUpdate, assets, liabilities, equity, expenses, revenue);
     }
 
     public AccountJournalResponse getAccountJournals(@NotNull Long userId,
@@ -103,6 +113,120 @@ public class AccountQueryService {
         List<PlatformJournalItem> platformItems = buildPlatformJournalItems(platformJournals);
         Instant snapshotAt = Instant.now();
         return new AccountReferenceJournalResponse(userId, referenceType, normalizedReferenceId, snapshotAt, accountItems, platformItems);
+    }
+
+    private Comparator<AccountBalanceItem> accountBalanceComparator() {
+        return Comparator
+                .comparing((AccountBalanceItem item) -> item.accountCode() != null ? item.accountCode().name() : "")
+                .thenComparing(item -> item.instrumentId() != null ? item.instrumentId() : 0L)
+                .thenComparing(item -> item.asset() != null ? item.asset().name() : "");
+    }
+
+    private Instant resolveEarliestUpdate(List<UserAccount> accounts, Instant fallback) {
+        return accounts.stream()
+                       .map(UserAccount::getUpdatedAt)
+                       .filter(Objects::nonNull)
+                       .min(Instant::compareTo)
+                       .orElse(fallback);
+    }
+
+    private Instant resolveLatestUpdate(List<UserAccount> accounts, Instant fallback) {
+        return accounts.stream()
+                       .map(UserAccount::getUpdatedAt)
+                       .filter(Objects::nonNull)
+                       .max(Instant::compareTo)
+                       .orElse(fallback);
+    }
+
+    private Map<Long, BigDecimal> buildUserSnapshotBalances(List<UserAccount> accounts, Instant snapshotAt) {
+        Map<Long, BigDecimal> snapshot = new HashMap<>();
+        if (snapshotAt == null || accounts.isEmpty()) {
+            return snapshot;
+        }
+        for (UserAccount account : accounts) {
+            Long accountId = account.getAccountId();
+            if (accountId == null) {
+                continue;
+            }
+            userJournalRepository.findLatestBefore(accountId, snapshotAt)
+                                 .map(UserJournal::getBalanceAfter)
+                                 .ifPresent(balance -> snapshot.put(accountId, balance));
+        }
+        return snapshot;
+    }
+
+    private AccountBalanceItem toAccountBalanceItem(UserAccount account,
+                                                   BigDecimal overrideBalance,
+                                                   boolean snapshotMode) {
+        if (account == null) {
+            return null;
+        }
+        BigDecimal balance = overrideBalance != null ? overrideBalance : account.getBalance();
+        BigDecimal available = snapshotMode ? null : account.getAvailable();
+        BigDecimal reserved = snapshotMode ? null : account.getReserved();
+        return new AccountBalanceItem(
+                account.getAccountId(),
+                account.getAccountCode(),
+                account.getAccountName(),
+                account.getCategory(),
+                account.getInstrumentId(),
+                account.getAsset(),
+                balance,
+                available,
+                reserved,
+                account.getVersion(),
+                account.getCreatedAt(),
+                account.getUpdatedAt()
+        );
+    }
+
+    private Comparator<PlatformAccountItem> platformAccountComparator() {
+        return Comparator
+                .comparing((PlatformAccountItem item) -> item.accountCode() != null ? item.accountCode().name() : "")
+                .thenComparing(item -> item.asset() != null ? item.asset().name() : "")
+                .thenComparing(item -> item.category() != null ? item.category().name() : "");
+    }
+
+    private Map<Long, BigDecimal> buildPlatformSnapshotBalances(List<PlatformAccount> accounts, Instant snapshotAt) {
+        Map<Long, BigDecimal> snapshot = new HashMap<>();
+        if (snapshotAt == null || accounts.isEmpty()) {
+            return snapshot;
+        }
+        for (PlatformAccount account : accounts) {
+            Long accountId = account.getAccountId();
+            if (accountId == null) {
+                continue;
+            }
+            platformJournalRepository.findLatestBefore(accountId, snapshotAt)
+                                     .map(PlatformJournal::getBalanceAfter)
+                                     .ifPresent(balance -> snapshot.put(accountId, balance));
+        }
+        return snapshot;
+    }
+
+    private PlatformAccountItem toPlatformAccountItem(PlatformAccount account,
+                                                     BigDecimal overrideBalance) {
+        if (account == null) {
+            return null;
+        }
+        PlatformAccountItem base = OpenObjectMapper.convert(account, PlatformAccountItem.class);
+        if (base == null) {
+            return null;
+        }
+        if (overrideBalance == null) {
+            return base;
+        }
+        return new PlatformAccountItem(
+                base.accountId(),
+                base.accountCode(),
+                base.accountName(),
+                base.category(),
+                base.asset(),
+                overrideBalance,
+                base.version(),
+                base.createdAt(),
+                base.updatedAt()
+        );
     }
 
     private List<AccountJournalItem> buildAccountJournalItems(@NotNull List<UserJournal> journals) {
@@ -148,15 +272,17 @@ public class AccountQueryService {
                        .toList();
     }
 
-    public PlatformAccountResponse getPlatformAccounts() {
+    public PlatformAccountResponse getPlatformAccounts(Instant snapshotAt) {
         List<PlatformAccount> accounts = platformAccountRepository.findAll();
+        Instant now = Instant.now();
+        Instant effectiveSnapshot = snapshotAt != null ? snapshotAt : now;
+        Map<Long, BigDecimal> snapshotBalances = snapshotAt != null ? buildPlatformSnapshotBalances(accounts, snapshotAt) : Map.of();
         List<PlatformAccountItem> items = accounts.stream()
-                                                  .map(item -> OpenObjectMapper.convert(item, PlatformAccountItem.class))
+                                                  .map(account -> toPlatformAccountItem(account, snapshotBalances.get(account.getAccountId())))
                                                   .filter(Objects::nonNull)
+                                                  .sorted(platformAccountComparator())
                                                   .toList();
-        Comparator<PlatformAccountItem> comparator = Comparator
-                .comparing((PlatformAccountItem item) -> item.accountCode() != null ? item.accountCode().name() : "")
-                .thenComparing(item -> item.asset() != null ? item.asset().name() : "");
+        Comparator<PlatformAccountItem> comparator = platformAccountComparator();
         Map<AccountCategory, List<PlatformAccountItem>> grouped = items.stream()
                                                                        .sorted(comparator)
                                                                        .collect(Collectors.groupingBy(PlatformAccountItem::category));
@@ -165,7 +291,7 @@ public class AccountQueryService {
         List<PlatformAccountItem> equity = grouped.getOrDefault(AccountCategory.EQUITY, List.of());
         List<PlatformAccountItem> expenses = grouped.getOrDefault(AccountCategory.EXPENSE, List.of());
         List<PlatformAccountItem> revenue = grouped.getOrDefault(AccountCategory.REVENUE, List.of());
-        return new PlatformAccountResponse(Instant.now(), assets, liabilities, equity, expenses, revenue);
+        return new PlatformAccountResponse(effectiveSnapshot, assets, liabilities, equity, expenses, revenue);
     }
 
     public PlatformAccountJournalResponse getPlatformAccountJournals(@NotNull Long accountId) {

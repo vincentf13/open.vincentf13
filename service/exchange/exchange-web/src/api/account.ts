@@ -37,8 +37,8 @@ export type AccountBalanceItem = {
   instrumentId: number;
   asset: string;
   balance: string;
-  available: string;
-  reserved: string;
+  available: string | null;
+  reserved: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +47,8 @@ export type AccountBalanceItem = {
 export type AccountBalanceSheetResponse = {
   userId: number;
   snapshotAt: string;
+  earliestSnapshotAt: string;
+  latestSnapshotAt: string;
   assets: AccountBalanceItem[];
   liabilities: AccountBalanceItem[];
   equity: AccountBalanceItem[];
@@ -54,8 +56,10 @@ export type AccountBalanceSheetResponse = {
   revenue: AccountBalanceItem[];
 };
 
-export const getBalanceSheet = async () => {
-  const response = await apiClient.get('/account/api/account/balance-sheet');
+export const getBalanceSheet = async (snapshotAt?: string) => {
+  const response = await apiClient.get('/account/api/account/balance-sheet', {
+    params: snapshotAt ? { snapshotAt } : undefined,
+  });
   return response.data;
 };
 
@@ -147,8 +151,10 @@ export type PlatformAccountResponse = {
   revenue: PlatformAccountItem[];
 };
 
-export const getPlatformAccounts = async () => {
-  const response = await apiClient.get('/account/api/account/platform-accounts');
+export const getPlatformAccounts = async (snapshotAt?: string) => {
+  const response = await apiClient.get('/account/api/account/platform-accounts', {
+    params: snapshotAt ? { snapshotAt } : undefined,
+  });
   return response.data;
 };
 

@@ -9,6 +9,7 @@ import open.vincentf13.sdk.auth.auth.Jwt;
 import open.vincentf13.sdk.auth.auth.PrivateAPI;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,7 +36,8 @@ public interface AccountApi {
 
     @GetMapping("/balance-sheet")
     @Jwt
-    OpenApiResponse<AccountBalanceSheetResponse> getBalanceSheet();
+    OpenApiResponse<AccountBalanceSheetResponse> getBalanceSheet(@RequestParam(value = "snapshotAt", required = false)
+                                                                 @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant snapshotAt);
 
     @GetMapping("/journals")
     @Jwt
@@ -48,7 +50,8 @@ public interface AccountApi {
 
     @GetMapping("/platform-accounts")
     @Jwt
-    OpenApiResponse<PlatformAccountResponse> getPlatformAccounts();
+    OpenApiResponse<PlatformAccountResponse> getPlatformAccounts(@RequestParam(value = "snapshotAt", required = false)
+                                                                  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant snapshotAt);
 
     @GetMapping("/platform-accounts/journals")
     @Jwt

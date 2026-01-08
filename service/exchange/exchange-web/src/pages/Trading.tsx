@@ -53,6 +53,8 @@ export default function Trading() {
   const [balanceSheetOpen, setBalanceSheetOpen] = useState(false);
   const [balanceSheetLoading, setBalanceSheetLoading] = useState(false);
   const [balanceSheetData, setBalanceSheetData] = useState<AccountBalanceResponse | null>(null);
+  const [balanceSheetRange, setBalanceSheetRange] = useState<{ earliest: number; latest: number } | null>(null);
+  const [balanceSheetTimestamp, setBalanceSheetTimestamp] = useState<number | null>(null);
   const [platformAccountsData, setPlatformAccountsData] = useState<PlatformAccountResponse | null>(null);
   const balanceSheetAnchorRef = useRef<HTMLDivElement | null>(null);
 
@@ -99,12 +101,40 @@ export default function Trading() {
     });
   }, [refreshTrigger]);
 
-  useEffect(() => {
-    if (balanceSheetOpen) {
-      getBalanceSheet().then(res => { if (String(res?.code)==='0') setBalanceSheetData(res.data); });
-      getPlatformAccounts().then(res => { if (String(res?.code)==='0') setPlatformAccountsData(res.data); });
+  const loadBalanceSheet = (snapshotMs: number | null) => {
+    if (!balanceSheetOpen) {
+      return;
     }
-  }, [balanceSheetOpen, refreshTrigger]);
+    const snapshotAt = snapshotMs != null ? new Date(snapshotMs).toISOString() : undefined;
+    setBalanceSheetLoading(true);
+    getBalanceSheet(snapshotAt)
+      .then(res => {
+        if (String(res?.code) === '0') {
+          const data = res.data;
+          setBalanceSheetData(data);
+          if (data?.earliestSnapshotAt && data?.latestSnapshotAt) {
+            setBalanceSheetRange({
+              earliest: new Date(data.earliestSnapshotAt).getTime(),
+              latest: new Date(data.latestSnapshotAt).getTime(),
+            });
+          }
+        }
+      })
+      .finally(() => setBalanceSheetLoading(false));
+  };
+
+  const loadPlatformAccounts = (snapshotMs: number | null) => {
+    const snapshotAt = snapshotMs != null ? new Date(snapshotMs).toISOString() : undefined;
+    getPlatformAccounts(snapshotAt).then(res => { if (String(res?.code)==='0') setPlatformAccountsData(res.data); });
+  };
+
+  useEffect(() => {
+    if (!balanceSheetOpen) {
+      return;
+    }
+    loadBalanceSheet(balanceSheetTimestamp ?? null);
+    loadPlatformAccounts(balanceSheetTimestamp ?? null);
+  }, [balanceSheetOpen, refreshTrigger, balanceSheetTimestamp]);
 
   useEffect(() => {
     if (accountJournalOpen && accountJournalData?.accountId) {
@@ -129,9 +159,8 @@ export default function Trading() {
 
   const handleOpenBalanceSheet = () => {
     setBalanceSheetOpen(true);
-    setBalanceSheetLoading(true);
-    getBalanceSheet().then(res => { if (String(res?.code)==='0') setBalanceSheetData(res.data); }).finally(() => setBalanceSheetLoading(false));
-    getPlatformAccounts().then(res => { if (String(res?.code)==='0') setPlatformAccountsData(res.data); });
+    setBalanceSheetTimestamp(null);
+    setBalanceSheetRange(null);
   };
 
   const handleCloseBalanceSheet = () => {
@@ -139,6 +168,8 @@ export default function Trading() {
     setAccountJournalOpen(false);
     setPlatformAccountJournalOpen(false);
     setReferenceJournalOpen(false);
+    setBalanceSheetRange(null);
+    setBalanceSheetTimestamp(null);
   };
   const handleCloseAccountJournal = () => setAccountJournalOpen(false);
   const handleClosePlatformAccountJournal = () => setPlatformAccountJournalOpen(false);
@@ -164,6 +195,14 @@ export default function Trading() {
     setReferenceJournalOpen(true);
     setReferenceJournalLoading(true);
     getJournalsByReference(type, id).then(res => { if(String(res?.code)==='0') setReferenceJournalData(res.data); }).finally(() => setReferenceJournalLoading(false));
+  };
+
+  const handleBalanceSheetSliderChange = (value: number) => {
+    if (!balanceSheetRange) {
+      return;
+    }
+    const isLatest = value >= balanceSheetRange.latest;
+    setBalanceSheetTimestamp(isLatest ? null : value);
   };
 
   const splitExpenseRevenue = <T extends { category?: string | null }>(items?: T[]) => {
@@ -759,6 +798,24 @@ export default function Trading() {
               <h2 className="text-sm font-bold uppercase tracking-widest text-slate-800">Balance Sheet</h2>
               <button onClick={handleCloseBalanceSheet} className="h-8 w-8 flex items-center justify-center rounded-full border border-white/60 bg-white/70 text-slate-500 hover:text-slate-700">X</button>
             </div>
+            {balanceSheetRange && (
+              <div className="mb-4 px-2">
+                <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2">
+                  <span className="flex items-center gap-1">Earliest <span className="font-mono text-[11px] text-slate-400">{formatSnapshotTimestamp(balanceSheetRange.earliest)}</span></span>
+                  <span className="flex items-center gap-1">Selected <span className="font-mono text-[11px] text-slate-400">{formatSnapshotTimestamp(balanceSheetTimestamp ?? balanceSheetRange.latest)}</span></span>
+                  <span className="flex items-center gap-1">Latest <span className="font-mono text-[11px] text-slate-400">{formatSnapshotTimestamp(balanceSheetRange.latest)}</span></span>
+                </div>
+                <input
+                  type="range"
+                  min={balanceSheetRange.earliest}
+                  max={balanceSheetRange.latest}
+                  step={60000}
+                  value={balanceSheetTimestamp ?? balanceSheetRange.latest}
+                  onChange={(e) => handleBalanceSheetSliderChange(Number(e.target.value))}
+                  className="w-full accent-sky-500"
+                />
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto">
               <div className="space-y-12">
                 {/* User Ledger */}
@@ -909,6 +966,9 @@ export default function Trading() {
                   </div>
                 </section>
               </div>
+            </div>
+            <div className="flex justify-end px-6 pb-6 pt-3 text-[10px] text-slate-400">
+              Snapshot: {balanceSheetData?.snapshotAt ?? '-'}
             </div>
           </div>
         </div>

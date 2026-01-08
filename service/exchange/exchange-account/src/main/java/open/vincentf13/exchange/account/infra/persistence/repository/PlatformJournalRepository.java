@@ -14,7 +14,9 @@ import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @Validated
@@ -64,5 +66,20 @@ public class PlatformJournalRepository {
                      .stream()
                      .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class))
                      .toList();
+    }
+
+    public Optional<PlatformJournal> findLatestBefore(@NotNull Long accountId,
+                                                      @NotNull Instant snapshotAt) {
+        var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()
+                .eq(PlatformJournalPO::getAccountId, accountId)
+                .le(PlatformJournalPO::getEventTime, snapshotAt)
+                .orderByDesc(PlatformJournalPO::getEventTime)
+                .orderByDesc(PlatformJournalPO::getSeq)
+                .orderByDesc(PlatformJournalPO::getJournalId)
+                .last("LIMIT 1");
+        return mapper.selectList(wrapper)
+                     .stream()
+                     .findFirst()
+                     .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class));
     }
 }
