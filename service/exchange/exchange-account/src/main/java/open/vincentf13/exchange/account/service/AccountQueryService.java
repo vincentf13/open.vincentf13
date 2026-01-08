@@ -3,24 +3,15 @@ package open.vincentf13.exchange.account.service;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.domain.model.PlatformJournal;
 import open.vincentf13.exchange.account.domain.model.PlatformAccount;
+import open.vincentf13.exchange.account.domain.model.PlatformJournal;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
 import open.vincentf13.exchange.account.domain.model.UserJournal;
-import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAccountRepository;
+import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceResponse;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResponse;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalItem;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountJournalResponse;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountReferenceJournalResponse;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformAccountItem;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformAccountJournalResponse;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformAccountResponse;
-import open.vincentf13.exchange.account.sdk.rest.api.dto.PlatformJournalItem;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.*;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
@@ -31,16 +22,9 @@ import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -61,11 +45,7 @@ public class AccountQueryService {
         AccountBalanceItem item = OpenObjectMapper.convert(balance, AccountBalanceItem.class);
         return new AccountBalanceResponse(userId, snapshotAt, item);
     }
-
-    public AccountBalanceSheetResponse getBalanceSheet(@NotNull Long userId) {
-        return getBalanceSheet(userId, null);
-    }
-
+    
     public AccountBalanceSheetResponse getBalanceSheet(@NotNull Long userId,
                                                       Instant snapshotAt) {
         List<UserAccount> accounts = userAccountRepository.findByUserId(userId);
@@ -74,15 +54,17 @@ public class AccountQueryService {
         Instant latestUpdate = resolveLatestUpdate(accounts, now);
         boolean isHistorical = snapshotAt != null;
         Instant effectiveSnapshot = isHistorical ? snapshotAt : now;
-        Map<Long, BigDecimal> snapshotBalances = isHistorical ? buildUserSnapshotBalances(accounts, snapshotAt) : Map.of();
+        Map<Long, BigDecimal> snapshotBalances = Map.of();
+        if (isHistorical) {
+            snapshotBalances = buildUserSnapshotBalances(accounts, snapshotAt);
+        }
         List<AccountBalanceItem> items = accounts.stream()
                                                  .map(account -> toAccountBalanceItem(account, snapshotBalances.get(account.getAccountId()), isHistorical))
                                                  .filter(Objects::nonNull)
                                                  .sorted(accountBalanceComparator())
                                                  .toList();
-        Comparator<AccountBalanceItem> comparator = accountBalanceComparator();
         Map<AccountCategory, List<AccountBalanceItem>> grouped = items.stream()
-                                                                      .sorted(comparator)
+                                                                      .sorted(accountBalanceComparator())
                                                                       .collect(Collectors.groupingBy(AccountBalanceItem::category));
         List<AccountBalanceItem> assets = grouped.getOrDefault(AccountCategory.ASSET, List.of());
         List<AccountBalanceItem> liabilities = grouped.getOrDefault(AccountCategory.LIABILITY, List.of());
@@ -157,13 +139,10 @@ public class AccountQueryService {
 
     private AccountBalanceItem toAccountBalanceItem(UserAccount account,
                                                    BigDecimal overrideBalance,
-                                                   boolean snapshotMode) {
+                                                   boolean isHistorical) {
         if (account == null) {
             return null;
         }
-        BigDecimal balance = overrideBalance != null ? overrideBalance : account.getBalance();
-        BigDecimal available = snapshotMode ? null : account.getAvailable();
-        BigDecimal reserved = snapshotMode ? null : account.getReserved();
         return new AccountBalanceItem(
                 account.getAccountId(),
                 account.getAccountCode(),
@@ -171,12 +150,12 @@ public class AccountQueryService {
                 account.getCategory(),
                 account.getInstrumentId(),
                 account.getAsset(),
-                balance,
-                available,
-                reserved,
-                account.getVersion(),
-                account.getCreatedAt(),
-                account.getUpdatedAt()
+                isHistorical ? overrideBalance : account.getBalance(),
+                isHistorical ? null : account.getAvailable(),
+                isHistorical ? null : account.getReserved(),
+                isHistorical ? null : account.getVersion(),
+                isHistorical ? null : account.getCreatedAt(),
+                isHistorical ? null : account.getUpdatedAt()
         );
     }
 
