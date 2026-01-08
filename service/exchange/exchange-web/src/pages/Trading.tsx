@@ -595,6 +595,13 @@ export default function Trading() {
     finally { setResetting(false); }
   };
 
+  const formatSnapshotTimestamp = (value?: number | null) => {
+    if (value == null) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toISOString();
+  };
+
   const formatValue = (v: any) => {
     const n = Number(v);
     if (isNaN(n)) return String(v ?? '-');

@@ -175,40 +175,42 @@ public class AccountQueryService {
         if (snapshotAt == null || accounts.isEmpty()) {
             return snapshot;
         }
-        for (PlatformAccount account : accounts) {
-            Long accountId = account.getAccountId();
-            if (accountId == null) {
+        List<Long> accountIds = accounts.stream()
+                                        .map(PlatformAccount::getAccountId)
+                                        .filter(Objects::nonNull)
+                                        .distinct()
+                                        .toList();
+        if (accountIds.isEmpty()) {
+            return snapshot;
+        }
+        Map<Long, PlatformJournal> journals = platformJournalRepository.findLatestBefore(accountIds, snapshotAt);
+        for (Map.Entry<Long, PlatformJournal> entry : journals.entrySet()) {
+            PlatformJournal journal = entry.getValue();
+            if (journal == null) {
                 continue;
             }
-            platformJournalRepository.findLatestBefore(accountId, snapshotAt)
-                                     .map(PlatformJournal::getBalanceAfter)
-                                     .ifPresent(balance -> snapshot.put(accountId, balance));
+            snapshot.put(entry.getKey(), journal.getBalanceAfter());
         }
         return snapshot;
     }
 
     private PlatformAccountItem toPlatformAccountItem(PlatformAccount account,
-                                                     BigDecimal overrideBalance) {
+                                                     BigDecimal overrideBalance,
+                                                     boolean isHistorical) {
         if (account == null) {
             return null;
         }
-        PlatformAccountItem base = OpenObjectMapper.convert(account, PlatformAccountItem.class);
-        if (base == null) {
-            return null;
-        }
-        if (overrideBalance == null) {
-            return base;
-        }
+        BigDecimal balance = isHistorical ? overrideBalance : account.getBalance();
         return new PlatformAccountItem(
-                base.accountId(),
-                base.accountCode(),
-                base.accountName(),
-                base.category(),
-                base.asset(),
-                overrideBalance,
-                base.version(),
-                base.createdAt(),
-                base.updatedAt()
+                account.getAccountId(),
+                account.getAccountCode(),
+                account.getAccountName(),
+                account.getCategory(),
+                account.getAsset(),
+                balance,
+                isHistorical ? null : account.getVersion(),
+                isHistorical ? null : account.getCreatedAt(),
+                isHistorical ? null : account.getUpdatedAt()
         );
     }
 
@@ -258,10 +260,11 @@ public class AccountQueryService {
     public PlatformAccountResponse getPlatformAccounts(Instant snapshotAt) {
         List<PlatformAccount> accounts = platformAccountRepository.findAll();
         Instant now = Instant.now();
-        Instant effectiveSnapshot = snapshotAt != null ? snapshotAt : now;
-        Map<Long, BigDecimal> snapshotBalances = snapshotAt != null ? buildPlatformSnapshotBalances(accounts, snapshotAt) : Map.of();
+        boolean isHistorical = snapshotAt != null;
+        Instant effectiveSnapshot = isHistorical ? snapshotAt : now;
+        Map<Long, BigDecimal> snapshotBalances = isHistorical ? buildPlatformSnapshotBalances(accounts, snapshotAt) : Map.of();
         List<PlatformAccountItem> items = accounts.stream()
-                                                  .map(account -> toPlatformAccountItem(account, snapshotBalances.get(account.getAccountId())))
+                                                  .map(account -> toPlatformAccountItem(account, snapshotBalances.get(account.getAccountId()), isHistorical))
                                                   .filter(Objects::nonNull)
                                                   .sorted(platformAccountComparator())
                                                   .toList();

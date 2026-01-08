@@ -15,7 +15,9 @@ import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -81,5 +83,28 @@ public class PlatformJournalRepository {
                      .stream()
                      .findFirst()
                      .map(po -> OpenObjectMapper.convert(po, PlatformJournal.class));
+    }
+
+    public Map<Long, PlatformJournal> findLatestBefore(@NotNull List<Long> accountIds,
+                                                       @NotNull Instant snapshotAt) {
+        if (accountIds.isEmpty()) {
+            return Map.of();
+        }
+        var wrapper = Wrappers.<PlatformJournalPO>lambdaQuery()
+                .in(PlatformJournalPO::getAccountId, accountIds)
+                .le(PlatformJournalPO::getEventTime, snapshotAt)
+                .orderByAsc(PlatformJournalPO::getAccountId)
+                .orderByDesc(PlatformJournalPO::getEventTime)
+                .orderByDesc(PlatformJournalPO::getSeq)
+                .orderByDesc(PlatformJournalPO::getJournalId);
+        Map<Long, PlatformJournal> result = new HashMap<>();
+        for (PlatformJournalPO po : mapper.selectList(wrapper)) {
+            Long accountId = po.getAccountId();
+            if (accountId == null || result.containsKey(accountId)) {
+                continue;
+            }
+            result.put(accountId, OpenObjectMapper.convert(po, PlatformJournal.class));
+        }
+        return result;
     }
 }
