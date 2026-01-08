@@ -1072,7 +1072,8 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                           <td className="py-2 px-2 font-mono text-slate-400">{formatPayloadValue('createdAt', t.createdAt)}</td>
                         </tr>
                       );
-                    })}                  </tbody>
+                    })}
+                  </tbody>
                 </table>
               );
             })()}
