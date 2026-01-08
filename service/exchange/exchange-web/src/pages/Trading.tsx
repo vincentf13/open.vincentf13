@@ -138,15 +138,17 @@ export default function Trading() {
 
   useEffect(() => {
     if (accountJournalOpen && accountJournalData?.accountId) {
-      getAccountJournals(accountJournalData.accountId).then(res => { if(String(res?.code)==='0') setAccountJournalData(res.data); });
+      const snapshotAt = balanceSheetTimestamp != null ? new Date(balanceSheetTimestamp).toISOString() : undefined;
+      getAccountJournals(accountJournalData.accountId, snapshotAt).then(res => { if(String(res?.code)==='0') setAccountJournalData(res.data); });
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, balanceSheetTimestamp]);
 
   useEffect(() => {
     if (platformAccountJournalOpen && platformAccountJournalData?.accountId) {
-      getPlatformAccountJournals(platformAccountJournalData.accountId).then(res => { if(String(res?.code)==='0') setPlatformAccountJournalResponse(res.data); });
+      const snapshotAt = balanceSheetTimestamp != null ? new Date(balanceSheetTimestamp).toISOString() : undefined;
+      getPlatformAccountJournals(platformAccountJournalData.accountId, snapshotAt).then(res => { if(String(res?.code)==='0') setPlatformAccountJournalResponse(res.data); });
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, balanceSheetTimestamp]);
 
   useEffect(() => {
     if (referenceJournalOpen && referenceJournalData?.referenceType && referenceJournalData?.referenceId) {
@@ -180,7 +182,8 @@ export default function Trading() {
     setReferenceJournalOpen(false);
     setAccountJournalOpen(true);
     setAccountJournalLoading(true);
-    getAccountJournals(accountId).then(res => { if(String(res?.code)==='0') setAccountJournalData(res.data); }).finally(() => setAccountJournalLoading(false));
+    const snapshotAt = balanceSheetTimestamp != null ? new Date(balanceSheetTimestamp).toISOString() : undefined;
+    getAccountJournals(accountId, snapshotAt).then(res => { if(String(res?.code)==='0') setAccountJournalData(res.data); }).finally(() => setAccountJournalLoading(false));
   };
 
   const handleOpenPlatformAccountJournal = (accountId: number) => {
@@ -188,7 +191,8 @@ export default function Trading() {
     setReferenceJournalOpen(false);
     setPlatformAccountJournalOpen(true);
     setPlatformAccountJournalLoading(true);
-    getPlatformAccountJournals(accountId).then(res => { if(String(res?.code)==='0') setPlatformAccountJournalResponse(res.data); }).finally(() => setPlatformAccountJournalLoading(false));
+    const snapshotAt = balanceSheetTimestamp != null ? new Date(balanceSheetTimestamp).toISOString() : undefined;
+    getPlatformAccountJournals(accountId, snapshotAt).then(res => { if(String(res?.code)==='0') setPlatformAccountJournalResponse(res.data); }).finally(() => setPlatformAccountJournalLoading(false));
   };
 
   const handleOpenReferenceJournals = (type: string, id: string) => {
