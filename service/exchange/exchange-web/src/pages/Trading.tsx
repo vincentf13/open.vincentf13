@@ -55,6 +55,8 @@ export default function Trading() {
   const [balanceSheetData, setBalanceSheetData] = useState<AccountBalanceResponse | null>(null);
   const [balanceSheetRange, setBalanceSheetRange] = useState<{ earliest: number; latest: number } | null>(null);
   const [balanceSheetTimestamp, setBalanceSheetTimestamp] = useState<number | null>(null);
+  const [balanceSheetSelectionOpen, setBalanceSheetSelectionOpen] = useState(false);
+  const [balanceSheetPendingTimestamp, setBalanceSheetPendingTimestamp] = useState<number | null>(null);
   const [platformAccountsData, setPlatformAccountsData] = useState<PlatformAccountResponse | null>(null);
   const balanceSheetAnchorRef = useRef<HTMLDivElement | null>(null);
 
@@ -163,6 +165,8 @@ export default function Trading() {
     setBalanceSheetOpen(true);
     setBalanceSheetTimestamp(null);
     setBalanceSheetRange(null);
+    setBalanceSheetSelectionOpen(false);
+    setBalanceSheetPendingTimestamp(null);
   };
 
   const handleCloseBalanceSheet = () => {
@@ -172,6 +176,8 @@ export default function Trading() {
     setReferenceJournalOpen(false);
     setBalanceSheetRange(null);
     setBalanceSheetTimestamp(null);
+    setBalanceSheetSelectionOpen(false);
+    setBalanceSheetPendingTimestamp(null);
   };
   const handleCloseAccountJournal = () => setAccountJournalOpen(false);
   const handleClosePlatformAccountJournal = () => setPlatformAccountJournalOpen(false);
@@ -201,12 +207,52 @@ export default function Trading() {
     getJournalsByReference(type, id).then(res => { if(String(res?.code)==='0') setReferenceJournalData(res.data); }).finally(() => setReferenceJournalLoading(false));
   };
 
+  const clampSnapshotValue = (value: number, range: { earliest: number; latest: number }) => {
+    if (value < range.earliest) return range.earliest;
+    if (value > range.latest) return range.latest;
+    return value;
+  };
+
+  const resolveSnapshotTimestamp = (value: number, range: { earliest: number; latest: number }) => {
+    return value >= range.latest ? null : value;
+  };
+
   const handleBalanceSheetSliderChange = (value: number) => {
     if (!balanceSheetRange) {
       return;
     }
-    const isLatest = value >= balanceSheetRange.latest;
-    setBalanceSheetTimestamp(isLatest ? null : value);
+    setBalanceSheetPendingTimestamp(clampSnapshotValue(value, balanceSheetRange));
+  };
+
+  const formatLocalDatetime = (value: number) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const handleApplyBalanceSheetSnapshot = () => {
+    if (!balanceSheetRange || balanceSheetPendingTimestamp == null) {
+      return;
+    }
+    const normalized = resolveSnapshotTimestamp(balanceSheetPendingTimestamp, balanceSheetRange);
+    setBalanceSheetTimestamp(normalized);
+    setBalanceSheetSelectionOpen(false);
+  };
+
+  const handleSelectLatestBalanceSheet = () => {
+    setBalanceSheetSelectionOpen(false);
+    setBalanceSheetPendingTimestamp(null);
+    setBalanceSheetTimestamp(null);
+  };
+
+  const handleOpenHistoricalBalanceSheet = () => {
+    if (!balanceSheetRange) {
+      return;
+    }
+    setBalanceSheetSelectionOpen(true);
+    const defaultValue = balanceSheetTimestamp ?? balanceSheetRange.latest;
+    setBalanceSheetPendingTimestamp(clampSnapshotValue(defaultValue, balanceSheetRange));
   };
 
   const splitExpenseRevenue = <T extends { category?: string | null }>(items?: T[]) => {
@@ -806,22 +852,69 @@ export default function Trading() {
               </div>
             )}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-slate-800">Balance Sheet</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-slate-800">Balance Sheet</h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSelectLatestBalanceSheet}
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border transition-all ${balanceSheetTimestamp == null ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600' : 'bg-white/70 border-white/60 text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Latest
+                    </button>
+                    <button
+                      onClick={handleOpenHistoricalBalanceSheet}
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border transition-all ${balanceSheetSelectionOpen ? 'bg-sky-500/15 border-sky-500/30 text-sky-600' : 'bg-white/70 border-white/60 text-slate-500 hover:text-slate-700'}`}
+                    >
+                      Historical
+                    </button>
+                    <span className="text-[10px] text-slate-400">
+                      Snapshot: <span className="font-mono text-[11px] text-slate-500">{balanceSheetData?.snapshotAt ?? '-'}</span>
+                    </span>
+                  </div>
+                </div>
               <button onClick={handleCloseBalanceSheet} className="h-8 w-8 flex items-center justify-center rounded-full border border-white/60 bg-white/70 text-slate-500 hover:text-slate-700">X</button>
             </div>
-            {balanceSheetRange && (
+            {balanceSheetRange && balanceSheetSelectionOpen && (
               <div className="mb-4 px-2">
-                <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2">
+                <div className="flex flex-col gap-2 text-[10px] text-slate-500 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-slate-600">Select Time</span>
+                    <input
+                      type="datetime-local"
+                      min={formatLocalDatetime(balanceSheetRange.earliest)}
+                      max={formatLocalDatetime(balanceSheetRange.latest)}
+                      value={balanceSheetPendingTimestamp != null ? formatLocalDatetime(balanceSheetPendingTimestamp) : ''}
+                      onChange={(e) => {
+                        if (!balanceSheetRange) {
+                          return;
+                        }
+                        const nextValue = new Date(e.target.value).getTime();
+                        if (Number.isNaN(nextValue)) {
+                          return;
+                        }
+                        setBalanceSheetPendingTimestamp(clampSnapshotValue(nextValue, balanceSheetRange));
+                      }}
+                      className="w-[220px] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-mono text-slate-600"
+                    />
+                    <button
+                      onClick={handleApplyBalanceSheetSnapshot}
+                      className="px-3 py-1 rounded-full text-[10px] font-bold uppercase border border-sky-500/30 text-sky-600 bg-sky-500/10 hover:bg-sky-500 hover:text-white transition-all"
+                    >
+                      Query
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1">Earliest <span className="font-mono text-[11px] text-slate-400">{formatSnapshotTimestamp(balanceSheetRange.earliest)}</span></span>
-                  <span className="flex items-center gap-1">Selected <span className="font-mono text-[11px] text-slate-400">{formatSnapshotTimestamp(balanceSheetTimestamp ?? balanceSheetRange.latest)}</span></span>
+                  <span className="flex items-center gap-1">Selected <span className="font-mono text-[11px] text-slate-400">{formatSnapshotTimestamp(balanceSheetPendingTimestamp ?? balanceSheetRange.latest)}</span></span>
                   <span className="flex items-center gap-1">Latest <span className="font-mono text-[11px] text-slate-400">{formatSnapshotTimestamp(balanceSheetRange.latest)}</span></span>
+                  </div>
                 </div>
                 <input
                   type="range"
                   min={balanceSheetRange.earliest}
                   max={balanceSheetRange.latest}
                   step={60000}
-                  value={balanceSheetTimestamp ?? balanceSheetRange.latest}
+                  value={balanceSheetPendingTimestamp ?? balanceSheetRange.latest}
                   onChange={(e) => handleBalanceSheetSliderChange(Number(e.target.value))}
                   className="w-full accent-sky-500"
                 />
@@ -978,9 +1071,7 @@ export default function Trading() {
                 </section>
               </div>
             </div>
-            <div className="flex justify-end px-6 pb-6 pt-3 text-[10px] text-slate-400">
-              Snapshot: {balanceSheetData?.snapshotAt ?? '-'}
-            </div>
+            <div className="pb-6" />
           </div>
         </div>
       )}
