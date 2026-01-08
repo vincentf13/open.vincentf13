@@ -200,6 +200,36 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                   </div>
               </div>
           );
+      } else if (key === 'cumFee') {
+          if (latestPayload && prevPayload) {
+              const curF = Number(latestPayload.cumFee || 0);
+              const prevF = Number(prevPayload.cumFee || 0);
+              const deltaF = curF - prevF;
+
+              content = (
+                  <div className="flex flex-col gap-1">
+                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied Trade Fee</div>
+                      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
+                          <span>Previous:</span> <span className="font-mono text-right">{formatNumber(prevF)}</span>
+                          <span>New Total:</span> <span className="font-mono text-right">{formatNumber(curF)}</span>
+                      </div>
+                      <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
+                          {formatNumber(curF)} - {formatNumber(prevF)} = <span className="text-rose-600 font-bold">+{formatNumber(deltaF)}</span>
+                      </div>
+                      <div className="text-[8px] text-slate-400 italic mt-0.5 text-right">Fee charged in this event</div>
+                  </div>
+              );
+          } else {
+              content = (
+                  <div className="flex flex-col gap-1">
+                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Cum Fee</div>
+                      <div className="text-[10px] text-slate-600">Total fees paid:</div>
+                      <div className="font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded mt-1">
+                          {formatNumber(p.cumFee)}
+                      </div>
+                  </div>
+              );
+          }
       } else if (key === 'cumRealizedPnl') {
           if (latestPayload && prevPayload) {
               const curR = Number(latestPayload.cumRealizedPnl || 0);
@@ -210,80 +240,70 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
               const prevQ = Number(prevPayload.quantity || 0);
               
               const deltaR = curR - prevR;
-              const deltaF = curF - prevF; // Fee charged (positive value)
+              const deltaF = curF - prevF; // Fee charged
               const deltaQ = prevQ - curQ; // Positive means closed quantity
 
-              let explanation = null;
-
               if (deltaQ > 0) {
-                  // It was a close trade
-                  const rawPnl = deltaR + deltaF; // PnL before fee
+                  const rawPnl = deltaR + deltaF;
                   const prevE = Number(prevPayload.entryPrice || 0);
-                  // Reverse calculate Exit Price
                   let exitP = 0;
                   if (contractSize * deltaQ !== 0) {
-                      if (side === 'LONG' || side === 'BUY') {
-                          exitP = (rawPnl / (deltaQ * contractSize)) + prevE;
-                      } else {
-                          exitP = prevE - (rawPnl / (deltaQ * contractSize));
-                      }
+                      if (side === 'LONG' || side === 'BUY') exitP = (rawPnl / (deltaQ * contractSize)) + prevE;
+                      else exitP = prevE - (rawPnl / (deltaQ * contractSize));
                   }
 
-                  explanation = (
-                      <div className="mt-1 flex flex-col gap-1.5">
+                  content = (
+                      <div className="flex flex-col gap-1">
+                          <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied PnL & Fee Breakdown</div>
                           <div className="grid grid-cols-[1fr_auto] gap-x-4 text-[9px] text-slate-500 border-b border-slate-900/10 pb-1">
-                              <span>Closing Price:</span> <span className="font-mono text-slate-700">{formatNumber(exitP)}</span>
+                              <span>Close Price:</span> <span className="font-mono text-slate-700">{formatNumber(exitP)}</span>
                               <span>Avg Entry:</span> <span className="font-mono text-slate-700">{formatNumber(prevE)}</span>
                               <span>Closed Qty:</span> <span className="font-mono text-slate-700">{formatNumber(deltaQ)}</span>
-                              <span>Fee Paid:</span> <span className="font-mono text-rose-600">{formatNumber(deltaF)}</span>
                           </div>
                           
-                          <div className="bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-800">
+                          <div className="bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-800 mt-1">
                               <div className="flex justify-between mb-0.5">
-                                  <span className="text-slate-400">1. Gross PnL:</span>
+                                  <span className="text-slate-500">Trade PnL (Gross):</span>
                                   <span>
-                                      {side === 'LONG' || side === 'BUY' ? `(${formatNumber(exitP)} - ${formatNumber(prevE)})` : `(${formatNumber(prevE)} - ${formatNumber(exitP)})`}
-                                      × {formatNumber(deltaQ)} × {contractSize}
-                                      = <span className="font-bold">{formatNumber(rawPnl)}</span>
+                                      <span className="font-bold">{formatNumber(rawPnl)}</span>
                                   </span>
                               </div>
                               <div className="flex justify-between mb-0.5 border-t border-slate-900/5 pt-0.5">
-                                  <span className="text-slate-400">2. Net PnL:</span>
-                                  <span>
-                                      {formatNumber(rawPnl)} - {formatNumber(deltaF)}
-                                      = <span className={`font-bold ${deltaR >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatNumber(deltaR)}</span>
-                                  </span>
+                                  <span className="text-slate-500">Fee Paid:</span>
+                                  <span className="text-rose-600">-{formatNumber(deltaF)}</span>
                               </div>
                               <div className="flex justify-between border-t border-slate-900/5 pt-0.5">
-                                  <span className="text-slate-400">3. New Balance:</span>
+                                  <span className="text-slate-800 font-bold">Net Change:</span>
                                   <span>
-                                      {formatNumber(prevR)} {deltaR >= 0 ? '+' : ''}{formatNumber(deltaR)}
-                                      = <span className="font-bold text-slate-900">{formatNumber(curR)}</span>
+                                      = <span className={`font-bold ${deltaR >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{deltaR >= 0 ? '+' : ''}{formatNumber(deltaR)}</span>
                                   </span>
                               </div>
                           </div>
                       </div>
                   );
               } else {
-                  // Likely just fee deduction (Funding or Open)
-                  explanation = (
-                      <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
-                          0 - {formatNumber(deltaF)} = -{formatNumber(deltaF)}
-                          <div className="text-[8px] text-slate-400 font-sans mt-0.5 text-right">Fee Deduction Only</div>
+                  content = (
+                      <div className="flex flex-col gap-1">
+                          <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied PnL & Fee Breakdown</div>
+                          <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-700">
+                              <div className="flex justify-between mb-0.5">
+                                  <span className="text-slate-500">Trade PnL (Gross):</span>
+                                  <span className="text-slate-400">None</span>
+                              </div>
+                              <div className="flex justify-between mb-0.5 border-t border-slate-900/5 pt-0.5">
+                                  <span className="text-slate-500">Fee Paid:</span>
+                                  <span className="text-rose-600">-{formatNumber(deltaF)}</span>
+                              </div>
+                              <div className="flex justify-between border-t border-slate-900/5 pt-0.5">
+                                  <span className="text-slate-800 font-bold">Net Change:</span>
+                                  <span className="font-bold text-slate-900">
+                                      {formatNumber(curR - prevR)}
+                                  </span>
+                              </div>
+                          </div>
                       </div>
                   );
               }
-
-              content = (
-                  <div className="flex flex-col gap-1">
-                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Last Realized PnL</div>
-                      <div className="grid grid-cols-[auto_1fr] gap-x-2 text-[10px] text-slate-600">
-                          <span>Prev Total:</span> <span className="font-mono text-right">{formatNumber(prevR)}</span>
-                          <span>Change:</span> <span className={`font-mono text-right ${deltaR >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{deltaR >= 0 ? '+' : ''}{formatNumber(deltaR)}</span>
-                      </div>
-                      {explanation}
-                  </div>
-              );
           } else {
               content = (
                   <div className="flex flex-col gap-1">
@@ -325,23 +345,26 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       }
 
       const handleMouseEnter = () => {
-          if (!positionEvents[p.positionId] && !positionEventsLoading[p.positionId]) {
-              setPositionEventsLoading(v => ({...v, [p.positionId]: true}));
-              getPositionEvents(p.positionId).then(res => {
+          const targetId = parentP?.positionId || p.positionId;
+          if (!positionEvents[targetId] && !positionEventsLoading[targetId]) {
+              setPositionEventsLoading(v => ({...v, [targetId]: true}));
+              getPositionEvents(targetId).then(res => {
                   if (String(res?.code) === '0') {
-                      setPositionEvents(v => ({...v, [p.positionId]: res.data?.events || []}));
+                      setPositionEvents(v => ({...v, [targetId]: res.data?.events || []}));
                   }
-              }).finally(() => setPositionEventsLoading(v => ({...v, [p.positionId]: false})));
+              }).finally(() => setPositionEventsLoading(v => ({...v, [targetId]: false})));
           }
       };
+
+      const isDeltaIcon = ['cumFee', 'cumRealizedPnl'].includes(key);
 
       return (
           <Tooltip classNames={{ root: 'liquid-tooltip' }} title={content}>
              <div 
                 onMouseEnter={handleMouseEnter}
-                className="liquid-tooltip-trigger inline-flex items-center justify-center w-3 h-3 ml-1.5 rounded-sm bg-slate-100 border border-slate-200 text-[8px] text-slate-400 cursor-help hover:bg-white hover:border-blue-300 hover:text-blue-500 transition-colors"
+                className={`liquid-tooltip-trigger inline-flex items-center justify-center ml-1.5 cursor-help transition-colors ${isDeltaIcon ? 'text-[9px] text-slate-400 hover:text-blue-500 px-0.5' : 'w-3 h-3 rounded-sm bg-slate-100 border border-slate-200 text-[8px] text-slate-400 hover:bg-white hover:border-blue-300 hover:text-blue-500'}`}
              >
-                =
+                {isDeltaIcon ? '∆' : '='}
              </div>
           </Tooltip>
       );
@@ -547,7 +570,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       content = v ?? '-';
     }
 
-    if (['marginRatio', 'unrealizedPnl', 'liquidationPrice'].includes(k)) {
+    if (['marginRatio', 'unrealizedPnl', 'liquidationPrice', 'cumFee', 'cumRealizedPnl'].includes(k)) {
        return <div className="flex items-center justify-end gap-1">{content}{renderCalculatorTooltip(p, k, parentP, eventContext)}</div>;
     }
     
