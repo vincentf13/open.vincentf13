@@ -1020,7 +1020,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                         <td className="py-1 font-mono">{t.tradeId}</td>
                                         <td className="py-1 font-mono">{formatNumber(t.price)}</td>
                                         <td className="py-1 font-mono">{formatNumber(t.quantity)}</td>
-                                        <td className="py-1 font-mono text-rose-500">{formatNumber(t.takerUserId === Number(currentUserId) ? t.takerFee : t.makerFee)}</td>
+                                        <td className="py-1 font-mono text-rose-500">
+                                          {formatNumber(String(t.counterpartyOrderId) === String(o.orderId) ? t.takerFee : t.makerFee)}
+                                        </td>
                                         <td className="py-1 text-slate-400">{formatPayloadValue('executedAt', t.executedAt)}</td>
                                       </tr>
                                     ))}
