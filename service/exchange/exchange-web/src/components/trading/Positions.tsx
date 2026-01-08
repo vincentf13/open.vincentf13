@@ -577,65 +577,126 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     return content;
   };
 
-  const renderOrderCellValue = (o: any, k: string) => {
+  const renderOrderCellValue = (o: any, k: string, tradesMap?: Record<string, TradeResponse[]>) => {
     const v = o[k];
     if (v === null) return 'Removed';
+    
+    let content = null;
+
     if (k === 'orderId') {
-      return <span className="text-slate-600 font-mono">{String(v)}</span>;
-    }
-    if (k === 'instrumentId') return instrumentMap.get(String(v)) || String(v);
-    if (k === 'status') {
+      content = <span className="text-slate-600 font-mono">{String(v)}</span>;
+    } else if (k === 'instrumentId') {
+      content = instrumentMap.get(String(v)) || String(v);
+    } else if (k === 'status') {
       const status = String(v || '').toUpperCase();
       let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
       if (['FILLED', 'PARTIALLY_FILLED'].includes(status)) colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
       if (['CANCELLED', 'REJECTED'].includes(status)) colorClass = 'bg-rose-50 text-rose-600 border-rose-200';
       if (['NEW', 'PENDING_NEW'].includes(status)) colorClass = 'bg-sky-50 text-sky-600 border-sky-200';
-      return (
+      content = (
         <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${colorClass}`}>
           {status}
         </span>
       );
-    }
-    if (k === 'side') {
+    } else if (k === 'side') {
       const side = String(v || '').toUpperCase();
       let colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
       if (side === 'BUY' || side === 'LONG') colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
       if (side === 'SELL' || side === 'SHORT') colorClass = 'bg-rose-50 text-rose-600 border-rose-200';
-      return (
+      content = (
         <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${colorClass}`}>
           {side}
         </span>
       );
-    }
-    if (k === 'type') {
-      return (
+    } else if (k === 'type') {
+      content = (
         <span className="px-1.5 py-0.5 rounded-md border border-violet-200 bg-violet-50 text-violet-600 text-[9px] font-black uppercase tracking-tighter">
           {String(v || '-')}
         </span>
       );
-    }
-    if (k === 'intent') {
-      return (
+    } else if (k === 'intent') {
+      content = (
         <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
           {String(v || '-')}
         </span>
       );
+    } else if (['price', 'quantity'].includes(k)) {
+      content = <span className="text-sky-600 font-bold">{formatNumber(v)}</span>;
+    } else if (['filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee'].includes(k)) {
+      content = <span className="text-amber-600 font-bold">{formatNumber(v)}</span>;
+    } else if (k === 'rejectedReason') {
+      content = <span className="text-rose-600">{v || '-'}</span>;
+    } else if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
+      if (!v) content = '-';
+      else {
+        const d = new Date(v);
+        content = isNaN(d.getTime()) ? String(v) : `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+      }
+    } else {
+      content = v ?? '-';
     }
-    if (['price', 'quantity'].includes(k)) {
-      return <span className="text-sky-600 font-bold">{formatNumber(v)}</span>;
+
+    // Add verification tooltip for Avg Fill Price and Fee using trade data
+    if ((k === 'avgFillPrice' || k === 'fee') && tradesMap && tradesMap[o.orderId]) {
+      const trades = tradesMap[o.orderId] || [];
+      if (trades.length > 0) {
+        let tooltipContent = null;
+        
+        if (k === 'avgFillPrice') {
+          let totalVal = 0;
+          let totalQty = 0;
+          trades.forEach(t => {
+            const p = Number(t.price || 0);
+            const q = Number(t.quantity || 0);
+            totalVal += p * q;
+            totalQty += q;
+          });
+          const calcAvg = totalQty === 0 ? 0 : totalVal / totalQty;
+          
+          tooltipContent = (
+            <div className="flex flex-col gap-1">
+              <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied Avg Price</div>
+              <div className="text-[9px] text-slate-600 mb-1">From {trades.length} fills:</div>
+              <div className="bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-700">
+                <div>Σ(Price × Qty) / Σ(Qty)</div>
+                <div className="mt-1 font-bold">= {formatNumber(calcAvg)}</div>
+              </div>
+              <div className="text-[8px] text-slate-400 italic mt-0.5 text-right">*Implied from loaded fills</div>
+            </div>
+          );
+        } else if (k === 'fee') {
+          let totalFee = 0;
+          trades.forEach(t => {
+            const isTaker = t.takerUserId === Number(currentUserId);
+            const fee = isTaker ? Number(t.takerFee) : Number(t.makerFee);
+            totalFee += fee;
+          });
+          
+          tooltipContent = (
+            <div className="flex flex-col gap-1">
+              <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied Fee</div>
+              <div className="text-[9px] text-slate-600 mb-1">Sum of {trades.length} fills:</div>
+              <div className="bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-700">
+                <div>Σ(Trade Fee)</div>
+                <div className="mt-1 font-bold">= {formatNumber(totalFee)}</div>
+              </div>
+              <div className="text-[8px] text-slate-400 italic mt-0.5 text-right">*Implied from loaded fills</div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {content}
+            <Tooltip classNames={{ root: 'liquid-tooltip' }} title={tooltipContent}>
+              <div className="liquid-tooltip-trigger cursor-help text-[9px] text-slate-400 hover:text-blue-500 transition-colors px-0.5">∆</div>
+            </Tooltip>
+          </div>
+        );
+      }
     }
-    if (['filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee'].includes(k)) {
-      return <span className="text-amber-600 font-bold">{formatNumber(v)}</span>;
-    }
-    if (k === 'rejectedReason') {
-      return <span className="text-rose-600">{v || '-'}</span>;
-    }
-    if (['createdAt', 'updatedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
-      if (!v) return '-';
-      const d = new Date(v);
-      return isNaN(d.getTime()) ? String(v) : `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
-    }
-    return v ?? '-';
+
+    return content;
   };
 
   const parsePayload = (p?: string | null) => { if (!p) return null; try { return JSON.parse(p); } catch { return null; } };
@@ -894,7 +955,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                         <td className="py-2 px-2"><button onClick={() => toggleOrder(o.orderId)} className="w-4 h-4 rounded border border-white/30 text-[10px]">{expandedOrderId === o.orderId ? 'v' : '>'}</button></td>
                         {orderColumns.map(c => {
                           const changed = orderChangedFieldsRef.current.get(String(o.orderId))?.has(c.key);
-                          return <td key={c.key} className={`py-2 px-2 font-mono ${changed ? 'bg-rose-100/50 text-rose-900' : ''}`}>{renderOrderCellValue(o, c.key)}</td>
+                          return <td key={c.key} className={`py-2 px-2 font-mono ${changed ? 'bg-rose-100/50 text-rose-900' : ''}`}>{renderOrderCellValue(o, c.key, orderTrades)}</td>
                         })}
                       </tr>
                       {expandedOrderId === o.orderId && (
