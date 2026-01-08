@@ -100,10 +100,11 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     return isNaN(n) ? String(v) : n.toString();
   };
 
-  const renderCalculatorTooltip = (p: any, key: string) => {
-      const inst = instruments.find(i => String(i.instrumentId) === String(p.instrumentId));
-      const rl = riskLimits[String(p.instrumentId)];
-      const events = positionEvents[p.positionId] || [];
+  const renderCalculatorTooltip = (p: any, key: string, parentP?: any, eventContext?: any) => {
+      const instrumentId = p.instrumentId || parentP?.instrumentId;
+      const inst = instruments.find(i => String(i.instrumentId) === String(instrumentId));
+      const rl = riskLimits[String(instrumentId)];
+      const events = positionEvents[parentP?.positionId || p.positionId] || [];
       
       const contractSize = Number(inst?.contractSize || 1);
       const mmr = Number(rl?.maintenanceMarginRate || 0);
@@ -112,15 +113,27 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       const entry = Number(p.entryPrice || 0);
       const margin = Number(p.margin || 0);
       const upnl = Number(p.unrealizedPnl || 0);
-      const side = String(p.side || '').toUpperCase();
+      const side = String(p.side || parentP?.side || '').toUpperCase();
 
       let content = null;
 
-      // Try to derive last trade info from events for Entry Price and Cum Realized PnL
-      const latestEvent = events[0];
-      const prevEvent = events[1];
-      const latestPayload = latestEvent ? parsePayload(latestEvent.payload) : null;
-      const prevPayload = prevEvent ? parsePayload(prevEvent.payload) : null;
+      // Determine 'latest' and 'prev' context
+      // If eventContext is provided (Event Row), use it.
+      // Otherwise (Main Row), use the two most recent events from the list.
+      let latestPayload: any = null;
+      let prevPayload: any = null;
+      let latestEvent: any = null;
+
+      if (eventContext) {
+          latestPayload = eventContext.fullState;
+          prevPayload = eventContext.prevState;
+          latestEvent = eventContext; // The event object itself
+      } else {
+          latestEvent = events[0];
+          const prevEvent = events[1];
+          latestPayload = latestEvent ? parsePayload(latestEvent.payload) : null;
+          prevPayload = prevEvent ? parsePayload(prevEvent.payload) : null;
+      }
 
       if (key === 'entryPrice') {
           if (latestPayload && prevPayload && latestEvent.eventType === 'TRADE_EXECUTED') {
@@ -443,7 +456,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     { key: 'closedAt', label: 'Closed At' }
   ];
 
-  const renderCellValue = (p: any, k: string) => {
+  const renderCellValue = (p: any, k: string, parentP?: any, eventContext?: any) => {
     const v = p[k];
     if (v === null) return 'Removed';
     
@@ -482,6 +495,46 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       content = <span className="text-sky-600 font-bold">{k === 'marginRatio' ? formatPercent(v) : formatNumber(v)}</span>;
     } else if (['entryPrice', 'quantity', 'markPrice', 'liquidationPrice'].includes(k)) {
       content = <span className="text-sky-600 font-bold">{formatNumber(v)}</span>;
+      
+      // Special logic for Entry Price in Position Events: Show implied trade price
+      if (k === 'entryPrice' && eventContext && eventContext.prevState) {
+          const curE = Number(v || 0);
+          const prevE = Number(eventContext.prevState.entryPrice || 0);
+          // Only show if Entry Price changed (and it's a trade event usually, but strict value change is safer)
+          if (Math.abs(curE - prevE) > 0.000001) {
+              const curQ = Number(p.quantity || 0);
+              const prevQ = Number(eventContext.prevState.quantity || 0);
+              const tradeQ = curQ - prevQ;
+              
+              if (Math.abs(tradeQ) > 0) {
+                  // (NewE * NewQ - OldE * OldQ) / TradeQ
+                  const tradeP = (curE * curQ - prevE * prevQ) / tradeQ;
+                  
+                  const tooltipContent = (
+                      <div className="flex flex-col gap-1">
+                          <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied Trade Info</div>
+                          <div className="grid grid-cols-[auto_1fr] gap-x-2 text-[10px] text-slate-600">
+                              <span>Trade Price:</span> <span className="font-mono text-emerald-600">{formatNumber(tradeP)}</span>
+                              <span>Trade Qty:</span> <span className="font-mono text-slate-700">{tradeQ > 0 ? '+' : ''}{formatNumber(tradeQ)}</span>
+                          </div>
+                          <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-700">
+                              ({formatNumber(curE)}×{formatNumber(curQ)} - {formatNumber(prevE)}×{formatNumber(prevQ)}) / {formatNumber(tradeQ)}
+                          </div>
+                          <div className="text-[8px] text-slate-400 italic mt-0.5 text-right">*Derived from event state change</div>
+                      </div>
+                  );
+
+                  content = (
+                      <div className="flex items-center justify-end gap-1">
+                          {content}
+                          <Tooltip classNames={{ root: 'liquid-tooltip' }} title={tooltipContent}>
+                              <div className="liquid-tooltip-trigger cursor-help text-[9px] text-slate-400 hover:text-blue-500 transition-colors px-0.5">∆</div>
+                          </Tooltip>
+                      </div>
+                  );
+              }
+          }
+      }
     } else if (k === 'closingReservedQuantity') {
       content = <span className="text-amber-600 font-bold">{formatNumber(v)}</span>;
     } else if (['createdAt', 'updatedAt', 'closedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
@@ -494,8 +547,8 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       content = v ?? '-';
     }
 
-    if (['entryPrice', 'marginRatio', 'unrealizedPnl', 'cumRealizedPnl', 'liquidationPrice'].includes(k)) {
-       return <div className="flex items-center justify-end gap-1">{content}{renderCalculatorTooltip(p, k)}</div>;
+    if (['marginRatio', 'unrealizedPnl', 'liquidationPrice'].includes(k)) {
+       return <div className="flex items-center justify-end gap-1">{content}{renderCalculatorTooltip(p, k, parentP, eventContext)}</div>;
     }
     
     return content;
@@ -760,9 +813,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                     
                                     let accumulatedState: any = {};
                                     const processedEvents = sortedEvents.map(e => {
+                                      const prevState = { ...accumulatedState };
                                       const payload = parsePayload(e.payload) || {};
                                       accumulatedState = { ...accumulatedState, ...payload };
-                                      return { ...e, fullState: { ...accumulatedState }, deltaPayload: payload };
+                                      return { ...e, fullState: { ...accumulatedState }, prevState, deltaPayload: payload };
                                     });
 
                                     return processedEvents.reverse().map(e => {
@@ -779,7 +833,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                             const hasValue = val !== undefined && val !== null;
                                             return (
                                               <td key={c.key} className={`py-1 px-2 font-mono bg-yellow-200/50 ${hasValue ? 'text-slate-900 font-bold' : 'text-slate-300'} ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>
-                                                {hasValue ? renderCellValue(e.fullState, c.key, p) : '-'}
+                                                {hasValue ? renderCellValue(e.fullState, c.key, p, e) : '-'}
                                               </td>
                                             );
                                           })}
