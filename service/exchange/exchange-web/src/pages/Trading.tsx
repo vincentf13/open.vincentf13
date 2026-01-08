@@ -300,12 +300,30 @@ export default function Trading() {
                   direction
                   <Tooltip 
                     title={(
-                      <div className="text-[10px] leading-relaxed min-w-[220px]">
-                        <p className="font-bold text-emerald-400 border-b border-white/10 pb-1 mb-1">借貸方向 (Debit / Credit)</p>
-                        <p>按照會計科目屬性：Assets (資產) 與 Expenses (費用) ，DEBIT 表示增加該科目金額，CREDIT 表示扣減；相反地，Liabilities (負債)、Equity (權益)、Revenue (收入) 的金額則由 CREDIT 增加、DEBIT 減少。</p>
-                        <p className="text-slate-300 mt-1">Accounting rule: DEBIT increases Assets/Expenses and decreases Liabilities/Equity/Revenue; CREDIT does the reverse, increasing Liabilities/Equity/Revenue while reducing Assets/Expenses.</p>
+                      <div className="text-[10px] leading-relaxed min-w-[480px]">
+                        <div className="grid grid-cols-2 gap-6">
+                          {/* Chinese Column */}
+                          <div className="space-y-2 text-slate-700">
+                            <p className="font-bold text-sky-600 border-b border-slate-200 pb-1">借貸方向 (Debit / Credit)</p>
+                            <p className="font-mono text-sky-600">借 (DEBIT) = 貸 (CREDIT)</p>
+                            <ul className="list-disc pl-4 space-y-1">
+                              <li><span className="font-semibold text-emerald-600">借 (DEBIT)</span>: 代表資產/費用增加，或負債/權益/收入減少。</li>
+                              <li><span className="font-semibold text-rose-600">貸 (CREDIT)</span>: 代表負債/權益/收入增加，或資產/費用減少。</li>
+                            </ul>
+                          </div>
+                          {/* English Column */}
+                          <div className="space-y-2 text-slate-700">
+                            <p className="font-bold text-sky-600 border-b border-slate-200 pb-1">Direction Accounting Rules</p>
+                            <p className="font-mono text-sky-600">Total Debits = Total Credits</p>
+                            <ul className="list-disc pl-4 space-y-1">
+                              <li><span className="font-semibold text-emerald-600">DEBIT</span>: Increases in Assets/Expenses; decreases in Liabilities/Equity/Revenue.</li>
+                              <li><span className="font-semibold text-rose-600">CREDIT</span>: Increases in Liabilities/Equity/Revenue; decreases in Assets/Expenses.</li>
+                            </ul>
+                          </div>
+                        </div>
                       </div>
                     )}
+                    classNames={{ root: 'liquid-tooltip' }}
                     styles={{ root: { maxWidth: 'none' } }}
                   >
                     <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
@@ -325,6 +343,7 @@ export default function Trading() {
                         <p className="text-slate-300 mt-1">Click to view all journal entries (e.g., matching, fees) related to this transaction).</p>
                       </div>
                     )}
+                    classNames={{ root: 'liquid-tooltip' }}
                     styles={{ root: { maxWidth: 'none' } }}
                   >
                     <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
@@ -411,17 +430,35 @@ export default function Trading() {
               <th className="py-1 pr-1 font-semibold text-left w-[60px]">category</th>
               <th className="py-1 pr-1 font-semibold text-left w-[40px]">asset</th>
               <th className="py-1 pr-1 font-semibold w-[100px]">amount</th>
-              <th className="py-1 pr-1 font-semibold w-[60px]">
+              <th className="py-1 px-1 font-semibold w-[60px]">
                 <div className="flex items-center gap-1 justify-end">
                   direction
                   <Tooltip 
                     title={(
-                      <div className="text-[10px] leading-relaxed min-w-[220px]">
-                        <p className="font-bold text-indigo-400 border-b border-white/10 pb-1 mb-1">借貸方向 (Debit / Credit)</p>
-                        <p>Assets/Expenses 屬於「借方增加」的科目，Liabilities/Equity/Revenue 屬於「貸方增加」，因此 DEBIT 增加前者、CREDIT 增加後者，反向則減少該科目金額。</p>
-                        <p className="text-slate-300 mt-1">Assets/Expenses are debit-increasing accounts while Liabilities/Equity/Revenue are credit-increasing; a DEBIT raises the former and lowers the latter, CREDIT does the opposite.</p>
+                      <div className="text-[10px] leading-relaxed min-w-[480px]">
+                        <div className="grid grid-cols-2 gap-6">
+                          {/* Chinese Column */}
+                          <div className="space-y-2 text-slate-700">
+                            <p className="font-bold text-indigo-600 border-b border-slate-200 pb-1">借貸方向 (Debit / Credit)</p>
+                            <p className="font-mono text-indigo-600">借 (DEBIT) = 貸 (CREDIT)</p>
+                            <ul className="list-disc pl-4 space-y-1">
+                              <li><span className="font-semibold text-emerald-600">借 (DEBIT)</span>: 代表資產/費用增加，或負債/權益/收入減少。</li>
+                              <li><span className="font-semibold text-rose-600">貸 (CREDIT)</span>: 代表負債/權益/收入增加，或資產/費用減少。</li>
+                            </ul>
+                          </div>
+                          {/* English Column */}
+                          <div className="space-y-2 text-slate-700">
+                            <p className="font-bold text-indigo-600 border-b border-slate-200 pb-1">Direction Accounting Rules</p>
+                            <p className="font-mono text-indigo-600">Total Debits = Total Credits</p>
+                            <ul className="list-disc pl-4 space-y-1">
+                              <li><span className="font-semibold text-emerald-600">DEBIT</span>: Increases in Assets/Expenses; decreases in Liabilities/Equity/Revenue.</li>
+                              <li><span className="font-semibold text-rose-600">CREDIT</span>: Increases in Liabilities/Equity/Revenue; decreases in Assets/Expenses.</li>
+                            </ul>
+                          </div>
+                        </div>
                       </div>
                     )}
+                    classNames={{ root: 'liquid-tooltip' }}
                     styles={{ root: { maxWidth: 'none' } }}
                   >
                     <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
@@ -441,6 +478,7 @@ export default function Trading() {
                         <p className="text-slate-300 mt-1">Click to view all journal entries related to this transaction.</p>
                       </div>
                     )}
+                    classNames={{ root: 'liquid-tooltip' }}
                     styles={{ root: { maxWidth: 'none' } }}
                   >
                     <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
@@ -682,7 +720,7 @@ export default function Trading() {
                 <p>「同步中」每 3 秒自動更新數據；「已暫停」則停止自動輪詢。</p>
                 <p className="text-slate-400 mt-1">"Syncing" auto-updates every 3s; "Paused" stops auto-polling.</p>
               </div>
-            )} styles={{ root: { maxWidth: 'none' } }}>
+            )} classNames={{ root: 'liquid-tooltip' }} styles={{ root: { maxWidth: 'none' } }}>
               <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-white/50 flex items-center justify-center text-[9px] cursor-help border border-white/30">?</div>
             </Tooltip>
           </button>
@@ -694,7 +732,7 @@ export default function Trading() {
                 <p>重置所有交易數據、餘額與分錄（僅測試環境）。</p>
                 <p className="text-slate-400 mt-1">Resets all trades, balances, and journals (Test only).</p>
               </div>
-            )} styles={{ root: { maxWidth: 'none' } }}>
+            )} classNames={{ root: 'liquid-tooltip' }} styles={{ root: { maxWidth: 'none' } }}>
               <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-rose-200/50 group-hover:bg-white/20 flex items-center justify-center text-[9px] cursor-help border border-rose-300/50 group-hover:border-white/30">?</div>
             </Tooltip>
           </button>
@@ -706,7 +744,7 @@ export default function Trading() {
                 <p>手動強制刷新當前頁面所有可見數據。</p>
                 <p className="text-slate-400 mt-1">Manually force refresh all visible data on the page.</p>
               </div>
-            )} styles={{ root: { maxWidth: 'none' } }}>
+            )} classNames={{ root: 'liquid-tooltip' }} styles={{ root: { maxWidth: 'none' } }}>
               <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-emerald-200/50 group-hover:bg-white/20 flex items-center justify-center text-[9px] cursor-help border border-emerald-300/50 group-hover:border-white/30">?</div>
             </Tooltip>
           </button>
@@ -967,6 +1005,7 @@ export default function Trading() {
                       )}
                       placement="right"
                       classNames={{ root: 'liquid-tooltip' }}
+                      classNames={{ root: 'liquid-tooltip' }}
                       styles={{ root: { maxWidth: 'none' } }}
                     >
                       <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-sky-50 flex items-center justify-center text-[10px] text-sky-400 cursor-help border border-sky-200">?</div>
@@ -1034,6 +1073,7 @@ export default function Trading() {
                         </div>
                       )}
                       placement="right"
+                      classNames={{ root: 'liquid-tooltip' }}
                       classNames={{ root: 'liquid-tooltip' }}
                       styles={{ root: { maxWidth: 'none' } }}
                     >
