@@ -1,80 +1,6 @@
+# 使用前請先執行 setup.http 以初始化 Token 與配置
 @gatewayHost = http://localhost:12345
-@password = 12345678
 @instrumentId = 10001
-
-### 1. 登入帳號 A
-# @name loginA
-POST {{gatewayHost}}/auth/api/login
-Content-Type: application/json
-
-{
-  "email": "c.p.kevinf13@gmail.com",
-  "password": "{{password}}"
-}
-
-> {%
-    client.global.set("tokenA", response.body.data.jwtToken);
-%}
-
-### 2. 登入帳號 B
-# @name loginB
-POST {{gatewayHost}}/auth/api/login
-Content-Type: application/json
-
-{
-  "email": "c.p.kevinf13-1@gmail.com",
-  "password": "{{password}}"
-}
-
-> {%
-    client.global.set("tokenB", response.body.data.jwtToken);
-%}
-
-### 2-1. 獲取 Instrument 配置
-GET {{gatewayHost}}/admin/api/admin/instruments
-Authorization: Bearer {{tokenA}}
-
-> {%
-    var inst = response.body.data.find(i => i.instrumentId == 10001);
-    client.global.set("contractSize", inst.contractSize || 1);
-    client.global.set("takerFeeRate", inst.takerFeeRate || 0.0005);
-    client.global.set("leverage", inst.defaultLeverage || 1);
-    client.log("Config Loaded: Size=" + client.global.get("contractSize") + ", Fee=" + client.global.get("takerFeeRate") + ", Lev=" + client.global.get("leverage"));
-%}
-
-### 2-2. 獲取 Risk Limit 配置
-GET {{gatewayHost}}/risk/api/risk/limits/{{instrumentId}}
-Authorization: Bearer {{tokenA}}
-
-> {%
-    var limit = response.body.data;
-    client.global.set("mmr", limit.maintenanceMarginRate || 0.005);
-    client.log("Risk Config Loaded: MMR=" + client.global.get("mmr"));
-%}
-
-### 3. 帳號 A 儲值 1000 USDT
-POST {{gatewayHost}}/account/api/account/deposits
-Authorization: Bearer {{tokenA}}
-Content-Type: application/json
-
-{
-  "asset": "USDT",
-  "amount": 1000,
-  "txId": "itest-2-dep-A-{{$timestamp}}",
-  "creditedAt": "{{$isoTimestamp}}"
-}
-
-### 4. 帳號 B 儲值 1000 USDT
-POST {{gatewayHost}}/account/api/account/deposits
-Authorization: Bearer {{tokenB}}
-Content-Type: application/json
-
-{
-  "asset": "USDT",
-  "amount": 1000,
-  "txId": "itest-2-dep-B-{{$timestamp}}",
-  "creditedAt": "{{$isoTimestamp}}"
-}
 
 ### 5. [開倉] A Sell 5 (B Buy 5) -> A 預期持空倉 5
 POST {{gatewayHost}}/order/api/orders
@@ -108,29 +34,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 5: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        client.assert(pos != null, "Position not found");
-        
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        var margin = parseFloat(pos.margin);
-        var upnl = parseFloat(pos.unrealizedPnl);
-        
-        client.assert(pos.side === "SHORT", "Side should be SHORT");
-        client.assert(qty === 5, "Quantity should be 5");
-        client.assert(entry === 10, "Entry Price should be 10");
-
-        // Unrealized PnL (Short): (Entry - Mark) * Qty
-        var expectedUpnl = (entry - mark) * qty;
-        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch");
-
-        // Margin Ratio Check
-        var notional = mark * qty;
-        var equity = margin + upnl;
-        var mRatio = parseFloat(pos.marginRatio);
-        var expectedRatio = equity / notional;
-        client.assert(Math.abs(mRatio - expectedRatio) < 0.001, "Margin Ratio mismatch");
+        client.global.set("expSide", "SHORT");
+        client.global.set("expQty", 5);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -166,17 +73,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 6: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        
-        client.assert(pos.side === "SHORT", "Side should be SHORT");
-        client.assert(qty === 2, "Quantity should be 2");
-        client.assert(entry === 10, "Entry Price should be 10");
-        
-        var expectedUpnl = (entry - mark) * qty;
-        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+        client.global.set("expSide", "SHORT");
+        client.global.set("expQty", 2);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -212,11 +112,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 7: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        
-        client.assert(pos.side === "SHORT", "Side should be SHORT");
-        client.assert(qty === 4, "Quantity should be 4");
+        client.global.set("expSide", "SHORT");
+        client.global.set("expQty", 4);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -252,18 +151,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 8: Position Logic Check (Flip to Long)", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        
-        client.assert(pos.side === "LONG", "Side should be LONG");
-        client.assert(qty === 1, "Quantity should be 1");
-        client.assert(entry === 10, "Entry Price should be 10");
-        
-        // Consistency (Long)
-        var expectedUpnl = (mark - entry) * qty;
-        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+        client.global.set("expSide", "LONG");
+        client.global.set("expQty", 1);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -299,11 +190,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 9: Position Logic Check (Flip back to Short)", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        
-        client.assert(pos.side === "SHORT", "Side should be SHORT");
-        client.assert(qty === 4, "Quantity should be 4");
+        client.global.set("expSide", "SHORT");
+        client.global.set("expQty", 4);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -339,11 +229,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 10: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        
-        client.assert(pos.side === "LONG", "Side should be LONG");
-        client.assert(qty === 5, "Quantity should be 5");
+        client.global.set("expSide", "LONG");
+        client.global.set("expQty", 5);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -395,7 +284,6 @@ Content-Type: application/json
 {
   "instrumentId": {{instrumentId}},
   "side": "BUY",
-  "type": "LIMIT",
   "price": 10,
   "quantity": 3
 }
@@ -406,17 +294,9 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 11: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        
-        client.assert(pos.side === "SHORT", "Side should be SHORT");
-        client.assert(qty === 8, "Quantity should be 8");
-        client.assert(entry === 10, "Entry Price should be 10");
-        
-        // Consistency (Short)
-        var expectedUpnl = (entry - mark) * qty;
-        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+        client.global.set("expSide", "SHORT");
+        client.global.set("expQty", 8);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}

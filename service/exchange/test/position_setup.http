@@ -1,0 +1,79 @@
+@gatewayHost = http://localhost:12345
+@password = 12345678
+@instrumentId = 10001
+@emailA = c.p.kevinf13@gmail.com
+@emailB = c.p.kevinf13-1@gmail.com
+
+### 1. 登入帳號 A
+# @name loginA
+POST {{gatewayHost}}/auth/api/login
+Content-Type: application/json
+
+{
+  "email": "{{emailA}}",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("tokenA", response.body.data.jwtToken);
+%}
+
+### 2. 登入帳號 B
+# @name loginB
+POST {{gatewayHost}}/auth/api/login
+Content-Type: application/json
+
+{
+  "email": "{{emailB}}",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("tokenB", response.body.data.jwtToken);
+%}
+
+### 3. 獲取 Instrument 配置 (共用)
+GET {{gatewayHost}}/admin/api/admin/instruments
+Authorization: Bearer {{tokenA}}
+
+> {%
+    var inst = response.body.data.find(i => i.instrumentId == 10001);
+    client.global.set("contractSize", inst.contractSize);
+    client.global.set("takerFeeRate", inst.takerFeeRate);
+    client.global.set("leverage", inst.defaultLeverage);
+    client.log("Config Loaded: Size=" + client.global.get("contractSize") + ", Fee=" + client.global.get("takerFeeRate") + ", Lev=" + client.global.get("leverage"));
+%}
+
+### 4. 獲取 Risk Limit 配置 (共用)
+GET {{gatewayHost}}/risk/api/risk/limits/{{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    var limit = response.body.data;
+    client.global.set("mmr", limit.maintenanceMarginRate);
+    client.log("Risk Config Loaded: MMR=" + client.global.get("mmr"));
+%}
+
+### 5. 帳號 A 儲值 1000 USDT (共用)
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 1000,
+  "txId": "setup-dep-A-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+### 6. 帳號 B 儲值 1000 USDT (共用)
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 1000,
+  "txId": "setup-dep-B-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
