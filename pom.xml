@@ -21,7 +21,6 @@
 
     <modules>
         <module>sdk</module>
-        <module>sdk-contract</module>
         <module>service</module>
     </modules>
 

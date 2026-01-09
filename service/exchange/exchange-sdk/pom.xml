@@ -5,13 +5,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>open.vincentf13</groupId>
-        <artifactId>sdk-contract</artifactId>
+        <groupId>open.vincentf13.exchange</groupId>
+        <artifactId>exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>exchange-sdk</artifactId>
+    <groupId>open.vincentf13</groupId>
     <packaging>pom</packaging>
 
     <name>exchange-sdk</name>
@@ -29,4 +30,16 @@
         <module>exchange-market-sdk</module>
         <module>exchange-admin-sdk</module>
     </modules>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

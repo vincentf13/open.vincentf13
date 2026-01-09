@@ -19,6 +19,7 @@
     <description>Exchange service aggregation</description>
 
     <modules>
+        <module>exchange-sdk</module>
         <module>exchange-gateway</module>
         <module>exchange-auth</module>
         <module>exchange-user</module>
