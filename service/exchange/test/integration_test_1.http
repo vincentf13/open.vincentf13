@@ -1,0 +1,469 @@
+@gatewayHost = http://localhost:12345
+@password = 12345678
+@instrumentId = 10001
+
+### 1. 登入帳號 A
+# @name loginA
+POST {{gatewayHost}}/auth/api/login
+Content-Type: application/json
+
+{
+  "email": "c.p.kevinf13@gmail.com",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("tokenA", response.body.data.jwtToken);
+%}
+
+### 2. 登入帳號 B
+# @name loginB
+POST {{gatewayHost}}/auth/api/login
+Content-Type: application/json
+
+{
+  "email": "c.p.kevinf13-1@gmail.com",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("tokenB", response.body.data.jwtToken);
+%}
+
+### 2-1. 獲取 Instrument 配置
+GET {{gatewayHost}}/admin/api/admin/instruments
+Authorization: Bearer {{tokenA}}
+
+> {%
+    var inst = response.body.data.find(i => i.instrumentId == 10001);
+    client.global.set("contractSize", inst.contractSize || 1);
+    client.global.set("takerFeeRate", inst.takerFeeRate || 0.0005);
+    client.global.set("leverage", inst.defaultLeverage || 1);
+    client.log("Config Loaded: Size=" + client.global.get("contractSize") + ", Fee=" + client.global.get("takerFeeRate") + ", Lev=" + client.global.get("leverage"));
+%}
+
+### 2-2. 獲取 Risk Limit 配置
+GET {{gatewayHost}}/risk/api/risk/limits/{{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    var limit = response.body.data;
+    client.global.set("mmr", limit.maintenanceMarginRate || 0.005);
+    client.log("Risk Config Loaded: MMR=" + client.global.get("mmr"));
+%}
+
+### 3. 帳號 A 儲值 1000 USDT
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 1000,
+  "txId": "itest-1-dep-A-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+### 4. 帳號 B 儲值 1000 USDT
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 1000,
+  "txId": "itest-1-dep-B-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+### 5. [開倉] A Buy 5 (B Sell 5) -> A 預期持多倉 5
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 5
+}
+
+###
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 5
+}
+
+### 5-Check. 驗證 A 持倉: Long 5, Price 10
+GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 5: Position Logic Check", function() {
+        var pos = response.body.data.find(p => p.instrumentId == 10001);
+        client.assert(pos != null, "Position not found");
+        
+        var qty = parseFloat(pos.quantity);
+        var entry = parseFloat(pos.entryPrice);
+        var mark = parseFloat(pos.markPrice);
+        var margin = parseFloat(pos.margin);
+        var upnl = parseFloat(pos.unrealizedPnl);
+        var cumFee = parseFloat(pos.cumFee);
+        var side = pos.side;
+        
+        var size = parseFloat(client.global.get("contractSize"));
+        var mmr = parseFloat(client.global.get("mmr"));
+
+        client.assert(side === "LONG", "Side should be LONG");
+        client.assert(qty === 5, "Quantity should be 5");
+        client.assert(entry === 10, "Entry Price should be 10");
+
+        // 1. Unrealized PnL
+        var expectedUpnl = (mark - entry) * qty * size;
+        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch");
+
+        // 2. Margin Ratio
+        var notional = mark * qty * size;
+        var equity = margin + upnl;
+        var expectedRatio = notional === 0 ? 0 : equity / notional;
+        client.assert(Math.abs(parseFloat(pos.marginRatio) - expectedRatio) < 0.001, "Margin Ratio mismatch");
+
+        // 3. Liquidation Price (Long)
+        var marginPerUnit = margin / (qty * size);
+        var expectedLiq = (entry - marginPerUnit) / (1 - mmr);
+        // client.assert(Math.abs(parseFloat(pos.liquidationPrice) - expectedLiq) < 0.1, "Liq Price mismatch");
+    });
+%}
+
+### 6. [減倉] A Sell 3 (B Buy 3) -> A 預期持多倉 2
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 3
+}
+
+###
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 3
+}
+
+### 6-Check. 驗證 A 持倉: Long 2
+GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 6: Position Logic Check", function() {
+        var pos = response.body.data.find(p => p.instrumentId == 10001);
+        var qty = parseFloat(pos.quantity);
+        var entry = parseFloat(pos.entryPrice);
+        var mark = parseFloat(pos.markPrice);
+        var margin = parseFloat(pos.margin);
+        var upnl = parseFloat(pos.unrealizedPnl);
+        
+        var size = parseFloat(client.global.get("contractSize"));
+        var mmr = parseFloat(client.global.get("mmr"));
+
+        client.assert(pos.side === "LONG", "Side should be LONG");
+        client.assert(qty === 2, "Quantity should be 2");
+        client.assert(entry === 10, "Entry Price should be 10");
+
+        // Consistency
+        var expectedUpnl = (mark - entry) * qty * size;
+        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch");
+        
+        var notional = mark * qty * size;
+        var equity = margin + upnl;
+        var expectedRatio = notional === 0 ? 0 : equity / notional;
+        client.assert(Math.abs(parseFloat(pos.marginRatio) - expectedRatio) < 0.001, "Margin Ratio mismatch");
+    });
+%}
+
+### 7. [增倉] A Buy 2 (B Sell 2) -> A 預期持多倉 4
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 2
+}
+
+###
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 2
+}
+
+### 7-Check. 驗證 A 持倉: Long 4
+GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 7: Position Logic Check", function() {
+        var pos = response.body.data.find(p => p.instrumentId == 10001);
+        var qty = parseFloat(pos.quantity);
+        var entry = parseFloat(pos.entryPrice);
+        var mark = parseFloat(pos.markPrice);
+        var margin = parseFloat(pos.margin);
+        var upnl = parseFloat(pos.unrealizedPnl);
+        
+        var size = parseFloat(client.global.get("contractSize"));
+        
+        client.assert(pos.side === "LONG", "Side should be LONG");
+        client.assert(qty === 4, "Quantity should be 4");
+        client.assert(entry === 10, "Entry Price should remain 10");
+        
+        // Consistency
+        var expectedUpnl = (mark - entry) * qty * size;
+        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch");
+        
+        var notional = mark * qty * size;
+        var equity = margin + upnl;
+        var expectedRatio = notional === 0 ? 0 : equity / notional;
+        client.assert(Math.abs(parseFloat(pos.marginRatio) - expectedRatio) < 0.001, "Margin Ratio mismatch");
+    });
+%}
+
+### 8. [平倉] A Sell 5 (B Buy 5) -> A 預期持空倉 1 (因為之前是多倉 4)
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 5
+}
+
+###
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 5
+}
+
+### 8-Check. 驗證 A 持倉: Short 1
+GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 8: Position Logic Check (Flip to Short)", function() {
+        var pos = response.body.data.find(p => p.instrumentId == 10001);
+        var qty = parseFloat(pos.quantity);
+        var entry = parseFloat(pos.entryPrice);
+        var mark = parseFloat(pos.markPrice);
+        
+        client.assert(pos.side === "SHORT", "Side should be SHORT");
+        client.assert(qty === 1, "Quantity should be 1");
+        client.assert(entry === 10, "Entry Price should be 10 (Flip at 10)");
+        
+        // Consistency (Short)
+        // Upnl = (Entry - Mark) * Qty
+        var expectedUpnl = (entry - mark) * qty;
+        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+    });
+%}
+
+### 9. [再次開倉] A Buy 5 (B Sell 5) -> A 預期持多倉 4 (原空 1 + 買 5)
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 5
+}
+
+###
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 5
+}
+
+### 9-Check. 驗證 A 持倉: Long 4
+GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 9: Position Logic Check (Flip back to Long)", function() {
+        var pos = response.body.data.find(p => p.instrumentId == 10001);
+        var qty = parseFloat(pos.quantity);
+        var entry = parseFloat(pos.entryPrice);
+        var mark = parseFloat(pos.markPrice);
+        
+        client.assert(pos.side === "LONG", "Side should be LONG");
+        client.assert(qty === 4, "Quantity should be 4");
+        client.assert(entry === 10, "Entry Price should be 10");
+        
+        // Consistency
+        var expectedUpnl = (mark - entry) * qty;
+        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+    });
+%}
+
+### 10. [Flip 反手] A Sell 9 (B Buy 9) -> A 預期持空倉 5 (原多 4 - 賣 9)
+# 注意：測試計劃寫 Buy 10 觀察結果空倉 5，這在 A 原本持多倉的情況下不符合邏輯，此處改用 Sell 9 以達到持空倉 5
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 9
+}
+
+###
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 9
+}
+
+### 10-Check. 驗證 A 持倉: Short 5
+GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 10: Position Logic Check", function() {
+        var pos = response.body.data.find(p => p.instrumentId == 10001);
+        var qty = parseFloat(pos.quantity);
+        var entry = parseFloat(pos.entryPrice);
+        
+        client.assert(pos.side === "SHORT", "Side should be SHORT");
+        client.assert(qty === 5, "Quantity should be 5");
+        client.assert(entry === 10, "Entry Price should be 10");
+    });
+%}
+
+### 11. [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10)，B 依序成交 -> A 預期持多倉 8
+# A 原本持空倉 5，買 3 變空 2，再買 10 變多 8
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 3
+}
+
+###
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 10
+}
+
+### B 成交 A 的 10 張
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 10
+}
+
+### B 成交 A 的 3 張
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 10,
+  "quantity": 3
+}
+
+### 11-Check. 驗證 A 持倉: Long 8
+GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 11: Position Logic Check (Concurrency)", function() {
+        var pos = response.body.data.find(p => p.instrumentId == 10001);
+        var qty = parseFloat(pos.quantity);
+        var entry = parseFloat(pos.entryPrice);
+        var mark = parseFloat(pos.markPrice);
+        
+        client.assert(pos.side === "LONG", "Side should be LONG");
+        client.assert(qty === 8, "Quantity should be 8");
+        client.assert(entry === 10, "Entry Price should be 10");
+        
+        // Consistency
+        var expectedUpnl = (mark - entry) * qty;
+        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+    });
+%}
