@@ -15,6 +15,10 @@ Content-Type: application/json
   "quantity": 5
 }
 
+> {%
+    eval(client.global.get("waitScript"));
+%}
+
 ###
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -29,7 +33,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get(\"waitScript\"));
+    eval(client.global.get("waitScript"));
 %}
 
 ### 5-Check. 驗證 A 持倉: Short 5
@@ -65,6 +69,10 @@ Content-Type: application/json
   "quantity": 3
 }
 
+> {%
+    eval(client.global.get("waitScript"));
+%}
+
 ###
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -79,7 +87,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get(\"waitScript\"));
+    eval(client.global.get("waitScript"));
 %}
 
 ### 6-Check. 驗證 A 持倉: Short 2
@@ -116,6 +124,10 @@ Content-Type: application/json
   "quantity": 2
 }
 
+> {%
+    eval(client.global.get("waitScript"));
+%}
+
 ###
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -130,7 +142,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get(\"waitScript\"));
+    eval(client.global.get("waitScript"));
 %}
 
 ### 7-Check. 驗證 A 持倉: Short 4
@@ -167,6 +179,10 @@ Content-Type: application/json
   "quantity": 5
 }
 
+> {%
+    eval(client.global.get("waitScript"));
+%}
+
 ###
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -181,7 +197,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get(\"waitScript\"));
+    eval(client.global.get("waitScript"));
 %}
 
 ### 8-Check. 驗證 A 持倉: Long 1
@@ -218,6 +234,10 @@ Content-Type: application/json
   "quantity": 5
 }
 
+> {%
+    eval(client.global.get("waitScript"));
+%}
+
 ###
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -232,7 +252,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get(\"waitScript\"));
+    eval(client.global.get("waitScript"));
 %}
 
 ### 9-Check. 驗證 A 持倉: Short 4
@@ -269,6 +289,10 @@ Content-Type: application/json
   "quantity": 9
 }
 
+> {%
+    eval(client.global.get("waitScript"));
+%}
+
 ###
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -283,7 +307,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get(\"waitScript\"));
+    eval(client.global.get("waitScript"));
 %}
 
 ### 10-Check. 驗證 A 持倉: Long 5
@@ -321,6 +345,10 @@ Content-Type: application/json
   "quantity": 3
 }
 
+> {%
+    eval(client.global.get("waitScript"));
+%}
+
 ###
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
@@ -333,6 +361,10 @@ Content-Type: application/json
   "price": 10,
   "quantity": 10
 }
+
+> {%
+    eval(client.global.get("waitScript"));
+%}
 
 ### B 成交 A 的 10 張
 POST {{gatewayHost}}/order/api/orders
@@ -348,7 +380,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get(\"waitScript\"));
+    eval(client.global.get("waitScript"));
 %}
 
 ### B 成交 A 的 3 張
@@ -365,7 +397,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get(\"waitScript\"));
+    eval(client.global.get("waitScript"));
 %}
 
 ### 11-Check. 驗證 A 持倉: Short 8
