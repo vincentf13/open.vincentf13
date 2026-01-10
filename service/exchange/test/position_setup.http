@@ -59,7 +59,8 @@ Authorization: Bearer {{tokenA}}
     client.global.set("mmr", limit.maintenanceMarginRate);
     client.global.set("imr", limit.initialMarginRate);
     client.log("Risk Config Loaded: MMR=" + client.global.get("mmr") + ", IMR=" + client.global.get("imr"));
-    client.global.set("instrumentId", "{{instrumentId}}");
+    client.global.set("instrumentId", limit.instrumentId);
+    client.log("instrumentId(global)=" + client.global.get("instrumentId"));
 
     // Define Common Verification Script (Position Logic)
     client.global.set("verifyScript", `
