@@ -2,9 +2,11 @@ package open.vincentf13.exchange.account.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.infra.AccountEvent;
+import open.vincentf13.exchange.account.infra.AccountErrorCode;
 import open.vincentf13.exchange.account.service.AccountCommandService;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
+import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.validator.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -26,6 +28,13 @@ public class PositionMarginReleasedEventListener {
             OpenValidator.validateOrThrow(event);
             accountCommandService.handlePositionMarginReleased(event);
             acknowledgment.acknowledge();
+        } catch (OpenException e) {
+            if (e.getCode() == AccountErrorCode.DUPLICATE_REQUEST) {
+                acknowledgment.acknowledge();
+                return;
+            }
+            OpenLog.warn(AccountEvent.MATCHING_TRADE_PAYLOAD_MISSING, e, "event", event);
+            throw e;
         } catch (Exception e) {
             OpenLog.warn(AccountEvent.MATCHING_TRADE_PAYLOAD_MISSING, e, "event", event);
             throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
