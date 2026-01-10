@@ -40,7 +40,7 @@ CREATE TABLE instrument
 
     # 合約配置
     contract_size      DECIMAL(20, 8) NULL COMMENT '合約面值 (合約專用)',
-    default_leverage   INT            NOT NULL DEFAULT 40 COMMENT '預設槓桿',
+    default_leverage   INT            NOT NULL DEFAULT 4 COMMENT '預設槓桿',
 
     launch_at          DATETIME       NOT NULL COMMENT '上線時間',
     delist_at          DATETIME       NULL COMMENT '下線時間 (NULL表示未下線)',
@@ -371,7 +371,7 @@ CREATE TABLE positions
 
     # --- 核心配置 ---
     side                      VARCHAR(10)    NOT NULL COMMENT '倉位方向: LONG, SHORT',
-    leverage                  INT            NOT NULL DEFAULT 40 COMMENT '當前槓桿倍數',
+    leverage                  INT            NOT NULL DEFAULT 4 COMMENT '當前槓桿倍數',
     status                    VARCHAR(20)    NOT NULL DEFAULT 'ACTIVE' COMMENT '狀態: ACTIVE, LIQUIDATING, CLOSED',
 
     # --- 持倉狀態 (隨成交變動) ---
@@ -679,14 +679,14 @@ INSERT INTO instrument (instrument_id, symbol ,name, base_asset, quote_asset, in
                         launch_at, delist_at, display_order, is_tradable, is_visible, description, metadata,  
                         created_at, updated_at)  
 VALUES (10001, 'BTCUSDT-PERP', 'BTCUSDT', 'BTC', 'USDT', 'PERPETUAL', 'ACTIVE',  
-        0.0002, 0.0005, 0.001, 40,
+        0.0002, 0.0005, 0.001, 4,
         NOW(), NULL, 1, TRUE, TRUE, 'Demo perpetual pair', '{"funding_interval":8}',  
         NOW(), NOW());
 
 -- INSERT Sample Risk Limit for BTCUSDT-PERP
--- 初始保證金 0.025 (40x 槓桿), 維持保證金 0.02
+-- 初始保證金 0.3 (4x 槓桿), 維持保證金 0.25
 INSERT INTO risk_limits (id, instrument_id, initial_margin_rate, max_leverage, maintenance_margin_rate, liquidation_fee_rate, is_active, created_at, updated_at)
-VALUES (1, 10001, 0.0250, 100, 0.02, 0.005, TRUE, NOW(), NOW());
+VALUES (1, 10001, 0.3000, 4, 0.25, 0.005, TRUE, NOW(), NOW());
 
 INSERT INTO users (id, external_id, email, status, created_at, updated_at) VALUES (761365317218437, 'user-1768016605751', 'c.p.kevinf13@gmail.com', 'ACTIVE', '2026-01-10 03:43:26', '2026-01-10 03:43:26');
 INSERT INTO users (id, external_id, email, status, created_at, updated_at) VALUES (761365370314885, 'user-1768016619212', 'c.p.kevinf13-2@gmail.com', 'ACTIVE', '2026-01-10 03:43:40', '2026-01-10 03:43:40');
