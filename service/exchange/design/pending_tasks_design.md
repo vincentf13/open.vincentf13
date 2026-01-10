@@ -1,5 +1,5 @@
 
-詳細 SQL 請參考 [SQL.sql](./SQL.sql)
+詳細 SQL 請參考 [init.sql](init.sql)
 
 ---
 
