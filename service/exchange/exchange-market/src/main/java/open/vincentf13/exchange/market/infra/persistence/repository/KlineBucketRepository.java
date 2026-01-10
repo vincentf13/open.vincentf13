@@ -11,7 +11,7 @@ import open.vincentf13.exchange.market.domain.model.KlineBucket;
 import open.vincentf13.exchange.market.infra.persistence.mapper.KlineBucketMapper;
 import open.vincentf13.exchange.market.infra.persistence.po.KlineBucketPO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import open.vincentf13.sdk.core.validator.UpdateAndDelete;
+import open.vincentf13.sdk.core.validator.Id;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -49,7 +49,7 @@ public class KlineBucketRepository {
         return bucket;
     }
     
-    @Validated({Default.class, UpdateAndDelete.class})
+    @Validated({Default.class, Id.class})
     public boolean updateSelectiveBy(@NotNull @Valid KlineBucket update,
                                      @NotNull LambdaUpdateWrapper<KlineBucketPO> updateWrapper) {
         KlineBucketPO record = OpenObjectMapper.convert(update, KlineBucketPO.class);

@@ -2,7 +2,7 @@ package open.vincentf13.exchange.matching.domain.order.book;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.sdk.core.validator.UpdateAndDelete;
+import open.vincentf13.sdk.core.validator.Id;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,7 +22,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class Order {
     
-    @NotNull(groups = UpdateAndDelete.class)
+    @NotNull(groups = Id.class)
     private Long orderId;
     @NotNull
     private Long userId;

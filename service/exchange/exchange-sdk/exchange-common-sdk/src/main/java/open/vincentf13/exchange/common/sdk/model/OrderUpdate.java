@@ -2,7 +2,7 @@ package open.vincentf13.exchange.common.sdk.model;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.sdk.core.validator.UpdateAndDelete;
+import open.vincentf13.sdk.core.validator.Id;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class OrderUpdate {
     
-    @NotNull(groups = UpdateAndDelete.class)
+    @NotNull(groups = Id.class)
     private Long orderId;
     private BigDecimal price;
     private OrderSide side;

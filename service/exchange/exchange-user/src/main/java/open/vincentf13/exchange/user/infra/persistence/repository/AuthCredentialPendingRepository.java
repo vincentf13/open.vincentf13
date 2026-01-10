@@ -9,7 +9,7 @@ import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
 import open.vincentf13.exchange.user.infra.persistence.mapper.AuthCredentialPendingMapper;
 import open.vincentf13.exchange.user.infra.persistence.po.AuthCredentialPendingPO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import open.vincentf13.sdk.core.validator.UpdateAndDelete;
+import open.vincentf13.sdk.core.validator.Id;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -27,7 +27,7 @@ public class AuthCredentialPendingRepository {
         mapper.insert(OpenObjectMapper.convert(credential, AuthCredentialPendingPO.class));
     }
     
-    @Validated({Default.class, UpdateAndDelete.class})
+    @Validated({Default.class, Id.class})
     public boolean update(@NotNull AuthCredentialPending update,
                           @NotNull LambdaUpdateWrapper<AuthCredentialPendingPO> updateWrapper) {
         AuthCredentialPendingPO record = OpenObjectMapper.convert(update, AuthCredentialPendingPO.class);
