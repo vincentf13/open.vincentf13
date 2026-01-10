@@ -6,7 +6,6 @@
 
 ### Reset Trade  Data
 POST http://localhost:12345/admin/api/admin/system/reset-data
-Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjLnAua2V2aW5mMTNAZ21haWwuY29tIiwidWlkIjo3NTc5MTE2OTY5MzcwOTMsImlzcyI6Im9wZW4udmluY2VudGYxMyIsImV4cCI6MTc3MDU5MjEwNSwidG9rZW5fdHlwZSI6IkFDQ0VTUyIsImlhdCI6MTc2ODAwMDEwNSwiYXV0aG9yaXRpZXMiOlsiUk9MRV9VU0VSIl0sImVtYWlsIjoiYy5wLmtldmluZjEzQGdtYWlsLmNvbSIsInNpZCI6IjI0MGY0NGFjLTMxMTgtNGUyZC04MmZkLWYyMzczYzhhNTI5OSJ9.Km7KHNKL_MgxOpIo8VVuS59kRwoE5vMi3nMG7vLW79Y
 
 ### 1. 登入帳號 A
 # @name loginA
