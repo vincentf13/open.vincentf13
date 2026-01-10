@@ -42,8 +42,8 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expMarkPrice", 10);
         client.global.set("expCumRealizedPnl", 0);
         // Fee: 5 * 10 * 0.0002 = 0.01
+        client.global.set("expCumFee", 0.01);
         client.global.set("expCumFundingFee", 0);
-        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -91,7 +91,6 @@ Authorization: Bearer {{tokenA}}
         // Fee: 0.01 + (3 * 11 * 0.0002) = 0.0166
         client.global.set("expCumFee", 0.0166);
         client.global.set("expCumFundingFee", 0);
-        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -139,7 +138,6 @@ Authorization: Bearer {{tokenA}}
         // Fee: 0.0166 + (2 * 12 * 0.0002) = 0.0214
         client.global.set("expCumFee", 0.0214);
         client.global.set("expCumFundingFee", 0);
-        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -187,7 +185,6 @@ Authorization: Bearer {{tokenA}}
         // Fee: 0.0214 + (5 * 9 * 0.0002) = 0.0304
                     client.global.set("expCumFee", 0.0304);
                     client.global.set("expCumFundingFee", 0);
-                    // TODO: Update expLiqPrice with actual value after first run
                     eval(client.global.get("verifyScript"));
                 });
             %}
@@ -234,7 +231,6 @@ Authorization: Bearer {{tokenA}}
         // Fee: 0.0304 + (5 * 8 * 0.0002) = 0.0384
         client.global.set("expCumFee", 0.0384);
         client.global.set("expCumFundingFee", 0);
-        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -283,7 +279,6 @@ Authorization: Bearer {{tokenA}}
         // Fee: 0.0384 + (9 * 10 * 0.0002) = 0.0564
         client.global.set("expCumFee", 0.0564);
         client.global.set("expCumFundingFee", 0);
-        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -358,7 +353,6 @@ Authorization: Bearer {{tokenA}}
         // Fee: 0.0564 + (13 * 10 * 0.0002) = 0.0824
         client.global.set("expCumFee", 0.0824);
         client.global.set("expCumFundingFee", 0);
-        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
