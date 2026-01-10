@@ -807,6 +807,27 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     }
   };
 
+  const openTradeDetailByInstrument = async (instrumentId: number, tradeId: string, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTradeDetailAnchor({ top: rect.top, left: rect.right + 8 });
+    setTradeDetailLoading(true);
+    try {
+      const res = await getTradesByInstrument(instrumentId);
+      if (String(res?.code) === '0') {
+        const trades = res.data || [];
+        const match = trades.find((t: TradeResponse) => String(t.tradeId) === tradeId) || null;
+        if (!match) {
+          message.warning('Trade not found');
+        }
+        setTradeDetail(match);
+      }
+    } catch {
+      message.error('Failed to load trade');
+    } finally {
+      setTradeDetailLoading(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div id="positions-tabs-bar" className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/5">
@@ -954,14 +975,15 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                               <div className="text-[9px] uppercase font-bold text-slate-400 mb-2 text-left">Position Events</div>
                               <table className="w-full text-[10px] text-left border-separate border-spacing-x-0">
                                 <thead>
-                                  <tr className="text-slate-500">
-                                    <th className="py-1 px-2 whitespace-nowrap font-bold">Seq</th>
-                                    <th className="py-1 px-2 whitespace-nowrap font-bold">Event</th>
-                                    {columns.map((c, i) => (
-                                      <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-200/50 ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
-                                    ))}
-                                    <th className="py-1 px-2 whitespace-nowrap font-bold">Time</th>
-                                  </tr>
+                                    <tr className="text-slate-500">
+                                      <th className="py-1 px-2 whitespace-nowrap font-bold">Seq</th>
+                                      <th className="py-1 px-2 whitespace-nowrap font-bold">Event</th>
+                                      <th className="py-1 px-2 whitespace-nowrap font-bold">Trade Id</th>
+                                      {columns.map((c, i) => (
+                                        <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-200/50 ${i === 0 ? 'rounded-l-md' : ''} ${i === columns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
+                                      ))}
+                                      <th className="py-1 px-2 whitespace-nowrap font-bold">Time</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                   {(() => {
@@ -977,6 +999,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                     });
 
                                     return processedEvents.reverse().map(e => {
+                                      const refType = String(e.referenceType || '').toUpperCase();
+                                      const rawRefId = String(e.referenceId || '');
+                                      const tradeId = rawRefId ? rawRefId.split(':')[0] : '';
                                       return (
                                         <tr key={e.eventId} className="hover:bg-white/5">
                                           <td className="py-1 px-2 font-mono text-slate-400">{e.sequenceNumber}</td>
@@ -984,6 +1009,18 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                             <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
                                               {e.eventType}
                                             </span>
+                                          </td>
+                                          <td className="py-1 px-2 font-mono">
+                                            {refType === 'TRADE' && tradeId ? (
+                                              <button
+                                                className="text-blue-600 hover:text-blue-800 underline"
+                                                onClick={(event) => openTradeDetailByInstrument(p.instrumentId, tradeId, event)}
+                                              >
+                                                {rawRefId}
+                                              </button>
+                                            ) : (
+                                              '-'
+                                            )}
                                           </td>
                                           {columns.map((c, i) => {
                                             const val = e.deltaPayload[c.key];
