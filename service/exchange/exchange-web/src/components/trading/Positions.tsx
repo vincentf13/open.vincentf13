@@ -169,6 +169,27 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                   </div>
               );
           }
+      } else if (key === 'margin') {
+          const imr = Number(rl?.initialMarginRate || 0);
+          const notional = entry * qty * contractSize;
+          const calc = notional * imr;
+          content = rl ? (
+              <div className="flex flex-col gap-1">
+                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Margin Calc</div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
+                      <span>Notional:</span> <span className="font-mono text-right">{formatNumber(entry)} × {formatNumber(qty)} × {contractSize} = {formatNumber(notional)}</span>
+                      <span>IMR:</span> <span className="font-mono text-right">{imr}</span>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded">
+                      {formatNumber(notional)} × {imr} = {formatNumber(calc)}
+                  </div>
+              </div>
+          ) : (
+              <div className="flex flex-col gap-1">
+                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Margin Calc</div>
+                  <div className="text-[10px] text-slate-600 italic">Risk limit not loaded.</div>
+              </div>
+          );
       } else if (key === 'marginRatio') {
           const notional = mark * qty * contractSize;
           const equity = margin + upnl;
@@ -570,7 +591,10 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
       content = v ?? '-';
     }
 
-    if (['marginRatio', 'unrealizedPnl', 'liquidationPrice', 'cumFee', 'cumRealizedPnl'].includes(k)) {
+    if (['margin', 'marginRatio', 'unrealizedPnl', 'liquidationPrice', 'cumFee', 'cumRealizedPnl'].includes(k)) {
+       if (k === 'margin') {
+           return <div className="flex items-center justify-end gap-1">{content}<span className="text-[9px] text-slate-400">+</span>{renderCalculatorTooltip(p, k, parentP, eventContext)}</div>;
+       }
        return <div className="flex items-center justify-end gap-1">{content}{renderCalculatorTooltip(p, k, parentP, eventContext)}</div>;
     }
     
@@ -771,7 +795,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                       <th key={c.key} className="py-2 px-2 font-semibold">
                         <div className="flex items-center justify-end gap-1">
                           {c.label}
-                          {['entryPrice', 'marginRatio', 'unrealizedPnl', 'cumRealizedPnl', 'liquidationPrice'].includes(c.key) && (
+                          {['entryPrice', 'margin', 'marginRatio', 'unrealizedPnl', 'cumRealizedPnl', 'liquidationPrice'].includes(c.key) && (
                             <Tooltip
                               classNames={{ root: 'liquid-tooltip' }}
                               title={
@@ -783,6 +807,20 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                     </div>
                                     <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
                                       Σ(Fill Price × Fill Qty) / Total Qty
+                                    </div>
+                                  </div>
+                                ) :
+                                c.key === 'margin' ? (
+                                  <div className="flex flex-col gap-2 p-1">
+                                    <div className="font-bold text-slate-800">Margin</div>
+                                    <div className="text-[10px] text-slate-600">
+                                      Initial margin based on entry notional.
+                                    </div>
+                                    <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
+                                      Entry × Qty × Contract Size × IMR
+                                    </div>
+                                    <div className="text-[9px] text-slate-500 font-medium italic">
+                                      IMR = Initial Margin Rate
                                     </div>
                                   </div>
                                 ) :
