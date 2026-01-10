@@ -183,11 +183,12 @@ Authorization: Bearer {{tokenA}}
         // PnL: 3 + ((9 - 11) * 4) = -5 (Avg entry 11, Close 4)
         client.global.set("expCumRealizedPnl", -5);
         // Fee: 0.0214 + (5 * 9 * 0.0002) = 0.0304
-                    client.global.set("expCumFee", 0.0304);
-                    client.global.set("expCumFundingFee", 0);
-                    eval(client.global.get("verifyScript"));
-                });
-            %}
+        client.global.set("expCumFee", 0.0304);
+        client.global.set("expCumFundingFee", 0);
+        eval(client.global.get("verifyScript"));
+    });
+%}
+
 ### 9. [再次開倉] A Buy 5 (B Sell 5) -> A 預期持多倉 4 (原空 1 + 買 5)
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}

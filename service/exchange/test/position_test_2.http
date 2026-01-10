@@ -89,6 +89,7 @@ Authorization: Bearer {{tokenA}}
         // PnL: (10 - 11) * 3 = -3 (Short Sell)
         client.global.set("expCumRealizedPnl", -3);
         // Fee: 0.01 + (3 * 11 * 0.0002) = 0.0166
+        client.global.set("expCumFee", 0.0166);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
@@ -135,6 +136,7 @@ Authorization: Bearer {{tokenA}}
         // PnL: -3 (No change on increase)
         client.global.set("expCumRealizedPnl", -3);
         // Fee: 0.0166 + (2 * 12 * 0.0002) = 0.0214
+        client.global.set("expCumFee", 0.0214);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
@@ -329,6 +331,7 @@ Content-Type: application/json
 {
   "instrumentId": {{instrumentId}},
   "side": "BUY",
+  "type": "LIMIT",
   "price": 10,
   "quantity": 3
 }
