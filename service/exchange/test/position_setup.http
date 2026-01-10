@@ -2,7 +2,7 @@
 @password = 12345678
 @instrumentId = 10001
 @emailA = c.p.kevinf13@gmail.com
-@emailB = c.p.kevinf13-1@gmail.com
+@emailB = c.p.kevinf13-2@gmail.com
 
 ### 1. 登入帳號 A
 # @name loginA
