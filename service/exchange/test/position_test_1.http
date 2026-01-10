@@ -16,7 +16,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitMaker"));
 %}
 
 ###
@@ -33,7 +33,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitTaker"));
 %}
 
 ### 5-Check. 驗證 A 持倉: Long 5, Price 10
@@ -70,7 +70,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitMaker"));
 %}
 
 ###
@@ -87,7 +87,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitTaker"));
 %}
 
 ### 6-Check. 驗證 A 持倉: Long 2
@@ -125,7 +125,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitMaker"));
 %}
 
 ###
@@ -142,7 +142,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitTaker"));
 %}
 
 ### 7-Check. 驗證 A 持倉: Long 4
@@ -180,7 +180,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitMaker"));
 %}
 
 ###
@@ -197,7 +197,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitTaker"));
 %}
 
 ### 8-Check. 驗證 A 持倉: Short 1
@@ -235,7 +235,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitMaker"));
 %}
 
 ###
@@ -252,7 +252,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitTaker"));
 %}
 
 ### 9-Check. 驗證 A 持倉: Long 4
@@ -291,7 +291,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitMaker"));
 %}
 
 ###
@@ -308,7 +308,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitTaker"));
 %}
 
 ### 10-Check. 驗證 A 持倉: Short 5
@@ -347,7 +347,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitMaker"));
 %}
 
 ###
@@ -364,7 +364,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitMaker"));
 %}
 
 ### B 成交 A 的 10 張
@@ -381,7 +381,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitTaker"));
 %}
 
 ### B 成交 A 的 3 張
@@ -398,7 +398,7 @@ Content-Type: application/json
 }
 
 > {%
-    eval(client.global.get("waitScript"));
+    eval(client.global.get("waitTaker"));
 %}
 
 ### 11-Check. 驗證 A 持倉: Long 8

@@ -193,9 +193,14 @@ Content-Type: application/json
 }
 
 > {%
-    // Define Wait Script (2s delay)
-    client.global.set("waitScript", `
+    // Define Wait Scripts
+    client.global.set("waitMaker", `
         var start = new Date().getTime();
-        while (new Date().getTime() < start + 2000);
+        while (new Date().getTime() < start + 5000); // 5s for Maker
+    `);
+    
+    client.global.set("waitTaker", `
+        var start = new Date().getTime();
+        while (new Date().getTime() < start + 10000); // 10s for Taker
     `);
 %}
