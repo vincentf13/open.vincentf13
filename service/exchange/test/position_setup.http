@@ -59,6 +59,7 @@ Authorization: Bearer {{tokenA}}
     client.global.set("mmr", limit.maintenanceMarginRate);
     client.global.set("imr", limit.initialMarginRate);
     client.log("Risk Config Loaded: MMR=" + client.global.get("mmr") + ", IMR=" + client.global.get("imr"));
+    client.global.set("instrumentId", {{instrumentId}});
 
     // Define Common Verification Script (Position Logic)
     client.global.set("verifyScript", `
@@ -170,6 +171,47 @@ Authorization: Bearer {{tokenA}}
             // 若欄位不存在 (undefined) 或為 null 或 0，皆視為通過
             client.assert(!actLiqPrice, "Liquidation Price should be null/0 for empty position. Got: " + actLiqPrice);
         }
+    `);
+
+    // Define Common Verification Script (Account Balance)
+    client.global.set("verifyAccountScript", `
+        var data = response.body.data;
+        client.assert(data != null, "Account balance sheet missing");
+        var assets = data.assets || [];
+        var instrumentId = parseInt(client.global.get("instrumentId"));
+        var assetCode = "USDT";
+        var spot = assets.find(a => a.accountCode === "SPOT" && a.asset === assetCode);
+        client.assert(spot != null, "Spot account not found");
+        var margin = assets.find(a => a.accountCode === "MARGIN" && a.instrumentId == instrumentId && a.asset === assetCode);
+        client.assert(margin != null, "Margin account not found");
+
+        var size = parseFloat(client.global.get("contractSize"));
+        var imr = parseFloat(client.global.get("imr"));
+        var expEntry = parseFloat(client.global.get("expEntry") || 0);
+        var expQty = parseFloat(client.global.get("expQty") || 0);
+        var expCumRealizedPnl = parseFloat(client.global.get("expCumRealizedPnl") || 0);
+        var baseSpotBalance = parseFloat(client.global.get("baseSpotBalance") || 0);
+
+        var expectedMargin = expEntry * expQty * size * imr;
+        var expectedSpotBalance = baseSpotBalance - expectedMargin + expCumRealizedPnl;
+        var expectedSpotAvailable = expectedSpotBalance;
+        var expectedSpotReserved = 0;
+        var expectedMarginBalance = expectedMargin;
+        var expectedMarginAvailable = expectedMargin;
+        var expectedMarginReserved = 0;
+
+        function assertEqual(actual, expected, label) {
+            if (actual !== expected) {
+                client.assert(false, label + " mismatch. Exp: " + expected + ", Got: " + actual);
+            }
+        }
+
+        assertEqual(parseFloat(spot.balance), expectedSpotBalance, "Spot balance");
+        assertEqual(parseFloat(spot.available), expectedSpotAvailable, "Spot available");
+        assertEqual(parseFloat(spot.reserved), expectedSpotReserved, "Spot reserved");
+        assertEqual(parseFloat(margin.balance), expectedMarginBalance, "Margin balance");
+        assertEqual(parseFloat(margin.available), expectedMarginAvailable, "Margin available");
+        assertEqual(parseFloat(margin.reserved), expectedMarginReserved, "Margin reserved");
     `);
 %}
 

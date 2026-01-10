@@ -2,6 +2,27 @@
 @gatewayHost = http://localhost:12345
 @instrumentId = 10001
 
+### 讀取帳號 A 資產 (現貨/逐倉) 作為基準
+GET {{gatewayHost}}/account/api/account/balance-sheet
+Authorization: Bearer {{tokenA}}
+
+> {%
+    var data = response.body.data;
+    var assets = data.assets || [];
+    var instrumentId = parseInt(client.global.get("instrumentId"));
+    var assetCode = "USDT";
+    var spot = assets.find(a => a.accountCode === "SPOT" && a.asset === assetCode);
+    var margin = assets.find(a => a.accountCode === "MARGIN" && a.instrumentId == instrumentId && a.asset === assetCode);
+    client.assert(spot != null, "Spot account not found for baseline");
+    client.global.set("baseSpotBalance", spot.balance);
+    client.global.set("baseSpotAvailable", spot.available);
+    client.global.set("baseSpotReserved", spot.reserved);
+    client.global.set("baseMarginBalance", margin ? margin.balance : 0);
+    client.global.set("baseMarginAvailable", margin ? margin.available : 0);
+    client.global.set("baseMarginReserved", margin ? margin.reserved : 0);
+    client.log("Baseline loaded: Spot=" + spot.balance + ", Margin=" + (margin ? margin.balance : 0));
+%}
+
 ### [開倉] A Sell 5 (B Buy 5) @ 10 -> A 預期持空倉 5
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
@@ -56,6 +77,16 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expCumFee", 0.01);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
+    });
+%}
+
+### 驗證 A 資產: Spot/Margin
+GET {{gatewayHost}}/account/api/account/balance-sheet
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 5: Account Balance Check", function() {
+        eval(client.global.get("verifyAccountScript"));
     });
 %}
 
@@ -117,6 +148,16 @@ Authorization: Bearer {{tokenA}}
     });
 %}
 
+### 驗證 A 資產: Spot/Margin
+GET {{gatewayHost}}/account/api/account/balance-sheet
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 6: Account Balance Check", function() {
+        eval(client.global.get("verifyAccountScript"));
+    });
+%}
+
 ### [增倉] A Sell 2 (B Buy 2) @ 12 -> A 預期持空倉 4
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
@@ -172,6 +213,16 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expCumFee", 0.0214);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
+    });
+%}
+
+### 驗證 A 資產: Spot/Margin
+GET {{gatewayHost}}/account/api/account/balance-sheet
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 7: Account Balance Check", function() {
+        eval(client.global.get("verifyAccountScript"));
     });
 %}
 
@@ -233,6 +284,16 @@ Authorization: Bearer {{tokenA}}
     });
 %}
 
+### 驗證 A 資產: Spot/Margin
+GET {{gatewayHost}}/account/api/account/balance-sheet
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 8: Account Balance Check", function() {
+        eval(client.global.get("verifyAccountScript"));
+    });
+%}
+
 ### [再次開倉] A Sell 5 (B Buy 5) @ 8 -> A 預期持空倉 5
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
@@ -288,6 +349,16 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expCumFee", 0.0366);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
+    });
+%}
+
+### 驗證 A 資產: Spot/Margin
+GET {{gatewayHost}}/account/api/account/balance-sheet
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 9: Account Balance Check", function() {
+        eval(client.global.get("verifyAccountScript"));
     });
 %}
 
@@ -347,6 +418,16 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expCumFee", 0.0566);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
+    });
+%}
+
+### 驗證 A 資產: Spot/Margin
+GET {{gatewayHost}}/account/api/account/balance-sheet
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 10: Account Balance Check", function() {
+        eval(client.global.get("verifyAccountScript"));
     });
 %}
 
@@ -440,5 +521,15 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expCumFee", 0.0826);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
+    });
+%}
+
+### 驗證 A 資產: Spot/Margin
+GET {{gatewayHost}}/account/api/account/balance-sheet
+Authorization: Bearer {{tokenA}}
+
+> {%
+    client.test("Step 11: Account Balance Check", function() {
+        eval(client.global.get("verifyAccountScript"));
     });
 %}
