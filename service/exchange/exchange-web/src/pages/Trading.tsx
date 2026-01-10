@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 
 import { message, Tooltip } from 'antd';
 
@@ -32,6 +32,7 @@ import {
 } from '../api/instrument';
 import { resetSystemData } from '../api/admin';
 import { getCurrentUser } from '../api/user';
+import { getTradesByInstrument, type TradeResponse } from '../api/trade';
 
 import AuthModal from '../components/auth/AuthModal';
 import AccountPanel from '../components/trading/AccountPanel';
@@ -76,6 +77,9 @@ export default function Trading() {
   const [referenceJournalError, setReferenceJournalError] = useState<string | null>(null);
   const [referenceJournalData, setReferenceJournalData] = useState<AccountReferenceJournalResponse | null>(null);
   const referenceJournalRef = useRef<HTMLDivElement | null>(null);
+  const [journalTradeDetail, setJournalTradeDetail] = useState<TradeResponse | null>(null);
+  const [journalTradeDetailLoading, setJournalTradeDetailLoading] = useState(false);
+  const [journalTradeAnchor, setJournalTradeAnchor] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     const h = () => setIsTabVisible(document.visibilityState === 'visible');
@@ -268,6 +272,38 @@ export default function Trading() {
     return { core, expenseRevenue };
   };
 
+  const tradeRefTypes = new Set(['TRADE_MARGIN_SETTLED', 'TRADE_FEE', 'TRADE_FEE_REFUND']);
+
+  const openJournalTradeDetail = async (rawReferenceId: string, event: MouseEvent<HTMLButtonElement>) => {
+    const refId = String(rawReferenceId || '').split(':')[0];
+    if (!refId) {
+      message.warning('Missing trade id');
+      return;
+    }
+    if (!selectedInstrumentId) {
+      message.warning('Please select an instrument');
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    setJournalTradeAnchor({ top: rect.top, left: rect.right + 8 });
+    setJournalTradeDetailLoading(true);
+    try {
+      const res = await getTradesByInstrument(selectedInstrumentId);
+      if (String(res?.code) === '0') {
+        const trades = res.data || [];
+        const match = trades.find((t: TradeResponse) => String(t.tradeId) === refId) || null;
+        if (!match) {
+          message.warning('Trade not found');
+        }
+        setJournalTradeDetail(match);
+      }
+    } catch {
+      message.error('Failed to load trade');
+    } finally {
+      setJournalTradeDetailLoading(false);
+    }
+  };
+
   const renderCategoryChip = (value?: string | null) => {
     const text = String(value ?? '-');
     return (
@@ -391,13 +427,27 @@ export default function Trading() {
                     </span>
                   </td>
                   <td className="py-1 pr-1 text-left overflow-hidden">
-                    {item?.referenceId ? (
-                      disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
-                        <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
-                          {String(item.referenceId)}
+                    <div className="flex items-center gap-1">
+                      {item?.referenceId ? (
+                        disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
+                          <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
+                            {String(item.referenceId)}
+                          </button>
+                        )
+                      ) : '-'}
+                      {item?.referenceId && tradeRefTypes.has(refType) && (
+                        <button
+                          className="text-slate-400 hover:text-slate-600"
+                          onClick={(event) => openJournalTradeDetail(String(item.referenceId), event)}
+                          aria-label="Open trade detail"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                            <circle cx="7" cy="7" r="4.5" />
+                            <path d="M10.5 10.5L14 14" strokeLinecap="round" />
+                          </svg>
                         </button>
-                      )
-                    ) : '-'}
+                      )}
+                    </div>
                   </td>
                   <td className="py-1 pr-1 font-mono overflow-hidden">{String(item?.seq ?? '-')}</td>
                   <td className="py-1 pr-1 text-left overflow-hidden bg-yellow-200/50">{String(item?.description ?? '-')}</td>
@@ -526,13 +576,27 @@ export default function Trading() {
                     </span>
                   </td>
                 <td className="py-1 pr-1 text-left overflow-hidden">
-                  {item?.referenceId ? (
-                    disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
-                      <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
-                        {String(item.referenceId)}
+                  <div className="flex items-center gap-1">
+                    {item?.referenceId ? (
+                      disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
+                        <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
+                          {String(item.referenceId)}
+                        </button>
+                      )
+                    ) : '-'}
+                    {item?.referenceId && tradeRefTypes.has(refType) && (
+                      <button
+                        className="text-slate-400 hover:text-slate-600"
+                        onClick={(event) => openJournalTradeDetail(String(item.referenceId), event)}
+                        aria-label="Open trade detail"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                          <circle cx="7" cy="7" r="4.5" />
+                          <path d="M10.5 10.5L14 14" strokeLinecap="round" />
+                        </svg>
                       </button>
-                    )
-                  ) : '-'}
+                    )}
+                  </div>
                 </td>
                 <td className="py-1 pr-1 font-mono overflow-hidden">{String(item?.seq ?? '-')}</td>
                 <td className="py-1 pr-1 text-left overflow-hidden bg-yellow-200/50">{String(item?.description ?? '-')}</td>
@@ -1146,6 +1210,35 @@ export default function Trading() {
       )}
 
       <AuthModal open={authOpen} onSuccess={handleLoginSuccess} />
+      {journalTradeDetail && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/30" onClick={() => setJournalTradeDetail(null)}>
+          <div
+            className="absolute w-[360px] max-w-[90vw] -translate-y-full rounded-xl border border-slate-200 bg-white p-3 text-[11px] text-slate-700 shadow-xl"
+            style={{ top: journalTradeAnchor?.top ?? 16, left: journalTradeAnchor?.left ?? 16 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-[10px] uppercase font-bold text-slate-500">Trade Detail</div>
+              <button className="text-slate-400 hover:text-slate-600" onClick={() => setJournalTradeDetail(null)}>x</button>
+            </div>
+            {journalTradeDetailLoading ? (
+              <div className="py-6 text-center text-slate-400">Loading...</div>
+            ) : (
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                <span className="text-slate-400">Trade Id</span><span className="font-mono">{journalTradeDetail.tradeId}</span>
+                <span className="text-slate-400">Instrument</span><span>{instrumentMap.get(String(journalTradeDetail.instrumentId)) || journalTradeDetail.instrumentId}</span>
+                <span className="text-slate-400">Order Id</span><span className="font-mono">{journalTradeDetail.orderId}</span>
+                <span className="text-slate-400">Counterparty</span><span className="font-mono">{journalTradeDetail.counterpartyOrderId}</span>
+                <span className="text-slate-400">Price</span><span className="font-mono text-sky-600 font-bold">{formatValue(journalTradeDetail.price)}</span>
+                <span className="text-slate-400">Quantity</span><span className="font-mono text-sky-600 font-bold">{formatValue(journalTradeDetail.quantity)}</span>
+                <span className="text-slate-400">Maker Fee</span><span className="font-mono">{formatValue(journalTradeDetail.makerFee)}</span>
+                <span className="text-slate-400">Taker Fee</span><span className="font-mono">{formatValue(journalTradeDetail.takerFee)}</span>
+                <span className="text-slate-400">Executed At</span><span className="font-mono">{String(journalTradeDetail.executedAt ?? '-')}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
