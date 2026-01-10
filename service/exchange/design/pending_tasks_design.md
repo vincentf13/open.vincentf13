@@ -1,39 +1,5 @@
 
-### sys_pending_tasks DDL 
-
-SQL
-
-```
-CREATE TABLE sys_pending_tasks (
-    -- 1. 唯一標識與索引
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主鍵 ID',
-    biz_type VARCHAR(50) NOT NULL COMMENT '業務類型 (如: ORDER_SYNC, EMAIL_SEND)',
-    biz_key VARCHAR(100) NOT NULL COMMENT '業務唯一鍵 (如: 訂單號, 用戶ID)，用於冪等檢查',
-    
-    -- 2. 核心狀態控制
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '狀態: PENDING, PROCESSING, SUCCESS, FAIL_RETRY, FAIL_TERMINAL',
-    priority TINYINT NOT NULL DEFAULT 10 COMMENT '優先級: 數值越小優先級越高',
-    
-    -- 3. 業務數據 (核心通用部分)
-    payload JSON COMMENT '業務數據內容 (JSON 格式)，儲存執行任務所需的所有參數',
-    result_msg TEXT COMMENT '執行結果或錯誤訊息記錄',
-    
-    -- 4. 重試與排程機制
-    retry_count INT NOT NULL DEFAULT 0 COMMENT '已重試次數',
-    max_retries INT NOT NULL DEFAULT 3 COMMENT '最大重試次數',
-    next_run_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下一次執行時間 (用於延遲執行或退避策略)',
-    
-    -- 5. 並發控制與審計
-    version INT NOT NULL DEFAULT 0 COMMENT '樂觀鎖版本號 (防止多個 Worker 同時搶同一個任務)',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '創建時間',
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新時間',
-    
-    PRIMARY KEY (id),
-    -- 索引設計建議
-    UNIQUE KEY uk_biz (biz_type, biz_key), -- 防止重複提交相同任務
-    INDEX idx_scan (status, next_run_time, priority) -- 用於 Worker 掃描任務
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通用待處理任務表';
-```
+詳細 SQL 請參考 [SQL.sql](./SQL.sql)
 
 ---
 
