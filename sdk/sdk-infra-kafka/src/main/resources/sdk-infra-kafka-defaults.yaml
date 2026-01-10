@@ -14,8 +14,8 @@ spring:
         acks: all                                                                                  
         enable.idempotence: true                                                                   
         # 壓縮與批次                                                                               
-        compression.type: zstd                                                                     
-        linger.ms: 10                                                                              
+        compression.type: none                                                                     
+        linger.ms: 0                                                                              
         batch.size: 32768                                                                         
         buffer.memory: 33554432                                                                    
         # 重試與順序控制                                                                           
@@ -39,12 +39,11 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
-        # 為每個實例動態分配唯一的成員ID，以啟用靜態成員資格
-#        group.instance.id: ${spring.application.name}-${random.uuid}
+        group.instance.id: ${spring.application.name}-${random.uuid}
         session.timeout.ms: 10000
         heartbeat.interval.ms: 3000
-        fetch.min.bytes: 262144
-        fetch.max.wait.ms: 150
+        fetch.min.bytes: 1
+        fetch.max.wait.ms: 10
     listener:
       # 手動 ACK
       ack-mode: manual
