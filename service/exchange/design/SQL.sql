@@ -679,7 +679,7 @@ INSERT INTO instrument (instrument_id, symbol ,name, base_asset, quote_asset, in
                         launch_at, delist_at, display_order, is_tradable, is_visible, description, metadata,  
                         created_at, updated_at)  
 VALUES (10001, 'BTCUSDT-PERP', 'BTCUSDT', 'BTC', 'USDT', 'PERPETUAL', 'ACTIVE',  
-        0.0002, 0.0005, 0.0001, 40,
+        0.0002, 0.0005, 0.001, 40,
         NOW(), NULL, 1, TRUE, TRUE, 'Demo perpetual pair', '{"funding_interval":8}',  
         NOW(), NOW());
 
