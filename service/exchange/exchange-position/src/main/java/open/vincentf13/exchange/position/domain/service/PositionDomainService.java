@@ -71,6 +71,11 @@ public class PositionDomainService {
 
     @Transactional(rollbackFor = Exception.class)
     public void reserveClosingPosition(Position position, BigDecimal reservedQuantity, String clientOrderId) {
+         /** TODO 倉位預扣
+          平倉 需改成 下單後，先建立訂單，返回給用戶 倉位凍結中狀態
+          定時任務持續重試凍結倉位，直到成功。 並冪等
+          */
+        
         BigDecimal availableToClose = position.availableToClose();
         // prevent flip when all quantity is reserved for closing.
         if (availableToClose.compareTo(BigDecimal.ZERO) <= 0) {
