@@ -39,7 +39,8 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
-        group.instance.id: ${spring.application.name}-${random.uuid}
+        # 為每個實例動態分配唯一的成員ID，以啟用靜態成員資格
+        # group.instance.id: ${spring.application.name}-${random.uuid}
         session.timeout.ms: 10000
         heartbeat.interval.ms: 3000
         fetch.min.bytes: 1
