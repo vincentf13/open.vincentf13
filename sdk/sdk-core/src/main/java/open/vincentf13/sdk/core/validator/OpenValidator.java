@@ -40,7 +40,12 @@ public final class OpenValidator {
       - Insert：OpenValidator.validate(bean) 或 validateOrThrow(bean)   <- 會效驗Default Group 的規則
       - Update/Delete：OpenValidator.validate(bean, Default.class, UpdateAndDelete.class)   <- 會效驗Default Group + UpdateAndDelete的規則
       
-      不傳 group 時預設使用 Default。
+      Spring @Validated 規則：
+      - @Valid 只觸發驗證，不帶 group（Default）。
+      - Update/Delete 要在方法上加，如下註解以傳遞Group：
+        @Validated({Default.class, UpdateAndDelete.class})
+        public void update(@Valid Model model) { ... }
+        - 不傳 group 時預設使用 Default。
      */
     public static <T> Set<String> validate(T bean, Class<?>... groups) {
         Objects.requireNonNull(bean, "Validation target must not be null");
@@ -72,6 +77,11 @@ public final class OpenValidator {
       - Insert：OpenValidator.validateOrThrow(bean)   <- 會效驗Default Group 的規則
       - Update/Delete：OpenValidator.validateOrThrow(bean, Default.class, UpdateAndDelete.class)  <- 會效驗Default Group + UpdateAndDelete的規則
       
+      Spring @Validated 規則：
+      - @Valid 只觸發驗證，不帶 group（Default）。
+      - Update/Delete 要在方法上加，如下註解以傳遞Group：
+        @Validated({Default.class, UpdateAndDelete.class})
+        public void update(@Valid Model model) { ... }
       不傳 group 時預設使用 Default。
      */
     public static <T> void validateOrThrow(T bean, Class<?>... groups) {
