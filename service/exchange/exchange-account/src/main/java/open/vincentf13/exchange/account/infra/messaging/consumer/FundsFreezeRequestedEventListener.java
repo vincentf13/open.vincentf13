@@ -18,6 +18,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,6 +34,7 @@ public class FundsFreezeRequestedEventListener {
 
     @KafkaListener(topics = OrderTopics.Names.FUNDS_FREEZE_REQUESTED,
                    groupId = "${open.vincentf13.exchange.account.consumer-group:exchange-account}")
+    @Transactional(rollbackFor = Exception.class)
     public void onFundsFreezeRequested(@Payload FundsFreezeRequestedEvent event,
                                        Acknowledgment acknowledgment) {
         AssetSymbol asset = AssetSymbol.UNKNOWN;

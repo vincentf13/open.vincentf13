@@ -6,6 +6,7 @@ import open.vincentf13.exchange.market.infra.messaging.publisher.MarkPriceEventP
 import open.vincentf13.exchange.market.infra.persistence.repository.MarkPriceSnapshotRepository;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -69,6 +70,7 @@ public class MarkPriceCacheService {
                                 .build();
     }
     
+    @Transactional(rollbackFor = Exception.class)
     public void record(Long instrumentId,
                        Long tradeId,
                        BigDecimal markPrice,
