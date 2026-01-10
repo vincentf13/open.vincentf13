@@ -12,7 +12,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 5
+  "quantity": 5000
 }
 
 > {%
@@ -29,7 +29,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 5
+  "quantity": 5000
 }
 
 > {%
@@ -66,7 +66,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 11,
-  "quantity": 3
+  "quantity": 3000
 }
 
 > {%
@@ -83,7 +83,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 11,
-  "quantity": 3
+  "quantity": 3000
 }
 
 > {%
@@ -121,7 +121,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 12,
-  "quantity": 2
+  "quantity": 2000
 }
 
 > {%
@@ -138,7 +138,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 12,
-  "quantity": 2
+  "quantity": 2000
 }
 
 > {%
@@ -176,7 +176,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 9,
-  "quantity": 5
+  "quantity": 5000
 }
 
 > {%
@@ -193,7 +193,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 9,
-  "quantity": 5
+  "quantity": 5000
 }
 
 > {%
@@ -231,7 +231,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 8,
-  "quantity": 5
+  "quantity": 5000
 }
 
 > {%
@@ -248,7 +248,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 8,
-  "quantity": 5
+  "quantity": 5000
 }
 
 > {%
@@ -287,7 +287,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 9
+  "quantity": 9000
 }
 
 > {%
@@ -304,7 +304,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 9
+  "quantity": 9000
 }
 
 > {%
@@ -343,7 +343,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 3
+  "quantity": 3000
 }
 
 > {%
@@ -360,7 +360,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 10
+  "quantity": 10000
 }
 
 > {%
@@ -377,7 +377,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 10
+  "quantity": 10000
 }
 
 > {%
@@ -394,7 +394,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 3
+  "quantity": 3000
 }
 
 > {%
