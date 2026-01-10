@@ -52,6 +52,63 @@ Authorization: Bearer {{tokenA}}
     var limit = response.body.data;
     client.global.set("mmr", limit.maintenanceMarginRate);
     client.log("Risk Config Loaded: MMR=" + client.global.get("mmr"));
+
+    // Define Common Verification Script (Position Logic)
+    client.global.set("verifyScript", `
+        var pos = response.body.data.find(p => p.instrumentId == 10001);
+        client.assert(pos != null, "Position not found");
+        
+        var qty = parseFloat(pos.quantity);
+        var entry = parseFloat(pos.entryPrice);
+        var mark = parseFloat(pos.markPrice);
+        var margin = parseFloat(pos.margin);
+        var upnl = parseFloat(pos.unrealizedPnl);
+        var cumFee = parseFloat(pos.cumFee);
+        
+        // Expected values from test case
+        var expSide = client.global.get("expSide");
+        var expQty = parseFloat(client.global.get("expQty"));
+        var expEntry = parseFloat(client.global.get("expEntry"));
+        
+        // Global config
+        var size = parseFloat(client.global.get("contractSize"));
+        var mmr = parseFloat(client.global.get("mmr"));
+        
+        // 1. Basic Fields Check
+        client.assert(pos.side === expSide, "Side mismatch. Exp: " + expSide + ", Got: " + pos.side);
+        client.assert(Math.abs(qty - expQty) < 0.0001, "Qty mismatch. Exp: " + expQty + ", Got: " + qty);
+        client.assert(Math.abs(entry - expEntry) < 0.0001, "Entry mismatch. Exp: " + expEntry + ", Got: " + entry);
+        
+        // 2. Unrealized PnL Calculation
+        // Long: (Mark - Entry) * Qty * Size
+        // Short: (Entry - Mark) * Qty * Size
+        var priceDiff = (pos.side === "LONG") ? (mark - entry) : (entry - mark);
+        var expectedUpnl = priceDiff * qty * size;
+        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch. Exp: " + expectedUpnl + ", Got: " + upnl);
+        
+        // 3. Margin Ratio Calculation
+        var notional = mark * qty * size;
+        var equity = margin + upnl;
+        var expectedRatio = (notional === 0) ? 0 : (equity / notional);
+        
+        // Only check margin ratio if we have a position
+        if (notional > 0) {
+            client.assert(Math.abs(parseFloat(pos.marginRatio) - expectedRatio) < 0.001, "Margin Ratio mismatch. Exp: " + expectedRatio + ", Got: " + pos.marginRatio);
+        }
+        
+        // 4. Liquidation Price (Optional Logic Check)
+        var marginPerUnit = margin / (qty * size);
+        // Long Liq: (Entry - MarginPerUnit) / (1 - MMR)
+        // Short Liq: (Entry + MarginPerUnit) / (1 + MMR)
+        var expectedLiq = (pos.side === "LONG") 
+            ? (entry - marginPerUnit) / (1 - mmr) 
+            : (entry + marginPerUnit) / (1 + mmr);
+        
+        // Note: Exact liq price might differ slightly due to fee/funding logic, so we usually don't hard assert unless strict.
+        // client.log("Expected Liq: " + expectedLiq + ", Got: " + pos.liquidationPrice);
+
+        client.assert(cumFee >= 0, "Cum Fee should be non-negative");
+    `);
 %}
 
 ### 5. 帳號 A 儲值 1000 USDT (共用)
