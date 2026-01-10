@@ -191,3 +191,11 @@ Content-Type: application/json
   "txId": "setup-dep-B-{{$timestamp}}",
   "creditedAt": "{{$isoTimestamp}}"
 }
+
+> {%
+    // Define Wait Script (1s delay)
+    client.global.set("waitScript", `
+        var start = new Date().getTime();
+        while (new Date().getTime() < start + 1000);
+    `);
+%}

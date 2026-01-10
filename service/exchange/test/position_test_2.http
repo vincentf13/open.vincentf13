@@ -28,6 +28,10 @@ Content-Type: application/json
   "quantity": 5
 }
 
+> {%
+    eval(client.global.get(\"waitScript\"));
+%}
+
 ### 5-Check. 驗證 A 持倉: Short 5
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
@@ -73,6 +77,10 @@ Content-Type: application/json
   "price": 11,
   "quantity": 3
 }
+
+> {%
+    eval(client.global.get(\"waitScript\"));
+%}
 
 ### 6-Check. 驗證 A 持倉: Short 2
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
@@ -121,6 +129,10 @@ Content-Type: application/json
   "quantity": 2
 }
 
+> {%
+    eval(client.global.get(\"waitScript\"));
+%}
+
 ### 7-Check. 驗證 A 持倉: Short 4
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
@@ -167,6 +179,10 @@ Content-Type: application/json
   "price": 9,
   "quantity": 5
 }
+
+> {%
+    eval(client.global.get(\"waitScript\"));
+%}
 
 ### 8-Check. 驗證 A 持倉: Long 1
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
@@ -215,6 +231,10 @@ Content-Type: application/json
   "quantity": 5
 }
 
+> {%
+    eval(client.global.get(\"waitScript\"));
+%}
+
 ### 9-Check. 驗證 A 持倉: Short 4
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
@@ -261,6 +281,10 @@ Content-Type: application/json
   "price": 10,
   "quantity": 9
 }
+
+> {%
+    eval(client.global.get(\"waitScript\"));
+%}
 
 ### 10-Check. 驗證 A 持倉: Long 5
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
@@ -323,6 +347,10 @@ Content-Type: application/json
   "quantity": 10
 }
 
+> {%
+    eval(client.global.get(\"waitScript\"));
+%}
+
 ### B 成交 A 的 3 張
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -335,6 +363,10 @@ Content-Type: application/json
   "price": 10,
   "quantity": 3
 }
+
+> {%
+    eval(client.global.get(\"waitScript\"));
+%}
 
 ### 11-Check. 驗證 A 持倉: Short 8
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
