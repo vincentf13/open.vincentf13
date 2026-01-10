@@ -45,6 +45,7 @@ public class AccountPositionDomainService {
         UserAccount realizedPnlEquity = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.REALIZED_PNL_EQUITY, null, asset);
         UserAccount realizedPnlRevenue = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.REALIZED_PNL_REVENUE, null, asset);
         UserAccount feeExpenseAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EXPENSE, null, asset);
+        UserAccount feeEquityAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EQUITY, null, asset);
         
         UserAccount updatedMargin = marginAccount.apply(Direction.CREDIT, event.marginReleased());
         UserAccount spotAfterMargin = spotAccount.apply(Direction.DEBIT, event.marginReleased());
@@ -61,6 +62,7 @@ public class AccountPositionDomainService {
         boolean hasFee = feeCharged.signum() > 0;
         UserAccount updatedSpotAfterFee = hasFee ? updatedSpot.apply(Direction.CREDIT, feeCharged) : updatedSpot;
         UserAccount updatedFeeExpense = hasFee ? feeExpenseAccount.apply(Direction.DEBIT, feeCharged) : feeExpenseAccount;
+        UserAccount updatedFeeEquity = hasFee ? feeEquityAccount.applyAllowNegative(Direction.DEBIT, feeCharged) : feeEquityAccount;
 
         List<UserAccount> accountUpdates = new java.util.ArrayList<>(5);
         List<Integer> expectedVersions = new java.util.ArrayList<>(5);
@@ -75,6 +77,8 @@ public class AccountPositionDomainService {
         if (hasFee) {
             accountUpdates.add(updatedFeeExpense);
             expectedVersions.add(feeExpenseAccount.safeVersion());
+            accountUpdates.add(updatedFeeEquity);
+            expectedVersions.add(feeEquityAccount.safeVersion());
         }
         userAccountRepository.updateSelectiveBatch(accountUpdates, expectedVersions, "position-margin-release");
 
@@ -128,8 +132,17 @@ public class AccountPositionDomainService {
                                                              seq++,
                                                              "Trading fee expense",
                                                              event.releasedAt());
+            UserJournal feeEquityJournal = buildUserJournal(updatedFeeEquity,
+                                                            Direction.DEBIT,
+                                                            feeCharged,
+                                                            ReferenceType.TRADE_FEE,
+                                                            referenceId,
+                                                            seq++,
+                                                            "Trading fee equity",
+                                                            event.releasedAt());
             journals.add(feeSpotJournal);
             journals.add(feeExpenseJournal);
+            journals.add(feeEquityJournal);
         }
         userJournalRepository.insertBatch(journals);
     }
