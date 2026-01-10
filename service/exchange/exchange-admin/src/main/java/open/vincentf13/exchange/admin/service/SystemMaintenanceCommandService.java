@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.admin.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.sdk.rest.client.ExchangeAccountMaintenanceClient;
 import open.vincentf13.exchange.market.sdk.rest.client.ExchangeMarketMaintenanceClient;
@@ -9,9 +11,14 @@ import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionMainten
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskMaintenanceClient;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +38,13 @@ public class SystemMaintenanceCommandService {
     private final ExchangeMarketMaintenanceClient marketMaintenanceClient;
     private final ExchangeAccountMaintenanceClient accountMaintenanceClient;
     private final ExchangeOrderMaintenanceClient orderMaintenanceClient;
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static final String KAFKA_CONNECT_URL = "http://infra-kafka-connect.default.svc.cluster.local:8083";
+    private static final String CONNECTOR_NAME = "mysql-cdc";
+
+    // ... (existing TABLES_TO_CLEAR and PROTECTED_TOPICS) ...
 
     private static final List<String> TABLES_TO_CLEAR = List.of(
             "positions",
@@ -79,6 +93,113 @@ public class SystemMaintenanceCommandService {
 
         // 3. 併發觸發各服務重新載入快取或重置內存
         resetServiceCaches();
+
+        // 4. 檢查並重置 Kafka Connector
+        checkAndResetKafkaConnector();
+    }
+
+    private void checkAndResetKafkaConnector() {
+        System.out.println("Checking Kafka Connector status...");
+        try {
+            String statusUrl = KAFKA_CONNECT_URL + "/connectors/" + CONNECTOR_NAME + "/status";
+            ResponseEntity<String> response = restTemplate.getForEntity(statusUrl, String.class);
+            
+            boolean needReset = false;
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode tasks = root.path("tasks");
+                if (tasks.isArray() && tasks.size() > 0) {
+                    String state = tasks.get(0).path("state").asText();
+                    if (!"RUNNING".equalsIgnoreCase(state)) {
+                        System.out.println("Connector task state is " + state + ", needs reset.");
+                        needReset = true;
+                    } else {
+                        System.out.println("Connector task state is RUNNING.");
+                    }
+                } else {
+                    System.out.println("Connector has no tasks, needs reset.");
+                    needReset = true;
+                }
+            } else {
+                System.out.println("Connector status check failed or not found, needs reset.");
+                needReset = true;
+            }
+
+            if (needReset) {
+                resetKafkaConnector();
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error checking connector status (might not exist): " + e.getMessage());
+            // If check fails (e.g. 404), assume it needs creation/reset
+            resetKafkaConnector();
+        }
+    }
+
+    private void resetKafkaConnector() {
+        System.out.println("Resetting Kafka Connector...");
+        try {
+            // 1. Delete existing connector
+            try {
+                restTemplate.delete(KAFKA_CONNECT_URL + "/connectors/" + CONNECTOR_NAME);
+                System.out.println("Deleted existing connector.");
+                // Wait for deletion to propagate
+                TimeUnit.SECONDS.sleep(5); 
+            } catch (Exception e) {
+                System.out.println("Delete connector failed (might not exist), proceeding to create.");
+            }
+
+            // 2. Create new connector
+            String createUrl = KAFKA_CONNECT_URL + "/connectors";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            String payload = """
+                {
+                  "name": "mysql-cdc",
+                  "config": {
+                    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+                    "database.hostname": "infra-mysql-0.infra-mysql-headless.default.svc.cluster.local",
+                    "database.port": "3306",
+                    "database.user": "root",
+                    "database.password": "root",
+                    "database.server.id": "5401",
+                    "topic.prefix": "infra-mysql-0",
+                    "database.include.list": "exchange",
+                    "table.include.list": "exchange.mq_outbox",
+                    "snapshot.mode": "initial",
+                    "schema.history.internal.kafka.bootstrap.servers": "infra-kafka.default.svc.cluster.local:9092",
+                    "schema.history.internal.kafka.topic": "cdc.infra-mysql-0",
+                    "schema.history.internal.kafka.replication.factor": "3",
+                    "tombstones.on.delete": "false",
+                    "transforms": "mq_outbox",
+                    "transforms.mq_outbox.type": "io.debezium.transforms.outbox.EventRouter",
+                    "transforms.mq_outbox.route.by.field": "aggregate_type",
+                
+                    "transforms.mq_outbox.route.topic.replacement": "${routedByValue}",
+                    "transforms.mq_outbox.table.field.event.id": "event_id",
+                    "transforms.mq_outbox.table.field.event.key": "aggregate_id",
+                    "transforms.mq_outbox.table.field.event.type": "event_type",
+                    "transforms.mq_outbox.table.field.payload": "payload",
+                    "transforms.mq_outbox.table.fields.additional.placement": "headers:header:all",
+                    "poll.interval.ms": "50",
+                    "producer.override.linger.ms": "0"
+                  }
+                }
+                """;
+
+            HttpEntity<String> request = new HttpEntity<>(payload, headers);
+            ResponseEntity<String> createResponse = restTemplate.postForEntity(createUrl, request, String.class);
+            
+            if (createResponse.getStatusCode().is2xxSuccessful()) {
+                System.out.println("Successfully created Kafka Connector.");
+            } else {
+                System.err.println("Failed to create Kafka Connector: " + createResponse.getStatusCode());
+            }
+
+        } catch (Exception e) {
+            System.err.println("Failed to reset Kafka Connector: " + e.getMessage());
+        }
     }
 
     private void resetServiceCaches() {
