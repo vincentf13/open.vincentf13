@@ -45,9 +45,12 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 5000);
+        // Entry avg = (10 * 5) / 5 = 10
         client.global.set("expEntry", 10);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 10);
+        // Fee (this step): 5 * 10 * 0.0002 = 0.01
+        // PnL - Fee = 0 - 0.01 = -0.01
         client.global.set("expCumRealizedPnl", -0.01);
         // Fee: 5 * 10 * 0.0002 = 0.01
         client.global.set("expCumFee", 0.01);
@@ -99,10 +102,13 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 2000);
+        // Entry = (10 * 2) / 2 = 10 (reduce only)
         client.global.set("expEntry", 10);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 11);
         // PnL: (11 - 10) * 3 = 3
+        // Fee (this step): 3 * 11 * 0.0002 = 0.0066
+        // PnL - Fee = 3 - 0.0066 = 2.9934 (Cum = -0.01 + 2.9934 = 2.9834)
         client.global.set("expCumRealizedPnl", 2.9834);
         // Fee: 0.01 + (3 * 11 * 0.0002) = 0.0166
         client.global.set("expCumFee", 0.0166);
@@ -154,10 +160,13 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 4000);
+        // Entry avg = (10 * 2 + 12 * 2) / 4 = 11
         client.global.set("expEntry", 11);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 12);
         // PnL: 3 (No change on increase)
+        // Fee (this step): 2 * 12 * 0.0002 = 0.0048
+        // PnL - Fee = 0 - 0.0048 = -0.0048 (Cum = 2.9834 - 0.0048 = 2.9786)
         client.global.set("expCumRealizedPnl", 2.9786);
         // Fee: 0.0166 + (2 * 12 * 0.0002) = 0.0214
         client.global.set("expCumFee", 0.0214);
@@ -209,10 +218,13 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expStatus", "CLOSED");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 0);
+        // Entry avg = (10 * 2 + 12 * 2) / 4 = 11
         client.global.set("expEntry", 11);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 9);
         // PnL: (9 - 11) * 4 = -8 (Avg entry 11, Close 4)
+        // Fee (this step): 4 * 9 * 0.0002 = 0.0072
+        // PnL - Fee = -8 - 0.0072 = -8.0072 (Cum = 2.9786 - 8.0072 = -5.0286)
         client.global.set("expCumRealizedPnl", -5.0286);
         // Fee: 0.0214 + (4 * 9 * 0.0002) = 0.0286
         client.global.set("expCumFee", 0.0286);
@@ -264,10 +276,13 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 5000);
+        // Entry avg = (8 * 5) / 5 = 8
         client.global.set("expEntry", 8);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 8);
         // PnL: -5 (No change on open)
+        // Fee (this step): 5 * 8 * 0.0002 = 0.008
+        // PnL - Fee = 0 - 0.008 = -0.008 (Cum = -5.0286 - 0.008 = -5.0366)
         client.global.set("expCumRealizedPnl", -5.0366);
         // Fee: 0.0286 + (5 * 8 * 0.0002) = 0.0366
         client.global.set("expCumFee", 0.0366);
@@ -320,10 +335,13 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "SHORT");
         client.global.set("expQty", 5000);
+        // Entry avg = (10 * 5) / 5 = 10
         client.global.set("expEntry", 10);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 10);
         // PnL: -5 + ((10 - 8) * 5) = 5 (Long entry 8, Close 5)
+        // Fee (this step): 10 * 10 * 0.0002 = 0.02
+        // PnL - Fee = 10 - 0.02 = 9.98 (Cum = -5.0366 + 9.98 = 4.9434)
         client.global.set("expCumRealizedPnl", 4.9434);
         // Fee: 0.0366 + (10 * 10 * 0.0002) = 0.0566
         client.global.set("expCumFee", 0.0566);
@@ -410,10 +428,13 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 8000);
+        // Entry avg = (10 * 8) / 8 = 10
         client.global.set("expEntry", 10);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 10);
         // PnL: 5 + ((10 - 10) * 5) = 5 (Short entry 10, Close 5)
+        // Fee (this step): 13 * 10 * 0.0002 = 0.026
+        // PnL - Fee = 0 - 0.026 = -0.026 (Cum = 4.9434 - 0.026 = 4.9174)
         client.global.set("expCumRealizedPnl", 4.9174);
         // Fee: 0.0566 + (13 * 10 * 0.0002) = 0.0826
         client.global.set("expCumFee", 0.0826);
