@@ -8,7 +8,8 @@ public enum PositionErrorCode implements OpenErrorCode {
     POSITION_NOT_OWNED("Position-403-1001", "Position does not belong to current user"),
     POSITION_INSUFFICIENT_AVAILABLE("Position-409-1002", "Insufficient available position quantity"),
     POSITION_FLIP_NOT_ALLOWED("Position-409-1003", "Flip not allowed with zero available quantity"),
-    POSITION_CONCURRENT_UPDATE("Position-409-1001", "Concurrent update on position");
+    POSITION_CONCURRENT_UPDATE("Position-409-1001", "Concurrent update on position"),
+    DUPLICATE_REQUEST("Position-409-1004", "Duplicate request");
     
     private final String code;
     private final String message;

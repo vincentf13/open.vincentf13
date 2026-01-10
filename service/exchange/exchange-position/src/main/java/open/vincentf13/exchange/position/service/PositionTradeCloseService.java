@@ -12,6 +12,7 @@ import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.service.PositionDomainService;
+import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.messaging.publisher.PositionEventPublisher;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
@@ -20,6 +21,7 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompens
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
+import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.validator.OpenValidator;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -86,7 +89,8 @@ public class PositionTradeCloseService {
         // 冪等效驗
         String baseReferenceId = tradeId + ":" + orderSide.name();
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, baseReferenceId)) {
-            return;
+            throw OpenException.of(PositionErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("referenceId", baseReferenceId, "userId", userId));
         }
 
         Instant eventTime = executedAt == null ? Instant.now() : executedAt;
@@ -159,6 +163,7 @@ public class PositionTradeCloseService {
                     asset,
                     updatedPosition.getSide(),
                     result.marginReleased(),
+                    result.feeCharged(),
                     result.pnl(),
                     eventTime
             ));

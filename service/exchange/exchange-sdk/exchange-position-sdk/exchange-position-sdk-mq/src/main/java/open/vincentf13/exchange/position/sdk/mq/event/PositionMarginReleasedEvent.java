@@ -17,6 +17,7 @@ public record PositionMarginReleasedEvent(
         @NotNull AssetSymbol asset,
         @NotNull PositionSide side,
         @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal marginReleased,
+        @NotNull BigDecimal feeCharged,
         @NotNull BigDecimal realizedPnl,
         @NotNull Instant releasedAt
 ) {

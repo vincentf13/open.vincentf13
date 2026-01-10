@@ -133,13 +133,8 @@ public class PositionDomainService {
         }
         
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
-            return positionRepository.findOne(
-                            Wrappers.lambdaQuery(PositionPO.class)
-                                    .eq(PositionPO::getUserId, userId)
-                                    .eq(PositionPO::getInstrumentId, instrumentId)
-                                    .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                    .map(Collections::singletonList)
-                    .orElse(Collections.emptyList());
+            throw OpenException.of(PositionErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("referenceId", referenceId, "userId", userId));
         }
         
         PositionSide side = toPositionSide(orderSide);
@@ -178,6 +173,7 @@ public class PositionDomainService {
                     asset,
                     position.getSide(),
                     result.marginReleased(),
+                    result.feeCharged(),
                     result.pnl(),
                     executedAt
             ));
@@ -241,7 +237,8 @@ public class PositionDomainService {
         
         // 冪等效驗
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
-            return new PositionCloseResult(position, BigDecimal.ZERO, BigDecimal.ZERO);
+            throw OpenException.of(PositionErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("referenceId", referenceId, "userId", userId));
         }
 
         if (quantity.compareTo(position.getQuantity()) > 0) {
@@ -302,7 +299,7 @@ public class PositionDomainService {
         );
         positionEventRepository.insert(event);
 
-        return new PositionCloseResult(updatedPosition, closeMetrics.pnl(), closeMetrics.marginReleased());
+        return new PositionCloseResult(updatedPosition, closeMetrics.pnl(), closeMetrics.marginReleased(), feeCharged);
     }
 
     @Transactional(propagation = Propagation.NEVER)
@@ -351,7 +348,7 @@ public class PositionDomainService {
         //positionEventRepository.insertBatch(eventTasks);
     }
 
-    public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased) {
+    public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased, BigDecimal feeCharged) {
     }
 
     private enum PositionUpdateType {

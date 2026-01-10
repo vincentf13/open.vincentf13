@@ -8,6 +8,7 @@ import open.vincentf13.sdk.core.log.OpenEvent;
 public enum PositionEvent implements OpenEvent {
     POSITION_TRADE_SETTLEMENT_FAILED("PositionTradeSettlementFailed", "Trade settlement handling failed"),
     POSITION_TRADE_PAYLOAD_INVALID("PositionTradePayloadInvalid", "Invalid TradeExecuted payload"),
+    POSITION_TRADE_DUPLICATE("PositionTradeDuplicate", "Duplicate TradeExecuted payload"),
     POSITION_MARK_PRICE_UPDATE_FAILED("PositionMarkPriceUpdateFailed", "Mark price update failed"),
     STARTUP_LOADING_INSTRUMENTS("PositionStartupLoadingInstruments", "Loading instruments from Admin service"),
     STARTUP_INSTRUMENTS_LOADED("PositionStartupInstrumentsLoaded", "Instruments loaded successfully"),
