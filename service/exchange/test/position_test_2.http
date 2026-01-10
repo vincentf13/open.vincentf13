@@ -1,4 +1,4 @@
-# 使用前請先執行 setup.http 以初始化 Token 與配置
+# 使用前請先執行 position_setup.http 以初始化 Token 與配置
 @gatewayHost = http://localhost:12345
 @instrumentId = 10001
 
