@@ -60,13 +60,15 @@ public class AccountPositionDomainService {
                 List.of(marginAccount.safeVersion(), spotAccount.safeVersion(), equityAccount.safeVersion()),
                 "position-margin-release");
 
-        UserJournal marginOut = buildUserJournal(updatedMargin, Direction.CREDIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, "Margin released to spot", event.releasedAt());
-        UserJournal marginIn = buildUserJournal(spotAfterMargin, Direction.DEBIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, "Margin returned to spot", event.releasedAt());
+        int seq = 1;
+        UserJournal marginOut = buildUserJournal(updatedMargin, Direction.CREDIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, seq++, "Margin released to spot", event.releasedAt());
+        UserJournal marginIn = buildUserJournal(spotAfterMargin, Direction.DEBIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, seq++, "Margin returned to spot", event.releasedAt());
         UserJournal pnlJournal = buildUserJournal(updatedSpot,
                                                   event.realizedPnl().signum() >= 0 ? Direction.DEBIT : Direction.CREDIT,
                                                   event.realizedPnl().abs(),
                                                   ReferenceType.POSITION_REALIZED_PNL,
                                                   referenceId,
+                                                  seq++,
                                                   "Realized PnL settlement",
                                                   event.releasedAt());
         UserJournal equityJournal = buildUserJournal(updatedEquity,
@@ -74,6 +76,7 @@ public class AccountPositionDomainService {
                                                      event.realizedPnl().abs(),
                                                      ReferenceType.POSITION_REALIZED_PNL,
                                                      referenceId,
+                                                     seq++,
                                                      "Equity adjusted by realized PnL",
                                                      event.releasedAt());
         userJournalRepository.insertBatch(List.of(marginOut, marginIn, pnlJournal, equityJournal));
@@ -84,6 +87,7 @@ public class AccountPositionDomainService {
                                          BigDecimal amount,
                                          ReferenceType referenceType,
                                          String referenceId,
+                                         Integer seq,
                                          String description,
                                          Instant eventTime) {
         return UserJournal.builder()
@@ -97,6 +101,7 @@ public class AccountPositionDomainService {
                           .balanceAfter(account.getBalance())
                           .referenceType(referenceType)
                           .referenceId(referenceId)
+                          .seq(seq)
                           .description(description)
                           .eventTime(eventTime)
                           .build();
