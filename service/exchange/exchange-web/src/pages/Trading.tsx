@@ -428,13 +428,6 @@ export default function Trading() {
                   </td>
                   <td className="py-1 pr-1 text-left overflow-hidden">
                     <div className="flex items-center gap-1">
-                      {item?.referenceId ? (
-                        disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
-                          <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
-                            {String(item.referenceId)}
-                          </button>
-                        )
-                      ) : '-'}
                       {item?.referenceId && tradeRefTypes.has(refType) && (
                         <button
                           className="text-slate-400 hover:text-slate-600"
@@ -447,6 +440,13 @@ export default function Trading() {
                           </svg>
                         </button>
                       )}
+                      {item?.referenceId ? (
+                        disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
+                          <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
+                            {String(item.referenceId)}
+                          </button>
+                        )
+                      ) : '-'}
                     </div>
                   </td>
                   <td className="py-1 pr-1 font-mono overflow-hidden">{String(item?.seq ?? '-')}</td>
@@ -577,13 +577,6 @@ export default function Trading() {
                   </td>
                 <td className="py-1 pr-1 text-left overflow-hidden">
                   <div className="flex items-center gap-1">
-                    {item?.referenceId ? (
-                      disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
-                        <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
-                          {String(item.referenceId)}
-                        </button>
-                      )
-                    ) : '-'}
                     {item?.referenceId && tradeRefTypes.has(refType) && (
                       <button
                         className="text-slate-400 hover:text-slate-600"
@@ -596,6 +589,13 @@ export default function Trading() {
                         </svg>
                       </button>
                     )}
+                    {item?.referenceId ? (
+                      disableReferenceLink ? <span>{String(item.referenceId)}</span> : (
+                        <button onClick={() => handleOpenReferenceJournals(item.referenceType, item.referenceId)} className="text-sky-500 hover:text-sky-600 underline">
+                          {String(item.referenceId)}
+                        </button>
+                      )
+                    ) : '-'}
                   </div>
                 </td>
                 <td className="py-1 pr-1 font-mono overflow-hidden">{String(item?.seq ?? '-')}</td>
