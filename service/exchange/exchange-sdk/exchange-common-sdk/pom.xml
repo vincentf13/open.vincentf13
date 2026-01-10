@@ -29,5 +29,9 @@
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-core</artifactId>
+        </dependency>
     </dependencies>
 </project>
