@@ -2,7 +2,7 @@
 @gatewayHost = http://localhost:12345
 @instrumentId = 10001
 
-### 5. [開倉] A Buy 5 (B Sell 5) -> A 預期持多倉 5
+### [開倉] A Buy 5 (B Sell 5) @ 10 -> A 預期持多倉 5
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
@@ -36,7 +36,7 @@ Content-Type: application/json
     eval(client.global.get("waitTaker"));
 %}
 
-### 5-Check. 驗證 A 持倉: Long 5, Price 10
+### 驗證 A 持倉: Long 5, Price 10
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
@@ -56,7 +56,7 @@ Authorization: Bearer {{tokenA}}
     });
 %}
 
-### 6. [減倉] A Sell 3 (B Buy 3) -> A 預期持多倉 2
+### [減倉] A Sell 3 (B Buy 3) @ 11 -> A 預期持多倉 2
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
@@ -90,7 +90,7 @@ Content-Type: application/json
     eval(client.global.get("waitTaker"));
 %}
 
-### 6-Check. 驗證 A 持倉: Long 2
+### 驗證 A 持倉: Long 2
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
@@ -111,7 +111,7 @@ Authorization: Bearer {{tokenA}}
     });
 %}
 
-### 7. [增倉] A Buy 2 (B Sell 2) -> A 預期持多倉 4
+### [增倉] A Buy 2 (B Sell 2) @ 12 -> A 預期持多倉 4
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
@@ -145,7 +145,7 @@ Content-Type: application/json
     eval(client.global.get("waitTaker"));
 %}
 
-### 7-Check. 驗證 A 持倉: Long 4
+### 驗證 A 持倉: Long 4
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
@@ -166,7 +166,7 @@ Authorization: Bearer {{tokenA}}
     });
 %}
 
-### 8. [平倉] A Sell 5 (B Buy 5) -> A 預期持空倉 1 (因為之前是多倉 4)
+### [平倉] A Sell 4 (B Buy 4) @ 9 -> A 預期持倉 0 (因為之前是多倉 4)
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
@@ -176,7 +176,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 9,
-  "quantity": 5000
+  "quantity": 4000
 }
 
 > {%
@@ -193,35 +193,35 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 9,
-  "quantity": 5000
+  "quantity": 4000
 }
 
 > {%
     eval(client.global.get("waitTaker"));
 %}
 
-### 8-Check. 驗證 A 持倉: Short 1
+### 驗證 A 持倉: Closed
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 8: Position Logic Check (Flip to Short)", function() {
-        client.global.set("expStatus", "ACTIVE");
-        client.global.set("expSide", "SHORT");
-        client.global.set("expQty", 1000);
-        client.global.set("expEntry", 9);
+    client.test("Step 8: Position Logic Check (Close)", function() {
+        client.global.set("expStatus", "CLOSED");
+        client.global.set("expSide", "LONG");
+        client.global.set("expQty", 0);
+        client.global.set("expEntry", 11);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 9);
-        // PnL: 3 + ((9 - 11) * 4) = -5 (Avg entry 11, Close 4)
-        client.global.set("expCumRealizedPnl", -5.0304);
-        // Fee: 0.0214 + (5 * 9 * 0.0002) = 0.0304
-        client.global.set("expCumFee", 0.0304);
+        // PnL: (9 - 11) * 4 = -8 (Avg entry 11, Close 4)
+        client.global.set("expCumRealizedPnl", -5.0286);
+        // Fee: 0.0214 + (4 * 9 * 0.0002) = 0.0286
+        client.global.set("expCumFee", 0.0286);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
 %}
 
-### 9. [再次開倉] A Buy 5 (B Sell 5) -> A 預期持多倉 4 (原空 1 + 買 5)
+### [再次開倉] A Buy 5 (B Sell 5) @ 8 -> A 預期持多倉 5
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
@@ -255,29 +255,29 @@ Content-Type: application/json
     eval(client.global.get("waitTaker"));
 %}
 
-### 9-Check. 驗證 A 持倉: Long 4
+### 驗證 A 持倉: Long 5
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 9: Position Logic Check (Flip back to Long)", function() {
+    client.test("Step 9: Position Logic Check (Open)", function() {
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
-        client.global.set("expQty", 4000);
+        client.global.set("expQty", 5000);
         client.global.set("expEntry", 8);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 8);
-        // PnL: -5 + ((9 - 8) * 1) = -4 (Short entry 9, Close 1)
-        client.global.set("expCumRealizedPnl", -4.0384);
-        // Fee: 0.0304 + (5 * 8 * 0.0002) = 0.0384
-        client.global.set("expCumFee", 0.0384);
+        // PnL: -5 (No change on open)
+        client.global.set("expCumRealizedPnl", -5.0366);
+        // Fee: 0.0286 + (5 * 8 * 0.0002) = 0.0366
+        client.global.set("expCumFee", 0.0366);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
 %}
 
-### 10. [Flip 反手] A Sell 9 (B Buy 9) -> A 預期持空倉 5 (原多 4 - 賣 9)
-# 注意：測試計劃寫 Buy 10 觀察結果空倉 5，這在 A 原本持多倉的情況下不符合邏輯，此處改用 Sell 9 以達到持空倉 5
+### [Flip 反手] A Sell 10 (B Buy 10) @ 10 -> A 預期持空倉 5 (原多 5 - 賣 10)
+# A 原本持多倉 5，賣 10 變空 5
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
@@ -287,7 +287,7 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 9000
+  "quantity": 10000
 }
 
 > {%
@@ -304,14 +304,14 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 10,
-  "quantity": 9000
+  "quantity": 10000
 }
 
 > {%
     eval(client.global.get("waitTaker"));
 %}
 
-### 10-Check. 驗證 A 持倉: Short 5
+### 驗證 A 持倉: Short 5
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
@@ -323,16 +323,16 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expEntry", 10);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 10);
-        // PnL: -4 + ((10 - 8) * 4) = 4 (Long entry 8, Close 4)
-        client.global.set("expCumRealizedPnl", 3.9436);
-        // Fee: 0.0384 + (9 * 10 * 0.0002) = 0.0564
-        client.global.set("expCumFee", 0.0564);
+        // PnL: -5 + ((10 - 8) * 5) = 5 (Long entry 8, Close 5)
+        client.global.set("expCumRealizedPnl", 4.9434);
+        // Fee: 0.0366 + (10 * 10 * 0.0002) = 0.0566
+        client.global.set("expCumFee", 0.0566);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
 %}
 
-### 11. [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10)，B 依序成交 -> A 預期持多倉 8
+### [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 10，B 依序成交 -> A 預期持多倉 8
 # A 原本持空倉 5，買 3 變空 2，再買 10 變多 8
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
@@ -401,7 +401,7 @@ Content-Type: application/json
     eval(client.global.get("waitTaker"));
 %}
 
-### 11-Check. 驗證 A 持倉: Long 8
+### 驗證 A 持倉: Long 8
 GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
@@ -413,10 +413,10 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expEntry", 10);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 10);
-        // PnL: 4 + ((10 - 10) * 5) = 4 (Short entry 10, Close 5)
-        client.global.set("expCumRealizedPnl", 3.9176);
-        // Fee: 0.0564 + (13 * 10 * 0.0002) = 0.0824
-        client.global.set("expCumFee", 0.0824);
+        // PnL: 5 + ((10 - 10) * 5) = 5 (Short entry 10, Close 5)
+        client.global.set("expCumRealizedPnl", 4.9174);
+        // Fee: 0.0566 + (13 * 10 * 0.0002) = 0.0826
+        client.global.set("expCumFee", 0.0826);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
