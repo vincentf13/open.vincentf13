@@ -54,6 +54,9 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
   const [orderTrades, setOrderTrades] = useState<Record<string, TradeResponse[]>>({});
   const [orderEvents, setOrderEvents] = useState<Record<string, OrderEventItem[]>>({});
   const [orderEventsLoading, setOrderEventsLoading] = useState<Record<string, boolean>>({});
+  const [tradeDetail, setTradeDetail] = useState<TradeResponse | null>(null);
+  const [tradeDetailLoading, setTradeDetailLoading] = useState(false);
+  const [tradeDetailAnchor, setTradeDetailAnchor] = useState<{ top: number; left: number } | null>(null);
   const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [riskLimits, setRiskLimits] = useState<Record<string, RiskLimitResponse>>({});
@@ -772,6 +775,38 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
     }
   }
 
+  const openTradeDetail = async (orderId: number, tradeId: number, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTradeDetailAnchor({ top: rect.top, left: rect.right + 8 });
+    setTradeDetailLoading(true);
+    try {
+      const cachedTrades = orderTrades[orderId] || [];
+      if (cachedTrades.length === 0) {
+        const res = await getTradesByOrderId(orderId);
+        if (String(res?.code) === '0') {
+          const trades = res.data || [];
+          setOrderTrades(v => ({...v, [orderId]: trades}));
+          const match = trades.find((t: TradeResponse) => Number(t.tradeId) === Number(tradeId)) || null;
+          if (!match) {
+            message.warning('Trade not found');
+          }
+          setTradeDetail(match);
+          return;
+        }
+      } else {
+        const match = cachedTrades.find(t => Number(t.tradeId) === Number(tradeId)) || null;
+        if (!match) {
+          message.warning('Trade not found');
+        }
+        setTradeDetail(match);
+      }
+    } catch {
+      message.error('Failed to load trade');
+    } finally {
+      setTradeDetailLoading(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div id="positions-tabs-bar" className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/5">
@@ -1007,6 +1042,7 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                     <tr className="text-slate-500">
                                       <th className="py-1 px-2 whitespace-nowrap font-bold">Seq</th>
                                       <th className="py-1 px-2 whitespace-nowrap font-bold">Event</th>
+                                      <th className="py-1 px-2 whitespace-nowrap font-bold">Trade Id</th>
                                       {orderColumns.map((c, i) => (
                                         <th key={c.key} className={`py-1 px-2 whitespace-nowrap font-bold text-slate-600 bg-yellow-200/50 ${i === 0 ? 'rounded-l-md' : ''} ${i === orderColumns.length - 1 ? 'rounded-r-md' : ''}`}>{c.label}</th>
                                       ))}
@@ -1016,6 +1052,8 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                   <tbody>
                                     {orderEvents[o.orderId]?.map(e => {
                                       const payload = parsePayload(e.payload) || {};
+                                      const isTradeRef = String(e.referenceType || '').toUpperCase() === 'TRADE';
+                                      const tradeId = e.referenceId;
                                       return (
                                         <tr key={e.eventId} className="hover:bg-white/5">
                                           <td className="py-1 px-2 font-mono text-slate-400">{e.sequenceNumber}</td>
@@ -1023,6 +1061,18 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
                                             <span className="px-1.5 py-0.5 rounded-md border border-slate-200 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-tighter">
                                               {e.eventType}
                                             </span>
+                                          </td>
+                                          <td className="py-1 px-2 font-mono">
+                                            {isTradeRef && tradeId ? (
+                                              <button
+                                                className="text-blue-600 hover:text-blue-800 underline"
+                                                onClick={(event) => openTradeDetail(o.orderId, Number(tradeId), event)}
+                                              >
+                                                {tradeId}
+                                              </button>
+                                            ) : (
+                                              '-'
+                                            )}
                                           </td>
                                           {orderColumns.map((c, i) => {
                                             const val = payload[c.key];
@@ -1181,6 +1231,47 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
           </div>
         )}
       </div>
+      {tradeDetail && (
+        <div className="fixed inset-0 z-50 bg-slate-900/30" onClick={() => setTradeDetail(null)}>
+          <div
+            className="absolute w-[360px] max-w-[90vw] -translate-y-full rounded-xl border border-slate-200 bg-white p-3 text-[11px] text-slate-700 shadow-xl"
+            style={{ top: tradeDetailAnchor?.top ?? 16, left: tradeDetailAnchor?.left ?? 16 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-[10px] uppercase font-bold text-slate-500">Trade Detail</div>
+              <button className="text-slate-400 hover:text-slate-600" onClick={() => setTradeDetail(null)}>x</button>
+            </div>
+            {tradeDetailLoading ? (
+              <div className="py-6 text-center text-slate-400">Loading...</div>
+            ) : (
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                <span className="text-slate-400">Trade Id</span><span className="font-mono">{tradeDetail.tradeId}</span>
+                <span className="text-slate-400">Instrument</span><span>{instrumentMap.get(String(tradeDetail.instrumentId)) || tradeDetail.instrumentId}</span>
+                <span className="text-slate-400">Maker Order ID</span>
+                <span className={`font-mono ${String(tradeDetail.makerUserId) === String(currentUserId) ? 'bg-amber-100/70 rounded-sm' : ''}`}>
+                  {tradeDetail.orderId}
+                </span>
+                <span className="text-slate-400">Taker Orde ID</span>
+                <span className={`font-mono ${String(tradeDetail.takerUserId) === String(currentUserId) ? 'bg-amber-100/70 rounded-sm' : ''}`}>
+                  {tradeDetail.counterpartyOrderId}
+                </span>
+                <span className="text-slate-400">Price</span><span className="font-mono text-sky-600 font-bold">{formatNumber(tradeDetail.price)}</span>
+                <span className="text-slate-400">Quantity</span><span className="font-mono text-sky-600 font-bold">{formatNumber(tradeDetail.quantity)}</span>
+                <span className="text-slate-400">Maker Fee</span>
+                <span className={`font-mono ${String(tradeDetail.makerUserId) === String(currentUserId) ? 'bg-amber-100/70 rounded-sm' : ''}`}>
+                  {formatNumber(tradeDetail.makerFee)}
+                </span>
+                <span className="text-slate-400">Taker Fee</span>
+                <span className={`font-mono ${String(tradeDetail.takerUserId) === String(currentUserId) ? 'bg-amber-100/70 rounded-sm' : ''}`}>
+                  {formatNumber(tradeDetail.takerFee)}
+                </span>
+                <span className="text-slate-400">Executed At</span><span className="font-mono">{formatPayloadValue('executedAt', tradeDetail.executedAt)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
