@@ -216,26 +216,26 @@ Authorization: Bearer {{tokenA}}
     `);
 %}
 
-### 5. 帳號 A 儲值 1000 USDT (共用)
+### 5. 帳號 A 儲值 10000 USDT (共用)
 POST {{gatewayHost}}/account/api/account/deposits
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
 
 {
   "asset": "USDT",
-  "amount": 1000,
+  "amount": 10000,
   "txId": "setup-dep-A-{{$timestamp}}",
   "creditedAt": "{{$isoTimestamp}}"
 }
 
-### 6. 帳號 B 儲值 1000 USDT (共用)
+### 6. 帳號 B 儲值 10000 USDT (共用)
 POST {{gatewayHost}}/account/api/account/deposits
 Authorization: Bearer {{tokenB}}
 Content-Type: application/json
 
 {
   "asset": "USDT",
-  "amount": 1000,
+  "amount": 10000,
   "txId": "setup-dep-B-{{$timestamp}}",
   "creditedAt": "{{$isoTimestamp}}"
 }

@@ -1,4 +1,4 @@
-1.登入二個帳號A:c.p.kevinf13@gmail.co  B: c.p.kevinf13-1@gmail.com，密碼都是12345678 ，並各自儲值1000 USDT
+1.登入二個帳號A:c.p.kevinf13@gmail.co  B: c.p.kevinf13-1@gmail.com，密碼都是12345678 ，並各自儲值10000 USDT
   A開立多倉，分別以下步驟下訂單（依步驟價格），B 在 A下單時，都立刻接著以對手方下單，促成成交
   1,2 A 皆為 Maker
     - 開倉 Buy 5張 @10
