@@ -1,4 +1,4 @@
-# 使用前請先執行 setup.http 以初始化 Token 與配置
+# 使用前請先執行 position_setup.http 以初始化 Token 與配置
 @gatewayHost = http://localhost:12345
 @instrumentId = 10001
 
@@ -34,38 +34,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 5: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        client.assert(pos != null, "Position not found");
-        
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        var margin = parseFloat(pos.margin);
-        var upnl = parseFloat(pos.unrealizedPnl);
-        var cumFee = parseFloat(pos.cumFee);
-        var side = pos.side;
-        
-        var size = parseFloat(client.global.get("contractSize"));
-        var mmr = parseFloat(client.global.get("mmr"));
-
-        client.assert(side === "LONG", "Side should be LONG");
-        client.assert(qty === 5, "Quantity should be 5");
-        client.assert(entry === 10, "Entry Price should be 10");
-
-        // 1. Unrealized PnL
-        var expectedUpnl = (mark - entry) * qty * size;
-        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch");
-
-        // 2. Margin Ratio
-        var notional = mark * qty * size;
-        var equity = margin + upnl;
-        var expectedRatio = notional === 0 ? 0 : equity / notional;
-        client.assert(Math.abs(parseFloat(pos.marginRatio) - expectedRatio) < 0.001, "Margin Ratio mismatch");
-
-        // 3. Liquidation Price (Long)
-        var marginPerUnit = margin / (qty * size);
-        var expectedLiq = (entry - marginPerUnit) / (1 - mmr);
-        // client.assert(Math.abs(parseFloat(pos.liquidationPrice) - expectedLiq) < 0.1, "Liq Price mismatch");
+        client.global.set("expSide", "LONG");
+        client.global.set("expQty", 5);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -101,28 +73,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 6: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        var margin = parseFloat(pos.margin);
-        var upnl = parseFloat(pos.unrealizedPnl);
-        
-        var size = parseFloat(client.global.get("contractSize"));
-        var mmr = parseFloat(client.global.get("mmr"));
-
-        client.assert(pos.side === "LONG", "Side should be LONG");
-        client.assert(qty === 2, "Quantity should be 2");
-        client.assert(entry === 10, "Entry Price should be 10");
-
-        // Consistency
-        var expectedUpnl = (mark - entry) * qty * size;
-        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch");
-        
-        var notional = mark * qty * size;
-        var equity = margin + upnl;
-        var expectedRatio = notional === 0 ? 0 : equity / notional;
-        client.assert(Math.abs(parseFloat(pos.marginRatio) - expectedRatio) < 0.001, "Margin Ratio mismatch");
+        client.global.set("expSide", "LONG");
+        client.global.set("expQty", 2);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -158,27 +112,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 7: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        var margin = parseFloat(pos.margin);
-        var upnl = parseFloat(pos.unrealizedPnl);
-        
-        var size = parseFloat(client.global.get("contractSize"));
-        
-        client.assert(pos.side === "LONG", "Side should be LONG");
-        client.assert(qty === 4, "Quantity should be 4");
-        client.assert(entry === 10, "Entry Price should remain 10");
-        
-        // Consistency
-        var expectedUpnl = (mark - entry) * qty * size;
-        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch");
-        
-        var notional = mark * qty * size;
-        var equity = margin + upnl;
-        var expectedRatio = notional === 0 ? 0 : equity / notional;
-        client.assert(Math.abs(parseFloat(pos.marginRatio) - expectedRatio) < 0.001, "Margin Ratio mismatch");
+        client.global.set("expSide", "LONG");
+        client.global.set("expQty", 4);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -214,19 +151,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 8: Position Logic Check (Flip to Short)", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        
-        client.assert(pos.side === "SHORT", "Side should be SHORT");
-        client.assert(qty === 1, "Quantity should be 1");
-        client.assert(entry === 10, "Entry Price should be 10 (Flip at 10)");
-        
-        // Consistency (Short)
-        // Upnl = (Entry - Mark) * Qty
-        var expectedUpnl = (entry - mark) * qty;
-        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+        client.global.set("expSide", "SHORT");
+        client.global.set("expQty", 1);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -262,18 +190,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 9: Position Logic Check (Flip back to Long)", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        
-        client.assert(pos.side === "LONG", "Side should be LONG");
-        client.assert(qty === 4, "Quantity should be 4");
-        client.assert(entry === 10, "Entry Price should be 10");
-        
-        // Consistency
-        var expectedUpnl = (mark - entry) * qty;
-        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+        client.global.set("expSide", "LONG");
+        client.global.set("expQty", 4);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -310,13 +230,10 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 10: Position Logic Check", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        
-        client.assert(pos.side === "SHORT", "Side should be SHORT");
-        client.assert(qty === 5, "Quantity should be 5");
-        client.assert(entry === 10, "Entry Price should be 10");
+        client.global.set("expSide", "SHORT");
+        client.global.set("expQty", 5);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
 
@@ -379,17 +296,9 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 11: Position Logic Check (Concurrency)", function() {
-        var pos = response.body.data.find(p => p.instrumentId == 10001);
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        
-        client.assert(pos.side === "LONG", "Side should be LONG");
-        client.assert(qty === 8, "Quantity should be 8");
-        client.assert(entry === 10, "Entry Price should be 10");
-        
-        // Consistency
-        var expectedUpnl = (mark - entry) * qty;
-        client.assert(Math.abs(pos.unrealizedPnl - expectedUpnl) < 0.01, "Upnl mismatch");
+        client.global.set("expSide", "LONG");
+        client.global.set("expQty", 8);
+        client.global.set("expEntry", 10);
+        eval(client.global.get("verifyScript"));
     });
 %}
