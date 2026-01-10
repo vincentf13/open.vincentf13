@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
@@ -17,6 +18,7 @@ import open.vincentf13.exchange.account.infra.persistence.po.UserAccountPO;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.validator.UpdateAndDelete;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -63,6 +65,7 @@ public class UserAccountRepository {
         return balance;
     }
     
+    @Validated({Default.class, UpdateAndDelete.class})
     public boolean updateSelectiveBy(@NotNull @Valid UserAccount balance,
                                      LambdaUpdateWrapper<UserAccountPO> updateWrapper) {
         if (balance.getInstrumentId() == null) {
@@ -72,6 +75,7 @@ public class UserAccountRepository {
         return mapper.update(po, updateWrapper) > 0;
     }
 
+    @Validated({Default.class, UpdateAndDelete.class})
     public void updateSelectiveBatch(@NotNull List<@Valid UserAccount> accounts,
                                      @NotNull List<Integer> expectedVersions,
                                      @NotNull String action) {

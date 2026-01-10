@@ -5,11 +5,13 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.persistence.mapper.OrderMapper;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.validator.UpdateAndDelete;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -41,6 +43,7 @@ public class OrderRepository {
         return Optional.ofNullable(OpenObjectMapper.convert(po, Order.class));
     }
     
+    @Validated({Default.class, UpdateAndDelete.class})
     public boolean updateSelective(@NotNull @Valid Order update,
                                    @NotNull LambdaUpdateWrapper<OrderPO> updateWrapper) {
         OrderPO record = OpenObjectMapper.convert(update, OrderPO.class);

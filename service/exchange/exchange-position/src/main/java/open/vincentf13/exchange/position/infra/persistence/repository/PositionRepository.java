@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
@@ -13,6 +14,7 @@ import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.validator.UpdateAndDelete;
 import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -69,6 +71,7 @@ public class PositionRepository {
         return Optional.ofNullable(normalize(OpenObjectMapper.convert(po, Position.class)));
     }
     
+    @Validated({Default.class, UpdateAndDelete.class})
     public boolean updateSelectiveBy(@NotNull @Valid Position update,
                                      LambdaUpdateWrapper<PositionPO> updateWrapper) {
         PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);
@@ -80,6 +83,7 @@ public class PositionRepository {
         return mapper.update(record, updateWrapper) > 0;
     }
 
+    @Validated({Default.class, UpdateAndDelete.class})
     public void updateSelectiveBatch(@NotNull List<@Valid PositionUpdateTask> tasks) {
         if (tasks.isEmpty()) {
             return;

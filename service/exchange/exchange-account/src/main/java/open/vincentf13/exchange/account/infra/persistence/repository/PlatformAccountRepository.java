@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.infra.persistence.mapper.PlatformAccountMapper;
@@ -14,6 +15,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.validator.UpdateAndDelete;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
@@ -51,12 +53,14 @@ public class PlatformAccountRepository {
         return platformAccount;
     }
     
+    @Validated({Default.class, UpdateAndDelete.class})
     public boolean updateSelectiveBy(@NotNull @Valid PlatformAccount account,
                                      LambdaUpdateWrapper<PlatformAccountPO> updateWrapper) {
         PlatformAccountPO po = OpenObjectMapper.convert(account, PlatformAccountPO.class);
         return mapper.update(po, updateWrapper) > 0;
     }
 
+    @Validated({Default.class, UpdateAndDelete.class})
     public void updateSelectiveBatch(@NotNull List<@Valid PlatformAccount> accounts,
                                      @NotNull List<Integer> expectedVersions,
                                      @NotNull String action) {

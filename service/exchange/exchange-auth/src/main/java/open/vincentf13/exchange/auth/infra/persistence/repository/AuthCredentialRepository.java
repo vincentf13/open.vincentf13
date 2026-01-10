@@ -7,11 +7,13 @@ import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.infra.persistence.mapper.AuthCredentialMapper;
 import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.validator.UpdateAndDelete;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +39,7 @@ public class AuthCredentialRepository {
         return po.getId();
     }
     
+    @Validated({Default.class, UpdateAndDelete.class})
     public boolean updateSelective(@NotNull @Valid AuthCredential update,
                                    @NotNull LambdaUpdateWrapper<AuthCredentialPO> updateWrapper) {
         AuthCredentialPO record = OpenObjectMapper.convert(update, AuthCredentialPO.class);
