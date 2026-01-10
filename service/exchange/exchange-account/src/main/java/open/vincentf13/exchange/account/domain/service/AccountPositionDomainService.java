@@ -42,12 +42,14 @@ public class AccountPositionDomainService {
                                    Map.of("userId", event.userId(), "asset", asset, "available", marginAccount.getBalance(), "amount", event.marginReleased()));
         }
         UserAccount spotAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
-        UserAccount equityAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT_EQUITY, null, asset);
+        UserAccount realizedPnlEquity = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.REALIZED_PNL_EQUITY, null, asset);
+        UserAccount realizedPnlRevenue = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.REALIZED_PNL_REVENUE, null, asset);
         
         UserAccount updatedMargin = marginAccount.apply(Direction.CREDIT, event.marginReleased());
         UserAccount spotAfterMargin = spotAccount.apply(Direction.DEBIT, event.marginReleased());
         Direction direction = event.realizedPnl().signum() >= 0 ? Direction.CREDIT : Direction.DEBIT;
-        UserAccount updatedEquity = equityAccount.apply(direction, event.realizedPnl().abs());
+        UserAccount updatedRealizedEquity = realizedPnlEquity.applyAllowNegative(direction, event.realizedPnl().abs());
+        UserAccount updatedRealizedRevenue = realizedPnlRevenue.applyAllowNegative(direction, event.realizedPnl().abs());
         UserAccount updatedSpot;
         if (event.realizedPnl().signum() >= 0) {
             updatedSpot = spotAfterMargin.apply(Direction.DEBIT, event.realizedPnl());
@@ -56,8 +58,8 @@ public class AccountPositionDomainService {
         }
 
         userAccountRepository.updateSelectiveBatch(
-                List.of(updatedMargin, updatedSpot, updatedEquity),
-                List.of(marginAccount.safeVersion(), spotAccount.safeVersion(), equityAccount.safeVersion()),
+                List.of(updatedMargin, updatedSpot, updatedRealizedEquity, updatedRealizedRevenue),
+                List.of(marginAccount.safeVersion(), spotAccount.safeVersion(), realizedPnlEquity.safeVersion(), realizedPnlRevenue.safeVersion()),
                 "position-margin-release");
 
         int seq = 1;
@@ -71,15 +73,23 @@ public class AccountPositionDomainService {
                                                   seq++,
                                                   "Realized PnL settlement",
                                                   event.releasedAt());
-        UserJournal equityJournal = buildUserJournal(updatedEquity,
+        UserJournal equityJournal = buildUserJournal(updatedRealizedEquity,
                                                      event.realizedPnl().signum() >= 0 ? Direction.CREDIT : Direction.DEBIT,
                                                      event.realizedPnl().abs(),
                                                      ReferenceType.POSITION_REALIZED_PNL,
                                                      referenceId,
                                                      seq++,
-                                                     "Equity adjusted by realized PnL",
+                                                     "Realized PnL equity",
                                                      event.releasedAt());
-        userJournalRepository.insertBatch(List.of(marginOut, marginIn, pnlJournal, equityJournal));
+        UserJournal revenueJournal = buildUserJournal(updatedRealizedRevenue,
+                                                     event.realizedPnl().signum() >= 0 ? Direction.CREDIT : Direction.DEBIT,
+                                                     event.realizedPnl().abs(),
+                                                     ReferenceType.POSITION_REALIZED_PNL,
+                                                     referenceId,
+                                                     seq++,
+                                                     "Realized PnL revenue",
+                                                     event.releasedAt());
+        userJournalRepository.insertBatch(List.of(marginOut, marginIn, pnlJournal, equityJournal, revenueJournal));
     }
     
     private UserJournal buildUserJournal(UserAccount account,
