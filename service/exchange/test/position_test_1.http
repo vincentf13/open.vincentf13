@@ -34,9 +34,16 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 5: Position Logic Check", function() {
+        client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 5);
         client.global.set("expEntry", 10);
+        client.global.set("expCloseReserved", 0);
+        client.global.set("expMarkPrice", 10);
+        client.global.set("expCumRealizedPnl", 0);
+        // Fee: 5 * 10 * 0.0002 = 0.01
+        client.global.set("expCumFundingFee", 0);
+        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -50,7 +57,7 @@ Content-Type: application/json
   "instrumentId": {{instrumentId}},
   "side": "SELL",
   "type": "LIMIT",
-  "price": 10,
+  "price": 11,
   "quantity": 3
 }
 
@@ -63,7 +70,7 @@ Content-Type: application/json
   "instrumentId": {{instrumentId}},
   "side": "BUY",
   "type": "LIMIT",
-  "price": 10,
+  "price": 11,
   "quantity": 3
 }
 
@@ -73,9 +80,18 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 6: Position Logic Check", function() {
+        client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 2);
         client.global.set("expEntry", 10);
+        client.global.set("expCloseReserved", 0);
+        client.global.set("expMarkPrice", 11);
+        // PnL: (11 - 10) * 3 = 3
+        client.global.set("expCumRealizedPnl", 3);
+        // Fee: 0.01 + (3 * 11 * 0.0002) = 0.0166
+        client.global.set("expCumFee", 0.0166);
+        client.global.set("expCumFundingFee", 0);
+        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -89,7 +105,7 @@ Content-Type: application/json
   "instrumentId": {{instrumentId}},
   "side": "BUY",
   "type": "LIMIT",
-  "price": 10,
+  "price": 12,
   "quantity": 2
 }
 
@@ -102,7 +118,7 @@ Content-Type: application/json
   "instrumentId": {{instrumentId}},
   "side": "SELL",
   "type": "LIMIT",
-  "price": 10,
+  "price": 12,
   "quantity": 2
 }
 
@@ -112,9 +128,18 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 7: Position Logic Check", function() {
+        client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 4);
-        client.global.set("expEntry", 10);
+        client.global.set("expEntry", 11);
+        client.global.set("expCloseReserved", 0);
+        client.global.set("expMarkPrice", 12);
+        // PnL: 3 (No change on increase)
+        client.global.set("expCumRealizedPnl", 3);
+        // Fee: 0.0166 + (2 * 12 * 0.0002) = 0.0214
+        client.global.set("expCumFee", 0.0214);
+        client.global.set("expCumFundingFee", 0);
+        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -128,7 +153,7 @@ Content-Type: application/json
   "instrumentId": {{instrumentId}},
   "side": "SELL",
   "type": "LIMIT",
-  "price": 10,
+  "price": 9,
   "quantity": 5
 }
 
@@ -141,7 +166,7 @@ Content-Type: application/json
   "instrumentId": {{instrumentId}},
   "side": "BUY",
   "type": "LIMIT",
-  "price": 10,
+  "price": 9,
   "quantity": 5
 }
 
@@ -151,13 +176,21 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 8: Position Logic Check (Flip to Short)", function() {
+        client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "SHORT");
         client.global.set("expQty", 1);
-        client.global.set("expEntry", 10);
-        eval(client.global.get("verifyScript"));
-    });
-%}
-
+        client.global.set("expEntry", 9);
+        client.global.set("expCloseReserved", 0);
+        client.global.set("expMarkPrice", 9);
+        // PnL: 3 + ((9 - 11) * 4) = -5 (Avg entry 11, Close 4)
+        client.global.set("expCumRealizedPnl", -5);
+        // Fee: 0.0214 + (5 * 9 * 0.0002) = 0.0304
+                    client.global.set("expCumFee", 0.0304);
+                    client.global.set("expCumFundingFee", 0);
+                    // TODO: Update expLiqPrice with actual value after first run
+                    eval(client.global.get("verifyScript"));
+                });
+            %}
 ### 9. [再次開倉] A Buy 5 (B Sell 5) -> A 預期持多倉 4 (原空 1 + 買 5)
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
@@ -167,7 +200,7 @@ Content-Type: application/json
   "instrumentId": {{instrumentId}},
   "side": "BUY",
   "type": "LIMIT",
-  "price": 10,
+  "price": 8,
   "quantity": 5
 }
 
@@ -180,7 +213,7 @@ Content-Type: application/json
   "instrumentId": {{instrumentId}},
   "side": "SELL",
   "type": "LIMIT",
-  "price": 10,
+  "price": 8,
   "quantity": 5
 }
 
@@ -190,9 +223,18 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 9: Position Logic Check (Flip back to Long)", function() {
+        client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 4);
-        client.global.set("expEntry", 10);
+        client.global.set("expEntry", 8);
+        client.global.set("expCloseReserved", 0);
+        client.global.set("expMarkPrice", 8);
+        // PnL: -5 + ((9 - 8) * 1) = -4 (Short entry 9, Close 1)
+        client.global.set("expCumRealizedPnl", -4);
+        // Fee: 0.0304 + (5 * 8 * 0.0002) = 0.0384
+        client.global.set("expCumFee", 0.0384);
+        client.global.set("expCumFundingFee", 0);
+        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -230,9 +272,18 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 10: Position Logic Check", function() {
+        client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "SHORT");
         client.global.set("expQty", 5);
         client.global.set("expEntry", 10);
+        client.global.set("expCloseReserved", 0);
+        client.global.set("expMarkPrice", 10);
+        // PnL: -4 + ((10 - 8) * 4) = 4 (Long entry 8, Close 4)
+        client.global.set("expCumRealizedPnl", 4);
+        // Fee: 0.0384 + (9 * 10 * 0.0002) = 0.0564
+        client.global.set("expCumFee", 0.0564);
+        client.global.set("expCumFundingFee", 0);
+        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}
@@ -296,9 +347,18 @@ Authorization: Bearer {{tokenA}}
 
 > {%
     client.test("Step 11: Position Logic Check (Concurrency)", function() {
+        client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 8);
         client.global.set("expEntry", 10);
+        client.global.set("expCloseReserved", 0);
+        client.global.set("expMarkPrice", 10);
+        // PnL: 4 + ((10 - 10) * 5) = 4 (Short entry 10, Close 5)
+        client.global.set("expCumRealizedPnl", 4);
+        // Fee: 0.0564 + (13 * 10 * 0.0002) = 0.0824
+        client.global.set("expCumFee", 0.0824);
+        client.global.set("expCumFundingFee", 0);
+        // TODO: Update expLiqPrice with actual value after first run
         eval(client.global.get("verifyScript"));
     });
 %}

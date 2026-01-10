@@ -40,8 +40,9 @@ Authorization: Bearer {{tokenA}}
     var inst = response.body.data.find(i => i.instrumentId == 10001);
     client.global.set("contractSize", inst.contractSize);
     client.global.set("takerFeeRate", inst.takerFeeRate);
+    client.global.set("makerFeeRate", inst.makerFeeRate);
     client.global.set("leverage", inst.defaultLeverage);
-    client.log("Config Loaded: Size=" + client.global.get("contractSize") + ", Fee=" + client.global.get("takerFeeRate") + ", Lev=" + client.global.get("leverage"));
+    client.log("Config Loaded: Size=" + client.global.get("contractSize") + ", Taker=" + client.global.get("takerFeeRate") + ", Maker=" + client.global.get("makerFeeRate") + ", Lev=" + client.global.get("leverage"));
 %}
 
 ### 4. 獲取 Risk Limit 配置 (共用)
@@ -51,63 +52,119 @@ Authorization: Bearer {{tokenA}}
 > {%
     var limit = response.body.data;
     client.global.set("mmr", limit.maintenanceMarginRate);
-    client.log("Risk Config Loaded: MMR=" + client.global.get("mmr"));
+    client.global.set("imr", limit.initialMarginRate);
+    client.log("Risk Config Loaded: MMR=" + client.global.get("mmr") + ", IMR=" + client.global.get("imr"));
 
     // Define Common Verification Script (Position Logic)
     client.global.set("verifyScript", `
         var pos = response.body.data.find(p => p.instrumentId == 10001);
         client.assert(pos != null, "Position not found");
         
-        var qty = parseFloat(pos.quantity);
-        var entry = parseFloat(pos.entryPrice);
-        var mark = parseFloat(pos.markPrice);
-        var margin = parseFloat(pos.margin);
-        var upnl = parseFloat(pos.unrealizedPnl);
-        var cumFee = parseFloat(pos.cumFee);
-        
-        // Expected values from test case
+        // --- 預期參數 (Expected Values) ---
+        var expStatus = client.global.get("expStatus");
         var expSide = client.global.get("expSide");
         var expQty = parseFloat(client.global.get("expQty"));
         var expEntry = parseFloat(client.global.get("expEntry"));
+        var expCloseReserved = parseFloat(client.global.get("expCloseReserved"));
+        var expMarkPrice = parseFloat(client.global.get("expMarkPrice"));
+        var expCumRealizedPnl = parseFloat(client.global.get("expCumRealizedPnl"));
+        var expCumFee = parseFloat(client.global.get("expCumFee"));
+        var expCumFundingFee = parseFloat(client.global.get("expCumFundingFee"));
         
-        // Global config
+        // --- 全域配置 (Global Config) ---
         var size = parseFloat(client.global.get("contractSize"));
         var mmr = parseFloat(client.global.get("mmr"));
+        var imr = parseFloat(client.global.get("imr"));
+        var lev = parseFloat(client.global.get("leverage"));
         
-        // 1. Basic Fields Check
-        client.assert(pos.side === expSide, "Side mismatch. Exp: " + expSide + ", Got: " + pos.side);
-        client.assert(Math.abs(qty - expQty) < 0.0001, "Qty mismatch. Exp: " + expQty + ", Got: " + qty);
-        client.assert(Math.abs(entry - expEntry) < 0.0001, "Entry mismatch. Exp: " + expEntry + ", Got: " + entry);
-        
-        // 2. Unrealized PnL Calculation
+        // --- 提取實際值 (Actual Values) ---
+        var actStatus = pos.status;
+        var actSide = pos.side;
+        var actLev = parseFloat(pos.leverage);
+        var actMargin = parseFloat(pos.margin);
+        var actEntry = parseFloat(pos.entryPrice);
+        var actQty = parseFloat(pos.quantity);
+        var actCloseReserved = parseFloat(pos.closingReservedQuantity);
+        var actMark = parseFloat(pos.markPrice);
+        var actMarginRatio = parseFloat(pos.marginRatio);
+        var actUpnl = parseFloat(pos.unrealizedPnl);
+        var actCumRealized = parseFloat(pos.cumRealizedPnl);
+        var actCumFee = parseFloat(pos.cumFee);
+        var actCumFunding = parseFloat(pos.cumFundingFee);
+        var actLiqPrice = parseFloat(pos.liquidationPrice);
+
+        // ================= 驗證邏輯 (按指定順序) =================
+
+        // 1. Status (狀態)
+        client.assert(actStatus === expStatus, "Status mismatch. Exp: " + expStatus + ", Got: " + actStatus); 
+
+        // 2. Side (方向)
+        client.assert(actSide === expSide, "Side mismatch. Exp: " + expSide + ", Got: " + actSide);
+
+        // 3. Leverage (槓桿)
+        client.assert(actLev === lev, "Leverage mismatch. Exp: " + lev + ", Got: " + actLev);
+
+        // 4. Margin (保證金)
+        // 計算公式: Price * Quantity * ContractValue * InitialMarginRate
+        var expectedMargin = expEntry * expQty * size * imr;
+        client.assert(Math.abs(actMargin - expectedMargin) < 0.0001, "Margin mismatch. Exp: " + expectedMargin + ", Got: " + actMargin + " (Size:" + size + ", IMR:" + imr + ")");
+
+        // 5. Entry Price (入場價)
+        client.assert(Math.abs(actEntry - expEntry) < 0.0001, "Entry Price mismatch. Exp: " + expEntry + ", Got: " + actEntry);
+
+        // 6. Quantity (持倉量)
+        client.assert(Math.abs(actQty - expQty) < 0.0001, "Quantity mismatch. Exp: " + expQty + ", Got: " + actQty);
+
+        // 7. Closing Reserved Quantity (平倉凍結量)
+        client.assert(Math.abs(actCloseReserved - expCloseReserved) < 0.0001, "Closing Reserved Quantity mismatch. Exp: " + expCloseReserved + ", Got: " + actCloseReserved);
+
+        // 8. Mark Price (標記價格)
+        client.assert(Math.abs(actMark - expMarkPrice) < 0.0001, "Mark Price mismatch. Exp: " + expMarkPrice + ", Got: " + actMark);
+
+        // 9. Margin Ratio (保證金率)
+        // Ratio = Equity / Notional = (Margin + Upnl) / (Mark * Qty * Size)
+        var notional = actMark * actQty * size;
+        var equity = actMargin + actUpnl;
+        var expectedRatio = (notional === 0) ? 0 : (equity / notional);
+        if (notional > 0) {
+            client.assert(Math.abs(actMarginRatio - expectedRatio) < 0.001, "Margin Ratio mismatch. Exp: " + expectedRatio + ", Got: " + actMarginRatio);
+        }
+
+        // 10. Unrealized Pnl (未實現損益)
         // Long: (Mark - Entry) * Qty * Size
         // Short: (Entry - Mark) * Qty * Size
-        var priceDiff = (pos.side === "LONG") ? (mark - entry) : (entry - mark);
-        var expectedUpnl = priceDiff * qty * size;
-        client.assert(Math.abs(upnl - expectedUpnl) < 0.01, "Upnl mismatch. Exp: " + expectedUpnl + ", Got: " + upnl);
-        
-        // 3. Margin Ratio Calculation
-        var notional = mark * qty * size;
-        var equity = margin + upnl;
-        var expectedRatio = (notional === 0) ? 0 : (equity / notional);
-        
-        // Only check margin ratio if we have a position
-        if (notional > 0) {
-            client.assert(Math.abs(parseFloat(pos.marginRatio) - expectedRatio) < 0.001, "Margin Ratio mismatch. Exp: " + expectedRatio + ", Got: " + pos.marginRatio);
-        }
-        
-        // 4. Liquidation Price (Optional Logic Check)
-        var marginPerUnit = margin / (qty * size);
-        // Long Liq: (Entry - MarginPerUnit) / (1 - MMR)
-        // Short Liq: (Entry + MarginPerUnit) / (1 + MMR)
-        var expectedLiq = (pos.side === "LONG") 
-            ? (entry - marginPerUnit) / (1 - mmr) 
-            : (entry + marginPerUnit) / (1 + mmr);
-        
-        // Note: Exact liq price might differ slightly due to fee/funding logic, so we usually don't hard assert unless strict.
-        // client.log("Expected Liq: " + expectedLiq + ", Got: " + pos.liquidationPrice);
+        var priceDiff = (actSide === "LONG") ? (actMark - actEntry) : (actEntry - actMark);
+        var expectedUpnl = priceDiff * actQty * size;
+        client.assert(Math.abs(actUpnl - expectedUpnl) < 0.01, "Upnl mismatch. Exp: " + expectedUpnl + ", Got: " + actUpnl);
 
-        client.assert(cumFee >= 0, "Cum Fee should be non-negative");
+        // 11. Cum Realized Pnl (累計已實現損益)
+        client.assert(Math.abs(actCumRealized - expCumRealizedPnl) < 0.01, "Cum Realized Pnl mismatch. Exp: " + expCumRealizedPnl + ", Got: " + actCumRealized);
+
+        // 12. Cum Fee (累計手續費)
+        client.assert(Math.abs(actCumFee - expCumFee) < 0.0001, "Cum Fee mismatch. Exp: " + expCumFee + ", Got: " + actCumFee);
+
+        // 13. Cum Funding Fee (累計資金費)
+        client.assert(Math.abs(actCumFunding - expCumFundingFee) < 0.0001, "Cum Funding Fee mismatch. Exp: " + expCumFundingFee + ", Got: " + actCumFunding);
+
+        // 14. Liquidation Price (強平價格)
+        if (actQty > 0) {
+            // 自動計算預期強平價 (公式與後端 Position.java updateRiskMetrics 一致)
+            // Long: (Entry - (Margin / (Qty * Size))) / (1 - MMR)
+            // Short: (Entry + (Margin / (Qty * Size))) / (1 + MMR)
+            var marginPerUnit = actMargin / (actQty * size);
+            var calcLiqPrice = (actSide === "LONG")
+                ? (actEntry - marginPerUnit) / (1 - mmr)
+                : (actEntry + marginPerUnit) / (1 + mmr);
+            
+            // 後端未對負數做截斷，直接驗證計算值
+            // 若 actLiqPrice 為 null (例如剛開倉未計算或其他異常)，視為失敗
+            client.assert(actLiqPrice != null, "Liquidation Price should not be null for active position");
+            client.assert(Math.abs(actLiqPrice - calcLiqPrice) < 0.1, "Liquidation Price logic mismatch. Calc: " + calcLiqPrice + ", Got: " + actLiqPrice);
+        } else {
+            // 空倉時後端設定為 null，API 可能回傳 null 或不回傳
+            // 若欄位不存在 (undefined) 或為 null 或 0，皆視為通過
+            client.assert(!actLiqPrice, "Liquidation Price should be null/0 for empty position. Got: " + actLiqPrice);
+        }
     `);
 %}
 
