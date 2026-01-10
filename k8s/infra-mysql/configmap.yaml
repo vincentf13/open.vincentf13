@@ -17,15 +17,15 @@ data:
     # 保持較嚴格的 SQL 模式，避免隱性資料截斷。
     sql_mode = STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
     # 限制併發連線數以降低本地端記憶體需求。
-    max_connections = 50
+    max_connections = 200
     # 降低刷寫頻率換取本地開發的效能與磁碟壽命。
     innodb_flush_log_at_trx_commit = 2
     # 每個資料庫對應獨立檔案，便於後續維運。
     innodb_file_per_table = 1
     # 壓縮 buffer pool 尺寸以降低記憶體占用。
-    innodb_buffer_pool_size = 128M
+    innodb_buffer_pool_size = 1G
     # 將 redo log 檔縮小以減少磁碟使用量。
-    innodb_log_file_size = 64M
+    innodb_log_file_size = 256M
     # 啟用 binlog，為複寫/Point-in-time recovery 做準備；server_id 將於容器啟動時依 Pod ordinal 動態注入。
     log_bin = mysql-bin
     binlog_format = ROW

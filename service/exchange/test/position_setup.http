@@ -202,11 +202,11 @@ Content-Type: application/json
     // Define Wait Scripts
     client.global.set("waitMaker", `
         var start = new Date().getTime();
-        while (new Date().getTime() < start + 5000); // 5s for Maker
+        while (new Date().getTime() < start + 2000); // 2s for Maker
     `);
     
     client.global.set("waitTaker", `
         var start = new Date().getTime();
-        while (new Date().getTime() < start + 10000); // 10s for Taker
+        while (new Date().getTime() < start + 4000); // 4s for Taker
     `);
 %}

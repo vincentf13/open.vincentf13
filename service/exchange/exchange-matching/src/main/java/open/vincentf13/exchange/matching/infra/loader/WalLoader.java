@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.matching.infra.loader;
 
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
@@ -47,7 +46,7 @@ public class WalLoader {
         lastProcessedSeqMap.clear();
     }
     
-    @Scheduled(fixedDelayString = "${open.vincentf13.exchange.matching.loader-interval-ms:1000}")
+    @Scheduled(fixedDelayString = "${open.vincentf13.exchange.matching.loader-interval-ms:300}")
     public void drainWal() {
         for (InstrumentProcessor processor : matchingEngine.getProcessors()) {
             drainInstrumentWal(processor);
