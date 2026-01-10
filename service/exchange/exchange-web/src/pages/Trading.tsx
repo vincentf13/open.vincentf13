@@ -272,7 +272,7 @@ export default function Trading() {
     return { core, expenseRevenue };
   };
 
-  const tradeRefTypes = new Set(['TRADE_MARGIN_SETTLED', 'TRADE_FEE', 'TRADE_FEE_REFUND']);
+  const tradeRefTypes = new Set(['TRADE_MARGIN_SETTLED', 'TRADE_FEE', 'TRADE_FEE_REFUND', 'POSITION_MARGIN_RELEASED', 'POSITION_REALIZED_PNL']);
 
   const openJournalTradeDetail = async (rawReferenceId: string, event: MouseEvent<HTMLButtonElement>) => {
     const refId = String(rawReferenceId || '').split(':')[0];
