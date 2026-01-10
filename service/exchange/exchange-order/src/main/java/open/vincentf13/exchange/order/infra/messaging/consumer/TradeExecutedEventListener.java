@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
 import open.vincentf13.exchange.order.service.OrderCommandService;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;

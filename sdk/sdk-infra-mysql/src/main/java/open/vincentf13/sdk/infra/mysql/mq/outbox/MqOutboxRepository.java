@@ -2,7 +2,7 @@ package open.vincentf13.sdk.infra.mysql.mq.outbox;
 
 import com.github.yitter.idgen.DefaultIdGenerator;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.Assert;

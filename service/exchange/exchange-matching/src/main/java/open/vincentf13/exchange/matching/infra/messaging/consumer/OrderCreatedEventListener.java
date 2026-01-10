@@ -5,7 +5,7 @@ import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.service.MatchingEngine;
 import open.vincentf13.exchange.order.mq.event.OrderCreatedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;

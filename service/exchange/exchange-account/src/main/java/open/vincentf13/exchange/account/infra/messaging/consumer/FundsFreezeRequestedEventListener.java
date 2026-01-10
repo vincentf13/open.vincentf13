@@ -11,7 +11,7 @@ import open.vincentf13.exchange.account.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
 import open.vincentf13.exchange.order.mq.topic.OrderTopics;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;

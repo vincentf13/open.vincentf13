@@ -5,7 +5,7 @@ import open.vincentf13.exchange.account.infra.AccountEvent;
 import open.vincentf13.exchange.account.service.AccountCommandService;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

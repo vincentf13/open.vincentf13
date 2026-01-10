@@ -5,7 +5,7 @@ import open.vincentf13.exchange.account.sdk.mq.event.FundsFreezeFailedEvent;
 import open.vincentf13.exchange.account.sdk.mq.event.FundsFrozenEvent;
 import open.vincentf13.exchange.account.sdk.mq.topic.AccountFundsTopics;
 import open.vincentf13.exchange.order.service.OrderCommandService;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;

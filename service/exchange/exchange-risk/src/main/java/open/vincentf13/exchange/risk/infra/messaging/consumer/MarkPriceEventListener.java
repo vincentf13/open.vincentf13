@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.market.mq.event.MarkPriceUpdatedEvent;
 import open.vincentf13.exchange.market.mq.topic.MarketTopics;
 import open.vincentf13.exchange.risk.infra.cache.MarkPriceCache;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;

@@ -6,7 +6,7 @@ import open.vincentf13.exchange.market.mq.topic.MarketTopics;
 import open.vincentf13.exchange.position.domain.service.PositionDomainService;
 import open.vincentf13.exchange.position.infra.PositionEvent;
 import open.vincentf13.exchange.position.infra.cache.MarkPriceCache;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

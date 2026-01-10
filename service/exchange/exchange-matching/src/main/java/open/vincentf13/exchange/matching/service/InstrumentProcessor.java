@@ -9,10 +9,9 @@ import open.vincentf13.exchange.matching.infra.snapshot.InstrumentSnapshot;
 import open.vincentf13.exchange.matching.infra.snapshot.SnapshotState;
 import open.vincentf13.exchange.matching.infra.wal.InstrumentWal;
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import open.vincentf13.sdk.core.log.OpenLog;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;

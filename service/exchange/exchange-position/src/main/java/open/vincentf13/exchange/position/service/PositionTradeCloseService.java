@@ -20,7 +20,7 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompens
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
-import open.vincentf13.sdk.core.OpenValidator;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

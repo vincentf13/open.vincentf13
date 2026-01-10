@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.account.domain.model;
 
 import jakarta.validation.constraints.NotNull;
+import open.vincentf13.sdk.core.validator.UpdateAndDelete;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +20,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class UserJournal {
     
-    @NotNull
+    @NotNull(groups = UpdateAndDelete.class)
     private Long journalId;
     @NotNull
     private Long userId;
