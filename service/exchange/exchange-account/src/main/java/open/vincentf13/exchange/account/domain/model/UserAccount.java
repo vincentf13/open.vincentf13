@@ -16,6 +16,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -162,7 +163,7 @@ public class UserAccount {
         return available.compareTo(amount) >= 0;
     }
 
-    public record MutationResult(UserAccount account, UserJournal journal) {
+    public record MutationResult(UserAccount account, List<UserJournal> journals) {
     }
 
     public MutationResult applyWithJournal(Direction direction,
@@ -175,7 +176,7 @@ public class UserAccount {
                                            Instant eventTime) {
         UserAccount updated = apply(direction, amount);
         UserJournal journal = buildJournal(updated, direction, amount, journalId, referenceType, referenceId, seq, description, eventTime);
-        return new MutationResult(updated, journal);
+        return new MutationResult(updated, List.of(journal));
     }
 
     public MutationResult applyAllowNegativeWithJournal(Direction direction,
@@ -188,20 +189,21 @@ public class UserAccount {
                                                         Instant eventTime) {
         UserAccount updated = applyAllowNegative(direction, amount);
         UserJournal journal = buildJournal(updated, direction, amount, journalId, referenceType, referenceId, seq, description, eventTime);
-        return new MutationResult(updated, journal);
+        return new MutationResult(updated, List.of(journal));
     }
 
     public MutationResult freezeWithJournal(BigDecimal amount,
-                                            Long journalId,
+                                            Long journalIdAvailable,
+                                            Long journalIdReserved,
                                             ReferenceType referenceType,
                                             String referenceId,
                                             Integer seq,
                                             String description,
                                             Instant eventTime) {
         UserAccount updated = freeze(amount);
-        // User instruction: Freeze is decreasing (Available), should be CREDIT.
-        UserJournal journal = buildJournal(updated, Direction.CREDIT, amount, journalId, referenceType, referenceId, seq, description, eventTime);
-        return new MutationResult(updated, journal);
+        UserJournal journalAvailable = buildJournal(updated, Direction.CREDIT, amount, journalIdAvailable, referenceType, referenceId, seq, description + " (Available)", eventTime);
+        UserJournal journalReserved = buildJournal(updated, Direction.DEBIT, amount, journalIdReserved, referenceType, referenceId, seq, description + " (Reserved)", eventTime);
+        return new MutationResult(updated, List.of(journalAvailable, journalReserved));
     }
 
     public UserAccount freeze(BigDecimal amount) {
@@ -235,7 +237,7 @@ public class UserAccount {
                                                       Instant eventTime) {
         UserAccount updated = applyReservedOut(amount);
         UserJournal journal = buildJournal(updated, Direction.CREDIT, amount, journalId, referenceType, referenceId, seq, description, eventTime);
-        return new MutationResult(updated, journal);
+        return new MutationResult(updated, List.of(journal));
     }
 
     public UserAccount applyReservedOut(BigDecimal amount) {
@@ -269,15 +271,17 @@ public class UserAccount {
     }
 
     public MutationResult refundReservedWithJournal(BigDecimal amount,
-                                                    Long journalId,
+                                                    Long journalIdAvailable,
+                                                    Long journalIdReserved,
                                                     ReferenceType referenceType,
                                                     String referenceId,
                                                     Integer seq,
                                                     String description,
                                                     Instant eventTime) {
         UserAccount updated = refundReserved(amount);
-        UserJournal journal = buildJournal(updated, Direction.DEBIT, amount, journalId, referenceType, referenceId, seq, description, eventTime);
-        return new MutationResult(updated, journal);
+        UserJournal journalAvailable = buildJournal(updated, Direction.DEBIT, amount, journalIdAvailable, referenceType, referenceId, seq, description + " (Available)", eventTime);
+        UserJournal journalReserved = buildJournal(updated, Direction.CREDIT, amount, journalIdReserved, referenceType, referenceId, seq, description + " (Reserved)", eventTime);
+        return new MutationResult(updated, List.of(journalAvailable, journalReserved));
     }
 
     public UserAccount refundReserved(BigDecimal amount) {
