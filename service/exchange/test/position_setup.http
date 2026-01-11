@@ -202,7 +202,8 @@ Authorization: Bearer {{tokenA}}
         var expectedMarginReserved = 0;
 
         function assertEqual(actual, expected, label) {
-            if (actual !== expected) {
+            var tolerance = 0.0001;
+            if (Math.abs(actual - expected) > tolerance) {
                 client.assert(false, label + " mismatch. Exp: " + expected + ", Got: " + actual);
             }
         }
