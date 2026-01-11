@@ -174,14 +174,14 @@ public class AccountPositionDomainService {
                                                                            pSeq++,
                                                                            "User liability decreased by trading fee",
                                                                            event.releasedAt());
-            PlatformJournal revenueJournal = buildPlatformJournal(updatedPlatformRevenue,
-                                                                 Direction.CREDIT,
-                                                                 feeCharged,
-                                                                 ReferenceType.TRADE_FEE,
-                                                                 referenceId,
-                                                                 pSeq++,
-                                                                 "Trading fee revenue",
-                                                                 event.releasedAt());
+            PlatformJournal platformRevenueJournal = buildPlatformJournal(updatedPlatformRevenue,
+                                                                         Direction.CREDIT,
+                                                                         feeCharged,
+                                                                         ReferenceType.TRADE_FEE,
+                                                                         referenceId,
+                                                                         pSeq++,
+                                                                         "Trading fee revenue",
+                                                                         event.releasedAt());
             PlatformJournal platformFeeEquityJournal = buildPlatformJournal(updatedPlatformFeeEquity,
                                                                             Direction.CREDIT,
                                                                             feeCharged,
@@ -190,7 +190,7 @@ public class AccountPositionDomainService {
                                                                             pSeq++,
                                                                             "Trading fee equity",
                                                                             event.releasedAt());
-            platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));
+            platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, platformRevenueJournal, platformFeeEquityJournal));
         }
     }
     
