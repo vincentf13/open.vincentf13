@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.kafka.controller.dto;
+package open.vincentf13.sdk.infra.kafka.consumer.controller.dto;
 
 import lombok.Data;
 

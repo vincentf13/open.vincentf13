@@ -1,8 +1,8 @@
-package open.vincentf13.sdk.infra.kafka.controller;
+package open.vincentf13.sdk.infra.kafka.consumer.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.sdk.infra.kafka.controller.dto.KafkaSeekRequest;
+import open.vincentf13.sdk.infra.kafka.consumer.controller.dto.KafkaSeekRequest;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AlterConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
@@ -129,7 +129,7 @@ public class KafkaAdminController {
                         }
                         
                         targetOffset = Math.max(0, current.offset() - 1);
-                        log.info("Offset 未指定，根據 Committed Offset {} 計算目標為 {}", current.offset(), targetOffset);
+                        log.info("Offset 未帶，根據 Committed Offset {} 回退至 {}", current.offset(), targetOffset);
                     } else {
                         targetOffset = request.getOffset();
                     }

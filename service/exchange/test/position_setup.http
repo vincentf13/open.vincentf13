@@ -250,6 +250,6 @@ Content-Type: application/json
     
     client.global.set("waitTaker", `
         var start = new Date().getTime();
-        while (new Date().getTime() < start + 4000); // 4s for Taker
+        while (new Date().getTime() < start + 2000); // 2s for Taker
     `);
 %}
