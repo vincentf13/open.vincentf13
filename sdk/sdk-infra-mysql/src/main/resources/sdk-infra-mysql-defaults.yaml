@@ -1,3 +1,17 @@
+logging:
+  level:
+    # MyBatis 核心層的預設日誌等級
+    org.mybatis: warn
+#    org.springframework.transaction: INFO
+#    org.springframework.transaction.interceptor: INFO
+#    org.mybatis.spring.SqlSessionUtils: INFO
+
+#open:
+#  vincentf13:
+#    mybatis:
+#      mapper-sql-logging:
+#        enabled: true
+
 spring:
   datasource:
     dynamic:
@@ -67,15 +81,6 @@ spring:
             connection-timeout: 30000
             validation-timeout: 5000
 
-
-logging:
-  level:
-    # MyBatis 核心層的預設日誌等級
-    org.mybatis: warn
-#    org.springframework.transaction: INFO
-#    org.springframework.transaction.interceptor: INFO
-#    org.mybatis.spring.SqlSessionUtils: INFO
-
 mybatis:
   # Mapper XML 放置位置（支援多層目錄）
   mapper-locations: classpath*:mapper/**/*.xml
@@ -115,9 +120,3 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
       update-strategy: not_null
-
-#open:
-#  vincentf13:
-#    mybatis:
-#      mapper-sql-logging:
-#        enabled: true

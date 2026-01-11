@@ -1,3 +1,8 @@
+logging:
+  level:
+#    io.lettuce.core.protocol: INFO    # Redis 操作 log
+#    org.redisson: INFO # Redisson 日誌
+
 spring:
   data:
     redis:
@@ -28,9 +33,4 @@ spring:
   redis:
     redisson:
       file: classpath:redisson.yml
-
-logging:
-  level:
-#    io.lettuce.core.protocol: INFO    # Redis 操作 log
-#    org.redisson: INFO # Redisson 日誌
 

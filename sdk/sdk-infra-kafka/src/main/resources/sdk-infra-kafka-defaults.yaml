@@ -1,3 +1,15 @@
+logging:
+  level:
+    open.vincentf13.sdk.infra.kafka: DEBUG
+    # Spring Kafka 關鍵 (開發調試時可開啟)
+    org.springframework.kafka: INFO
+    org.springframework.kafka.core.KafkaTemplate: INFO
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: INFO
+    org.springframework.kafka.support.serializer: INFO
+    # Kafka 原生 (開發調試時可開啟)
+    # org.apache.kafka.clients: INFO
+    # org.apache.kafka.clients.consumer.internals.AbstractCoordinator: INFO
+
 spring:
   kafka:                                                                                           
     bootstrap-servers: infra-kafka.default.svc.cluster.local:9092   # 需自訂
@@ -49,15 +61,3 @@ spring:
       # 手動 ACK
       ack-mode: manual
       sync-commits: false   # async commit
-
-logging:
-  level:
-    open.vincentf13.sdk.infra.kafka: DEBUG
-    # Spring Kafka 關鍵 (開發調試時可開啟)
-    org.springframework.kafka: INFO
-    org.springframework.kafka.core.KafkaTemplate: INFO
-    org.springframework.kafka.listener.KafkaMessageListenerContainer: INFO
-    org.springframework.kafka.support.serializer: INFO
-    # Kafka 原生 (開發調試時可開啟)
-    # org.apache.kafka.clients: INFO
-    # org.apache.kafka.clients.consumer.internals.AbstractCoordinator: INFO

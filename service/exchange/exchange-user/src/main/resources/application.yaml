@@ -1,3 +1,7 @@
+#logging:
+#  level:
+#    open.vincentf13.exchange.user: INFO
+
 spring:
   application:
     name: exchange-user
@@ -6,10 +10,6 @@ spring:
       config:
         import-check:
           enabled: false
-
-#logging:
-#  level:
-#    open.vincentf13.exchange.user: INFO
 
 mybatis:
   type-aliases-package: open.vincentf13.exchange.user.infra.persistence.po

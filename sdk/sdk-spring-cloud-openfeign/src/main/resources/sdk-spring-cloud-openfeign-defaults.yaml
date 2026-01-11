@@ -1,3 +1,7 @@
+logging:
+  level:
+    feign.http: DEBUG
+
 spring:
   cloud:
     openfeign:
@@ -17,10 +21,6 @@ spring:
           min-request-size: 2048
         response:
           enabled: true
-
-logging:
-  level:
-    feign.http: DEBUG
 
 security:
   api-key:

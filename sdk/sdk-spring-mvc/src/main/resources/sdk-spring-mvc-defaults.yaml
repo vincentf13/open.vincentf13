@@ -1,3 +1,7 @@
+logging:
+  level:
+#    open.vincentf13.sdk.spring.mvc.log: DEBUG
+
 server:
   forward-headers-strategy: framework   # 即使隔著反向代理，也能取得真實的使用者連線信息。例如 request.getServerName  & scheme & serverPort &contextPath
   compression:
@@ -67,7 +71,3 @@ open:
       response:
         wrap-enabled: true
         ignore-controller-prefixes: []
-logging:
-  level:
-#    open.vincentf13.sdk.spring.mvc.log: DEBUG
-
