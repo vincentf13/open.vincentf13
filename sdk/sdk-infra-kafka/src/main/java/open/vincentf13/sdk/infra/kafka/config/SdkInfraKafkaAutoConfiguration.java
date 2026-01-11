@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 
 @AutoConfiguration
@@ -20,7 +21,7 @@ public class SdkInfraKafkaAutoConfiguration {
 
     @Bean
     @ConditionalOnWebApplication
-    public KafkaAdminController kafkaAdminController(KafkaListenerEndpointRegistry registry) {
-        return new KafkaAdminController(registry);
+    public KafkaAdminController kafkaAdminController(KafkaListenerEndpointRegistry registry, KafkaAdmin kafkaAdmin) {
+        return new KafkaAdminController(registry, kafkaAdmin);
     }
 }

@@ -1,11 +1,11 @@
 ### 重置 Kafka Offset 範例
-POST http://localhost:8080/infra/kafka/seek
+POST http://localhost:59331/infra/kafka/seek
 Content-Type: application/json
 
 {
-  "topic": "exchange.order",
+  "topic": "positions.open-to-close-compensation",
   "partition": 0,
-  "offset": 0
+  "offset": null
 }
 
 

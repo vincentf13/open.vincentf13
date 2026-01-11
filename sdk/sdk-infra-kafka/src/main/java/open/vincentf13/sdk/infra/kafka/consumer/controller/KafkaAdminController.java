@@ -17,11 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
@@ -74,6 +70,7 @@ public class KafkaAdminController {
        }
      */
     @PostMapping("/seek")
+    @PublicAPI
     public ApiResponse<List<String>> seekOffset(@RequestBody KafkaSeekRequest request) {
         log.info("收到 Kafka Offset 調整請求: {}", request);
         List<String> results = new ArrayList<>();
