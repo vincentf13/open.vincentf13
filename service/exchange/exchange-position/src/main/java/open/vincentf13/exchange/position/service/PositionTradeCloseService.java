@@ -108,7 +108,7 @@ public class PositionTradeCloseService {
                 .orElse(null);
         
         // 判斷當前數量 夠不夠平倉
-        // 若不夠，就是 開倉 flip 的流程，導致平倉預扣的倉位被 flip 吃掉了。  [詳細需了解 flip流程]
+        // 若不夠，就是 開倉 flip 的流程，導致平倉預扣的倉位被 flip 強制吃掉。  [詳細需了解 flip流程]
         if (position == null || safe(position.getQuantity()).compareTo(BigDecimal.ZERO) <= 0) {
             // 平倉轉開倉，要補保證金，若保證金為負，風控要限制後續下單並強平。
             publishCloseToOpenCompensation(tradeId, orderId, userId, instrumentId, asset, orderSide, price, executedQuantity, totalFee, eventTime);
@@ -125,9 +125,10 @@ public class PositionTradeCloseService {
             BigDecimal openRatio = openQuantity.divide(executedQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
             openFee = totalFee.multiply(openRatio);
             closeFee = totalFee.subtract(openFee);
+            publishCloseToOpenCompensation(tradeId, orderId, userId, instrumentId, asset, orderSide, price, openQuantity, openFee, eventTime);
         }
 
-        // 平能平的數量，若不夠平，轉開倉 [會不夠平，是因為 flip 流程吃掉，需了解其流程]
+        // 平能平的數量，若不夠平，轉開倉 [會不夠平，是因為 flip ]
         if (closeQuantity.compareTo(BigDecimal.ZERO) > 0) {
             PositionDomainService.PositionCloseResult result = positionDomainService.closePosition(
                     userId,
@@ -168,10 +169,7 @@ public class PositionTradeCloseService {
                     eventTime
             ));
         }
-
-        if (openQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            publishCloseToOpenCompensation(tradeId, orderId, userId, instrumentId, asset, orderSide, price, openQuantity, openFee, eventTime);
-        }
+        
     }
 
     private void publishCloseToOpenCompensation(Long tradeId,

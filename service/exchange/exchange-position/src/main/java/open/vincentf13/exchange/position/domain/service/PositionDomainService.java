@@ -182,7 +182,8 @@ public class PositionDomainService {
                     result.pnl(),
                     executedAt
             ));
-    
+            // TODO 發一個消息， 把開倉結算時，扣的保證金跟手續費，屬於這個平倉的部分，退還給用戶
+         
             return Collections.singletonList(result.position());
         } else {
             Position updatedPosition = applyPositionUpdate(position,
