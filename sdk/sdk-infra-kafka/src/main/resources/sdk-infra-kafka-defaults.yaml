@@ -52,6 +52,7 @@ spring:
 
 logging:
   level:
+    open.vincentf13.sdk.infra.kafka: DEBUG
     # Spring Kafka 關鍵 (開發調試時可開啟)
     org.springframework.kafka: INFO
     org.springframework.kafka.core.KafkaTemplate: INFO

@@ -72,9 +72,9 @@ logging:
   level:
     # MyBatis 核心層的預設日誌等級
     org.mybatis: warn
-    org.springframework.transaction: INFO
-    org.springframework.transaction.interceptor: INFO
-    org.mybatis.spring.SqlSessionUtils: INFO
+#    org.springframework.transaction: INFO
+#    org.springframework.transaction.interceptor: INFO
+#    org.mybatis.spring.SqlSessionUtils: INFO
 
 mybatis:
   # Mapper XML 放置位置（支援多層目錄）
@@ -116,8 +116,8 @@ mybatis-plus:
       logic-not-delete-value: 0
       update-strategy: not_null
 
-open:
-  vincentf13:
-    mybatis:
-      mapper-sql-logging:
-        enabled: true
+#open:
+#  vincentf13:
+#    mybatis:
+#      mapper-sql-logging:
+#        enabled: true
