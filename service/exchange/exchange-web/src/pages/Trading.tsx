@@ -373,10 +373,17 @@ export default function Trading() {
                   referenceId
                   <Tooltip 
                     title={(
-                      <div className="text-[10px] leading-relaxed min-w-[240px]">
-                        <p className="font-bold text-sky-400 border-b border-white/10 pb-1 mb-1">關聯查詢 (Reference Query)</p>
-                        <p>點擊 ID 可查詢該筆業務操作（如撮合、手續費）產生的所有關聯帳戶分錄。</p>
-                        <p className="text-slate-300 mt-1">Click to view all journal entries (e.g., matching, fees) related to this transaction).</p>
+                      <div className="text-[10px] leading-relaxed min-w-[320px]">
+                        <div className="grid grid-cols-2 gap-6">
+                          <div className="space-y-2 text-slate-700">
+                            <p className="font-bold text-sky-500 border-b border-slate-200 pb-1">關聯查詢</p>
+                            <p>點擊 ID 可查詢該筆業務操作（如撮合、手續費）產生的所有關聯帳戶分錄。</p>
+                          </div>
+                          <div className="space-y-2 text-slate-700">
+                            <p className="font-bold text-sky-500 border-b border-slate-200 pb-1">Reference Query</p>
+                            <p>Click the ID to view all journal entries (e.g., matching, fees) related to this transaction.</p>
+                          </div>
+                        </div>
                       </div>
                     )}
                     classNames={{ root: 'liquid-tooltip' }}
@@ -397,7 +404,7 @@ export default function Trading() {
               const category = String(item?.category ?? '').toUpperCase();
               const direction = String(item?.direction ?? '').toUpperCase();
               const refType = String(item?.referenceType ?? '').toUpperCase();
-              const isFrozen = refType === 'ORDER_FEE_FROZEN' || refType === 'ORDER_MARGIN_FROZEN';
+              const isFrozen = refType === 'ORDER_FEE_FROZEN' || refType === 'ORDER_MARGIN_FROZEN' || refType === 'TRADE_FEE_REFUND';
               const highlightCredit = (category === 'ASSET' || category === 'EXPENSE') && direction === 'CREDIT';
               const highlightDebit = (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE') && direction === 'DEBIT';
               const highlightBackground = !isFrozen && highlightDebit && !textOnlyHighlight;
@@ -428,6 +435,28 @@ export default function Trading() {
                   </td>
                   <td className="py-1 pr-1 text-left overflow-hidden">
                     <div className="flex items-center gap-1">
+                      {isFrozen && item?.referenceId && (
+                        <Tooltip
+                          title={(
+                            <div className="text-[10px] leading-relaxed min-w-[320px]">
+                              <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2 text-slate-700">
+                                  <p className="font-bold text-sky-500 border-b border-slate-200 pb-1">凍結與解凍說明</p>
+                                  <p>資金凍結與解凍操作，不影響帳戶餘額。</p>
+                                </div>
+                                <div className="space-y-2 text-slate-700">
+                                  <p className="font-bold text-sky-500 border-b border-slate-200 pb-1">Freeze/Unfreeze Note</p>
+                                  <p>Freeze/unfreeze operations do not change account balances.</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          classNames={{ root: 'liquid-tooltip' }}
+                          styles={{ root: { maxWidth: 'none' } }}
+                        >
+                          <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                        </Tooltip>
+                      )}
                       {item?.referenceId && tradeRefTypes.has(refType) && (
                         <button
                           className="text-slate-400 hover:text-slate-600"
@@ -522,10 +551,17 @@ export default function Trading() {
                   referenceId
                   <Tooltip 
                     title={(
-                      <div className="text-[10px] leading-relaxed min-w-[240px]">
-                        <p className="font-bold text-indigo-400 border-b border-white/10 pb-1 mb-1">關聯查詢 (Reference Query)</p>
-                        <p>點擊 ID 可查詢該筆業務操作產生的所有關聯帳戶分錄。</p>
-                        <p className="text-slate-300 mt-1">Click to view all journal entries related to this transaction.</p>
+                      <div className="text-[10px] leading-relaxed min-w-[320px]">
+                        <div className="grid grid-cols-2 gap-6">
+                          <div className="space-y-2 text-slate-700">
+                            <p className="font-bold text-indigo-500 border-b border-slate-200 pb-1">關聯查詢</p>
+                            <p>點擊 ID 可查詢該筆業務操作產生的所有關聯帳戶分錄。</p>
+                          </div>
+                          <div className="space-y-2 text-slate-700">
+                            <p className="font-bold text-indigo-500 border-b border-slate-200 pb-1">Reference Query</p>
+                            <p>Click the ID to view all journal entries related to this transaction.</p>
+                          </div>
+                        </div>
                       </div>
                     )}
                     classNames={{ root: 'liquid-tooltip' }}
@@ -546,7 +582,7 @@ export default function Trading() {
               const category = String(item?.category ?? '').toUpperCase();
               const direction = String(item?.direction ?? '').toUpperCase();
               const refType = String(item?.referenceType ?? '').toUpperCase();
-              const isFrozen = refType === 'ORDER_FEE_FROZEN' || refType === 'ORDER_MARGIN_FROZEN';
+              const isFrozen = refType === 'ORDER_FEE_FROZEN' || refType === 'ORDER_MARGIN_FROZEN' || refType === 'TRADE_FEE_REFUND';
               const highlightCredit = (category === 'ASSET' || category === 'EXPENSE') && direction === 'CREDIT';
               const highlightDebit = (category === 'LIABILITY' || category === 'EQUITY' || category === 'REVENUE') && direction === 'DEBIT';
               const isHighlighted = !isFrozen && (highlightCredit || highlightDebit) && !textOnlyHighlight;
@@ -577,6 +613,28 @@ export default function Trading() {
                   </td>
                 <td className="py-1 pr-1 text-left overflow-hidden">
                   <div className="flex items-center gap-1">
+                    {isFrozen && item?.referenceId && (
+                      <Tooltip
+                        title={(
+                          <div className="text-[10px] leading-relaxed min-w-[320px]">
+                            <div className="grid grid-cols-2 gap-6">
+                              <div className="space-y-2 text-slate-700">
+                                <p className="font-bold text-indigo-500 border-b border-slate-200 pb-1">凍結與解凍說明</p>
+                                <p>資金凍結與解凍操作，不影響帳戶餘額。</p>
+                              </div>
+                              <div className="space-y-2 text-slate-700">
+                                <p className="font-bold text-indigo-500 border-b border-slate-200 pb-1">Freeze/Unfreeze Note</p>
+                                <p>Freeze/unfreeze operations do not change account balances.</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        classNames={{ root: 'liquid-tooltip' }}
+                        styles={{ root: { maxWidth: 'none' } }}
+                      >
+                        <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-slate-100 flex items-center justify-center text-[9px] text-slate-400 cursor-help border border-slate-200">?</div>
+                      </Tooltip>
+                    )}
                     {item?.referenceId && tradeRefTypes.has(refType) && (
                       <button
                         className="text-slate-400 hover:text-slate-600"
