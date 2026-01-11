@@ -11,9 +11,9 @@ public enum AccountEvent implements OpenEvent {
     INSTRUMENT_FETCH_FAILED("AccountInstrumentFetchFailed", "Instrument fetch failed"),
     MATCHING_TRADE_PAYLOAD_MISSING("MatchingTradePayloadMissing", "TradeExecuted payload missing"),
     FUNDS_FREEZE_REQUEST_PAYLOAD_INVALID("FundsFreezeRequestPayloadInvalid", "Funds freeze request payload invalid"),
-    POSITION_CLOSE_TO_OPEN_COMPENSATION_PAYLOAD_INVALID("PositionCloseToOpenCompensationPayloadInvalid", "Close-to-open compensation payload invalid"),
-    INSUFFICIENT_RESERVED_BALANCE("InsufficientReservedBalance", "Reserved balance insufficient for settlement"),
-    INVALID_FILL_NEGATIVE_BALANCE("InvalidFillNegativeBalance", "Invalid fill settlement led to negative balance");
+    POSITION_CLOSE_TO_OPEN_COMPENSATION_PAYLOAD_INVALID("PositionCloseToOpenCompensationPayloadInvalid", "Position close to open compensation payload invalid"),
+    POSITION_OPEN_TO_CLOSE_COMPENSATION_PAYLOAD_INVALID("PositionOpenToCloseCompensationPayloadInvalid", "Position open to close compensation payload invalid"),
+    INVALID_FILL_NEGATIVE_BALANCE("InvalidFillNegativeBalance", "Invalid fill resulted in negative balance");
     
     private final String event;
     private final String message;

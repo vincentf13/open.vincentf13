@@ -15,6 +15,7 @@ import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompensationEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionOpenToCloseCompensationEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -94,5 +95,10 @@ public class AccountCommandService {
     @Transactional(rollbackFor = Exception.class)
     public void handleCloseToOpenCompensation(@NotNull @Valid PositionCloseToOpenCompensationEvent event) {
         accountTransactionDomainService.settleCloseToOpenCompensation(event);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void handleOpenToCloseCompensation(@NotNull @Valid PositionOpenToCloseCompensationEvent event) {
+        accountTransactionDomainService.settleOpenToCloseCompensation(event);
     }
 }

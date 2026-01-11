@@ -30,6 +30,7 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompensationEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionOpenToCloseCompensationEvent;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
 import open.vincentf13.sdk.core.validator.OpenValidator;
 import open.vincentf13.sdk.core.exception.OpenException;
@@ -96,7 +97,13 @@ public class AccountTransactionDomainService {
                 null,
                 asset);
         
-        assertNoDuplicateJournal(userAssetAccount.getAccountId(), asset, ReferenceType.DEPOSIT, request.getTxId());
+        Long accountId = userAssetAccount.getAccountId();
+        String referenceId = request.getTxId();
+        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, ReferenceType.DEPOSIT, referenceId).isPresent();
+        if (exists) {
+            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("accountId", accountId, "asset", asset, "referenceType", ReferenceType.DEPOSIT, "referenceId", referenceId));
+        }
         
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
                 request.getUserId(),
@@ -150,7 +157,13 @@ public class AccountTransactionDomainService {
         BigDecimal totalAmount = requiredMargin.add(fee);
         
         UserAccount userSpot = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
-        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.ORDER_MARGIN_FROZEN, event.orderId().toString());
+        Long accountId = userSpot.getAccountId();
+        String referenceId = event.orderId().toString();
+        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, ReferenceType.ORDER_MARGIN_FROZEN, referenceId).isPresent();
+        if (exists) {
+            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("accountId", accountId, "asset", asset, "referenceType", ReferenceType.ORDER_MARGIN_FROZEN, "referenceId", referenceId));
+        }
         
         if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw OpenException.of(AccountErrorCode.INVALID_AMOUNT, Map.of("orderId", event.orderId(), "amount", totalAmount));
@@ -217,7 +230,13 @@ public class AccountTransactionDomainService {
                 null,
                 asset);
         
-        assertNoDuplicateJournal(userAssetAccount.getAccountId(), asset, ReferenceType.WITHDRAWAL, request.getTxId());
+        Long accountId = userAssetAccount.getAccountId();
+        String referenceId = request.getTxId();
+        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, ReferenceType.WITHDRAWAL, referenceId).isPresent();
+        if (exists) {
+            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("accountId", accountId, "asset", asset, "referenceType", ReferenceType.WITHDRAWAL, "referenceId", referenceId));
+        }
         
         UserAccount userEquityAccount = userAccountRepository.getOrCreate(
                 request.getUserId(),
@@ -314,17 +333,6 @@ public class AccountTransactionDomainService {
                           .eventTime(eventTime)
                           .build();
     }
-
-    private void assertNoDuplicateJournal(Long accountId,
-                                          AssetSymbol asset,
-                                          ReferenceType referenceType,
-                                          String referenceId) {
-        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, referenceType, referenceId).isPresent();
-        if (exists) {
-            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
-                                   Map.of("accountId", accountId, "asset", asset, "referenceType", referenceType, "referenceId", referenceId));
-        }
-    }
     
     private UserAccount applyUserFreeze(UserAccount current,
                                         BigDecimal amount) {
@@ -419,7 +427,12 @@ public class AccountTransactionDomainService {
         UserAccount userSpot = userAccountRepository.getOrCreate(userId, UserAccountCode.SPOT, null, asset);
         
         String refIdWithSide = event.tradeId() + ":" + orderSide.name();
-        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide);
+        Long accountId = userSpot.getAccountId();
+        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide).isPresent();
+        if (exists) {
+            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("accountId", accountId, "asset", asset, "referenceType", ReferenceType.TRADE_MARGIN_SETTLED, "referenceId", refIdWithSide));
+        }
         if (intent != PositionIntentType.INCREASE) {
             throw OpenException.of(AccountErrorCode.UNSUPPORTED_ORDER_INTENT,
                                    Map.of("orderId", orderId, "intent", intent));
@@ -656,8 +669,13 @@ public class AccountTransactionDomainService {
         UserAccount userSpot = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
 
         String refIdWithSide = event.tradeId() + ":" + event.side().name();
-        assertNoDuplicateJournal(userSpot.getAccountId(), asset, ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide);
-
+        Long accountId = userSpot.getAccountId();
+        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide).isPresent();
+        if (exists) {
+            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("accountId", accountId, "asset", asset, "referenceType", ReferenceType.TRADE_MARGIN_SETTLED, "referenceId", refIdWithSide));
+        }
+        
         BigDecimal contractMultiplier = requireContractSize(event.instrumentId());
         BigDecimal marginUsed = event.price().multiply(event.quantity()).multiply(contractMultiplier);
         BigDecimal actualFee = event.feeCharged();
@@ -791,6 +809,138 @@ public class AccountTransactionDomainService {
                         true
                 )
         );
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void settleOpenToCloseCompensation(@NotNull @Valid PositionOpenToCloseCompensationEvent event) {
+        AssetSymbol asset = event.asset();
+        UserAccount userSpot = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
+
+        String refIdWithSide = event.tradeId() + ":" + event.side().name() + ":FLIP";
+        Long accountId = userSpot.getAccountId();
+        boolean exists = userJournalRepository.findLatestByReference(accountId, asset, ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide).isPresent();
+        if (exists) {
+            throw OpenException.of(AccountErrorCode.DUPLICATE_REQUEST,
+                                   Map.of("accountId", accountId, "asset", asset, "referenceType", ReferenceType.TRADE_MARGIN_SETTLED, "referenceId", refIdWithSide));
+        }
+        
+        BigDecimal contractMultiplier = requireContractSize(event.instrumentId());
+        BigDecimal marginToRefund = event.price().multiply(event.quantity()).multiply(contractMultiplier);
+        BigDecimal feeToRefund = event.feeCharged();
+
+        UserAccount userMargin = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.MARGIN, event.instrumentId(), asset);
+        UserAccount userFeeExpense = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EXPENSE, null, asset);
+        UserAccount userFeeEquity = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EQUITY, null, asset);
+        PlatformAccount platformLiability = platformAccountRepository.getOrCreate(PlatformAccountCode.USER_LIABILITY, asset);
+        PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
+        PlatformAccount platformFeeEquity = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
+
+        // Refund Margin: Debit Margin (Decrease) -> Credit Spot (Increase)
+        UserAccount updatedMargin = userMargin.apply(Direction.CREDIT, marginToRefund);
+        UserAccount spotAfterMargin = userSpot.apply(Direction.DEBIT, marginToRefund);
+
+        // Refund Fee: Credit Fee Expense (Decrease Expense) -> Debit Spot (Increase)
+        UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.CREDIT, feeToRefund);
+        UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.CREDIT, feeToRefund);
+        UserAccount updatedSpot = spotAfterMargin.apply(Direction.DEBIT, feeToRefund);
+
+        userAccountRepository.updateSelectiveBatch(
+                List.of(updatedSpot, updatedMargin, updatedFeeExpense, updatedUserFeeEquity),
+                List.of(userSpot.safeVersion(), userMargin.safeVersion(), userFeeExpense.safeVersion(), userFeeEquity.safeVersion()),
+                "open-to-close-compensation");
+
+        // Reverse Platform Fee: Debit Revenue -> Credit Liability
+        PlatformAccount updatedPlatformLiability = platformLiability.apply(Direction.CREDIT, feeToRefund);
+        PlatformAccount updatedRevenue = platformRevenue.apply(Direction.DEBIT, feeToRefund);
+        PlatformAccount updatedPlatformFeeEquity = platformFeeEquity.apply(Direction.DEBIT, feeToRefund);
+
+        platformAccountRepository.updateSelectiveBatch(
+                List.of(updatedPlatformLiability, updatedRevenue, updatedPlatformFeeEquity),
+                List.of(platformLiability.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
+                "open-to-close-compensation");
+
+        int uSeq = 1;
+        UserJournal marginJournal = buildUserJournal(
+                updatedMargin,
+                Direction.CREDIT,
+                marginToRefund,
+                ReferenceType.TRADE_MARGIN_SETTLED,
+                refIdWithSide,
+                uSeq++,
+                "Margin refunded by open-to-close compensation",
+                event.executedAt());
+        UserJournal marginOutJournal = buildUserJournal(
+                spotAfterMargin,
+                Direction.DEBIT,
+                marginToRefund,
+                ReferenceType.TRADE_MARGIN_SETTLED,
+                refIdWithSide,
+                uSeq++,
+                "Margin returned to spot (open-to-close compensation)",
+                event.executedAt());
+
+        UserJournal feeJournal = buildUserJournal(
+                updatedSpot,
+                Direction.DEBIT, // Spot Increase
+                feeToRefund,
+                ReferenceType.TRADE_FEE_REFUND,
+                refIdWithSide,
+                uSeq++,
+                "Trading fee refunded (open-to-close compensation)",
+                event.executedAt());
+
+        UserJournal feeExpenseJournal = buildUserJournal(
+                updatedFeeExpense,
+                Direction.CREDIT, // Expense Decrease
+                feeToRefund,
+                ReferenceType.TRADE_FEE_REFUND,
+                refIdWithSide,
+                uSeq++,
+                "Trading fee expense reversed",
+                event.executedAt());
+
+        UserJournal feeEquityJournal = buildUserJournal(
+                updatedUserFeeEquity,
+                Direction.CREDIT,
+                feeToRefund,
+                ReferenceType.TRADE_FEE_REFUND,
+                refIdWithSide,
+                uSeq++,
+                "Trading fee equity reversed",
+                event.executedAt());
+
+        userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal));
+
+        int pSeq = 1;
+        PlatformJournal platformLiabilityJournal = buildPlatformJournal(
+                updatedPlatformLiability,
+                Direction.CREDIT,
+                feeToRefund,
+                ReferenceType.TRADE_FEE_REFUND,
+                refIdWithSide,
+                pSeq++,
+                "User liability increased (fee refund)",
+                event.executedAt());
+        PlatformJournal revenueJournal = buildPlatformJournal(
+                updatedRevenue,
+                Direction.DEBIT,
+                feeToRefund,
+                ReferenceType.TRADE_FEE_REFUND,
+                refIdWithSide,
+                pSeq++,
+                "Trading fee revenue reversed",
+                event.executedAt());
+        PlatformJournal platformFeeEquityJournal = buildPlatformJournal(
+                updatedPlatformFeeEquity,
+                Direction.DEBIT,
+                feeToRefund,
+                ReferenceType.TRADE_FEE_REFUND,
+                refIdWithSide,
+                pSeq++,
+                "Trading fee equity reversed",
+                event.executedAt());
+
+        platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));
     }
 
     private BigDecimal requireContractSize(Long instrumentId) {

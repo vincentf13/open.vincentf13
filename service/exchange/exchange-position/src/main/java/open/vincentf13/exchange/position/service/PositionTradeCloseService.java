@@ -1,15 +1,12 @@
 package open.vincentf13.exchange.position.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.exchange.common.sdk.enums.OrderSide;
-import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
-import open.vincentf13.exchange.common.sdk.enums.PositionSide;
-import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
-import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
+import open.vincentf13.exchange.common.sdk.enums.*;
+import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.domain.service.PositionDomainService;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
@@ -23,7 +20,6 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.validator.OpenValidator;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,28 +40,8 @@ public class PositionTradeCloseService {
     @Transactional
     public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
         OpenValidator.validateOrThrow(event);
-        processClose(event.tradeId(),
-                     event.orderId(),
-                     event.makerUserId(),
-                     event.orderSide(),
-                     event.makerIntent(),
-                     event.price(),
-                     event.quantity(),
-                     event.quoteAsset(),
-                     event.instrumentId(),
-                     event.makerFee(),
-                     event.executedAt());
-        processClose(event.tradeId(),
-                     event.counterpartyOrderId(),
-                     event.takerUserId(),
-                     event.counterpartyOrderSide(),
-                     event.takerIntent(),
-                     event.price(),
-                     event.quantity(),
-                     event.quoteAsset(),
-                     event.instrumentId(),
-                     event.takerFee(),
-                     event.executedAt());
+        processClose(event.tradeId(), event.orderId(), event.makerUserId(), event.orderSide(), event.makerIntent(), event.price(), event.quantity(), event.quoteAsset(), event.instrumentId(), event.makerFee(), event.executedAt());
+        processClose(event.tradeId(), event.counterpartyOrderId(), event.takerUserId(), event.counterpartyOrderSide(), event.takerIntent(), event.price(), event.quantity(), event.quoteAsset(), event.instrumentId(), event.takerFee(), event.executedAt());
     }
     
     private void processClose(Long tradeId,
@@ -84,116 +60,51 @@ public class PositionTradeCloseService {
         if (intentType == null || intentType == PositionIntentType.INCREASE) {
             return;
         }
-
+        
         
         // 冪等效驗
         String baseReferenceId = tradeId + ":" + orderSide.name();
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, baseReferenceId)) {
-            throw OpenException.of(PositionErrorCode.DUPLICATE_REQUEST,
-                                   Map.of("referenceId", baseReferenceId, "userId", userId));
+            throw OpenException.of(PositionErrorCode.DUPLICATE_REQUEST, Map.of("referenceId", baseReferenceId, "userId", userId));
         }
-
+        
         Instant eventTime = executedAt == null ? Instant.now() : executedAt;
-        BigDecimal executedQuantity = safe(quantity);
-        if (executedQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+        if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
-        BigDecimal totalFee = safe(fee);
-
-        Position position = positionRepository.findOne(
-                Wrappers.lambdaQuery(PositionPO.class)
-                        .eq(PositionPO::getUserId, userId)
-                        .eq(PositionPO::getInstrumentId, instrumentId)
-                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                .orElse(null);
+        
+        Position position = positionRepository.findOne(Wrappers.lambdaQuery(PositionPO.class).eq(PositionPO::getUserId, userId).eq(PositionPO::getInstrumentId, instrumentId).eq(PositionPO::getStatus, PositionStatus.ACTIVE)).orElse(null);
         
         // 判斷當前數量 夠不夠平倉
-        // 若不夠，就是 開倉 flip 的流程，導致平倉預扣的倉位被 flip 強制吃掉。  [詳細需了解 flip流程]
+        // 若不夠，就是 flip 的流程，搶奪了預佔倉位
         if (position == null || safe(position.getQuantity()).compareTo(BigDecimal.ZERO) <= 0) {
             // 平倉轉開倉，要補保證金，若保證金為負，風控要限制後續下單並強平。
-            publishCloseToOpenCompensation(tradeId, orderId, userId, instrumentId, asset, orderSide, price, executedQuantity, totalFee, eventTime);
+            positionEventPublisher.publishCloseToOpenCompensation(new PositionCloseToOpenCompensationEvent(tradeId, orderId, userId, instrumentId, asset, orderSide, price, quantity, fee, eventTime));
             return;
         }
-
-        BigDecimal existingQuantity = safe(position.getQuantity());
-        BigDecimal closeQuantity = executedQuantity.min(existingQuantity);
-        BigDecimal openQuantity = executedQuantity.subtract(closeQuantity);
-
-        BigDecimal closeFee = totalFee;
+        
+        BigDecimal closeQuantity = quantity.min(position.getQuantity());
+        BigDecimal openQuantity = quantity.subtract(closeQuantity);
+        
+        BigDecimal closeFee = fee;
         BigDecimal openFee = BigDecimal.ZERO;
+        // 平能平的數量，若不夠平，轉開倉，不夠，是因為 flip 的流程，搶奪了預佔倉位
         if (openQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal openRatio = openQuantity.divide(executedQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
-            openFee = totalFee.multiply(openRatio);
-            closeFee = totalFee.subtract(openFee);
-            publishCloseToOpenCompensation(tradeId, orderId, userId, instrumentId, asset, orderSide, price, openQuantity, openFee, eventTime);
+            BigDecimal openRatio = openQuantity.divide(quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            openFee = fee.multiply(openRatio);
+            closeFee = fee.subtract(openFee);
+            positionEventPublisher.publishCloseToOpenCompensation(new PositionCloseToOpenCompensationEvent(tradeId, orderId, userId, instrumentId, asset, orderSide, price, openQuantity, openFee, eventTime));
         }
-
-        // 平能平的數量，若不夠平，轉開倉 [會不夠平，是因為 flip ]
         if (closeQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            PositionDomainService.PositionCloseResult result = positionDomainService.closePosition(
-                    userId,
-                    instrumentId,
-                    price,
-                    closeQuantity,
-                    closeFee,
-                    orderSide,
-                    tradeId,
-                    eventTime,
-                    false
-            );
-
+            PositionDomainService.PositionCloseResult result = positionDomainService.closePosition(userId, instrumentId, price, closeQuantity, closeFee, orderSide, tradeId, eventTime, false);
+            
             Position updatedPosition = result.position();
-
-            positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
-                    updatedPosition.getUserId(),
-                    updatedPosition.getInstrumentId(),
-                    updatedPosition.getSide(),
-                    updatedPosition.getQuantity(),
-                    updatedPosition.getEntryPrice(),
-                    updatedPosition.getMarkPrice(),
-                    updatedPosition.getUnrealizedPnl(),
-                    updatedPosition.getLiquidationPrice(),
-                    eventTime
-            ));
-
-            positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
-                    tradeId,
-                    orderId,
-                    userId,
-                    instrumentId,
-                    asset,
-                    updatedPosition.getSide(),
-                    result.marginReleased(),
-                    result.feeCharged(),
-                    result.pnl(),
-                    eventTime
-            ));
+            
+            positionEventPublisher.publishUpdated(new PositionUpdatedEvent(updatedPosition.getUserId(), updatedPosition.getInstrumentId(), updatedPosition.getSide(), updatedPosition.getQuantity(), updatedPosition.getEntryPrice(), updatedPosition.getMarkPrice(), updatedPosition.getUnrealizedPnl(), updatedPosition.getLiquidationPrice(), eventTime));
+            
+            positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(tradeId, orderId, userId, instrumentId, asset, updatedPosition.getSide(), result.marginReleased(), result.feeCharged(), result.pnl(), eventTime));
         }
         
-    }
-
-    private void publishCloseToOpenCompensation(Long tradeId,
-                                                Long orderId,
-                                                Long userId,
-                                                Long instrumentId,
-                                                AssetSymbol asset,
-                                                OrderSide orderSide,
-                                                BigDecimal price,
-                                                BigDecimal quantity,
-                                                BigDecimal feeCharged,
-                                                Instant executedAt) {
-        positionEventPublisher.publishCloseToOpenCompensation(new PositionCloseToOpenCompensationEvent(
-                tradeId,
-                orderId,
-                userId,
-                instrumentId,
-                asset,
-                orderSide,
-                price,
-                quantity,
-                feeCharged,
-                executedAt
-        ));
     }
     
     private PositionSide toPositionSide(OrderSide orderSide) {
