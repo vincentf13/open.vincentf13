@@ -234,8 +234,7 @@ public class UserAccount {
                                                       String description,
                                                       Instant eventTime) {
         UserAccount updated = applyReservedOut(amount);
-        // User instruction: Unfreeze/Usage from Reserved should be logged as DEBIT (likely tracking activity or specific view).
-        UserJournal journal = buildJournal(updated, Direction.DEBIT, amount, journalId, referenceType, referenceId, seq, description, eventTime);
+        UserJournal journal = buildJournal(updated, Direction.CREDIT, amount, journalId, referenceType, referenceId, seq, description, eventTime);
         return new MutationResult(updated, journal);
     }
 
