@@ -118,18 +118,23 @@ public class AccountTransactionDomainService {
                 PlatformAccountCode.USER_LIABILITY,
                 asset);
         
-        UserAccount updatedUserAsset = userAssetAccount.apply(Direction.DEBIT, request.getAmount());
-        UserAccount updatedUserEquity = userEquityAccount.apply(Direction.CREDIT, request.getAmount());
-        PlatformAccount updatedPlatformAsset = platformAssetAccount.apply(Direction.DEBIT, request.getAmount());
-        PlatformAccount updatedPlatformLiability = platformLiabilityAccount.apply(Direction.CREDIT, request.getAmount());
-        
         int uSeq = 1;
-        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.DEBIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), uSeq++, "User deposit", eventTime);
-        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.CREDIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), uSeq++, "User equity increase", eventTime);
+        var userAssetResult = userAssetAccount.applyWithJournal(Direction.DEBIT, request.getAmount(), idGenerator.newLong(), ReferenceType.DEPOSIT, request.getTxId(), uSeq++, "User deposit", eventTime);
+        UserAccount updatedUserAsset = userAssetResult.account();
+        UserJournal userAssetJournal = userAssetResult.journal();
+
+        var userEquityResult = userEquityAccount.applyWithJournal(Direction.CREDIT, request.getAmount(), idGenerator.newLong(), ReferenceType.DEPOSIT, request.getTxId(), uSeq++, "User equity increase", eventTime);
+        UserAccount updatedUserEquity = userEquityResult.account();
+        UserJournal userEquityJournal = userEquityResult.journal();
         
         int pSeq = 1;
-        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.DEBIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), pSeq++, "Platform asset increase", eventTime);
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.CREDIT, request.getAmount(), ReferenceType.DEPOSIT, request.getTxId(), pSeq++, "Platform liability increase", eventTime);
+        var platformAssetResult = platformAssetAccount.applyWithJournal(Direction.DEBIT, request.getAmount(), idGenerator.newLong(), ReferenceType.DEPOSIT, request.getTxId(), pSeq++, "Platform asset increase", eventTime);
+        PlatformAccount updatedPlatformAsset = platformAssetResult.account();
+        PlatformJournal platformAssetJournal = platformAssetResult.journal();
+
+        var platformLiabilityResult = platformLiabilityAccount.applyWithJournal(Direction.CREDIT, request.getAmount(), idGenerator.newLong(), ReferenceType.DEPOSIT, request.getTxId(), pSeq++, "Platform liability increase", eventTime);
+        PlatformAccount updatedPlatformLiability = platformLiabilityResult.account();
+        PlatformJournal platformLiabilityJournal = platformLiabilityResult.journal();
         
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedUserAsset, updatedUserEquity),
@@ -172,50 +177,22 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
                                    Map.of("userId", event.userId(), "asset", asset, "available", userSpot.getAvailable(), "amount", totalAmount));
         }
-        UserAccount marginFrozenAccount = applyUserFreeze(userSpot, requiredMargin);
+
         int uSeq = 1;
-        UserJournal marginReserveJournal = buildUserJournal(
-                marginFrozenAccount,
-                Direction.DEBIT,
-                requiredMargin,
-                ReferenceType.ORDER_MARGIN_FROZEN,
-                event.orderId().toString(),
-                uSeq++,
-                "Margin reserved for order",
-                event.createdAt());
-        UserJournal marginAvailableJournal = buildUserJournal(
-                marginFrozenAccount,
-                Direction.CREDIT,
-                requiredMargin,
-                ReferenceType.ORDER_MARGIN_FROZEN,
-                event.orderId().toString(),
-                uSeq++,
-                "Margin moved from available",
-                event.createdAt());
-        UserAccount feeFrozenAccount = applyUserFreeze(marginFrozenAccount, fee);
-        UserJournal feeReserveJournal = buildUserJournal(
-                feeFrozenAccount,
-                Direction.DEBIT,
-                fee,
-                ReferenceType.ORDER_FEE_FROZEN,
-                event.orderId().toString(),
-                uSeq++,
-                "Fee reserved for order",
-                event.createdAt());
-        UserJournal feeAvailableJournal = buildUserJournal(
-                feeFrozenAccount,
-                Direction.CREDIT,
-                fee,
-                ReferenceType.ORDER_FEE_FROZEN,
-                event.orderId().toString(),
-                uSeq++,
-                "Fee moved from available",
-                event.createdAt());
+        var marginFrozenResult = userSpot.freezeWithJournal(requiredMargin, idGenerator.newLong(), ReferenceType.ORDER_MARGIN_FROZEN, event.orderId().toString(), uSeq++, "Margin reserved for order", event.createdAt());
+        UserAccount marginFrozenAccount = marginFrozenResult.account();
+        UserJournal marginReserveJournal = marginFrozenResult.journal();
+
+        var feeFrozenResult = marginFrozenAccount.freezeWithJournal(fee, idGenerator.newLong(), ReferenceType.ORDER_FEE_FROZEN, event.orderId().toString(), uSeq++, "Fee reserved for order", event.createdAt());
+        UserAccount feeFrozenAccount = feeFrozenResult.account();
+        UserJournal feeReserveJournal = feeFrozenResult.journal();
+
         userAccountRepository.updateSelectiveBatch(
                 List.of(feeFrozenAccount),
                 List.of(userSpot.safeVersion()),
                 "order-freeze");
-        userJournalRepository.insertBatch(List.of(marginReserveJournal, marginAvailableJournal, feeReserveJournal, feeAvailableJournal));
+        
+        userJournalRepository.insertBatch(List.of(marginReserveJournal, feeReserveJournal));
         return new FundsFreezeResult(asset, totalAmount);
     }
     
@@ -256,18 +233,23 @@ public class AccountTransactionDomainService {
                 PlatformAccountCode.USER_LIABILITY,
                 asset);
         
-        UserAccount updatedUserAsset = userAssetAccount.apply(Direction.CREDIT, request.getAmount());
-        UserAccount updatedUserEquity = userEquityAccount.apply(Direction.DEBIT, request.getAmount());
-        PlatformAccount updatedPlatformAsset = platformAssetAccount.apply(Direction.CREDIT, request.getAmount());
-        PlatformAccount updatedPlatformLiability = platformLiabilityAccount.apply(Direction.DEBIT, request.getAmount());
-        
         int uSeq = 1;
-        UserJournal userAssetJournal = buildUserJournal(updatedUserAsset, Direction.CREDIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), uSeq++, "User withdrawal", eventTime);
-        UserJournal userEquityJournal = buildUserJournal(updatedUserEquity, Direction.DEBIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), uSeq++, "User equity decrease", eventTime);
+        var userAssetResult = userAssetAccount.applyWithJournal(Direction.CREDIT, request.getAmount(), idGenerator.newLong(), ReferenceType.WITHDRAWAL, request.getTxId(), uSeq++, "User withdrawal", eventTime);
+        UserAccount updatedUserAsset = userAssetResult.account();
+        UserJournal userAssetJournal = userAssetResult.journal();
+
+        var userEquityResult = userEquityAccount.applyWithJournal(Direction.DEBIT, request.getAmount(), idGenerator.newLong(), ReferenceType.WITHDRAWAL, request.getTxId(), uSeq++, "User equity decrease", eventTime);
+        UserAccount updatedUserEquity = userEquityResult.account();
+        UserJournal userEquityJournal = userEquityResult.journal();
         
         int pSeq = 1;
-        PlatformJournal platformAssetJournal = buildPlatformJournal(updatedPlatformAsset, Direction.CREDIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), pSeq++, "Platform payout", eventTime);
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability, Direction.DEBIT, request.getAmount(), ReferenceType.WITHDRAWAL, request.getTxId(), pSeq++, "Platform liability decrease", eventTime);
+        var platformAssetResult = platformAssetAccount.applyWithJournal(Direction.CREDIT, request.getAmount(), idGenerator.newLong(), ReferenceType.WITHDRAWAL, request.getTxId(), pSeq++, "Platform payout", eventTime);
+        PlatformAccount updatedPlatformAsset = platformAssetResult.account();
+        PlatformJournal platformAssetJournal = platformAssetResult.journal();
+
+        var platformLiabilityResult = platformLiabilityAccount.applyWithJournal(Direction.DEBIT, request.getAmount(), idGenerator.newLong(), ReferenceType.WITHDRAWAL, request.getTxId(), pSeq++, "Platform liability decrease", eventTime);
+        PlatformAccount updatedPlatformLiability = platformLiabilityResult.account();
+        PlatformJournal platformLiabilityJournal = platformLiabilityResult.journal();
         
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedUserAsset, updatedUserEquity),
@@ -284,137 +266,6 @@ public class AccountTransactionDomainService {
         return new AccountWithdrawalResult(updatedUserAsset, updatedUserEquity, updatedPlatformAsset, updatedPlatformLiability,
                 userAssetJournal, userEquityJournal, platformAssetJournal, platformLiabilityJournal);
     }
-    
-    private UserJournal buildUserJournal(UserAccount account,
-                                         Direction direction,
-                                         BigDecimal amount,
-                                         ReferenceType referenceType,
-                                         String referenceId,
-                                         Integer seq,
-                                         String description,
-                                         Instant eventTime) {
-        return UserJournal.builder()
-                          .journalId(idGenerator.newLong())
-                          .userId(account.getUserId())
-                          .accountId(account.getAccountId())
-                          .category(account.getCategory())
-                          .asset(account.getAsset())
-                          .amount(amount)
-                          .direction(direction)
-                          .balanceAfter(account.getBalance())
-                          .referenceType(referenceType)
-                          .referenceId(referenceId)
-                          .seq(seq)
-                          .description(description)
-                          .eventTime(eventTime)
-                          .build();
-    }
-    
-    private PlatformJournal buildPlatformJournal(PlatformAccount account,
-                                                 Direction direction,
-                                                 BigDecimal amount,
-                                                 ReferenceType referenceType,
-                                                 String referenceId,
-                                                 Integer seq,
-                                                 String description,
-                                                 Instant eventTime) {
-        return PlatformJournal.builder()
-                              .journalId(idGenerator.newLong())
-                              .accountId(account.getAccountId())
-                              .category(account.getCategory())
-                              .asset(account.getAsset())
-                              .amount(amount)
-                              .direction(direction)
-                              .balanceAfter(account.getBalance())
-                              .referenceType(referenceType)
-                              .referenceId(referenceId)
-                              .seq(seq)
-                          .description(description)
-                          .eventTime(eventTime)
-                          .build();
-    }
-    
-    private UserAccount applyUserFreeze(UserAccount current,
-                                        BigDecimal amount) {
-        BigDecimal available = current.getAvailable();
-        if (available.compareTo(amount) < 0) {
-            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
-                                   Map.of("userId", current.getUserId(), "asset", current.getAsset(), "available", available, "amount", amount));
-        }
-        return UserAccount.builder()
-                          .accountId(current.getAccountId())
-                          .userId(current.getUserId())
-                          .accountCode(current.getAccountCode())
-                          .accountName(current.getAccountName())
-                          .instrumentId(current.getInstrumentId())
-                          .category(current.getCategory())
-                          .asset(current.getAsset())
-                          .balance(current.getBalance())
-                          .available(current.getAvailable().subtract(amount))
-                          .reserved(current.getReserved().add(amount))
-                          .version(current.safeVersion() + 1)
-                          .createdAt(current.getCreatedAt())
-                          .build();
-    }
-
-    private UserAccount applyReservedOut(UserAccount current,
-                                         BigDecimal amount) {
-        if (amount.signum() == 0) {
-            return current;
-        }
-        BigDecimal reserved = current.getReserved();
-        if (reserved.compareTo(amount) < 0) {
-            throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
-                                   Map.of("userId", current.getUserId(), "reserved", reserved, "required", amount));
-        }
-        BigDecimal newReserved = reserved.subtract(amount);
-        BigDecimal newBalance = current.getBalance().subtract(amount);
-        if (newBalance.signum() < 0) {
-            throw OpenException.of(AccountErrorCode.INSUFFICIENT_FUNDS,
-                                   Map.of("userId", current.getUserId(), "balance", current.getBalance(), "required", amount));
-        }
-        return UserAccount.builder()
-                          .accountId(current.getAccountId())
-                          .userId(current.getUserId())
-                          .accountCode(current.getAccountCode())
-                          .accountName(current.getAccountName())
-                          .instrumentId(current.getInstrumentId())
-                          .category(current.getCategory())
-                          .asset(current.getAsset())
-                          .balance(newBalance)
-                          .available(current.getAvailable())
-                          .reserved(newReserved)
-                          .version(current.safeVersion() + 1)
-                          .createdAt(current.getCreatedAt())
-                          .build();
-    }
-
-    private UserAccount refundReserved(UserAccount current,
-                                       BigDecimal amount) {
-        if (amount.signum() == 0) {
-            return current;
-        }
-        BigDecimal reserved = current.getReserved();
-        if (reserved.compareTo(amount) < 0) {
-            throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
-                                   Map.of("userId", current.getUserId(), "reserved", reserved, "required", amount));
-        }
-        return UserAccount.builder()
-                          .accountId(current.getAccountId())
-                          .userId(current.getUserId())
-                          .accountCode(current.getAccountCode())
-                          .accountName(current.getAccountName())
-                          .instrumentId(current.getInstrumentId())
-                          .category(current.getCategory())
-                          .asset(current.getAsset())
-                          .balance(current.getBalance())
-                          .available(current.getAvailable().add(amount))
-                          .reserved(reserved.subtract(amount))
-                          .version(current.safeVersion() + 1)
-                          .createdAt(current.getCreatedAt())
-                          .build();
-    }
-    
 
     @Transactional(rollbackFor = Exception.class)
     public void settleTrade(@NotNull @Valid TradeExecutedEvent event,
@@ -522,127 +373,67 @@ public class AccountTransactionDomainService {
             throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
                                    Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReservedUsed));
         }
-        UserAccount spotAfterMargin = applyReservedOut(userSpot, marginPortion);
-        UserAccount spotAfterFeeRefund = refundReserved(spotAfterMargin, feeRefund);
-        UserAccount settledAccount =
-                actualFee.signum() > 0 ? spotAfterFeeRefund.apply(Direction.CREDIT, actualFee) : spotAfterFeeRefund;
-        UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginPortion);
-        UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
-        UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
+
+        List<UserJournal> journals = new java.util.ArrayList<>(6);
+        int uSeq = 1;
+
+        // 1. Move Margin from Reserved (Spot) to Margin Account
+        var marginOutResult = userSpot.applyReservedOutWithJournal(marginPortion, idGenerator.newLong(), ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide, uSeq++, "Margin transferred from spot", event.executedAt());
+        UserAccount spotAfterMargin = marginOutResult.account();
+        journals.add(marginOutResult.journal());
+
+        var marginInResult = userMargin.applyWithJournal(Direction.DEBIT, marginPortion, idGenerator.newLong(), ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide, uSeq++, "Margin allocated to isolated account", event.executedAt());
+        UserAccount updatedMargin = marginInResult.account();
+        journals.add(marginInResult.journal());
+
+        // 2. Refund excess fee reserved
+        UserAccount spotAfterFeeRefund = spotAfterMargin;
+        if (feeRefund.signum() > 0) {
+            var feeRefundResult = spotAfterMargin.refundReservedWithJournal(feeRefund, idGenerator.newLong(), ReferenceType.TRADE_FEE_REFUND, refIdWithSide, uSeq++, "Trading fee refund", event.executedAt());
+            spotAfterFeeRefund = feeRefundResult.account();
+            journals.add(feeRefundResult.journal());
+        }
+
+        // 3. Pay actual fee (if any) from RESERVED
+        UserAccount settledAccount = spotAfterFeeRefund;
+        if (actualFee.signum() > 0) {
+            var feePaymentResult = spotAfterFeeRefund.applyReservedOutWithJournal(actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, uSeq++, "Trading fee deducted", event.executedAt());
+            settledAccount = feePaymentResult.account();
+            journals.add(feePaymentResult.journal());
+        }
+
+        var feeExpenseResult = userFeeExpense.applyWithJournal(Direction.DEBIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, uSeq++, "Trading fee expense", event.executedAt());
+        UserAccount updatedFeeExpense = feeExpenseResult.account();
+        journals.add(feeExpenseResult.journal());
+
+        var feeEquityResult = userFeeEquity.applyAllowNegativeWithJournal(Direction.DEBIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, uSeq++, "Trading fee equity", event.executedAt());
+        UserAccount updatedUserFeeEquity = feeEquityResult.account();
+        journals.add(feeEquityResult.journal());
+        
         userAccountRepository.updateSelectiveBatch(
                 List.of(settledAccount, updatedMargin, updatedFeeExpense, updatedUserFeeEquity),
                 List.of(userSpot.safeVersion(), userMargin.safeVersion(), userFeeExpense.safeVersion(), userFeeEquity.safeVersion()),
                 "trade-settle");
-        PlatformAccount updatedPlatformLiability = platformLiability.apply(Direction.DEBIT, actualFee);
-        PlatformAccount updatedRevenue = platformRevenue.apply(Direction.CREDIT, actualFee);
-        PlatformAccount updatedPlatformFeeEquity = platformFeeEquity.apply(Direction.CREDIT, actualFee);
+        
+        int pSeq = 1;
+        var platformLiabilityResult = platformLiability.applyWithJournal(Direction.DEBIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, pSeq++, "User liability decreased by trading fee", event.executedAt());
+        PlatformAccount updatedPlatformLiability = platformLiabilityResult.account();
+        PlatformJournal platformLiabilityJournal = platformLiabilityResult.journal();
+
+        var revenueResult = platformRevenue.applyWithJournal(Direction.CREDIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, pSeq++, "Trading fee revenue", event.executedAt());
+        PlatformAccount updatedRevenue = revenueResult.account();
+        PlatformJournal revenueJournal = revenueResult.journal();
+
+        var platformFeeEquityResult = platformFeeEquity.applyWithJournal(Direction.CREDIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, pSeq++, "Trading fee equity", event.executedAt());
+        PlatformAccount updatedPlatformFeeEquity = platformFeeEquityResult.account();
+        PlatformJournal platformFeeEquityJournal = platformFeeEquityResult.journal();
+        
         platformAccountRepository.updateSelectiveBatch(
                 List.of(updatedPlatformLiability, updatedRevenue, updatedPlatformFeeEquity),
                 List.of(platformLiability.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
                 "trade-settle");
         
-        int uSeq = 1;
-        UserJournal marginJournal = buildUserJournal(
-                updatedMargin,
-                Direction.DEBIT,
-                marginPortion,
-                ReferenceType.TRADE_MARGIN_SETTLED,
-                refIdWithSide,
-                uSeq++,
-                "Margin allocated to isolated account",
-                event.executedAt());
-        UserJournal marginOutJournal = buildUserJournal(
-                spotAfterMargin,
-                Direction.CREDIT,
-                marginPortion,
-                ReferenceType.TRADE_MARGIN_SETTLED,
-                refIdWithSide,
-                uSeq++,
-                "Margin transferred from spot",
-                event.executedAt());
-        UserJournal feeRefundJournal = null;
-        if (feeRefund.signum() > 0) {
-            feeRefundJournal = buildUserJournal(
-                    spotAfterFeeRefund,
-                    Direction.DEBIT,
-                    feeRefund,
-                    ReferenceType.TRADE_FEE_REFUND,
-                    refIdWithSide,
-                    uSeq++,
-                    "Trading fee refund",
-                    event.executedAt());
-        }
-        UserJournal feeJournal = null;
-        if (actualFee.signum() > 0) {
-            feeJournal = buildUserJournal(
-                    settledAccount,
-                    Direction.CREDIT,
-                    actualFee,
-                    ReferenceType.TRADE_FEE,
-                    refIdWithSide,
-                    uSeq++,
-                    "Trading fee deducted",
-                    event.executedAt());
-        }
-        UserJournal feeExpenseJournal = buildUserJournal(
-                updatedFeeExpense,
-                Direction.DEBIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee expense",
-                event.executedAt());
-        UserJournal feeEquityJournal = buildUserJournal(
-                updatedUserFeeEquity,
-                Direction.DEBIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee equity",
-                event.executedAt());
-        List<UserJournal> journals = new java.util.ArrayList<>(6);
-        journals.add(marginJournal);
-        journals.add(marginOutJournal);
-        if (feeRefundJournal != null) {
-            journals.add(feeRefundJournal);
-        }
-        if (feeJournal != null) {
-            journals.add(feeJournal);
-        }
-        journals.add(feeExpenseJournal);
-        journals.add(feeEquityJournal);
         userJournalRepository.insertBatch(journals);
-        
-        int pSeq = 1;
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(
-                updatedPlatformLiability,
-                Direction.DEBIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                pSeq++,
-                "User liability decreased by trading fee",
-                event.executedAt());
-        PlatformJournal revenueJournal = buildPlatformJournal(
-                updatedRevenue,
-                Direction.CREDIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                pSeq++,
-                "Trading fee revenue",
-                event.executedAt());
-        PlatformJournal platformFeeEquityJournal = buildPlatformJournal(
-                updatedPlatformFeeEquity,
-                Direction.CREDIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                pSeq++,
-                "Trading fee equity",
-                event.executedAt());
         platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));
         tradeSettlementEventPublisher.publishTradeMarginSettled(
                 new TradeMarginSettledEvent(
@@ -662,6 +453,8 @@ public class AccountTransactionDomainService {
                 )
         );
     }
+
+
 
     @Transactional(rollbackFor = Exception.class)
     public void settleCloseToOpenCompensation(@NotNull @Valid PositionCloseToOpenCompensationEvent event) {
@@ -687,99 +480,51 @@ public class AccountTransactionDomainService {
         PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
         PlatformAccount platformFeeEquity = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
         
-        UserAccount spotAfterMargin = userSpot.applyAllowNegative(Direction.CREDIT, marginUsed);
-        UserAccount updatedSpot = spotAfterMargin.applyAllowNegative(Direction.CREDIT, actualFee);
-        UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginUsed);
-        UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
-        UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
+        int uSeq = 1;
+        var marginResult = userMargin.applyWithJournal(Direction.DEBIT, marginUsed, idGenerator.newLong(), ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide, uSeq++, "Margin allocated by close-to-open compensation", event.executedAt());
+        UserAccount updatedMargin = marginResult.account();
+        UserJournal marginJournal = marginResult.journal();
+
+        var spotMarginResult = userSpot.applyAllowNegativeWithJournal(Direction.CREDIT, marginUsed, idGenerator.newLong(), ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide, uSeq++, "Margin transferred from spot (close-to-open compensation)", event.executedAt());
+        UserAccount spotAfterMargin = spotMarginResult.account();
+        UserJournal marginOutJournal = spotMarginResult.journal();
+
+        var spotFeeResult = spotAfterMargin.applyAllowNegativeWithJournal(Direction.CREDIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, uSeq++, "Trading fee deducted (close-to-open compensation)", event.executedAt());
+        UserAccount updatedSpot = spotFeeResult.account();
+        UserJournal feeJournal = spotFeeResult.journal();
+
+        var feeExpenseResult = userFeeExpense.applyWithJournal(Direction.DEBIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, uSeq++, "Trading fee expense", event.executedAt());
+        UserAccount updatedFeeExpense = feeExpenseResult.account();
+        UserJournal feeExpenseJournal = feeExpenseResult.journal();
+
+        var feeEquityResult = userFeeEquity.applyAllowNegativeWithJournal(Direction.DEBIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, uSeq++, "Trading fee equity", event.executedAt());
+        UserAccount updatedUserFeeEquity = feeEquityResult.account();
+        UserJournal feeEquityJournal = feeEquityResult.journal();
+
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedSpot, updatedMargin, updatedFeeExpense, updatedUserFeeEquity),
                 List.of(userSpot.safeVersion(), userMargin.safeVersion(), userFeeExpense.safeVersion(), userFeeEquity.safeVersion()),
                 "close-to-open-compensation");
-        PlatformAccount updatedPlatformLiability = platformLiability.apply(Direction.DEBIT, actualFee);
-        PlatformAccount updatedRevenue = platformRevenue.apply(Direction.CREDIT, actualFee);
-        PlatformAccount updatedPlatformFeeEquity = platformFeeEquity.apply(Direction.CREDIT, actualFee);
+        
+        int pSeq = 1;
+        var platformLiabilityResult = platformLiability.applyWithJournal(Direction.DEBIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, pSeq++, "User liability decreased by trading fee (invalid fill)", event.executedAt());
+        PlatformAccount updatedPlatformLiability = platformLiabilityResult.account();
+        PlatformJournal platformLiabilityJournal = platformLiabilityResult.journal();
+
+        var revenueResult = platformRevenue.applyWithJournal(Direction.CREDIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, pSeq++, "Trading fee revenue (invalid fill)", event.executedAt());
+        PlatformAccount updatedRevenue = revenueResult.account();
+        PlatformJournal revenueJournal = revenueResult.journal();
+
+        var platformFeeEquityResult = platformFeeEquity.applyWithJournal(Direction.CREDIT, actualFee, idGenerator.newLong(), ReferenceType.TRADE_FEE, refIdWithSide, pSeq++, "Trading fee equity", event.executedAt());
+        PlatformAccount updatedPlatformFeeEquity = platformFeeEquityResult.account();
+        PlatformJournal platformFeeEquityJournal = platformFeeEquityResult.journal();
+
         platformAccountRepository.updateSelectiveBatch(
                 List.of(updatedPlatformLiability, updatedRevenue, updatedPlatformFeeEquity),
                 List.of(platformLiability.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
                 "close-to-open-compensation");
 
-        int uSeq = 1;
-        UserJournal marginJournal = buildUserJournal(
-                updatedMargin,
-                Direction.DEBIT,
-                marginUsed,
-                ReferenceType.TRADE_MARGIN_SETTLED,
-                refIdWithSide,
-                uSeq++,
-                "Margin allocated by close-to-open compensation",
-                event.executedAt());
-        UserJournal marginOutJournal = buildUserJournal(
-                spotAfterMargin,
-                Direction.CREDIT,
-                marginUsed,
-                ReferenceType.TRADE_MARGIN_SETTLED,
-                refIdWithSide,
-                uSeq++,
-                "Margin transferred from spot (close-to-open compensation)",
-                event.executedAt());
-        UserJournal feeJournal = buildUserJournal(
-                updatedSpot,
-                Direction.CREDIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee deducted (close-to-open compensation)",
-                event.executedAt());
-        UserJournal feeExpenseJournal = buildUserJournal(
-                updatedFeeExpense,
-                Direction.DEBIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee expense",
-                event.executedAt());
-        UserJournal feeEquityJournal = buildUserJournal(
-                updatedUserFeeEquity,
-                Direction.DEBIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee equity",
-                event.executedAt());
         userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal));
-
-        int pSeq = 1;
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(
-                updatedPlatformLiability,
-                Direction.DEBIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                pSeq++,
-                "User liability decreased by trading fee (invalid fill)",
-                event.executedAt());
-        PlatformJournal revenueJournal = buildPlatformJournal(
-                updatedRevenue,
-                Direction.CREDIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                pSeq++,
-                "Trading fee revenue (invalid fill)",
-                event.executedAt());
-        PlatformJournal platformFeeEquityJournal = buildPlatformJournal(
-                updatedPlatformFeeEquity,
-                Direction.CREDIT,
-                actualFee,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                pSeq++,
-                "Trading fee equity",
-                event.executedAt());
         platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));
 
         if (updatedSpot.getBalance().signum() < 0 || updatedSpot.getAvailable().signum() < 0) {
@@ -835,14 +580,29 @@ public class AccountTransactionDomainService {
         PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
         PlatformAccount platformFeeEquity = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
 
+        int uSeq = 1;
         // Refund Margin: Debit Margin (Decrease) -> Credit Spot (Increase)
-        UserAccount updatedMargin = userMargin.apply(Direction.CREDIT, marginToRefund);
-        UserAccount spotAfterMargin = userSpot.apply(Direction.DEBIT, marginToRefund);
+        // Correction: Debit Spot (Increase)
+        var marginResult = userMargin.applyWithJournal(Direction.CREDIT, marginToRefund, idGenerator.newLong(), ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide, uSeq++, "Margin refunded by open-to-close compensation", event.executedAt());
+        UserAccount updatedMargin = marginResult.account();
+        UserJournal marginJournal = marginResult.journal();
+
+        var spotMarginResult = userSpot.applyWithJournal(Direction.DEBIT, marginToRefund, idGenerator.newLong(), ReferenceType.TRADE_MARGIN_SETTLED, refIdWithSide, uSeq++, "Margin returned to spot (open-to-close compensation)", event.executedAt());
+        UserAccount spotAfterMargin = spotMarginResult.account();
+        UserJournal marginOutJournal = spotMarginResult.journal();
 
         // Refund Fee: Credit Fee Expense (Decrease Expense) -> Debit Spot (Increase)
-        UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.CREDIT, feeToRefund);
-        UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.CREDIT, feeToRefund);
-        UserAccount updatedSpot = spotAfterMargin.apply(Direction.DEBIT, feeToRefund);
+        var feeExpenseResult = userFeeExpense.applyWithJournal(Direction.CREDIT, feeToRefund, idGenerator.newLong(), ReferenceType.TRADE_FEE_REFUND, refIdWithSide, uSeq++, "Trading fee expense reversed", event.executedAt());
+        UserAccount updatedFeeExpense = feeExpenseResult.account();
+        UserJournal feeExpenseJournal = feeExpenseResult.journal();
+
+        var feeEquityResult = userFeeEquity.applyAllowNegativeWithJournal(Direction.CREDIT, feeToRefund, idGenerator.newLong(), ReferenceType.TRADE_FEE_REFUND, refIdWithSide, uSeq++, "Trading fee equity reversed", event.executedAt());
+        UserAccount updatedUserFeeEquity = feeEquityResult.account();
+        UserJournal feeEquityJournal = feeEquityResult.journal();
+
+        var spotFeeResult = spotAfterMargin.applyWithJournal(Direction.DEBIT, feeToRefund, idGenerator.newLong(), ReferenceType.TRADE_FEE_REFUND, refIdWithSide, uSeq++, "Trading fee refunded (open-to-close compensation)", event.executedAt());
+        UserAccount updatedSpot = spotFeeResult.account();
+        UserJournal feeJournal = spotFeeResult.journal();
 
         userAccountRepository.updateSelectiveBatch(
                 List.of(updatedSpot, updatedMargin, updatedFeeExpense, updatedUserFeeEquity),
@@ -850,99 +610,28 @@ public class AccountTransactionDomainService {
                 "open-to-close-compensation");
 
         // Reverse Platform Fee: Debit Revenue -> Credit Liability
-        PlatformAccount updatedPlatformLiability = platformLiability.apply(Direction.CREDIT, feeToRefund);
-        PlatformAccount updatedRevenue = platformRevenue.apply(Direction.DEBIT, feeToRefund);
-        PlatformAccount updatedPlatformFeeEquity = platformFeeEquity.apply(Direction.DEBIT, feeToRefund);
+        int pSeq = 1;
+        var platformLiabilityResult = platformLiability.applyWithJournal(Direction.CREDIT, feeToRefund, idGenerator.newLong(), ReferenceType.TRADE_FEE_REFUND, refIdWithSide, pSeq++, "User liability increased (fee refund)", event.executedAt());
+        PlatformAccount updatedPlatformLiability = platformLiabilityResult.account();
+        PlatformJournal platformLiabilityJournal = platformLiabilityResult.journal();
+
+        var revenueResult = platformRevenue.applyWithJournal(Direction.DEBIT, feeToRefund, idGenerator.newLong(), ReferenceType.TRADE_FEE_REFUND, refIdWithSide, pSeq++, "Trading fee revenue reversed", event.executedAt());
+        PlatformAccount updatedRevenue = revenueResult.account();
+        PlatformJournal revenueJournal = revenueResult.journal();
+
+        var platformFeeEquityResult = platformFeeEquity.applyWithJournal(Direction.DEBIT, feeToRefund, idGenerator.newLong(), ReferenceType.TRADE_FEE_REFUND, refIdWithSide, pSeq++, "Trading fee equity reversed", event.executedAt());
+        PlatformAccount updatedPlatformFeeEquity = platformFeeEquityResult.account();
+        PlatformJournal platformFeeEquityJournal = platformFeeEquityResult.journal();
 
         platformAccountRepository.updateSelectiveBatch(
                 List.of(updatedPlatformLiability, updatedRevenue, updatedPlatformFeeEquity),
                 List.of(platformLiability.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
                 "open-to-close-compensation");
 
-        int uSeq = 1;
-        UserJournal marginJournal = buildUserJournal(
-                updatedMargin,
-                Direction.CREDIT,
-                marginToRefund,
-                ReferenceType.TRADE_MARGIN_SETTLED,
-                refIdWithSide,
-                uSeq++,
-                "Margin refunded by open-to-close compensation",
-                event.executedAt());
-        UserJournal marginOutJournal = buildUserJournal(
-                spotAfterMargin,
-                Direction.DEBIT,
-                marginToRefund,
-                ReferenceType.TRADE_MARGIN_SETTLED,
-                refIdWithSide,
-                uSeq++,
-                "Margin returned to spot (open-to-close compensation)",
-                event.executedAt());
-
-        UserJournal feeJournal = buildUserJournal(
-                updatedSpot,
-                Direction.DEBIT, // Spot Increase
-                feeToRefund,
-                ReferenceType.TRADE_FEE_REFUND,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee refunded (open-to-close compensation)",
-                event.executedAt());
-
-        UserJournal feeExpenseJournal = buildUserJournal(
-                updatedFeeExpense,
-                Direction.CREDIT, // Expense Decrease
-                feeToRefund,
-                ReferenceType.TRADE_FEE_REFUND,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee expense reversed",
-                event.executedAt());
-
-        UserJournal feeEquityJournal = buildUserJournal(
-                updatedUserFeeEquity,
-                Direction.CREDIT,
-                feeToRefund,
-                ReferenceType.TRADE_FEE_REFUND,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee equity reversed",
-                event.executedAt());
-
         userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal));
-
-        int pSeq = 1;
-        PlatformJournal platformLiabilityJournal = buildPlatformJournal(
-                updatedPlatformLiability,
-                Direction.CREDIT,
-                feeToRefund,
-                ReferenceType.TRADE_FEE_REFUND,
-                refIdWithSide,
-                pSeq++,
-                "User liability increased (fee refund)",
-                event.executedAt());
-        PlatformJournal revenueJournal = buildPlatformJournal(
-                updatedRevenue,
-                Direction.DEBIT,
-                feeToRefund,
-                ReferenceType.TRADE_FEE_REFUND,
-                refIdWithSide,
-                pSeq++,
-                "Trading fee revenue reversed",
-                event.executedAt());
-        PlatformJournal platformFeeEquityJournal = buildPlatformJournal(
-                updatedPlatformFeeEquity,
-                Direction.DEBIT,
-                feeToRefund,
-                ReferenceType.TRADE_FEE_REFUND,
-                refIdWithSide,
-                pSeq++,
-                "Trading fee equity reversed",
-                event.executedAt());
-
         platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));
     }
-
+    
     private BigDecimal requireContractSize(Long instrumentId) {
         return instrumentCache.get(instrumentId)
                 .map(InstrumentSummaryResponse::contractSize)
