@@ -411,8 +411,9 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expEntry", 100);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 100);
-        // Fee (this step): 10 * 100 * 0.0002 = 0.2
-        client.global.set("expCumRealizedPnl", -0.2);
+        // PnL - Fee = 10 - 0.2 = 9.8 (Reset after flip)
+        client.global.set("expCumRealizedPnl", 9.8);
+        // Fee: 10 * 100 * 0.0002 = 0.2
         client.global.set("expCumFee", 0.2);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
@@ -514,10 +515,10 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expMarkPrice", 100);
         // PnL: (100 - 100) * 5 = 0 (Short entry 100, Close 5)
         // Fee (this step): 13 * 100 * 0.0002 = 0.26
-        // PnL - Fee = 0 - 0.26 = -0.26 (Cum = 9.702 - 0.26 = 9.442)
-        client.global.set("expCumRealizedPnl", 9.442);
-        // Fee: 0.298 + (13 * 100 * 0.0002) = 0.558
-        client.global.set("expCumFee", 0.558);
+        // PnL - Fee = 0 - 0.26 = -0.26 (Reset after flip)
+        client.global.set("expCumRealizedPnl", -0.26);
+        // Fee: 13 * 100 * 0.0002 = 0.26
+        client.global.set("expCumFee", 0.26);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });

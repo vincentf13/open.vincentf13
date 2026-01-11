@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.sdk.rest.client.ExchangeAccountMaintenanceClient;
+import open.vincentf13.exchange.admin.infra.AdminEvent;
 import open.vincentf13.exchange.market.sdk.rest.client.ExchangeMarketMaintenanceClient;
 import open.vincentf13.exchange.matching.sdk.rest.client.ExchangeMatchingMaintenanceClient;
 import open.vincentf13.exchange.order.sdk.rest.client.ExchangeOrderMaintenanceClient;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionMaintenanceClient;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskMaintenanceClient;
+import open.vincentf13.sdk.core.log.OpenLog;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DeleteTopicsResult;
 import org.springframework.http.HttpEntity;
@@ -146,7 +148,7 @@ public class SystemMaintenanceCommandService {
                 // Wait for deletion to propagate
                 TimeUnit.SECONDS.sleep(5); 
             } catch (Exception e) {
-                System.out.println("Delete connector failed (might not exist), proceeding to create.");
+                OpenLog.warn(AdminEvent.KAFKA_CONNECTOR_DELETE_FAILED, e, "connector", CONNECTOR_NAME);
             }
 
             // 2. Create new connector
