@@ -202,7 +202,7 @@ public class SystemMaintenanceCommandService {
                 }
                 """;
 
-            HttpEntity<String> request = new HttpEntity<>(payload, headers);
+            HttpEntity<String> request = new HttpEntity<>(payload, createHeaders);
             ResponseEntity<String> createResponse = restTemplate.postForEntity(createUrl, request, String.class);
             
             if (createResponse.getStatusCode().is2xxSuccessful()) {
