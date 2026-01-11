@@ -3,6 +3,7 @@ package open.vincentf13.sdk.infra.kafka.consumer.controller;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.sdk.auth.auth.PublicAPI;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AlterConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
