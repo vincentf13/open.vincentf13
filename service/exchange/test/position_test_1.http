@@ -311,6 +311,25 @@ Content-Type: application/json
     eval(client.global.get("waitMaker"));
 %}
 
+
+### [Flip 反手] A Sell 10 (B Buy 10) @ 100 -> A 預期持空倉 5 (原多 5 - 賣 10)
+# A 原本持多倉 5，賣 10 變空 5
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 100,
+  "quantity": 10000
+}
+
+> {%
+    eval(client.global.get("waitMaker"));
+%}
+
 ###
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -341,12 +360,12 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expEntry", 98);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 98);
-        // PnL: -5 (No change on open)
+        // PnL: 0 (No change on open)
         // Fee (this step): 5 * 98 * 0.0002 = 0.098
-        // PnL - Fee = 0 - 0.098 = -0.098 (Cum = -5.2806 - 0.098 = -5.3786)
-        client.global.set("expCumRealizedPnl", -5.3786);
-        // Fee: 0.2806 + (5 * 98 * 0.0002) = 0.3786
-        client.global.set("expCumFee", 0.3786);
+        // PnL - Fee = 0 - 0.098 = -0.098 (Reset after close)
+        client.global.set("expCumRealizedPnl", -0.098);
+        // Fee: 5 * 98 * 0.0002 = 0.098
+        client.global.set("expCumFee", 0.098);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
@@ -360,24 +379,6 @@ Authorization: Bearer {{tokenA}}
     client.test("Step 9: Account Balance Check", function() {
         eval(client.global.get("verifyAccountScript"));
     });
-%}
-
-### [Flip 反手] A Sell 10 (B Buy 10) @ 100 -> A 預期持空倉 5 (原多 5 - 賣 10)
-# A 原本持多倉 5，賣 10 變空 5
-POST {{gatewayHost}}/order/api/orders
-Authorization: Bearer {{tokenA}}
-Content-Type: application/json
-
-{
-  "instrumentId": {{instrumentId}},
-  "side": "SELL",
-  "type": "LIMIT",
-  "price": 100,
-  "quantity": 10000
-}
-
-> {%
-    eval(client.global.get("waitMaker"));
 %}
 
 ###
@@ -410,12 +411,9 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expEntry", 100);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 100);
-        // PnL: -5 + ((100 - 98) * 5) = 5 (Long entry 98, Close 5)
         // Fee (this step): 10 * 100 * 0.0002 = 0.2
-        // PnL - Fee = 10 - 0.2 = 9.8 (Cum = -5.3786 + 9.8 = 4.4214)
-        client.global.set("expCumRealizedPnl", 4.4214);
-        // Fee: 0.3786 + (10 * 100 * 0.0002) = 0.5786
-        client.global.set("expCumFee", 0.5786);
+        client.global.set("expCumRealizedPnl", -0.2);
+        client.global.set("expCumFee", 0.2);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
@@ -430,6 +428,7 @@ Authorization: Bearer {{tokenA}}
         eval(client.global.get("verifyAccountScript"));
     });
 %}
+
 
 ### [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
 # A 原本持空倉 5，買 3 變空 2，再買 10 變多 8
@@ -513,12 +512,12 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expEntry", 100);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 100);
-        // PnL: 5 + ((100 - 100) * 5) = 5 (Short entry 100, Close 5)
+        // PnL: (100 - 100) * 5 = 0 (Short entry 100, Close 5)
         // Fee (this step): 13 * 100 * 0.0002 = 0.26
-        // PnL - Fee = 0 - 0.26 = -0.26 (Cum = 4.4214 - 0.26 = 4.1614)
-        client.global.set("expCumRealizedPnl", 4.1614);
-        // Fee: 0.5786 + (13 * 100 * 0.0002) = 0.8386
-        client.global.set("expCumFee", 0.8386);
+        // PnL - Fee = 0 - 0.26 = -0.26 (Cum = 9.702 - 0.26 = 9.442)
+        client.global.set("expCumRealizedPnl", 9.442);
+        // Fee: 0.298 + (13 * 100 * 0.0002) = 0.558
+        client.global.set("expCumFee", 0.558);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
