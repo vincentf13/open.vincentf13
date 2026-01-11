@@ -76,9 +76,36 @@ public class ConfigKafkaConsumer {
         if (batchListener) {
             // 強制設定 BatchMessageConverter，確保 Converter 被正確使用
             factory.setBatchMessageConverter(new BatchMessagingMessageConverter(converter));
+        } else {
+            // 僅對非 Batch 模式啟用 RecordInterceptor
+            factory.setRecordInterceptor(new org.springframework.kafka.listener.RecordInterceptor<Object, Object>() {
+                @Override
+                public ConsumerRecord<Object, Object> intercept(ConsumerRecord<Object, Object> record, org.apache.kafka.clients.consumer.Consumer<Object, Object> consumer) {
+                    OpenLog.debug(KafkaEvent.KAFKA_CONSUME_DEBUG,
+                             "topic", record.topic(),
+                             "partition", record.partition(),
+                             "offset", record.offset(),
+                             "listenerId", Thread.currentThread().getName());
+                    return record;
+                }
+
+                @Override
+                public void success(ConsumerRecord<Object, Object> record, org.apache.kafka.clients.consumer.Consumer<Object, Object> consumer) {
+                    // Success logging is usually too verbose, keeping it debug or removing
+                }
+
+                @Override
+                public void failure(ConsumerRecord<Object, Object> record, Exception exception, org.apache.kafka.clients.consumer.Consumer<Object, Object> consumer) {
+                     OpenLog.warn(KafkaEvent.KAFKA_CONSUME_FAILED, exception,
+                             "topic", record.topic(),
+                             "partition", record.partition(),
+                             "offset", record.offset());
+                }
+            });
         }
 
         factory.setCommonErrorHandler(buildErrorHandler(kafkaTemplate, kafkaProperties));
+// ... rest of the method
 
         OpenLog.info(KafkaEvent.KAFKA_CONSUMER_CONFIGURED,
                      "ackMode", factory.getContainerProperties().getAckMode(),
