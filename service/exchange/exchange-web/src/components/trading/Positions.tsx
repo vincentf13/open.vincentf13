@@ -18,7 +18,35 @@ type PositionsProps = {
 // ... (keeping helper functions)
 
 export default function Positions({ instruments, selectedInstrumentId, refreshTrigger, isPaused, onSyncComplete }: PositionsProps) {
-// ... (keeping existing state)
+  const [activeTab, setActiveTab] = useState('Positions');
+  const [isTabVisible, setIsTabVisible] = useState(true);
+  const [positions, setPositions] = useState<PositionResponse[]>([]);
+  const [expandedPositionId, setExpandedPositionId] = useState<number | null>(null);
+  const [positionEvents, setPositionEvents] = useState<Record<string, PositionEventItem[]>>({});
+  const [positionEventsLoading, setPositionEventsLoading] = useState<Record<string, boolean>>({});
+  const [orders, setOrders] = useState<OrderResponse[]>([]);
+  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+  const [orderTrades, setOrderTrades] = useState<Record<string, TradeResponse[]>>({});
+  const [orderEvents, setOrderEvents] = useState<Record<string, OrderEventItem[]>>({});
+  const [orderEventsLoading, setOrderEventsLoading] = useState<Record<string, boolean>>({});
+  const [tradeDetail, setTradeDetail] = useState<TradeResponse | null>(null);
+  const [tradeDetailLoading, setTradeDetailLoading] = useState(false);
+  const [tradeDetailAnchor, setTradeDetailAnchor] = useState<{ top: number; left: number } | null>(null);
+  const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [riskLimits, setRiskLimits] = useState<Record<string, RiskLimitResponse>>({});
+
+  const previousPositionsRef = useRef<Map<string, PositionResponse>>(new Map());
+  const positionChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
+  const previousOrdersRef = useRef<Map<string, OrderResponse>>(new Map());
+  const orderChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
+
+  useEffect(() => {
+    const h = () => setIsTabVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', h);
+    return () => document.removeEventListener('visibilitychange', h);
+  }, []);
+
   const fetchPositions = async () => {
     if (!isTabVisible) {
         onSyncComplete?.('Positions');

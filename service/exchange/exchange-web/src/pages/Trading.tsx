@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type MouseEvent } from 'react';
 
-import { message, Tooltip } from 'antd';
+import { message, Tooltip, InputNumber } from 'antd';
 
 import {
   AUTH_REQUIRED_EVENT,
@@ -81,6 +81,20 @@ export default function Trading() {
   const [journalTradeDetailLoading, setJournalTradeDetailLoading] = useState(false);
   const [journalTradeAnchor, setJournalTradeAnchor] = useState<{ top: number; left: number } | null>(null);
 
+  const [pollInterval, setPollInterval] = useState<number>(500);
+  const activeIntervalRef = useRef(500);
+
+  const toggleSync = () => {
+    if (isPaused) {
+      // Starting: Lock the interval
+      activeIntervalRef.current = pollInterval;
+      setIsPaused(false);
+    } else {
+      // Pausing
+      setIsPaused(true);
+    }
+  };
+
   const pendingRef = useRef<Set<string>>(new Set());
 
   const handleSyncComplete = useCallback((name: string) => {
@@ -91,7 +105,7 @@ export default function Trading() {
           pendingRef.current = new Set(['MarketStats', 'OrderBook', 'Positions', 'AccountPanel']);
           setRefreshTrigger(v => v + 1);
         }
-      }, 500);
+      }, activeIntervalRef.current);
     }
   }, [isPaused]);
 
@@ -860,18 +874,38 @@ export default function Trading() {
           <h1 className="text-lg font-bold">Liquid Flow <span className="font-light text-slate-400">| Exchange</span></h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setIsPaused(!isPaused)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase transition-all ${isPaused ? 'bg-amber-500/20 border-amber-500/40 text-amber-600' : 'bg-slate-500/10 border-slate-500/20 text-slate-500'}`}>
-            {!isPaused && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]" />}
-            {isPaused ? 'Paused' : 'Syncing'}
-            <Tooltip title={(
-              <div className="text-[10px] leading-relaxed">
-                <p>「同步中」每 0.5 秒自動更新數據（前次完成後）；「已暫停」則停止自動輪詢。</p>
-                <p className="text-slate-400 mt-1">"Syncing" auto-updates every 0.5s (after previous complete); "Paused" stops auto-polling.</p>
-              </div>
-            )} classNames={{ root: 'liquid-tooltip' }} styles={{ root: { maxWidth: 'none' } }}>
-              <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-white/50 flex items-center justify-center text-[9px] cursor-help border border-white/30">?</div>
-            </Tooltip>
-          </button>
+          <div className={`flex items-center rounded-lg border transition-all overflow-hidden ${isPaused ? 'bg-slate-500/10 border-slate-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+            <button 
+              onClick={toggleSync} 
+              className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold uppercase transition-all hover:opacity-80 ${isPaused ? 'text-slate-500 hover:text-slate-700' : 'text-amber-600 hover:text-amber-700'}`}
+            >
+              {!isPaused && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]" />}
+              {isPaused ? 'Paused' : 'Syncing'}
+              <Tooltip title={(
+                <div className="text-[10px] leading-relaxed">
+                  <p>「同步中」每 {activeIntervalRef.current}ms 自動更新數據（前次完成後）。</p>
+                  <p className="text-slate-400 mt-1">"Syncing" auto-updates every {activeIntervalRef.current}ms (after previous complete).</p>
+                  <div className="h-px bg-white/20 my-1" />
+                  <p className="text-amber-400">注意：運行中修改數值將在下次啟動時生效。</p>
+                </div>
+              )} classNames={{ root: 'liquid-tooltip' }} styles={{ root: { maxWidth: 'none' } }}>
+                <div className={`liquid-tooltip-trigger w-3 h-3 rounded-full flex items-center justify-center text-[9px] cursor-help border ${isPaused ? 'bg-white/50 border-white/30 text-slate-400' : 'bg-amber-200/50 border-amber-300/50 text-amber-700'}`}>?</div>
+              </Tooltip>
+            </button>
+            <div className={`flex items-center px-2 py-1.5 gap-1 border-l transition-colors ${isPaused ? 'border-slate-500/20' : 'border-amber-500/20'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isPaused ? 'text-slate-400' : 'text-amber-600/70'}`}>Poll</span>
+              <input
+                type="number"
+                value={pollInterval}
+                onChange={(e) => setPollInterval(Number(e.target.value) || 500)}
+                disabled={!isPaused}
+                min={100}
+                step={100}
+                className={`w-8 bg-transparent text-right font-mono text-[10px] outline-none p-0 border-none h-auto leading-none ${isPaused ? 'text-slate-600' : 'text-amber-700 opacity-60'}`}
+              />
+              <span className={`text-[10px] font-bold ${isPaused ? 'text-slate-400' : 'text-amber-600/70'}`}>ms</span>
+            </div>
+          </div>
 
           <button onClick={handleResetData} disabled={resetting} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-[10px] font-bold uppercase hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all group">
             {resetting ? 'Resetting...' : 'Reset Data'}
@@ -901,8 +935,11 @@ export default function Trading() {
             {currentUser ? (
               <>
                 <div className="flex flex-col items-end mr-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">User ID</span>
-                  <span className="text-xs font-mono font-semibold text-indigo-600">{currentUser.id}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">{currentUser.email || 'No Email'}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-medium text-slate-400 uppercase">ID</span>
+                    <span className="text-xs font-mono font-semibold text-indigo-600">{currentUser.id}</span>
+                  </div>
                 </div>
                 <button onClick={handleLogout} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 hover:text-rose-600 transition-colors">
                   Logout

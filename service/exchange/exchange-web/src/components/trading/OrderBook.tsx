@@ -17,7 +17,32 @@ type RowData = {
   total: number;
   depth: number;
 };
-// ... (keeping internal helper functions)
+
+const toNumber = (value: string | number | null | undefined) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatPrice = (value: number) => {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+};
+
+const formatAmount = (value: number) => {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
+};
+
+const formatTotal = (value: number) => {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
 
 const buildRows = (levels: OrderBookLevel[] | null | undefined, sortDesc: boolean, contractSize = 1) => {
   // ... (keeping implementation)
