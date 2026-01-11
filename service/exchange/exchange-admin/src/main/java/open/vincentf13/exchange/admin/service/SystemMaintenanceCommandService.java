@@ -138,12 +138,26 @@ public class SystemMaintenanceCommandService {
         }
     }
 
+import org.springframework.http.HttpMethod;
+
+// ... imports
+
     private void resetKafkaConnector() {
         System.out.println("Resetting Kafka Connector...");
         try {
             // 1. Delete existing connector
             try {
-                restTemplate.delete(KAFKA_CONNECT_URL + "/connectors/" + CONNECTOR_NAME);
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+                HttpEntity<Void> entity = new HttpEntity<>(headers);
+                
+                restTemplate.exchange(
+                        KAFKA_CONNECT_URL + "/connectors/" + CONNECTOR_NAME,
+                        HttpMethod.DELETE,
+                        entity,
+                        String.class
+                );
                 System.out.println("Deleted existing connector.");
                 // Wait for deletion to propagate
                 TimeUnit.SECONDS.sleep(5); 
@@ -153,8 +167,9 @@ public class SystemMaintenanceCommandService {
 
             // 2. Create new connector
             String createUrl = KAFKA_CONNECT_URL + "/connectors";
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+            // reuse headers or create new ones
+            HttpHeaders createHeaders = new HttpHeaders();
+            createHeaders.setContentType(MediaType.APPLICATION_JSON);
 
             String payload = """
                 {
