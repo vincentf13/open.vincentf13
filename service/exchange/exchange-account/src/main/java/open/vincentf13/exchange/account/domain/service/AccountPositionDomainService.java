@@ -3,11 +3,16 @@ package open.vincentf13.exchange.account.domain.service;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.account.domain.model.PlatformAccount;
+import open.vincentf13.exchange.account.domain.model.PlatformJournal;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
 import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
+import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAccountRepository;
+import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.UserJournalRepository;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
@@ -30,6 +35,8 @@ public class AccountPositionDomainService {
 
     private final UserAccountRepository userAccountRepository;
     private final UserJournalRepository userJournalRepository;
+    private final PlatformAccountRepository platformAccountRepository;
+    private final PlatformJournalRepository platformJournalRepository;
 
     @Transactional(rollbackFor = Exception.class)
     public void releaseMargin(@NotNull @Valid PositionMarginReleasedEvent event) {
@@ -46,6 +53,9 @@ public class AccountPositionDomainService {
         UserAccount realizedPnlRevenue = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.REALIZED_PNL_REVENUE, null, asset);
         UserAccount feeExpenseAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EXPENSE, null, asset);
         UserAccount feeEquityAccount = userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EQUITY, null, asset);
+        PlatformAccount platformLiability = platformAccountRepository.getOrCreate(PlatformAccountCode.USER_LIABILITY, asset);
+        PlatformAccount platformRevenue = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
+        PlatformAccount platformFeeEquity = platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
         
         UserAccount updatedMargin = marginAccount.apply(Direction.CREDIT, event.marginReleased());
         UserAccount spotAfterMargin = spotAccount.apply(Direction.DEBIT, event.marginReleased());
@@ -63,6 +73,9 @@ public class AccountPositionDomainService {
         UserAccount updatedSpotAfterFee = hasFee ? updatedSpot.apply(Direction.CREDIT, feeCharged) : updatedSpot;
         UserAccount updatedFeeExpense = hasFee ? feeExpenseAccount.apply(Direction.DEBIT, feeCharged) : feeExpenseAccount;
         UserAccount updatedFeeEquity = hasFee ? feeEquityAccount.applyAllowNegative(Direction.DEBIT, feeCharged) : feeEquityAccount;
+        PlatformAccount updatedPlatformLiability = hasFee ? platformLiability.apply(Direction.DEBIT, feeCharged) : platformLiability;
+        PlatformAccount updatedPlatformRevenue = hasFee ? platformRevenue.apply(Direction.CREDIT, feeCharged) : platformRevenue;
+        PlatformAccount updatedPlatformFeeEquity = hasFee ? platformFeeEquity.apply(Direction.CREDIT, feeCharged) : platformFeeEquity;
 
         List<UserAccount> accountUpdates = new java.util.ArrayList<>(5);
         List<Integer> expectedVersions = new java.util.ArrayList<>(5);
@@ -81,6 +94,12 @@ public class AccountPositionDomainService {
             expectedVersions.add(feeEquityAccount.safeVersion());
         }
         userAccountRepository.updateSelectiveBatch(accountUpdates, expectedVersions, "position-margin-release");
+        if (hasFee) {
+            platformAccountRepository.updateSelectiveBatch(
+                    List.of(updatedPlatformLiability, updatedPlatformRevenue, updatedPlatformFeeEquity),
+                    List.of(platformLiability.safeVersion(), platformRevenue.safeVersion(), platformFeeEquity.safeVersion()),
+                    "position-margin-release");
+        }
 
         int seq = 1;
         UserJournal marginOut = buildUserJournal(updatedMargin, Direction.CREDIT, event.marginReleased(), ReferenceType.POSITION_MARGIN_RELEASED, referenceId, seq++, "Margin released to spot", event.releasedAt());
@@ -145,6 +164,34 @@ public class AccountPositionDomainService {
             journals.add(feeEquityJournal);
         }
         userJournalRepository.insertBatch(journals);
+        if (hasFee) {
+            int pSeq = 1;
+            PlatformJournal platformLiabilityJournal = buildPlatformJournal(updatedPlatformLiability,
+                                                                           Direction.DEBIT,
+                                                                           feeCharged,
+                                                                           ReferenceType.TRADE_FEE,
+                                                                           referenceId,
+                                                                           pSeq++,
+                                                                           "User liability decreased by trading fee",
+                                                                           event.releasedAt());
+            PlatformJournal revenueJournal = buildPlatformJournal(updatedPlatformRevenue,
+                                                                 Direction.CREDIT,
+                                                                 feeCharged,
+                                                                 ReferenceType.TRADE_FEE,
+                                                                 referenceId,
+                                                                 pSeq++,
+                                                                 "Trading fee revenue",
+                                                                 event.releasedAt());
+            PlatformJournal platformFeeEquityJournal = buildPlatformJournal(updatedPlatformFeeEquity,
+                                                                            Direction.CREDIT,
+                                                                            feeCharged,
+                                                                            ReferenceType.TRADE_FEE,
+                                                                            referenceId,
+                                                                            pSeq++,
+                                                                            "Trading fee equity",
+                                                                            event.releasedAt());
+            platformJournalRepository.insertBatch(List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));
+        }
     }
     
     private UserJournal buildUserJournal(UserAccount account,
@@ -170,6 +217,30 @@ public class AccountPositionDomainService {
                           .description(description)
                           .eventTime(eventTime)
                           .build();
+    }
+
+    private PlatformJournal buildPlatformJournal(PlatformAccount account,
+                                                 Direction direction,
+                                                 BigDecimal amount,
+                                                 ReferenceType referenceType,
+                                                 String referenceId,
+                                                 Integer seq,
+                                                 String description,
+                                                 Instant eventTime) {
+        return PlatformJournal.builder()
+                              .journalId(null)
+                              .accountId(account.getAccountId())
+                              .category(account.getCategory())
+                              .asset(account.getAsset())
+                              .amount(amount)
+                              .direction(direction)
+                              .balanceAfter(account.getBalance())
+                              .referenceType(referenceType)
+                              .referenceId(referenceId)
+                              .seq(seq)
+                              .description(description)
+                              .eventTime(eventTime)
+                              .build();
     }
 
     private void assertNoDuplicateJournal(Long accountId,
