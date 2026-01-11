@@ -380,6 +380,32 @@ public class AccountTransactionDomainService {
                           .createdAt(current.getCreatedAt())
                           .build();
     }
+
+    private UserAccount refundReserved(UserAccount current,
+                                       BigDecimal amount) {
+        if (amount.signum() == 0) {
+            return current;
+        }
+        BigDecimal reserved = current.getReserved();
+        if (reserved.compareTo(amount) < 0) {
+            throw OpenException.of(AccountErrorCode.INSUFFICIENT_RESERVED_BALANCE,
+                                   Map.of("userId", current.getUserId(), "reserved", reserved, "required", amount));
+        }
+        return UserAccount.builder()
+                          .accountId(current.getAccountId())
+                          .userId(current.getUserId())
+                          .accountCode(current.getAccountCode())
+                          .accountName(current.getAccountName())
+                          .instrumentId(current.getInstrumentId())
+                          .category(current.getCategory())
+                          .asset(current.getAsset())
+                          .balance(current.getBalance())
+                          .available(current.getAvailable().add(amount))
+                          .reserved(reserved.subtract(amount))
+                          .version(current.safeVersion() + 1)
+                          .createdAt(current.getCreatedAt())
+                          .build();
+    }
     
 
     @Transactional(rollbackFor = Exception.class)
@@ -484,9 +510,9 @@ public class AccountTransactionDomainService {
                                    Map.of("userId", userId, "reserved", userSpot.getReserved(), "required", totalReservedUsed));
         }
         UserAccount spotAfterMargin = applyReservedOut(userSpot, marginPortion);
-        UserAccount spotAfterFee = applyReservedOut(spotAfterMargin, feeReservedPortion);
+        UserAccount spotAfterFeeRefund = refundReserved(spotAfterMargin, feeRefund);
         UserAccount settledAccount =
-                feeRefund.signum() > 0 ? spotAfterFee.apply(Direction.DEBIT, feeRefund) : spotAfterFee;
+                actualFee.signum() > 0 ? spotAfterFeeRefund.apply(Direction.CREDIT, actualFee) : spotAfterFeeRefund;
         UserAccount updatedMargin = userMargin.apply(Direction.DEBIT, marginPortion);
         UserAccount updatedFeeExpense = userFeeExpense.apply(Direction.DEBIT, actualFee);
         UserAccount updatedUserFeeEquity = userFeeEquity.applyAllowNegative(Direction.DEBIT, actualFee);
@@ -521,15 +547,30 @@ public class AccountTransactionDomainService {
                 uSeq++,
                 "Margin transferred from spot",
                 event.executedAt());
-        UserJournal feeJournal = buildUserJournal(
-                spotAfterFee,
-                Direction.CREDIT,
-                feeReservedPortion,
-                ReferenceType.TRADE_FEE,
-                refIdWithSide,
-                uSeq++,
-                "Trading fee deducted",
-                event.executedAt());
+        UserJournal feeRefundJournal = null;
+        if (feeRefund.signum() > 0) {
+            feeRefundJournal = buildUserJournal(
+                    spotAfterFeeRefund,
+                    Direction.DEBIT,
+                    feeRefund,
+                    ReferenceType.TRADE_FEE_REFUND,
+                    refIdWithSide,
+                    uSeq++,
+                    "Trading fee refund",
+                    event.executedAt());
+        }
+        UserJournal feeJournal = null;
+        if (actualFee.signum() > 0) {
+            feeJournal = buildUserJournal(
+                    settledAccount,
+                    Direction.CREDIT,
+                    actualFee,
+                    ReferenceType.TRADE_FEE,
+                    refIdWithSide,
+                    uSeq++,
+                    "Trading fee deducted",
+                    event.executedAt());
+        }
         UserJournal feeExpenseJournal = buildUserJournal(
                 updatedFeeExpense,
                 Direction.DEBIT,
@@ -548,20 +589,18 @@ public class AccountTransactionDomainService {
                 uSeq++,
                 "Trading fee equity",
                 event.executedAt());
-        if (feeRefund.signum() > 0) {
-            UserJournal refundJournal = buildUserJournal(
-                    settledAccount,
-                    Direction.DEBIT,
-                    feeRefund,
-                    ReferenceType.TRADE_FEE_REFUND,
-                    refIdWithSide,
-                    uSeq++,
-                    "Maker fee refund",
-                    event.executedAt());
-            userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal, refundJournal));
-        } else {
-            userJournalRepository.insertBatch(List.of(marginJournal, marginOutJournal, feeJournal, feeExpenseJournal, feeEquityJournal));
+        List<UserJournal> journals = new java.util.ArrayList<>(6);
+        journals.add(marginJournal);
+        journals.add(marginOutJournal);
+        if (feeRefundJournal != null) {
+            journals.add(feeRefundJournal);
         }
+        if (feeJournal != null) {
+            journals.add(feeJournal);
+        }
+        journals.add(feeExpenseJournal);
+        journals.add(feeEquityJournal);
+        userJournalRepository.insertBatch(journals);
         
         int pSeq = 1;
         PlatformJournal platformLiabilityJournal = buildPlatformJournal(
