@@ -46,4 +46,30 @@ public class UserJournal {
     @NotNull
     private Instant eventTime;
     private Instant createdAt;
+
+    public static UserJournal create(Long journalId,
+                                     UserAccount account,
+                                     Direction direction,
+                                     BigDecimal amount,
+                                     ReferenceType referenceType,
+                                     String referenceId,
+                                     Integer seq,
+                                     String description,
+                                     Instant eventTime) {
+        return UserJournal.builder()
+                .journalId(journalId)
+                .userId(account.getUserId())
+                .accountId(account.getAccountId())
+                .category(account.getCategory())
+                .asset(account.getAsset())
+                .amount(amount)
+                .direction(direction)
+                .balanceAfter(account.getBalance())
+                .referenceType(referenceType)
+                .referenceId(referenceId)
+                .seq(seq)
+                .description(description)
+                .eventTime(eventTime)
+                .build();
+    }
 }

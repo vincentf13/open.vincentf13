@@ -88,7 +88,7 @@ public class AccountTransactionDomainService {
     @Transactional(rollbackFor = Exception.class)
     public AccountDepositResult deposit(@NotNull @Valid AccountDepositRequest request) {
         
-        AssetSymbol asset = UserAccount.normalizeAsset(request.getAsset());
+        AssetSymbol asset = AssetSymbol.normalize(request.getAsset());
         Instant eventTime = request.getCreditedAt() == null ? Instant.now() : request.getCreditedAt();
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(
@@ -222,7 +222,7 @@ public class AccountTransactionDomainService {
     
     @Transactional(rollbackFor = Exception.class)
     public AccountWithdrawalResult withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
-        AssetSymbol asset = UserAccount.normalizeAsset(request.getAsset());
+        AssetSymbol asset = AssetSymbol.normalize(request.getAsset());
         Instant eventTime = request.getCreditedAt() == null ? Instant.now() : request.getCreditedAt();
         
         UserAccount userAssetAccount = userAccountRepository.getOrCreate(

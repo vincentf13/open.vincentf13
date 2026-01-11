@@ -64,17 +64,6 @@ public class UserAccount {
                           .build();
     }
     
-    public static AssetSymbol normalizeAsset(String asset) {
-        return AssetSymbol.fromValue(asset);
-    }
-    
-    public static AssetSymbol normalizeAsset(AssetSymbol asset) {
-        if (asset == null) {
-            throw OpenException.of(AccountErrorCode.ASSET_REQUIRED);
-        }
-        return asset;
-    }
-    
     public int safeVersion() {
         return version == null ? 0 : version;
     }
@@ -175,7 +164,7 @@ public class UserAccount {
                                            String description,
                                            Instant eventTime) {
         UserAccount updated = apply(direction, amount);
-        UserJournal journal = buildJournal(updated, direction, amount, journalId, referenceType, referenceId, seq, description, eventTime);
+        UserJournal journal = UserJournal.create(journalId, updated, direction, amount, referenceType, referenceId, seq, description, eventTime);
         return new MutationResult(updated, List.of(journal));
     }
 
@@ -188,7 +177,7 @@ public class UserAccount {
                                                         String description,
                                                         Instant eventTime) {
         UserAccount updated = applyAllowNegative(direction, amount);
-        UserJournal journal = buildJournal(updated, direction, amount, journalId, referenceType, referenceId, seq, description, eventTime);
+        UserJournal journal = UserJournal.create(journalId, updated, direction, amount, referenceType, referenceId, seq, description, eventTime);
         return new MutationResult(updated, List.of(journal));
     }
 
@@ -201,8 +190,9 @@ public class UserAccount {
                                             String description,
                                             Instant eventTime) {
         UserAccount updated = freeze(amount);
-        UserJournal journalAvailable = buildJournal(updated, Direction.CREDIT, amount, journalIdAvailable, referenceType, referenceId, seq, description + " (Available)", eventTime);
-        UserJournal journalReserved = buildJournal(updated, Direction.DEBIT, amount, journalIdReserved, referenceType, referenceId, seq, description + " (Reserved)", eventTime);
+        // User instruction: Freeze is decreasing (Available), should be CREDIT.
+        UserJournal journalAvailable = UserJournal.create(journalIdAvailable, updated, Direction.CREDIT, amount, referenceType, referenceId, seq, description + " (Available)", eventTime);
+        UserJournal journalReserved = UserJournal.create(journalIdReserved, updated, Direction.DEBIT, amount, referenceType, referenceId, seq, description + " (Reserved)", eventTime);
         return new MutationResult(updated, List.of(journalAvailable, journalReserved));
     }
 
@@ -236,7 +226,7 @@ public class UserAccount {
                                                       String description,
                                                       Instant eventTime) {
         UserAccount updated = applyReservedOut(amount);
-        UserJournal journal = buildJournal(updated, Direction.CREDIT, amount, journalId, referenceType, referenceId, seq, description, eventTime);
+        UserJournal journal = UserJournal.create(journalId, updated, Direction.CREDIT, amount, referenceType, referenceId, seq, description, eventTime);
         return new MutationResult(updated, List.of(journal));
     }
 
@@ -279,8 +269,8 @@ public class UserAccount {
                                                     String description,
                                                     Instant eventTime) {
         UserAccount updated = refundReserved(amount);
-        UserJournal journalAvailable = buildJournal(updated, Direction.DEBIT, amount, journalIdAvailable, referenceType, referenceId, seq, description + " (Available)", eventTime);
-        UserJournal journalReserved = buildJournal(updated, Direction.CREDIT, amount, journalIdReserved, referenceType, referenceId, seq, description + " (Reserved)", eventTime);
+        UserJournal journalAvailable = UserJournal.create(journalIdAvailable, updated, Direction.DEBIT, amount, referenceType, referenceId, seq, description + " (Available)", eventTime);
+        UserJournal journalReserved = UserJournal.create(journalIdReserved, updated, Direction.CREDIT, amount, referenceType, referenceId, seq, description + " (Reserved)", eventTime);
         return new MutationResult(updated, List.of(journalAvailable, journalReserved));
     }
 

@@ -28,4 +28,15 @@ public enum AssetSymbol {
     public String code() {
         return name();
     }
+
+    public static AssetSymbol normalize(String value) {
+        return fromValue(value);
+    }
+
+    public static AssetSymbol normalize(AssetSymbol symbol) {
+        if (symbol == null) {
+            throw new IllegalArgumentException("Asset symbol cannot be null");
+        }
+        return symbol;
+    }
 }

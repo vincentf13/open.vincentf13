@@ -37,10 +37,10 @@ public class AccountQueryService {
     private final PlatformAccountRepository platformAccountRepository;
     
     public AccountBalanceResponse getBalances(@NotNull Long userId,
-                                              @NotBlank String asset) {
-        AssetSymbol normalizedAsset = UserAccount.normalizeAsset(asset);
+                                              @NotBlank String assetCode) {
+        AssetSymbol asset = AssetSymbol.normalize(assetCode);
         var accountCode = UserAccountCode.SPOT;
-        UserAccount balance = userAccountRepository.getOrCreate(userId, accountCode, null, normalizedAsset);
+        UserAccount balance = userAccountRepository.getOrCreate(userId, accountCode, null, asset);
         Instant snapshotAt = balance.getUpdatedAt();
         AccountBalanceItem item = OpenObjectMapper.convert(balance, AccountBalanceItem.class);
         return new AccountBalanceResponse(userId, snapshotAt, item);
