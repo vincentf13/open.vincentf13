@@ -103,23 +103,25 @@ public class Position {
         }
         return side == otherSide;
     }
-
-    public boolean shouldSplitTrade(PositionSide targetSide, BigDecimal quantity) {
+    
+    public boolean shouldSplitTrade(PositionSide targetSide,
+                                    BigDecimal quantity) {
         if (targetSide == null || quantity == null) {
             return false;
         }
         return side != targetSide && this.quantity.compareTo(quantity) < 0;
     }
-
+    
     public TradeSplit calculateTradeSplit(BigDecimal quantity) {
+        // Flip 操作將優先佔用所有倉位（包括已被其他平倉單預扣的部分）。由於 Flip 訂單在下單時被視為開倉並預扣了資金，但此處實際執行了平倉，因此後續必須發送補償事件以退還重複計算的保證金。
         BigDecimal closeQty = this.quantity;
         BigDecimal flipQty = quantity.subtract(closeQty);
         return new TradeSplit(closeQty, flipQty);
     }
-
+    
     public record TradeSplit(BigDecimal closeQuantity, BigDecimal flipQuantity) {
     }
-
+    
     public void applyOpen(BigDecimal tradePrice,
                           BigDecimal effectiveMarkPrice,
                           BigDecimal quantity,
@@ -129,9 +131,9 @@ public class Position {
                           BigDecimal maintenanceMarginRate) {
         BigDecimal newQuantity = this.quantity.add(quantity);
         BigDecimal newEntryPrice = this.entryPrice
-                .multiply(this.quantity)
-                .add(tradePrice.multiply(quantity))
-                .divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+                                           .multiply(this.quantity)
+                                           .add(tradePrice.multiply(quantity))
+                                           .divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
         this.entryPrice = newEntryPrice;
         this.quantity = newQuantity;
         this.margin = this.margin.add(marginDelta);
@@ -142,7 +144,7 @@ public class Position {
         this.closedAt = null;
         updateRiskMetrics(effectiveMarkPrice, contractMultiplier, maintenanceMarginRate);
     }
-
+    
     public CloseMetrics applyClose(BigDecimal tradePrice,
                                    BigDecimal effectiveMarkPrice,
                                    BigDecimal quantity,
@@ -152,13 +154,13 @@ public class Position {
                                    BigDecimal contractMultiplier,
                                    BigDecimal maintenanceMarginRate) {
         BigDecimal marginReleased = this.margin
-                .multiply(quantity)
-                .divide(this.quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+                                            .multiply(quantity)
+                                            .divide(this.quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
         BigDecimal pnl = calculateRealizedPnl(this.side,
-                this.entryPrice,
-                tradePrice,
-                quantity,
-                contractMultiplier);
+                                              this.entryPrice,
+                                              tradePrice,
+                                              quantity,
+                                              contractMultiplier);
         BigDecimal newQuantity = this.quantity.subtract(quantity);
         this.quantity = newQuantity;
         this.margin = this.margin.subtract(marginReleased);
@@ -180,36 +182,36 @@ public class Position {
         updateRiskMetrics(effectiveMarkPrice, contractMultiplier, maintenanceMarginRate);
         return new CloseMetrics(marginReleased, pnl);
     }
-
+    
     public void applyMarkPrice(BigDecimal markPrice,
                                BigDecimal contractMultiplier,
                                BigDecimal maintenanceMarginRate) {
         this.markPrice = markPrice;
         updateRiskMetrics(markPrice, contractMultiplier, maintenanceMarginRate);
     }
-
+    
     private void updateRiskMetrics(BigDecimal effectiveMarkPrice,
                                    BigDecimal contractMultiplier,
                                    BigDecimal maintenanceMarginRate) {
         if (this.quantity.compareTo(BigDecimal.ZERO) > 0) {
             if (this.side == PositionSide.LONG) {
                 this.unrealizedPnl = effectiveMarkPrice.subtract(this.entryPrice)
-                        .multiply(this.quantity)
-                        .multiply(contractMultiplier);
+                                                       .multiply(this.quantity)
+                                                       .multiply(contractMultiplier);
             } else {
                 this.unrealizedPnl = this.entryPrice.subtract(effectiveMarkPrice)
-                        .multiply(this.quantity)
-                        .multiply(contractMultiplier);
+                                                    .multiply(this.quantity)
+                                                    .multiply(contractMultiplier);
             }
-
+            
             BigDecimal notional = effectiveMarkPrice.multiply(this.quantity).multiply(contractMultiplier).abs();
             if (notional.compareTo(BigDecimal.ZERO) == 0) {
                 this.marginRatio = BigDecimal.ZERO;
             } else {
                 this.marginRatio = this.margin.add(this.unrealizedPnl)
-                        .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP);
+                                              .divide(notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP);
             }
-
+            
             BigDecimal quantityTimesMultiplier = this.quantity.multiply(contractMultiplier);
             if (quantityTimesMultiplier.compareTo(BigDecimal.ZERO) == 0) {
                 this.liquidationPrice = null;
@@ -217,12 +219,12 @@ public class Position {
             }
             if (this.side == PositionSide.LONG) {
                 this.liquidationPrice = this.entryPrice
-                        .subtract(this.margin.divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
-                        .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+                                                .subtract(this.margin.divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                                .divide(BigDecimal.ONE.subtract(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
             } else {
                 this.liquidationPrice = this.entryPrice
-                        .add(this.margin.divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
-                        .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+                                                .add(this.margin.divide(quantityTimesMultiplier, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP))
+                                                .divide(BigDecimal.ONE.add(maintenanceMarginRate), ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
             }
         } else {
             this.unrealizedPnl = BigDecimal.ZERO;
@@ -230,7 +232,7 @@ public class Position {
             this.liquidationPrice = null;
         }
     }
-
+    
     private BigDecimal calculateRealizedPnl(PositionSide side,
                                             BigDecimal entryPrice,
                                             BigDecimal price,
@@ -238,14 +240,14 @@ public class Position {
                                             BigDecimal contractMultiplier) {
         if (side == PositionSide.LONG) {
             return price.subtract(entryPrice)
-                    .multiply(quantity)
-                    .multiply(contractMultiplier);
+                        .multiply(quantity)
+                        .multiply(contractMultiplier);
         }
         return entryPrice.subtract(price)
-                .multiply(quantity)
-                .multiply(contractMultiplier);
+                         .multiply(quantity)
+                         .multiply(contractMultiplier);
     }
-
+    
     public record CloseMetrics(BigDecimal marginReleased, BigDecimal pnl) {
     }
     
@@ -258,7 +260,7 @@ public class Position {
         BigDecimal current = quantity == null ? BigDecimal.ZERO : quantity;
         return current.compareTo(requested) > 0 ? PositionIntentType.REDUCE : PositionIntentType.CLOSE;
     }
-
+    
     public static String buildPayload(Position before,
                                       Position after) {
         Position baseline = (before == null || before.getPositionId() == null) ? new Position() : before;

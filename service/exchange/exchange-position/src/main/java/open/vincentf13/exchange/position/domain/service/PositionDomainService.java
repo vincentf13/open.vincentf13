@@ -17,6 +17,7 @@ import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionEventRepository;
 import open.vincentf13.exchange.position.infra.persistence.repository.PositionRepository;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionOpenToCloseCompensationEvent;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
@@ -34,15 +35,19 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class PositionDomainService {
-
+    
     private final PositionRepository positionRepository;
     private final PositionEventRepository positionEventRepository;
     private final PositionEventPublisher positionEventPublisher;
     private final MarkPriceCache markPriceCache;
     private final RiskLimitCache riskLimitCache;
     private final InstrumentCache instrumentCache;
-
-    public PositionIntentResult processIntent(Long userId, Long instrumentId, PositionSide side, BigDecimal quantity, String clientOrderId) {
+    
+    public PositionIntentResult processIntent(Long userId,
+                                              Long instrumentId,
+                                              PositionSide side,
+                                              BigDecimal quantity,
+                                              String clientOrderId) {
         var activePosition = positionRepository.findOne(
                 Wrappers.lambdaQuery(PositionPO.class)
                         .eq(PositionPO::getUserId, userId)
@@ -65,16 +70,18 @@ public class PositionDomainService {
             return new PositionIntentResult(intentType, position, e.getCode().message());
         }
     }
-
+    
     public record PositionIntentResult(PositionIntentType intentType, Position position, String errorMessage) {
     }
-
+    
     @Transactional(rollbackFor = Exception.class)
-    public void reserveClosingPosition(Position position, BigDecimal reservedQuantity, String clientOrderId) {
-         /** TODO 倉位預扣
-          平倉 需改成 下單後，先建立訂單，返回給用戶 倉位凍結中狀態
-          定時任務持續重試凍結倉位，直到成功。 並冪等
-          */
+    public void reserveClosingPosition(Position position,
+                                       BigDecimal reservedQuantity,
+                                       String clientOrderId) {
+        /** TODO 倉位預扣
+         平倉 需改成 下單後，先建立訂單，返回給用戶 倉位凍結中狀態
+         定時任務持續重試凍結倉位，直到成功。 並冪等
+         */
         
         BigDecimal availableToClose = position.availableToClose();
         // prevent flip when all quantity is reserved for closing.
@@ -109,17 +116,17 @@ public class PositionDomainService {
                 payload,
                 clientOrderId,
                 Instant.now()
-        );
+                                                                  );
         positionEventRepository.insert(event);
     }
-
+    
     public PositionSide toPositionSide(OrderSide orderSide) {
         if (orderSide == null) {
             return null;
         }
         return orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
     }
-
+    
     public Collection<Position> openPosition(@NotNull Long userId,
                                              @NotNull Long instrumentId,
                                              @NotNull Long orderId,
@@ -144,31 +151,57 @@ public class PositionDomainService {
         
         PositionSide side = toPositionSide(orderSide);
         Position position = positionRepository.findOne(
-                Wrappers.lambdaQuery(PositionPO.class)
-                        .eq(PositionPO::getUserId, userId)
-                        .eq(PositionPO::getInstrumentId, instrumentId)
-                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                .orElseGet(() -> Position.createDefault(userId, instrumentId, side,
-                        InstrumentCache.requireDefaultLeverage(instrumentCache, instrumentId)));
-
+                                                      Wrappers.lambdaQuery(PositionPO.class)
+                                                              .eq(PositionPO::getUserId, userId)
+                                                              .eq(PositionPO::getInstrumentId, instrumentId)
+                                                              .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                                              .orElseGet(() -> Position.createDefault(userId, instrumentId, side,
+                                                                                      InstrumentCache.requireDefaultLeverage(instrumentCache, instrumentId)));
+        
         // 開倉 因併發訂單，變為平倉，需釋放保證金，並處理flip的情況
         if (position.getSide() != side) {
             if (position.shouldSplitTrade(side, quantity)) {
+                /**
+                 在發生「反手」（Flip）操作時，邏輯會變得比較複雜，因為這涉及到倉位權限的爭奪與資金補償。
+                 
+                 1. 「搶奪」預凍結倉位 (Stealing Reserved Quantity)
+                 通常情況下，如果用戶已經下了一個「平倉單」，系統會先在該倉位上標記 closingReservedQuantity（預扣平倉數量），
+                 這部分數量是被「鎖定」的，不能再被其他平倉操作使用。
+                 
+                 但在 Flip（反手） 流程中，用戶發送的是一個巨大的「反向開倉單」。為了保證交易能連續執行（先全平再開反向），
+                 Flip流程具有最高優先權，它會強制把該倉位上「所有的現有數量」（包含那些已經被其他訂單預扣的數量）全部拿來做平倉。
+                 
+                 2. 原本平倉流程的失效
+                 當 Flip 「搶走」了這些預扣數量並完成成交後，原本那些還在掛單中的「平倉單」實際上已經沒有倉位可以平了。
+                 
+                 3. 為什麼要做開倉補償
+                 * 開倉單的視角： 該 Flip 訂單在 Account 服務眼中是一筆「開倉」，所以預扣了開倉保證金。
+                 * 實際執行的視角： 在 Position 服務中，這筆訂單的前半段（closeQty）實際上執行了「平倉」。
+                 * 矛盾點： 平倉是不應該扣除「新保證金」的。
+                 * 結論： 因此，當 Flip 流程「搶過來」平倉時，我們必須發送一個補償消息，告訴 Account
+                 
+                 服務：「這筆訂單雖然名義上是開倉，但實際上它幫我平掉了舊倉位，所以請把原本預扣的那部分『開倉保證金』退還給用戶。」
+                 
+                 4. 為什麼要做平倉補償
+                 * 因為平倉的預凍結倉位，被 Flip 流程 Stealing 了 預扣艙位，平倉成交結算時，將會沒有倉位可供結算
+                 * 所以進行補償流程，平倉轉開倉
+                 * 但需注意，開倉保證金不足時，需另外處理
+                 */
                 Position.TradeSplit split = position.calculateTradeSplit(quantity);
-
+                
                 BigDecimal flipRatio = split.flipQuantity().divide(quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
                 BigDecimal flipMargin = marginUsed.multiply(flipRatio);
                 BigDecimal closeMargin = marginUsed.subtract(flipMargin);
-
+                
                 BigDecimal flipFeeCharged = feeCharged.multiply(flipRatio);
                 BigDecimal closeFeeCharged = feeCharged.subtract(flipFeeCharged);
-
+                
                 List<Position> results = new ArrayList<>();
-                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, tradeId, executedAt,false));
-                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, tradeId, executedAt,true));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.closeQuantity(), closeMargin, closeFeeCharged, tradeId, executedAt, false));
+                results.addAll(openPosition(userId, instrumentId, orderId, asset, orderSide, price, split.flipQuantity(), flipMargin, flipFeeCharged, tradeId, executedAt, true));
                 return results;
             }
-
+            
             PositionCloseResult result = closePosition(userId, instrumentId, price, quantity, feeCharged, orderSide, tradeId, executedAt, true);
             positionEventPublisher.publishMarginReleased(new PositionMarginReleasedEvent(
                     tradeId,
@@ -182,14 +215,26 @@ public class PositionDomainService {
                     result.pnl(),
                     executedAt
             ));
-            // TODO 發一個消息， 把開倉結算時，扣的保證金跟手續費，屬於這個平倉的部分，退還給用戶
-         
+            
+            positionEventPublisher.publishOpenToCloseCompensation(new PositionOpenToCloseCompensationEvent(
+                    tradeId,
+                    orderId,
+                    userId,
+                    instrumentId,
+                    asset,
+                    orderSide,
+                    price,
+                    quantity,
+                    feeCharged,
+                    executedAt
+            ));
+            
             return Collections.singletonList(result.position());
         } else {
             Position updatedPosition = applyPositionUpdate(position,
-                                                          instrumentId,
-                                                          PositionUpdateInput.forOpen(price, quantity, marginUsed, feeCharged))
-                    .position();
+                                                           instrumentId,
+                                                           PositionUpdateInput.forOpen(price, quantity, marginUsed, feeCharged))
+                                               .position();
             
             if (position.getPositionId() == null || position.getStatus() != PositionStatus.ACTIVE) {
                 positionRepository.insertSelective(updatedPosition);
@@ -224,29 +269,32 @@ public class PositionDomainService {
             return Collections.singletonList(updatedPosition);
         }
     }
-
-    public PositionCloseResult closePosition(Long userId, Long instrumentId,
-                                             BigDecimal price, BigDecimal quantity,
+    
+    public PositionCloseResult closePosition(Long userId,
+                                             Long instrumentId,
+                                             BigDecimal price,
+                                             BigDecimal quantity,
                                              BigDecimal feeCharged,
                                              OrderSide orderSide,
-                                             Long tradeId, Instant executedAt,
+                                             Long tradeId,
+                                             Instant executedAt,
                                              boolean isFlip) {
         String referenceId = tradeId + ":" + orderSide.name();
-
+        
         Position position = positionRepository.findOne(
-                Wrappers.lambdaQuery(PositionPO.class)
-                        .eq(PositionPO::getUserId, userId)
-                        .eq(PositionPO::getInstrumentId, instrumentId)
-                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
-                        Map.of("userId", userId, "instrumentId", instrumentId)));
+                                                      Wrappers.lambdaQuery(PositionPO.class)
+                                                              .eq(PositionPO::getUserId, userId)
+                                                              .eq(PositionPO::getInstrumentId, instrumentId)
+                                                              .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                                              .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
+                                                                                  Map.of("userId", userId, "instrumentId", instrumentId)));
         
         // 冪等效驗
         if (positionEventRepository.existsByReference(PositionReferenceType.TRADE, referenceId)) {
             throw OpenException.of(PositionErrorCode.DUPLICATE_REQUEST,
                                    Map.of("referenceId", referenceId, "userId", userId));
         }
-
+        
         if (quantity.compareTo(position.getQuantity()) > 0) {
             throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE,
                                    Map.of("userId", userId,
@@ -267,14 +315,14 @@ public class PositionDomainService {
                                               "positionQuantity", position.getQuantity()));
             }
         }
-
-       
+        
+        
         PositionUpdateResult updateResult = applyPositionUpdate(position,
-                                                               instrumentId,
-                                                               PositionUpdateInput.forClose(price, quantity, feeCharged, isFlip, executedAt));
+                                                                instrumentId,
+                                                                PositionUpdateInput.forClose(price, quantity, feeCharged, isFlip, executedAt));
         Position updatedPosition = updateResult.position();
         Position.CloseMetrics closeMetrics = updateResult.closeMetrics();
-
+        
         if (position.getPositionId() == null || position.getStatus() != PositionStatus.ACTIVE) {
             positionRepository.insertSelective(updatedPosition);
         } else {
@@ -287,10 +335,10 @@ public class PositionDomainService {
                             .eq(PositionPO::getVersion, expectedVersion));
             if (!updated) {
                 throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE,
-                        Map.of("positionId", updatedPosition.getPositionId()));
+                                       Map.of("positionId", updatedPosition.getPositionId()));
             }
         }
-
+        
         String payload = Position.buildPayload(position, updatedPosition);
         PositionEvent event = PositionEvent.createTradeEvent(
                 updatedPosition.getPositionId(),
@@ -302,23 +350,24 @@ public class PositionDomainService {
                 tradeId,
                 executedAt,
                 false
-        );
+                                                            );
         positionEventRepository.insert(event);
-
+        
         return new PositionCloseResult(updatedPosition, closeMetrics.pnl(), closeMetrics.marginReleased(), feeCharged);
     }
-
+    
     @Transactional(propagation = Propagation.NEVER)
-    public void updateMarkPrice(@NotNull Long instrumentId, @NotNull BigDecimal markPrice) {
+    public void updateMarkPrice(@NotNull Long instrumentId,
+                                @NotNull BigDecimal markPrice) {
         List<Position> positions = positionRepository.findBy(
                 Wrappers.lambdaQuery(PositionPO.class)
                         .eq(PositionPO::getInstrumentId, instrumentId)
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
-
+        
         if (positions.isEmpty()) {
             return;
         }
-
+        
         List<PositionRepository.PositionUpdateTask> updateTasks = new ArrayList<>(positions.size());
         List<PositionEvent> eventTasks = new ArrayList<>();
         Instant now = Instant.now();
@@ -326,14 +375,14 @@ public class PositionDomainService {
         for (Position position : positions) {
             // 5秒內不重複更新同一倉位的標記價相關指標，避免頻繁寫入
             if (position.getUpdatedAt() != null &&
-                Duration.between(position.getUpdatedAt(), now).toMillis() < 5000) {
+                        Duration.between(position.getUpdatedAt(), now).toMillis() < 5000) {
                 continue;
             }
             Position updatedPosition = applyPositionUpdate(position,
-                                                          instrumentId,
-                                                          PositionUpdateInput.forMarkPrice(markPrice))
-                    .position();
-
+                                                           instrumentId,
+                                                           PositionUpdateInput.forMarkPrice(markPrice))
+                                               .position();
+            
             int expectedVersion = position.safeVersion();
             updatedPosition.setVersion(expectedVersion + 1);
             updateTasks.add(new PositionRepository.PositionUpdateTask(updatedPosition, expectedVersion));
@@ -346,26 +395,27 @@ public class PositionDomainService {
                         updatedPosition.getInstrumentId(),
                         payload,
                         now
-                ));
+                                                                 ));
             }
         }
         positionRepository.updateSelectiveBatch(updateTasks);
         // 不紀錄
         //positionEventRepository.insertBatch(eventTasks);
     }
-
-    public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased, BigDecimal feeCharged) {
+    
+    public record PositionCloseResult(Position position, BigDecimal pnl, BigDecimal marginReleased,
+                                      BigDecimal feeCharged) {
     }
-
+    
     private enum PositionUpdateType {
         OPEN,
         CLOSE,
         MARK_PRICE
     }
-
+    
     private record PositionUpdateResult(Position position, Position.CloseMetrics closeMetrics) {
     }
-
+    
     private record PositionUpdateInput(PositionUpdateType type,
                                        BigDecimal tradePrice,
                                        BigDecimal quantity,
@@ -378,39 +428,39 @@ public class PositionDomainService {
                                            BigDecimal marginDelta,
                                            BigDecimal feeCharged) {
             return new PositionUpdateInput(PositionUpdateType.OPEN,
-                    tradePrice,
-                    quantity,
-                    marginDelta,
-                    feeCharged,
-                    false,
-                    null);
+                                           tradePrice,
+                                           quantity,
+                                           marginDelta,
+                                           feeCharged,
+                                           false,
+                                           null);
         }
-
+        
         static PositionUpdateInput forClose(BigDecimal tradePrice,
                                             BigDecimal quantity,
                                             BigDecimal feeCharged,
                                             boolean isFlip,
                                             Instant executedAt) {
             return new PositionUpdateInput(PositionUpdateType.CLOSE,
-                    tradePrice,
-                    quantity,
-                    null,
-                    feeCharged,
-                    isFlip,
-                    executedAt);
+                                           tradePrice,
+                                           quantity,
+                                           null,
+                                           feeCharged,
+                                           isFlip,
+                                           executedAt);
         }
-
+        
         static PositionUpdateInput forMarkPrice(BigDecimal markPrice) {
             return new PositionUpdateInput(PositionUpdateType.MARK_PRICE,
-                    markPrice,
-                    BigDecimal.ZERO,
-                    null,
-                    null,
-                    false,
-                    null);
+                                           markPrice,
+                                           BigDecimal.ZERO,
+                                           null,
+                                           null,
+                                           false,
+                                           null);
         }
     }
-
+    
     private PositionUpdateResult applyPositionUpdate(Position position,
                                                      Long instrumentId,
                                                      PositionUpdateInput input) {
@@ -444,8 +494,8 @@ public class PositionDomainService {
                                                maintenanceMarginRate);
             }
         }
-
+        
         return new PositionUpdateResult(updatedPosition, closeMetrics);
     }
-
+    
 }
