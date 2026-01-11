@@ -408,7 +408,7 @@ export default function Trading() {
               </th>
               <th className="py-1 px-1 font-semibold w-[85px]">balanceAfter</th>
               <th className="py-1 px-1 font-semibold text-left w-[110px]">referenceType</th>
-              <th className="py-1 px-1 font-semibold text-left w-[120px]">
+              <th className="py-1 px-1 font-semibold text-left w-[150px]">
                 <div className="flex items-center gap-1">
                   referenceId
                   <Tooltip 
@@ -586,7 +586,7 @@ export default function Trading() {
               </th>
               <th className="py-1 pr-1 font-semibold w-[85px]">balanceAfter</th>
               <th className="py-1 pr-1 font-semibold text-left w-[110px]">referenceType</th>
-              <th className="py-1 pr-1 font-semibold text-left w-[120px]">
+              <th className="py-1 pr-1 font-semibold text-left w-[150px]">
                 <div className="flex items-center gap-1">
                   referenceId
                   <Tooltip 
