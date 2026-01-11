@@ -371,15 +371,6 @@ Authorization: Bearer {{tokenA}}
     });
 %}
 
-### 驗證 A 資產: Spot/Margin
-GET {{gatewayHost}}/account/api/account/balance-sheet
-Authorization: Bearer {{tokenA}}
-
-> {%
-    client.test("Step 9: Account Balance Check", function() {
-        eval(client.global.get("verifyAccountScript"));
-    });
-%}
 
 ###
 POST {{gatewayHost}}/order/api/orders

@@ -86,6 +86,8 @@ public class PositionQueryService {
                     return 1;
                 })
                 .thenComparing(position -> position.getStatus() == PositionStatus.ACTIVE ? 0 : 1)
+                .thenComparing((Position position) -> position.getUpdatedAt() == null ? Instant.EPOCH : position.getUpdatedAt(),
+                               Comparator.reverseOrder())
                 .thenComparing(position -> position.getInstrumentId() == null ? Long.MAX_VALUE : position.getInstrumentId());
         sorted.sort(comparator);
         return OpenObjectMapper.convertList(sorted, PositionResponse.class);
