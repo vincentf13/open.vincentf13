@@ -81,11 +81,37 @@ export default function Trading() {
   const [journalTradeDetailLoading, setJournalTradeDetailLoading] = useState(false);
   const [journalTradeAnchor, setJournalTradeAnchor] = useState<{ top: number; left: number } | null>(null);
 
+  const pendingRef = useRef<Set<string>>(new Set());
+
+  const handleSyncComplete = useCallback((name: string) => {
+    pendingRef.current.delete(name);
+    if (pendingRef.current.size === 0) {
+      setTimeout(() => {
+        if (!isPaused && document.visibilityState === 'visible') {
+          pendingRef.current = new Set(['MarketStats', 'OrderBook', 'Positions', 'AccountPanel']);
+          setRefreshTrigger(v => v + 1);
+        }
+      }, 500);
+    }
+  }, [isPaused]);
+
   useEffect(() => {
-    const h = () => setIsTabVisible(document.visibilityState === 'visible');
+    const h = () => {
+      setIsTabVisible(document.visibilityState === 'visible');
+      if (document.visibilityState === 'visible' && !isPaused && pendingRef.current.size === 0) {
+        pendingRef.current = new Set(['MarketStats', 'OrderBook', 'Positions', 'AccountPanel']);
+        setRefreshTrigger(v => v + 1);
+      }
+    };
     document.addEventListener('visibilitychange', h);
-    const interval = setInterval(() => { if (!isPaused && document.visibilityState === 'visible') setRefreshTrigger(v => v + 1); }, 3000);
-    return () => { document.removeEventListener('visibilitychange', h); clearInterval(interval); };
+    
+    // Initial start or resume
+    if (!isPaused && pendingRef.current.size === 0) {
+      pendingRef.current = new Set(['MarketStats', 'OrderBook', 'Positions', 'AccountPanel']);
+      setRefreshTrigger(v => v + 1);
+    }
+    
+    return () => { document.removeEventListener('visibilitychange', h); };
   }, [isPaused]);
 
   useEffect(() => {
@@ -839,8 +865,8 @@ export default function Trading() {
             {isPaused ? 'Paused' : 'Syncing'}
             <Tooltip title={(
               <div className="text-[10px] leading-relaxed">
-                <p>「同步中」每 3 秒自動更新數據；「已暫停」則停止自動輪詢。</p>
-                <p className="text-slate-400 mt-1">"Syncing" auto-updates every 3s; "Paused" stops auto-polling.</p>
+                <p>「同步中」每 0.5 秒自動更新數據（前次完成後）；「已暫停」則停止自動輪詢。</p>
+                <p className="text-slate-400 mt-1">"Syncing" auto-updates every 0.5s (after previous complete); "Paused" stops auto-polling.</p>
               </div>
             )} classNames={{ root: 'liquid-tooltip' }} styles={{ root: { maxWidth: 'none' } }}>
               <div className="liquid-tooltip-trigger w-3 h-3 rounded-full bg-white/50 flex items-center justify-center text-[9px] cursor-help border border-white/30">?</div>
@@ -895,28 +921,27 @@ export default function Trading() {
             <div className="flex-[3] flex gap-4 min-h-0">
               <div className="flex-1 flex flex-col gap-2 min-w-0">
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-1">
-                  <MarketStats instruments={instruments} selectedInstrument={selectedInstrument} onSelectInstrument={i => setSelectedInstrumentId(i.instrumentId)} refreshTrigger={refreshTrigger} isPaused={isPaused} />
+            <MarketStats instruments={instruments} selectedInstrument={selectedInstrument} onSelectInstrument={i => setSelectedInstrumentId(i.instrumentId)} refreshTrigger={refreshTrigger} isPaused={isPaused} onSyncComplete={handleSyncComplete} />
                 </div>
                 <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                   <Chart instrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} />
                 </div>
               </div>
               <div className="w-[300px] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                <OrderBook selectedInstrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} isPaused={isPaused} contractSize={Number(selectedInstrument?.contractSize || 1)} />
+                <OrderBook selectedInstrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} isPaused={isPaused} contractSize={Number(selectedInstrument?.contractSize || 1)} onSyncComplete={handleSyncComplete} />
               </div>
             </div>
             <div className="flex-[2] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-              <Positions instruments={instruments} selectedInstrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} isPaused={isPaused} />
+              <Positions instruments={instruments} selectedInstrumentId={selectedInstrumentId} refreshTrigger={refreshTrigger} isPaused={isPaused} onSyncComplete={handleSyncComplete} />
             </div>
           </div>
-          
-          <div className="w-[300px] flex flex-col gap-4 flex-none overflow-hidden">
-            <div className="flex-none bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+          <div className="w-[340px] flex flex-col gap-4">
+            <div className="flex-none bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <TradeForm instrument={selectedInstrument} refreshTrigger={refreshTrigger} onOrderCreated={handleRefresh} isPaused={isPaused} />
             </div>
-                        <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col relative min-h-0">
-                          <AccountPanel refreshTrigger={refreshTrigger} onOpenBalanceSheet={handleOpenBalanceSheet} />
-                        </div>
+            <div className="flex-1">
+              <AccountPanel refreshTrigger={refreshTrigger} onOpenBalanceSheet={handleOpenBalanceSheet} onSyncComplete={handleSyncComplete} />
+            </div>
           </div>
         </div>
       </main>

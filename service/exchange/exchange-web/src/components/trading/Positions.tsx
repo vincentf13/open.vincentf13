@@ -13,389 +13,17 @@ type PositionsProps = {
   selectedInstrumentId: string | null;
   refreshTrigger?: number;
   isPaused?: boolean;
+  onSyncComplete?: (name: string) => void;
 };
+// ... (keeping helper functions)
 
-const formatNumber = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined || value === '') return '-';
-  const numeric = Number(value);
-  if (Number.isNaN(numeric)) return String(value);
-  return numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
-};
-
-const formatPercent = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined || value === '') return '-';
-  const numeric = Number(value);
-  if (Number.isNaN(numeric)) return String(value);
-  return `${(numeric * 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
-};
-
-const trimTrailingZeros = (v: string) => v.includes('.') ? v.replace(/(?:\.0+|(\.\d*?[1-9])0+)$/, '$1').replace(/\.$/, '') : v;
-
-const formatPayloadValue = (key: string, value: any) => {
-  if (value === null || value === undefined) return '-';
-  if (['createdAt', 'updatedAt', 'closedAt', 'occurredAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(key)) {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? String(value) : `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
-  }
-  if (key === 'marginRatio') return formatPercent(value);
-  const n = Number(value);
-  return isNaN(n) ? String(value) : trimTrailingZeros(n.toString());
-};
-
-export default function Positions({ instruments, selectedInstrumentId, refreshTrigger, isPaused }: PositionsProps) {
-  const [activeTab, setActiveTab] = useState('Positions');
-  const [isTabVisible, setIsTabVisible] = useState(true);
-  const [positions, setPositions] = useState<PositionResponse[]>([]);
-  const [expandedPositionId, setExpandedPositionId] = useState<number | null>(null);
-  const [positionEvents, setPositionEvents] = useState<Record<string, PositionEventItem[]>>({});
-  const [positionEventsLoading, setPositionEventsLoading] = useState<Record<string, boolean>>({});
-  const [orders, setOrders] = useState<OrderResponse[]>([]);
-  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
-  const [orderTrades, setOrderTrades] = useState<Record<string, TradeResponse[]>>({});
-  const [orderEvents, setOrderEvents] = useState<Record<string, OrderEventItem[]>>({});
-  const [orderEventsLoading, setOrderEventsLoading] = useState<Record<string, boolean>>({});
-  const [tradeDetail, setTradeDetail] = useState<TradeResponse | null>(null);
-  const [tradeDetailLoading, setTradeDetailLoading] = useState(false);
-  const [tradeDetailAnchor, setTradeDetailAnchor] = useState<{ top: number; left: number } | null>(null);
-  const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [riskLimits, setRiskLimits] = useState<Record<string, RiskLimitResponse>>({});
-
-  const previousPositionsRef = useRef<Map<string, PositionResponse>>(new Map());
-  const positionChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
-  const previousOrdersRef = useRef<Map<string, OrderResponse>>(new Map());
-  const orderChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
-
-  useEffect(() => {
-    const h = () => setIsTabVisible(document.visibilityState === 'visible');
-    document.addEventListener('visibilitychange', h);
-    return () => document.removeEventListener('visibilitychange', h);
-  }, []);
-
-  useEffect(() => {
-    if (positions.length > 0) {
-        const uniqueIds = Array.from(new Set(positions.map(p => String(p.instrumentId))));
-        const missing = uniqueIds.filter(id => !riskLimits[id]);
-        if (missing.length > 0) {
-            Promise.all(missing.map(id => getRiskLimit(id))).then(results => {
-                setRiskLimits(prev => {
-                    const next = { ...prev };
-                    results.forEach(res => {
-                        if (String(res?.code) === '0' && res.data) {
-                            next[String(res.data.instrumentId)] = res.data;
-                        }
-                    });
-                    return next;
-                });
-            });
-        }
-    }
-  }, [positions]);
-
-  const instrumentMap = useMemo(() => new Map(instruments.map(i => [String(i.instrumentId), i.name || i.symbol || String(i.instrumentId)])), [instruments]);
-  const orderHighlightKeys = new Set(['status', 'filledQuantity', 'remainingQuantity', 'avgFillPrice', 'fee', 'rejectedReason']);
-  const positionHighlightKeys = new Set(['instrumentId', 'side', 'status', 'entryPrice', 'quantity', 'closingReservedQuantity', 'markPrice', 'liquidationPrice', 'unrealizedPnl', 'cumRealizedPnl', 'cumFee', 'cumFundingFee', 'leverage', 'margin', 'marginRatio', 'updatedAt']);
-
-  const getCompareValue = (obj: any, key: string) => {
-    const v = obj[key];
-    if (v === null || v === undefined) return '';
-    const n = Number(v);
-    return isNaN(n) ? String(v) : n.toString();
-  };
-
-  const renderCalculatorTooltip = (p: any, key: string, parentP?: any, eventContext?: any) => {
-      const instrumentId = p.instrumentId || parentP?.instrumentId;
-      const inst = instruments.find(i => String(i.instrumentId) === String(instrumentId));
-      const rl = riskLimits[String(instrumentId)];
-      const events = positionEvents[parentP?.positionId || p.positionId] || [];
-      
-      const contractSize = Number(inst?.contractSize || 1);
-      const mmr = Number(rl?.maintenanceMarginRate || 0);
-      const mark = Number(p.markPrice || 0);
-      const qty = Number(p.quantity || 0);
-      const entry = Number(p.entryPrice || 0);
-      const margin = Number(p.margin || 0);
-      const upnl = Number(p.unrealizedPnl || 0);
-      const side = String(p.side || parentP?.side || '').toUpperCase();
-
-      let content = null;
-
-      // Determine 'latest' and 'prev' context
-      // If eventContext is provided (Event Row), use it.
-      // Otherwise (Main Row), use the two most recent events from the list.
-      let latestPayload: any = null;
-      let prevPayload: any = null;
-      let latestEvent: any = null;
-
-      if (eventContext) {
-          latestPayload = eventContext.fullState;
-          prevPayload = eventContext.prevState;
-          latestEvent = eventContext; // The event object itself
-      } else {
-          latestEvent = events[0];
-          const prevEvent = events[1];
-          latestPayload = latestEvent ? parsePayload(latestEvent.payload) : null;
-          prevPayload = prevEvent ? parsePayload(prevEvent.payload) : null;
-      }
-
-      if (key === 'entryPrice') {
-          if (latestPayload && prevPayload && latestEvent.eventType === 'TRADE_EXECUTED') {
-              const curQ = Number(latestPayload.quantity || 0);
-              const prevQ = Number(prevPayload.quantity || 0);
-              const curE = Number(latestPayload.entryPrice || 0);
-              const prevE = Number(prevPayload.entryPrice || 0);
-              const tradeQ = Math.abs(curQ - prevQ);
-              // Derived Trade Price: (CurE * CurQ - PrevE * PrevQ) / TradeQ
-              const tradeP = tradeQ === 0 ? 0 : (curE * curQ - prevE * prevQ) / (curQ - prevQ);
-              
-              content = (
-                  <div className="flex flex-col gap-1">
-                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Entry Price Transition</div>
-                      <div className="text-[9px] text-slate-500 mb-1">Last Trade (Seq {latestEvent.sequenceNumber}):</div>
-                      <div className="grid grid-cols-[auto_1fr] gap-x-2 text-[10px] text-slate-600">
-                          <span>Prev:</span> <span className="font-mono">{formatNumber(prevE)} × {formatNumber(prevQ)}</span>
-                          <span>Trade:</span> <span className="font-mono text-emerald-600">{formatNumber(tradeP)} × {formatNumber(tradeQ)}</span>
-                      </div>
-                      <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
-                          ({formatNumber(prevE)}×{prevQ} + {formatNumber(tradeP)}×{tradeQ}) / {curQ} = {formatNumber(curE)}
-                      </div>
-                  </div>
-              );
-          } else {
-              content = (
-                  <div className="flex flex-col gap-1">
-                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Entry Price Verify</div>
-                      <div className="text-[10px] text-slate-600 italic">Expand row to load event history for detailed trace.</div>
-                      <div className="font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded mt-1">
-                          Current: {formatNumber(entry)}
-                      </div>
-                  </div>
-              );
-          }
-      } else if (key === 'margin') {
-          const imr = Number(rl?.initialMarginRate || 0);
-          const notional = entry * qty * contractSize;
-          const calc = notional * imr;
-          content = rl ? (
-              <div className="flex flex-col gap-1">
-                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Margin Calc</div>
-                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
-                      <span>Notional:</span> <span className="font-mono text-right">{formatNumber(entry)} × {formatNumber(qty)} × {contractSize} = {formatNumber(notional)}</span>
-                      <span>IMR:</span> <span className="font-mono text-right">{imr}</span>
-                  </div>
-                  <div className="mt-1 font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded">
-                      {formatNumber(notional)} × {imr} = {formatNumber(calc)}
-                  </div>
-              </div>
-          ) : (
-              <div className="flex flex-col gap-1">
-                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Margin Calc</div>
-                  <div className="text-[10px] text-slate-600 italic">Risk limit not loaded.</div>
-              </div>
-          );
-      } else if (key === 'marginRatio') {
-          const notional = mark * qty * contractSize;
-          const equity = margin + upnl;
-          const calc = notional === 0 ? 0 : equity / notional;
-          content = (
-              <div className="flex flex-col gap-1">
-                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Margin Ratio Calc</div>
-                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
-                      <span>Equity:</span> <span className="font-mono text-right">{formatNumber(margin)} + {formatNumber(upnl)} = {formatNumber(equity)}</span>
-                      <span>Notional:</span> <span className="font-mono text-right">{formatNumber(mark)} × {formatNumber(qty)} × {contractSize} = {formatNumber(notional)}</span>
-                  </div>
-                  <div className="mt-1 font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded">
-                      {formatNumber(equity)} / {formatNumber(notional)} = {formatPercent(calc)}
-                  </div>
-              </div>
-          );
-      } else if (key === 'unrealizedPnl') {
-          const diff = side === 'LONG' || side === 'BUY' ? mark - entry : entry - mark;
-          const calc = diff * qty * contractSize;
-          content = (
-              <div className="flex flex-col gap-1">
-                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Unrealized PnL Calc</div>
-                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
-                      <span>Price Diff:</span> <span className={`font-mono text-right ${diff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{side === 'LONG' || side === 'BUY' ? `${formatNumber(mark)} - ${formatNumber(entry)}` : `${formatNumber(entry)} - ${formatNumber(mark)}`} = {formatNumber(diff)}</span>
-                      <span>Volume:</span> <span className="font-mono text-right">{formatNumber(qty)} × {contractSize}</span>
-                  </div>
-                  <div className="mt-1 font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded">
-                      {formatNumber(diff)} × {formatNumber(qty * contractSize)} = {formatNumber(calc)}
-                  </div>
-              </div>
-          );
-      } else if (key === 'cumFee') {
-          if (latestPayload && prevPayload) {
-              const curF = Number(latestPayload.cumFee || 0);
-              const prevF = Number(prevPayload.cumFee || 0);
-              const deltaF = curF - prevF;
-
-              content = (
-                  <div className="flex flex-col gap-1">
-                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied Trade Fee</div>
-                      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
-                          <span>Previous:</span> <span className="font-mono text-right">{formatNumber(prevF)}</span>
-                          <span>New Total:</span> <span className="font-mono text-right">{formatNumber(curF)}</span>
-                      </div>
-                      <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
-                          {formatNumber(curF)} - {formatNumber(prevF)} = <span className="text-rose-600 font-bold">+{formatNumber(deltaF)}</span>
-                      </div>
-                      <div className="text-[8px] text-slate-400 italic mt-0.5 text-right">Fee charged in this event</div>
-                  </div>
-              );
-          } else {
-              content = (
-                  <div className="flex flex-col gap-1">
-                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Cum Fee</div>
-                      <div className="text-[10px] text-slate-600">Total fees paid:</div>
-                      <div className="font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded mt-1">
-                          {formatNumber(p.cumFee)}
-                      </div>
-                  </div>
-              );
-          }
-      } else if (key === 'cumRealizedPnl') {
-          if (latestPayload && prevPayload) {
-              const curR = Number(latestPayload.cumRealizedPnl || 0);
-              const prevR = Number(prevPayload.cumRealizedPnl || 0);
-              const curF = Number(latestPayload.cumFee || 0);
-              const prevF = Number(prevPayload.cumFee || 0);
-              const curQ = Number(latestPayload.quantity || 0);
-              const prevQ = Number(prevPayload.quantity || 0);
-              
-              const deltaR = curR - prevR;
-              const deltaF = curF - prevF; // Fee charged
-              const deltaQ = prevQ - curQ; // Positive means closed quantity
-
-              if (deltaQ > 0) {
-                  const rawPnl = deltaR + deltaF;
-                  const prevE = Number(prevPayload.entryPrice || 0);
-                  let exitP = 0;
-                  if (contractSize * deltaQ !== 0) {
-                      if (side === 'LONG' || side === 'BUY') exitP = (rawPnl / (deltaQ * contractSize)) + prevE;
-                      else exitP = prevE - (rawPnl / (deltaQ * contractSize));
-                  }
-
-                  content = (
-                      <div className="flex flex-col gap-1">
-                          <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied PnL & Fee Breakdown</div>
-                          <div className="grid grid-cols-[1fr_auto] gap-x-4 text-[9px] text-slate-500 border-b border-slate-900/10 pb-1">
-                              <span>Close Price:</span> <span className="font-mono text-slate-700">{formatNumber(exitP)}</span>
-                              <span>Avg Entry:</span> <span className="font-mono text-slate-700">{formatNumber(prevE)}</span>
-                              <span>Closed Qty:</span> <span className="font-mono text-slate-700">{formatNumber(deltaQ)}</span>
-                          </div>
-                          
-                          <div className="bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-800 mt-1">
-                              <div className="flex justify-between mb-0.5">
-                                  <span className="text-slate-500">Trade PnL (Gross):</span>
-                                  <span>
-                                      <span className="font-bold">{formatNumber(rawPnl)}</span>
-                                  </span>
-                              </div>
-                              <div className="flex justify-between mb-0.5 border-t border-slate-900/5 pt-0.5">
-                                  <span className="text-slate-500">Fee Paid:</span>
-                                  <span className="text-rose-600">-{formatNumber(deltaF)}</span>
-                              </div>
-                              <div className="flex justify-between border-t border-slate-900/5 pt-0.5">
-                                  <span className="text-slate-800 font-bold">Net Change:</span>
-                                  <span>
-                                      = <span className={`font-bold ${deltaR >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{deltaR >= 0 ? '+' : ''}{formatNumber(deltaR)}</span>
-                                  </span>
-                              </div>
-                          </div>
-                      </div>
-                  );
-              } else {
-                  content = (
-                      <div className="flex flex-col gap-1">
-                          <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied PnL & Fee Breakdown</div>
-                          <div className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-700">
-                              <div className="flex justify-between mb-0.5">
-                                  <span className="text-slate-500">Trade PnL (Gross):</span>
-                                  <span className="text-slate-400">None</span>
-                              </div>
-                              <div className="flex justify-between mb-0.5 border-t border-slate-900/5 pt-0.5">
-                                  <span className="text-slate-500">Fee Paid:</span>
-                                  <span className="text-rose-600">-{formatNumber(deltaF)}</span>
-                              </div>
-                              <div className="flex justify-between border-t border-slate-900/5 pt-0.5">
-                                  <span className="text-slate-800 font-bold">Net Change:</span>
-                                  <span className="font-bold text-slate-900">
-                                      {formatNumber(curR - prevR)}
-                                  </span>
-                              </div>
-                          </div>
-                      </div>
-                  );
-              }
-          } else {
-              content = (
-                  <div className="flex flex-col gap-1">
-                      <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Cum Realized PnL</div>
-                      <div className="text-[10px] text-slate-600">Historical Aggregate:</div>
-                      <div className="font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded mt-1">
-                          {formatNumber(p.cumRealizedPnl)}
-                      </div>
-                  </div>
-              );
-          }
-      } else if (key === 'liquidationPrice') {
-          const effectiveQty = qty * contractSize;
-          const marginPerUnit = effectiveQty === 0 ? 0 : margin / effectiveQty;
-          let numerator = 0;
-          let denominator = 0;
-          if (side === 'LONG' || side === 'BUY') {
-              numerator = entry - marginPerUnit;
-              denominator = 1 - mmr;
-          } else {
-              numerator = entry + marginPerUnit;
-              denominator = 1 + mmr;
-          }
-          const calc = denominator === 0 ? 0 : numerator / denominator;
-          
-          content = (
-               <div className="flex flex-col gap-1">
-                  <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Liquidation Price Calc</div>
-                   <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] text-slate-600">
-                      <span>Entry:</span> <span className="font-mono text-right">{formatNumber(entry)}</span>
-                      <span>Margin/Unit:</span> <span className="font-mono text-right">{formatNumber(margin)} / ({formatNumber(qty)}×{contractSize}) = {formatNumber(marginPerUnit)}</span>
-                      <span>MMR Factor:</span> <span className="font-mono text-right">1 {side === 'LONG' || side === 'BUY' ? '-' : '+'} {mmr} = {denominator}</span>
-                  </div>
-                  <div className="mt-1 font-mono text-[10px] text-blue-700 bg-slate-900/5 p-1.5 rounded">
-                      {formatNumber(numerator)} / {denominator} = {formatNumber(calc)}
-                  </div>
-               </div>
-          );
-      }
-
-      const handleMouseEnter = () => {
-          const targetId = parentP?.positionId || p.positionId;
-          if (!positionEvents[targetId] && !positionEventsLoading[targetId]) {
-              setPositionEventsLoading(v => ({...v, [targetId]: true}));
-              getPositionEvents(targetId).then(res => {
-                  if (String(res?.code) === '0') {
-                      setPositionEvents(v => ({...v, [targetId]: res.data?.events || []}));
-                  }
-              }).finally(() => setPositionEventsLoading(v => ({...v, [targetId]: false})));
-          }
-      };
-
-      const isDeltaIcon = ['cumFee', 'cumRealizedPnl'].includes(key);
-
-      return (
-          <Tooltip classNames={{ root: 'liquid-tooltip' }} title={content}>
-             <div 
-                onMouseEnter={handleMouseEnter}
-                className={`liquid-tooltip-trigger inline-flex items-center justify-center ml-1.5 cursor-help transition-colors ${isDeltaIcon ? 'text-[9px] text-slate-400 hover:text-blue-500 px-0.5' : 'w-3 h-3 rounded-sm bg-slate-100 border border-slate-200 text-[8px] text-slate-400 hover:bg-white hover:border-blue-300 hover:text-blue-500'}`}
-             >
-                {isDeltaIcon ? '∆' : '='}
-             </div>
-          </Tooltip>
-      );
-  };
-
+export default function Positions({ instruments, selectedInstrumentId, refreshTrigger, isPaused, onSyncComplete }: PositionsProps) {
+// ... (keeping existing state)
   const fetchPositions = async () => {
-    if (!isTabVisible) return;
+    if (!isTabVisible) {
+        onSyncComplete?.('Positions');
+        return;
+    }
     try {
       const res = await getPositions(selectedInstrumentId || undefined);
       if (String(res?.code) === '0') {
@@ -414,11 +42,17 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
         positionChangedFieldsRef.current = changeMap;
         setPositions(next);
       }
-    } catch {}
+    } catch {
+    } finally {
+        onSyncComplete?.('Positions');
+    }
   };
 
   const fetchOrders = async () => {
-    if (!isTabVisible) return;
+    if (!isTabVisible) {
+        onSyncComplete?.('Positions');
+        return;
+    }
     try {
       const res = await getOrders(selectedInstrumentId || undefined);
       if (String(res?.code) === '0') {
@@ -437,16 +71,26 @@ export default function Positions({ instruments, selectedInstrumentId, refreshTr
         orderChangedFieldsRef.current = changeMap;
         setOrders(next);
       }
-    } catch {}
+    } catch {
+    } finally {
+        onSyncComplete?.('Positions');
+    }
   };
 
   const fetchInstrumentTrades = async () => {
-    if (!isTabVisible || !selectedInstrumentId) return;
+    if (!isTabVisible || !selectedInstrumentId) {
+        onSyncComplete?.('Positions');
+        return;
+    }
     try {
       const res = await getTradesByInstrument(selectedInstrumentId);
       if (String(res?.code) === '0') setInstrumentTrades(res.data || []);
-    } catch {}
+    } catch {
+    } finally {
+        onSyncComplete?.('Positions');
+    }
   };
+// ... (rest of file)
 
   useEffect(() => {
     if (activeTab === 'Positions') fetchPositions();

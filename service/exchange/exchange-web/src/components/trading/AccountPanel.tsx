@@ -38,9 +38,10 @@ const formatAmountWithAsset = (value: string, asset: string) => {
 type AccountPanelProps = {
   refreshTrigger?: number;
   onOpenBalanceSheet?: () => void;
+  onSyncComplete?: (name: string) => void;
 };
 
-export default function AccountPanel({ refreshTrigger, onOpenBalanceSheet }: AccountPanelProps) {
+export default function AccountPanel({ refreshTrigger, onOpenBalanceSheet, onSyncComplete }: AccountPanelProps) {
   const [balances, setBalances] = useState<BalanceState>(defaultBalances);
   const requestRef = useRef<Promise<any> | null>(null);
   const mountedRef = useRef(true);
@@ -75,6 +76,10 @@ export default function AccountPanel({ refreshTrigger, onOpenBalanceSheet }: Acc
       if (mountedRef.current) {
         setBalances(defaultBalances);
       }
+    } finally {
+        if (mountedRef.current) {
+            onSyncComplete?.('AccountPanel');
+        }
     }
   }, []);
 

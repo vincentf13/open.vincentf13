@@ -10,6 +10,7 @@ type MarketStatsProps = {
   onSelectInstrument: (instrument: InstrumentSummary) => void;
   refreshTrigger?: number;
   isPaused?: boolean;
+  onSyncComplete?: (name: string) => void;
 };
 
 export default function MarketStats({
@@ -18,6 +19,7 @@ export default function MarketStats({
   onSelectInstrument,
   refreshTrigger,
   isPaused,
+  onSyncComplete,
 }: MarketStatsProps) {
     const currentName = selectedInstrument?.name || selectedInstrument?.symbol || 'BTC/USDT';
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -123,54 +125,38 @@ export default function MarketStats({
 
     useEffect(() => {
         if (!selectedInstrument?.instrumentId || !isTabVisible) {
-            if (!selectedInstrument?.instrumentId) setTicker(null);
+            if (!selectedInstrument?.instrumentId) {
+                setTicker(null);
+                setMarkPrice(null);
+                setMarkPriceChangePercent(0);
+            }
+            if (isTabVisible) onSyncComplete?.('MarketStats');
             return;
         }
+
         let cancelled = false;
-        const loadTicker = async () => {
+        
+        const fetchData = async () => {
             if (!ticker) setTickerLoading(true);
+            if (!markPrice) setMarkPriceLoading(true);
+
             try {
-                const response = await getTicker(selectedInstrument.instrumentId);
-                if (cancelled) {
-                    return;
-                }
-                if (String(response?.code) === '0') {
-                    setTicker(response?.data || null);
+                const [tickerRes, markPriceRes] = await Promise.all([
+                    getTicker(selectedInstrument.instrumentId),
+                    getMarkPrice(selectedInstrument.instrumentId)
+                ]);
+
+                if (cancelled) return;
+
+                if (String(tickerRes?.code) === '0') {
+                    setTicker(tickerRes?.data || null);
                 } else if (!ticker) {
                     setTicker(null);
                 }
-            } catch (error) {
-                if (!cancelled && !ticker) {
-                    setTicker(null);
-                }
-            } finally {
-                if (!cancelled) {
-                    setTickerLoading(false);
-                }
-            }
-        };
-        loadTicker();
-        return () => {
-            cancelled = true;
-        };
-    }, [selectedInstrument?.instrumentId, refreshTrigger, isPaused, isTabVisible]);
 
-    useEffect(() => {
-        if (!selectedInstrument?.instrumentId || !isTabVisible) {
-            if (!selectedInstrument?.instrumentId) setMarkPrice(null);
-            return;
-        }
-        let cancelled = false;
-        const loadMarkPrice = async () => {
-            if (!markPrice) setMarkPriceLoading(true);
-            try {
-                const response = await getMarkPrice(selectedInstrument.instrumentId);
-                if (cancelled) {
-                    return;
-                }
-                if (String(response?.code) === '0') {
-                    setMarkPrice(response?.data || null);
-                    const changeRateValue = Number(response?.data?.markPriceChangeRate);
+                if (String(markPriceRes?.code) === '0') {
+                    setMarkPrice(markPriceRes?.data || null);
+                    const changeRateValue = Number(markPriceRes?.data?.markPriceChangeRate);
                     if (Number.isFinite(changeRateValue)) {
                         setMarkPriceChangePercent(changeRateValue * 100 - 100);
                     } else {
@@ -180,18 +166,25 @@ export default function MarketStats({
                     setMarkPrice(null);
                     setMarkPriceChangePercent(0);
                 }
+
             } catch (error) {
-                if (!cancelled && !markPrice) {
-                    setMarkPrice(null);
-                    setMarkPriceChangePercent(0);
+                if (!cancelled) {
+                    if (!ticker) setTicker(null);
+                    if (!markPrice) {
+                        setMarkPrice(null);
+                        setMarkPriceChangePercent(0);
+                    }
                 }
             } finally {
                 if (!cancelled) {
+                    setTickerLoading(false);
                     setMarkPriceLoading(false);
+                    onSyncComplete?.('MarketStats');
                 }
             }
         };
-        loadMarkPrice();
+
+        fetchData();
         return () => {
             cancelled = true;
         };
