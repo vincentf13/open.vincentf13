@@ -9,6 +9,8 @@ import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
 import open.vincentf13.exchange.order.infra.messaging.publisher.OrderEventPublisher;
+import open.vincentf13.exchange.order.infra.pending.RetryTaskType;
+import open.vincentf13.exchange.order.infra.pending.dto.OrderPrepareIntentPayload;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderEventRepository;
 import open.vincentf13.exchange.order.infra.persistence.repository.OrderRepository;
@@ -29,6 +31,9 @@ import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.OpenObjectDiff;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
+import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskRepository;
+import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskStatus;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -158,74 +163,34 @@ public class OrderCommandService {
             });
         }    
     public OrderResponse createOrder(@NotNull Long userId, @Valid OrderCreateRequest request) {
-        if (request.getClientOrderId() == null || request.getClientOrderId().trim().isEmpty()) {
-            request.setClientOrderId(UUID.randomUUID().toString());
-        }
-        
         try {
-            Order order = Order.createNew(userId, request);
-            
-            PositionIntentResponse intentResponse = OpenApiClientInvoker.call(
-                    () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.getInstrumentId(), toPositionSide(request.getSide()), request.getQuantity(), request.getClientOrderId())),
-                    msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
-                                            Map.of("userId", userId, "instrumentId", request.getInstrumentId(), "remoteMessage", msg))
-                                                                             );
-            PositionIntentType intentType = intentResponse.intentType();
-            
-            if (intentType == null) {
-                return rejectOrder(order, "intentMissing");
+            Order order = Order.initWithVaildate(userId, request);
+    
+            RetryTaskPO pendingTask = transactionTemplate.execute(status -> {
+                orderRepository.insertSelective(order);
+                String payload = OpenObjectDiff.diff(null, order);
+                orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), Instant.now(), payload, OrderEventReferenceType.REQUEST, request.getClientOrderId());
+                return pendingTaskRepository.insert(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), new OrderPrepareIntentPayload(order.getOrderId(), userId, request));
+            });
+
+            PositionIntentResponse intentResponse;
+            try {
+                intentResponse = requestPrepareIntent(userId, request);
+            } catch (Exception ex) {
+                return loadPersistedOrder(order.getOrderId())
+                               .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
+                               .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
             }
-            if (intentResponse.rejectReason() != null) {
-                return rejectOrder(order, intentResponse.rejectReason());
+
+            OrderResponse response = handlePrepareIntentResponse(order.getOrderId(), userId, request, intentResponse);
+            boolean marked = pendingTaskRepository.markSuccess(pendingTask.getId(), pendingTask.getVersion(), "OK");
+            if (!marked) {
+                RetryTaskPO currentTask = pendingTaskRepository.findById(pendingTask.getId());
+                if (currentTask != null && currentTask.getStatus() == RetryTaskStatus.SUCCESS) {
+                    return response;
+                }
             }
-            
-            OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, intentResponse.positionSnapshot());
-            if (!precheck.isAllow()) {
-                return rejectOrder(order, Optional.ofNullable(precheck.getReason()).orElse("riskRejected"));
-            }
-            
-            order.onPositionIntentDetermined(intentType);
-            
-            if (intentType == PositionIntentType.INCREASE) {
-                Instant eventTime = Instant.now();
-                transactionTemplate.executeWithoutResult(status -> {
-                    orderRepository.insertSelective(order);
-                    Instant occurredAt = Instant.now();
-                    String payload = OpenObjectDiff.diff(null, order);
-                    orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), occurredAt, payload, OrderEventReferenceType.REQUEST, null);
-                    orderEventPublisher.publishFundsFreezeRequested(new FundsFreezeRequestedEvent(
-                            order.getOrderId(),
-                            userId,
-                            request.getInstrumentId(),
-                            precheck.getRequiredMargin(),
-                            precheck.getFee(),
-                            eventTime
-                    ));
-                });
-            } else {
-                transactionTemplate.executeWithoutResult(status -> {
-                    orderRepository.insertSelective(order);
-                    String payload = OpenObjectDiff.diff(null, order);
-                    orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), order.getSubmittedAt(), payload, OrderEventReferenceType.REQUEST, null);
-                    orderEventPublisher.publishOrderCreated(new OrderCreatedEvent(
-                            order.getOrderId(),
-                            userId,
-                            request.getInstrumentId(),
-                            request.getSide(),
-                            request.getType(),
-                            order.getIntent(),
-                            TradeType.NORMAL,
-                            order.getPrice(),
-                            order.getQuantity(),
-                            order.getClientOrderId(),
-                            order.getSubmittedAt()
-                    ));
-                });
-            }
-            
-            return loadPersistedOrder(order.getOrderId())
-                           .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
-                           .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
+            return response;
         } catch (DuplicateKeyException ex) {
             OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
                          "userId", userId,
@@ -288,6 +253,81 @@ public class OrderCommandService {
                         orderEventRepository.append(order, OrderEventType.ORDER_TRADE_FILLED, ACTOR_MATCHING, executedAt, payload, OrderEventReferenceType.TRADE, String.valueOf(tradeId));
                     });
                 }    
+
+    public OrderResponse handlePrepareIntentResponse(Long orderId,
+                                                     Long userId,
+                                                     OrderCreateRequest request,
+                                                     PositionIntentResponse intentResponse) {
+        return transactionTemplate.execute(status -> {
+            Order order = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
+                                         .orElse(null);
+            if (order == null) {
+                return null;
+            }
+            // 冪等
+            if (order.getIntent() != null) {
+                return OpenObjectMapper.convert(order, OrderResponse.class);
+            }
+            PositionIntentType intentType = intentResponse.intentType();
+            if (intentType == null) {
+                return rejectPersistedOrder(order, "intentMissing", OrderEventReferenceType.REQUEST);
+            }
+            if (intentResponse.rejectReason() != null) {
+                return rejectPersistedOrder(order, intentResponse.rejectReason(), OrderEventReferenceType.REQUEST);
+            }
+            // 風控
+            OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, intentResponse.positionSnapshot());
+            if (!precheck.isAllow()) {
+                return rejectPersistedOrder(order, Optional.ofNullable(precheck.getReason()).orElse("riskRejected"), OrderEventReferenceType.RISK_CHECK);
+            }
+
+            Order originalOrder = OpenObjectMapper.fromJson(OpenObjectMapper.toJson(order), Order.class);
+            int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
+            
+            // 更新 intent 與狀態
+            order.onPositionIntentDetermined(intentType);
+            order.incrementVersion();
+
+            boolean updated = orderRepository.updateSelective(
+                    order,
+                    Wrappers.<OrderPO>lambdaUpdate()
+                            .eq(OrderPO::getOrderId, orderId)
+                            .eq(OrderPO::getVersion, expectedVersion));
+            if (!updated) {
+                status.setRollbackOnly();
+                throw OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                                       Map.of("orderId", orderId, "reason", "prepareIntentConcurrentUpdate"));
+            }
+
+            if (intentType == PositionIntentType.INCREASE) {
+                orderEventPublisher.publishFundsFreezeRequested(new FundsFreezeRequestedEvent(
+                        order.getOrderId(),
+                        userId,
+                        request.getInstrumentId(),
+                        precheck.getRequiredMargin(),
+                        precheck.getFee(),
+                        Instant.now()
+                ));
+            } else {
+                orderEventPublisher.publishOrderCreated(new OrderCreatedEvent(
+                        order.getOrderId(),
+                        userId,
+                        request.getInstrumentId(),
+                        request.getSide(),
+                        request.getType(),
+                        order.getIntent(),
+                        TradeType.NORMAL,
+                        order.getPrice(),
+                        order.getQuantity(),
+                        order.getClientOrderId(),
+                        order.getSubmittedAt()
+                ));
+            }
+
+            return OpenObjectMapper.convert(order, OrderResponse.class);
+        });
+    }
+    
     private OrderPrecheckResponse precheckOrder(Long userId,
                                                 Order order,
                                                 PositionIntentType intentType,
@@ -353,6 +393,40 @@ public class OrderCommandService {
         return loadPersistedOrder(order.getOrderId())
                        .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
                        .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
+    }
+
+    private OrderResponse rejectPersistedOrder(Order order,
+                                               String reason,
+                                               OrderEventReferenceType referenceType) {
+        String truncatedReason = reason != null && reason.length() > MAX_REJECTED_REASON_LENGTH
+                                 ? reason.substring(0, MAX_REJECTED_REASON_LENGTH)
+                                 : reason;
+        Order originalOrder = OpenObjectMapper.fromJson(OpenObjectMapper.toJson(order), Order.class);
+        int expectedVersion = order.getVersion() == null ? 0 : order.getVersion();
+        order.setStatus(OrderStatus.REJECTED);
+        order.setRejectedReason(truncatedReason);
+        order.incrementVersion();
+        boolean updated = orderRepository.updateSelective(
+                order,
+                Wrappers.<OrderPO>lambdaUpdate()
+                        .eq(OrderPO::getOrderId, order.getOrderId())
+                        .eq(OrderPO::getVersion, expectedVersion));
+        if (!updated) {
+            throw OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                                   Map.of("orderId", order.getOrderId(), "reason", "rejectConcurrentUpdate"));
+        }
+        String payload = OpenObjectDiff.diff(originalOrder, order);
+        String referenceId = order.getClientOrderId() != null ? order.getClientOrderId() + ":reject" : null;
+        orderEventRepository.append(order, OrderEventType.ORDER_REJECTED, actorFromUser(order.getUserId()), Instant.now(), payload, referenceType, referenceId);
+        return OpenObjectMapper.convert(order, OrderResponse.class);
+    }
+
+    public PositionIntentResponse requestPrepareIntent(Long userId, OrderCreateRequest request) {
+        return OpenApiClientInvoker.call(
+                () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.getInstrumentId(), toPositionSide(request.getSide()), request.getQuantity(), request.getClientOrderId())),
+                msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                                        Map.of("userId", userId, "instrumentId", request.getInstrumentId(), "remoteMessage", msg))
+        );
     }
     
     private String actorFromUser(Long userId) {

@@ -58,8 +58,8 @@ public class Order {
     private Instant cancelledAt;
     private Integer version;
     
-    public static Order createNew(Long userId,
-                                  OrderCreateRequest request) {
+    public static Order initWithVaildate(Long userId,
+                                         OrderCreateRequest request) {
         if (userId == null) {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "userId"));
         }
@@ -94,6 +94,15 @@ public class Order {
     private static void validateRequest(OrderCreateRequest request) {
         if (request == null) {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "request"));
+        }
+        String clientOrderId = request.clientOrderId();
+        if (clientOrderId == null || clientOrderId.trim().isEmpty()) {
+            throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED,
+                                   Map.of("field", "clientOrderId", "reason", "required"));
+        }
+        if (clientOrderId.length() > OrderCreateRequest.CLIENT_ORDER_ID_MAX_LENGTH) {
+            throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED,
+                                   Map.of("field", "clientOrderId", "reason", "lengthExceeded"));
         }
         if (requiresPrice(request.type()) && request.price() == null) {
             throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED,

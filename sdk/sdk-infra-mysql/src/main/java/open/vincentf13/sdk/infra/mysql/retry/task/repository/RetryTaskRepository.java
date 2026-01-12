@@ -19,28 +19,38 @@ public class RetryTaskRepository {
     
     private final RetryTaskMapper mapper;
     
-    public <T> RetryTaskPO insert(String bizType,
+    public <T> RetryTaskPO insert(Enum<?> bizType,
                                  String bizKey,
                                  T payload,
                                  Integer maxRetries,
                                  Integer priority,
                                  Instant nextRunTime) {
-        Assert.hasText(bizType, "bizType must not be blank");
+        String type = bizType == null ? null : bizType.name();
+        Assert.hasText(type, "bizType must not be blank");
         Assert.hasText(bizKey, "bizKey must not be blank");
         
         RetryTaskPO record = RetryTaskPO.builder()
-                                       .bizType(bizType)
+                                       .bizType(type)
                                        .bizKey(bizKey)
                                        .status(RetryTaskStatus.PENDING)
                                        .priority(priority != null ? priority : DEFAULT_PRIORITY)
                                        .payload(payload == null ? null : OpenObjectMapper.toJson(payload))
                                        .retryCount(0)
                                        .maxRetries(maxRetries != null ? maxRetries : DEFAULT_MAX_RETRIES)
-                                       .nextRunTime(nextRunTime != null ? nextRunTime : Instant.now())
+                                       .nextRunTime(nextRunTime != null ? nextRunTime : Instant.now().plusSeconds(10))
                                        .version(0)
                                        .build();
         mapper.insert(record);
         return record;
+    }
+
+    public <T> RetryTaskPO insert(Enum<?> bizType,
+                                 String bizKey,
+                                 T payload) {
+        /**
+          使用預設 maxRetries/priority/nextRunTime 建立 retry_task 紀錄。
+         */
+        return insert(bizType, bizKey, payload, null, null, null);
     }
     
     public List<RetryTaskPO> findPending(int limit) {
