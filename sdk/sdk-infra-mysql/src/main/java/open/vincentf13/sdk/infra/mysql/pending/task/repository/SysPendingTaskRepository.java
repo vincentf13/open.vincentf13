@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.pending.task;
+package open.vincentf13.sdk.infra.mysql.pending.task.repository;
 
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
@@ -44,6 +44,11 @@ public class SysPendingTaskRepository {
     public List<SysPendingTaskPO> fetchRunnable(int limit) {
         int fetchLimit = limit > 0 ? limit : DEFAULT_FETCH_LIMIT;
         return mapper.fetchRunnable(fetchLimit);
+    }
+
+    public SysPendingTaskPO findById(Long id) {
+        Assert.notNull(id, "id must not be null");
+        return mapper.findById(id);
     }
     
     public boolean tryMarkProcessing(Long id, Integer version) {

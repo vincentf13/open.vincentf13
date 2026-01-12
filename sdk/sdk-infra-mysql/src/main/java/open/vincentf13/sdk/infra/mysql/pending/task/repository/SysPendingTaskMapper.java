@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.pending.task;
+package open.vincentf13.sdk.infra.mysql.pending.task.repository;
 
 import org.apache.ibatis.annotations.Param;
 
@@ -8,6 +8,8 @@ import java.util.List;
 public interface SysPendingTaskMapper {
     
     void insert(SysPendingTaskPO record);
+    
+    SysPendingTaskPO findById(@Param("id") Long id);
     
     List<SysPendingTaskPO> fetchRunnable(@Param("limit") int limit);
     

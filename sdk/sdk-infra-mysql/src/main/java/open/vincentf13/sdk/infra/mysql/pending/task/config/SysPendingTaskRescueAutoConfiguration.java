@@ -1,5 +1,9 @@
-package open.vincentf13.sdk.infra.mysql.pending.task;
+package open.vincentf13.sdk.infra.mysql.pending.task.config;
 
+import open.vincentf13.sdk.infra.mysql.pending.task.SysPendingTaskRescueScheduler;
+import open.vincentf13.sdk.infra.mysql.pending.task.SysPendingTaskRescueService;
+import open.vincentf13.sdk.infra.mysql.pending.task.repository.SysPendingTaskMapper;
+import open.vincentf13.sdk.infra.mysql.pending.task.repository.SysPendingTaskRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
