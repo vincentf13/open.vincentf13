@@ -114,7 +114,13 @@ public class OrderCommandService {
     
     public RetryTaskResult<Order> prepareIntentAndOrderProcess(OrderPrepareIntentPayload payload) {
         try {
-            PositionIntentResponse intentResponse = requestPrepareIntent(payload.getUserId(), payload.getRequest());
+            Long userId = payload.getUserId();
+            OrderCreateRequest request = payload.getRequest();
+            PositionIntentResponse intentResponse = OpenApiClientInvoker.call(
+                    () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.getInstrumentId(), toPositionSide(request.getSide()), request.getQuantity(), request.getClientOrderId())),
+                    msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                                            Map.of("userId", userId, "instrumentId", request.getInstrumentId(), "remoteMessage", msg))
+                                                                             );
             Order response = processOrderByIntent(payload.getOrderId(), payload.getUserId(), payload.getRequest(), intentResponse);
             return new RetryTaskResult<>(RetryTaskStatus.SUCCESS, "OK", response);
         } catch (OpenException ex) {
@@ -282,10 +288,14 @@ public class OrderCommandService {
             if (order == null) {
                 return null;
             }
+            
             // 冪等
-            if (order.getIntent() != null) {
+            if (order.getStatus() != OrderStatus.CREATED || order.getIntent() != null
+            ) {
                 return order;
             }
+        
+          
             PositionIntentType intentType = intentResponse.intentType();
             if (intentType == null) {
                 return rejectPersistedOrder(order, "intentMissing", OrderEventReferenceType.REQUEST);
@@ -296,6 +306,10 @@ public class OrderCommandService {
             // 風控
             OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, intentResponse.positionSnapshot());
             if (!precheck.isAllow()) {
+                if(intentType == PositionIntentType.REDUCE || intentType == PositionIntentType.CLOSE){
+                    // 平倉預凍結倉位需解凍
+                    
+                }
                 return rejectPersistedOrder(order, Optional.ofNullable(precheck.getReason()).orElse("riskRejected"), OrderEventReferenceType.RISK_CHECK);
             }
             
@@ -438,15 +452,6 @@ public class OrderCommandService {
         String referenceId = order.getClientOrderId() != null ? order.getClientOrderId() + ":reject" : null;
         orderEventRepository.append(order, OrderEventType.ORDER_REJECTED, actorFromUser(order.getUserId()), Instant.now(), payload, referenceType, referenceId);
         return order;
-    }
-    
-    private PositionIntentResponse requestPrepareIntent(Long userId,
-                                                        OrderCreateRequest request) {
-        return OpenApiClientInvoker.call(
-                () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.getInstrumentId(), toPositionSide(request.getSide()), request.getQuantity(), request.getClientOrderId())),
-                msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
-                                        Map.of("userId", userId, "instrumentId", request.getInstrumentId(), "remoteMessage", msg))
-                                        );
     }
     
     private String actorFromUser(Long userId) {

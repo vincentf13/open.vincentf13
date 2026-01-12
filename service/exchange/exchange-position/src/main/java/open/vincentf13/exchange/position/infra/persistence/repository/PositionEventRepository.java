@@ -75,6 +75,18 @@ public class PositionEventRepository {
             throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE, Map.of("referenceId", referenceId), e);
         }
     }
+
+    public boolean existsByReferenceLike(@NotNull PositionReferenceType referenceType,
+                                         @NotNull String referenceId) {
+        try {
+            return mapper.selectCount(
+                    com.baomidou.mybatisplus.core.toolkit.Wrappers.lambdaQuery(PositionEventPO.class)
+                            .eq(PositionEventPO::getReferenceType, referenceType)
+                            .likeRight(PositionEventPO::getReferenceId, referenceId)) > 0;
+        } catch (DataAccessException e) {
+            throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE, Map.of("referenceId", referenceId), e);
+        }
+    }
     
     public boolean existsByReferenceAndUser(@NotNull PositionReferenceType referenceType,
                                             @NotNull String referenceId,

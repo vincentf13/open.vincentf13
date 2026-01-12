@@ -54,6 +54,13 @@ public class PositionDomainService {
                         .eq(PositionPO::getInstrumentId, instrumentId)
                         .eq(PositionPO::getStatus, PositionStatus.ACTIVE));
         
+        // 會有紀錄，代表之前已判斷為平倉，且已凍結倉位。
+        // 後續風控拒絕，需解凍倉位
+        if (positionEventRepository.existsByReferenceLike(PositionReferenceType.RESERVATION, clientOrderId + ":")) {
+            return new PositionIntentResult(PositionIntentType.REDUCE, activePosition, null);
+        }
+        
+        
         if (activePosition.isEmpty()) {
             return new PositionIntentResult(PositionIntentType.INCREASE, null, null);
         }
@@ -78,10 +85,6 @@ public class PositionDomainService {
     public void reserveClosingPosition(Position position,
                                        BigDecimal reservedQuantity,
                                        String clientOrderId) {
-        /** TODO 倉位預扣
-         平倉 需改成 下單後，先建立訂單，返回給用戶 倉位凍結中狀態
-         定時任務持續重試凍結倉位，直到成功。 並冪等
-         */
         
         BigDecimal availableToClose = position.availableToClose();
         // prevent flip when all quantity is reserved for closing.
@@ -114,7 +117,7 @@ public class PositionDomainService {
                 position.getUserId(),
                 position.getInstrumentId(),
                 payload,
-                clientOrderId,
+                clientOrderId + ":" + reservedQuantity,
                 Instant.now()
                                                                   );
         positionEventRepository.insert(event);
