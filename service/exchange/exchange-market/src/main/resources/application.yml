@@ -23,6 +23,6 @@ open:
           consumer-group: exchange-market-orderbook
         trade:
           consumer-group: exchange-market-trade
-    pending-task:
+    retry-task:
       rescue:
         enabled: false

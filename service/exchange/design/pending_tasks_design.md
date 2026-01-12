@@ -4,6 +4,11 @@
 
 ---
 
+### 設定前綴
+- rescue 開關與排程：`open.vincentf13.retry-task.rescue.enabled`
+- rescue timeout：`open.vincentf13.retry-task.rescue.timeout`
+- rescue fixed delay：`open.vincentf13.retry-task.rescue.fixed-delay`
+
 ### 欄位設計邏輯解析
 - **biz_type & biz_key (業務路由)**
     - `biz_type`: 區分這是什麼任務（例如：發送簡訊、同步訂單、計算報表）。Worker 程式可以根據這個欄位決定呼叫哪個 Handler。

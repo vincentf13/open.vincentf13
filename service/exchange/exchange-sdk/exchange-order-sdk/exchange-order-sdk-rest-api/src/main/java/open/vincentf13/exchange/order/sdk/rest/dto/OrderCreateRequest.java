@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderCreateRequest {
+
+    public static final int CLIENT_ORDER_ID_MAX_LENGTH = 64;
     
     @NotNull(message = "instrumentId is required")
     private Long instrumentId;
@@ -35,7 +37,7 @@ public class OrderCreateRequest {
     @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = true, message = "price must be positive")
     private BigDecimal price;
     
-    @Size(max = 64, message = "clientOrderId length must be <= 64")
+    @Size(max = CLIENT_ORDER_ID_MAX_LENGTH, message = "clientOrderId length must be <= 64")
     private String clientOrderId;
 
     // Compatibility methods for record-style access

@@ -50,6 +50,7 @@ public class OrderCommandService {
     private final ExchangePositionClient exchangePositionClient;
     private final ExchangeRiskClient exchangeRiskClient;
     private final TransactionTemplate transactionTemplate;
+    private final RetryTaskRepository pendingTaskRepository;
     
     private static final String ACTOR_ACCOUNT = "ACCOUNT_SERVICE";
     private static final String ACTOR_MATCHING = "MATCHING_ENGINE";

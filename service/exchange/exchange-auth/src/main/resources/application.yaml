@@ -17,6 +17,6 @@ open:
         worker-id: 1
     mybatis:
       mapper-base-packages: open.vincentf13.exchange.auth.infra.persistence.mapper
-    pending-task:
+    retry-task:
       rescue:
         enabled: false

@@ -10,10 +10,10 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class RetryTaskRescueScheduler {
     
-    private final RetryTaskRescueService rescueService;
+    private final RetryTaskService rescueService;
     private final Duration timeout;
     
-    @Scheduled(fixedDelayString = "${open.vincentf13.pending-task.rescue.fixed-delay:60000}")
+    @Scheduled(fixedDelayString = "${open.vincentf13.retry-task.rescue.fixed-delay:60000}")
     public void rescue() {
         int rescued = rescueService.rescueProcessing(timeout, null);
         if (rescued > 0 && log.isInfoEnabled()) {

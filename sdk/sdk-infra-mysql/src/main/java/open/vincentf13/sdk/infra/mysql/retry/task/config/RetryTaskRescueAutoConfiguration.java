@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.infra.mysql.retry.task.config;
 
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskRescueScheduler;
-import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskRescueService;
+import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskMapper;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,7 +18,7 @@ import java.time.Duration;
 @AutoConfiguration
 @EnableScheduling
 @ConditionalOnClass(Scheduled.class)
-@ConditionalOnProperty(prefix = "open.vincentf13.pending-task.rescue", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "open.vincentf13.retry-task.rescue", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class RetryTaskRescueAutoConfiguration {
     
     @Bean
@@ -29,13 +29,13 @@ public class RetryTaskRescueAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean
-    public RetryTaskRescueService retryTaskRescueService(RetryTaskRepository repository) {
-        return new RetryTaskRescueService(repository);
+    public RetryTaskService retryTaskRescueService(RetryTaskRepository repository) {
+        return new RetryTaskService(repository);
     }
     
     @Bean
-    public RetryTaskRescueScheduler retryTaskRescueScheduler(RetryTaskRescueService rescueService,
-                                                             @Value("${open.vincentf13.pending-task.rescue.timeout:PT10M}") Duration timeout) {
+    public RetryTaskRescueScheduler retryTaskRescueScheduler(RetryTaskService rescueService,
+                                                             @Value("${open.vincentf13.retry-task.rescue.timeout:PT10M}") Duration timeout) {
         return new RetryTaskRescueScheduler(rescueService, timeout);
     }
 }
