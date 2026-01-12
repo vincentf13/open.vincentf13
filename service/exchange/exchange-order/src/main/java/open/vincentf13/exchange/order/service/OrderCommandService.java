@@ -245,7 +245,7 @@ public class OrderCommandService {
                                       BigDecimal feeDelta,
                                       Instant executedAt) {
         transactionTemplate.executeWithoutResult(status -> {
-            if (orderEventRepository.existsByReference(orderId, OrderEventReferenceType.TRADE, tradeId)) {
+            if (orderEventRepository.existsByReference(orderId, OrderEventReferenceType.TRADE, String.valueOf(tradeId))) {
                 return;
             }
             
@@ -284,7 +284,7 @@ public class OrderCommandService {
                         
                         String payload = OpenObjectDiff.diff(originalOrder, order);
                         
-                        orderEventRepository.append(order, OrderEventType.ORDER_TRADE_FILLED, ACTOR_MATCHING, executedAt, payload, OrderEventReferenceType.TRADE, tradeId);
+                        orderEventRepository.append(order, OrderEventType.ORDER_TRADE_FILLED, ACTOR_MATCHING, executedAt, payload, OrderEventReferenceType.TRADE, String.valueOf(tradeId));
                     });
                 }    
     private OrderPrecheckResponse precheckOrder(Long userId,
