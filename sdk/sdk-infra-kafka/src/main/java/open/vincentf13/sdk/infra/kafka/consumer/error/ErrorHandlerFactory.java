@@ -30,7 +30,7 @@ public final class ErrorHandlerFactory {
         DeadLetterPublishingRecoverer dlqRecoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, dlqTopicRouter);
 
         ConsumerRecordRecoverer loggingRecoverer = (record, ex) -> {
-            OpenLog.warn(KafkaEvent.KAFKA_CONSUME_FAILED, ex,
+            OpenLog.warn(KafkaEvent.KAFKA_CONSUME_FAILED,
                     "topic", record.topic(),
                     "partition", record.partition(),
                     "offset", record.offset());

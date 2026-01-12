@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.infra.kafka.consumer.record;
 
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.kafka.KafkaEvent;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -15,8 +16,7 @@ public class RecordInterceptor implements org.springframework.kafka.listener.Rec
          */
         String summary = String.format("topic=%s partition=%d offset=%d listenerId=%s",
                                        record.topic(), record.partition(), record.offset(), Thread.currentThread().getName());
-        String eventJson = String.format("{\"topic\":\"%s\",\"partition\":%d,\"offset\":%d,\"listenerId\":\"%s\"}",
-                                         record.topic(), record.partition(), record.offset(), Thread.currentThread().getName());
+        String eventJson = OpenObjectMapper.toJson(record);
         OpenLog.debug(KafkaEvent.KAFKA_CONSUME_DEBUG,
                       "detail", "\n" + summary + "\n" + "event=" + eventJson);
         return record;
