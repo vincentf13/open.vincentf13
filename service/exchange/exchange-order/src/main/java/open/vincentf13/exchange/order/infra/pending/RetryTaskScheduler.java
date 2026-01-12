@@ -54,7 +54,7 @@ public class RetryTaskScheduler {
                             if (payload == null || payload.getOrderId() == null || payload.getUserId() == null || payload.getRequest() == null) {
                                 return new RetryTaskProcessResult(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload");
                             }
-                            return orderCommandService.processPrepareIntentPayload(payload, null);
+                            return orderCommandService.retryPrepareIntentAndHandle(payload, null);
                         }
                 );
             }

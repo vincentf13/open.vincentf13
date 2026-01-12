@@ -174,21 +174,21 @@ public class OrderCommandService {
         try {
             Order order = Order.initWithVaildate(userId, request);
     
-            RetryTaskPO pendingTask = transactionTemplate.execute(status -> {
+            RetryTaskPO retryTask = transactionTemplate.execute(status -> {
                 orderRepository.insertSelective(order);
                 String payload = OpenObjectDiff.diff(null, order);
                 orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), Instant.now(), payload, OrderEventReferenceType.REQUEST, request.getClientOrderId());
                 return pendingTaskRepository.insert(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), new OrderPrepareIntentPayload(order.getOrderId(), userId, request));
             });
-            AtomicReference<OrderResponse> responseRef = new AtomicReference<>();
+            AtomicReference<Order> responseRef = new AtomicReference<>();
             retryTaskService.handleTask(
-                    pendingTask,
+                    retryTask,
                     retryDelay,
-                    current -> processPrepareIntentPayload(new OrderPrepareIntentPayload(order.getOrderId(), userId, request), responseRef)
+                    retryTask2 -> retryPrepareIntentAndHandle(new OrderPrepareIntentPayload(order.getOrderId(), userId, request), responseRef)
             );
-            OrderResponse response = responseRef.get();
+            Order response = responseRef.get();
             if (response != null) {
-                return response;
+                return OpenObjectMapper.convert(response, OrderResponse.class);
             }
             return loadPersistedOrder(order.getOrderId())
                            .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
@@ -256,10 +256,10 @@ public class OrderCommandService {
                     });
                 }    
 
-    public OrderResponse handlePrepareIntentResponse(Long orderId,
-                                                     Long userId,
-                                                     OrderCreateRequest request,
-                                                     PositionIntentResponse intentResponse) {
+    public Order processOrderByIntent(Long orderId,
+                                      Long userId,
+                                      OrderCreateRequest request,
+                                      PositionIntentResponse intentResponse) {
         return transactionTemplate.execute(status -> {
             Order order = orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
                                          .orElse(null);
@@ -268,7 +268,7 @@ public class OrderCommandService {
             }
             // 冪等
             if (order.getIntent() != null) {
-                return OpenObjectMapper.convert(order, OrderResponse.class);
+                return order;
             }
             PositionIntentType intentType = intentResponse.intentType();
             if (intentType == null) {
@@ -326,15 +326,15 @@ public class OrderCommandService {
                 ));
             }
 
-            return OpenObjectMapper.convert(order, OrderResponse.class);
+            return order;
         });
     }
 
-    public RetryTaskProcessResult processPrepareIntentPayload(OrderPrepareIntentPayload payload,
-                                                              AtomicReference<OrderResponse> responseRef) {
+    public RetryTaskProcessResult retryPrepareIntentAndHandle(OrderPrepareIntentPayload payload,
+                                                              AtomicReference<Order> responseRef) {
         try {
             PositionIntentResponse intentResponse = requestPrepareIntent(payload.getUserId(), payload.getRequest());
-            OrderResponse response = handlePrepareIntentResponse(payload.getOrderId(), payload.getUserId(), payload.getRequest(), intentResponse);
+            Order response = processOrderByIntent(payload.getOrderId(), payload.getUserId(), payload.getRequest(), intentResponse);
             if (responseRef != null) {
                 responseRef.set(response);
             }
@@ -413,9 +413,9 @@ public class OrderCommandService {
                        .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
     }
 
-    private OrderResponse rejectPersistedOrder(Order order,
-                                               String reason,
-                                               OrderEventReferenceType referenceType) {
+    private Order rejectPersistedOrder(Order order,
+                                       String reason,
+                                       OrderEventReferenceType referenceType) {
         String truncatedReason = reason != null && reason.length() > MAX_REJECTED_REASON_LENGTH
                                  ? reason.substring(0, MAX_REJECTED_REASON_LENGTH)
                                  : reason;
@@ -436,7 +436,7 @@ public class OrderCommandService {
         String payload = OpenObjectDiff.diff(originalOrder, order);
         String referenceId = order.getClientOrderId() != null ? order.getClientOrderId() + ":reject" : null;
         orderEventRepository.append(order, OrderEventType.ORDER_REJECTED, actorFromUser(order.getUserId()), Instant.now(), payload, referenceType, referenceId);
-        return OpenObjectMapper.convert(order, OrderResponse.class);
+        return order;
     }
 
     public PositionIntentResponse requestPrepareIntent(Long userId, OrderCreateRequest request) {

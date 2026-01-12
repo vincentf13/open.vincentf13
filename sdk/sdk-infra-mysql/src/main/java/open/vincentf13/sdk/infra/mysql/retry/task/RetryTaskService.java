@@ -29,7 +29,6 @@ public class RetryTaskService {
     }
 
     public void handleTask(RetryTaskPO task,
-                           
                            Duration retryDelay,
                            Function<RetryTaskPO, RetryTaskProcessResult> processor) {
         try {
