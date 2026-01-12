@@ -16,5 +16,5 @@ public interface OrderEventMapper extends BaseMapper<OrderEventPO> {
     @Select("SELECT COUNT(1) FROM order_events WHERE order_id = #{orderId} AND reference_type = #{referenceType} AND reference_id = #{referenceId}")
     long countByReference(@Param("orderId") Long orderId,
                           @Param("referenceType") OrderEventReferenceType referenceType,
-                          @Param("referenceId") Long referenceId);
+                          @Param("referenceId") String referenceId);
 }

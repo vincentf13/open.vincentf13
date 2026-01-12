@@ -30,14 +30,14 @@ public class OrderEventRepository {
                        Instant occurredAt,
                        Object payload,
                        OrderEventReferenceType referenceType,
-                       Long referenceId) {
+                       String referenceId) {
         Long orderId = order.getOrderId();
         if (orderId == null) {
             throw new IllegalArgumentException("orderId is required when logging order event");
         }
         Long currentSeq = mapper.selectMaxSequenceForUpdate(orderId);
         long nextSeq = currentSeq == null ? 1L : currentSeq + 1L;
-        Long resolvedReferenceId = referenceId != null ? referenceId : orderId;
+        String resolvedReferenceId = referenceId != null ? referenceId : String.valueOf(orderId);
         OrderEventPO event = OrderEventPO.builder()
                                          .eventId(idGenerator.newLong())
                                          .orderId(orderId)
@@ -56,7 +56,7 @@ public class OrderEventRepository {
 
     public boolean existsByReference(Long orderId,
                                      OrderEventReferenceType referenceType,
-                                     Long referenceId) {
+                                     String referenceId) {
         if (orderId == null || referenceType == null || referenceId == null) {
             return false;
         }

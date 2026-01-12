@@ -18,6 +18,12 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
   const [quantity, setQuantity] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [riskLimit, setRiskLimit] = useState<RiskLimitResponse | null>(null);
+  const buildClientOrderId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+  };
 
   // Reset form when instrument changes
   useEffect(() => {
@@ -74,12 +80,14 @@ export default function TradeForm({ instrument, onOrderCreated, refreshTrigger, 
 
     setLoading(true);
     try {
+      const clientOrderId = buildClientOrderId();
       const result = await createOrder({
         instrumentId: Number(instrument.instrumentId),
         side,
         type,
         quantity: normalizedQuantity,
         price: type === 'LIMIT' ? Number(price) : null,
+        clientOrderId,
       });
       if (String(result?.code) !== '0') {
         alert(`Error: ${result?.message || 'Failed to place order'}`);

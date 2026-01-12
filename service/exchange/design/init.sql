@@ -295,7 +295,7 @@ CREATE TABLE order_events
 
     # 來源
     reference_type  VARCHAR(50)  NULL COMMENT '用來描述這筆事件是因何而發生、關聯到哪個外部實體或動作。通常用於冪等性控制 或 跨系統追蹤: TRADE, CANCEL_REQUEST, RISK_CHECK ..',
-    reference_id    BIGINT       NULL COMMENT '關聯ID (trade_id 等, 用於冪等性檢查)',
+    reference_id    VARCHAR(128) NULL COMMENT '關聯ID (trade_id 等, 用於冪等性檢查)',
     actor           VARCHAR(100) NOT NULL COMMENT '操作人: USER:{userId}, RISK_SERVICE, LEDGER_SERVICE, MATCHING_ENGINE, SYSTEM(定時或自動規則不屬於特定服務)',
 
 

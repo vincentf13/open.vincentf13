@@ -45,7 +45,7 @@ export type OrderEventItem = {
   sequenceNumber: number;
   payload: string;
   referenceType: string | null;
-  referenceId: number | null;
+  referenceId: string | null;
   actor: string | null;
   occurredAt: string | null;
   createdAt: string | null;

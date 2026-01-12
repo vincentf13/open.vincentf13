@@ -14,7 +14,7 @@ public record OrderEventItem(
         Long sequenceNumber,
         String payload,
         OrderEventReferenceType referenceType,
-        Long referenceId,
+        String referenceId,
         String actor,
         Instant occurredAt,
         Instant createdAt

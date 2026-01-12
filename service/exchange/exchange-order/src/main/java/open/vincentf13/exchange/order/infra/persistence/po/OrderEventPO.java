@@ -28,7 +28,7 @@ public class OrderEventPO {
     private Long sequenceNumber;
     private String payload;
     private OrderEventReferenceType referenceType;
-    private Long referenceId;
+    private String referenceId;
     private String actor;
     private Instant occurredAt;
     private Instant createdAt;
