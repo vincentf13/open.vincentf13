@@ -43,7 +43,7 @@ public class RetryTaskRepository {
         return record;
     }
     
-    public List<RetryTaskPO> fetchRunnable(int limit) {
+    public List<RetryTaskPO> findPending(int limit) {
         int fetchLimit = limit > 0 ? limit : DEFAULT_FETCH_LIMIT;
         LambdaQueryWrapper<RetryTaskPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(RetryTaskPO::getStatus, RetryTaskStatus.PENDING, RetryTaskStatus.FAIL_RETRY)
