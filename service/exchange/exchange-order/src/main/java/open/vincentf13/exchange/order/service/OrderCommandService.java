@@ -34,7 +34,7 @@ import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskRepository;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskStatus;
-import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskProcessResult;
+import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskResult;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
@@ -46,7 +46,6 @@ import org.springframework.beans.factory.annotation.Value;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @RequiredArgsConstructor
@@ -173,20 +172,19 @@ public class OrderCommandService {
     public OrderResponse createOrder(@NotNull Long userId, @Valid OrderCreateRequest request) {
         try {
             Order order = Order.initWithVaildate(userId, request);
-    
+            
+            OrderPrepareIntentPayload payload = new OrderPrepareIntentPayload(order.getOrderId(), userId, request);
             RetryTaskPO retryTask = transactionTemplate.execute(status -> {
                 orderRepository.insertSelective(order);
                 String payload = OpenObjectDiff.diff(null, order);
                 orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), Instant.now(), payload, OrderEventReferenceType.REQUEST, request.getClientOrderId());
-                return pendingTaskRepository.insert(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), new OrderPrepareIntentPayload(order.getOrderId(), userId, request));
+                return pendingTaskRepository.insert(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), payload);
             });
-            AtomicReference<Order> responseRef = new AtomicReference<>();
-            retryTaskService.handleTask(
+            Order response = retryTaskService.handleTask(
                     retryTask,
                     retryDelay,
-                    retryTask2 -> retryPrepareIntentAndHandle(new OrderPrepareIntentPayload(order.getOrderId(), userId, request), responseRef)
+                    retryTask2 -> prepareIntentAndOrderProcess(payload)
             );
-            Order response = responseRef.get();
             if (response != null) {
                 return OpenObjectMapper.convert(response, OrderResponse.class);
             }
@@ -256,7 +254,7 @@ public class OrderCommandService {
                     });
                 }    
 
-    public Order processOrderByIntent(Long orderId,
+    private Order processOrderByIntent(Long orderId,
                                       Long userId,
                                       OrderCreateRequest request,
                                       PositionIntentResponse intentResponse) {
@@ -330,19 +328,15 @@ public class OrderCommandService {
         });
     }
 
-    public RetryTaskProcessResult retryPrepareIntentAndHandle(OrderPrepareIntentPayload payload,
-                                                              AtomicReference<Order> responseRef) {
+    public RetryTaskResult<Order> prepareIntentAndOrderProcess(OrderPrepareIntentPayload payload) {
         try {
             PositionIntentResponse intentResponse = requestPrepareIntent(payload.getUserId(), payload.getRequest());
             Order response = processOrderByIntent(payload.getOrderId(), payload.getUserId(), payload.getRequest(), intentResponse);
-            if (responseRef != null) {
-                responseRef.set(response);
-            }
-            return new RetryTaskProcessResult(RetryTaskStatus.SUCCESS, "OK");
+            return new RetryTaskResult<>(RetryTaskStatus.SUCCESS, "OK", response);
         } catch (OpenException ex) {
-            return new RetryTaskProcessResult(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload");
+            return new RetryTaskResult<>(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload", null);
         } catch (Exception ex) {
-            return new RetryTaskProcessResult(RetryTaskStatus.PENDING, "notReady");
+            return new RetryTaskResult<>(RetryTaskStatus.PENDING, "notReady", null);
         }
     }
     
@@ -439,7 +433,7 @@ public class OrderCommandService {
         return order;
     }
 
-    public PositionIntentResponse requestPrepareIntent(Long userId, OrderCreateRequest request) {
+    private PositionIntentResponse requestPrepareIntent(Long userId, OrderCreateRequest request) {
         return OpenApiClientInvoker.call(
                 () -> exchangePositionClient.prepareIntent(new PositionIntentRequest(userId, request.getInstrumentId(), toPositionSide(request.getSide()), request.getQuantity(), request.getClientOrderId())),
                 msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,

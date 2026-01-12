@@ -5,7 +5,7 @@ import open.vincentf13.exchange.order.infra.pending.dto.OrderPrepareIntentPayloa
 import open.vincentf13.exchange.order.service.OrderCommandService;
 import open.vincentf13.sdk.core.values.OpenEnum;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskProcessResult;
+import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskResult;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskRepository;
@@ -52,9 +52,9 @@ public class RetryTaskScheduler {
                         retryTask -> {
                             OrderPrepareIntentPayload payload = OpenObjectMapper.fromJson(retryTask.getPayload(), OrderPrepareIntentPayload.class);
                             if (payload == null || payload.getOrderId() == null || payload.getUserId() == null || payload.getRequest() == null) {
-                                return new RetryTaskProcessResult(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload");
+                                return new RetryTaskResult<>(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload", null);
                             }
-                            return orderCommandService.retryPrepareIntentAndHandle(payload, null);
+                            return orderCommandService.prepareIntentAndOrderProcess(payload);
                         }
                 );
             }

@@ -28,22 +28,24 @@ public class RetryTaskService {
         return repository.rescueProcessingTimedOut(updatedBefore, resultMsg);
     }
 
-    public void handleTask(RetryTaskPO task,
-                           Duration retryDelay,
-                           Function<RetryTaskPO, RetryTaskProcessResult> processor) {
+    public <T> T handleTask(RetryTaskPO task,
+                            Duration retryDelay,
+                            Function<RetryTaskPO, RetryTaskResult<T>> processor) {
         try {
-            RetryTaskProcessResult result = processor.apply(task);
+            RetryTaskResult<T> result = processor.apply(task);
             if (result == null || result.status() == RetryTaskStatus.SUCCESS) {
                 repository.markSuccess(task.getId(), task.getVersion() + 1, normalizeMessage(result == null ? null : result.message(), "OK"));
-                return;
+                return result == null ? null : result.value();
             }
             if (result.status() == RetryTaskStatus.FAIL_TERMINAL) {
                 repository.markFailTerminal(task.getId(), task.getVersion() + 1, normalizeMessage(result.message(), "terminal"));
-                return;
+                return result.value();
             }
             scheduleRetry(task, retryDelay, result.message());
+            return result.value();
         } catch (Exception ex) {
             scheduleRetry(task, retryDelay, ex.getMessage());
+            return null;
         }
     }
 
