@@ -690,5 +690,8 @@ VALUES (1, 10001, 0.3000, 4, 0.25, 0.005, TRUE, NOW(), NOW());
 
 INSERT INTO users (id, external_id, email, status, created_at, updated_at) VALUES (761365317218437, 'user-1768016605751', 'c.p.kevinf13@gmail.com', 'ACTIVE', '2026-01-10 03:43:26', '2026-01-10 03:43:26');
 INSERT INTO users (id, external_id, email, status, created_at, updated_at) VALUES (761365370314885, 'user-1768016619212', 'c.p.kevinf13-2@gmail.com', 'ACTIVE', '2026-01-10 03:43:40', '2026-01-10 03:43:40');
+INSERT INTO users (id, external_id, email, status, created_at, updated_at) VALUES (762050502422661, 'user-1768183887232', 'c.p.kevinf13-3@gmail.com', 'ACTIVE', '2026-01-12 02:11:27', '2026-01-12 02:11:27');
+
 INSERT INTO auth_credentials (id, user_id, credential_type, secret_hash, salt, status, expires_at, created_at) VALUES (761365318348869, 761365317218437, 'PASSWORD', '$2a$10$6/PeRu7T7TH8tIW4h2HF3uyYTslO4Xkl8EQwwXM9fP7mz0J.3IkMG', 'cdd898ba-54fd-44f4-a33d-ba0f4f768edf', 'ACTIVE', null, '2026-01-10 03:43:26');
 INSERT INTO auth_credentials (id, user_id, credential_type, secret_hash, salt, status, expires_at, created_at) VALUES (761365370511429, 761365370314885, 'PASSWORD', '$2a$10$rLSzRXBmBTRGf.P7EW5k4OlZcLrss72lRwHNtYtOiMwJihJIdhX/u', 'dc6789c5-e451-47e8-ba50-c046954b87cd', 'ACTIVE', null, '2026-01-10 03:43:40');
+INSERT INTO auth_credentials (id, user_id, credential_type, secret_hash, salt, status, expires_at, created_at) VALUES (762050502996037, 762050502422661, 'PASSWORD', '$2a$10$wPrxh2LfBy3ysymtrVS35ud1Z9JYW0ukQOy/NkQQCTVj6oX2CkFS2', '90e0f1fa-1db3-4746-88b6-5a95331a45a4', 'ACTIVE', null, '2026-01-12 02:11:28');

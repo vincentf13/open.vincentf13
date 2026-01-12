@@ -3,6 +3,7 @@
 @instrumentId = 10001
 @emailA = c.p.kevinf13@gmail.com
 @emailB = c.p.kevinf13-2@gmail.com
+@emailC = c.p.kevinf13-3@gmail.com
 
 ### Reset Trade  Data
 POST http://localhost:12345/admin/api/admin/system/reset-data
@@ -35,7 +36,21 @@ Content-Type: application/json
     client.global.set("tokenB", response.body.data.jwtToken);
 %}
 
-### 3. 獲取 Instrument 配置 (共用)
+### 3. 登入帳號 C
+# @name loginC
+POST {{gatewayHost}}/auth/api/login
+Content-Type: application/json
+
+{
+  "email": "{{emailC}}",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("tokenC", response.body.data.jwtToken);
+%}
+
+### 4. 獲取 Instrument 配置 (共用)
 GET {{gatewayHost}}/admin/api/admin/instruments
 Authorization: Bearer {{tokenA}}
 
@@ -50,7 +65,7 @@ Authorization: Bearer {{tokenA}}
     client.log("Config Loaded: Size=" + size + ", Taker=" + client.global.get("takerFeeRate") + ", Maker=" + client.global.get("makerFeeRate") + ", Lev=" + client.global.get("leverage"));
 %}
 
-### 4. 獲取 Risk Limit 配置 (共用)
+### 5. 獲取 Risk Limit 配置 (共用)
 GET {{gatewayHost}}/risk/api/risk/limits/{{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
@@ -217,7 +232,7 @@ Authorization: Bearer {{tokenA}}
     `);
 %}
 
-### 5. 帳號 A 儲值 10000 USDT (共用)
+### 6. 帳號 A 儲值 10000 USDT (共用)
 POST {{gatewayHost}}/account/api/account/deposits
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
@@ -229,7 +244,7 @@ Content-Type: application/json
   "creditedAt": "{{$isoTimestamp}}"
 }
 
-### 6. 帳號 B 儲值 10000 USDT (共用)
+### 7. 帳號 B 儲值 10000 USDT (共用)
 POST {{gatewayHost}}/account/api/account/deposits
 Authorization: Bearer {{tokenB}}
 Content-Type: application/json
@@ -238,6 +253,18 @@ Content-Type: application/json
   "asset": "USDT",
   "amount": 10000,
   "txId": "setup-dep-B-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+### 8. 帳號 C 儲值 10000 USDT (共用)
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenC}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 10000,
+  "txId": "setup-dep-C-{{$timestamp}}",
   "creditedAt": "{{$isoTimestamp}}"
 }
 
