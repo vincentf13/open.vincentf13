@@ -34,15 +34,19 @@ import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskRepository;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskStatus;
+import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskProcessResult;
+import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +60,10 @@ public class OrderCommandService {
     private final ExchangeRiskClient exchangeRiskClient;
     private final TransactionTemplate transactionTemplate;
     private final RetryTaskRepository pendingTaskRepository;
+    private final RetryTaskService retryTaskService;
+
+    @Value("${open.vincentf13.exchange.order.pending.prepare-intent.retry-delay:PT10S}")
+    private java.time.Duration retryDelay;
     
     private static final String ACTOR_ACCOUNT = "ACCOUNT_SERVICE";
     private static final String ACTOR_MATCHING = "MATCHING_ENGINE";
@@ -172,25 +180,19 @@ public class OrderCommandService {
                 orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), Instant.now(), payload, OrderEventReferenceType.REQUEST, request.getClientOrderId());
                 return pendingTaskRepository.insert(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), new OrderPrepareIntentPayload(order.getOrderId(), userId, request));
             });
-
-            PositionIntentResponse intentResponse;
-            try {
-                intentResponse = requestPrepareIntent(userId, request);
-            } catch (Exception ex) {
-                return loadPersistedOrder(order.getOrderId())
-                               .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
-                               .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
+            AtomicReference<OrderResponse> responseRef = new AtomicReference<>();
+            retryTaskService.handleTask(
+                    pendingTask,
+                    retryDelay,
+                    current -> processPrepareIntentPayload(new OrderPrepareIntentPayload(order.getOrderId(), userId, request), responseRef)
+            );
+            OrderResponse response = responseRef.get();
+            if (response != null) {
+                return response;
             }
-
-            OrderResponse response = handlePrepareIntentResponse(order.getOrderId(), userId, request, intentResponse);
-            boolean marked = pendingTaskRepository.markSuccess(pendingTask.getId(), pendingTask.getVersion(), "OK");
-            if (!marked) {
-                RetryTaskPO currentTask = pendingTaskRepository.findById(pendingTask.getId());
-                if (currentTask != null && currentTask.getStatus() == RetryTaskStatus.SUCCESS) {
-                    return response;
-                }
-            }
-            return response;
+            return loadPersistedOrder(order.getOrderId())
+                           .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
+                           .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
         } catch (DuplicateKeyException ex) {
             OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
                          "userId", userId,
@@ -326,6 +328,22 @@ public class OrderCommandService {
 
             return OpenObjectMapper.convert(order, OrderResponse.class);
         });
+    }
+
+    public RetryTaskProcessResult processPrepareIntentPayload(OrderPrepareIntentPayload payload,
+                                                              AtomicReference<OrderResponse> responseRef) {
+        try {
+            PositionIntentResponse intentResponse = requestPrepareIntent(payload.getUserId(), payload.getRequest());
+            OrderResponse response = handlePrepareIntentResponse(payload.getOrderId(), payload.getUserId(), payload.getRequest(), intentResponse);
+            if (responseRef != null) {
+                responseRef.set(response);
+            }
+            return new RetryTaskProcessResult(RetryTaskStatus.SUCCESS, "OK");
+        } catch (OpenException ex) {
+            return new RetryTaskProcessResult(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload");
+        } catch (Exception ex) {
+            return new RetryTaskProcessResult(RetryTaskStatus.PENDING, "notReady");
+        }
     }
     
     private OrderPrecheckResponse precheckOrder(Long userId,

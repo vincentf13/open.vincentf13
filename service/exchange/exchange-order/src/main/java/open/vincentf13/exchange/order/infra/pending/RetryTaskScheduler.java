@@ -3,10 +3,8 @@ package open.vincentf13.exchange.order.infra.pending;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.infra.pending.dto.OrderPrepareIntentPayload;
 import open.vincentf13.exchange.order.service.OrderCommandService;
-import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.sdk.core.values.OpenEnum;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskProcessResult;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
@@ -56,16 +54,7 @@ public class RetryTaskScheduler {
                             if (payload == null || payload.getOrderId() == null || payload.getUserId() == null || payload.getRequest() == null) {
                                 return new RetryTaskProcessResult(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload");
                             }
-                            Long orderId = payload.getOrderId();
-                            try {
-                                PositionIntentResponse intentResponse = orderCommandService.requestPrepareIntent(payload.getUserId(), payload.getRequest());
-                                orderCommandService.handlePrepareIntentResponse(orderId, payload.getUserId(), payload.getRequest(), intentResponse);
-                                return new RetryTaskProcessResult(RetryTaskStatus.SUCCESS, "OK");
-                            } catch (OpenException e) {
-                                return new RetryTaskProcessResult(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload");
-                            } catch (Exception e) {
-                                return new RetryTaskProcessResult(RetryTaskStatus.FAIL_RETRY, "notReady");
-                            }
+                            return orderCommandService.processPrepareIntentPayload(payload, null);
                         }
                 );
             }
