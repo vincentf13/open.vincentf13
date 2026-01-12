@@ -1,5 +1,5 @@
 ### 重置 Kafka Offset 範例
-POST http://localhost:59331/infra/kafka/seek
+POST http://localhost:26881/infra/kafka/seek
 Content-Type: application/json
 
 {
