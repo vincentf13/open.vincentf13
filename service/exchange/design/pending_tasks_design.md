@@ -1,3 +1,4 @@
+# table sys_pending_tasks
 
 詳細 SQL 請參考 [init.sql](init.sql)
 
@@ -30,19 +31,18 @@
 
 ### 狀態定義
 - 0 (PENDING - 待處理)
-    
     任務剛建立，或者等待重試中。
+    
 - 1 (PROCESSING - 處理中)
-    
     已被某個 Worker 鎖定並正在執行，此時其他 Worker 不可見或不可搶佔。
+    
 - 2 (SUCCESS - 成功)
-    
     任務執行完畢且成功，屬於終態（Terminal State）。
+    
 - 3 (FAIL_RETRY - 失敗待重試)
-    
     執行發生錯誤，但未達最大重試次數。系統稍後會將其重置為 PENDING 或直接在下次掃描時處理。
-- 4 (FAIL_TERMINAL - 永久失敗)
     
+- 4 (FAIL_TERMINAL - 永久失敗)
     超過最大重試次數仍然失敗，不再自動重試，需人工介入。屬於終態。
     
 
@@ -116,7 +116,7 @@ payload
 
 ### 第四步：任務執行結束回寫 (Finalize)
 
-業務邏輯執行完畢後，根據結果更新狀態。此時不需要再用樂觀鎖，因為該任務已經被當前 Worker 標記為 `status=1`，其他 Worker 不會碰到。
+
 - **情境 A：執行成功**
 
 ```
