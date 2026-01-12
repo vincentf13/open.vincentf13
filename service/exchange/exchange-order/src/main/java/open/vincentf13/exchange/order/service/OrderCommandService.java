@@ -22,6 +22,7 @@ import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionReservationReleaseRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.position.sdk.rest.client.ExchangePositionClient;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
@@ -294,8 +295,8 @@ public class OrderCommandService {
             ) {
                 return order;
             }
-        
-          
+            
+            
             PositionIntentType intentType = intentResponse.intentType();
             if (intentType == null) {
                 return rejectPersistedOrder(order, "intentMissing", OrderEventReferenceType.REQUEST);
@@ -306,9 +307,9 @@ public class OrderCommandService {
             // 風控
             OrderPrecheckResponse precheck = precheckOrder(userId, order, intentType, intentResponse.positionSnapshot());
             if (!precheck.isAllow()) {
-                if(intentType == PositionIntentType.REDUCE || intentType == PositionIntentType.CLOSE){
+                if (intentType == PositionIntentType.REDUCE || intentType == PositionIntentType.CLOSE) {
                     // 平倉預凍結倉位需解凍
-                    
+                    releaseClosingReservation(userId, request);
                 }
                 return rejectPersistedOrder(order, Optional.ofNullable(precheck.getReason()).orElse("riskRejected"), OrderEventReferenceType.RISK_CHECK);
             }
@@ -404,6 +405,25 @@ public class OrderCommandService {
         return orderSide == OrderSide.BUY
                ? PositionSide.LONG
                : PositionSide.SHORT;
+    }
+    
+    private void releaseClosingReservation(Long userId,
+                                           OrderCreateRequest request) {
+        PositionReservationReleaseRequest releaseRequest = PositionReservationReleaseRequest.builder()
+                                                                                            .userId(userId)
+                                                                                            .instrumentId(request.getInstrumentId())
+                                                                                            .quantity(request.getQuantity())
+                                                                                            .clientOrderId(request.getClientOrderId())
+                                                                                            .build();
+        try {
+            OpenApiClientInvoker.call(
+                    () -> exchangePositionClient.releaseReservation(releaseRequest),
+                    msg -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                                            Map.of("userId", userId, "instrumentId", request.getInstrumentId(), "remoteMessage", msg))
+                                     );
+        } catch (OpenException ex) {
+            throw new IllegalStateException("releaseReservationFailed", ex);
+        }
     }
     
     private static final int MAX_REJECTED_REASON_LENGTH = 255;

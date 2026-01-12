@@ -56,8 +56,9 @@ public class PositionDomainService {
         
         // 會有紀錄，代表之前已判斷為平倉，且已凍結倉位。
         // 後續風控拒絕，需解凍倉位
-        if (positionEventRepository.existsByReferenceLike(PositionReferenceType.RESERVATION, clientOrderId + ":")) {
-            return new PositionIntentResult(PositionIntentType.REDUCE, activePosition, null);
+        if (clientOrderId != null
+            && positionEventRepository.existsByReferenceLike(PositionReferenceType.RESERVATION, clientOrderId + ":")) {
+            return new PositionIntentResult(PositionIntentType.REDUCE, activePosition.orElse(null), null);
         }
         
         
@@ -118,6 +119,46 @@ public class PositionDomainService {
                 position.getInstrumentId(),
                 payload,
                 clientOrderId + ":" + reservedQuantity,
+                Instant.now()
+                                                                  );
+        positionEventRepository.insert(event);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void releaseClosingPosition(Position position,
+                                       BigDecimal reservedQuantity,
+                                       String clientOrderId) {
+        String referenceId =  clientOrderId + ":release:" + reservedQuantity;
+        if ( positionEventRepository.existsByReference(PositionReferenceType.RESERVATION, referenceId)) {
+            return;
+        }
+        
+        // TODO flip 搶奪了預扣倉位
+
+        Position originalPosition = OpenObjectMapper.convert(position, Position.class);
+        int expectedVersion = position.safeVersion();
+        BigDecimal currentReserved = position.getClosingReservedQuantity() == null ? BigDecimal.ZERO : position.getClosingReservedQuantity();
+        position.setClosingReservedQuantity(currentReserved.subtract(reservedQuantity));
+        position.setVersion(expectedVersion + 1);
+        boolean updated = positionRepository.updateSelectiveBy(
+                position,
+                Wrappers.<PositionPO>lambdaUpdate()
+                        .eq(PositionPO::getPositionId, position.getPositionId())
+                        .eq(PositionPO::getUserId, position.getUserId())
+                        .eq(PositionPO::getInstrumentId, position.getInstrumentId())
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE)
+                        .eq(PositionPO::getVersion, expectedVersion));
+        if (!updated) {
+            throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE);
+        }
+
+        String payload = Position.buildPayload(originalPosition, position);
+        PositionEvent event = PositionEvent.createReservationEvent(
+                position.getPositionId(),
+                position.getUserId(),
+                position.getInstrumentId(),
+                payload,
+                referenceId,
                 Instant.now()
                                                                   );
         positionEventRepository.insert(event);

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionReservationReleaseRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.sdk.auth.auth.Jwt;
 import open.vincentf13.sdk.auth.auth.PrivateAPI;
@@ -23,6 +24,10 @@ public interface PositionApi {
     @PostMapping("/intent")
     @PrivateAPI
     OpenApiResponse<PositionIntentResponse> prepareIntent(@Valid @RequestBody PositionIntentRequest request);
+
+    @PostMapping("/intent/release")
+    @PrivateAPI
+    OpenApiResponse<Void> releaseReservation(@Valid @RequestBody PositionReservationReleaseRequest request);
     
     @GetMapping("/{userId}/{instrumentId}")
     @PrivateAPI

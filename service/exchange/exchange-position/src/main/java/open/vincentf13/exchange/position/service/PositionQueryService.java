@@ -53,6 +53,17 @@ public class PositionQueryService {
                                          existing,
                                          result.position() == null ? null : OpenObjectMapper.convert(result.position(), PositionResponse.class));
     }
+
+    public void releaseReservation(@NotNull @Valid PositionReservationReleaseRequest request) {
+        Position position = positionRepository.findOne(
+                Wrappers.lambdaQuery(PositionPO.class)
+                        .eq(PositionPO::getUserId, request.userId())
+                        .eq(PositionPO::getInstrumentId, request.instrumentId())
+                        .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                                              .orElseThrow(() -> OpenException.of(PositionErrorCode.POSITION_NOT_FOUND,
+                                                                                  Map.of("userId", request.userId(), "instrumentId", request.instrumentId())));
+        positionDomainService.releaseClosingPosition(position, request.quantity(), request.clientOrderId());
+    }
     
     public PositionResponse getPosition(@NotNull Long userId,
                                         @NotNull Long instrumentId) {

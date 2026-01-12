@@ -6,6 +6,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionEventResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionReservationReleaseRequest;
 import open.vincentf13.exchange.position.service.PositionQueryService;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
@@ -24,6 +25,12 @@ public class PositionController implements PositionApi {
     @Override
     public OpenApiResponse<PositionIntentResponse> prepareIntent(PositionIntentRequest request) {
         return OpenApiResponse.success(positionQueryService.prepareIntent(request));
+    }
+
+    @Override
+    public OpenApiResponse<Object> releaseReservation(PositionReservationReleaseRequest request) {
+        positionQueryService.releaseReservation(request);
+        return OpenApiResponse.success(new Object());
     }
     
     @Override
