@@ -16,10 +16,33 @@ public class RecordInterceptor implements org.springframework.kafka.listener.Rec
          */
         String summary = String.format("topic=%s partition=%d offset=%d listenerId=%s",
                                        record.topic(), record.partition(), record.offset(), Thread.currentThread().getName());
-        String eventJson = OpenObjectMapper.toJson(record);
+        String eventJson = decodeEventJson(record.value());
         OpenLog.debug(KafkaEvent.KAFKA_CONSUME_DEBUG,
                       "detail", "\n" + summary + "\n" + "event=" + eventJson);
         return record;
+    }
+
+    private String decodeEventJson(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof String stringValue) {
+            String trimmed = stringValue.trim();
+            String json = stringValue;
+            if (trimmed.startsWith("\"")) {
+                try {
+                    json = OpenObjectMapper.fromJson(trimmed, String.class);
+                } catch (RuntimeException ex) {
+                    json = stringValue;
+                }
+            }
+            try {
+                return OpenObjectMapper.toJson(OpenObjectMapper.readTree(json));
+            } catch (RuntimeException ex) {
+                return json;
+            }
+        }
+        return OpenObjectMapper.toJson(value);
     }
     
     @Override
