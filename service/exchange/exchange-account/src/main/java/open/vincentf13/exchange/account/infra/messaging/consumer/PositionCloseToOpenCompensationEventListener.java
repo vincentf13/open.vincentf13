@@ -1,12 +1,10 @@
 package open.vincentf13.exchange.account.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.infra.AccountEvent;
 import open.vincentf13.exchange.account.service.AccountCommandService;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompensationEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionTopics;
 import open.vincentf13.sdk.core.validator.OpenValidator;
-import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -22,13 +20,8 @@ public class PositionCloseToOpenCompensationEventListener {
                    groupId = "${open.vincentf13.exchange.account.consumer-group:exchange-account}")
     public void onCloseToOpenCompensation(@Payload PositionCloseToOpenCompensationEvent event,
                                           Acknowledgment acknowledgment) {
-        try {
-            OpenValidator.validateOrThrow(event);
-            accountCommandService.handleCloseToOpenCompensation(event);
-            acknowledgment.acknowledge();
-        } catch (Exception e) {
-            OpenLog.warn(AccountEvent.POSITION_CLOSE_TO_OPEN_COMPENSATION_PAYLOAD_INVALID, e, "event", event);
-            throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
-        }
+        OpenValidator.validateOrThrow(event);
+        accountCommandService.handleCloseToOpenCompensation(event);
+        acknowledgment.acknowledge();
     }
 }

@@ -32,11 +32,7 @@ public class TradeExecutedEventListener {
                 acknowledgment.acknowledge();
                 return;
             }
-            OpenLog.error(PositionEvent.POSITION_TRADE_SETTLEMENT_FAILED, e, "event", event);
             throw e;
-        } catch (Exception e) {
-            OpenLog.error(PositionEvent.POSITION_TRADE_SETTLEMENT_FAILED, e, "event", event);
-            throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
         }
     }
 }

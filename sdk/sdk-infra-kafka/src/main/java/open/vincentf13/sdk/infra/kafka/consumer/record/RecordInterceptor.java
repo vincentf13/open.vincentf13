@@ -59,7 +59,7 @@ public class RecordInterceptor implements org.springframework.kafka.listener.Rec
     public void failure(ConsumerRecord<Object, Object> record,
                         Exception exception,
                         Consumer<Object, Object> consumer) {
-        OpenLog.warn(KafkaEvent.KAFKA_CONSUME_FAILED, exception,
+        OpenLog.warn(KafkaEvent.KAFKA_CONSUME_ERROR, exception,
                      "topic", record.topic(),
                      "partition", record.partition(),
                      "offset", record.offset(),
