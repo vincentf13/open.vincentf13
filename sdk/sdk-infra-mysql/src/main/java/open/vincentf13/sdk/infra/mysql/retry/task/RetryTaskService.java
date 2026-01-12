@@ -29,10 +29,11 @@ public class RetryTaskService {
     }
 
     public void handleTask(RetryTaskPO task,
+                           
                            Duration retryDelay,
                            Function<RetryTaskPO, RetryTaskProcessResult> processor) {
         try {
-            RetryTaskProcessResult result = processor.process(task);
+            RetryTaskProcessResult result = processor.apply(task);
             if (result == null || result.status() == RetryTaskStatus.SUCCESS) {
                 repository.markSuccess(task.getId(), task.getVersion() + 1, normalizeMessage(result == null ? null : result.message(), "OK"));
                 return;
