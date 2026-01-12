@@ -54,7 +54,7 @@ public class SystemMaintenanceCommandService {
             "platform_accounts",
             "user_journal",
             "user_accounts",
-            "sys_pending_tasks",
+            "retry_task",
             "platform_journal",
             "order_events",
             "position_events",

@@ -598,8 +598,8 @@ CREATE INDEX `idx_mark_price_snapshot` ON `mark_price_snapshots` (`instrument_id
 -- 7. System & Messaging Tables
 -- ==========================================
 
--- sys_pending_tasks - 通用待處理任務表
-CREATE TABLE sys_pending_tasks (
+-- retry_task - 通用待處理任務表
+CREATE TABLE retry_task (
     -- 1. 唯一標識與索引
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主鍵 ID',
     biz_type VARCHAR(50) NOT NULL COMMENT '業務類型 (如: ORDER_SYNC, EMAIL_SEND)',

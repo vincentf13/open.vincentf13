@@ -1,4 +1,4 @@
-# table sys_pending_tasks
+# table retry_task
 
 詳細 SQL 請參考 [init.sql](init.sql)
 
@@ -17,7 +17,7 @@
     - 不要只依賴 `created_at`。`next_run_time` 允許你實現「延遲 5 分鐘後執行」或「失敗後 10 分鐘再重試（指數退避）」的功能。Worker 查詢時應 `WHERE next_run_time <= NOW()`。
 - **version (並發安全)**
     - 在分佈式系統中，可能有多個 Worker 同時掃描表格。利用樂觀鎖（Optimistic Locking）更新狀態，避免同一個任務被兩個 Worker 執行：
-    - `UPDATE sys_pending_tasks SET status=1, version=version+1 WHERE id=? AND version=?`
+    - `UPDATE retry_task SET status=1, version=version+1 WHERE id=? AND version=?`
         
 
 
@@ -74,7 +74,7 @@ SQL
 
 ```
 SELECT id, biz_type, payload, version 
-FROM sys_pending_tasks 
+FROM retry_task 
 WHERE status IN ('PENDING', 'FAIL_RETRY')
   AND next_run_time <= NOW() 
 ORDER BY priority ASC 
@@ -89,7 +89,7 @@ Worker 嘗試將狀態改為「處理中 (1)」。這裡最關鍵的是 `WHERE` 
 SQL
 
 ```
-UPDATE sys_pending_tasks 
+UPDATE retry_task 
 SET 
     status = 'PROCESSING',           -- 改為處理中
     version = version + 1 -- 版本號遞增
@@ -120,7 +120,7 @@ payload
 - **情境 A：執行成功**
 
 ```
-UPDATE sys_pending_tasks 
+UPDATE retry_task 
 SET 
     status = 'SUCCESS',           -- SUCCESS
     result_msg = 'OK',
@@ -132,7 +132,7 @@ WHERE id = 100  AND version = {version};
     - 重試次數 + 1。
         
 ```
-UPDATE sys_pending_tasks 
+UPDATE retry_task 
 SET 
     status = 'FAIL_RETRY', -- (或直接設回 PENDING)
     retry_count = retry_count + 1,
@@ -144,7 +144,7 @@ WHERE id = 100  AND version = {version};
 - **情境 C：執行失敗 (達到最大重試次數)**
     
 ```
-UPDATE sys_pending_tasks 
+UPDATE retry_task 
 SET 
     status = 'FAIL_TERMINAL',
     result_msg = 'Max retries exceeded: {error msg}',
@@ -177,7 +177,7 @@ WHERE id = 100  AND version = 5;
 SQL
 
 ```
-UPDATE sys_pending_tasks
+UPDATE retry_task
 SET 
     status = 'FAIL_RETRY', -- 改為 FAIL_RETRY (失敗待重試)
     retry_count = retry_count + 1, -- 消耗一次重試機會
@@ -222,7 +222,7 @@ SQL
 
 ```
 -- Worker A 嘗試提交結果
-UPDATE sys_pending_tasks 
+UPDATE retry_task 
 SET status = 2, result_msg = 'OK' 
 WHERE id = 100 AND version = 5; -- 這裡的 version 是 5
 ```
@@ -245,7 +245,7 @@ Worker A 的結果會被資料庫擋掉，因為版本號已經變了。這完�
 
 # 數據歸檔 (Archiving)
     
-    Pending 表的數據量應保持輕量。建議設計一個定時任務（CronJob），每天將 status = 2 (成功) 或 status = 4 (永久失敗) 的記錄搬移到 sys_pending_tasks_history 歷史表，並從主表中刪除，以維持索引效率。
+    Pending 表的數據量應保持輕量。建議設計一個定時任務（CronJob），每天將 status = 2 (成功) 或 status = 4 (永久失敗) 的記錄搬移到 retry_task_history 歷史表，並從主表中刪除，以維持索引效率。
 - 分庫分表考量
     
     如果業務量極大，可以根據 biz_type 進行分表，或者直接使用 Redis (List/Stream) 或 Message Queue (Kafka/RabbitMQ) 來替代資料庫表。但在需要「交易一致性 (Transactional Outbox Pattern)」的場景下，上述的 DB Table 設計仍然是最佳解法。
