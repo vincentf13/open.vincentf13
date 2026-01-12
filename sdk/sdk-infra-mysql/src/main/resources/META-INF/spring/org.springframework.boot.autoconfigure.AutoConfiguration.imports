@@ -1,4 +1,4 @@
 open.vincentf13.sdk.infra.mysql.mybatis.MysqlMapperScanAutoConfiguration
 open.vincentf13.sdk.infra.mysql.mybatis.MapperSqlLoggingAutoConfiguration
 open.vincentf13.sdk.infra.mysql.mybatis.typehandler.EnumTypeHandlerAutoConfiguration
-open.vincentf13.sdk.infra.mysql.pending.task.SysPendingTaskRescueAutoConfiguration
+open.vincentf13.sdk.infra.mysql.pending.task.config.SysPendingTaskRescueAutoConfiguration
