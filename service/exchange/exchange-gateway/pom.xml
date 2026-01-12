@@ -25,10 +25,6 @@
             <groupId>open.vincentf13</groupId>
             <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
         </dependency>
-        <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>sdk-devtool</artifactId>
-        </dependency>
     </dependencies>
 
     <build>
