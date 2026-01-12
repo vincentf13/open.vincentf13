@@ -6,7 +6,7 @@ import open.vincentf13.exchange.matching.domain.instrument.Instrument;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.cache.InstrumentCache;
-import open.vincentf13.sdk.core.OpenBigDecimal;
+import open.vincentf13.sdk.core.values.OpenBigDecimal;
 
 import java.math.BigDecimal;
 import java.time.Instant;

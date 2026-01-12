@@ -13,7 +13,7 @@ import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
-import open.vincentf13.sdk.core.OpenBigDecimal;
+import open.vincentf13.sdk.core.values.OpenBigDecimal;
 import open.vincentf13.sdk.core.exception.OpenException;
 
 import java.math.BigDecimal;

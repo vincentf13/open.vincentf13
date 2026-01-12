@@ -4,7 +4,7 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.model.OrderUpdate;
 import open.vincentf13.exchange.market.domain.model.OrderBookSnapshot;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
-import open.vincentf13.sdk.core.OpenBigDecimal;
+import open.vincentf13.sdk.core.values.OpenBigDecimal;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
