@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.mysql.pending.task;
+package open.vincentf13.sdk.infra.mysql.retry.task;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,16 +8,16 @@ import java.time.Duration;
 
 @Slf4j
 @RequiredArgsConstructor
-public class SysPendingTaskRescueScheduler {
+public class RetryTaskRescueScheduler {
     
-    private final SysPendingTaskRescueService rescueService;
+    private final RetryTaskRescueService rescueService;
     private final Duration timeout;
     
     @Scheduled(fixedDelayString = "${open.vincentf13.pending-task.rescue.fixed-delay:60000}")
     public void rescue() {
         int rescued = rescueService.rescueProcessing(timeout, null);
         if (rescued > 0 && log.isInfoEnabled()) {
-            log.info("SysPendingTask rescue: {} tasks moved back to FAIL_RETRY", rescued);
+            log.info("RetryTask rescue: {} tasks moved back to FAIL_RETRY", rescued);
         }
     }
 }

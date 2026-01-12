@@ -1,5 +1,8 @@
-package open.vincentf13.sdk.infra.mysql.pending.task.repository;
+package open.vincentf13.sdk.infra.mysql.retry.task.repository;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,12 +14,14 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SysPendingTaskPO {
+@TableName("retry_task")
+public class RetryTaskPO {
     
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     private String bizType;
     private String bizKey;
-    private SysPendingTaskStatus status;
+    private RetryTaskStatus status;
     private Integer priority;
     private String payload;
     private String resultMsg;
