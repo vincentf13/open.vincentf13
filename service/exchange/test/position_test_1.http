@@ -40,7 +40,7 @@ Content-Type: application/json
     eval(client.global.get("waitMaker"));
 %}
 
-###
+### B 成交 A 的 5 張
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
 Content-Type: application/json
@@ -107,7 +107,7 @@ Content-Type: application/json
     eval(client.global.get("waitMaker"));
 %}
 
-###
+### B 成交 A 的 3 張
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
 Content-Type: application/json
@@ -175,7 +175,7 @@ Content-Type: application/json
     eval(client.global.get("waitMaker"));
 %}
 
-###
+### B 成交 A 的 2 張
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
 Content-Type: application/json
@@ -243,7 +243,7 @@ Content-Type: application/json
     eval(client.global.get("waitMaker"));
 %}
 
-###
+### B 成交 A 的 4 張
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
 Content-Type: application/json
@@ -330,7 +330,7 @@ Content-Type: application/json
     eval(client.global.get("waitMaker"));
 %}
 
-###
+### B 成交 A 的 5 張
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
 Content-Type: application/json
@@ -457,7 +457,7 @@ Content-Type: application/json
     eval(client.global.get("waitMaker"));
 %}
 
-###
+### A 同時下單第二筆 (Buy 10)
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
 Content-Type: application/json
