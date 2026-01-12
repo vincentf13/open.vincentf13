@@ -19,12 +19,12 @@ public class RetryTaskRepository {
     
     private final RetryTaskMapper mapper;
     
-    public <T> RetryTaskPO insert(Enum<?> bizType,
-                                 String bizKey,
-                                 T payload,
-                                 Integer maxRetries,
-                                 Integer priority,
-                                 Instant nextRunTime) {
+    public <T> RetryTaskPO insertPendingTask(Enum<?> bizType,
+                                             String bizKey,
+                                             T payload,
+                                             Integer maxRetries,
+                                             Integer priority,
+                                             Instant nextRunTime) {
         String type = bizType == null ? null : bizType.name();
         Assert.hasText(type, "bizType must not be blank");
         Assert.hasText(bizKey, "bizKey must not be blank");
@@ -44,13 +44,13 @@ public class RetryTaskRepository {
         return record;
     }
 
-    public <T> RetryTaskPO insert(Enum<?> bizType,
-                                 String bizKey,
-                                 T payload) {
+    public <T> RetryTaskPO insertPendingTask(Enum<?> bizType,
+                                             String bizKey,
+                                             T payload) {
         /**
           使用預設 maxRetries/priority/nextRunTime 建立 retry_task 紀錄。
          */
-        return insert(bizType, bizKey, payload, null, null, null);
+        return insertPendingTask(bizType, bizKey, payload, null, null, null);
     }
     
     public List<RetryTaskPO> findPending(int limit) {

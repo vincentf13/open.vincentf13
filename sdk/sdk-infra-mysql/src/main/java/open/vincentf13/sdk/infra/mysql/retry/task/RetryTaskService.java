@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskRepository;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskStatus;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -28,6 +29,7 @@ public class RetryTaskService {
         return repository.rescueProcessingTimedOut(updatedBefore, resultMsg);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public <T> T handleTask(RetryTaskPO task,
                             Duration retryDelay,
                             Function<RetryTaskPO, RetryTaskResult<T>> processor) {

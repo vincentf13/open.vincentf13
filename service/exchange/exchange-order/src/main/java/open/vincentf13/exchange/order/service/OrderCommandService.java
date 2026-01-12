@@ -76,6 +76,54 @@ public class OrderCommandService {
                        OrderStatus.CANCELLING,
                        OrderStatus.CANCELLED);
     
+    public OrderResponse createOrder(@NotNull Long userId,
+                                     @Valid OrderCreateRequest request) {
+        try {
+            Order order = Order.initWithVaildate(userId, request);
+            
+            OrderPrepareIntentPayload payload = new OrderPrepareIntentPayload(order.getOrderId(), userId, request);
+            RetryTaskPO retryTask = transactionTemplate.execute(status -> {
+                orderRepository.insertSelective(order);
+                String payload = OpenObjectDiff.diff(null, order);
+                orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), Instant.now(), payload, OrderEventReferenceType.REQUEST, request.getClientOrderId());
+                return pendingTaskRepository.insertPendingTask(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), payload);
+            });
+            Order response = retryTaskService.handleTask(
+                    retryTask,
+                    retryDelay,
+                    retryTask2 -> prepareIntentAndOrderProcess(payload));
+            if (response != null) {
+                return OpenObjectMapper.convert(response, OrderResponse.class);
+            }
+            return loadPersistedOrder(order.getOrderId())
+                           .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
+                           .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
+        } catch (DuplicateKeyException ex) {
+            OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
+                         "userId", userId,
+                         "clientOrderId", request.getClientOrderId());
+            return orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
+                                                   .eq(OrderPO::getUserId, userId)
+                                                   .eq(OrderPO::getClientOrderId, request.getClientOrderId()))
+                                  .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
+                                  .orElseThrow(() -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
+                                                                      Map.of("userId", userId, "clientOrderId", request.getClientOrderId())));
+        }
+    }
+    
+    
+    public RetryTaskResult<Order> prepareIntentAndOrderProcess(OrderPrepareIntentPayload payload) {
+        try {
+            PositionIntentResponse intentResponse = requestPrepareIntent(payload.getUserId(), payload.getRequest());
+            Order response = processOrderByIntent(payload.getOrderId(), payload.getUserId(), payload.getRequest(), intentResponse);
+            return new RetryTaskResult<>(RetryTaskStatus.SUCCESS, "OK", response);
+        } catch (OpenException ex) {
+            return new RetryTaskResult<>(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload", null);
+        } catch (Exception ex) {
+            return new RetryTaskResult<>(RetryTaskStatus.PENDING, "notReady", null);
+        }
+    }
+    
     public void processFundsFrozen(Long orderId,
                                    Instant eventTime) {
         transactionTemplate.executeWithoutResult(status -> {
@@ -173,41 +221,6 @@ public class OrderCommandService {
         });
     }
     
-    public OrderResponse createOrder(@NotNull Long userId,
-                                     @Valid OrderCreateRequest request) {
-        try {
-            Order order = Order.initWithVaildate(userId, request);
-            
-            OrderPrepareIntentPayload payload = new OrderPrepareIntentPayload(order.getOrderId(), userId, request);
-            RetryTaskPO retryTask = transactionTemplate.execute(status -> {
-                orderRepository.insertSelective(order);
-                String payload = OpenObjectDiff.diff(null, order);
-                orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), Instant.now(), payload, OrderEventReferenceType.REQUEST, request.getClientOrderId());
-                return pendingTaskRepository.insert(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), payload);
-            });
-            Order response = retryTaskService.handleTask(
-                    retryTask,
-                    retryDelay,
-                    retryTask2 -> prepareIntentAndOrderProcess(payload)
-                                                        );
-            if (response != null) {
-                return OpenObjectMapper.convert(response, OrderResponse.class);
-            }
-            return loadPersistedOrder(order.getOrderId())
-                           .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
-                           .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
-        } catch (DuplicateKeyException ex) {
-            OpenLog.info(OrderEvent.ORDER_DUPLICATE_INSERT,
-                         "userId", userId,
-                         "clientOrderId", request.getClientOrderId());
-            return orderRepository.findOne(Wrappers.<OrderPO>lambdaQuery()
-                                                   .eq(OrderPO::getUserId, userId)
-                                                   .eq(OrderPO::getClientOrderId, request.getClientOrderId()))
-                                  .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
-                                  .orElseThrow(() -> OpenException.of(OrderErrorCode.ORDER_STATE_CONFLICT,
-                                                                      Map.of("userId", userId, "clientOrderId", request.getClientOrderId())));
-        }
-    }
     
     public void processTradeExecution(Long orderId,
                                       Long tradeId,
@@ -333,17 +346,6 @@ public class OrderCommandService {
         });
     }
     
-    public RetryTaskResult<Order> prepareIntentAndOrderProcess(OrderPrepareIntentPayload payload) {
-        try {
-            PositionIntentResponse intentResponse = requestPrepareIntent(payload.getUserId(), payload.getRequest());
-            Order response = processOrderByIntent(payload.getOrderId(), payload.getUserId(), payload.getRequest(), intentResponse);
-            return new RetryTaskResult<>(RetryTaskStatus.SUCCESS, "OK", response);
-        } catch (OpenException ex) {
-            return new RetryTaskResult<>(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload", null);
-        } catch (Exception ex) {
-            return new RetryTaskResult<>(RetryTaskStatus.PENDING, "notReady", null);
-        }
-    }
     
     private OrderPrecheckResponse precheckOrder(Long userId,
                                                 Order order,
