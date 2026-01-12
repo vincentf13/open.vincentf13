@@ -312,7 +312,7 @@ Content-Type: application/json
 %}
 
 
-### [Flip 反手] A Sell 10 (B Buy 10) @ 100 -> A 預期持空倉 5 (原多 5 - 賣 10)
+### [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5 (原多 5 - 賣 10)
 # A 原本持多倉 5，賣 10 變空 5
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenA}}
@@ -372,7 +372,24 @@ Authorization: Bearer {{tokenA}}
 %}
 
 
-###
+### C 成交 A 的 5 張
+POST {{gatewayHost}}/order/api/orders
+Authorization: Bearer {{tokenC}}
+Content-Type: application/json
+
+{
+  "instrumentId": {{instrumentId}},
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 100,
+  "quantity": 5000
+}
+
+> {%
+    eval(client.global.get("waitTaker"));
+%}
+
+### B 成交 A 的 5 張
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
 Content-Type: application/json
@@ -382,7 +399,7 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 10000
+  "quantity": 5000
 }
 
 > {%
