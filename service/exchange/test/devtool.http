@@ -1,5 +1,7 @@
+@port = 14935
+
 ### 重置 Kafka Offset 範例
-POST http://localhost:43141/infra/kafka/seek
+POST http://localhost:{{port}}/infra/kafka/seek
 Content-Type: application/json
 
 {
@@ -10,12 +12,12 @@ Content-Type: application/json
 
 
 ### 切換 log 等級
-POST http://localhost:8080/api/logging
+POST http://localhost:{{port}}/api/logging
 Content-Type: application/json
 
 {
-  "kafka": true,
+  "kafka": false,
   "mvc": false,
   "feign": false,
-  "mybatis": true
+  "mybatis": false
 }
