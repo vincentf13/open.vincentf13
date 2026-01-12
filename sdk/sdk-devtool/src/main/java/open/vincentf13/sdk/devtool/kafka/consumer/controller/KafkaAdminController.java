@@ -1,4 +1,5 @@
-package open.vincentf13.sdk.infra.kafka.consumer.controller;
+package open.vincentf13.sdk.devtool.kafka.consumer.controller;
+
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -41,18 +42,42 @@ public class KafkaAdminController {
        由於 Spring Kafka 容器限制，此操作會暫時停止並重啟相關的 Listener Container。
 
        參數詳細說明：
-       ┌────────────┬─────────┬──────┬──────────────────────────────────────────────────────────────────────────────────────────┐
-       │ 參數名稱   │ 類型    │ 必填 │ 作用說明                                                                                 │
-       ├────────────┼─────────┼──────┼──────────────────────────────────────────────────────────────────────────────────────────┤
-       │ listenerId │ String  │ 否   │ 監聽器 ID。Spring Kafka 中 @KafkaListener 指定的 id。如果提供，則僅針對該特定的 Consumer │
-       │            │         │      │ 執行調整；如果不提供，則會掃描所有 Container。                                           │
-       ├────────────┼─────────┼──────┼──────────────────────────────────────────────────────────────────────────────────────────┤
-       │ topic      │ String  │ 是   │ 主題名稱。僅填寫 Topic 名稱，**不可**包含分區後綴。                                      │
-       ├────────────┼─────────┼──────┼──────────────────────────────────────────────────────────────────────────────────────────┤
-       │ partition  │ Integer │ 是   │ 分區編號。指定該 Topic 下哪一個分區要進行調整（從 0 開始）。                             │
-       ├────────────┼─────────┼──────┼──────────────────────────────────────────────────────────────────────────────────────────┤
-       │ offset     │ Long    │ 否   │ 目標位置。若為 null，則自動重置為「當前 Committed Offset - 1」（回退一格）。             │
-       └────────────┴─────────┴──────┴──────────────────────────────────────────────────────────────────────────────────────────┘
+       <table>
+         <thead>
+           <tr>
+             <th>參數名稱</th>
+             <th>類型</th>
+             <th>必填</th>
+             <th>作用說明</th>
+           </tr>
+         </thead>
+         <tbody>
+           <tr>
+             <td>listenerId</td>
+             <td>String</td>
+             <td>否</td>
+             <td>監聽器 ID。Spring Kafka 中 @KafkaListener 指定的 id。如果提供，則僅針對該特定的 Consumer 執行調整；如果不提供，則會掃描所有 Container。</td>
+           </tr>
+           <tr>
+             <td>topic</td>
+             <td>String</td>
+             <td>是</td>
+             <td>主題名稱。僅填寫 Topic 名稱，**不可**包含分區後綴。</td>
+           </tr>
+           <tr>
+             <td>partition</td>
+             <td>Integer</td>
+             <td>是</td>
+             <td>分區編號。指定該 Topic 下哪一個分區要進行調整（從 0 開始）。</td>
+           </tr>
+           <tr>
+             <td>offset</td>
+             <td>Long</td>
+             <td>否</td>
+             <td>目標位置。若為 null，則自動重置為「當前 Committed Offset - 1」（回退一格）。</td>
+           </tr>
+         </tbody>
+       </table>
 
        API 請求範本 (.http):
        ### 重置 Kafka Offset 範例 (指定 Offset)
@@ -120,7 +145,6 @@ public class KafkaAdminController {
         }
         
         try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
-            
             try {
                 CountDownLatch stopLatch = new CountDownLatch(groupContainers.size());
                 for (MessageListenerContainer container : groupContainers) {
@@ -154,9 +178,9 @@ public class KafkaAdminController {
                 for (int i = 0; i < 10; i++) {
                     try {
                         ConsumerGroupDescription description = adminClient.describeConsumerGroups(Collections.singletonList(groupId))
-                                .describedGroups()
-                                .get(groupId)
-                                .get();
+                                                                          .describedGroups()
+                                                                          .get(groupId)
+                                                                          .get();
                         ConsumerGroupState state = description.state();
                         if (state == ConsumerGroupState.EMPTY || state == ConsumerGroupState.DEAD || description.members().isEmpty()) {
                             break;

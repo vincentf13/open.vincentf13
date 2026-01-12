@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.kafka.consumer.error;
+package open.vincentf13.sdk.devtool.kafka.consumer.error;
 
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.kafka.KafkaEvent;

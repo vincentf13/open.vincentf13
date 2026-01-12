@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.kafka.consumer;
+package open.vincentf13.sdk.devtool.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;

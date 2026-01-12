@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.kafka.consumer.record;
+package open.vincentf13.sdk.devtool.kafka.consumer.record;
 
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;

@@ -23,7 +23,7 @@
         <module>sdk-spring-mvc</module>
         <module>sdk-auth</module>
         <module>sdk-spring-cloud-gateway</module>
-        <module>sdk-spring-websocket</module>
+        <module>sdk-devtool</module>
         <module>sdk-auth-jwt</module>
         <module>sdk-auth-server</module>
         <module>sdk-spring-session</module>

@@ -34,6 +34,10 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-devtool</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
             <artifactId>sdk-auth</artifactId>
         </dependency>
         <dependency>

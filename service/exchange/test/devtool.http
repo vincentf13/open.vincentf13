@@ -1,0 +1,21 @@
+### 重置 Kafka Offset 範例
+POST http://localhost:43141/infra/kafka/seek
+Content-Type: application/json
+
+{
+  "topic": "positions.open-to-close-compensation",
+  "partition": 0,
+  "offset": null
+}
+
+
+### 切換 log 等級
+POST http://localhost:8080/api/logging
+Content-Type: application/json
+
+{
+  "kafka": true,
+  "mvc": false,
+  "feign": false,
+  "mybatis": true
+}

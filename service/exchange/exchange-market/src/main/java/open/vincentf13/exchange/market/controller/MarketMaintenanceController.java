@@ -6,7 +6,7 @@ import open.vincentf13.exchange.market.infra.cache.MarkPriceCacheService;
 import open.vincentf13.exchange.market.infra.cache.OrderBookCacheService;
 import open.vincentf13.exchange.market.infra.cache.TickerStatsCacheService;
 import open.vincentf13.exchange.market.sdk.rest.api.MarketMaintenanceApi;
-import open.vincentf13.sdk.infra.kafka.consumer.reset.KafkaConsumerResetService;
+import open.vincentf13.sdk.devtool.kafka.consumer.reset.KafkaConsumerResetService;
 import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

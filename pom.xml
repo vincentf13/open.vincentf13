@@ -93,7 +93,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>sdk-spring-websocket</artifactId>
+                <artifactId>sdk-devtool</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

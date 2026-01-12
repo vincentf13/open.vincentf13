@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.infra.kafka.consumer.reset;
+package open.vincentf13.sdk.devtool.kafka.consumer.reset;
 
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Configuration;

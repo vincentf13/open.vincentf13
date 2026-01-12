@@ -1,10 +1,10 @@
-package open.vincentf13.sdk.infra.kafka.consumer;
+package open.vincentf13.sdk.devtool.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.kafka.KafkaEvent;
-import open.vincentf13.sdk.infra.kafka.consumer.error.ErrorHandlerFactory;
-import open.vincentf13.sdk.infra.kafka.consumer.record.RecordInterceptor;
+import open.vincentf13.sdk.devtool.kafka.consumer.error.ErrorHandlerFactory;
+import open.vincentf13.sdk.devtool.kafka.consumer.record.RecordInterceptor;
 import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
