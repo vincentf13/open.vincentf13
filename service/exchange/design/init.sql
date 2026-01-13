@@ -88,24 +88,6 @@ CREATE INDEX idx_user_id ON auth_credentials (user_id) COMMENT '查詢用戶所�
 CREATE INDEX idx_status ON auth_credentials (status) COMMENT '查詢特定狀態憑證 (如LOCKED)';
 CREATE INDEX idx_expires_at ON auth_credentials (expires_at) COMMENT '定期清理過期憑證';
 
--- auth_credentials_pending - 註冊補償表
-CREATE TABLE auth_credentials_pending
-(
-    id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-    user_id         BIGINT UNSIGNED NOT NULL,
-    credential_type VARCHAR(32)     NOT NULL COMMENT '憑證型別（PASSWORD / API_KEY ...）',
-    secret_hash     VARCHAR(512)    NOT NULL COMMENT '已經由 auth 算好的 hash',
-    salt            VARCHAR(128)    NOT NULL,
-    status          VARCHAR(32)     NOT NULL COMMENT 'PENDING / COMPLETED / FAILED',
-    retry_count     INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '已重試次數',
-    next_retry_at   DATETIME        NULL COMMENT '下次排程可撿起的時間',
-    last_error      VARCHAR(512)    NULL COMMENT '最近一次失敗訊息',
-    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
-    updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',
-    UNIQUE KEY uk_user_type (user_id, credential_type)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4;
-
 -- ==========================================
 -- 3. Accounting Tables
 -- ==========================================

@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.user.service;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
@@ -8,24 +7,29 @@ import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareReque
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
 import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 import open.vincentf13.exchange.auth.sdk.rest.client.ExchangeAuthClient;
-import open.vincentf13.exchange.user.domain.model.AuthCredentialPending;
 import open.vincentf13.exchange.user.domain.model.User;
 import open.vincentf13.exchange.user.infra.UserErrorCode;
 import open.vincentf13.exchange.user.infra.UserEvent;
-import open.vincentf13.exchange.user.infra.persistence.po.AuthCredentialPendingPO;
-import open.vincentf13.exchange.user.infra.persistence.repository.AuthCredentialPendingRepository;
+import open.vincentf13.exchange.user.infra.retry.RetryTaskType;
+import open.vincentf13.exchange.user.infra.retry.dto.AuthCredentialCreatePayload;
 import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserRegisterRequest;
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
-import open.vincentf13.exchange.user.sdk.rest.api.enums.AuthCredentialPendingStatus;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskResult;
+import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
+import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
+import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskRepository;
+import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskStatus;
 import open.vincentf13.sdk.spring.cloud.openfeign.OpenApiClientInvoker;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -37,8 +41,12 @@ public class UserCommandService {
     
     private final UserRepository userRepository;
     private final ExchangeAuthClient authClient;
-    private final AuthCredentialPendingRepository authCredentialPendingRepository;
     private final TransactionTemplate transactionTemplate;
+    private final RetryTaskRepository retryTaskRepository;
+    private final RetryTaskService retryTaskService;
+
+    @Value("${open.vincentf13.exchange.user.auth.retry-delay:PT60S}")
+    private Duration retryDelay;
     
     public UserResponse register(@Valid UserRegisterRequest request) {
         final String normalizedEmail = User.normalizeEmail(request.email());
@@ -53,79 +61,58 @@ public class UserCommandService {
                                    Map.of("email", normalizedEmail));
         }
         
-        RegistrationContext context = transactionTemplate.execute(status -> {
-            User user = User.createActive(request.email(), request.externalId());
+        User user = User.createActive(request.email(), request.externalId());
+        AuthCredentialCreatePayload payload = AuthCredentialCreatePayload.builder()
+                                                                        .credentialType(AuthCredentialType.PASSWORD)
+                                                                        .secretHash(preparedData.secretHash())
+                                                                        .salt(preparedData.salt())
+                                                                        .build();
+        Instant now = Instant.now();
+        RetryTaskPO task = transactionTemplate.execute(status -> {
             userRepository.insertSelective(user);
             
-            Instant now = Instant.now();
-            AuthCredentialPending pendingCredential = AuthCredentialPending.builder()
-                                                                           .userId(user.getId())
-                                                                           .credentialType(AuthCredentialType.PASSWORD)
-                                                                           .secretHash(preparedData.secretHash())
-                                                                           .salt(preparedData.salt())
-                                                                           .status(AuthCredentialPendingStatus.PENDING)
-                                                                           .retryCount(0)
-                                                                           .nextRetryAt(null)
-                                                                           .lastError(null)
-                                                                           .build();
-            authCredentialPendingRepository.insert(pendingCredential);
-            return new RegistrationContext(user, pendingCredential);
+            payload.setUserId(user.getId());
+            return retryTaskRepository.insertPendingTask(
+                    RetryTaskType.AUTH_CREDENTIAL_CREATE,
+                    user.getId() + ":" + AuthCredentialType.PASSWORD,
+                    payload,
+                    5,
+                    null,
+                    now
+            );
         });
         
-        if (context == null) {
-            throw new IllegalStateException("Registration transaction returned no context");
+        retryTaskService.handleTask(task, retryDelay, retryTask -> createAuthCredential(payload));
+        
+        return OpenObjectMapper.convert(user, UserResponse.class);
+    }
+    
+    public RetryTaskResult<Void> createAuthCredential(AuthCredentialCreatePayload payload) {
+        if (payload == null || payload.getUserId() == null || payload.getCredentialType() == null
+            || payload.getSecretHash() == null || payload.getSalt() == null) {
+            return new RetryTaskResult<>(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload", null);
         }
-        
-        User persistedUser = context.user();
-        AuthCredentialPending pendingCredential = context.pending();
-        
         AuthCredentialCreateRequest credentialRequest = new AuthCredentialCreateRequest(
-                persistedUser.getId(),
-                AuthCredentialType.PASSWORD,
-                pendingCredential.getSecretHash(),
-                pendingCredential.getSalt(),
+                payload.getUserId(),
+                payload.getCredentialType(),
+                payload.getSecretHash(),
+                payload.getSalt(),
                 "ACTIVE"
         );
-        
         try {
             OpenApiClientInvoker.call(
                     () -> authClient.create(credentialRequest),
                     msg -> new IllegalStateException(
-                            "Failed to create auth credential for user %s: %s".formatted(persistedUser.getId(), msg))
-                                     );
-            authCredentialPendingRepository.update(AuthCredentialPending.builder()
-                                                                        .status(AuthCredentialPendingStatus.COMPLETED)
-                                                                        .retryCount(0)
-                                                                        .nextRetryAt(null)
-                                                                        .lastError(null)
-                                                                        .build(),
-                                                   Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
-                                                           .eq(AuthCredentialPendingPO::getUserId, persistedUser.getId())
-                                                           .eq(AuthCredentialPendingPO::getCredentialType, AuthCredentialType.PASSWORD));
+                            "Failed to create auth credential for user %s: %s".formatted(payload.getUserId(), msg))
+            );
+            return new RetryTaskResult<>(RetryTaskStatus.SUCCESS, "OK", null);
         } catch (Exception ex) {
-            handleCredentialFailure(persistedUser.getId(), ex.getMessage());
+            OpenLog.warn(UserEvent.AUTH_CREDENTIAL_PERSIST_FAILED,
+                         "userId", payload.getUserId(),
+                         "reason", Optional.ofNullable(ex.getMessage()).orElse("UNKNOWN_ERROR"));
+            return new RetryTaskResult<>(RetryTaskStatus.PENDING, "notReady", null);
         }
-        
-        return OpenObjectMapper.convert(persistedUser, UserResponse.class);
     }
     
-    private void handleCredentialFailure(Long userId,
-                                         String reason) {
-        String message = Optional.ofNullable(reason).orElse("UNKNOWN_ERROR");
-        OpenLog.warn(UserEvent.AUTH_CREDENTIAL_PERSIST_FAILED,
-                     "userId", userId,
-                     "reason", message);
-        authCredentialPendingRepository.update(AuthCredentialPending.builder()
-                                                                    .status(AuthCredentialPendingStatus.PENDING)
-                                                                    .lastError(message)
-                                                                    .nextRetryAt(Instant.now().plusSeconds(60))
-                                                                    .build(),
-                                               Wrappers.<AuthCredentialPendingPO>lambdaUpdate()
-                                                       .eq(AuthCredentialPendingPO::getUserId, userId)
-                                                       .eq(AuthCredentialPendingPO::getCredentialType, AuthCredentialType.PASSWORD)
-                                                       .setSql("retry_count = retry_count + 1"));
-    }
     
-    private record RegistrationContext(User user, AuthCredentialPending pending) {
-    }
 }
