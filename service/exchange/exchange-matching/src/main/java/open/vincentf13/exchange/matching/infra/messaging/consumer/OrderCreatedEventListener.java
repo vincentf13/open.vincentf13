@@ -1,5 +1,7 @@
 package open.vincentf13.exchange.matching.infra.messaging.consumer;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.service.MatchingEngine;
@@ -11,46 +13,45 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Component
 @RequiredArgsConstructor
 public class OrderCreatedEventListener {
-    
-    private final MatchingEngine matchingEngine;
-    
-    @KafkaListener(topics = OrderTopics.Names.ORDER_CREATED,
-                   groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
-                   containerFactory = "kafkaBatchListenerContainerFactory",
-                   concurrency = "1")
-    public void onOrderCreated(@Payload List<OrderCreatedEvent> events,
-                               Acknowledgment acknowledgment) {
-        if (events == null || events.isEmpty()) {
-            acknowledgment.acknowledge();
-            return;
-        }
-        List<Order> orders = new ArrayList<>(events.size());
-        for (int i = 0; i < events.size(); i++) {
-            OrderCreatedEvent event = events.get(i);
-            OpenValidator.validateOrThrow(event);
-            Order order = Order.builder()
-                               .orderId(event.orderId())
-                               .userId(event.userId())
-                               .instrumentId(event.instrumentId())
-                               .clientOrderId(event.clientOrderId())
-                               .side(event.side())
-                               .type(event.type())
-                               .intent(event.intent())
-                               .tradeType(event.tradeType())
-                               .price(event.price())
-                               .quantity(event.quantity())
-                               .originalQuantity(event.quantity())
-                               .submittedAt(event.submittedAt())
-                               .build();
-            orders.add(order);
-        }
-        matchingEngine.processBatch(orders);
-        acknowledgment.acknowledge();
+
+  private final MatchingEngine matchingEngine;
+
+  @KafkaListener(
+      topics = OrderTopics.Names.ORDER_CREATED,
+      groupId = "${open.vincentf13.exchange.matching.consumer-group:exchange-matching}",
+      containerFactory = "kafkaBatchListenerContainerFactory",
+      concurrency = "1")
+  public void onOrderCreated(
+      @Payload List<OrderCreatedEvent> events, Acknowledgment acknowledgment) {
+    if (events == null || events.isEmpty()) {
+      acknowledgment.acknowledge();
+      return;
     }
+    List<Order> orders = new ArrayList<>(events.size());
+    for (int i = 0; i < events.size(); i++) {
+      OrderCreatedEvent event = events.get(i);
+      OpenValidator.validateOrThrow(event);
+      Order order =
+          Order.builder()
+              .orderId(event.orderId())
+              .userId(event.userId())
+              .instrumentId(event.instrumentId())
+              .clientOrderId(event.clientOrderId())
+              .side(event.side())
+              .type(event.type())
+              .intent(event.intent())
+              .tradeType(event.tradeType())
+              .price(event.price())
+              .quantity(event.quantity())
+              .originalQuantity(event.quantity())
+              .submittedAt(event.submittedAt())
+              .build();
+      orders.add(order);
+    }
+    matchingEngine.processBatch(orders);
+    acknowledgment.acknowledge();
+  }
 }

@@ -2,7 +2,8 @@ package open.vincentf13.exchange.matching.domain.order.book;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import open.vincentf13.sdk.core.validator.Id;
+import java.math.BigDecimal;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,38 +13,35 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.TradeType;
-
-import java.math.BigDecimal;
-import java.time.Instant;
+import open.vincentf13.sdk.core.validator.Id;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
-    
-    @NotNull(groups = Id.class)
-    private Long orderId;
-    @NotNull
-    private Long userId;
-    @NotNull
-    private Long instrumentId;
-    @NotNull
-    private OrderSide side;
-    @NotNull
-    private OrderType type;
-    private PositionIntentType intent;
-    private TradeType tradeType;
-    @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = true)
-    private BigDecimal price;
-    @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
-    private BigDecimal quantity;
-    private BigDecimal originalQuantity;
-    private String clientOrderId;
-    @NotNull
-    private Instant submittedAt;
-    
-    public boolean isBuy() {
-        return side == OrderSide.BUY;
-    }
+
+  @NotNull(groups = Id.class)
+  private Long orderId;
+
+  @NotNull private Long userId;
+  @NotNull private Long instrumentId;
+  @NotNull private OrderSide side;
+  @NotNull private OrderType type;
+  private PositionIntentType intent;
+  private TradeType tradeType;
+
+  @DecimalMin(value = ValidationConstant.Names.PRICE_MIN, inclusive = true)
+  private BigDecimal price;
+
+  @DecimalMin(value = ValidationConstant.Names.QUANTITY_MIN, inclusive = true)
+  private BigDecimal quantity;
+
+  private BigDecimal originalQuantity;
+  private String clientOrderId;
+  @NotNull private Instant submittedAt;
+
+  public boolean isBuy() {
+    return side == OrderSide.BUY;
+  }
 }

@@ -4,11 +4,9 @@ import java.time.Instant;
 import java.util.List;
 
 public record PlatformAccountResponse(
-        Instant snapshotAt,
-        List<PlatformAccountItem> assets,
-        List<PlatformAccountItem> liabilities,
-        List<PlatformAccountItem> equity,
-        List<PlatformAccountItem> expenses,
-        List<PlatformAccountItem> revenue
-) {
-}
+    Instant snapshotAt,
+    List<PlatformAccountItem> assets,
+    List<PlatformAccountItem> liabilities,
+    List<PlatformAccountItem> equity,
+    List<PlatformAccountItem> expenses,
+    List<PlatformAccountItem> revenue) {}

@@ -15,26 +15,25 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class FundsFreezeResultListener {
 
-    private final OrderCommandService orderCommandService;
+  private final OrderCommandService orderCommandService;
 
-    @KafkaListener(topics = AccountFundsTopics.Names.FUNDS_FROZEN,
-                   groupId = "${open.vincentf13.exchange.order.consumer-group:exchange-order}")
-    public void onFundsFrozen(@Payload FundsFrozenEvent event,
-                              Acknowledgment acknowledgment) {
-        OpenValidator.validateOrThrow(event);
-        orderCommandService.processFundsFrozen(event.orderId(), event.eventTime());
-        acknowledgment.acknowledge();
-    }
+  @KafkaListener(
+      topics = AccountFundsTopics.Names.FUNDS_FROZEN,
+      groupId = "${open.vincentf13.exchange.order.consumer-group:exchange-order}")
+  public void onFundsFrozen(@Payload FundsFrozenEvent event, Acknowledgment acknowledgment) {
+    OpenValidator.validateOrThrow(event);
+    orderCommandService.processFundsFrozen(event.orderId(), event.eventTime());
+    acknowledgment.acknowledge();
+  }
 
-    @KafkaListener(topics = AccountFundsTopics.Names.FUNDS_FREEZE_FAILED,
-                   groupId = "${open.vincentf13.exchange.order.consumer-group:exchange-order}")
-    public void onFundsFreezeFailed(@Payload FundsFreezeFailedEvent event,
-                                    Acknowledgment acknowledgment) {
-        OpenValidator.validateOrThrow(event);
-        orderCommandService.processFundsFreezeFailed(event.orderId(),
-                                                     event.reason(),
-                                                     event.eventTime());
-        acknowledgment.acknowledge();
-    }
-    
+  @KafkaListener(
+      topics = AccountFundsTopics.Names.FUNDS_FREEZE_FAILED,
+      groupId = "${open.vincentf13.exchange.order.consumer-group:exchange-order}")
+  public void onFundsFreezeFailed(
+      @Payload FundsFreezeFailedEvent event, Acknowledgment acknowledgment) {
+    OpenValidator.validateOrThrow(event);
+    orderCommandService.processFundsFreezeFailed(
+        event.orderId(), event.reason(), event.eventTime());
+    acknowledgment.acknowledge();
+  }
 }

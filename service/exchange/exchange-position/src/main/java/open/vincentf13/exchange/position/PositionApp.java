@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication(scanBasePackages = OpenConstant.Package.Names.BASE_PACKAGE)
 public class PositionApp {
-    
-    public static void main(String[] args) {
-        SpringApplication.run(PositionApp.class, args);
-    }
+
+  public static void main(String[] args) {
+    SpringApplication.run(PositionApp.class, args);
+  }
 }

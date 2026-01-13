@@ -10,11 +10,14 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface OrderEventMapper extends BaseMapper<OrderEventPO> {
 
-    @Select("SELECT COALESCE(MAX(sequence_number), 0) FROM order_events WHERE order_id = #{orderId} FOR UPDATE")
-    Long selectMaxSequenceForUpdate(@Param("orderId") Long orderId);
+  @Select(
+      "SELECT COALESCE(MAX(sequence_number), 0) FROM order_events WHERE order_id = #{orderId} FOR UPDATE")
+  Long selectMaxSequenceForUpdate(@Param("orderId") Long orderId);
 
-    @Select("SELECT COUNT(1) FROM order_events WHERE order_id = #{orderId} AND reference_type = #{referenceType} AND reference_id = #{referenceId}")
-    long countByReference(@Param("orderId") Long orderId,
-                          @Param("referenceType") OrderEventReferenceType referenceType,
-                          @Param("referenceId") String referenceId);
+  @Select(
+      "SELECT COUNT(1) FROM order_events WHERE order_id = #{orderId} AND reference_type = #{referenceType} AND reference_id = #{referenceId}")
+  long countByReference(
+      @Param("orderId") Long orderId,
+      @Param("referenceType") OrderEventReferenceType referenceType,
+      @Param("referenceId") String referenceId);
 }

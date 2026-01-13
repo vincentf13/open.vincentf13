@@ -1,10 +1,10 @@
 package open.vincentf13.exchange.common.sdk.enums;
 
 public enum PlatformAccountStatus {
-    ACTIVE,
-    INACTIVE;
+  ACTIVE,
+  INACTIVE;
 
-    public String code() {
-        return name();
-    }
+  public String code() {
+    return name();
+  }
 }

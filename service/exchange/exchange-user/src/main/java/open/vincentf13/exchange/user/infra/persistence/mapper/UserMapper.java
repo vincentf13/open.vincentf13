@@ -5,5 +5,4 @@ import open.vincentf13.exchange.user.infra.persistence.po.UserPO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface UserMapper extends BaseMapper<UserPO> {
-}
+public interface UserMapper extends BaseMapper<UserPO> {}

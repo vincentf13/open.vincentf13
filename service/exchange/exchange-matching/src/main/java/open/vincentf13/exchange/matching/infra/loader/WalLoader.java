@@ -1,5 +1,10 @@
 package open.vincentf13.exchange.matching.infra.loader;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
@@ -21,125 +26,114 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 @Component
 @RequiredArgsConstructor
 public class WalLoader {
-    
-    private final MatchingEngine matchingEngine;
-    private final WalProgressStore walProgressStore;
-    private final TradeRepository tradeRepository;
-    private final MqOutboxRepository outboxRepository;
-    private final TransactionTemplate transactionTemplate;
-    
-    private final Map<Long, Long> lastProcessedSeqMap = new ConcurrentHashMap<>();
-    
-    public void init() {
+
+  private final MatchingEngine matchingEngine;
+  private final WalProgressStore walProgressStore;
+  private final TradeRepository tradeRepository;
+  private final MqOutboxRepository outboxRepository;
+  private final TransactionTemplate transactionTemplate;
+
+  private final Map<Long, Long> lastProcessedSeqMap = new ConcurrentHashMap<>();
+
+  public void init() {}
+
+  public void reset() {
+    lastProcessedSeqMap.clear();
+  }
+
+  @Scheduled(fixedDelayString = "${open.vincentf13.exchange.matching.loader-interval-ms:300}")
+  public void drainWal() {
+    for (InstrumentProcessor processor : matchingEngine.getProcessors()) {
+      drainInstrumentWal(processor);
+    }
+  }
+
+  private void drainInstrumentWal(InstrumentProcessor processor) {
+    Long instrumentId = processor.getInstrumentId();
+    long lastSeq =
+        lastProcessedSeqMap.computeIfAbsent(instrumentId, walProgressStore::loadLastProcessedSeq);
+
+    InstrumentWal wal = processor.getWal();
+    List<WalEntry> entries = wal.readFrom(lastSeq + 1);
+
+    if (entries.isEmpty()) {
+      return;
     }
 
-    public void reset() {
-        lastProcessedSeqMap.clear();
+    for (WalEntry entry : entries) {
+      try {
+        processEntry(entry);
+        lastSeq = entry.getSeq();
+      } catch (Exception ex) {
+        OpenLog.error(
+            MatchingEvent.WAL_LOADER_FAILED,
+            ex,
+            "seq",
+            entry.getSeq(),
+            "instrumentId",
+            instrumentId);
+        break;
+      }
     }
-    
-    @Scheduled(fixedDelayString = "${open.vincentf13.exchange.matching.loader-interval-ms:300}")
-    public void drainWal() {
-        for (InstrumentProcessor processor : matchingEngine.getProcessors()) {
-            drainInstrumentWal(processor);
-        }
-    }
 
-    private void drainInstrumentWal(InstrumentProcessor processor) {
-        Long instrumentId = processor.getInstrumentId();
-        long lastSeq = lastProcessedSeqMap.computeIfAbsent(instrumentId, walProgressStore::loadLastProcessedSeq);
+    lastProcessedSeqMap.put(instrumentId, lastSeq);
+    walProgressStore.saveLastProcessedSeq(instrumentId, lastSeq);
+  }
 
-        InstrumentWal wal = processor.getWal();
-        List<WalEntry> entries = wal.readFrom(lastSeq + 1);
-
-        if (entries.isEmpty()) {
-            return;
-        }
-
-        for (WalEntry entry : entries) {
+  private void processEntry(WalEntry entry) {
+    List<Trade> trades = entry.getMatchResult().getTrades();
+    List<Trade> persisted = new ArrayList<>();
+    long baseOffset = entry.getSeq() << 20;
+    final long[] nextIndex = {0L};
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          if (!trades.isEmpty()) {
             try {
-                processEntry(entry);
-                lastSeq = entry.getSeq();
-            } catch (Exception ex) {
-                OpenLog.error(MatchingEvent.WAL_LOADER_FAILED,
-                              ex,
-                              "seq",
-                              entry.getSeq(),
-                              "instrumentId", instrumentId);
-                break;
-            }
-        }
-
-        lastProcessedSeqMap.put(instrumentId, lastSeq);
-        walProgressStore.saveLastProcessedSeq(instrumentId, lastSeq);
-    }
-    
-    private void processEntry(WalEntry entry) {
-        List<Trade> trades = entry.getMatchResult().getTrades();
-        List<Trade> persisted = new ArrayList<>();
-        long baseOffset = entry.getSeq() << 20;
-        final long[] nextIndex = {0L};
-        transactionTemplate.executeWithoutResult(status -> {
-            if (!trades.isEmpty()) {
-                try {
-                    tradeRepository.batchInsert(trades);
-                } catch (DuplicateKeyException ex) {
-                    OpenLog.warn(MatchingEvent.TRADE_DUPLICATE, ex);
-                }
-                persisted.addAll(trades);
-                nextIndex[0] = publishTrades(baseOffset, trades, nextIndex[0]);
-            }
-            
-            publishOrderBook(baseOffset, entry.getMatchResult());
-        });
-        OpenLog.info(MatchingEvent.WAL_ENTRY_APPLIED,
-                     "seq", entry.getSeq(),
-                     "tradeCount", persisted.size());
-    }
-
-    private long publishTrades(long baseOffset,
-                               List<Trade> trades,
-                               long startIndex) {
-        long index = startIndex;
-        for (Trade trade : trades) {
-            long eventSeq = baseOffset + index++;
-            try {
-                outboxRepository.appendWithSeq(MatchingTopics.TRADE_EXECUTED.getTopic(),
-                                               trade.getTradeId(),
-                                               OpenObjectMapper.convert(trade, TradeExecutedEvent.class),
-                                               null,
-                                               eventSeq);
+              tradeRepository.batchInsert(trades);
             } catch (DuplicateKeyException ex) {
-                OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_TRADE, ex);
+              OpenLog.warn(MatchingEvent.TRADE_DUPLICATE, ex);
             }
-        }
-        return index;
-    }
-    
-    private void publishOrderBook(long seq,
-                                  MatchResult result) {
-        OrderBookUpdatedEvent event = new OrderBookUpdatedEvent(
-                result.getTakerOrder().getInstrumentId(),
-                result.getUpdates(),
-                Instant.now()
-        );
+            persisted.addAll(trades);
+            nextIndex[0] = publishTrades(baseOffset, trades, nextIndex[0]);
+          }
 
-        try {
-            outboxRepository.appendWithSeq(MatchingTopics.ORDERBOOK_UPDATED.getTopic(),
-                                    event.instrumentId(),
-                                    event,
-                                    null,
-                                    seq);
-        } catch (DuplicateKeyException ex) {
-            OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_ORDERBOOK, ex);
-        }
+          publishOrderBook(baseOffset, entry.getMatchResult());
+        });
+    OpenLog.info(
+        MatchingEvent.WAL_ENTRY_APPLIED, "seq", entry.getSeq(), "tradeCount", persisted.size());
+  }
+
+  private long publishTrades(long baseOffset, List<Trade> trades, long startIndex) {
+    long index = startIndex;
+    for (Trade trade : trades) {
+      long eventSeq = baseOffset + index++;
+      try {
+        outboxRepository.appendWithSeq(
+            MatchingTopics.TRADE_EXECUTED.getTopic(),
+            trade.getTradeId(),
+            OpenObjectMapper.convert(trade, TradeExecutedEvent.class),
+            null,
+            eventSeq);
+      } catch (DuplicateKeyException ex) {
+        OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_TRADE, ex);
+      }
     }
+    return index;
+  }
+
+  private void publishOrderBook(long seq, MatchResult result) {
+    OrderBookUpdatedEvent event =
+        new OrderBookUpdatedEvent(
+            result.getTakerOrder().getInstrumentId(), result.getUpdates(), Instant.now());
+
+    try {
+      outboxRepository.appendWithSeq(
+          MatchingTopics.ORDERBOOK_UPDATED.getTopic(), event.instrumentId(), event, null, seq);
+    } catch (DuplicateKeyException ex) {
+      OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_ORDERBOOK, ex);
+    }
+  }
 }

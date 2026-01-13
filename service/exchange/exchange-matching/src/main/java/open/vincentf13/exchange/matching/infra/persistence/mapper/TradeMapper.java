@@ -5,5 +5,4 @@ import open.vincentf13.exchange.matching.infra.persistence.po.TradePO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface TradeMapper extends BaseMapper<TradePO> {
-}
+public interface TradeMapper extends BaseMapper<TradePO> {}

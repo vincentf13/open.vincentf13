@@ -5,180 +5,184 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --font-sans: "Space Grotesk", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+    --font-sans: "Space Grotesk", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
 }
 
 body {
-  font-family: var(--font-sans);
-  background: #d6e4f0; /* Fallback */
+    font-family: var(--font-sans);
+    background: #d6e4f0; /* Fallback */
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+    width: 6px;
+    height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.2);
-  border-radius: 10px;
+    background: rgba(100, 116, 139, 0.2);
+    border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.4);
+    background: rgba(100, 116, 139, 0.4);
 }
 
 /* Hide Input Spinners */
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none; 
-  margin: 0; 
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
+
 input[type=number] {
-  -moz-appearance: textfield;
+    -moz-appearance: textfield;
 }
 
 /* Liquid Glass Utilities */
 .liquid-shell {
-  position: relative;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.15));
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 18px 45px rgba(33, 79, 125, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(26px);
+    position: relative;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.15));
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 18px 45px rgba(33, 79, 125, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(26px);
 }
 
 .liquid-shell::before {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: inset 0 0 28px rgba(255, 255, 255, 0.35);
-  pointer-events: none;
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: inset 0 0 28px rgba(255, 255, 255, 0.35);
+    pointer-events: none;
 }
 
 .liquid-card {
-  border-radius: 8px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.28));
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 6px 16px rgba(33, 79, 125, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(14px);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    border-radius: 8px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.28));
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 6px 16px rgba(33, 79, 125, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(14px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .liquid-card:hover {
-  background: rgba(255, 255, 255, 0.7);
-  border-color: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 10px 22px rgba(33, 79, 125, 0.16);
-  transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 10px 22px rgba(33, 79, 125, 0.16);
+    transform: translateY(-1px);
 }
 
 .liquid-input {
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.25);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #334155;
-  outline: none;
-  transition: border-color 0.2s ease, background 0.2s ease;
-  backdrop-filter: blur(6px);
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.25);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #334155;
+    outline: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    backdrop-filter: blur(6px);
 }
 
 .liquid-input::placeholder {
-  color: #94a3b8;
+    color: #94a3b8;
 }
 
 .liquid-input:focus {
-  border-color: rgba(255, 255, 255, 0.55);
-  background: rgba(255, 255, 255, 0.35);
+    border-color: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .liquid-input-group {
-  display: flex;
-  align-items: stretch;
-  width: 100%;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  font-size: 0.8125rem;
-  color: #0f172a;
-  transition: all 0.2s ease;
-  overflow: hidden;
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    font-size: 0.8125rem;
+    color: #0f172a;
+    transition: all 0.2s ease;
+    overflow: hidden;
 }
 
 .liquid-input-group:focus-within {
-  border-color: #3b82f6;
-  background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
+    border-color: #3b82f6;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
 }
 
 .liquid-btn-primary {
-  border-radius: 8px;
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
-  color: #ffffff;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .liquid-btn-primary:hover {
-  filter: brightness(1.05);
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
+    filter: brightness(1.05);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
 }
 
 .liquid-btn-primary:active {
-  transform: scale(0.97);
+    transform: scale(0.97);
 }
 
 .liquid-btn-danger {
-  border-radius: 8px;
-  background: linear-gradient(90deg, #f43f5e, #e11d48);
-  color: #ffffff;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  box-shadow: 0 10px 20px rgba(225, 29, 72, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #f43f5e, #e11d48);
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: 0 10px 20px rgba(225, 29, 72, 0.25);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .liquid-btn-danger:hover {
-  filter: brightness(1.05);
-  box-shadow: 0 12px 24px rgba(225, 29, 72, 0.3);
+    filter: brightness(1.05);
+    box-shadow: 0 12px 24px rgba(225, 29, 72, 0.3);
 }
 
 .liquid-btn-danger:active {
-  transform: scale(0.97);
+    transform: scale(0.97);
 }
 
 .chart-gradient-area {
-  fill: url(#chartGradient);
+    fill: url(#chartGradient);
 }
 
 /* Glassmorphism Tooltip */
 .liquid-tooltip .ant-tooltip-inner {
-  background-color: rgba(255, 255, 255, 0.7) !important;
-  backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  color: #1e293b !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15) !important;
-  border-radius: 12px !important;
-  max-width: none !important; /* Allow tooltip to expand */
+    background-color: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    color: #1e293b !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15) !important;
+    border-radius: 12px !important;
+    max-width: none !important; /* Allow tooltip to expand */
 }
 
 .liquid-tooltip .ant-tooltip-arrow::before {
-  background-color: rgba(255, 255, 255, 0.7) !important;
+    background-color: rgba(255, 255, 255, 0.7) !important;
 }
 
 /* Global Tooltip Dismissal */
 body.hide-tooltips .ant-tooltip {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  visibility: hidden !important;
-  transition: opacity 0.1s ease !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transition: opacity 0.1s ease !important;
 }

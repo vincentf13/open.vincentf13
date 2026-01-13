@@ -6,6 +6,8 @@ import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.groups.Default;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.domain.model.KlineBucket;
 import open.vincentf13.exchange.market.infra.persistence.mapper.KlineBucketMapper;
@@ -15,44 +17,42 @@ import open.vincentf13.sdk.core.validator.Id;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.List;
-import java.util.Optional;
-
 @Repository
 @RequiredArgsConstructor
 @Validated
 public class KlineBucketRepository {
-    
-    private final KlineBucketMapper mapper;
-    private final DefaultIdGenerator idGenerator;
-    
-    public Optional<KlineBucket> findOne(@NotNull LambdaQueryWrapper<KlineBucketPO> wrapper) {
-        KlineBucketPO po = mapper.selectOne(wrapper);
-        return Optional.ofNullable(OpenObjectMapper.convert(po, KlineBucket.class));
+
+  private final KlineBucketMapper mapper;
+  private final DefaultIdGenerator idGenerator;
+
+  public Optional<KlineBucket> findOne(@NotNull LambdaQueryWrapper<KlineBucketPO> wrapper) {
+    KlineBucketPO po = mapper.selectOne(wrapper);
+    return Optional.ofNullable(OpenObjectMapper.convert(po, KlineBucket.class));
+  }
+
+  public List<KlineBucket> findBy(@NotNull LambdaQueryWrapper<KlineBucketPO> wrapper) {
+    return OpenObjectMapper.convertList(mapper.selectList(wrapper), KlineBucket.class);
+  }
+
+  public KlineBucket insertSelective(@NotNull @Valid KlineBucket bucket) {
+    KlineBucketPO record = OpenObjectMapper.convert(bucket, KlineBucketPO.class);
+    if (record.getIsClosed() == null) {
+      record.setIsClosed(Boolean.FALSE);
     }
-    
-    public List<KlineBucket> findBy(@NotNull LambdaQueryWrapper<KlineBucketPO> wrapper) {
-        return OpenObjectMapper.convertList(mapper.selectList(wrapper), KlineBucket.class);
+    if (record.getBucketId() == null) {
+      record.setBucketId(idGenerator.newLong());
     }
-    
-    public KlineBucket insertSelective(@NotNull @Valid KlineBucket bucket) {
-        KlineBucketPO record = OpenObjectMapper.convert(bucket, KlineBucketPO.class);
-        if (record.getIsClosed() == null) {
-            record.setIsClosed(Boolean.FALSE);
-        }
-        if (record.getBucketId() == null) {
-            record.setBucketId(idGenerator.newLong());
-        }
-        mapper.insert(record);
-        bucket.setBucketId(record.getBucketId());
-        bucket.setIsClosed(record.getIsClosed());
-        return bucket;
-    }
-    
-    @Validated({Default.class, Id.class})
-    public boolean updateSelectiveBy(@NotNull @Valid KlineBucket update,
-                                     @NotNull LambdaUpdateWrapper<KlineBucketPO> updateWrapper) {
-        KlineBucketPO record = OpenObjectMapper.convert(update, KlineBucketPO.class);
-        return mapper.update(record, updateWrapper) > 0;
-    }
+    mapper.insert(record);
+    bucket.setBucketId(record.getBucketId());
+    bucket.setIsClosed(record.getIsClosed());
+    return bucket;
+  }
+
+  @Validated({Default.class, Id.class})
+  public boolean updateSelectiveBy(
+      @NotNull @Valid KlineBucket update,
+      @NotNull LambdaUpdateWrapper<KlineBucketPO> updateWrapper) {
+    KlineBucketPO record = OpenObjectMapper.convert(update, KlineBucketPO.class);
+    return mapper.update(record, updateWrapper) > 0;
+  }
 }

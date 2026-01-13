@@ -2,6 +2,7 @@ package open.vincentf13.exchange.position.service;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.sdk.mq.event.TradeMarginSettledEvent;
 import open.vincentf13.exchange.position.domain.model.Position;
@@ -12,45 +13,43 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.Collection;
-
 @Service
 @Validated
 @RequiredArgsConstructor
 public class PositionTradeSettlementService {
 
-    private final PositionDomainService positionDomainService;
-    private final PositionEventPublisher positionEventPublisher;
+  private final PositionDomainService positionDomainService;
+  private final PositionEventPublisher positionEventPublisher;
 
-    @Transactional(rollbackFor = Exception.class)
-    public void handleTradeMarginSettled(@NotNull @Valid TradeMarginSettledEvent event) {
-        Collection<Position> positions = positionDomainService.openPosition(
-                event.userId(),
-                event.instrumentId(),
-                event.orderId(),
-                event.asset(),
-                event.side(),
-                event.price(),
-                event.quantity(),
-                event.marginUsed(),
-                event.feeCharged(),
-                event.tradeId(),
-                event.executedAt(),
-                event.isRecursive());
+  @Transactional(rollbackFor = Exception.class)
+  public void handleTradeMarginSettled(@NotNull @Valid TradeMarginSettledEvent event) {
+    Collection<Position> positions =
+        positionDomainService.openPosition(
+            event.userId(),
+            event.instrumentId(),
+            event.orderId(),
+            event.asset(),
+            event.side(),
+            event.price(),
+            event.quantity(),
+            event.marginUsed(),
+            event.feeCharged(),
+            event.tradeId(),
+            event.executedAt(),
+            event.isRecursive());
 
-        for (Position position : positions) {
-            positionEventPublisher.publishUpdated(new PositionUpdatedEvent(
-                    position.getUserId(),
-                    position.getInstrumentId(),
-                    position.getSide(),
-                    position.getQuantity(),
-                    position.getEntryPrice(),
-                    position.getMarkPrice(),
-                    position.getUnrealizedPnl(),
-                    position.getLiquidationPrice(),
-                    event.settledAt()
-            ));
-
-        }
+    for (Position position : positions) {
+      positionEventPublisher.publishUpdated(
+          new PositionUpdatedEvent(
+              position.getUserId(),
+              position.getInstrumentId(),
+              position.getSide(),
+              position.getQuantity(),
+              position.getEntryPrice(),
+              position.getMarkPrice(),
+              position.getUnrealizedPnl(),
+              position.getLiquidationPrice(),
+              event.settledAt()));
     }
+  }
 }

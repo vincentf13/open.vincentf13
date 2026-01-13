@@ -7,6 +7,9 @@ import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.groups.Default;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
@@ -21,112 +24,109 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-
 @Repository
 @RequiredArgsConstructor
 @Validated
 public class PositionRepository {
-    
-    private final PositionMapper mapper;
-    private final DefaultIdGenerator idGenerator;
-    private final SqlSessionFactory sqlSessionFactory;
-    
-    public Position createDefault(@NotNull Long userId,
-                                  @NotNull Long instrumentId) {
-        Position domain = Position.createDefault(userId, instrumentId, PositionSide.LONG, null);
-        domain.setPositionId(idGenerator.newLong());
-        PositionPO po = OpenObjectMapper.convert(domain, PositionPO.class);
-        try {
-            mapper.insert(po);
-            return normalize(OpenObjectMapper.convert(po, Position.class));
-        } catch (DuplicateKeyException duplicateKeyException) {
-            LambdaQueryWrapper<PositionPO> wrapper = Wrappers.lambdaQuery(PositionPO.class)
-                                                             .eq(PositionPO::getUserId, userId)
-                                                             .eq(PositionPO::getInstrumentId, instrumentId)
-                                                             .eq(PositionPO::getStatus, PositionStatus.ACTIVE);
-            return findOne(wrapper)
-                           .orElseThrow(() -> duplicateKeyException);
-        }
+
+  private final PositionMapper mapper;
+  private final DefaultIdGenerator idGenerator;
+  private final SqlSessionFactory sqlSessionFactory;
+
+  public Position createDefault(@NotNull Long userId, @NotNull Long instrumentId) {
+    Position domain = Position.createDefault(userId, instrumentId, PositionSide.LONG, null);
+    domain.setPositionId(idGenerator.newLong());
+    PositionPO po = OpenObjectMapper.convert(domain, PositionPO.class);
+    try {
+      mapper.insert(po);
+      return normalize(OpenObjectMapper.convert(po, Position.class));
+    } catch (DuplicateKeyException duplicateKeyException) {
+      LambdaQueryWrapper<PositionPO> wrapper =
+          Wrappers.lambdaQuery(PositionPO.class)
+              .eq(PositionPO::getUserId, userId)
+              .eq(PositionPO::getInstrumentId, instrumentId)
+              .eq(PositionPO::getStatus, PositionStatus.ACTIVE);
+      return findOne(wrapper).orElseThrow(() -> duplicateKeyException);
     }
-    
-    public void insertSelective(@NotNull @Valid Position position) {
-        if (position.getPositionId() == null) {
-            position.setPositionId(idGenerator.newLong());
-        }
-        PositionPO po = OpenObjectMapper.convert(position, PositionPO.class);
-        mapper.insert(po);
+  }
+
+  public void insertSelective(@NotNull @Valid Position position) {
+    if (position.getPositionId() == null) {
+      position.setPositionId(idGenerator.newLong());
     }
-    
-    public List<Position> findBy(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
-        return mapper.selectList(wrapper).stream()
-                     .map(item -> normalize(OpenObjectMapper.convert(item, Position.class)))
-                     .toList();
+    PositionPO po = OpenObjectMapper.convert(position, PositionPO.class);
+    mapper.insert(po);
+  }
+
+  public List<Position> findBy(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
+    return mapper.selectList(wrapper).stream()
+        .map(item -> normalize(OpenObjectMapper.convert(item, Position.class)))
+        .toList();
+  }
+
+  public Optional<Position> findOne(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
+    PositionPO po = mapper.selectOne(wrapper);
+    return Optional.ofNullable(normalize(OpenObjectMapper.convert(po, Position.class)));
+  }
+
+  @Validated({Default.class, Id.class})
+  public boolean updateSelectiveBy(
+      @NotNull @Valid Position update, LambdaUpdateWrapper<PositionPO> updateWrapper) {
+    PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);
+    if (record.getLiquidationPrice() == null) {
+      // MyBatis-Plus default behavior ignores null fields in entity updates.
+      // We use the wrapper to explicitly set the column to NULL.
+      updateWrapper.set(PositionPO::getLiquidationPrice, null);
     }
-    
-    public Optional<Position> findOne(@NotNull LambdaQueryWrapper<PositionPO> wrapper) {
-        PositionPO po = mapper.selectOne(wrapper);
-        return Optional.ofNullable(normalize(OpenObjectMapper.convert(po, Position.class)));
+    return mapper.update(record, updateWrapper) > 0;
+  }
+
+  @Validated({Default.class, Id.class})
+  public void updateSelectiveBatch(@NotNull List<@Valid PositionUpdateTask> tasks) {
+    if (tasks.isEmpty()) {
+      return;
     }
-    
-    @Validated({Default.class, Id.class})
-    public boolean updateSelectiveBy(@NotNull @Valid Position update,
-                                     LambdaUpdateWrapper<PositionPO> updateWrapper) {
-        PositionPO record = OpenObjectMapper.convert(update, PositionPO.class);
-        if (record.getLiquidationPrice() == null) {
+    OpenMybatisBatchExecutor batchExecutor = new OpenMybatisBatchExecutor(sqlSessionFactory);
+    batchExecutor.execute(
+        tasks,
+        (session, task) -> {
+          PositionMapper batchMapper = session.getMapper(PositionMapper.class);
+          PositionPO record = OpenObjectMapper.convert(task.position(), PositionPO.class);
+          LambdaUpdateWrapper<PositionPO> updateWrapper =
+              Wrappers.lambdaUpdate(PositionPO.class)
+                  .eq(PositionPO::getPositionId, record.getPositionId())
+                  .eq(PositionPO::getVersion, task.expectedVersion());
+          if (record.getLiquidationPrice() == null) {
             // MyBatis-Plus default behavior ignores null fields in entity updates.
             // We use the wrapper to explicitly set the column to NULL.
             updateWrapper.set(PositionPO::getLiquidationPrice, null);
-        }
-        return mapper.update(record, updateWrapper) > 0;
-    }
-
-    @Validated({Default.class, Id.class})
-    public void updateSelectiveBatch(@NotNull List<@Valid PositionUpdateTask> tasks) {
-        if (tasks.isEmpty()) {
-            return;
-        }
-        OpenMybatisBatchExecutor batchExecutor = new OpenMybatisBatchExecutor(sqlSessionFactory);
-        batchExecutor.execute(tasks, (session, task) -> {
-            PositionMapper batchMapper = session.getMapper(PositionMapper.class);
-            PositionPO record = OpenObjectMapper.convert(task.position(), PositionPO.class);
-            LambdaUpdateWrapper<PositionPO> updateWrapper = Wrappers.lambdaUpdate(PositionPO.class)
-                                                                    .eq(PositionPO::getPositionId, record.getPositionId())
-                                                                    .eq(PositionPO::getVersion, task.expectedVersion());
-            if (record.getLiquidationPrice() == null) {
-                // MyBatis-Plus default behavior ignores null fields in entity updates.
-                // We use the wrapper to explicitly set the column to NULL.
-                updateWrapper.set(PositionPO::getLiquidationPrice, null);
-            }
-            batchMapper.update(record, updateWrapper);
+          }
+          batchMapper.update(record, updateWrapper);
         });
-    }
+  }
 
-    public record PositionUpdateTask(Position position, int expectedVersion) {
+  private Position normalize(Position position) {
+    if (position == null) {
+      return null;
     }
+    position.setLeverage(position.getLeverage() == null ? 1 : position.getLeverage());
+    position.setMargin(safe(position.getMargin()));
+    position.setEntryPrice(safe(position.getEntryPrice()));
+    position.setQuantity(safe(position.getQuantity()));
+    position.setClosingReservedQuantity(safe(position.getClosingReservedQuantity()));
+    position.setMarkPrice(safe(position.getMarkPrice()));
+    position.setMarginRatio(safe(position.getMarginRatio()));
+    position.setUnrealizedPnl(safe(position.getUnrealizedPnl()));
+    position.setLiquidationPrice(position.getLiquidationPrice());
+    position.setCumRealizedPnl(safe(position.getCumRealizedPnl()));
+    position.setCumFee(safe(position.getCumFee()));
+    position.setCumFundingFee(safe(position.getCumFundingFee()));
+    return position;
+  }
 
-    private Position normalize(Position position) {
-        if (position == null) {
-            return null;
-        }
-        position.setLeverage(position.getLeverage() == null ? 1 : position.getLeverage());
-        position.setMargin(safe(position.getMargin()));
-        position.setEntryPrice(safe(position.getEntryPrice()));
-        position.setQuantity(safe(position.getQuantity()));
-        position.setClosingReservedQuantity(safe(position.getClosingReservedQuantity()));
-        position.setMarkPrice(safe(position.getMarkPrice()));
-        position.setMarginRatio(safe(position.getMarginRatio()));
-        position.setUnrealizedPnl(safe(position.getUnrealizedPnl()));
-        position.setLiquidationPrice(position.getLiquidationPrice());
-        position.setCumRealizedPnl(safe(position.getCumRealizedPnl()));
-        position.setCumFee(safe(position.getCumFee()));
-        position.setCumFundingFee(safe(position.getCumFundingFee()));
-        return position;
-    }
+  private BigDecimal safe(BigDecimal value) {
+    return value == null ? BigDecimal.ZERO : value;
+  }
 
-    private BigDecimal safe(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
-    }
+  public record PositionUpdateTask(Position position, int expectedVersion) {}
 }

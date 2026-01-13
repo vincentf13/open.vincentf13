@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ApplicationStartupListener extends OpenApplicationStartupListener {
 
-    public ApplicationStartupListener(MarketStartupCacheLoader marketStartupCacheLoader) {
-        super(marketStartupCacheLoader);
-    }
+  public ApplicationStartupListener(MarketStartupCacheLoader marketStartupCacheLoader) {
+    super(marketStartupCacheLoader);
+  }
 }

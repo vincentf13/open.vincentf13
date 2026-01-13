@@ -6,16 +6,14 @@ import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceTyp
 import java.time.Instant;
 
 public record PositionEventItem(
-        Long eventId,
-        Long positionId,
-        Long userId,
-        Long instrumentId,
-        PositionEventType eventType,
-        Long sequenceNumber,
-        String payload,
-        PositionReferenceType referenceType,
-        String referenceId,
-        Instant occurredAt,
-        Instant createdAt
-) {
-}
+    Long eventId,
+    Long positionId,
+    Long userId,
+    Long instrumentId,
+    PositionEventType eventType,
+    Long sequenceNumber,
+    String payload,
+    PositionReferenceType referenceType,
+    String referenceId,
+    Instant occurredAt,
+    Instant createdAt) {}

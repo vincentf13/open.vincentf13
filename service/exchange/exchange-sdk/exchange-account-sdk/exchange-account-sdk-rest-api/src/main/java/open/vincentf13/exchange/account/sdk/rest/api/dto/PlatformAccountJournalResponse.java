@@ -4,8 +4,4 @@ import java.time.Instant;
 import java.util.List;
 
 public record PlatformAccountJournalResponse(
-        Long accountId,
-        Instant snapshotAt,
-        List<PlatformJournalItem> journals
-) {
-}
+    Long accountId, Instant snapshotAt, List<PlatformJournalItem> journals) {}

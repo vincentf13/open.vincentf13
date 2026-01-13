@@ -1,26 +1,26 @@
-import { Dropdown, Tooltip } from 'antd';
-import { useEffect, useState } from 'react';
+import {Dropdown, Tooltip} from 'antd';
+import {useEffect, useState} from 'react';
 
-import type { InstrumentSummary } from '../../api/instrument';
-import { getMarkPrice, getTicker, type MarkPriceResponse, type TickerResponse } from '../../api/market';
+import type {InstrumentSummary} from '../../api/instrument';
+import {getMarkPrice, getTicker, type MarkPriceResponse, type TickerResponse} from '../../api/market';
 
 type MarketStatsProps = {
-  instruments: InstrumentSummary[];
-  selectedInstrument: InstrumentSummary | null;
-  onSelectInstrument: (instrument: InstrumentSummary) => void;
-  refreshTrigger?: number;
-  isPaused?: boolean;
-  onSyncComplete?: (name: string) => void;
+    instruments: InstrumentSummary[];
+    selectedInstrument: InstrumentSummary | null;
+    onSelectInstrument: (instrument: InstrumentSummary) => void;
+    refreshTrigger?: number;
+    isPaused?: boolean;
+    onSyncComplete?: (name: string) => void;
 };
 
 export default function MarketStats({
-  instruments,
-  selectedInstrument,
-  onSelectInstrument,
-  refreshTrigger,
-  isPaused,
-  onSyncComplete,
-}: MarketStatsProps) {
+                                        instruments,
+                                        selectedInstrument,
+                                        onSelectInstrument,
+                                        refreshTrigger,
+                                        isPaused,
+                                        onSyncComplete,
+                                    }: MarketStatsProps) {
     const currentName = selectedInstrument?.name || selectedInstrument?.symbol || 'BTC/USDT';
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [previewInstrumentId, setPreviewInstrumentId] = useState<string | null>(
@@ -135,7 +135,7 @@ export default function MarketStats({
         }
 
         let cancelled = false;
-        
+
         const fetchData = async () => {
             if (!ticker) setTickerLoading(true);
             if (!markPrice) setMarkPriceLoading(true);
@@ -200,7 +200,8 @@ export default function MarketStats({
                             open={dropdownOpen}
                             onOpenChange={setDropdownOpen}
                             popupRender={() => (
-                                <div className="flex w-[520px] rounded-xl border border-white/60 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
+                                <div
+                                    className="flex w-[520px] rounded-xl border border-white/60 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
                                     <div className="w-[200px] border-r border-slate-200 max-h-64 overflow-auto">
                                         {instruments.length ? (
                                             instruments.map((instrument) => {
@@ -219,9 +220,11 @@ export default function MarketStats({
                                                             isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'
                                                         }`}
                                                     >
-                                                        <div className="text-slate-800">{instrument.name || instrument.symbol || instrumentId}</div>
+                                                        <div
+                                                            className="text-slate-800">{instrument.name || instrument.symbol || instrumentId}</div>
                                                         {instrument.symbol && instrument.name && (
-                                                            <div className="text-[10px] text-slate-400">{instrument.symbol}</div>
+                                                            <div
+                                                                className="text-[10px] text-slate-400">{instrument.symbol}</div>
                                                         )}
                                                     </button>
                                                 );
@@ -231,13 +234,17 @@ export default function MarketStats({
                                         )}
                                     </div>
                                     <div className="flex-1 max-h-64 overflow-auto p-3">
-                                        <div className="text-[11px] font-semibold text-slate-600 mb-2">Instrument Detail</div>
+                                        <div className="text-[11px] font-semibold text-slate-600 mb-2">Instrument
+                                            Detail
+                                        </div>
                                         {detailEntries.length ? (
                                             <div className="space-y-1">
                                                 {detailEntries.map(([key, value]) => (
                                                     <div key={key} className="flex items-start justify-between gap-3">
-                                                        <span className="text-[10px] uppercase text-slate-400 tracking-wider">{key}</span>
-                                                        <span className="text-[11px] text-slate-700 font-mono text-right break-all">
+                                                        <span
+                                                            className="text-[10px] uppercase text-slate-400 tracking-wider">{key}</span>
+                                                        <span
+                                                            className="text-[11px] text-slate-700 font-mono text-right break-all">
                                                             {formatDetailValue(value)}
                                                         </span>
                                                     </div>
@@ -258,8 +265,10 @@ export default function MarketStats({
                                 <span className="text-xs text-slate-500">v</span>
                             </button>
                         </Dropdown>
-                        <span className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider">{instrumentTypeLabel}</span>
-                        <span className="text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5">{quoteAssetLabel}</span>
+                        <span
+                            className="text-[10px] uppercase text-slate-500 font-semibold tracking-wider">{instrumentTypeLabel}</span>
+                        <span
+                            className="text-[10px] uppercase text-slate-600 font-semibold tracking-wider bg-white/40 border border-white/50 rounded-md px-1.5 py-0.5">{quoteAssetLabel}</span>
                     </div>
                     <div className="flex items-center gap-3">
                         <span className="text-2xl font-bold text-slate-800">
@@ -277,7 +286,8 @@ export default function MarketStats({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-x-6 gap-y-3 text-xs text-slate-600 items-start">
+                <div
+                    className="grid grid-cols-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-x-6 gap-y-3 text-xs text-slate-600 items-start">
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Mark</span>
                         <span className="font-mono font-medium text-slate-700">
@@ -328,7 +338,8 @@ export default function MarketStats({
                     </div>
                     {showExtraStats && (
                         <div className="flex items-center gap-2 sm:col-start-1 sm:row-start-3">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Open</span>
+                            <span
+                                className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Open</span>
                             <span className="font-mono font-medium text-slate-700">
                                 {tickerLoading ? '...' : formatTickerNumber(ticker?.open24h)}
                             </span>
@@ -336,7 +347,8 @@ export default function MarketStats({
                     )}
                     {showExtraStats && (
                         <div className="flex items-center gap-2 sm:col-start-2 sm:row-start-3">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change</span>
+                            <span
+                                className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change</span>
                             <span className={`font-mono font-medium ${changeClass}`}>
                                 {tickerLoading ? '...' : formatTickerNumber(ticker?.priceChange24h)}
                             </span>
@@ -344,7 +356,8 @@ export default function MarketStats({
                     )}
                     {showExtraStats && (
                         <div className="flex items-center gap-2 sm:col-start-3 sm:row-start-3">
-                            <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change %</span>
+                            <span
+                                className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">24h Change %</span>
                             <span className={`font-mono font-medium ${changePctClass}`}>
                                 {tickerLoading ? '...' : formatTickerPercent(changePercentValue)}
                             </span>
@@ -364,20 +377,29 @@ export default function MarketStats({
                                 <div className="text-xs">
                                     <div className="whitespace-nowrap font-bold mb-1">行情統計說明</div>
                                     <div className="whitespace-nowrap">行情服務僅持久化最後成交價與 K 線。</div>
-                                    <div className="whitespace-nowrap">其餘 24h 指標採內存即時計算，若服務重啟則會重置。</div>
+                                    <div className="whitespace-nowrap">其餘 24h 指標採內存即時計算，若服務重啟則會重置。
+                                    </div>
                                     <div className="whitespace-nowrap">採用本地 WAL + CDC Outbox 模式，性能極高。</div>
-                                    <div className="h-px bg-white/20 my-1" />
+                                    <div className="h-px bg-white/20 my-1"/>
                                     <div className="whitespace-nowrap font-bold mb-1">Market Stats Explanation</div>
-                                    <div className="whitespace-nowrap">Only the last price and K-line data are persisted.</div>
-                                    <div className="whitespace-nowrap">Other 24h metrics are in-memory and will reset on service restart.</div>
-                                    <div className="whitespace-nowrap">Powered by high-performance local WAL + CDC outbox.</div>
+                                    <div className="whitespace-nowrap">Only the last price and K-line data are
+                                        persisted.
+                                    </div>
+                                    <div className="whitespace-nowrap">Other 24h metrics are in-memory and will reset on
+                                        service restart.
+                                    </div>
+                                    <div className="whitespace-nowrap">Powered by high-performance local WAL + CDC
+                                        outbox.
+                                    </div>
                                 </div>
                             )}
                             placement="bottomRight"
-                            classNames={{ root: 'liquid-tooltip' }}
-                            styles={{ root: { maxWidth: 'none' }, body: { maxWidth: 'none' } }}
+                            classNames={{root: 'liquid-tooltip'}}
+                            styles={{root: {maxWidth: 'none'}, body: {maxWidth: 'none'}}}
                         >
-                            <div className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 cursor-help border border-slate-200">?</div>
+                            <div
+                                className="liquid-tooltip-trigger w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 cursor-help border border-slate-200">?
+                            </div>
                         </Tooltip>
                     </div>
                 </div>

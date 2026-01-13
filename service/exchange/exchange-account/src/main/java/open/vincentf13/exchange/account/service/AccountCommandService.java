@@ -25,80 +25,83 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor
 @Validated
 public class AccountCommandService {
-    
-    private final AccountTransactionDomainService accountTransactionDomainService;
-    private final AccountPositionDomainService accountPositionDomainService;
-    private final TransactionTemplate transactionTemplate;
-    
-    @Transactional(rollbackFor = Exception.class)
-    public AccountDepositResponse deposit(@NotNull @Valid AccountDepositRequest request) {
-        AccountDepositResult result = accountTransactionDomainService.deposit(request);
-        var userAssetJournal = result.userAssetJournal();
-        var updatedUserAsset = result.userAssetAccount();
-        
-        return new AccountDepositResponse(
-                userAssetJournal.getJournalId(),
-                result.platformAssetJournal().getJournalId(),
-                updatedUserAsset.getAvailable(),
-                userAssetJournal.getEventTime(),
-                updatedUserAsset.getUserId(),
-                updatedUserAsset.getAsset(),
-                request.getAmount(),
-                request.getTxId()
-        );
-    }
-    
-    @Transactional(rollbackFor = Exception.class)
-    public AccountWithdrawalResponse withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
-        AccountWithdrawalResult result = accountTransactionDomainService.withdraw(request);
-        var userAssetJournal = result.userAssetJournal();
-        var userAsset = result.userAssetAccount();
-        
-        return new AccountWithdrawalResponse(
-                userAssetJournal.getJournalId(),
-                result.platformAssetJournal().getJournalId(),
-                userAsset.getAvailable(),
-                userAssetJournal.getEventTime(),
-                userAsset.getUserId(),
-                userAsset.getAsset(),
-                request.getAmount(),
-                request.getTxId()
-        );
-    }
-    
-    public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
-        transactionTemplate.executeWithoutResult(status -> {
-            if (event.makerIntent() == PositionIntentType.INCREASE) {
-                accountTransactionDomainService.settleTrade(event,
-                                                            event.orderId(),
-                                                            event.makerUserId(),
-                                                            event.orderSide(),
-                                                            event.makerIntent(),
-                                                            true);
-            }
-            if (event.takerIntent() == PositionIntentType.INCREASE) {
-                accountTransactionDomainService.settleTrade(event,
-                                                            event.counterpartyOrderId(),
-                                                            event.takerUserId(),
-                                                            event.counterpartyOrderSide(),
-                                                            event.takerIntent(),
-                                                            false);
-            }
+
+  private final AccountTransactionDomainService accountTransactionDomainService;
+  private final AccountPositionDomainService accountPositionDomainService;
+  private final TransactionTemplate transactionTemplate;
+
+  @Transactional(rollbackFor = Exception.class)
+  public AccountDepositResponse deposit(@NotNull @Valid AccountDepositRequest request) {
+    AccountDepositResult result = accountTransactionDomainService.deposit(request);
+    var userAssetJournal = result.userAssetJournal();
+    var updatedUserAsset = result.userAssetAccount();
+
+    return new AccountDepositResponse(
+        userAssetJournal.getJournalId(),
+        result.platformAssetJournal().getJournalId(),
+        updatedUserAsset.getAvailable(),
+        userAssetJournal.getEventTime(),
+        updatedUserAsset.getUserId(),
+        updatedUserAsset.getAsset(),
+        request.getAmount(),
+        request.getTxId());
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public AccountWithdrawalResponse withdraw(@NotNull @Valid AccountWithdrawalRequest request) {
+    AccountWithdrawalResult result = accountTransactionDomainService.withdraw(request);
+    var userAssetJournal = result.userAssetJournal();
+    var userAsset = result.userAssetAccount();
+
+    return new AccountWithdrawalResponse(
+        userAssetJournal.getJournalId(),
+        result.platformAssetJournal().getJournalId(),
+        userAsset.getAvailable(),
+        userAssetJournal.getEventTime(),
+        userAsset.getUserId(),
+        userAsset.getAsset(),
+        request.getAmount(),
+        request.getTxId());
+  }
+
+  public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          if (event.makerIntent() == PositionIntentType.INCREASE) {
+            accountTransactionDomainService.settleTrade(
+                event,
+                event.orderId(),
+                event.makerUserId(),
+                event.orderSide(),
+                event.makerIntent(),
+                true);
+          }
+          if (event.takerIntent() == PositionIntentType.INCREASE) {
+            accountTransactionDomainService.settleTrade(
+                event,
+                event.counterpartyOrderId(),
+                event.takerUserId(),
+                event.counterpartyOrderSide(),
+                event.takerIntent(),
+                false);
+          }
         });
-    }
+  }
 
-    @Transactional(rollbackFor = Exception.class)
-    public void handlePositionMarginReleased(@NotNull @Valid PositionMarginReleasedEvent event) {
-        accountPositionDomainService.releaseMargin(event);
-    }
+  @Transactional(rollbackFor = Exception.class)
+  public void handlePositionMarginReleased(@NotNull @Valid PositionMarginReleasedEvent event) {
+    accountPositionDomainService.releaseMargin(event);
+  }
 
-    @Transactional(rollbackFor = Exception.class)
-    public void handleCloseToOpenCompensation(@NotNull @Valid PositionCloseToOpenCompensationEvent event) {
-        accountTransactionDomainService.settleCloseToOpenCompensation(event);
-    }
+  @Transactional(rollbackFor = Exception.class)
+  public void handleCloseToOpenCompensation(
+      @NotNull @Valid PositionCloseToOpenCompensationEvent event) {
+    accountTransactionDomainService.settleCloseToOpenCompensation(event);
+  }
 
-    @Transactional(rollbackFor = Exception.class)
-    public void handleOpenToCloseCompensation(@NotNull @Valid PositionOpenToCloseCompensationEvent event) {
-        accountTransactionDomainService.settleOpenToCloseCompensation(event);
-    }
+  @Transactional(rollbackFor = Exception.class)
+  public void handleOpenToCloseCompensation(
+      @NotNull @Valid PositionOpenToCloseCompensationEvent event) {
+    accountTransactionDomainService.settleOpenToCloseCompensation(event);
+  }
 }

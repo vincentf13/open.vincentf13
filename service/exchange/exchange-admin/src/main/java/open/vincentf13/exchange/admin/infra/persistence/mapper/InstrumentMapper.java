@@ -5,5 +5,4 @@ import open.vincentf13.exchange.admin.infra.persistence.po.InstrumentPO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface InstrumentMapper extends BaseMapper<InstrumentPO> {
-}
+public interface InstrumentMapper extends BaseMapper<InstrumentPO> {}

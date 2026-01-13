@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 public interface PositionMaintenanceApi {
 
-    @PostMapping("/reload-caches")
-    @PublicAPI
-    OpenApiResponse<Void> reloadCaches();
+  @PostMapping("/reload-caches")
+  @PublicAPI
+  OpenApiResponse<Void> reloadCaches();
 }

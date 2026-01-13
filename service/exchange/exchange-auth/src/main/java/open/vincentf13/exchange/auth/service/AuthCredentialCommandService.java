@@ -17,28 +17,31 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor
 @Validated
 public class AuthCredentialCommandService {
-    
-    private final AuthCredentialRepository repository;
-    
-    @Transactional(rollbackFor = Exception.class)
-    public AuthCredentialResponse create(@Valid AuthCredentialCreateRequest request) {
-        return repository.findOne(Wrappers.<AuthCredentialPO>lambdaQuery()
-                                          .eq(AuthCredentialPO::getUserId, request.userId())
-                                          .eq(AuthCredentialPO::getCredentialType, request.credentialType()))
-                         .map(existing -> OpenObjectMapper.convert(existing, AuthCredentialResponse.class))
-                         .orElseGet(() -> {
-                             AuthCredential credential = AuthCredential.create(
-                                     request.userId(),
-                                     request.credentialType(),
-                                     request.secretHash(),
-                                     request.salt(),
-                                     request.status()
-                                                                              );
-                             
-                             Long credentialId = repository.insertSelective(credential);
-                             credential.setId(credentialId);
-                             
-                             return OpenObjectMapper.convert(credential, AuthCredentialResponse.class);
-                         });
-    }
+
+  private final AuthCredentialRepository repository;
+
+  @Transactional(rollbackFor = Exception.class)
+  public AuthCredentialResponse create(@Valid AuthCredentialCreateRequest request) {
+    return repository
+        .findOne(
+            Wrappers.<AuthCredentialPO>lambdaQuery()
+                .eq(AuthCredentialPO::getUserId, request.userId())
+                .eq(AuthCredentialPO::getCredentialType, request.credentialType()))
+        .map(existing -> OpenObjectMapper.convert(existing, AuthCredentialResponse.class))
+        .orElseGet(
+            () -> {
+              AuthCredential credential =
+                  AuthCredential.create(
+                      request.userId(),
+                      request.credentialType(),
+                      request.secretHash(),
+                      request.salt(),
+                      request.status());
+
+              Long credentialId = repository.insertSelective(credential);
+              credential.setId(credentialId);
+
+              return OpenObjectMapper.convert(credential, AuthCredentialResponse.class);
+            });
+  }
 }

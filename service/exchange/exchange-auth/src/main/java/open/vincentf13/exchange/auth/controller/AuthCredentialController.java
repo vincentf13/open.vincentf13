@@ -16,17 +16,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth-credential")
 @RequiredArgsConstructor
 public class AuthCredentialController implements AuthCredentialApi {
-    
-    private final AuthCredentialCommandService authCredentialCommandService;
-    private final AuthCredentialQueryService authCredentialQueryService;
-    
-    @Override
-    public OpenApiResponse<AuthCredentialPrepareResponse> prepare(AuthCredentialPrepareRequest request) {
-        return OpenApiResponse.success(authCredentialQueryService.prepare(request));
-    }
-    
-    @Override
-    public OpenApiResponse<AuthCredentialResponse> create(AuthCredentialCreateRequest request) {
-        return OpenApiResponse.success(authCredentialCommandService.create(request));
-    }
+
+  private final AuthCredentialCommandService authCredentialCommandService;
+  private final AuthCredentialQueryService authCredentialQueryService;
+
+  @Override
+  public OpenApiResponse<AuthCredentialPrepareResponse> prepare(
+      AuthCredentialPrepareRequest request) {
+    return OpenApiResponse.success(authCredentialQueryService.prepare(request));
+  }
+
+  @Override
+  public OpenApiResponse<AuthCredentialResponse> create(AuthCredentialCreateRequest request) {
+    return OpenApiResponse.success(authCredentialCommandService.create(request));
+  }
 }

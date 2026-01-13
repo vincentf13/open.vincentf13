@@ -16,19 +16,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class MarketMaintenanceController implements MarketMaintenanceApi {
 
-    private final KlineAggregationService klineAggregationService;
-    private final MarkPriceCacheService markPriceCacheService;
-    private final OrderBookCacheService orderBookCacheService;
-    private final TickerStatsCacheService tickerStatsCacheService;
-    private final KafkaConsumerResetService kafkaConsumerResetService;
+  private final KlineAggregationService klineAggregationService;
+  private final MarkPriceCacheService markPriceCacheService;
+  private final OrderBookCacheService orderBookCacheService;
+  private final TickerStatsCacheService tickerStatsCacheService;
+  private final KafkaConsumerResetService kafkaConsumerResetService;
 
-    @Override
-    public OpenApiResponse<Void> reset() {
-        klineAggregationService.reset();
-        markPriceCacheService.reset();
-        orderBookCacheService.reset();
-        tickerStatsCacheService.reset();
-        kafkaConsumerResetService.resetConsumers();
-        return OpenApiResponse.success(null);
-    }
+  @Override
+  public OpenApiResponse<Void> reset() {
+    klineAggregationService.reset();
+    markPriceCacheService.reset();
+    orderBookCacheService.reset();
+    tickerStatsCacheService.reset();
+    kafkaConsumerResetService.resetConsumers();
+    return OpenApiResponse.success(null);
+  }
 }

@@ -17,24 +17,24 @@ import java.time.Instant;
 @AllArgsConstructor
 @TableName("kline_buckets")
 public class KlineBucketPO {
-    
-    @TableId(value = "bucket_id", type = IdType.INPUT)
-    private Long bucketId;
-    
-    private Long instrumentId;
-    private String period;
-    private Instant bucketStart;
-    private Instant bucketEnd;
-    private BigDecimal openPrice;
-    private BigDecimal highPrice;
-    private BigDecimal lowPrice;
-    private BigDecimal closePrice;
-    private BigDecimal volume;
-    private BigDecimal turnover;
-    private Integer tradeCount;
-    private BigDecimal takerBuyVolume;
-    private BigDecimal takerBuyTurnover;
-    private Boolean isClosed;
-    private Instant createdAt;
-    private Instant updatedAt;
+
+  @TableId(value = "bucket_id", type = IdType.INPUT)
+  private Long bucketId;
+
+  private Long instrumentId;
+  private String period;
+  private Instant bucketStart;
+  private Instant bucketEnd;
+  private BigDecimal openPrice;
+  private BigDecimal highPrice;
+  private BigDecimal lowPrice;
+  private BigDecimal closePrice;
+  private BigDecimal volume;
+  private BigDecimal turnover;
+  private Integer tradeCount;
+  private BigDecimal takerBuyVolume;
+  private BigDecimal takerBuyTurnover;
+  private Boolean isClosed;
+  private Instant createdAt;
+  private Instant updatedAt;
 }

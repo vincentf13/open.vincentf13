@@ -11,13 +11,15 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OrderEventPublisher {
 
-    private final MqOutboxRepository outboxRepository;
+  private final MqOutboxRepository outboxRepository;
 
-    public void publishFundsFreezeRequested(FundsFreezeRequestedEvent event) {
-        outboxRepository.append(OrderTopics.FUNDS_FREEZE_REQUESTED.getTopic(), event.orderId(), event, null);
-    }
+  public void publishFundsFreezeRequested(FundsFreezeRequestedEvent event) {
+    outboxRepository.append(
+        OrderTopics.FUNDS_FREEZE_REQUESTED.getTopic(), event.orderId(), event, null);
+  }
 
-    public void publishOrderCreated(OrderCreatedEvent event) {
-        outboxRepository.append(OrderTopics.ORDER_CREATED.getTopic(), event.instrumentId(), event, null);
-    }
+  public void publishOrderCreated(OrderCreatedEvent event) {
+    outboxRepository.append(
+        OrderTopics.ORDER_CREATED.getTopic(), event.instrumentId(), event, null);
+  }
 }

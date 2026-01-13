@@ -9,11 +9,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public record FundsFrozenEvent(
-        @NotNull Long orderId,
-        @NotNull Long userId,
-        @NotNull Long instrumentId,
-        @NotNull AssetSymbol asset,
-        @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal amount,
-        @NotNull Instant eventTime
-) {
-}
+    @NotNull Long orderId,
+    @NotNull Long userId,
+    @NotNull Long instrumentId,
+    @NotNull AssetSymbol asset,
+    @NotNull @DecimalMin(value = ValidationConstant.Names.AMOUNT_MIN) BigDecimal amount,
+    @NotNull Instant eventTime) {}

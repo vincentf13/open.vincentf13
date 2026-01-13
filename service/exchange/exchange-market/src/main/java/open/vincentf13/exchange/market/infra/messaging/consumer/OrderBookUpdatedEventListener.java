@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.market.infra.messaging.consumer;
 
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.infra.cache.OrderBookCacheService;
 import open.vincentf13.exchange.matching.sdk.mq.event.OrderBookUpdatedEvent;
@@ -10,33 +11,29 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-
 @Component
 @RequiredArgsConstructor
 public class OrderBookUpdatedEventListener {
-    
-    private final OrderBookCacheService orderBookCacheService;
-    
-    @KafkaListener(
-            topics = MatchingTopics.Names.ORDERBOOK_UPDATED,
-            groupId = "${open.vincentf13.exchange.market.orderbook.consumer-group:exchange-market-orderbook}"
-    )
-    public void onOrderBookUpdated(@Payload OrderBookUpdatedEvent event,
-                                   Acknowledgment acknowledgment) {
-        try {
-            OpenValidator.validateOrThrow(event);
-        } catch (Exception e) {
-            acknowledgment.acknowledge();
-            return;
-        }
-        
-        orderBookCacheService.applyUpdates(
-                event.instrumentId(),
-                event.updates(),
-                event.updatedAt() == null ? Instant.now() : event.updatedAt()
-                                          );
-        acknowledgment.acknowledge();
-        
+
+  private final OrderBookCacheService orderBookCacheService;
+
+  @KafkaListener(
+      topics = MatchingTopics.Names.ORDERBOOK_UPDATED,
+      groupId =
+          "${open.vincentf13.exchange.market.orderbook.consumer-group:exchange-market-orderbook}")
+  public void onOrderBookUpdated(
+      @Payload OrderBookUpdatedEvent event, Acknowledgment acknowledgment) {
+    try {
+      OpenValidator.validateOrThrow(event);
+    } catch (Exception e) {
+      acknowledgment.acknowledge();
+      return;
     }
+
+    orderBookCacheService.applyUpdates(
+        event.instrumentId(),
+        event.updates(),
+        event.updatedAt() == null ? Instant.now() : event.updatedAt());
+    acknowledgment.acknowledge();
+  }
 }

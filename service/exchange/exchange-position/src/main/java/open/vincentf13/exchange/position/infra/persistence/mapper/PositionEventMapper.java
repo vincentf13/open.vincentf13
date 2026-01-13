@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Select;
 
 public interface PositionEventMapper extends BaseMapper<PositionEventPO> {
 
-    @Select("SELECT COALESCE(MAX(sequence_number), 0) FROM position_events WHERE position_id = #{positionId} FOR UPDATE")
-    Long selectMaxSequenceForUpdate(@Param("positionId") Long positionId);
+  @Select(
+      "SELECT COALESCE(MAX(sequence_number), 0) FROM position_events WHERE position_id = #{positionId} FOR UPDATE")
+  Long selectMaxSequenceForUpdate(@Param("positionId") Long positionId);
 }

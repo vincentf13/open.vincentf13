@@ -5,5 +5,4 @@ import open.vincentf13.exchange.market.infra.persistence.po.KlineBucketPO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface KlineBucketMapper extends BaseMapper<KlineBucketPO> {
-}
+public interface KlineBucketMapper extends BaseMapper<KlineBucketPO> {}

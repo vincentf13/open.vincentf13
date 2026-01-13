@@ -55,18 +55,6 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class OrderCommandService {
 
-  private final OrderRepository orderRepository;
-  private final OrderEventPublisher orderEventPublisher;
-  private final OrderEventRepository orderEventRepository;
-  private final ExchangePositionClient exchangePositionClient;
-  private final ExchangeRiskClient exchangeRiskClient;
-  private final TransactionTemplate transactionTemplate;
-  private final RetryTaskRepository pendingTaskRepository;
-  private final RetryTaskService retryTaskService;
-
-  @Value("${open.vincentf13.exchange.order.pending.prepare-intent.retry-delay:PT10S}")
-  private java.time.Duration retryDelay;
-
   private static final String ACTOR_ACCOUNT = "ACCOUNT_SERVICE";
   private static final String ACTOR_MATCHING = "MATCHING_ENGINE";
   private static final Set<OrderStatus> UPDATABLE_STATUSES =
@@ -76,6 +64,17 @@ public class OrderCommandService {
           OrderStatus.FILLED,
           OrderStatus.CANCELLING,
           OrderStatus.CANCELLED);
+  private static final int MAX_REJECTED_REASON_LENGTH = 255;
+  private final OrderRepository orderRepository;
+  private final OrderEventPublisher orderEventPublisher;
+  private final OrderEventRepository orderEventRepository;
+  private final ExchangePositionClient exchangePositionClient;
+  private final ExchangeRiskClient exchangeRiskClient;
+  private final TransactionTemplate transactionTemplate;
+  private final RetryTaskRepository pendingTaskRepository;
+  private final RetryTaskService retryTaskService;
+  @Value("${open.vincentf13.exchange.order.pending.prepare-intent.retry-delay:PT10S}")
+  private java.time.Duration retryDelay;
 
   public OrderResponse createOrder(@NotNull Long userId, @Valid OrderCreateRequest request) {
     try {
@@ -513,8 +512,6 @@ public class OrderCommandService {
       throw new IllegalStateException("releaseReservationFailed", ex);
     }
   }
-
-  private static final int MAX_REJECTED_REASON_LENGTH = 255;
 
   private OrderResponse rejectOrder(Order order, String reason) {
     String truncatedReason =

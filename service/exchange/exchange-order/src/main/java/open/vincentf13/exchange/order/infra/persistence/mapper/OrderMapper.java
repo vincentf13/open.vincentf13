@@ -5,5 +5,4 @@ import open.vincentf13.exchange.order.infra.persistence.po.OrderPO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface OrderMapper extends BaseMapper<OrderPO> {
-}
+public interface OrderMapper extends BaseMapper<OrderPO> {}

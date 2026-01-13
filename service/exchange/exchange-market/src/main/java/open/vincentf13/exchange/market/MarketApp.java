@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication(scanBasePackages = OpenConstant.Package.Names.BASE_PACKAGE)
 @EnableScheduling
 public class MarketApp {
-    
-    public static void main(String[] args) {
-        SpringApplication.run(MarketApp.class, args);
-    }
+
+  public static void main(String[] args) {
+    SpringApplication.run(MarketApp.class, args);
+  }
 }

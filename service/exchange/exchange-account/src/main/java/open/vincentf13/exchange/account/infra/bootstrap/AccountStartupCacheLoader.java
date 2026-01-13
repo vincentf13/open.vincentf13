@@ -1,5 +1,6 @@
 package open.vincentf13.exchange.account.infra.bootstrap;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.infra.AccountEvent;
 import open.vincentf13.exchange.account.infra.cache.InstrumentCache;
@@ -9,33 +10,30 @@ import open.vincentf13.sdk.core.bootstrap.OpenStartupCacheLoader;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 /**
-  Service responsible for loading instrument configuration data into local caches at application startup for the Account service.
+ * Service responsible for loading instrument configuration data into local caches at application
+ * startup for the Account service.
  */
 @Service
 @RequiredArgsConstructor
 public class AccountStartupCacheLoader extends OpenStartupCacheLoader {
 
-    private final ExchangeAdminClient adminClient;
-    private final InstrumentCache instrumentCache;
+  private final ExchangeAdminClient adminClient;
+  private final InstrumentCache instrumentCache;
 
-    @Override
-    protected void doLoadCaches() {
-        loadInstruments();
-    }
+  @Override
+  protected void doLoadCaches() {
+    loadInstruments();
+  }
 
-    /**
-      Loads all instruments from Admin service and stores them in the cache.
-     */
-    private void loadInstruments() {
-        OpenLog.info(AccountEvent.STARTUP_LOADING_INSTRUMENTS);
+  /** Loads all instruments from Admin service and stores them in the cache. */
+  private void loadInstruments() {
+    OpenLog.info(AccountEvent.STARTUP_LOADING_INSTRUMENTS);
 
-        List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
+    List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
 
-        instrumentCache.putAll(instruments);
+    instrumentCache.putAll(instruments);
 
-        OpenLog.info(AccountEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
-    }
+    OpenLog.info(AccountEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
+  }
 }

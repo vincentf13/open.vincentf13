@@ -14,14 +14,15 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PositionCloseToOpenCompensationEventListener {
 
-    private final AccountCommandService accountCommandService;
+  private final AccountCommandService accountCommandService;
 
-    @KafkaListener(topics = PositionTopics.Names.POSITION_CLOSE_TO_OPEN_COMPENSATION,
-                   groupId = "${open.vincentf13.exchange.account.consumer-group:exchange-account}")
-    public void onCloseToOpenCompensation(@Payload PositionCloseToOpenCompensationEvent event,
-                                          Acknowledgment acknowledgment) {
-        OpenValidator.validateOrThrow(event);
-        accountCommandService.handleCloseToOpenCompensation(event);
-        acknowledgment.acknowledge();
-    }
+  @KafkaListener(
+      topics = PositionTopics.Names.POSITION_CLOSE_TO_OPEN_COMPENSATION,
+      groupId = "${open.vincentf13.exchange.account.consumer-group:exchange-account}")
+  public void onCloseToOpenCompensation(
+      @Payload PositionCloseToOpenCompensationEvent event, Acknowledgment acknowledgment) {
+    OpenValidator.validateOrThrow(event);
+    accountCommandService.handleCloseToOpenCompensation(event);
+    acknowledgment.acknowledge();
+  }
 }

@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @SpringBootApplication(scanBasePackages = OpenConstant.Package.Names.BASE_PACKAGE)
 public class OrderApp {
-    
-    public static void main(String[] args) {
-        SpringApplication.run(OrderApp.class, args);
-    }
+
+  public static void main(String[] args) {
+    SpringApplication.run(OrderApp.class, args);
+  }
 }

@@ -11,8 +11,8 @@ import open.vincentf13.exchange.auth.sdk.rest.api.enums.AuthCredentialType;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthCredentialCreatePayload {
-    private Long userId;
-    private AuthCredentialType credentialType;
-    private String secretHash;
-    private String salt;
+  private Long userId;
+  private AuthCredentialType credentialType;
+  private String secretHash;
+  private String salt;
 }

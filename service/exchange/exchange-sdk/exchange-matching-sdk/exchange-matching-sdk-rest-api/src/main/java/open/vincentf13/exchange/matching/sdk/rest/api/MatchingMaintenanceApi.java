@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 public interface MatchingMaintenanceApi {
 
-    @PostMapping("/reset")
-    @PublicAPI
-    OpenApiResponse<Void> reset();
+  @PostMapping("/reset")
+  @PublicAPI
+  OpenApiResponse<Void> reset();
 }

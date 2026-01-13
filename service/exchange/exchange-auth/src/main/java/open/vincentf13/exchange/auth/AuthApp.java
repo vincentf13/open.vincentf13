@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication(scanBasePackages = OpenConstant.Package.Names.BASE_PACKAGE)
 public class AuthApp {
-    
-    public static void main(String[] args) {
-        SpringApplication.run(AuthApp.class, args);
-    }
+
+  public static void main(String[] args) {
+    SpringApplication.run(AuthApp.class, args);
+  }
 }

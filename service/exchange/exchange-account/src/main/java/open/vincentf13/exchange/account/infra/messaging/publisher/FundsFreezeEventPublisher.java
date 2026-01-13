@@ -11,13 +11,15 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class FundsFreezeEventPublisher {
 
-    private final MqOutboxRepository outboxRepository;
+  private final MqOutboxRepository outboxRepository;
 
-    public void publishFrozen(FundsFrozenEvent event) {
-        outboxRepository.append(AccountFundsTopics.FUNDS_FROZEN.getTopic(), event.orderId(), event, null);
-    }
+  public void publishFrozen(FundsFrozenEvent event) {
+    outboxRepository.append(
+        AccountFundsTopics.FUNDS_FROZEN.getTopic(), event.orderId(), event, null);
+  }
 
-    public void publishFreezeFailed(FundsFreezeFailedEvent event) {
-        outboxRepository.append(AccountFundsTopics.FUNDS_FREEZE_FAILED.getTopic(), event.orderId(), event, null);
-    }
+  public void publishFreezeFailed(FundsFreezeFailedEvent event) {
+    outboxRepository.append(
+        AccountFundsTopics.FUNDS_FREEZE_FAILED.getTopic(), event.orderId(), event, null);
+  }
 }
