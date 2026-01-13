@@ -20,9 +20,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Validated
 public interface PositionApi {
 
-  @PostMapping("/intent")
+  @PostMapping("/intent/reserve")
   @PrivateAPI
-  OpenApiResponse<PositionIntentResponse> prepareIntent(
+  OpenApiResponse<PositionIntentResponse> determineIntentAndReserve(
       @Valid @RequestBody PositionIntentRequest request);
 
   @PostMapping("/intent/release")

@@ -50,7 +50,7 @@ public class RetryTaskScheduler {
                 task,
                 retryDelay,
                 retryTask -> {
-                  return orderCommandService.prepareIntentAndOrderProcess(
+                  return orderCommandService.determineIntentAndReserveAndProcess(
                       OpenObjectMapper.fromJson(
                           retryTask.getPayload(), OrderPrepareIntentPayload.class));
                 });

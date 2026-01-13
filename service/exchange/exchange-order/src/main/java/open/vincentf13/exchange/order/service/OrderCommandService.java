@@ -101,7 +101,7 @@ public class OrderCommandService {
               });
       Order response =
           retryTaskService.handleTask(
-              retryTask, retryDelay, retryTask2 -> prepareIntentAndOrderProcess(payload));
+              retryTask, retryDelay, retryTask2 -> determineIntentAndReserveAndProcess(payload));
       if (response != null) {
         return OpenObjectMapper.convert(response, OrderResponse.class);
       }
@@ -129,7 +129,8 @@ public class OrderCommandService {
     }
   }
 
-  public RetryTaskResult<Order> prepareIntentAndOrderProcess(OrderPrepareIntentPayload payload) {
+  public RetryTaskResult<Order> determineIntentAndReserveAndProcess(
+      OrderPrepareIntentPayload payload) {
     if (payload == null
         || payload.getOrderId() == null
         || payload.getUserId() == null
@@ -142,7 +143,7 @@ public class OrderCommandService {
       PositionIntentResponse intentResponse =
           OpenApiClientInvoker.call(
               () ->
-                  exchangePositionClient.prepareIntent(
+                  exchangePositionClient.determineIntentAndReserve(
                       new PositionIntentRequest(
                           userId,
                           request.getInstrumentId(),

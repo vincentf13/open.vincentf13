@@ -48,7 +48,8 @@ public class PositionCommandService {
   private final PositionEventRepository positionEventRepository;
   private final PositionDomainService positionDomainService;
   
-  public PositionIntentResponse prepareIntent(@NotNull @Valid PositionIntentRequest request) {
+  public PositionIntentResponse determineIntentAndReserve(
+      @NotNull @Valid PositionIntentRequest request) {
     PositionDomainService.PositionIntentResult result =
             positionDomainService.processIntent(
                     request.userId(),
