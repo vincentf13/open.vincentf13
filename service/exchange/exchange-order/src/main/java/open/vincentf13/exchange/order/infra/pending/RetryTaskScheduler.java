@@ -3,13 +3,11 @@ package open.vincentf13.exchange.order.infra.pending;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.infra.pending.dto.OrderPrepareIntentPayload;
 import open.vincentf13.exchange.order.service.OrderCommandService;
-import open.vincentf13.sdk.core.values.OpenEnum;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
-import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskResult;
+import open.vincentf13.sdk.core.values.OpenEnum;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskRepository;
-import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskStatus;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -50,11 +48,7 @@ public class RetryTaskScheduler {
                         task,
                         retryDelay,
                         retryTask -> {
-                            OrderPrepareIntentPayload payload = OpenObjectMapper.fromJson(retryTask.getPayload(), OrderPrepareIntentPayload.class);
-                            if (payload == null || payload.getOrderId() == null || payload.getUserId() == null || payload.getRequest() == null) {
-                                return new RetryTaskResult<>(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload", null);
-                            }
-                            return orderCommandService.prepareIntentAndOrderProcess(payload);
+                            return orderCommandService.prepareIntentAndOrderProcess(OpenObjectMapper.fromJson(retryTask.getPayload(), OrderPrepareIntentPayload.class));
                         }
                 );
             }

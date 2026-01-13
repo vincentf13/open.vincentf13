@@ -85,9 +85,9 @@ public class OrderCommandService {
             OrderPrepareIntentPayload payload = new OrderPrepareIntentPayload(order.getOrderId(), userId, request);
             RetryTaskPO retryTask = transactionTemplate.execute(status -> {
                 orderRepository.insertSelective(order);
-                String payload = OpenObjectDiff.diff(null, order);
-                orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), Instant.now(), payload, OrderEventReferenceType.REQUEST, request.getClientOrderId());
-                return pendingTaskRepository.insertPendingTask(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), payload);
+                String diff = OpenObjectDiff.diff(null, order);
+                orderEventRepository.append(order, OrderEventType.ORDER_CREATED, actorFromUser(userId), Instant.now(), diff, OrderEventReferenceType.REQUEST, request.getClientOrderId());
+                return pendingTaskRepository.insertPendingTask(RetryTaskType.ORDER_PREPARE_INTENT, request.getClientOrderId(), diff);
             });
             Order response = retryTaskService.handleTask(
                     retryTask,
@@ -114,6 +114,9 @@ public class OrderCommandService {
     
     
     public RetryTaskResult<Order> prepareIntentAndOrderProcess(OrderPrepareIntentPayload payload) {
+        if (payload == null || payload.getOrderId() == null || payload.getUserId() == null || payload.getRequest() == null) {
+            return new RetryTaskResult<>(RetryTaskStatus.FAIL_TERMINAL, "invalidPayload", null);
+        }
         try {
             Long userId = payload.getUserId();
             OrderCreateRequest request = payload.getRequest();
