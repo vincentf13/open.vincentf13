@@ -77,26 +77,25 @@ public class PositionCommandService {
   
   public String releaseReservation(@NotNull @Valid PositionReservationReleaseRequest request) {
     if (request.clientOrderId() == null) {
-      return "無預凍結紀錄";
+      return "No reservation record found.";
     }
     String referencePrefix = request.clientOrderId() + ":";
     var reservationEvent =
         positionEventRepository.findLatestByReferencePrefix(
             PositionReferenceType.RESERVATION, referencePrefix);
     if (reservationEvent == null || reservationEvent.getReferenceId() == null) {
-      return "無預凍結紀錄";
+      return "No reservation record found.";
     }
     String referenceId = reservationEvent.getReferenceId();
-    int separatorIndex = referenceId.indexOf(':');
-    if (separatorIndex < 0 || separatorIndex == referenceId.length() - 1) {
-      return "無預凍結紀錄";
+    String[] parts = referenceId.split(":", 2);
+    if (parts.length < 2 || parts[1].isBlank() || parts[1].contains(":")) {
+      return "No reservation record found.";
     }
-    String sideValue = referenceId.substring(separatorIndex + 1);
-    PositionSide side;
+      PositionSide side;
     try {
-      side = PositionSide.valueOf(sideValue);
+      side = PositionSide.valueOf(parts[1]);
     } catch (IllegalArgumentException ex) {
-      return "無預凍結紀錄";
+      return "No reservation record found.";
     }
     Position position =
         positionRepository
@@ -107,18 +106,18 @@ public class PositionCommandService {
                     .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
             .orElse(null);
     if (position == null) {
-      return "預凍結倉位已釋放，且倉位已被已成交結算在flip流程中，借去平倉。";
+      return "Reservation already released; position settled by fills in the flip flow for closing.";
     }
     BigDecimal reserved =
         position.getClosingReservedQuantity() == null
             ? BigDecimal.ZERO
             : position.getClosingReservedQuantity();
     if (reserved.compareTo(request.quantity()) < 0) {
-      return "預凍結倉位已釋放，且倉位已被已成交結算在flip流程中，借去平倉。";
+      return "Reservation already released; position settled by fills in the flip flow for closing.";
     }
     positionDomainService.releaseClosingPosition(
         position, request.quantity(), request.clientOrderId());
-    return "預凍結倉位已釋放。";
+    return "Reservation released.";
   }
 
   @Transactional
