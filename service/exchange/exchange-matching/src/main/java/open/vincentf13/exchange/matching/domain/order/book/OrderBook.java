@@ -9,7 +9,7 @@ import open.vincentf13.exchange.matching.domain.instrument.Instrument;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.cache.InstrumentCache;
-import open.vincentf13.sdk.core.values.OpenBigDecimal;
+import open.vincentf13.sdk.core.values.OpenDecimal;
 
 public class OrderBook {
 
@@ -53,7 +53,7 @@ public class OrderBook {
                 .price(maker.getPrice())
                 .side(maker.getSide())
                 .remainingQuantity(
-                    OpenBigDecimal.normalizeDecimal(makerRemaining.max(BigDecimal.ZERO)))
+                        OpenDecimal.normalizeDecimal(makerRemaining.max(BigDecimal.ZERO)))
                 .isTaker(false)
                 .build());
         remaining = takerRemaining;
@@ -65,7 +65,7 @@ public class OrderBook {
             .orderId(taker.getOrderId())
             .price(taker.getPrice())
             .side(taker.getSide())
-            .remainingQuantity(OpenBigDecimal.normalizeDecimal(remaining.max(BigDecimal.ZERO)))
+            .remainingQuantity(OpenDecimal.normalizeDecimal(remaining.max(BigDecimal.ZERO)))
             .isTaker(true)
             .build());
     return result;
@@ -171,7 +171,7 @@ public class OrderBook {
     }
 
     BigDecimal totalValue =
-        OpenBigDecimal.normalizeDecimal(
+        OpenDecimal.normalizeDecimal(
             price.multiply(quantity).multiply(instrument.getContractSize()));
     BigDecimal makerFilled = maker.getOriginalQuantity().subtract(makerRemaining);
     BigDecimal takerFilled = taker.getOriginalQuantity().subtract(takerRemaining);
@@ -184,17 +184,17 @@ public class OrderBook {
         .takerUserId(taker.getUserId())
         .orderId(maker.getOrderId())
         .counterpartyOrderId(taker.getOrderId())
-        .orderQuantity(OpenBigDecimal.normalizeDecimal(maker.getOriginalQuantity()))
-        .orderFilledQuantity(OpenBigDecimal.normalizeDecimal(makerFilled))
-        .counterpartyOrderQuantity(OpenBigDecimal.normalizeDecimal(taker.getOriginalQuantity()))
-        .counterpartyOrderFilledQuantity(OpenBigDecimal.normalizeDecimal(takerFilled))
+        .orderQuantity(OpenDecimal.normalizeDecimal(maker.getOriginalQuantity()))
+        .orderFilledQuantity(OpenDecimal.normalizeDecimal(makerFilled))
+        .counterpartyOrderQuantity(OpenDecimal.normalizeDecimal(taker.getOriginalQuantity()))
+        .counterpartyOrderFilledQuantity(OpenDecimal.normalizeDecimal(takerFilled))
         .orderSide(maker.getSide())
         .counterpartyOrderSide(taker.getSide())
         .makerIntent(maker.getIntent())
         .takerIntent(taker.getIntent())
         .tradeType(taker.getTradeType())
-        .price(OpenBigDecimal.normalizeDecimal(price))
-        .quantity(OpenBigDecimal.normalizeDecimal(quantity))
+        .price(OpenDecimal.normalizeDecimal(price))
+        .quantity(OpenDecimal.normalizeDecimal(quantity))
         .totalValue(totalValue)
         .makerFee(totalValue.multiply(makerFee))
         .takerFee(totalValue.multiply(takerFee))

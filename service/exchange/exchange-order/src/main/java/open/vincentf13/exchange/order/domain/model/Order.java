@@ -18,7 +18,7 @@ import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.values.OpenBigDecimal;
+import open.vincentf13.sdk.core.values.OpenDecimal;
 
 @Data
 @Builder
@@ -64,8 +64,8 @@ public class Order {
       throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "userId"));
     }
     validateRequest(request);
-    BigDecimal normalizedQty = OpenBigDecimal.normalizeDecimal(request.quantity());
-    BigDecimal normalizedPrice = OpenBigDecimal.normalizeDecimal(request.price());
+    BigDecimal normalizedQty = OpenDecimal.normalizeDecimal(request.quantity());
+    BigDecimal normalizedPrice = OpenDecimal.normalizeDecimal(request.price());
     return Order.builder()
         .orderId(null)
         .userId(userId)

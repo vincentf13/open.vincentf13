@@ -11,7 +11,7 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.model.OrderUpdate;
 import open.vincentf13.exchange.market.domain.model.OrderBookSnapshot;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.OrderBookLevel;
-import open.vincentf13.sdk.core.values.OpenBigDecimal;
+import open.vincentf13.sdk.core.values.OpenDecimal;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -64,7 +64,7 @@ public class OrderBookCacheService {
                 e ->
                     OrderBookLevel.builder()
                         .price(e.getKey())
-                        .quantity(OpenBigDecimal.normalizeDecimal(e.getValue()))
+                        .quantity(OpenDecimal.normalizeDecimal(e.getValue()))
                         .build())
             .toList();
     List<OrderBookLevel> askLevels =
@@ -74,15 +74,15 @@ public class OrderBookCacheService {
                 e ->
                     OrderBookLevel.builder()
                         .price(e.getKey())
-                        .quantity(OpenBigDecimal.normalizeDecimal(e.getValue()))
+                        .quantity(OpenDecimal.normalizeDecimal(e.getValue()))
                         .build())
             .toList();
 
     BigDecimal bestBid = bidLevels.isEmpty() ? null : bidLevels.get(0).getPrice();
     BigDecimal bestAsk = askLevels.isEmpty() ? null : askLevels.get(0).getPrice();
     BigDecimal mid =
-        (bestBid != null && bestAsk != null)
-            ? OpenBigDecimal.normalizeDecimal(bestBid.add(bestAsk).divide(BigDecimal.valueOf(2)))
+            (bestBid != null && bestAsk != null)
+            ? OpenDecimal.normalizeDecimal(bestBid.add(bestAsk).divide(BigDecimal.valueOf(2)))
             : null;
 
     OrderBookSnapshot snapshot =

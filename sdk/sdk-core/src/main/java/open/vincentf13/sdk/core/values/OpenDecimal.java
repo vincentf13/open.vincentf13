@@ -3,15 +3,11 @@ package open.vincentf13.sdk.core.values;
 import java.math.BigDecimal;
 
 /** Common BigDecimal helpers shared across services. */
-public final class OpenBigDecimal {
+public final class OpenDecimal {
 
-  private OpenBigDecimal() {}
+  private OpenDecimal() {}
   
   public static BigDecimal normalizeDecimal(BigDecimal value) {
     return value == null ? null : value.stripTrailingZeros();
-  }
-
-  public static BigDecimal safeDecimal(BigDecimal value) {
-    return value == null ? BigDecimal.ZERO : value;
   }
 }
