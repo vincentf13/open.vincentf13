@@ -85,10 +85,7 @@ public class PositionDomainService {
       Position position, BigDecimal reservedQuantity, String clientOrderId) {
 
     BigDecimal availableToClose = position.availableToClose();
-    // prevent flip when all quantity is reserved for closing.
-    if (availableToClose.compareTo(BigDecimal.ZERO) <= 0) {
-      throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE);
-    }
+  
     if (availableToClose.compareTo(reservedQuantity) < 0) {
       throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE);
     }
@@ -118,7 +115,7 @@ public class PositionDomainService {
             position.getUserId(),
             position.getInstrumentId(),
             payload,
-            clientOrderId + ":" + reservedQuantity,
+            clientOrderId + ":" + position.getSide(),
             Instant.now());
     positionEventRepository.insert(event);
   }

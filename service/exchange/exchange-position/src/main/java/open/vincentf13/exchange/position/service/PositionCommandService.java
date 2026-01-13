@@ -75,6 +75,8 @@ public class PositionCommandService {
   }
   
   public void releaseReservation(@NotNull @Valid PositionReservationReleaseRequest request) {
+    
+    
     Position position =
             positionRepository
                     .findOne(
