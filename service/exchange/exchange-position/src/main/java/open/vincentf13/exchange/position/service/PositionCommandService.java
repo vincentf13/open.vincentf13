@@ -26,8 +26,13 @@ import open.vincentf13.exchange.position.infra.persistence.repository.PositionRe
 import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompensationEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionUpdatedEvent;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentRequest;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionIntentResponse;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionReservationReleaseRequest;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
+import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.validator.OpenValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +47,49 @@ public class PositionCommandService {
   private final PositionEventPublisher positionEventPublisher;
   private final PositionEventRepository positionEventRepository;
   private final PositionDomainService positionDomainService;
+  
+  public PositionIntentResponse prepareIntent(@NotNull @Valid PositionIntentRequest request) {
+    PositionDomainService.PositionIntentResult result =
+            positionDomainService.processIntent(
+                    request.userId(),
+                    request.getInstrumentId(),
+                    request.side(),
+                    request.getQuantity(),
+                    request.clientOrderId());
+    
+    BigDecimal existing =
+            result.position() == null ? BigDecimal.ZERO : result.position().getQuantity();
+    
+    if (result.errorMessage() != null) {
+      return PositionIntentResponse.ofRejected(
+              result.intentType(), existing, result.errorMessage());
+    }
+    
+    return PositionIntentResponse.of(
+            result.intentType(),
+            existing,
+            result.position() == null
+            ? null
+            : OpenObjectMapper.convert(result.position(), PositionResponse.class));
+  }
+  
+  public void releaseReservation(@NotNull @Valid PositionReservationReleaseRequest request) {
+    Position position =
+            positionRepository
+                    .findOne(
+                            Wrappers.lambdaQuery(PositionPO.class)
+                                    .eq(PositionPO::getUserId, request.userId())
+                                    .eq(PositionPO::getInstrumentId, request.instrumentId())
+                                    .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+                    .orElseThrow(
+                            () ->
+                                    OpenException.of(
+                                            PositionErrorCode.POSITION_NOT_FOUND,
+                                            Map.of(
+                                                    "userId", request.userId(), "instrumentId", request.instrumentId())));
+    positionDomainService.releaseClosingPosition(
+            position, request.quantity(), request.clientOrderId());
+  }
 
   @Transactional
   public void handleTradeExecuted(@NotNull @Valid TradeExecutedEvent event) {
