@@ -38,6 +38,7 @@ import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.OpenObjectDiff;
 import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.values.OpenString;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskResult;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
 import open.vincentf13.sdk.infra.mysql.retry.task.repository.RetryTaskPO;
@@ -387,13 +388,18 @@ public class OrderCommandService {
           OrderPrecheckResponse precheck =
               precheckOrder(userId, order, intentType, intentResponse.positionSnapshot());
           if (!precheck.isAllow()) {
+            String reason = precheck.getReason();
             if (intentType == PositionIntentType.REDUCE || intentType == PositionIntentType.CLOSE) {
               // 平倉預凍結倉位需解凍
-              releaseClosingReservation(userId, request);
+              String releaseResult = releaseClosingReservation(userId, request);
+              if (releaseResult != null && !releaseResult.isBlank()) {
+                String base = OpenString.ensureEndsWithPeriod(reason == null ? "" : reason);
+                reason = base + releaseResult;
+              }
             }
             return rejectPersistedOrder(
                 order,
-                Optional.ofNullable(precheck.getReason()).orElse("riskRejected"),
+                Optional.ofNullable(reason).orElse("riskRejected"),
                 OrderEventReferenceType.RISK_CHECK);
           }
 
@@ -489,7 +495,7 @@ public class OrderCommandService {
     return orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
   }
 
-  private void releaseClosingReservation(Long userId, OrderCreateRequest request) {
+  private String releaseClosingReservation(Long userId, OrderCreateRequest request) {
     PositionReservationReleaseRequest releaseRequest =
         PositionReservationReleaseRequest.builder()
             .userId(userId)
@@ -498,7 +504,7 @@ public class OrderCommandService {
             .clientOrderId(request.getClientOrderId())
             .build();
     try {
-      OpenApiClientInvoker.call(
+      return OpenApiClientInvoker.call(
           () -> exchangePositionClient.releaseReservation(releaseRequest),
           msg ->
               OpenException.of(

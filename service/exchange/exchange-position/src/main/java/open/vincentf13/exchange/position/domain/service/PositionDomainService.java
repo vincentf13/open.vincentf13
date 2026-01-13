@@ -127,17 +127,14 @@ public class PositionDomainService {
     if (positionEventRepository.existsByReference(PositionReferenceType.RESERVATION, referenceId)) {
       return;
     }
-
-    // TODO flip 搶奪了預扣倉位
-
+    
     Position originalPosition = OpenObjectMapper.convert(position, Position.class);
-    int expectedVersion = position.safeVersion();
-    BigDecimal currentReserved =
+      BigDecimal currentReserved =
         position.getClosingReservedQuantity() == null
             ? BigDecimal.ZERO
             : position.getClosingReservedQuantity();
     position.setClosingReservedQuantity(currentReserved.subtract(reservedQuantity));
-    position.setVersion(expectedVersion + 1);
+    position.setVersion(position.safeVersion() + 1);
     boolean updated =
         positionRepository.updateSelectiveBy(
             position,
@@ -146,7 +143,7 @@ public class PositionDomainService {
                 .eq(PositionPO::getUserId, position.getUserId())
                 .eq(PositionPO::getInstrumentId, position.getInstrumentId())
                 .eq(PositionPO::getStatus, PositionStatus.ACTIVE)
-                .eq(PositionPO::getVersion, expectedVersion));
+                .eq(PositionPO::getVersion, position.safeVersion()));
     if (!updated) {
       throw OpenException.of(PositionErrorCode.POSITION_CONCURRENT_UPDATE);
     }

@@ -30,9 +30,9 @@ public class PositionController implements PositionApi {
   }
 
   @Override
-  public OpenApiResponse<Object> releaseReservation(PositionReservationReleaseRequest request) {
-    positionCommandService.releaseReservation(request);
-    return OpenApiResponse.success(new Object());
+  public OpenApiResponse<String> releaseReservation(PositionReservationReleaseRequest request) {
+    String result = positionCommandService.releaseReservation(request);
+    return OpenApiResponse.success(result);
   }
 
   @Override

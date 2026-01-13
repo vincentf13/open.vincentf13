@@ -93,6 +93,23 @@ public class PositionEventRepository {
     }
   }
 
+  public PositionEvent findLatestByReferencePrefix(
+      @NotNull PositionReferenceType referenceType, @NotNull String referencePrefix) {
+    try {
+      PositionEventPO po =
+          mapper.selectOne(
+              Wrappers.lambdaQuery(PositionEventPO.class)
+                  .eq(PositionEventPO::getReferenceType, referenceType)
+                  .likeRight(PositionEventPO::getReferenceId, referencePrefix)
+                  .orderByDesc(PositionEventPO::getEventId)
+                  .last("LIMIT 1"));
+      return OpenObjectMapper.convert(po, PositionEvent.class);
+    } catch (DataAccessException e) {
+      throw OpenException.of(
+          PositionErrorCode.POSITION_CONCURRENT_UPDATE, Map.of("referenceId", referencePrefix), e);
+    }
+  }
+
   public boolean existsByReferenceAndUser(
       @NotNull PositionReferenceType referenceType,
       @NotNull String referenceId,

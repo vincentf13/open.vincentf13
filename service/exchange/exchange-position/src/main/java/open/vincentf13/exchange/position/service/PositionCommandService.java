@@ -14,6 +14,7 @@ import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.position.domain.model.Position;
@@ -74,24 +75,50 @@ public class PositionCommandService {
             : OpenObjectMapper.convert(result.position(), PositionResponse.class));
   }
   
-  public void releaseReservation(@NotNull @Valid PositionReservationReleaseRequest request) {
-    
-    
+  public String releaseReservation(@NotNull @Valid PositionReservationReleaseRequest request) {
+    if (request.clientOrderId() == null) {
+      return "無預凍結紀錄";
+    }
+    String referencePrefix = request.clientOrderId() + ":";
+    var reservationEvent =
+        positionEventRepository.findLatestByReferencePrefix(
+            PositionReferenceType.RESERVATION, referencePrefix);
+    if (reservationEvent == null || reservationEvent.getReferenceId() == null) {
+      return "無預凍結紀錄";
+    }
+    String referenceId = reservationEvent.getReferenceId();
+    int separatorIndex = referenceId.indexOf(':');
+    if (separatorIndex < 0 || separatorIndex == referenceId.length() - 1) {
+      return "無預凍結紀錄";
+    }
+    String sideValue = referenceId.substring(separatorIndex + 1);
+    PositionSide side;
+    try {
+      side = PositionSide.valueOf(sideValue);
+    } catch (IllegalArgumentException ex) {
+      return "無預凍結紀錄";
+    }
     Position position =
-            positionRepository
-                    .findOne(
-                            Wrappers.lambdaQuery(PositionPO.class)
-                                    .eq(PositionPO::getUserId, request.userId())
-                                    .eq(PositionPO::getInstrumentId, request.instrumentId())
-                                    .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
-                    .orElseThrow(
-                            () ->
-                                    OpenException.of(
-                                            PositionErrorCode.POSITION_NOT_FOUND,
-                                            Map.of(
-                                                    "userId", request.userId(), "instrumentId", request.instrumentId())));
+        positionRepository
+            .findOne(
+                Wrappers.lambdaQuery(PositionPO.class)
+                    .eq(PositionPO::getPositionId, reservationEvent.getPositionId())
+                    .eq(PositionPO::getSide, side)
+                    .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
+            .orElse(null);
+    if (position == null) {
+      return "預凍結倉位已釋放，且倉位已被已成交結算在flip流程中，借去平倉。";
+    }
+    BigDecimal reserved =
+        position.getClosingReservedQuantity() == null
+            ? BigDecimal.ZERO
+            : position.getClosingReservedQuantity();
+    if (reserved.compareTo(request.quantity()) < 0) {
+      return "預凍結倉位已釋放，且倉位已被已成交結算在flip流程中，借去平倉。";
+    }
     positionDomainService.releaseClosingPosition(
-            position, request.quantity(), request.clientOrderId());
+        position, request.quantity(), request.clientOrderId());
+    return "預凍結倉位已釋放。";
   }
 
   @Transactional

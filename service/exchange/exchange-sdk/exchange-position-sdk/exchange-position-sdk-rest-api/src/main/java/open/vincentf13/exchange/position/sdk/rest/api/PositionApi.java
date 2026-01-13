@@ -27,7 +27,7 @@ public interface PositionApi {
 
   @PostMapping("/intent/release")
   @PrivateAPI
-  OpenApiResponse<Object> releaseReservation(
+  OpenApiResponse<String> releaseReservation(
       @Valid @RequestBody PositionReservationReleaseRequest request);
 
   @GetMapping("/{userId}/{instrumentId}")
