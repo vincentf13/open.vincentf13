@@ -111,11 +111,13 @@ public class Order {
           OrderErrorCode.ORDER_VALIDATION_FAILED,
           Map.of("field", "price", "orderType", request.type()));
     }
-    if (request.quantity() == null || OpenBigDecimal.isNonPositive(request.quantity())) {
+
+    if (request.quantity() == null || request.quantity().signum() <= 0) {
       throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "quantity"));
     }
-    if (request.price() != null && OpenBigDecimal.isNonPositive(request.price())) {
-      throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "price"));
+    if (request.price() != null && request.price().signum() <= 0) {
+        throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "price"));
+      }
     }
   }
 

@@ -6,11 +6,7 @@ import java.math.BigDecimal;
 public final class OpenBigDecimal {
 
   private OpenBigDecimal() {}
-
-  public static boolean isNonPositive(BigDecimal value) {
-    return value == null || value.signum() <= 0;
-  }
-
+  
   public static BigDecimal normalizeDecimal(BigDecimal value) {
     return value == null ? null : value.stripTrailingZeros();
   }
