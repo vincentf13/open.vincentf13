@@ -5,7 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
 
 @Component

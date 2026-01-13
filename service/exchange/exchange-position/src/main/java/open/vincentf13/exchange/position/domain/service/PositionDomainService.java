@@ -26,7 +26,7 @@ import open.vincentf13.exchange.position.sdk.mq.event.PositionOpenToCloseCompens
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionEventType;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;

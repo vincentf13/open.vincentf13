@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.util.Assert;
 
 @RequiredArgsConstructor

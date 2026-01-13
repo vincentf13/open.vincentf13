@@ -8,7 +8,7 @@ import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;
 import open.vincentf13.exchange.auth.infra.persistence.repository.AuthCredentialRepository;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialResponse;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;

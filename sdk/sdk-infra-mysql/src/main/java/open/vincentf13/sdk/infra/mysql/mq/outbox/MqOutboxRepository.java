@@ -4,7 +4,7 @@ import com.github.yitter.idgen.DefaultIdGenerator;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.validator.OpenValidator;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.Assert;

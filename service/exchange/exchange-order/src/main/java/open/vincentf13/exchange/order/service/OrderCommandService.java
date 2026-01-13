@@ -37,7 +37,7 @@ import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.object.OpenObjectDiff;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.values.OpenString;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskResult;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;

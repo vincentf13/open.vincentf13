@@ -13,7 +13,7 @@ import open.vincentf13.exchange.order.infra.persistence.mapper.OrderEventMapper;
 import open.vincentf13.exchange.order.infra.persistence.po.OrderEventPO;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventReferenceType;
 import open.vincentf13.exchange.order.sdk.rest.api.enums.OrderEventType;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 
 @Repository

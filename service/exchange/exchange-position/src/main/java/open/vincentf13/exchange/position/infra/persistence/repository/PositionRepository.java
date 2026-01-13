@@ -16,7 +16,7 @@ import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.domain.model.Position;
 import open.vincentf13.exchange.position.infra.persistence.mapper.PositionMapper;
 import open.vincentf13.exchange.position.infra.persistence.po.PositionPO;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.validator.Id;
 import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import org.apache.ibatis.session.SqlSessionFactory;

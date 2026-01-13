@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.object.mapper;
+package open.vincentf13.sdk.core.mapper;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonGenerator;

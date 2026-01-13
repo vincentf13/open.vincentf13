@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.auth.domain.model.AuthCredential;
 import open.vincentf13.exchange.auth.infra.persistence.mapper.AuthCredentialMapper;
 import open.vincentf13.exchange.auth.infra.persistence.po.AuthCredentialPO;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.validator.Id;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;

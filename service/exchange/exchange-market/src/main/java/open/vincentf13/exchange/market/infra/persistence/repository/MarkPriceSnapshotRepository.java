@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.market.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.market.infra.persistence.mapper.MarkPriceSnapshotMapper;
 import open.vincentf13.exchange.market.infra.persistence.po.MarkPriceSnapshotPO;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 

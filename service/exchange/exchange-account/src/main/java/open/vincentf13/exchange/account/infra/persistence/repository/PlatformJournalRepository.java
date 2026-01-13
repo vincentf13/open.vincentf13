@@ -15,7 +15,7 @@ import open.vincentf13.exchange.account.domain.model.PlatformJournal;
 import open.vincentf13.exchange.account.infra.persistence.mapper.PlatformJournalMapper;
 import open.vincentf13.exchange.account.infra.persistence.po.PlatformJournalPO;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 

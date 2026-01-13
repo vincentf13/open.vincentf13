@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.persistence.mapper.TradeMapper;
 import open.vincentf13.exchange.matching.infra.persistence.po.TradePO;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 

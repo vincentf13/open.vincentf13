@@ -6,7 +6,7 @@ import java.util.Optional;
 import open.vincentf13.sdk.auth.jwt.JwtEvent;
 import open.vincentf13.sdk.auth.jwt.token.config.JwtProperties;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 
 /** Redis-backed session store supporting read and write operations. */

@@ -17,7 +17,7 @@ import open.vincentf13.exchange.account.infra.persistence.mapper.UserJournalMapp
 import open.vincentf13.exchange.account.infra.persistence.po.UserJournalPO;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 

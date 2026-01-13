@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 
 /** OpenObjectDiff: 物件差異比對工具。 */
 public final class OpenObjectDiff {

@@ -10,7 +10,7 @@ import open.vincentf13.exchange.user.infra.persistence.repository.UserRepository
 import open.vincentf13.exchange.user.sdk.rest.api.dto.UserResponse;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserHolder;
 import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

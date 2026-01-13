@@ -14,7 +14,7 @@ import open.vincentf13.exchange.market.infra.persistence.po.KlineBucketPO;
 import open.vincentf13.exchange.market.infra.persistence.repository.KlineBucketRepository;
 import open.vincentf13.exchange.market.sdk.rest.api.dto.KlineResponse;
 import open.vincentf13.exchange.market.sdk.rest.api.enums.KlinePeriod;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 
 @Service

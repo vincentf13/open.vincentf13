@@ -11,7 +11,7 @@ import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.domain.order.book.OrderBook;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 
 public class InstrumentSnapshot {
 

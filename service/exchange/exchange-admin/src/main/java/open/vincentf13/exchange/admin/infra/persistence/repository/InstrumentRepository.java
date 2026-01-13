@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.admin.domain.model.Instrument;
 import open.vincentf13.exchange.admin.infra.persistence.mapper.InstrumentMapper;
 import open.vincentf13.exchange.admin.infra.persistence.po.InstrumentPO;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 

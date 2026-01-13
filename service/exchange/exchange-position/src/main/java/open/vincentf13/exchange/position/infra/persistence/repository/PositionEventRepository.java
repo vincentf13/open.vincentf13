@@ -14,7 +14,7 @@ import open.vincentf13.exchange.position.infra.persistence.mapper.PositionEventM
 import open.vincentf13.exchange.position.infra.persistence.po.PositionEventPO;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.dao.DataAccessException;

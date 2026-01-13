@@ -20,7 +20,7 @@ import open.vincentf13.exchange.account.infra.persistence.po.UserAccountPO;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.validator.Id;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;

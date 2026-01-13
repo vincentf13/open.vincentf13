@@ -16,7 +16,7 @@ import open.vincentf13.exchange.order.sdk.rest.dto.OrderEventItem;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderEventResponse;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderResponse;
 import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

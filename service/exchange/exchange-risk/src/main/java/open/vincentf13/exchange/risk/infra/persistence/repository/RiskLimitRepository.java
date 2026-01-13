@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
 import open.vincentf13.exchange.risk.infra.persistence.mapper.RiskLimitMapper;
 import open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 

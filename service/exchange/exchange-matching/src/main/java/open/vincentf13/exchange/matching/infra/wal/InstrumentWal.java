@@ -14,7 +14,7 @@ import lombok.Getter;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 
 public class InstrumentWal {
 

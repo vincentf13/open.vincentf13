@@ -33,7 +33,7 @@ import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionReservationRel
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.position.sdk.rest.api.enums.PositionReferenceType;
 import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.object.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.validator.OpenValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
