@@ -5,7 +5,7 @@ import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
 import open.vincentf13.exchange.position.infra.PositionEvent;
-import open.vincentf13.exchange.position.service.PositionTradeCloseService;
+import open.vincentf13.exchange.position.service.PositionCommandService;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class TradeExecutedEventListener {
 
-  private final PositionTradeCloseService positionTradeCloseService;
+  private final PositionCommandService positionCommandService;
 
   @KafkaListener(
       topics = MatchingTopics.Names.TRADE_EXECUTED,
@@ -25,7 +25,7 @@ public class TradeExecutedEventListener {
           "${exchange.position.trade-executed.consumer-group:exchange-position-trade-executed}")
   public void onTradeExecuted(@Payload TradeExecutedEvent event, Acknowledgment acknowledgment) {
     try {
-      positionTradeCloseService.handleTradeExecuted(event);
+      positionCommandService.handleTradeExecuted(event);
       acknowledgment.acknowledge();
     } catch (OpenException e) {
       if (e.getCode() == PositionErrorCode.DUPLICATE_REQUEST) {
