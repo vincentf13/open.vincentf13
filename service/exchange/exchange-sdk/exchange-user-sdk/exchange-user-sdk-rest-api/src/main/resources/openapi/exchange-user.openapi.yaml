@@ -74,7 +74,7 @@ components:
   schemas:
     UserRegisterRequest:
       type: object
-      required: [email, password]
+      required: [ email, password ]
       properties:
         email:
           type: string
@@ -106,7 +106,7 @@ components:
           format: date-time
     UserStatus:
       type: string
-      enum: [ACTIVE, LOCKED, DISABLED]
+      enum: [ ACTIVE, LOCKED, DISABLED ]
     OpenApiResponse:
       type: object
       properties:

@@ -8,7 +8,7 @@ metadata:
   annotations:
     kubernetes.io/description: Basic alert rules for service health
     # 可增補更多規則檔案置於 /etc/prometheus/rules
-  
+
 data:
   general-rules.yml: |
     groups:

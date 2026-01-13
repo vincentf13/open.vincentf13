@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 public interface SystemMaintenanceApi {
 
-    @PostMapping("/reset-data")
-    @PublicAPI
-    OpenApiResponse<Void> resetSystemData();
+  @PostMapping("/reset-data")
+  @PublicAPI
+  OpenApiResponse<Void> resetSystemData();
 }

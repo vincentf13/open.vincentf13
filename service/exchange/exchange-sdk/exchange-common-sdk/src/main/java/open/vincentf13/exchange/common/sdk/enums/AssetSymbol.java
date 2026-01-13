@@ -2,41 +2,40 @@ package open.vincentf13.exchange.common.sdk.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-
 import java.util.Locale;
 
 public enum AssetSymbol {
-    BTC,
-    ETH,
-    USDT,
-    UNKNOWN;
-    
-    @JsonCreator
-    public static AssetSymbol fromValue(String value) {
-        if (value == null) {
-            throw new IllegalArgumentException("asset is required");
-        }
-        String normalized = value.toUpperCase(Locale.ROOT);
-        try {
-            return AssetSymbol.valueOf(normalized);
-        } catch (IllegalArgumentException ex) {
-            return UNKNOWN;
-        }
-    }
-    
-    @JsonValue
-    public String code() {
-        return name();
-    }
+  BTC,
+  ETH,
+  USDT,
+  UNKNOWN;
 
-    public static AssetSymbol normalize(String value) {
-        return fromValue(value);
+  @JsonCreator
+  public static AssetSymbol fromValue(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("asset is required");
     }
+    String normalized = value.toUpperCase(Locale.ROOT);
+    try {
+      return AssetSymbol.valueOf(normalized);
+    } catch (IllegalArgumentException ex) {
+      return UNKNOWN;
+    }
+  }
 
-    public static AssetSymbol normalize(AssetSymbol symbol) {
-        if (symbol == null) {
-            throw new IllegalArgumentException("Asset symbol cannot be null");
-        }
-        return symbol;
+  public static AssetSymbol normalize(String value) {
+    return fromValue(value);
+  }
+
+  public static AssetSymbol normalize(AssetSymbol symbol) {
+    if (symbol == null) {
+      throw new IllegalArgumentException("Asset symbol cannot be null");
     }
+    return symbol;
+  }
+
+  @JsonValue
+  public String code() {
+    return name();
+  }
 }

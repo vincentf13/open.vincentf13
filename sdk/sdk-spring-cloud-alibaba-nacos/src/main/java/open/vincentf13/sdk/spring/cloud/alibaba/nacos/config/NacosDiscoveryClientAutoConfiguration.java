@@ -7,5 +7,4 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @AutoConfiguration
 @ConditionalOnClass(EnableDiscoveryClient.class)
 @EnableDiscoveryClient
-public class NacosDiscoveryClientAutoConfiguration {
-}
+public class NacosDiscoveryClientAutoConfiguration {}

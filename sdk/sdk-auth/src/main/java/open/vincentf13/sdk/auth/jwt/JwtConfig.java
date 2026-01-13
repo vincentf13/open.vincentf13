@@ -14,12 +14,13 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnClass(name = "jakarta.servlet.Filter")
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class JwtConfig {
-    
-    @Bean
-    @ConditionalOnMissingBean
-    public JwtFilter jwtAuthenticationFilter(OpenJwtService openJwtService,
-                                             ObjectProvider<JwtSessionService> sessionServiceProvider,
-                                             JwtProperties properties) {
-        return new JwtFilter(openJwtService, sessionServiceProvider, properties);
-    }
+
+  @Bean
+  @ConditionalOnMissingBean
+  public JwtFilter jwtAuthenticationFilter(
+      OpenJwtService openJwtService,
+      ObjectProvider<JwtSessionService> sessionServiceProvider,
+      JwtProperties properties) {
+    return new JwtFilter(openJwtService, sessionServiceProvider, properties);
+  }
 }

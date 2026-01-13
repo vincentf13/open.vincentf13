@@ -85,7 +85,7 @@ mybatis:
   # Mapper XML 放置位置（支援多層目錄）
   mapper-locations: classpath*:mapper/**/*.xml
   # Domain/DTO 套件路徑（依實際專案填寫，可多個路徑以逗號分隔）
-#  type-aliases-package: com.example.app.model
+  #  type-aliases-package: com.example.app.model
   # TypeHandler 集中配置；若無自訂可省略
   # type-handlers-package: com.example.app.mybatis.handler
   configuration:

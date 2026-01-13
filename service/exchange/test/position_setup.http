@@ -60,7 +60,7 @@ Authorization: Bearer {{tokenA}}
     client.global.set("takerFeeRate", inst.takerFeeRate);
     client.global.set("makerFeeRate", inst.makerFeeRate);
     client.global.set("leverage", inst.defaultLeverage);
-    
+
     var size = parseFloat(inst.contractSize);
     client.log("Config Loaded: Size=" + size + ", Taker=" + client.global.get("takerFeeRate") + ", Maker=" + client.global.get("makerFeeRate") + ", Lev=" + client.global.get("leverage"));
 %}
@@ -274,7 +274,7 @@ Content-Type: application/json
         var start = new Date().getTime();
         while (new Date().getTime() < start + 2000); // 2s for Maker
     `);
-    
+
     client.global.set("waitTaker", `
         var start = new Date().getTime();
         while (new Date().getTime() < start + 2000); // 2s for Taker

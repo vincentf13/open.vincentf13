@@ -6,9 +6,9 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum RetryTaskStatus {
-    PENDING,
-    PROCESSING,
-    SUCCESS,
-    FAIL_RETRY,
-    FAIL_TERMINAL
+  PENDING,
+  PROCESSING,
+  SUCCESS,
+  FAIL_RETRY,
+  FAIL_TERMINAL
 }

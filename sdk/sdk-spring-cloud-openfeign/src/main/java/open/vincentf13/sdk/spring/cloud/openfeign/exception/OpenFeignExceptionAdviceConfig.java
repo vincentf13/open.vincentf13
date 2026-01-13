@@ -9,7 +9,10 @@ import org.springframework.context.annotation.Import;
 
 @AutoConfiguration
 @ConditionalOnClass({FeignException.class, EnableFeignClients.class})
-@ConditionalOnProperty(prefix = "spring.cloud.openfeign", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+    prefix = "spring.cloud.openfeign",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true)
 @Import(OpenFeignExceptionAdvice.class)
-public class OpenFeignExceptionAdviceConfig {
-}
+public class OpenFeignExceptionAdviceConfig {}

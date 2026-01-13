@@ -6,18 +6,18 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum EntryType {
-    DEPOSIT(ReferenceType.DEPOSIT),
-    WITHDRAWAL(ReferenceType.WITHDRAWAL),
-    FREEZE(ReferenceType.ORDER),
-    RESERVED(ReferenceType.ORDER),
-    TRADE_SETTLEMENT_SPOT_MAIN(ReferenceType.TRADE),
-    TRADE_SETTLEMENT_SPOT_MAIN_PNL(ReferenceType.TRADE),
-    TRADE_SETTLEMENT_ISOLATED_MARGIN(ReferenceType.TRADE),
-    FEE(ReferenceType.TRADE);
+  DEPOSIT(ReferenceType.DEPOSIT),
+  WITHDRAWAL(ReferenceType.WITHDRAWAL),
+  FREEZE(ReferenceType.ORDER),
+  RESERVED(ReferenceType.ORDER),
+  TRADE_SETTLEMENT_SPOT_MAIN(ReferenceType.TRADE),
+  TRADE_SETTLEMENT_SPOT_MAIN_PNL(ReferenceType.TRADE),
+  TRADE_SETTLEMENT_ISOLATED_MARGIN(ReferenceType.TRADE),
+  FEE(ReferenceType.TRADE);
 
-    private final ReferenceType referenceType;
+  private final ReferenceType referenceType;
 
-    public String code() {
-        return name();
-    }
+  public String code() {
+    return name();
+  }
 }

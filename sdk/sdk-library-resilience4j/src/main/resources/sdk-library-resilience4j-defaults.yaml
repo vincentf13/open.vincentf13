@@ -18,7 +18,7 @@ resilience4j:
           - feign.RetryableException
           - feign.FeignException
         ignoreExceptions:
-#          - com.example.exception.BusinessException
+  #          - com.example.exception.BusinessException
   retry:
     configs:
       default:
@@ -28,8 +28,8 @@ resilience4j:
           - java.io.IOException
           - java.util.concurrent.TimeoutException
           - feign.RetryableException
-#        ignoreExceptions:
-#          - com.example.exception.BusinessException
+  #        ignoreExceptions:
+  #          - com.example.exception.BusinessException
   ratelimiter:
     configs:
       default:

@@ -31,7 +31,8 @@
         </trim>
     </insert>
 
-    <select id="findBy" parameterType="open.vincentf13.sdk.infra.mysql.mq.offset.MqConsumerOffsetPO" resultMap="MqConsumerOffsetResultMap">
+    <select id="findBy" parameterType="open.vincentf13.sdk.infra.mysql.mq.offset.MqConsumerOffsetPO"
+            resultMap="MqConsumerOffsetResultMap">
         SELECT consumer_group, topic, partition_id, last_seq, updated_at
         FROM mq_consumer_offsets
         <where>
@@ -51,8 +52,8 @@
             <if test="updatedAt != null">updated_at = #{updatedAt},</if>
         </set>
         WHERE consumer_group = #{consumerGroup}
-          AND topic = #{topic}
-          AND partition_id = #{partitionId}
+        AND topic = #{topic}
+        AND partition_id = #{partitionId}
     </update>
 
     <insert id="batchUpsert" parameterType="java.util.List">
@@ -62,8 +63,8 @@
             (#{item.consumerGroup}, #{item.topic}, #{item.partitionId}, #{item.lastSeq}, #{item.updatedAt})
         </foreach>
         ON DUPLICATE KEY UPDATE
-            last_seq = VALUES(last_seq),
-            updated_at = VALUES(updated_at)
+        last_seq = VALUES(last_seq),
+        updated_at = VALUES(updated_at)
     </insert>
 
 </mapper>

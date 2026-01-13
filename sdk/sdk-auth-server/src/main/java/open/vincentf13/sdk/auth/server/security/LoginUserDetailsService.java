@@ -1,17 +1,17 @@
-//package open.vincentf13.sdk.auth.server.handler;
+// package open.vincentf13.sdk.auth.server.handler;
 //
-//import org.springframework.security.authentication.AccountExpiredException;
-//import org.springframework.security.authentication.CredentialsExpiredException;
-//import org.springframework.security.authentication.DisabledException;
-//import org.springframework.security.authentication.LockedException;
-//import org.springframework.security.core.userdetails.User;
-//import org.springframework.security.core.userdetails.UserDetails;
-//import org.springframework.security.core.userdetails.UserDetailsService;
-//import org.springframework.security.core.userdetails.UsernameNotFoundException;
+// import org.springframework.security.authentication.AccountExpiredException;
+// import org.springframework.security.authentication.CredentialsExpiredException;
+// import org.springframework.security.authentication.DisabledException;
+// import org.springframework.security.authentication.LockedException;
+// import org.springframework.security.core.userdetails.User;
+// import org.springframework.security.core.userdetails.UserDetails;
+// import org.springframework.security.core.userdetails.UserDetailsService;
+// import org.springframework.security.core.userdetails.UsernameNotFoundException;
 //
-//import java.util.Arrays;
+// import java.util.Arrays;
 //
-//public class LoginUserDetailsService implements UserDetailsService {
+// public class LoginUserDetailsService implements UserDetailsService {
 //
 //    private final UserRepository repo; // 你自己的 JPA/MyBatis Repo
 //
@@ -42,4 +42,4 @@
 //                .disabled(!u.isEnabled())
 //                .build();
 //    }
-//}
+// }

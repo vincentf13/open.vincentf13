@@ -1,5 +1,6 @@
 package open.vincentf13.sdk.auth.auth.config;
 
+import java.util.List;
 import open.vincentf13.sdk.auth.apikey.ApiKeyFilter;
 import open.vincentf13.sdk.auth.apikey.config.ApiKeyAutoConfig;
 import open.vincentf13.sdk.auth.auth.AnnotationBasedAuthorizationManager;
@@ -20,56 +21,58 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
-import java.util.List;
-
 @Configuration
 @ConditionalOnWebApplication
 @AutoConfigureAfter(ApiKeyAutoConfig.class)
 @EnableConfigurationProperties(SecurityPermitProperties.class)
 public class AuthConfig {
-    
-    @Bean
-    @ConditionalOnMissingBean
-    public AnnotationBasedAuthorizationManager annotationBasedAuthorizationManager(
-            @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping requestMappingHandlerMapping) {
-        return new AnnotationBasedAuthorizationManager(requestMappingHandlerMapping);
-    }
-    
-    @Bean
-    @Order(100)
-    @ConditionalOnMissingBean(SecurityFilterChain.class)
-    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http,
-                                                          ObjectProvider<ApiKeyFilter> apiKeyFilterProvider,
-                                                          ObjectProvider<JwtFilter> jwtFilterProvider,
-                                                          AnnotationBasedAuthorizationManager authorizationManager,
-                                                          SecurityPermitProperties securityPermitProperties
-                                                         ) throws Exception {
-        http.authorizeHttpRequests(auth -> {
-            List<String> permitPaths = securityPermitProperties.getPermitPaths();
-            if (!permitPaths.isEmpty()) {
-                auth.requestMatchers(permitPaths.toArray(new String[0])).permitAll();
-            }
-            auth.anyRequest().access(authorizationManager);
+
+  @Bean
+  @ConditionalOnMissingBean
+  public AnnotationBasedAuthorizationManager annotationBasedAuthorizationManager(
+      @Qualifier("requestMappingHandlerMapping")
+          RequestMappingHandlerMapping requestMappingHandlerMapping) {
+    return new AnnotationBasedAuthorizationManager(requestMappingHandlerMapping);
+  }
+
+  @Bean
+  @Order(100)
+  @ConditionalOnMissingBean(SecurityFilterChain.class)
+  public SecurityFilterChain defaultSecurityFilterChain(
+      HttpSecurity http,
+      ObjectProvider<ApiKeyFilter> apiKeyFilterProvider,
+      ObjectProvider<JwtFilter> jwtFilterProvider,
+      AnnotationBasedAuthorizationManager authorizationManager,
+      SecurityPermitProperties securityPermitProperties)
+      throws Exception {
+    http.authorizeHttpRequests(
+        auth -> {
+          List<String> permitPaths = securityPermitProperties.getPermitPaths();
+          if (!permitPaths.isEmpty()) {
+            auth.requestMatchers(permitPaths.toArray(new String[0])).permitAll();
+          }
+          auth.anyRequest().access(authorizationManager);
         });
-        
-        http.formLogin(AbstractHttpConfigurer::disable)
-            .httpBasic(AbstractHttpConfigurer::disable)
-            .logout(AbstractHttpConfigurer::disable);
-        
-        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .csrf(AbstractHttpConfigurer::disable);
-        
-        JwtFilter jwtFilter = jwtFilterProvider.getIfAvailable();
-        if (jwtFilter == null) {
-            throw new IllegalStateException("JwtAuthenticationFilter bean not available");
-        }
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-        
-        ApiKeyFilter apiKeyFilter = apiKeyFilterProvider.getIfAvailable();
-        if (apiKeyFilter != null) {
-            http.addFilterBefore(apiKeyFilter, jwtFilter.getClass());
-        }
-        
-        return http.build();
+
+    http.formLogin(AbstractHttpConfigurer::disable)
+        .httpBasic(AbstractHttpConfigurer::disable)
+        .logout(AbstractHttpConfigurer::disable);
+
+    http.sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .csrf(AbstractHttpConfigurer::disable);
+
+    JwtFilter jwtFilter = jwtFilterProvider.getIfAvailable();
+    if (jwtFilter == null) {
+      throw new IllegalStateException("JwtAuthenticationFilter bean not available");
     }
+    http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+    ApiKeyFilter apiKeyFilter = apiKeyFilterProvider.getIfAvailable();
+    if (apiKeyFilter != null) {
+      http.addFilterBefore(apiKeyFilter, jwtFilter.getClass());
+    }
+
+    return http.build();
+  }
 }

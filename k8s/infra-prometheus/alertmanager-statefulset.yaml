@@ -55,4 +55,4 @@ spec:
           configMap:
             name: alertmanager-config
         - name: alertmanager-storage
-          emptyDir: {}
+          emptyDir: { }

@@ -62,7 +62,7 @@ GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 5: Position Logic Check", function() {
+    client.test("Step 5: Position Logic Check", function () {
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 5000);
@@ -85,7 +85,7 @@ GET {{gatewayHost}}/account/api/account/balance-sheet
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 5: Account Balance Check", function() {
+    client.test("Step 5: Account Balance Check", function () {
         eval(client.global.get("verifyAccountScript"));
     });
 %}
@@ -129,7 +129,7 @@ GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 6: Position Logic Check", function() {
+    client.test("Step 6: Position Logic Check", function () {
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 2000);
@@ -153,7 +153,7 @@ GET {{gatewayHost}}/account/api/account/balance-sheet
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 6: Account Balance Check", function() {
+    client.test("Step 6: Account Balance Check", function () {
         eval(client.global.get("verifyAccountScript"));
     });
 %}
@@ -197,7 +197,7 @@ GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 7: Position Logic Check", function() {
+    client.test("Step 7: Position Logic Check", function () {
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 4000);
@@ -221,7 +221,7 @@ GET {{gatewayHost}}/account/api/account/balance-sheet
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 7: Account Balance Check", function() {
+    client.test("Step 7: Account Balance Check", function () {
         eval(client.global.get("verifyAccountScript"));
     });
 %}
@@ -265,7 +265,7 @@ GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 8: Position Logic Check (Close)", function() {
+    client.test("Step 8: Position Logic Check (Close)", function () {
         client.global.set("expStatus", "CLOSED");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 0);
@@ -289,7 +289,7 @@ GET {{gatewayHost}}/account/api/account/balance-sheet
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 8: Account Balance Check", function() {
+    client.test("Step 8: Account Balance Check", function () {
         eval(client.global.get("verifyAccountScript"));
     });
 %}
@@ -352,7 +352,7 @@ GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 9: Position Logic Check (Open)", function() {
+    client.test("Step 9: Position Logic Check (Open)", function () {
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 5000);
@@ -411,7 +411,7 @@ GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 10: Position Logic Check", function() {
+    client.test("Step 10: Position Logic Check", function () {
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "SHORT");
         client.global.set("expQty", 5000);
@@ -433,7 +433,7 @@ GET {{gatewayHost}}/account/api/account/balance-sheet
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 10: Account Balance Check", function() {
+    client.test("Step 10: Account Balance Check", function () {
         eval(client.global.get("verifyAccountScript"));
     });
 %}
@@ -513,7 +513,7 @@ GET {{gatewayHost}}/position/api/positions?instrumentId={{instrumentId}}
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 11: Position Logic Check (Concurrency)", function() {
+    client.test("Step 11: Position Logic Check (Concurrency)", function () {
         client.global.set("expStatus", "ACTIVE");
         client.global.set("expSide", "LONG");
         client.global.set("expQty", 8000);
@@ -537,7 +537,7 @@ GET {{gatewayHost}}/account/api/account/balance-sheet
 Authorization: Bearer {{tokenA}}
 
 > {%
-    client.test("Step 11: Account Balance Check", function() {
+    client.test("Step 11: Account Balance Check", function () {
         eval(client.global.get("verifyAccountScript"));
     });
 %}

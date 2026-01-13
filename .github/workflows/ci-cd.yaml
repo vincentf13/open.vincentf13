@@ -9,8 +9,8 @@ name: CI Build and Push
 
 on:
   push:
-    branches: ["disable"]
-#    branches: ["**"]
+    branches: [ "disable" ]
+    #    branches: ["**"]
     # 任何分支推送都觸發流程
 
 # 集中管理各微服務目錄與對應的變更偵測

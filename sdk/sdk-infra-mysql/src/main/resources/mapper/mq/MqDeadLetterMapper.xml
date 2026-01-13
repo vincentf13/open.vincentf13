@@ -37,7 +37,8 @@
         </trim>
     </insert>
 
-    <select id="findBy" parameterType="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterPO" resultMap="MqDeadLetterResultMap">
+    <select id="findBy" parameterType="open.vincentf13.sdk.infra.mysql.mq.deadletter.MqDeadLetterPO"
+            resultMap="MqDeadLetterResultMap">
         SELECT id, source, seq, outbox_id, payload, error, created_at
         FROM mq_dead_letters
         <where>
@@ -67,7 +68,8 @@
         INSERT INTO mq_dead_letters (id, source, seq, outbox_id, payload, error, created_at)
         VALUES
         <foreach collection="list" item="item" separator=",">
-            (#{item.id}, #{item.source}, #{item.seq}, #{item.outboxId}, #{item.payload}, #{item.error}, #{item.createdAt})
+            (#{item.id}, #{item.source}, #{item.seq}, #{item.outboxId}, #{item.payload}, #{item.error},
+            #{item.createdAt})
         </foreach>
     </insert>
 

@@ -1,87 +1,78 @@
 package open.vincentf13.sdk.spring.mvc;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- REST 統一回應封裝。預設 code=0、message=OK，錯誤時帶入自訂代碼與訊息。
- */
+/** REST 統一回應封裝。預設 code=0、message=OK，錯誤時帶入自訂代碼與訊息。 */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OpenApiResponse<T>(
-        String code,
-        String message,
-        T data,
-        Instant timestamp,
-        Map<String, Object> meta
-) {
-    private static final String SUCCESS_CODE = "0";
-    private static final String SUCCESS_MESSAGE = "OK";
-    
-    public static <T> OpenApiResponse<T> success(T payload) {
-        return new OpenApiResponse<>(SUCCESS_CODE, SUCCESS_MESSAGE, payload, Instant.now(), null);
+    String code, String message, T data, Instant timestamp, Map<String, Object> meta) {
+  private static final String SUCCESS_CODE = "0";
+  private static final String SUCCESS_MESSAGE = "OK";
+
+  public static <T> OpenApiResponse<T> success(T payload) {
+    return new OpenApiResponse<>(SUCCESS_CODE, SUCCESS_MESSAGE, payload, Instant.now(), null);
+  }
+
+  public static OpenApiResponse<Void> success() {
+    return new OpenApiResponse<>(SUCCESS_CODE, SUCCESS_MESSAGE, null, Instant.now(), null);
+  }
+
+  public static <T> OpenApiResponse<T> failure(String code, String message) {
+    return new OpenApiResponse<>(code, message, null, Instant.now(), null);
+  }
+
+  public static <T> OpenApiResponse<T> failure(
+      String code, String message, Map<String, Object> meta) {
+    return new OpenApiResponse<>(code, message, null, Instant.now(), normalize(meta));
+  }
+
+  private static Map<String, Object> normalize(Map<String, Object> source) {
+    return copyWithoutNull(source);
+  }
+
+  private static Map<String, Object> merge(
+      Map<String, Object> current, Map<String, Object> incoming) {
+    if ((current == null || current.isEmpty()) && (incoming == null || incoming.isEmpty())) {
+      return null;
     }
-    
-    public static OpenApiResponse<Void> success() {
-        return new OpenApiResponse<>(SUCCESS_CODE, SUCCESS_MESSAGE, null, Instant.now(), null);
+    if (current == null || current.isEmpty()) {
+      return copyWithoutNull(incoming);
     }
-    
-    public static <T> OpenApiResponse<T> failure(String code,
-                                                 String message) {
-        return new OpenApiResponse<>(code, message, null, Instant.now(), null);
+    if (incoming == null || incoming.isEmpty()) {
+      return copyWithoutNull(current);
     }
-    
-    public static <T> OpenApiResponse<T> failure(String code,
-                                                 String message,
-                                                 Map<String, Object> meta) {
-        return new OpenApiResponse<>(code, message, null, Instant.now(), normalize(meta));
+    var merged = new java.util.LinkedHashMap<String, Object>(current.size() + incoming.size());
+    // 採用 LinkedHashMap 保留原有 meta 項目順序，避免前端序列化後字段跳動。
+    merged.putAll(current);
+    merged.putAll(incoming);
+    return copyWithoutNull(merged);
+  }
+
+  private static Map<String, Object> copyWithoutNull(Map<String, Object> source) {
+    if (source == null || source.isEmpty()) {
+      return null;
     }
-    
-    private static Map<String, Object> normalize(Map<String, Object> source) {
-        return copyWithoutNull(source);
-    }
-    
-    private static Map<String, Object> merge(Map<String, Object> current,
-                                             Map<String, Object> incoming) {
-        if ((current == null || current.isEmpty()) && (incoming == null || incoming.isEmpty())) {
-            return null;
-        }
-        if (current == null || current.isEmpty()) {
-            return copyWithoutNull(incoming);
-        }
-        if (incoming == null || incoming.isEmpty()) {
-            return copyWithoutNull(current);
-        }
-        var merged = new java.util.LinkedHashMap<String, Object>(current.size() + incoming.size());
-        // 採用 LinkedHashMap 保留原有 meta 項目順序，避免前端序列化後字段跳動。
-        merged.putAll(current);
-        merged.putAll(incoming);
-        return copyWithoutNull(merged);
-    }
-    
-    private static Map<String, Object> copyWithoutNull(Map<String, Object> source) {
-        if (source == null || source.isEmpty()) {
-            return null;
-        }
-        var cleaned = new java.util.LinkedHashMap<String, Object>(source.size());
-        source.forEach((key, value) -> {
-            if (key != null && value != null) {
-                cleaned.put(key, value);
-            }
+    var cleaned = new java.util.LinkedHashMap<String, Object>(source.size());
+    source.forEach(
+        (key, value) -> {
+          if (key != null && value != null) {
+            cleaned.put(key, value);
+          }
         });
-        if (cleaned.isEmpty()) {
-            return null;
-        }
-        return Map.copyOf(cleaned);
+    if (cleaned.isEmpty()) {
+      return null;
     }
-    
-    public OpenApiResponse<T> withMeta(Map<String, Object> additional) {
-        return new OpenApiResponse<>(code, message, data, timestamp, merge(meta, additional));
-    }
-    
-    public boolean isSuccess() {
-        return Objects.equals(SUCCESS_CODE, code);
-    }
+    return Map.copyOf(cleaned);
+  }
+
+  public OpenApiResponse<T> withMeta(Map<String, Object> additional) {
+    return new OpenApiResponse<>(code, message, data, timestamp, merge(meta, additional));
+  }
+
+  public boolean isSuccess() {
+    return Objects.equals(SUCCESS_CODE, code);
+  }
 }

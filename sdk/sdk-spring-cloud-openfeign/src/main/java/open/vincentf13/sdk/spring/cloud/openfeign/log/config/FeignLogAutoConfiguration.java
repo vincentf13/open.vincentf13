@@ -8,15 +8,15 @@ import org.springframework.context.annotation.Bean;
 
 @AutoConfiguration
 public class FeignLogAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean(Logger.class)
-    public Logger feignLogger() {
-        return new OpenFeignLogger();
-    }
+  @Bean
+  @ConditionalOnMissingBean(Logger.class)
+  public Logger feignLogger() {
+    return new OpenFeignLogger();
+  }
 
-    @Bean
-    @ConditionalOnMissingBean(Logger.Level.class)
-    public Logger.Level feignLoggerLevel() {
-        return Logger.Level.FULL;
-    }
+  @Bean
+  @ConditionalOnMissingBean(Logger.Level.class)
+  public Logger.Level feignLoggerLevel() {
+    return Logger.Level.FULL;
+  }
 }

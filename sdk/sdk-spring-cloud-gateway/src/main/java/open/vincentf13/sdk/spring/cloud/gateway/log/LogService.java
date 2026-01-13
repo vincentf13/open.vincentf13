@@ -1,7 +1,13 @@
 package open.vincentf13.sdk.spring.cloud.gateway.log;
 
+import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.gateway.GatewayEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.loadbalancer.Response;
 import org.springframework.cloud.gateway.route.Route;
@@ -10,209 +16,229 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.ByteArrayOutputStream;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 @Component
 public class LogService {
-    
-    private static final Logger LOG = LoggerFactory.getLogger(LogService.class);
-    private static final String ATTR_INITIAL_FORWARD_URL = LogService.class.getName() + ".initialForwardUrl";
-    private static final String ATTR_INITIAL_SERVICE_INSTANCE = LogService.class.getName() + ".initialServiceInstance";
-    static final String ATTR_RESPONSE_BODY = LogService.class.getName() + ".responseBody";
-    static final String ATTR_RESPONSE_BODY_TRUNCATED = LogService.class.getName() + ".responseBodyTruncated";
-    private static final int MAX_RESPONSE_BODY_BYTES = 64 * 1024;
-    
-    public void logRequest(ServerWebExchange exchange) {
-        Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
-        URI forwardUrl = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
-        ServiceInstance serviceInstance = resolveServiceInstance(exchange);
-        
-        if (forwardUrl != null) {
-            exchange.getAttributes().put(ATTR_INITIAL_FORWARD_URL, forwardUrl);
-        }
-        if (serviceInstance != null) {
-            exchange.getAttributes().put(ATTR_INITIAL_SERVICE_INSTANCE, serviceInstance);
-        }
-        
-        ServerHttpRequest request = exchange.getRequest();
-        String routeId = resolveRouteId(route);
-        String targetUri = resolveTargetUri(route, forwardUrl);
-        String instanceDesc = formatServiceInstance(serviceInstance);
-        String method = request.getMethod() != null ? request.getMethod().name() : "UNKNOWN";
-        
-        OpenLog.info(GatewayEvent.REQUEST,
-                     "method", method,
-                     "uri", request.getURI(),
-                     "routeId", routeId,
-                     "target", targetUri,
-                     "instance", instanceDesc);
-        
-        request.getHeaders().forEach((name, values) -> logHeader("GatewayRequestHeader", "Request header", name, values));
-        if (route != null) {
-            OpenLog.debug(GatewayEvent.ROUTE,
-                          "id", route.getId(),
-                          "uri", route.getUri(),
-                          "metadata", route.getMetadata());
-        }
-        if (forwardUrl != null) {
-            OpenLog.debug(GatewayEvent.FORWARD_URL, "url", forwardUrl);
-        }
-        if (serviceInstance != null) {
-            OpenLog.debug(GatewayEvent.SERVICE_INSTANCE,
-                          "serviceId", serviceInstance.getServiceId(),
-                          "host", serviceInstance.getHost(),
-                          "port", serviceInstance.getPort());
-        } else {
-            OpenLog.debug(GatewayEvent.SERVICE_INSTANCE_PENDING,
-                          "routeId", routeId);
-        }
-    }
-    
-    public void logResponse(ServerWebExchange exchange,
-                            long durationMs) {
-        Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
-        URI initialForwardUrl = exchange.getAttribute(ATTR_INITIAL_FORWARD_URL);
-        ServiceInstance initialInstance = exchange.getAttribute(ATTR_INITIAL_SERVICE_INSTANCE);
-        URI finalForwardUrl = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
-        ServiceInstance finalInstance = resolveServiceInstance(exchange);
-        
-        String routeId = resolveRouteId(route);
-        String targetUri = resolveTargetUri(route, finalForwardUrl);
-        String finalInstanceDesc = formatServiceInstance(finalInstance);
-        
-        ServerHttpResponse response = exchange.getResponse();
-        
-        OpenLog.info(GatewayEvent.RESPONSE,
-                     "status", response.getStatusCode(),
-                     "durationMs", durationMs,
-                     "routeId", routeId,
-                     "target", targetUri,
-                     "instance", finalInstanceDesc);
-        
-        if (finalForwardUrl != null && initialForwardUrl == null) {
-            OpenLog.debug(GatewayEvent.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
-        }
-        if (finalInstance != null && initialInstance == null) {
-            OpenLog.debug(GatewayEvent.SERVICE_INSTANCE_RESOLVED,
-                          "serviceId", finalInstance.getServiceId(),
-                          "host", finalInstance.getHost(),
-                          "port", finalInstance.getPort());
-        }
-        
-        response.getHeaders().forEach((name, values) -> logHeader("GatewayResponseHeader", "Response header", name, values));
 
-        if (isDebugEnabled()) {
-            Object bodyAttr = exchange.getAttribute(ATTR_RESPONSE_BODY);
-            if (bodyAttr instanceof ByteArrayOutputStream) {
-                String body = ((ByteArrayOutputStream) bodyAttr).toString(StandardCharsets.UTF_8);
-                boolean truncated = Boolean.TRUE.equals(exchange.getAttribute(ATTR_RESPONSE_BODY_TRUNCATED));
-                OpenLog.debug(GatewayEvent.RESPONSE_BODY, "body", body, "truncated", truncated);
-            }
-        }
+  static final String ATTR_RESPONSE_BODY = LogService.class.getName() + ".responseBody";
+  static final String ATTR_RESPONSE_BODY_TRUNCATED =
+      LogService.class.getName() + ".responseBodyTruncated";
+  private static final Logger LOG = LoggerFactory.getLogger(LogService.class);
+  private static final String ATTR_INITIAL_FORWARD_URL =
+      LogService.class.getName() + ".initialForwardUrl";
+  private static final String ATTR_INITIAL_SERVICE_INSTANCE =
+      LogService.class.getName() + ".initialServiceInstance";
+  private static final int MAX_RESPONSE_BODY_BYTES = 64 * 1024;
+
+  public void logRequest(ServerWebExchange exchange) {
+    Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
+    URI forwardUrl = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
+    ServiceInstance serviceInstance = resolveServiceInstance(exchange);
+
+    if (forwardUrl != null) {
+      exchange.getAttributes().put(ATTR_INITIAL_FORWARD_URL, forwardUrl);
     }
-    
-    public void logForwardFailure(ServerWebExchange exchange,
-                                  Throwable ex) {
-        Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
-        URI forwardUrl = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
-        
-        String routeId = resolveRouteId(route);
-        String targetUri = resolveTargetUri(route, forwardUrl);
-        
-        OpenLog.error(GatewayEvent.FORWARD_FAILED, ex,
-                      "routeId", routeId,
-                      "target", targetUri);
-    }
-    
-    private void logHeader(String event,
-                           String message,
-                           String name,
-                           List<String> values) {
-        GatewayEvent evt = "GatewayResponseHeader".equals(event) ? GatewayEvent.RESPONSE_HEADER : GatewayEvent.REQUEST_HEADER;
-        OpenLog.debug(evt, "name", name, "values", values);
-    }
-    
-    private String resolveRouteId(Route route) {
-        return route != null ? route.getId() : "unknown";
-    }
-    
-    private String resolveTargetUri(Route route,
-                                    URI forwardUrl) {
-        if (forwardUrl != null) {
-            return forwardUrl.toString();
-        }
-        if (route != null && route.getUri() != null) {
-            return route.getUri().toString();
-        }
-        return "unknown";
-    }
-    
-    private ServiceInstance resolveServiceInstance(ServerWebExchange exchange) {
-        Object attr = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_LOADBALANCER_RESPONSE_ATTR);
-        if (attr instanceof ServiceInstance) {
-            return (ServiceInstance) attr;
-        }
-        if (attr instanceof Response<?>) {
-            Object server = ((Response<?>) attr).getServer();
-            if (server instanceof ServiceInstance) {
-                return (ServiceInstance) server;
-            }
-        }
-        return null;
-    }
-    
-    private String formatServiceInstance(ServiceInstance instance) {
-        if (instance == null) {
-            return "unresolved";
-        }
-        String serviceId = instance.getServiceId();
-        String host = instance.getHost();
-        int port = instance.getPort();
-        String scheme = instance.getScheme();
-        if (scheme == null || scheme.isEmpty()) {
-            scheme = instance.isSecure() ? "https" : "http";
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append(serviceId != null ? serviceId : "unknown-service");
-        sb.append('@');
-        sb.append(host != null ? host : "unknown-host");
-        sb.append(':').append(port);
-        sb.append('(').append(scheme).append(')');
-        return sb.toString();
+    if (serviceInstance != null) {
+      exchange.getAttributes().put(ATTR_INITIAL_SERVICE_INSTANCE, serviceInstance);
     }
 
-    public boolean isDebugEnabled() {
-        return LOG.isDebugEnabled();
+    ServerHttpRequest request = exchange.getRequest();
+    String routeId = resolveRouteId(route);
+    String targetUri = resolveTargetUri(route, forwardUrl);
+    String instanceDesc = formatServiceInstance(serviceInstance);
+    String method = request.getMethod() != null ? request.getMethod().name() : "UNKNOWN";
+
+    OpenLog.info(
+        GatewayEvent.REQUEST,
+        "method",
+        method,
+        "uri",
+        request.getURI(),
+        "routeId",
+        routeId,
+        "target",
+        targetUri,
+        "instance",
+        instanceDesc);
+
+    request
+        .getHeaders()
+        .forEach(
+            (name, values) -> logHeader("GatewayRequestHeader", "Request header", name, values));
+    if (route != null) {
+      OpenLog.debug(
+          GatewayEvent.ROUTE,
+          "id",
+          route.getId(),
+          "uri",
+          route.getUri(),
+          "metadata",
+          route.getMetadata());
+    }
+    if (forwardUrl != null) {
+      OpenLog.debug(GatewayEvent.FORWARD_URL, "url", forwardUrl);
+    }
+    if (serviceInstance != null) {
+      OpenLog.debug(
+          GatewayEvent.SERVICE_INSTANCE,
+          "serviceId",
+          serviceInstance.getServiceId(),
+          "host",
+          serviceInstance.getHost(),
+          "port",
+          serviceInstance.getPort());
+    } else {
+      OpenLog.debug(GatewayEvent.SERVICE_INSTANCE_PENDING, "routeId", routeId);
+    }
+  }
+
+  public void logResponse(ServerWebExchange exchange, long durationMs) {
+    Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
+    URI initialForwardUrl = exchange.getAttribute(ATTR_INITIAL_FORWARD_URL);
+    ServiceInstance initialInstance = exchange.getAttribute(ATTR_INITIAL_SERVICE_INSTANCE);
+    URI finalForwardUrl = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
+    ServiceInstance finalInstance = resolveServiceInstance(exchange);
+
+    String routeId = resolveRouteId(route);
+    String targetUri = resolveTargetUri(route, finalForwardUrl);
+    String finalInstanceDesc = formatServiceInstance(finalInstance);
+
+    ServerHttpResponse response = exchange.getResponse();
+
+    OpenLog.info(
+        GatewayEvent.RESPONSE,
+        "status",
+        response.getStatusCode(),
+        "durationMs",
+        durationMs,
+        "routeId",
+        routeId,
+        "target",
+        targetUri,
+        "instance",
+        finalInstanceDesc);
+
+    if (finalForwardUrl != null && initialForwardUrl == null) {
+      OpenLog.debug(GatewayEvent.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
+    }
+    if (finalInstance != null && initialInstance == null) {
+      OpenLog.debug(
+          GatewayEvent.SERVICE_INSTANCE_RESOLVED,
+          "serviceId",
+          finalInstance.getServiceId(),
+          "host",
+          finalInstance.getHost(),
+          "port",
+          finalInstance.getPort());
     }
 
-    public void appendResponseBody(ServerWebExchange exchange,
-                                   byte[] bytes) {
-        if (bytes == null || bytes.length == 0) {
-            return;
-        }
-        Object attr = exchange.getAttribute(ATTR_RESPONSE_BODY);
-        ByteArrayOutputStream buffer;
-        if (attr instanceof ByteArrayOutputStream) {
-            buffer = (ByteArrayOutputStream) attr;
-        } else {
-            buffer = new ByteArrayOutputStream();
-            exchange.getAttributes().put(ATTR_RESPONSE_BODY, buffer);
-        }
-        int remaining = MAX_RESPONSE_BODY_BYTES - buffer.size();
-        if (remaining <= 0) {
-            exchange.getAttributes().put(ATTR_RESPONSE_BODY_TRUNCATED, true);
-            return;
-        }
-        int toWrite = Math.min(remaining, bytes.length);
-        buffer.write(bytes, 0, toWrite);
-        if (toWrite < bytes.length) {
-            exchange.getAttributes().put(ATTR_RESPONSE_BODY_TRUNCATED, true);
-        }
+    response
+        .getHeaders()
+        .forEach(
+            (name, values) -> logHeader("GatewayResponseHeader", "Response header", name, values));
+
+    if (isDebugEnabled()) {
+      Object bodyAttr = exchange.getAttribute(ATTR_RESPONSE_BODY);
+      if (bodyAttr instanceof ByteArrayOutputStream) {
+        String body = ((ByteArrayOutputStream) bodyAttr).toString(StandardCharsets.UTF_8);
+        boolean truncated =
+            Boolean.TRUE.equals(exchange.getAttribute(ATTR_RESPONSE_BODY_TRUNCATED));
+        OpenLog.debug(GatewayEvent.RESPONSE_BODY, "body", body, "truncated", truncated);
+      }
     }
+  }
+
+  public void logForwardFailure(ServerWebExchange exchange, Throwable ex) {
+    Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
+    URI forwardUrl = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
+
+    String routeId = resolveRouteId(route);
+    String targetUri = resolveTargetUri(route, forwardUrl);
+
+    OpenLog.error(GatewayEvent.FORWARD_FAILED, ex, "routeId", routeId, "target", targetUri);
+  }
+
+  private void logHeader(String event, String message, String name, List<String> values) {
+    GatewayEvent evt =
+        "GatewayResponseHeader".equals(event)
+            ? GatewayEvent.RESPONSE_HEADER
+            : GatewayEvent.REQUEST_HEADER;
+    OpenLog.debug(evt, "name", name, "values", values);
+  }
+
+  private String resolveRouteId(Route route) {
+    return route != null ? route.getId() : "unknown";
+  }
+
+  private String resolveTargetUri(Route route, URI forwardUrl) {
+    if (forwardUrl != null) {
+      return forwardUrl.toString();
+    }
+    if (route != null && route.getUri() != null) {
+      return route.getUri().toString();
+    }
+    return "unknown";
+  }
+
+  private ServiceInstance resolveServiceInstance(ServerWebExchange exchange) {
+    Object attr = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_LOADBALANCER_RESPONSE_ATTR);
+    if (attr instanceof ServiceInstance) {
+      return (ServiceInstance) attr;
+    }
+    if (attr instanceof Response<?>) {
+      Object server = ((Response<?>) attr).getServer();
+      if (server instanceof ServiceInstance) {
+        return (ServiceInstance) server;
+      }
+    }
+    return null;
+  }
+
+  private String formatServiceInstance(ServiceInstance instance) {
+    if (instance == null) {
+      return "unresolved";
+    }
+    String serviceId = instance.getServiceId();
+    String host = instance.getHost();
+    int port = instance.getPort();
+    String scheme = instance.getScheme();
+    if (scheme == null || scheme.isEmpty()) {
+      scheme = instance.isSecure() ? "https" : "http";
+    }
+    StringBuilder sb = new StringBuilder();
+    sb.append(serviceId != null ? serviceId : "unknown-service");
+    sb.append('@');
+    sb.append(host != null ? host : "unknown-host");
+    sb.append(':').append(port);
+    sb.append('(').append(scheme).append(')');
+    return sb.toString();
+  }
+
+  public boolean isDebugEnabled() {
+    return LOG.isDebugEnabled();
+  }
+
+  public void appendResponseBody(ServerWebExchange exchange, byte[] bytes) {
+    if (bytes == null || bytes.length == 0) {
+      return;
+    }
+    Object attr = exchange.getAttribute(ATTR_RESPONSE_BODY);
+    ByteArrayOutputStream buffer;
+    if (attr instanceof ByteArrayOutputStream) {
+      buffer = (ByteArrayOutputStream) attr;
+    } else {
+      buffer = new ByteArrayOutputStream();
+      exchange.getAttributes().put(ATTR_RESPONSE_BODY, buffer);
+    }
+    int remaining = MAX_RESPONSE_BODY_BYTES - buffer.size();
+    if (remaining <= 0) {
+      exchange.getAttributes().put(ATTR_RESPONSE_BODY_TRUNCATED, true);
+      return;
+    }
+    int toWrite = Math.min(remaining, bytes.length);
+    buffer.write(bytes, 0, toWrite);
+    if (toWrite < bytes.length) {
+      exchange.getAttributes().put(ATTR_RESPONSE_BODY_TRUNCATED, true);
+    }
+  }
 }

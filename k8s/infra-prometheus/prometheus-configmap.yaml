@@ -8,7 +8,7 @@ metadata:
   annotations:
     kubernetes.io/description: Base Prometheus configuration with kube discovery
     # 這裡可以按需加入自訂 job
-  
+
 data:
   prometheus.yml: |
     global:
@@ -70,7 +70,7 @@ data:
               - __meta_kubernetes_node_name
         metric_relabel_configs:
           - action: drop
-            source_labels: [__name__]
+            source_labels: [ __name__ ]
             regex: container_.*
       - job_name: kubernetes-service-endpoints
         kubernetes_sd_configs:

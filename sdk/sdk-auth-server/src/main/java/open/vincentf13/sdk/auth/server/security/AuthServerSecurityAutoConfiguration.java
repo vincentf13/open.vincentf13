@@ -8,10 +8,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @AutoConfiguration
 public class AuthServerSecurityAutoConfiguration {
-    
-    @Bean
-    @ConditionalOnMissingBean(PasswordEncoder.class)
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+
+  @Bean
+  @ConditionalOnMissingBean(PasswordEncoder.class)
+  public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+  }
 }

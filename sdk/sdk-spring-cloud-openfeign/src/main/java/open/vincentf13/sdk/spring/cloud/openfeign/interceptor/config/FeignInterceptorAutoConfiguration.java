@@ -15,22 +15,22 @@ import org.springframework.context.annotation.Bean;
 @AutoConfiguration
 @EnableConfigurationProperties(FeignApiKeyProperties.class)
 public class FeignInterceptorAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean(FeignAuthorizationProvider.class)
-    public FeignAuthorizationProvider feignAuthorizationProvider() {
-        return new RequestHeaderFeignAuthorizationProvider();
-    }
+  @Bean
+  @ConditionalOnMissingBean(FeignAuthorizationProvider.class)
+  public FeignAuthorizationProvider feignAuthorizationProvider() {
+    return new RequestHeaderFeignAuthorizationProvider();
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public FeignApiKeyProvider feignApiKeyProvider(FeignApiKeyProperties properties) {
-        return new PropertiesFeignApiKeyProvider(properties);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  public FeignApiKeyProvider feignApiKeyProvider(FeignApiKeyProperties properties) {
+    return new PropertiesFeignApiKeyProvider(properties);
+  }
 
-    @Bean
-    @ConditionalOnMissingBean(name = "defaultFeignRequestInterceptor")
-    public RequestInterceptor defaultFeignRequestInterceptor(FeignAuthorizationProvider authorizationProvider,
-                                                             FeignApiKeyProvider apiKeyProvider) {
-        return new DefaultFeignRequestInterceptor(authorizationProvider, apiKeyProvider);
-    }
+  @Bean
+  @ConditionalOnMissingBean(name = "defaultFeignRequestInterceptor")
+  public RequestInterceptor defaultFeignRequestInterceptor(
+      FeignAuthorizationProvider authorizationProvider, FeignApiKeyProvider apiKeyProvider) {
+    return new DefaultFeignRequestInterceptor(authorizationProvider, apiKeyProvider);
+  }
 }

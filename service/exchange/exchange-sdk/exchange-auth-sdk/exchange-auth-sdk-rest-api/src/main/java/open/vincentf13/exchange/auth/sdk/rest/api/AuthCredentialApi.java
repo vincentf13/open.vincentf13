@@ -13,13 +13,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @Validated
 public interface AuthCredentialApi {
-    
-    @PostMapping("/prepare")
-    @PrivateAPI
-    OpenApiResponse<AuthCredentialPrepareResponse> prepare(@Valid @RequestBody AuthCredentialPrepareRequest request);
-    
-    @PostMapping
-    @PrivateAPI
-    OpenApiResponse<AuthCredentialResponse> create(@Valid @RequestBody AuthCredentialCreateRequest request);
-    
+
+  @PostMapping("/prepare")
+  @PrivateAPI
+  OpenApiResponse<AuthCredentialPrepareResponse> prepare(
+      @Valid @RequestBody AuthCredentialPrepareRequest request);
+
+  @PostMapping
+  @PrivateAPI
+  OpenApiResponse<AuthCredentialResponse> create(
+      @Valid @RequestBody AuthCredentialCreateRequest request);
 }

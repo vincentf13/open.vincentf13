@@ -11,30 +11,30 @@ logging:
     # org.apache.kafka.clients.consumer.internals.AbstractCoordinator: INFO
 
 spring:
-  kafka:                                                                                           
+  kafka:
     bootstrap-servers: infra-kafka.default.svc.cluster.local:9092   # 需自訂
-    admin:                                                                                         
+    admin:
       auto-create: true     # 預設 true，偵測到 NewTopic 就建立                                    
       fail-fast: true       # 若 Kafka broker 無法連線則啟動失敗                                   
-    producer:                                                                                      
+    producer:
       # 預設使用 byte[] 序列化，統一交由 ObjectMapper 控制 payload 編碼                            
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer                       
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer                  
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.json.add.type.headers: true
         # 傳輸可靠性                                                                               
-        acks: all                                                                                  
-        enable.idempotence: true                                                                   
+        acks: all
+        enable.idempotence: true
         # 壓縮與批次                                                                               
-        compression.type: none                                                                     
-        linger.ms: 0                                                                              
-        batch.size: 32768                                                                         
-        buffer.memory: 33554432                                                                    
+        compression.type: none
+        linger.ms: 0
+        batch.size: 32768
+        buffer.memory: 33554432
         # 重試與順序控制                                                                           
-        retries: 10                                                                                
-        max.in.flight.requests.per.connection: 2                                                   
+        retries: 10
+        max.in.flight.requests.per.connection: 2
         # 傳送逾時設定                                                                             
-        request.timeout.ms: 30000                                                                  
+        request.timeout.ms: 30000
         delivery.timeout.ms: 120000
     consumer:
       # 減少 rebalance 時的服務中斷。

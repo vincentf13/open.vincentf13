@@ -1,10 +1,10 @@
 package open.vincentf13.exchange.common.sdk.enums;
 
 public enum OwnerType {
-    USER,
-    PLATFORM;
+  USER,
+  PLATFORM;
 
-    public String code() {
-        return name();
-    }
+  public String code() {
+    return name();
+  }
 }

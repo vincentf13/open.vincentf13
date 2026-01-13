@@ -1,28 +1,28 @@
 logging:
   level:
-    # Spring Cloud Alibaba 整合層（Spring 與 Nacos 溝通過程）
-#    com.alibaba.cloud.nacos: INFO
+  # Spring Cloud Alibaba 整合層（Spring 與 Nacos 溝通過程）
+  #    com.alibaba.cloud.nacos: INFO
 
-    # Nacos 原生客戶端主程式（連線、註冊、拉取配置等）
-#    com.alibaba.nacos.client: INFO
+  # Nacos 原生客戶端主程式（連線、註冊、拉取配置等）
+  #    com.alibaba.nacos.client: INFO
 
-    # Nacos 通用模組（序列化、心跳、HTTP 請求）
-#    com.alibaba.nacos.common: INFO
+  # Nacos 通用模組（序列化、心跳、HTTP 請求）
+  #    com.alibaba.nacos.common: INFO
 
-    # 服務發現與健康監控細節（觀察註冊與心跳，可暫時升級為 DEBUG）
-#    com.alibaba.nacos.client.naming: INFO
+  # 服務發現與健康監控細節（觀察註冊與心跳，可暫時升級為 DEBUG）
+  #    com.alibaba.nacos.client.naming: INFO
 
-    # 配置拉取與熱更新細節（觀察配置變化，可暫時升級為 DEBUG）
-#    com.alibaba.nacos.client.config: INFO
+  # 配置拉取與熱更新細節（觀察配置變化，可暫時升級為 DEBUG）
+  #    com.alibaba.nacos.client.config: INFO
 
-    # Spring Cloud RefreshContext，當配置變更觸發 @RefreshScope 時會記錄
-#    org.springframework.cloud.context.refresh: INFO
+  # Spring Cloud RefreshContext，當配置變更觸發 @RefreshScope 時會記錄
+  #    org.springframework.cloud.context.refresh: INFO
 
-    # Reactor Netty：Spring WebFlux 與 Nacos HTTP 通訊底層（排查連線/逾時用）
-#    reactor.netty: WARN
+  # Reactor Netty：Spring WebFlux 與 Nacos HTTP 通訊底層（排查連線/逾時用）
+  #    reactor.netty: WARN
 
-#  file:
-    # 輸出到檔案，預設在 ./logs/app.log，可用環境變數 LOG_PATH 覆蓋
+  #  file:
+  # 輸出到檔案，預設在 ./logs/app.log，可用環境變數 LOG_PATH 覆蓋
 #    name: ${LOG_PATH:./logs}/app.log
 
 # 疑難排查建議（僅本地或灰度環境開啟）
@@ -44,10 +44,10 @@ spring:
         register-enabled: true                          # Gateway 可設為 false
         ephemeral: true                                 # 臨時實例；掉線自動剔除
         weight: 1                                       # 流量權重
-#        cluster-name: ${NACOS_CLUSTER:HZ}               # 叢集/機房名，就近路由用
-#        metadata:                                       # 版本與路由標記（灰度/藍綠）
-#          version: v1
-#          region: east
+        #        cluster-name: ${NACOS_CLUSTER:HZ}               # 叢集/機房名，就近路由用
+        #        metadata:                                       # 版本與路由標記（灰度/藍綠）
+        #          version: v1
+        #          region: east
         naming-load-cache-at-start: true                # 冷啟提速（從本地快取加載）
         # 下列心跳參數通常用預設即可；需微調時再開
         # heart-beat-interval: 5

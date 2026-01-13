@@ -21,7 +21,6 @@ Content-Type: application/json
     "transforms": "mq_outbox",
     "transforms.mq_outbox.type": "io.debezium.transforms.outbox.EventRouter",
     "transforms.mq_outbox.route.by.field": "aggregate_type",
-
     "transforms.mq_outbox.route.topic.replacement": "${routedByValue}",
     "transforms.mq_outbox.table.field.event.id": "event_id",
     "transforms.mq_outbox.table.field.event.key": "aggregate_id",
@@ -56,16 +55,16 @@ Content-Type: application/json
   "transforms": "mq_outbox",
   "transforms.mq_outbox.type": "io.debezium.transforms.outbox.EventRouter",
   "transforms.mq_outbox.route.by.field": "aggregate_type",
-
   "transforms.mq_outbox.route.topic.replacement": "${routedByValue}",
   "transforms.mq_outbox.table.field.event.id": "event_id",
   "transforms.mq_outbox.table.field.event.key": "aggregate_id",
-      "transforms.mq_outbox.table.field.event.type": "event_type",
-      "transforms.mq_outbox.table.field.payload": "payload",
-      "transforms.mq_outbox.table.fields.additional.placement": "headers:header:all",
-          "poll.interval.ms": "50",
-          "producer.override.linger.ms": "0"
-        }
+  "transforms.mq_outbox.table.field.event.type": "event_type",
+  "transforms.mq_outbox.table.field.payload": "payload",
+  "transforms.mq_outbox.table.fields.additional.placement": "headers:header:all",
+  "poll.interval.ms": "50",
+  "producer.override.linger.ms": "0"
+}
+
 ###
 
 GET http://infra-kafka-connect.default.svc.cluster.local:8083/connectors

@@ -7,7 +7,7 @@ server:
   compression:
     # 內容壓縮 請求需帶： `Accept-Encoding: gzip`，響應自動加  `Content-Encoding: gzip`
     enabled: true
-    mime-types:             # 可壓縮內容
+    mime-types: # 可壓縮內容
       - application/json
       - application/xml
       - text/html
@@ -45,7 +45,7 @@ spring:
     # 不會設定時區與 Jackson 預設輸出，如需時區請用 spring.jackson.time-zone: Asia/Taipei。Jackson 日期預設為 ISO 格式，除非你另行設定 ObjectMapper 的 Locale/DateFormat。
     locale: en-US                           # Accept-Language head 未攜帶時默認語系
     locale-resolver: accept_header          # 依 Accept-Language head 解析語系
-     # @DateTimeFormat 的全域配置，影響表單與請求參數的解析與輸出，不影響 Jackson 的 JSON
+    # @DateTimeFormat 的全域配置，影響表單與請求參數的解析與輸出，不影響 Jackson 的 JSON
     format:
       date: yyyy-MM-dd                      # 將 yyyy-MM-dd 作為 LocalDate，作為 LocalDateTime 的解析與輸出樣式
       date-time: yyyy-MM-dd HH:mm:ss        # 將 yyyy-MM-dd HH:mm:ss 作為 LocalDateTime 的解析與輸出樣式
@@ -70,4 +70,4 @@ open:
         filter-order: -200
       response:
         wrap-enabled: true
-        ignore-controller-prefixes: []
+        ignore-controller-prefixes: [ ]

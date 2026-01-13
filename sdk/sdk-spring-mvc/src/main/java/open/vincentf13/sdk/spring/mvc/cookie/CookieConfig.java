@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Bean;
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class CookieConfig {
-    @Bean
-    ServletContextInitializer sessionCookieMaxAge() {
-        return sc -> sc.getSessionCookieConfig().setMaxAge(30 * 60); // 30 分鐘 }
-    }
+  @Bean
+  ServletContextInitializer sessionCookieMaxAge() {
+    return sc -> sc.getSessionCookieConfig().setMaxAge(30 * 60); // 30 分鐘 }
+  }
 }

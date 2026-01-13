@@ -44,7 +44,7 @@ components:
   schemas:
     AuthCredentialCreateRequest:
       type: object
-      required: [userId, credentialType, secretHash, salt, status]
+      required: [ userId, credentialType, secretHash, salt, status ]
       properties:
         userId:
           type: integer
@@ -62,7 +62,7 @@ components:
           maxLength: 32
     AuthCredentialPrepareRequest:
       type: object
-      required: [credentialType, secret]
+      required: [ credentialType, secret ]
       properties:
         credentialType:
           $ref: '#/components/schemas/AuthCredentialType'
@@ -97,7 +97,7 @@ components:
           format: date-time
     AuthCredentialType:
       type: string
-      enum: [PASSWORD, API_KEY]
+      enum: [ PASSWORD, API_KEY ]
     OpenApiResponse:
       type: object
       properties:

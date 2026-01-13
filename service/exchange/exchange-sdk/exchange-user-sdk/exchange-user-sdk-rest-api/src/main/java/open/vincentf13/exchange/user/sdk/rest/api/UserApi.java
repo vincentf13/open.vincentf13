@@ -15,17 +15,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Validated
 public interface UserApi {
-    
-    @PostMapping
-    @PublicAPI
-    OpenApiResponse<UserResponse> register(@Valid @RequestBody UserRegisterRequest request);
-    
-    @GetMapping("/me")
-    @Jwt
-    OpenApiResponse<UserResponse> getMe();
-    
-    @GetMapping("/by-email")
-    @PrivateAPI
-    OpenApiResponse<UserResponse> findByEmail(@RequestParam("email") String email);
-    
+
+  @PostMapping
+  @PublicAPI
+  OpenApiResponse<UserResponse> register(@Valid @RequestBody UserRegisterRequest request);
+
+  @GetMapping("/me")
+  @Jwt
+  OpenApiResponse<UserResponse> getMe();
+
+  @GetMapping("/by-email")
+  @PrivateAPI
+  OpenApiResponse<UserResponse> findByEmail(@RequestParam("email") String email);
 }

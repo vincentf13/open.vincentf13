@@ -1,10 +1,10 @@
 package open.vincentf13.exchange.common.sdk.enums;
 
 public enum Direction {
-    CREDIT,
-    DEBIT;
+  CREDIT,
+  DEBIT;
 
-    public String code() {
-        return name();
-    }
+  public String code() {
+    return name();
+  }
 }

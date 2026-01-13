@@ -22,7 +22,7 @@ Accept: application/json
     client.test("registerUser: HTTP 200", () => client.assert(response.status === 200));
     client.test("registerUser: OpenApi success", () => client.assert(response.body?.code === "0", "Unexpected response code: " + response.body?.code));
     client.global.set("registeredUserId", response.body?.data?.id);
-    client.global.set("registeredUserEmail",email);
+    client.global.set("registeredUserEmail", email);
 %}
 
 ###
@@ -64,11 +64,11 @@ Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 > {%
-client.test("getUserMe: HTTP 200", () => client.assert(response.status === 200));
-client.test("getUserMe: user data returned", () => {
-    client.assert(response.body?.code === "0", "Unexpected response code: " + response.body?.code);
-    client.assert(response.body?.data?.id, "User ID missing in response");
-    client.assert(response.body?.data?.email === client.global.get("registeredUserEmail"), "Email mismatch");
-});
-client.log("User Info: " + JSON.stringify(response.body?.data));
+    client.test("getUserMe: HTTP 200", () => client.assert(response.status === 200));
+    client.test("getUserMe: user data returned", () => {
+        client.assert(response.body?.code === "0", "Unexpected response code: " + response.body?.code);
+        client.assert(response.body?.data?.id, "User ID missing in response");
+        client.assert(response.body?.data?.email === client.global.get("registeredUserEmail"), "Email mismatch");
+    });
+    client.log("User Info: " + JSON.stringify(response.body?.data));
 %}

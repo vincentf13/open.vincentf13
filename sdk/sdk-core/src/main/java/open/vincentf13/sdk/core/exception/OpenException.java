@@ -1,13 +1,9 @@
 package open.vincentf13.sdk.core.exception;
 
-import open.vincentf13.sdk.core.OpenConstant;
-import org.slf4j.MDC;
-
 import java.util.HashMap;
 import java.util.Map;
-
-
-
+import open.vincentf13.sdk.core.OpenConstant;
+import org.slf4j.MDC;
 
 /*
 
@@ -27,64 +23,59 @@ logger 會自動輸出：
 */
 
 public class OpenException extends RuntimeException {
-    
-    private final OpenErrorCode code;
-    private final Map<String, Object> meta;
-    
-    private OpenException(OpenErrorCode error,
-                          Map<String, Object> meta,
-                          Throwable rootCause) {
-        super(error.message(), rootCause);
-        this.code = error;
-        this.meta = mergeMeta(meta);
+
+  private final OpenErrorCode code;
+  private final Map<String, Object> meta;
+
+  private OpenException(OpenErrorCode error, Map<String, Object> meta, Throwable rootCause) {
+    super(error.message(), rootCause);
+    this.code = error;
+    this.meta = mergeMeta(meta);
+  }
+
+  public static OpenException of(OpenErrorCode error) {
+    return new OpenException(error, null, null);
+  }
+
+  public static OpenException of(OpenErrorCode error, Throwable rootCause) {
+    return new OpenException(error, null, rootCause);
+  }
+
+  public static OpenException of(OpenErrorCode error, Map<String, Object> meta) {
+    return new OpenException(error, meta, null);
+  }
+
+  public static OpenException of(
+      OpenErrorCode error, Map<String, Object> meta, Throwable rootCause) {
+    return new OpenException(error, meta, rootCause);
+  }
+
+  public OpenErrorCode getCode() {
+    return code;
+  }
+
+  public Map<String, Object> getMeta() {
+    return meta;
+  }
+
+  private Map<String, Object> initMeta() {
+    Map<String, Object> meta = new HashMap<>();
+    String traceId = MDC.get(OpenConstant.HttpHeader.TRACE_ID.value());
+    if (traceId != null) {
+      meta.put("mdcTraceId", traceId);
     }
-    
-    public static OpenException of(OpenErrorCode error) {
-        return new OpenException(error, null, null);
+    String requestId = MDC.get(OpenConstant.HttpHeader.REQUEST_ID.value());
+    if (requestId != null) {
+      meta.put("mdcRequestId", requestId);
     }
-    
-    public static OpenException of(OpenErrorCode error,
-                                   Throwable rootCause) {
-        return new OpenException(error, null, rootCause);
+    return meta;
+  }
+
+  private Map<String, Object> mergeMeta(Map<String, Object> additionalMeta) {
+    Map<String, Object> merged = new HashMap<>(initMeta());
+    if (additionalMeta != null) {
+      merged.putAll(additionalMeta);
     }
-    
-    public static OpenException of(OpenErrorCode error,
-                                   Map<String, Object> meta) {
-        return new OpenException(error, meta, null);
-    }
-    
-    public static OpenException of(OpenErrorCode error,
-                                   Map<String, Object> meta,
-                                   Throwable rootCause) {
-        return new OpenException(error, meta, rootCause);
-    }
-    
-    public OpenErrorCode getCode() {
-        return code;
-    }
-    
-    public Map<String, Object> getMeta() {
-        return meta;
-    }
-    
-    private Map<String, Object> initMeta() {
-        Map<String, Object> meta = new HashMap<>();
-        String traceId = MDC.get(OpenConstant.HttpHeader.TRACE_ID.value());
-        if (traceId != null) {
-            meta.put("mdcTraceId", traceId);
-        }
-        String requestId = MDC.get(OpenConstant.HttpHeader.REQUEST_ID.value());
-        if (requestId != null) {
-            meta.put("mdcRequestId", requestId);
-        }
-        return meta;
-    }
-    
-    private Map<String, Object> mergeMeta(Map<String, Object> additionalMeta) {
-        Map<String, Object> merged = new HashMap<>(initMeta());
-        if (additionalMeta != null) {
-            merged.putAll(additionalMeta);
-        }
-        return merged;
-    }
+    return merged;
+  }
 }

@@ -12,10 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 @Validated
 public interface RiskApi {
 
-    @GetMapping("/limits/{instrumentId}")
-    @PublicAPI
-    OpenApiResponse<RiskLimitResponse> getRiskLimit(@PathVariable @NotNull Long instrumentId);
+  @GetMapping("/limits/{instrumentId}")
+  @PublicAPI
+  OpenApiResponse<RiskLimitResponse> getRiskLimit(@PathVariable @NotNull Long instrumentId);
 
-    @PostMapping("/orders/precheck")
-    OpenApiResponse<OrderPrecheckResponse> precheckOrder(@RequestBody @NotNull OrderPrecheckRequest request);
+  @PostMapping("/orders/precheck")
+  OpenApiResponse<OrderPrecheckResponse> precheckOrder(
+      @RequestBody @NotNull OrderPrecheckRequest request);
 }

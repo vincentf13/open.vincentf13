@@ -7,9 +7,9 @@ import org.springframework.context.annotation.Bean;
 
 @AutoConfiguration
 public class FeignRetryAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean(Retryer.class)
-    public Retryer feignRetryer() {
-        return Retryer.NEVER_RETRY;
-    }
+  @Bean
+  @ConditionalOnMissingBean(Retryer.class)
+  public Retryer feignRetryer() {
+    return Retryer.NEVER_RETRY;
+  }
 }

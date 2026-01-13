@@ -78,4 +78,4 @@ spec:
             name: infra-kafka-config
             defaultMode: 0555
         - name: kafka-data
-          emptyDir: {}
+          emptyDir: { }

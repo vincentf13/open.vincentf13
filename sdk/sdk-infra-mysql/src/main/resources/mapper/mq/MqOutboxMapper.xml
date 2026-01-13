@@ -40,23 +40,24 @@
         </trim>
     </insert>
 
-      <insert id="insertWithAutoSeq" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO">
+    <insert id="insertWithAutoSeq" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO">
         INSERT INTO mq_outbox (event_id, aggregate_type, aggregate_id, event_type, payload, headers, seq, created_at)
         SELECT
-            #{eventId},
-            #{aggregateType},
-            #{aggregateId},
-            #{eventType},
-            #{payload},
-            #{headers},
-            COALESCE(MAX(seq), 0) + 1,
-            #{createdAt}
+        #{eventId},
+        #{aggregateType},
+        #{aggregateId},
+        #{eventType},
+        #{payload},
+        #{headers},
+        COALESCE(MAX(seq), 0) + 1,
+        #{createdAt}
         FROM mq_outbox
         WHERE event_type = #{eventType}
         FOR UPDATE
     </insert>
 
-    <select id="findBy" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO" resultMap="MqOutboxResultMap">
+    <select id="findBy" parameterType="open.vincentf13.sdk.infra.mysql.mq.outbox.MqOutboxPO"
+            resultMap="MqOutboxResultMap">
         SELECT event_id, aggregate_type, aggregate_id, event_type, payload, headers, seq, created_at
         FROM mq_outbox
         <where>
@@ -93,7 +94,7 @@
         VALUES
         <foreach collection="list" item="item" separator=",">
             (#{item.eventId}, #{item.aggregateType}, #{item.aggregateId}, #{item.eventType},
-             #{item.payload}, #{item.headers}, #{item.seq}, #{item.createdAt})
+            #{item.payload}, #{item.headers}, #{item.seq}, #{item.createdAt})
         </foreach>
     </insert>
 

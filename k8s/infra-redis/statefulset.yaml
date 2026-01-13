@@ -24,7 +24,7 @@ spec:
           image: redis:7.2.4-alpine
           imagePullPolicy: IfNotPresent
           # 使用 shell 包住 redis-server，方便加入 cluster announce 參數。
-          command: ["/bin/sh", "-c"]
+          command: [ "/bin/sh", "-c" ]
           args:
             - |
               # 先載入 ConfigMap 內的 redis.conf，再宣告自己的對外端點。
@@ -78,4 +78,4 @@ spec:
               - key: redis.conf
                 path: redis.conf
         - name: redis-data
-          emptyDir: {}
+          emptyDir: { }

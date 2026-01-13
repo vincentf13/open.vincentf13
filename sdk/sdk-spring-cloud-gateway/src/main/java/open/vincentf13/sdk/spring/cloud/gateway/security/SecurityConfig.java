@@ -10,15 +10,18 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 
 @Configuration
 @ConditionalOnClass({ServerHttpSecurity.class, SecurityWebFilterChain.class})
-@ConditionalOnProperty(prefix = "open.vincentf13.security.gateway", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+    prefix = "open.vincentf13.security.gateway",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true)
 public class SecurityConfig {
-    
-    @Bean
-    @ConditionalOnMissingBean(SecurityWebFilterChain.class)
-    public SecurityWebFilterChain gatewaySecurityWebFilterChain(ServerHttpSecurity http) {
-        return http
-                       .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                       .authorizeExchange(exchange -> exchange.anyExchange().permitAll())
-                       .build();
-    }
+
+  @Bean
+  @ConditionalOnMissingBean(SecurityWebFilterChain.class)
+  public SecurityWebFilterChain gatewaySecurityWebFilterChain(ServerHttpSecurity http) {
+    return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
+        .authorizeExchange(exchange -> exchange.anyExchange().permitAll())
+        .build();
+  }
 }

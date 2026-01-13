@@ -8,7 +8,7 @@ metadata:
   annotations:
     description: Kafka Connect distributed worker base config
     maintainer: infra-team
-  
+
 data:
   connect-distributed.properties: |
     bootstrap.servers=infra-kafka:9092
