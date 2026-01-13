@@ -28,7 +28,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.ReferenceType;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
+import open.vincentf13.exchange.common.sdk.constants.ScaleConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.Direction;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
@@ -499,22 +499,22 @@ public class AccountTransactionDomainService {
       BigDecimal marginUsed =
           marginReserved
               .multiply(previousFilled)
-              .divide(orderQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+              .divide(orderQuantity, ScaleConstant.COMMON_SCALE, RoundingMode.HALF_UP);
       BigDecimal feeUsed =
           feeReserved
               .multiply(previousFilled)
-              .divide(orderQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+              .divide(orderQuantity, ScaleConstant.COMMON_SCALE, RoundingMode.HALF_UP);
       marginPortion = marginReserved.subtract(marginUsed);
       feeReservedPortion = feeReserved.subtract(feeUsed);
     } else {
       marginPortion =
           marginReserved
               .multiply(tradeQuantity)
-              .divide(orderQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+              .divide(orderQuantity, ScaleConstant.COMMON_SCALE, RoundingMode.HALF_UP);
       feeReservedPortion =
           feeReserved
               .multiply(tradeQuantity)
-              .divide(orderQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+              .divide(orderQuantity, ScaleConstant.COMMON_SCALE, RoundingMode.HALF_UP);
     }
     if (marginPortion.signum() < 0) {
       throw OpenException.of(

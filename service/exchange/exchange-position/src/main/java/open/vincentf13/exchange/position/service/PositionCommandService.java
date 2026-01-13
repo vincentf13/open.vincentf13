@@ -10,7 +10,7 @@ import java.util.Collection;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.account.sdk.mq.event.TradeMarginSettledEvent;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
+import open.vincentf13.exchange.common.sdk.constants.ScaleConstant;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
@@ -249,7 +249,7 @@ public class PositionCommandService {
     if (openQuantity.compareTo(BigDecimal.ZERO) > 0) {
       BigDecimal openRatio =
           openQuantity.divide(
-              quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+                  quantity, ScaleConstant.COMMON_SCALE, RoundingMode.HALF_UP);
       openFee = fee.multiply(openRatio);
       closeFee = fee.subtract(openFee);
       positionEventPublisher.publishCloseToOpenCompensation(

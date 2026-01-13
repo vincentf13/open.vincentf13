@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.common.sdk.constants.ScaleConstant;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.exchange.position.domain.model.Position;
@@ -237,7 +238,7 @@ public class PositionDomainService {
         BigDecimal flipRatio =
             split
                 .flipQuantity()
-                .divide(quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+                .divide(quantity, ScaleConstant.COMMON_SCALE, RoundingMode.HALF_UP);
         BigDecimal flipMargin = marginUsed.multiply(flipRatio);
         BigDecimal closeMargin = marginUsed.subtract(flipMargin);
 

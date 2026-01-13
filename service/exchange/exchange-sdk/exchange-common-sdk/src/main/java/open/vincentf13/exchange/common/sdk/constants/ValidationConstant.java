@@ -24,10 +24,7 @@ public enum ValidationConstant {
     public static final String AMOUNT_MIN = "0.00000001";
     public static final String FEE_MIN = "0.00000000";
     public static final String NON_NEGATIVE = "0.00000000";
-
-    public static final int COMMON_SCALE = 12;
-    public static final int MARGIN_RATIO_SCALE = 4;
-
+    
     private Names() {}
   }
 }

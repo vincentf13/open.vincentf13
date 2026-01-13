@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import open.vincentf13.exchange.common.sdk.constants.ScaleConstant;
 import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
 import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderStatus;
@@ -174,7 +175,7 @@ public class Order {
         newFilled.compareTo(BigDecimal.ZERO) == 0
             ? this.avgFillPrice
             : totalValueAfter.divide(
-                newFilled, ValidationConstant.Names.COMMON_SCALE, java.math.RoundingMode.HALF_UP);
+                newFilled, ScaleConstant.COMMON_SCALE, java.math.RoundingMode.HALF_UP);
 
     this.filledQuantity = newFilled;
     this.remainingQuantity = newRemaining;

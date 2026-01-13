@@ -8,7 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import open.vincentf13.exchange.common.sdk.constants.ValidationConstant;
+import open.vincentf13.exchange.common.sdk.constants.ScaleConstant;
 import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
@@ -120,7 +120,7 @@ public class Position {
         this.entryPrice
             .multiply(this.quantity)
             .add(tradePrice.multiply(quantity))
-            .divide(newQuantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            .divide(newQuantity, ScaleConstant.COMMON_SCALE, RoundingMode.HALF_UP);
     this.entryPrice = newEntryPrice;
     this.quantity = newQuantity;
     this.margin = this.margin.add(marginDelta);
@@ -144,7 +144,7 @@ public class Position {
     BigDecimal marginReleased =
         this.margin
             .multiply(quantity)
-            .divide(this.quantity, ValidationConstant.Names.COMMON_SCALE, RoundingMode.HALF_UP);
+            .divide(this.quantity, ScaleConstant.COMMON_SCALE, RoundingMode.HALF_UP);
     BigDecimal pnl =
         calculateRealizedPnl(this.side, this.entryPrice, tradePrice, quantity, contractMultiplier);
     BigDecimal newQuantity = this.quantity.subtract(quantity);
@@ -204,7 +204,7 @@ public class Position {
             this.margin
                 .add(this.unrealizedPnl)
                 .divide(
-                    notional, ValidationConstant.Names.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP);
+                        notional, ScaleConstant.MARGIN_RATIO_SCALE, RoundingMode.HALF_UP);
       }
 
       BigDecimal quantityTimesMultiplier = this.quantity.multiply(contractMultiplier);
@@ -217,25 +217,25 @@ public class Position {
             this.entryPrice
                 .subtract(
                     this.margin.divide(
-                        quantityTimesMultiplier,
-                        ValidationConstant.Names.COMMON_SCALE,
-                        RoundingMode.HALF_UP))
+                            quantityTimesMultiplier,
+                            ScaleConstant.COMMON_SCALE,
+                            RoundingMode.HALF_UP))
                 .divide(
-                    BigDecimal.ONE.subtract(maintenanceMarginRate),
-                    ValidationConstant.Names.COMMON_SCALE,
-                    RoundingMode.HALF_UP);
+                        BigDecimal.ONE.subtract(maintenanceMarginRate),
+                        ScaleConstant.COMMON_SCALE,
+                        RoundingMode.HALF_UP);
       } else {
         this.liquidationPrice =
             this.entryPrice
                 .add(
                     this.margin.divide(
-                        quantityTimesMultiplier,
-                        ValidationConstant.Names.COMMON_SCALE,
-                        RoundingMode.HALF_UP))
+                            quantityTimesMultiplier,
+                            ScaleConstant.COMMON_SCALE,
+                            RoundingMode.HALF_UP))
                 .divide(
-                    BigDecimal.ONE.add(maintenanceMarginRate),
-                    ValidationConstant.Names.COMMON_SCALE,
-                    RoundingMode.HALF_UP);
+                        BigDecimal.ONE.add(maintenanceMarginRate),
+                        ScaleConstant.COMMON_SCALE,
+                        RoundingMode.HALF_UP);
       }
     } else {
       this.unrealizedPnl = BigDecimal.ZERO;
