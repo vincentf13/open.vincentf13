@@ -1,10 +1,9 @@
 package open.vincentf13.exchange.position.sdk.rest.api.dto;
 
-import open.vincentf13.exchange.common.sdk.enums.PositionSide;
-import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
-
 import java.math.BigDecimal;
 import java.time.Instant;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 
 public record PositionResponse(
     Long positionId,

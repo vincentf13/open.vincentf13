@@ -73,6 +73,7 @@ public class OrderCommandService {
   private final TransactionTemplate transactionTemplate;
   private final RetryTaskRepository pendingTaskRepository;
   private final RetryTaskService retryTaskService;
+
   @Value("${open.vincentf13.exchange.order.pending.prepare-intent.retry-delay:PT10S}")
   private java.time.Duration retryDelay;
 
