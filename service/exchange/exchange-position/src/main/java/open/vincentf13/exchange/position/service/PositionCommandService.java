@@ -48,33 +48,33 @@ public class PositionCommandService {
   private final PositionEventPublisher positionEventPublisher;
   private final PositionEventRepository positionEventRepository;
   private final PositionDomainService positionDomainService;
-  
+
   public PositionIntentResponse determineIntentAndReserve(
       @NotNull @Valid PositionIntentRequest request) {
     PositionDomainService.PositionIntentResult result =
-            positionDomainService.processIntent(
-                    request.userId(),
-                    request.getInstrumentId(),
-                    request.side(),
-                    request.getQuantity(),
-                    request.clientOrderId());
-    
+        positionDomainService.processIntent(
+            request.userId(),
+            request.getInstrumentId(),
+            request.side(),
+            request.getQuantity(),
+            request.clientOrderId());
+
     BigDecimal existing =
-            result.position() == null ? BigDecimal.ZERO : result.position().getQuantity();
-    
+        result.position() == null ? BigDecimal.ZERO : result.position().getQuantity();
+
     if (result.errorMessage() != null) {
       return PositionIntentResponse.ofRejected(
-              result.intentType(), existing, result.errorMessage());
+          result.intentType(), existing, result.errorMessage());
     }
-    
+
     return PositionIntentResponse.of(
-            result.intentType(),
-            existing,
-            result.position() == null
+        result.intentType(),
+        existing,
+        result.position() == null
             ? null
             : OpenObjectMapper.convert(result.position(), PositionResponse.class));
   }
-  
+
   public String releaseReservation(@NotNull @Valid PositionReservationReleaseRequest request) {
     if (request.clientOrderId() == null) {
       return "No reservation record found.";
@@ -91,7 +91,7 @@ public class PositionCommandService {
     if (parts.length < 2 || parts[1].isBlank() || parts[1].contains(":")) {
       return "No reservation record found.";
     }
-      PositionSide side;
+    PositionSide side;
     try {
       side = PositionSide.valueOf(parts[1]);
     } catch (IllegalArgumentException ex) {
@@ -310,5 +310,4 @@ public class PositionCommandService {
   private BigDecimal safe(BigDecimal value) {
     return value == null ? BigDecimal.ZERO : value;
   }
-
 }
