@@ -34,7 +34,7 @@ public class AccountClient extends BaseClient {
         return FeignClientSupport.assertSuccess(accountApi.getBalanceSheet(null), "account.balanceSheet");
     }
 
-    public static BigDecimal getSpotAccount(String token) {
+    public static AccountBalanceItem getSpotAccount(String token) {
         AccountBalanceSheetResponse balanceSheet = getBalanceSheet(token);
         List<AccountBalanceItem> assets = balanceSheet.assets();
         if (assets == null) {
