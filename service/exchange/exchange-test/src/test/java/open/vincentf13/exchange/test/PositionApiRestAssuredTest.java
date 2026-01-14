@@ -93,8 +93,14 @@ class PositionApiRestAssuredTest {
         BigDecimal openQuantity = BigDecimal.valueOf(5000);
         submitOrder(tokenA, openSide, openPrice, openQuantity, TradeRole.TAKER);
         submitOrder(tokenB, opposite(openSide), openPrice, openQuantity, TradeRole.MAKER);
-        ExpectedAccount openAccount = verifyPosition(
-                simulator, PositionClient.findPosition(tokenA, instrumentId), openSide, openPrice, true, openQuantity);
+        
+        simulator.apply(openSide, openPrice, openQuantity, takerFeeRate);
+        verifyPosition(
+                PositionClient.findPosition(tokenA, instrumentId),
+                        simulator);
+        
+        ExpectedAccount openAccount = simulateAccount(simulator);
+        
         verifyAccount(AccountClient.getBalanceSheet(tokenA), openAccount);
 
         OrderSide reduceSide = OrderSide.SELL;
@@ -102,8 +108,10 @@ class PositionApiRestAssuredTest {
         BigDecimal reduceQuantity = BigDecimal.valueOf(3000);
         submitOrder(tokenA, reduceSide, reducePrice, reduceQuantity, TradeRole.TAKER);
         submitOrder(tokenB, opposite(reduceSide), reducePrice, reduceQuantity, TradeRole.MAKER);
-        ExpectedAccount reduceAccount = verifyPosition(
-                simulator, PositionClient.findPosition(tokenA, instrumentId), reduceSide, reducePrice, true, reduceQuantity);
+        PositionResponse position3 = PositionClient.findPosition(tokenA, instrumentId);
+        simulator.apply(reduceSide, reducePrice, reduceQuantity, takerFeeRate);
+        verifyPosition(position3, simulator);
+        ExpectedAccount reduceAccount = simulateAccount(simulator);
         verifyAccount(AccountClient.getBalanceSheet(tokenA), reduceAccount);
 
         OrderSide increaseSide = OrderSide.BUY;
@@ -111,8 +119,10 @@ class PositionApiRestAssuredTest {
         BigDecimal increaseQuantity = BigDecimal.valueOf(2000);
         submitOrder(tokenA, increaseSide, increasePrice, increaseQuantity, TradeRole.TAKER);
         submitOrder(tokenB, opposite(increaseSide), increasePrice, increaseQuantity, TradeRole.MAKER);
-        ExpectedAccount increaseAccount = verifyPosition(
-                simulator, PositionClient.findPosition(tokenA, instrumentId), increaseSide, increasePrice, true, increaseQuantity);
+        PositionResponse position2 = PositionClient.findPosition(tokenA, instrumentId);
+        simulator.apply(increaseSide, increasePrice, increaseQuantity, takerFeeRate);
+        verifyPosition(position2, simulator);
+        ExpectedAccount increaseAccount = simulateAccount(simulator);
         verifyAccount(AccountClient.getBalanceSheet(tokenA), increaseAccount);
 
         OrderSide closeSide = OrderSide.SELL;
@@ -120,8 +130,10 @@ class PositionApiRestAssuredTest {
         BigDecimal closeQuantity = BigDecimal.valueOf(4000);
         submitOrder(tokenA, closeSide, closePrice, closeQuantity, TradeRole.TAKER);
         submitOrder(tokenB, opposite(closeSide), closePrice, closeQuantity, TradeRole.MAKER);
-        ExpectedAccount closeAccount = verifyPosition(
-                simulator, PositionClient.findPosition(tokenA, instrumentId), closeSide, closePrice, true, closeQuantity);
+        PositionResponse position1 = PositionClient.findPosition(tokenA, instrumentId);
+        simulator.apply(closeSide, closePrice, closeQuantity, takerFeeRate);
+        verifyPosition(position1, simulator);
+        ExpectedAccount closeAccount = simulateAccount(simulator);
         verifyAccount(AccountClient.getBalanceSheet(tokenA), closeAccount);
 
         OrderSide reopenSide = OrderSide.BUY;
@@ -129,11 +141,14 @@ class PositionApiRestAssuredTest {
         BigDecimal reopenQuantity = BigDecimal.valueOf(5000);
         submitOrder(tokenA, reopenSide, reopenPrice, reopenQuantity, TradeRole.TAKER);
         submitOrder(tokenB, opposite(reopenSide), reopenPrice, reopenQuantity, TradeRole.MAKER);
-        ExpectedAccount reopenAccount = verifyPosition(
-                simulator, PositionClient.findPosition(tokenA, instrumentId), reopenSide, reopenPrice, true, reopenQuantity);
+        PositionResponse position = PositionClient.findPosition(tokenA, instrumentId);
+        simulator.apply(reopenSide, reopenPrice, reopenQuantity, takerFeeRate);
+        verifyPosition(position, simulator);
+        ExpectedAccount reopenAccount = simulateAccount(simulator);
         verifyAccount(AccountClient.getBalanceSheet(tokenA), reopenAccount);
 
-        StepResult flipResult = executeTradeWithTwoCounterparties(simulator, OrderSide.SELL, 100, 10000);
+        StepResult flipResult = executeTradeWithTwoCounterparties(
+                simulator, OrderSide.SELL, BigDecimal.valueOf(100), BigDecimal.valueOf(10000));
         verifyPosition(PositionClient.findPosition(tokenA, instrumentId), flipResult.expectedPosition);
         verifyAccount(AccountClient.getBalanceSheet(tokenA), flipResult.expectedAccount);
 
@@ -142,12 +157,15 @@ class PositionApiRestAssuredTest {
         verifyAccount(AccountClient.getBalanceSheet(tokenA), concurrentResult.expectedAccount);
     }
 
-    private StepResult executeTradeWithTwoCounterparties(PositionSimulator simulator, OrderSide side, double price, int quantity) {
+    private StepResult executeTradeWithTwoCounterparties(PositionSimulator simulator,
+                                                         OrderSide side,
+                                                         BigDecimal price,
+                                                         BigDecimal quantity) {
         submitOrder(tokenA, side, price, quantity, TradeRole.TAKER);
-        submitOrder(tokenB, opposite(side), price, 5000, TradeRole.MAKER);
-        submitOrder(tokenC, opposite(side), price, 5000, TradeRole.MAKER);
-        simulatorApply(simulator, side, price, true, 5000);
-        simulatorApply(simulator, side, price, true, 5000);
+        submitOrder(tokenB, opposite(side), price, BigDecimal.valueOf(5000), TradeRole.MAKER);
+        submitOrder(tokenC, opposite(side), price, BigDecimal.valueOf(5000), TradeRole.MAKER);
+        simulator.apply(side, price, BigDecimal.valueOf(5000), takerFeeRate);
+        simulator.apply(side, price, BigDecimal.valueOf(5000), takerFeeRate);
         ExpectedPosition expectedPosition = simulator.snapshot(price);
         ExpectedAccount expectedAccount = simulateAccount(expectedPosition);
         return new StepResult(expectedPosition, expectedAccount);
@@ -155,52 +173,82 @@ class PositionApiRestAssuredTest {
 
     private StepResult executeConcurrentFlip(PositionSimulator simulator) {
         OrderSide firstSide = OrderSide.BUY;
-        double firstPrice = 100;
-        int firstQuantity = 3000;
+        BigDecimal firstPrice = BigDecimal.valueOf(100);
+        BigDecimal firstQuantity = BigDecimal.valueOf(3000);
         OrderSide secondSide = OrderSide.BUY;
-        double secondPrice = 100;
-        int secondQuantity = 10000;
+        BigDecimal secondPrice = BigDecimal.valueOf(100);
+        BigDecimal secondQuantity = BigDecimal.valueOf(10000);
 
         submitOrder(tokenA, firstSide, firstPrice, firstQuantity, TradeRole.TAKER);
         submitOrder(tokenA, secondSide, secondPrice, secondQuantity, TradeRole.TAKER);
         submitOrder(tokenB, opposite(firstSide), firstPrice, secondQuantity, TradeRole.MAKER);
         submitOrder(tokenB, opposite(firstSide), firstPrice, firstQuantity, TradeRole.MAKER);
 
-        simulatorApply(simulator, secondSide, secondPrice, true, secondQuantity);
-        simulatorApply(simulator, firstSide, firstPrice, true, firstQuantity);
+        simulator.apply(secondSide, secondPrice, secondQuantity, takerFeeRate);
+        simulator.apply(firstSide, firstPrice, firstQuantity, takerFeeRate);
         ExpectedPosition expectedPosition = simulator.snapshot(firstPrice);
         ExpectedAccount expectedAccount = simulateAccount(expectedPosition);
         return new StepResult(expectedPosition, expectedAccount);
     }
 
-    private void submitOrder(String token, OrderSide side, double price, int quantity, TradeRole role) {
-        OrderClient.placeOrder(token, instrumentId, side, price, quantity);
+    private void submitOrder(String token, OrderSide side, BigDecimal price, BigDecimal quantity, TradeRole role) {
+        OrderClient.placeOrder(token, instrumentId, side, price.doubleValue(), quantity.intValueExact());
         pause(role == TradeRole.MAKER ? MAKER_DELAY_MS : TAKER_DELAY_MS);
     }
+    
+    private void verifyPosition(PositionResponse position, PositionSimulator simulator) {
+        assertNotNull(position, "Position not found");
 
-    private void submitOrder(String token, OrderSide side, BigDecimal price, BigDecimal quantity, TradeRole role) {
-        submitOrder(token, side, price.doubleValue(), quantity.intValueExact(), role);
-    }
+        PositionStatus expectedStatus = simulator.quantity.compareTo(BigDecimal.ZERO) == 0
+            ? PositionStatus.CLOSED
+            : PositionStatus.ACTIVE;
+        BigDecimal expectedClosingReservedQuantity = BigDecimal.ZERO;
 
-    private ExpectedAccount verifyPosition(PositionSimulator simulator,
-                                           PositionResponse position,
-                                           OrderSide side,
-                                           double price,
-                                           boolean aIsTaker,
-                                           int quantity) {
-        simulatorApply(simulator, side, price, aIsTaker, quantity);
-        ExpectedPosition expected = simulator.snapshot(price);
-        verifyPosition(position, expected);
-        return simulateAccount(expected);
-    }
+        assertEquals(expectedStatus, position.status(), "Status mismatch");
+        assertEquals(simulator.side, position.side(), "Side mismatch");
+        assertEquals(this.leverage, position.leverage(), "Leverage mismatch");
 
-    private ExpectedAccount verifyPosition(PositionSimulator simulator,
-                                           PositionResponse position,
-                                           OrderSide side,
-                                           BigDecimal price,
-                                           boolean aIsTaker,
-                                           BigDecimal quantity) {
-        return verifyPosition(simulator, position, side, price.doubleValue(), aIsTaker, quantity.intValueExact());
+        BigDecimal expectedMargin = simulator.entryPrice
+            .multiply(simulator.quantity)
+            .multiply(contractSize)
+            .multiply(imr);
+        assertNear(position.margin(), expectedMargin, BigDecimal.valueOf(0.0001), "Margin mismatch");
+        assertNear(position.entryPrice(), simulator.entryPrice, BigDecimal.valueOf(0.0001), "Entry price mismatch");
+        assertNear(position.quantity(), simulator.quantity, BigDecimal.valueOf(0.0001), "Quantity mismatch");
+        assertNear(position.closingReservedQuantity(),
+            expectedClosingReservedQuantity, BigDecimal.valueOf(0.0001), "Close reserved mismatch");
+        assertNear(position.markPrice(), simulator.lastMarkPrice, BigDecimal.valueOf(0.0001), "Mark price mismatch");
+
+        BigDecimal notional = position.markPrice().multiply(position.quantity()).multiply(contractSize);
+        BigDecimal equity = position.margin().add(position.unrealizedPnl());
+        if (notional.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal expectedMarginRatio = equity.divide(notional, 10, RoundingMode.HALF_UP);
+            assertNear(position.marginRatio(), expectedMarginRatio, BigDecimal.valueOf(0.001), "Margin ratio mismatch");
+        }
+
+        BigDecimal priceDiff = PositionSide.LONG == position.side()
+            ? position.markPrice().subtract(position.entryPrice())
+            : position.entryPrice().subtract(position.markPrice());
+        BigDecimal expectedUpnl = priceDiff.multiply(position.quantity()).multiply(contractSize);
+        assertNear(position.unrealizedPnl(), expectedUpnl, BigDecimal.valueOf(0.01), "Unrealized PnL mismatch");
+
+        assertNear(position.cumRealizedPnl(), simulator.cumRealizedPnl, BigDecimal.valueOf(0.01), "Cum realized PnL mismatch");
+        assertNear(position.cumFee(), simulator.cumFee, BigDecimal.valueOf(0.0001), "Cum fee mismatch");
+        assertNear(position.cumFundingFee(),
+            simulator.cumFundingFee, BigDecimal.valueOf(0.0001), "Cum funding fee mismatch");
+
+        if (position.quantity().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal marginPerUnit = position.margin()
+                .divide(position.quantity().multiply(contractSize), 10, RoundingMode.HALF_UP);
+            BigDecimal calcLiq = PositionSide.LONG == position.side()
+                ? position.entryPrice().subtract(marginPerUnit).divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
+                : position.entryPrice().add(marginPerUnit).divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
+            assertNotNull(position.liquidationPrice(), "Liquidation price should not be null");
+            assertNear(position.liquidationPrice(), calcLiq, BigDecimal.valueOf(0.1), "Liquidation price mismatch");
+        } else {
+            assertTrue(position.liquidationPrice() == null || position.liquidationPrice().compareTo(BigDecimal.ZERO) == 0,
+                       "Liquidation price should be null/0");
+        }
     }
 
     private void verifyPosition(PositionResponse position, ExpectedPosition expected) {
@@ -282,17 +330,28 @@ class PositionApiRestAssuredTest {
             expected.marginReserved, BigDecimal.valueOf(0.0001), "Margin reserved mismatch");
     }
 
-    private void simulatorApply(PositionSimulator simulator, OrderSide side, double price, boolean aIsTaker, int quantity) {
-        BigDecimal feeRate = aIsTaker ? takerFeeRate : makerFeeRate;
-        simulator.apply(side, price, quantity, feeRate);
-    }
-
     private ExpectedAccount simulateAccount(ExpectedPosition expected) {
         BigDecimal expectedMargin = expected.entryPrice
             .multiply(expected.quantity)
             .multiply(contractSize)
             .multiply(imr);
         BigDecimal expectedSpotBalance = baseSpotBalance.subtract(expectedMargin).add(expected.cumRealizedPnl);
+        return new ExpectedAccount(
+            expectedSpotBalance,
+            expectedSpotBalance,
+            BigDecimal.ZERO,
+            expectedMargin,
+            expectedMargin,
+            BigDecimal.ZERO
+        );
+    }
+
+    private ExpectedAccount simulateAccount(PositionSimulator simulator) {
+        BigDecimal expectedMargin = simulator.entryPrice
+            .multiply(simulator.quantity)
+            .multiply(contractSize)
+            .multiply(imr);
+        BigDecimal expectedSpotBalance = baseSpotBalance.subtract(expectedMargin).add(simulator.cumRealizedPnl);
         return new ExpectedAccount(
             expectedSpotBalance,
             expectedSpotBalance,
@@ -362,18 +421,16 @@ class PositionApiRestAssuredTest {
             this.lastMarkPrice = BigDecimal.ZERO;
         }
 
-        private void apply(OrderSide orderSide, double price, int fillQuantity, BigDecimal feeRate) {
-            BigDecimal qty = BigDecimal.valueOf(fillQuantity);
-            BigDecimal priceValue = BigDecimal.valueOf(price);
-            BigDecimal fee = qty.multiply(contractSize)
-                .multiply(priceValue)
+        private void apply(OrderSide orderSide, BigDecimal price, BigDecimal fillQuantity, BigDecimal feeRate) {
+            BigDecimal fee = fillQuantity.multiply(contractSize)
+                .multiply(price)
                 .multiply(feeRate);
-            lastMarkPrice = priceValue;
+            lastMarkPrice = price;
 
             if (quantity.compareTo(BigDecimal.ZERO) == 0) {
                 side = orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
-                entryPrice = priceValue;
-                quantity = qty;
+                entryPrice = price;
+                quantity = fillQuantity;
                 cumFee = BigDecimal.ZERO.add(fee);
                 cumRealizedPnl = fee.negate();
                 cumFundingFee = BigDecimal.ZERO;
@@ -383,8 +440,8 @@ class PositionApiRestAssuredTest {
             boolean sameDirection = (side == PositionSide.LONG && orderSide == OrderSide.BUY)
                 || (side == PositionSide.SHORT && orderSide == OrderSide.SELL);
             if (sameDirection) {
-                BigDecimal totalCost = entryPrice.multiply(quantity).add(priceValue.multiply(qty));
-                BigDecimal totalQty = quantity.add(qty);
+                BigDecimal totalCost = entryPrice.multiply(quantity).add(price.multiply(fillQuantity));
+                BigDecimal totalQty = quantity.add(fillQuantity);
                 entryPrice = totalCost.divide(totalQty, 10, RoundingMode.HALF_UP);
                 quantity = totalQty;
                 cumFee = cumFee.add(fee);
@@ -392,16 +449,16 @@ class PositionApiRestAssuredTest {
                 return;
             }
 
-            BigDecimal closedQty = quantity.min(qty);
+            BigDecimal closedQty = quantity.min(fillQuantity);
             BigDecimal realized = side == PositionSide.LONG
-                ? priceValue.subtract(entryPrice).multiply(closedQty).multiply(contractSize)
-                : entryPrice.subtract(priceValue).multiply(closedQty).multiply(contractSize);
+                ? price.subtract(entryPrice).multiply(closedQty).multiply(contractSize)
+                : entryPrice.subtract(price).multiply(closedQty).multiply(contractSize);
             quantity = quantity.subtract(closedQty);
 
-            BigDecimal remaining = qty.subtract(closedQty);
+            BigDecimal remaining = fillQuantity.subtract(closedQty);
             if (remaining.compareTo(BigDecimal.ZERO) > 0) {
                 side = orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
-                entryPrice = priceValue;
+                entryPrice = price;
                 quantity = remaining;
                 cumFee = fee;
                 cumRealizedPnl = fee.negate();
@@ -413,15 +470,15 @@ class PositionApiRestAssuredTest {
             cumRealizedPnl = cumRealizedPnl.add(realized).subtract(fee);
         }
 
-        private ExpectedPosition snapshot(double markPrice) {
-            this.lastMarkPrice = BigDecimal.valueOf(markPrice);
+        private ExpectedPosition snapshot(BigDecimal markPrice) {
+            this.lastMarkPrice = markPrice;
             if (quantity.compareTo(BigDecimal.ZERO) == 0) {
                 return new ExpectedPosition(PositionStatus.CLOSED,
                     side,
                     BigDecimal.ZERO,
                     entryPrice,
                     BigDecimal.ZERO,
-                    BigDecimal.valueOf(markPrice),
+                    markPrice,
                     cumRealizedPnl,
                     cumFee,
                     cumFundingFee);
@@ -431,7 +488,7 @@ class PositionApiRestAssuredTest {
                 quantity,
                 entryPrice,
                 BigDecimal.ZERO,
-                BigDecimal.valueOf(markPrice),
+                markPrice,
                 cumRealizedPnl,
                 cumFee,
                 cumFundingFee);
