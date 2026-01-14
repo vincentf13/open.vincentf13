@@ -99,7 +99,19 @@ class PositionApiRestAssuredTest {
     ));
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("100"), new BigDecimal("5000"), new BigDecimal("-0.1"));
+    // ExpMargin = 100 * 5000 * Size * IMR
+    BigDecimal expMargin1 = new BigDecimal("100").multiply(new BigDecimal("5000")).multiply(contractSize).multiply(imr);
+    // ExpSpot = Base - Margin + CumPnl (-0.1)
+    BigDecimal expSpot1 = baseSpotBalance.subtract(expMargin1).add(new BigDecimal("-0.1"));
+    
+    verifyAccount(tokenA, new ExpectedAccount(
+        expSpot1, // Spot Balance
+        expSpot1, // Spot Available
+        BigDecimal.ZERO, // Spot Reserved
+        expMargin1, // Margin Balance
+        expMargin1, // Margin Available
+        BigDecimal.ZERO // Margin Reserved
+    ));
 
     // [減倉] A Sell 3 (B Buy 3) @ 101 -> A 預期持多倉 2
     submitOrder(tokenA, OrderSide.SELL, new BigDecimal("101"), new BigDecimal("3000"), TradeRole.MAKER);
@@ -120,7 +132,19 @@ class PositionApiRestAssuredTest {
     ));
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("100"), new BigDecimal("2000"), new BigDecimal("2.8394"));
+    // ExpMargin = 100 * 2000 * Size * IMR
+    BigDecimal expMargin2 = new BigDecimal("100").multiply(new BigDecimal("2000")).multiply(contractSize).multiply(imr);
+    // ExpSpot = Base - Margin + CumPnl (2.8394)
+    BigDecimal expSpot2 = baseSpotBalance.subtract(expMargin2).add(new BigDecimal("2.8394"));
+
+    verifyAccount(tokenA, new ExpectedAccount(
+        expSpot2,
+        expSpot2,
+        BigDecimal.ZERO,
+        expMargin2,
+        expMargin2,
+        BigDecimal.ZERO
+    ));
 
     // [增倉] A Buy 2 (B Sell 2) @ 102 -> A 預期持多倉 4
     submitOrder(tokenA, OrderSide.BUY, new BigDecimal("102"), new BigDecimal("2000"), TradeRole.MAKER);
@@ -141,7 +165,19 @@ class PositionApiRestAssuredTest {
     ));
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("101"), new BigDecimal("4000"), new BigDecimal("2.7986"));
+    // ExpMargin = 101 * 4000 * Size * IMR
+    BigDecimal expMargin3 = new BigDecimal("101").multiply(new BigDecimal("4000")).multiply(contractSize).multiply(imr);
+    // ExpSpot = Base - Margin + CumPnl (2.7986)
+    BigDecimal expSpot3 = baseSpotBalance.subtract(expMargin3).add(new BigDecimal("2.7986"));
+
+    verifyAccount(tokenA, new ExpectedAccount(
+        expSpot3,
+        expSpot3,
+        BigDecimal.ZERO,
+        expMargin3,
+        expMargin3,
+        BigDecimal.ZERO
+    ));
 
     // [平倉] A Sell 4 (B Buy 4) @ 99 -> A 預期持倉 0 (因為之前是多倉 4)
     submitOrder(tokenA, OrderSide.SELL, new BigDecimal("99"), new BigDecimal("4000"), TradeRole.MAKER);
@@ -162,7 +198,19 @@ class PositionApiRestAssuredTest {
     ));
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("101"), BigDecimal.ZERO, new BigDecimal("-5.2806"));
+    // ExpMargin = 0
+    BigDecimal expMargin4 = BigDecimal.ZERO;
+    // ExpSpot = Base - Margin + CumPnl (-5.2806)
+    BigDecimal expSpot4 = baseSpotBalance.subtract(expMargin4).add(new BigDecimal("-5.2806"));
+
+    verifyAccount(tokenA, new ExpectedAccount(
+        expSpot4,
+        expSpot4,
+        BigDecimal.ZERO,
+        expMargin4,
+        expMargin4,
+        BigDecimal.ZERO
+    ));
 
     // [再次開倉] A Buy 5 (B Sell 5) @ 98 -> A 預期持多倉 5
     submitOrder(tokenA, OrderSide.BUY, new BigDecimal("98"), new BigDecimal("5000"), TradeRole.MAKER);
@@ -208,7 +256,7 @@ class PositionApiRestAssuredTest {
     // A 原本持空倉 5，買 3 變空 2，再買 10 變多 8
     
     // 更新 A 的基準資產作為 Step 11 的基準
-    baseSpotBalance = AccountClient.getSpotAccount(tokenA).balance();
+    BigDecimal baseSpotBalance2 = AccountClient.getSpotAccount(tokenA).balance();
 
     submitOrder(tokenA, OrderSide.BUY, new BigDecimal("100"), new BigDecimal("3000"), TradeRole.MAKER);
     submitOrder(tokenA, OrderSide.BUY, new BigDecimal("100"), new BigDecimal("10000"), TradeRole.MAKER);
@@ -232,7 +280,19 @@ class PositionApiRestAssuredTest {
     ));
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("100"), new BigDecimal("8000"), new BigDecimal("-0.26"));
+    // ExpMargin = 100 * 8000 * Size * IMR
+    BigDecimal expMargin11 = new BigDecimal("100").multiply(new BigDecimal("8000")).multiply(contractSize).multiply(imr);
+    // ExpSpot = Base2 - Margin + CumPnl (-0.26)
+    BigDecimal expSpot11 = baseSpotBalance2.subtract(expMargin11).add(new BigDecimal("-0.26"));
+
+    verifyAccount(tokenA, new ExpectedAccount(
+        expSpot11,
+        expSpot11,
+        BigDecimal.ZERO,
+        expMargin11,
+        expMargin11,
+        BigDecimal.ZERO
+    ));
   }
 
 
@@ -306,7 +366,7 @@ class PositionApiRestAssuredTest {
   /**
    * 驗證帳戶餘額 (對應 .http 的 verifyAccountScript)
    */
-  private void verifyAccount(String token, BigDecimal baseSpotBalance, BigDecimal expEntry, BigDecimal expQty, BigDecimal expCumRealizedPnl) {
+  private void verifyAccount(String token, ExpectedAccount exp) {
     AccountBalanceSheetResponse data = AccountClient.getBalanceSheet(token);
     assertNotNull(data, "Account balance sheet missing");
     
@@ -315,16 +375,13 @@ class PositionApiRestAssuredTest {
     assertNotNull(spot, "Spot account not found");
     assertNotNull(margin, "Margin account not found");
 
-    BigDecimal expectedMargin = expEntry.multiply(expQty).multiply(contractSize).multiply(imr);
-    BigDecimal expectedSpotBalance = baseSpotBalance.subtract(expectedMargin).add(expCumRealizedPnl);
-
-    assertNear(expectedSpotBalance, spot.balance(), "Spot balance");
-    assertNear(expectedSpotBalance, spot.available(), "Spot available");
-    assertNear(BigDecimal.ZERO, spot.reserved(), "Spot reserved");
+    assertNear(exp.spotBalance, spot.balance(), "Spot balance");
+    assertNear(exp.spotAvailable, spot.available(), "Spot available");
+    assertNear(exp.spotReserved, spot.reserved(), "Spot reserved");
     
-    assertNear(expectedMargin, margin.balance(), "Margin balance");
-    assertNear(expectedMargin, margin.available(), "Margin available");
-    assertNear(BigDecimal.ZERO, margin.reserved(), "Margin reserved");
+    assertNear(exp.marginBalance, margin.balance(), "Margin balance");
+    assertNear(exp.marginAvailable, margin.available(), "Margin available");
+    assertNear(exp.marginReserved, margin.reserved(), "Margin reserved");
   }
 
 
@@ -366,5 +423,14 @@ class PositionApiRestAssuredTest {
       BigDecimal cumRealizedPnl,
       BigDecimal cumFee,
       BigDecimal closeReserved
+  ) {}
+
+  private record ExpectedAccount(
+      BigDecimal spotBalance,
+      BigDecimal spotAvailable,
+      BigDecimal spotReserved,
+      BigDecimal marginBalance,
+      BigDecimal marginAvailable,
+      BigDecimal marginReserved
   ) {}
 }
