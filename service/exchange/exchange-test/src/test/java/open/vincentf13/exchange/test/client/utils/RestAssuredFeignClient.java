@@ -17,7 +17,11 @@ public class RestAssuredFeignClient implements Client {
     @Override
     public Response execute(Request request, Request.Options options) throws IOException {
         RequestSpecification spec = RestAssured.given();
-        request.headers().forEach((name, values) -> values.forEach(value -> spec.header(name, value)));
+        request.headers().forEach((name, values) -> {
+            if (!"Content-Length".equalsIgnoreCase(name)) {
+                values.forEach(value -> spec.header(name, value));
+            }
+        });
         if (request.body() != null) {
             spec.body(request.body());
         }
