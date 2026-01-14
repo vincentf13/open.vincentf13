@@ -10,13 +10,15 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public class OrderClient extends BaseClient {
-    public OrderClient(String host) {
+    private final OrderApi orderApi;
+
+    public OrderClient(String host, String token) {
         super(host);
+        this.orderApi = FeignClientSupport.buildClient(
+            OrderApi.class, host + "/order/api/orders", token);
     }
 
-    public void placeOrder(String token, int instrumentId, OrderSide side, double price, int quantity) {
-        OrderApi orderApi = FeignClientSupport.buildClient(
-            OrderApi.class, host + "/order/api/orders", token);
+    public void placeOrder(int instrumentId, OrderSide side, double price, int quantity) {
         OrderCreateRequest request = OrderCreateRequest.builder()
             .instrumentId((long) instrumentId)
             .side(side)

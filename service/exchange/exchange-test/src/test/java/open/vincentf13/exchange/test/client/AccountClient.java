@@ -14,13 +14,15 @@ import java.util.List;
 import java.util.UUID;
 
 public class AccountClient extends BaseClient {
-    public AccountClient(String host) {
+    private final AccountApi accountApi;
+
+    public AccountClient(String host, String token) {
         super(host);
+        this.accountApi = FeignClientSupport.buildClient(
+            AccountApi.class, host + "/account/api/account", token);
     }
 
-    public void deposit(String token, double amount) {
-        AccountApi accountApi = FeignClientSupport.buildClient(
-            AccountApi.class, host + "/account/api/account", token);
+    public void deposit(double amount) {
         AccountDepositRequest request = new AccountDepositRequest(
             null,
             AssetSymbol.USDT,
@@ -31,17 +33,12 @@ public class AccountClient extends BaseClient {
         FeignClientSupport.assertSuccess(accountApi.deposit(request), "account.deposit");
     }
 
-    public AccountBalanceSheetResponse getBalanceSheet(String token) {
-        AccountApi accountApi = FeignClientSupport.buildClient(
-            AccountApi.class, host + "/account/api/account", token);
+    public AccountBalanceSheetResponse getBalanceSheet() {
         return FeignClientSupport.assertSuccess(accountApi.getBalanceSheet(null), "account.balanceSheet");
     }
 
-    public AccountBalanceItem getSpotAccount(String token) {
-        AccountApi accountApi = FeignClientSupport.buildClient(
-            AccountApi.class, host + "/account/api/account", token);
-        AccountBalanceSheetResponse balanceSheet = FeignClientSupport.assertSuccess(
-            accountApi.getBalanceSheet(null), "account.balanceSheet");
+    public AccountBalanceItem getSpotAccount() {
+        AccountBalanceSheetResponse balanceSheet = getBalanceSheet();
         List<AccountBalanceItem> assets = balanceSheet.assets();
         if (assets == null) {
             return null;
