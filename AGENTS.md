@@ -46,5 +46,5 @@
 
 ## Agent Notes
 
-- 不撰寫或更新任何測試碼；不跑 Maven；回覆最終總結使用中文。
+- 除非有要求，否則不撰寫任何測試碼；不跑 Maven；回覆最終總結使用中文。
 - exchange 需求以 `service/exchange/design/` 為最高優先指引。
