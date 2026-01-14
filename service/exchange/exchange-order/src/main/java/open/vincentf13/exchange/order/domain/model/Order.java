@@ -116,8 +116,7 @@ public class Order {
       throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "quantity"));
     }
     if (request.price() != null && request.price().signum() <= 0) {
-        throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "price"));
-      }
+      throw OpenException.of(OrderErrorCode.ORDER_VALIDATION_FAILED, Map.of("field", "price"));
     }
   }
 
