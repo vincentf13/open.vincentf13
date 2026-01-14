@@ -96,7 +96,7 @@ class PositionApiRestAssuredTest {
         PositionSide.LONG,
         new BigDecimal("5000"),
         new BigDecimal("100"),
-        new BigDecimal("100"),
+        price,
         new BigDecimal("-0.1"), // Fee (this step): 5 * 100 * 0.0002 = 0.1, PnL - Fee = 0 - 0.1 = -0.1
         new BigDecimal("0.1"),
         BigDecimal.ZERO
@@ -130,7 +130,7 @@ class PositionApiRestAssuredTest {
         PositionSide.LONG,
         new BigDecimal("2000"),
         new BigDecimal("100"), // Entry = (100 * 2) / 2 = 100 (reduce only)
-        new BigDecimal("101"), // Mark
+        price, // Mark
         new BigDecimal("2.8394"), // PnL: (101 - 100) * 3 = 3, Fee: 3 * 101 * 0.0002 = 0.0606, PnL - Fee = 2.9394, Cum = -0.1 + 2.9394 = 2.8394
         new BigDecimal("0.1606"), // Fee: 0.1 + 0.0606 = 0.1606
         BigDecimal.ZERO
@@ -164,7 +164,7 @@ class PositionApiRestAssuredTest {
         PositionSide.LONG,
         new BigDecimal("4000"),
         new BigDecimal("101"), // Entry avg = (100 * 2 + 102 * 2) / 4 = 101
-        new BigDecimal("102"), // Mark
+        price, // Mark
         new BigDecimal("2.7986"), // PnL: 3 (No change on increase), Fee: 2 * 102 * 0.0002 = 0.0408, PnL - Fee = -0.0408, Cum = 2.8394 - 0.0408 = 2.7986
         new BigDecimal("0.2014"), // Fee: 0.1606 + 0.0408 = 0.2014
         BigDecimal.ZERO
@@ -198,7 +198,7 @@ class PositionApiRestAssuredTest {
         PositionSide.LONG,
         BigDecimal.ZERO,
         new BigDecimal("101"), // Entry avg = 101
-        new BigDecimal("99"), // Mark
+        price, // Mark
         new BigDecimal("-5.2806"), // PnL: (99 - 101) * 4 = -8, Fee: 4 * 99 * 0.0002 = 0.0792, PnL - Fee = -8.0792, Cum = 2.7986 - 8.0792 = -5.2806
         new BigDecimal("0.2806"), // Fee: 0.2014 + 0.0792 = 0.2806
         BigDecimal.ZERO
@@ -232,7 +232,7 @@ class PositionApiRestAssuredTest {
         PositionSide.LONG,
         new BigDecimal("5000"),
         new BigDecimal("98"), // Entry avg = 98
-        new BigDecimal("98"), // Mark
+        price, // Mark
         new BigDecimal("-0.098"), // Fee: 5 * 98 * 0.0002 = 0.098, PnL - Fee = -0.098 (Reset after close)
         new BigDecimal("0.098"),
         BigDecimal.ZERO
@@ -252,7 +252,7 @@ class PositionApiRestAssuredTest {
         PositionSide.SHORT,
         new BigDecimal("5000"),
         new BigDecimal("100"), // Entry avg = 100
-        new BigDecimal("100"), // Mark
+        price, // Mark
         new BigDecimal("-0.1"), // Fee: 5 * 100 * 0.0002 = 0.1, PnL - Fee = -0.1 (Reset after flip)
         new BigDecimal("0.1"),
         BigDecimal.ZERO
@@ -280,7 +280,7 @@ class PositionApiRestAssuredTest {
         PositionSide.LONG,
         new BigDecimal("8000"),
         new BigDecimal("100"), // Entry avg = 100
-        new BigDecimal("100"), // Mark
+        price, // Mark
         new BigDecimal("-0.26"), // Fee: 13 * 100 * 0.0002 = 0.26, PnL - Fee = -0.26 (Reset after flip)
         new BigDecimal("0.26"),
         BigDecimal.ZERO
