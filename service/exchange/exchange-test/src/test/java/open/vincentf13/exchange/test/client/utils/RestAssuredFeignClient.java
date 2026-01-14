@@ -17,14 +17,15 @@ public class RestAssuredFeignClient implements Client {
     @Override
     public Response execute(Request request, Request.Options options) throws IOException {
         RequestSpecification spec = RestAssured.given();
+        if (request.body() != null) {
+            spec.body(request.body());
+        }
+        
         request.headers().forEach((name, values) -> {
             if (!"Content-Length".equalsIgnoreCase(name)) {
                 values.forEach(value -> spec.header(name, value));
             }
         });
-        if (request.body() != null) {
-            spec.body(request.body());
-        }
 
         io.restassured.response.Response response = switch (request.httpMethod()) {
             case GET -> spec.get(request.url());
