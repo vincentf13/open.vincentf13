@@ -23,6 +23,21 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-jackson</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-openfeign-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>exchange-admin-sdk-rest-api</artifactId>
             <scope>test</scope>
@@ -39,12 +54,22 @@
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
+            <artifactId>exchange-order-sdk-rest-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
             <artifactId>exchange-account-sdk-rest-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>open.vincentf13</groupId>
             <artifactId>exchange-common-sdk</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-auth-server</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

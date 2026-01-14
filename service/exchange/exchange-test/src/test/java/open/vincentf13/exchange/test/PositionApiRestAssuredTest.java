@@ -17,6 +17,7 @@ import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
+import open.vincentf13.exchange.test.client.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +31,13 @@ class PositionApiRestAssuredTest {
     private static final long MAKER_DELAY_MS = 2000;
     private static final long TAKER_DELAY_MS = 5000;
 
-    private ApiClient api;
+    private AuthClient authClient;
+    private SystemClient systemClient;
+    private AdminClient adminClient;
+    private RiskClient riskClient;
+    private AccountClient accountClient;
+    private OrderClient orderClient;
+    private PositionClient positionClient;
     private int instrumentId;
     private String tokenA;
     private String tokenB;
@@ -45,19 +52,25 @@ class PositionApiRestAssuredTest {
 
     @BeforeEach
     void setUp() {
-        api = new ApiClient(DEFAULT_GATEWAY_HOST);
-        api.resetData();
-        
-        String tokenA1 = api.login(EMAIL_A, DEFAULT_PASSWORD);
-        String tokenB1 = api.login(EMAIL_B, DEFAULT_PASSWORD);
-        String tokenC1 = api.login(EMAIL_C, DEFAULT_PASSWORD);
-        
-        api.deposit(tokenA1, 10000);
-        api.deposit(tokenB1, 10000);
-        api.deposit(tokenC1, 10000);
-        
-        InstrumentDetailResponse instrument = api.findInstrument(tokenA1, DEFAULT_INSTRUMENT_ID);
-        RiskLimitResponse risk = api.getRiskLimit(tokenA1, DEFAULT_INSTRUMENT_ID);
+        authClient = new AuthClient(DEFAULT_GATEWAY_HOST);
+        systemClient = new SystemClient(DEFAULT_GATEWAY_HOST);
+        adminClient = new AdminClient(DEFAULT_GATEWAY_HOST);
+        riskClient = new RiskClient(DEFAULT_GATEWAY_HOST);
+        accountClient = new AccountClient(DEFAULT_GATEWAY_HOST);
+        orderClient = new OrderClient(DEFAULT_GATEWAY_HOST);
+        positionClient = new PositionClient(DEFAULT_GATEWAY_HOST);
+        systemClient.resetData();
+
+        String tokenA1 = authClient.login(EMAIL_A, DEFAULT_PASSWORD);
+        String tokenB1 = authClient.login(EMAIL_B, DEFAULT_PASSWORD);
+        String tokenC1 = authClient.login(EMAIL_C, DEFAULT_PASSWORD);
+
+        accountClient.deposit(tokenA1, 10000);
+        accountClient.deposit(tokenB1, 10000);
+        accountClient.deposit(tokenC1, 10000);
+
+        InstrumentDetailResponse instrument = adminClient.getInstrument(tokenA1, DEFAULT_INSTRUMENT_ID);
+        RiskLimitResponse risk = riskClient.getRiskLimit(tokenA1, DEFAULT_INSTRUMENT_ID);
 
         BigDecimal contractSize1 = getBigDecimalOrThow(instrument.contractSize(), "contractSize");
         BigDecimal makerFeeRate1 = getBigDecimalOrThow(instrument.makerFeeRate(), "makerFeeRate");
@@ -66,7 +79,7 @@ class PositionApiRestAssuredTest {
         BigDecimal mmr1 = getBigDecimalOrThow(risk.maintenanceMarginRate(), "maintenanceMarginRate");
         BigDecimal imr1 = getBigDecimalOrThow(risk.initialMarginRate(), "initialMarginRate");
 
-        AccountBalanceSheetResponse balanceSheet = api.getBalanceSheet(tokenA1);
+        AccountBalanceSheetResponse balanceSheet = accountClient.getBalanceSheet(tokenA1);
         List<AccountBalanceItem> assets = balanceSheet.assets();
         AccountBalanceItem spot = assets == null ? null : assets.stream()
             .filter(asset -> UserAccountCode.SPOT.equals(asset.accountCode()) && AssetSymbol.USDT.equals(asset.asset()))
@@ -99,8 +112,8 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(openSide), openPrice, openQuantity, TradeRole.MAKER);
         ExpectedPosition openPosition = simulatePosition(simulator, openSide, openPrice, true, openQuantity);
         ExpectedAccount openAccount = simulateAccount(openPosition);
-        verifyPosition(api.findPosition(tokenA, instrumentId), openPosition);
-        verifyAccount(api.getBalanceSheet(tokenA), openAccount);
+        verifyPosition(positionClient.findPosition(tokenA, instrumentId), openPosition);
+        verifyAccount(accountClient.getBalanceSheet(tokenA), openAccount);
 
         OrderSide reduceSide = OrderSide.SELL;
         double reducePrice = 101;
@@ -109,8 +122,8 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(reduceSide), reducePrice, reduceQuantity, TradeRole.MAKER);
         ExpectedPosition reducePosition = simulatePosition(simulator, reduceSide, reducePrice, true, reduceQuantity);
         ExpectedAccount reduceAccount = simulateAccount(reducePosition);
-        verifyPosition(api.findPosition(tokenA, instrumentId), reducePosition);
-        verifyAccount(api.getBalanceSheet(tokenA), reduceAccount);
+        verifyPosition(positionClient.findPosition(tokenA, instrumentId), reducePosition);
+        verifyAccount(accountClient.getBalanceSheet(tokenA), reduceAccount);
 
         OrderSide increaseSide = OrderSide.BUY;
         double increasePrice = 102;
@@ -119,8 +132,8 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(increaseSide), increasePrice, increaseQuantity, TradeRole.MAKER);
         ExpectedPosition increasePosition = simulatePosition(simulator, increaseSide, increasePrice, true, increaseQuantity);
         ExpectedAccount increaseAccount = simulateAccount(increasePosition);
-        verifyPosition(api.findPosition(tokenA, instrumentId), increasePosition);
-        verifyAccount(api.getBalanceSheet(tokenA), increaseAccount);
+        verifyPosition(positionClient.findPosition(tokenA, instrumentId), increasePosition);
+        verifyAccount(accountClient.getBalanceSheet(tokenA), increaseAccount);
 
         OrderSide closeSide = OrderSide.SELL;
         double closePrice = 99;
@@ -129,8 +142,8 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(closeSide), closePrice, closeQuantity, TradeRole.MAKER);
         ExpectedPosition closePosition = simulatePosition(simulator, closeSide, closePrice, true, closeQuantity);
         ExpectedAccount closeAccount = simulateAccount(closePosition);
-        verifyPosition(api.findPosition(tokenA, instrumentId), closePosition);
-        verifyAccount(api.getBalanceSheet(tokenA), closeAccount);
+        verifyPosition(positionClient.findPosition(tokenA, instrumentId), closePosition);
+        verifyAccount(accountClient.getBalanceSheet(tokenA), closeAccount);
 
         OrderSide reopenSide = OrderSide.BUY;
         double reopenPrice = 98;
@@ -139,16 +152,16 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(reopenSide), reopenPrice, reopenQuantity, TradeRole.MAKER);
         ExpectedPosition reopenPosition = simulatePosition(simulator, reopenSide, reopenPrice, true, reopenQuantity);
         ExpectedAccount reopenAccount = simulateAccount(reopenPosition);
-        verifyPosition(api.findPosition(tokenA, instrumentId), reopenPosition);
-        verifyAccount(api.getBalanceSheet(tokenA), reopenAccount);
+        verifyPosition(positionClient.findPosition(tokenA, instrumentId), reopenPosition);
+        verifyAccount(accountClient.getBalanceSheet(tokenA), reopenAccount);
 
         StepResult flipResult = executeTradeWithTwoCounterparties(simulator, OrderSide.SELL, 100, 10000);
-        verifyPosition(api.findPosition(tokenA, instrumentId), flipResult.expectedPosition);
-        verifyAccount(api.getBalanceSheet(tokenA), flipResult.expectedAccount);
+        verifyPosition(positionClient.findPosition(tokenA, instrumentId), flipResult.expectedPosition);
+        verifyAccount(accountClient.getBalanceSheet(tokenA), flipResult.expectedAccount);
 
         StepResult concurrentResult = executeConcurrentFlip(simulator);
-        verifyPosition(api.findPosition(tokenA, instrumentId), concurrentResult.expectedPosition);
-        verifyAccount(api.getBalanceSheet(tokenA), concurrentResult.expectedAccount);
+        verifyPosition(positionClient.findPosition(tokenA, instrumentId), concurrentResult.expectedPosition);
+        verifyAccount(accountClient.getBalanceSheet(tokenA), concurrentResult.expectedAccount);
     }
 
     private StepResult executeTradeWithTwoCounterparties(PositionSimulator simulator, OrderSide side, double price, int quantity) {
@@ -188,7 +201,7 @@ class PositionApiRestAssuredTest {
             case B -> tokenB;
             case C -> tokenC;
         };
-        api.placeOrder(token, instrumentId, side, price, quantity);
+        orderClient.placeOrder(token, instrumentId, side, price, quantity);
         pause(role == TradeRole.MAKER ? MAKER_DELAY_MS : TAKER_DELAY_MS);
     }
 
