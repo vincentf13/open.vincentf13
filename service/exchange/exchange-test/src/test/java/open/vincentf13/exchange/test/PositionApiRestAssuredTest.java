@@ -91,8 +91,8 @@ class PositionApiRestAssuredTest {
         OrderSide openSide = OrderSide.BUY;
         double openPrice = 100;
         int openQuantity = 5000;
-        submitOrder(Counterparty.A, openSide, openPrice, openQuantity, TradeRole.TAKER);
-        submitOrder(Counterparty.B, opposite(openSide), openPrice, openQuantity, TradeRole.MAKER);
+        submitOrder(tokenA, openSide, openPrice, openQuantity, TradeRole.TAKER);
+        submitOrder(tokenB, opposite(openSide), openPrice, openQuantity, TradeRole.MAKER);
         ExpectedPosition openPosition = simulatePosition(simulator, openSide, openPrice, true, openQuantity);
         ExpectedAccount openAccount = simulateAccount(openPosition);
         verifyPosition(PositionClient.findPosition(tokenA, instrumentId), openPosition);
@@ -101,8 +101,8 @@ class PositionApiRestAssuredTest {
         OrderSide reduceSide = OrderSide.SELL;
         double reducePrice = 101;
         int reduceQuantity = 3000;
-        submitOrder(Counterparty.A, reduceSide, reducePrice, reduceQuantity, TradeRole.TAKER);
-        submitOrder(Counterparty.B, opposite(reduceSide), reducePrice, reduceQuantity, TradeRole.MAKER);
+        submitOrder(tokenA, reduceSide, reducePrice, reduceQuantity, TradeRole.TAKER);
+        submitOrder(tokenB, opposite(reduceSide), reducePrice, reduceQuantity, TradeRole.MAKER);
         ExpectedPosition reducePosition = simulatePosition(simulator, reduceSide, reducePrice, true, reduceQuantity);
         ExpectedAccount reduceAccount = simulateAccount(reducePosition);
         verifyPosition(PositionClient.findPosition(tokenA, instrumentId), reducePosition);
@@ -111,8 +111,8 @@ class PositionApiRestAssuredTest {
         OrderSide increaseSide = OrderSide.BUY;
         double increasePrice = 102;
         int increaseQuantity = 2000;
-        submitOrder(Counterparty.A, increaseSide, increasePrice, increaseQuantity, TradeRole.TAKER);
-        submitOrder(Counterparty.B, opposite(increaseSide), increasePrice, increaseQuantity, TradeRole.MAKER);
+        submitOrder(tokenA, increaseSide, increasePrice, increaseQuantity, TradeRole.TAKER);
+        submitOrder(tokenB, opposite(increaseSide), increasePrice, increaseQuantity, TradeRole.MAKER);
         ExpectedPosition increasePosition = simulatePosition(simulator, increaseSide, increasePrice, true, increaseQuantity);
         ExpectedAccount increaseAccount = simulateAccount(increasePosition);
         verifyPosition(PositionClient.findPosition(tokenA, instrumentId), increasePosition);
@@ -121,8 +121,8 @@ class PositionApiRestAssuredTest {
         OrderSide closeSide = OrderSide.SELL;
         double closePrice = 99;
         int closeQuantity = 4000;
-        submitOrder(Counterparty.A, closeSide, closePrice, closeQuantity, TradeRole.TAKER);
-        submitOrder(Counterparty.B, opposite(closeSide), closePrice, closeQuantity, TradeRole.MAKER);
+        submitOrder(tokenA, closeSide, closePrice, closeQuantity, TradeRole.TAKER);
+        submitOrder(tokenB, opposite(closeSide), closePrice, closeQuantity, TradeRole.MAKER);
         ExpectedPosition closePosition = simulatePosition(simulator, closeSide, closePrice, true, closeQuantity);
         ExpectedAccount closeAccount = simulateAccount(closePosition);
         verifyPosition(PositionClient.findPosition(tokenA, instrumentId), closePosition);
@@ -131,8 +131,8 @@ class PositionApiRestAssuredTest {
         OrderSide reopenSide = OrderSide.BUY;
         double reopenPrice = 98;
         int reopenQuantity = 5000;
-        submitOrder(Counterparty.A, reopenSide, reopenPrice, reopenQuantity, TradeRole.TAKER);
-        submitOrder(Counterparty.B, opposite(reopenSide), reopenPrice, reopenQuantity, TradeRole.MAKER);
+        submitOrder(tokenA, reopenSide, reopenPrice, reopenQuantity, TradeRole.TAKER);
+        submitOrder(tokenB, opposite(reopenSide), reopenPrice, reopenQuantity, TradeRole.MAKER);
         ExpectedPosition reopenPosition = simulatePosition(simulator, reopenSide, reopenPrice, true, reopenQuantity);
         ExpectedAccount reopenAccount = simulateAccount(reopenPosition);
         verifyPosition(PositionClient.findPosition(tokenA, instrumentId), reopenPosition);
@@ -148,9 +148,9 @@ class PositionApiRestAssuredTest {
     }
 
     private StepResult executeTradeWithTwoCounterparties(PositionSimulator simulator, OrderSide side, double price, int quantity) {
-        submitOrder(Counterparty.A, side, price, quantity, TradeRole.TAKER);
-        submitOrder(Counterparty.B, opposite(side), price, 5000, TradeRole.MAKER);
-        submitOrder(Counterparty.C, opposite(side), price, 5000, TradeRole.MAKER);
+        submitOrder(tokenA, side, price, quantity, TradeRole.TAKER);
+        submitOrder(tokenB, opposite(side), price, 5000, TradeRole.MAKER);
+        submitOrder(tokenC, opposite(side), price, 5000, TradeRole.MAKER);
         simulatorApply(simulator, side, price, true, 5000);
         simulatorApply(simulator, side, price, true, 5000);
         ExpectedPosition expectedPosition = simulator.snapshot(price);
@@ -166,10 +166,10 @@ class PositionApiRestAssuredTest {
         double secondPrice = 100;
         int secondQuantity = 10000;
 
-        submitOrder(Counterparty.A, firstSide, firstPrice, firstQuantity, TradeRole.TAKER);
-        submitOrder(Counterparty.A, secondSide, secondPrice, secondQuantity, TradeRole.TAKER);
-        submitOrder(Counterparty.B, opposite(firstSide), firstPrice, secondQuantity, TradeRole.MAKER);
-        submitOrder(Counterparty.B, opposite(firstSide), firstPrice, firstQuantity, TradeRole.MAKER);
+        submitOrder(tokenA, firstSide, firstPrice, firstQuantity, TradeRole.TAKER);
+        submitOrder(tokenA, secondSide, secondPrice, secondQuantity, TradeRole.TAKER);
+        submitOrder(tokenB, opposite(firstSide), firstPrice, secondQuantity, TradeRole.MAKER);
+        submitOrder(tokenB, opposite(firstSide), firstPrice, firstQuantity, TradeRole.MAKER);
 
         simulatorApply(simulator, secondSide, secondPrice, true, secondQuantity);
         simulatorApply(simulator, firstSide, firstPrice, true, firstQuantity);
@@ -178,12 +178,7 @@ class PositionApiRestAssuredTest {
         return new StepResult(expectedPosition, expectedAccount);
     }
 
-    private void submitOrder(Counterparty counterparty, OrderSide side, double price, int quantity, TradeRole role) {
-        String token = switch (counterparty) {
-            case A -> tokenA;
-            case B -> tokenB;
-            case C -> tokenC;
-        };
+    private void submitOrder(String token, OrderSide side, double price, int quantity, TradeRole role) {
         OrderClient.placeOrder(token, instrumentId, side, price, quantity);
         pause(role == TradeRole.MAKER ? MAKER_DELAY_MS : TAKER_DELAY_MS);
     }
@@ -331,12 +326,6 @@ class PositionApiRestAssuredTest {
         BigDecimal diff = actual.subtract(expected).abs();
         assertTrue(diff.compareTo(tolerance) <= 0,
             message + " expected=" + expected + " actual=" + actual);
-    }
-
-    private enum Counterparty {
-        A,
-        B,
-        C
     }
 
     private enum TradeRole {
