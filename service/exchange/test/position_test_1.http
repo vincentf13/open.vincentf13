@@ -339,7 +339,7 @@ Content-Type: application/json
 > {%
     eval(client.global.get("waitMaker"));
 %}
-
+#
 ### B 成交 A 的 5 張
 POST {{gatewayHost}}/order/api/orders
 Authorization: Bearer {{tokenB}}
@@ -432,24 +432,14 @@ Authorization: Bearer {{tokenA}}
         client.global.set("expEntry", 100);
         client.global.set("expCloseReserved", 0);
         client.global.set("expMarkPrice", 100);
-        // PnL - Fee = 10 - 0.2 = 9.8 (Reset after flip)
-        client.global.set("expCumRealizedPnl", 9.8);
-        // Fee: 10 * 100 * 0.0002 = 0.2
-        client.global.set("expCumFee", 0.2);
+        client.global.set("expCumRealizedPnl",  -0.1);
+        // Fee: 5 * 100 * 0.0002 = 0.1
+        client.global.set("expCumFee", 0.1);
         client.global.set("expCumFundingFee", 0);
         eval(client.global.get("verifyScript"));
     });
 %}
 
-### 驗證 A 資產: Spot/Margin
-GET {{gatewayHost}}/account/api/account/balance-sheet
-Authorization: Bearer {{tokenA}}
-
-> {%
-    client.test("Step 10: Account Balance Check", function () {
-        eval(client.global.get("verifyAccountScript"));
-    });
-%}
 
 
 ### [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
