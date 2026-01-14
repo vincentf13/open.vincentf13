@@ -50,17 +50,23 @@ class PositionApiRestAssuredTest {
 
   @BeforeEach
   void setUp() {
+    System.out.println(">>> Starting setUp");
     BaseClient.setHost(GATEWAY_HOST);
+    
+    System.out.println("Resetting system data...");
     SystemClient.resetData();
 
+    System.out.println("Logging in users...");
     tokenA = AuthClient.login(USER_A, PASSWORD);
     tokenB = AuthClient.login(USER_B, PASSWORD);
     tokenC = AuthClient.login(USER_C, PASSWORD);
 
+    System.out.println("Depositing initial funds...");
     AccountClient.deposit(tokenA, 10000);
     AccountClient.deposit(tokenB, 10000);
     AccountClient.deposit(tokenC, 10000);
 
+    System.out.println("Loading instrument and risk limit details...");
     InstrumentDetailResponse instrument = AdminClient.getInstrument(INSTRUMENT_ID);
     RiskLimitResponse risk = RiskClient.getRiskLimit(INSTRUMENT_ID);
 
@@ -71,10 +77,12 @@ class PositionApiRestAssuredTest {
     mmr = risk.maintenanceMarginRate();
     imr = risk.initialMarginRate();
     instrumentId = INSTRUMENT_ID;
+    System.out.println("<<< setUp completed");
   }
 
   @Test
   void testPositionTradingFlow() {
+    System.out.println(">>> Starting testPositionTradingFlow");
     // 讀取帳號 A 資產 (現貨/逐倉) 作為基準
     AccountBalanceItem initialSpot = AccountClient.getSpotAccount(tokenA);
     BigDecimal baseSpotBalance = initialSpot.balance();
@@ -83,25 +91,40 @@ class PositionApiRestAssuredTest {
     ExpectedPosition prevPos;
 
     // [開倉] A Buy 5 (B Sell 5) @ 100 -> A 預期持多倉 5
+    System.out.println("Scenario [Open Position]: A Buy 5 @ 100");
     prevPos = step1_OpenPosition(baseSpotBalance);
+    System.out.println("Scenario [Open Position]: PASSED");
 
     // [減倉] A Sell 3 (B Buy 3) @ 101 -> A 預期持多倉 2
+    System.out.println("Scenario [Reduce Position]: A Sell 3 @ 101");
     prevPos = step2_ReducePosition(prevPos, baseSpotBalance);
+    System.out.println("Scenario [Reduce Position]: PASSED");
 
     // [增倉] A Buy 2 (B Sell 2) @ 102 -> A 預期持多倉 4
+    System.out.println("Scenario [Increase Position]: A Buy 2 @ 102");
     prevPos = step3_IncreasePosition(prevPos, baseSpotBalance);
+    System.out.println("Scenario [Increase Position]: PASSED");
 
     // [平倉] A Sell 4 (B Buy 4) @ 99 -> A 預期持倉 0
+    System.out.println("Scenario [Close Position]: A Sell 4 @ 99");
     prevPos = step4_ClosePosition(prevPos, baseSpotBalance);
+    System.out.println("Scenario [Close Position]: PASSED");
 
     // [再次開倉] A Buy 5 (B Sell 5) @ 98 -> A 預期持多倉 5
+    System.out.println("Scenario [Reopen Position]: A Buy 5 @ 98");
     prevPos = step5_ReopenPosition(baseSpotBalance);
+    System.out.println("Scenario [Reopen Position]: PASSED");
 
     //// [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5
-    //prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
+    // System.out.println("Scenario [Flip Position]: A Sell 10 @ 100");
+    // prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
+    // System.out.println("Scenario [Flip Position]: PASSED");
     //
     //// [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
-    //step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
+    // System.out.println("Scenario [Concurrent Flip]: A Buy 3 & 10 @ 100");
+    // step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
+    // System.out.println("Scenario [Concurrent Flip]: PASSED");
+    System.out.println("<<< testPositionTradingFlow completed successfully");
   }
 
   private ExpectedPosition step1_OpenPosition(BigDecimal baseSpotBalance) {

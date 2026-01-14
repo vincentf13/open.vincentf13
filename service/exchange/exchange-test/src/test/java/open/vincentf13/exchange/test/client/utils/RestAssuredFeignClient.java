@@ -18,15 +18,6 @@ public class RestAssuredFeignClient implements Client {
     public Response execute(Request request, Request.Options options) throws IOException {
         RequestSpecification spec = RestAssured.given();
 
-        // Debug Log
-        System.out.println("[RestAssuredFeignClient] Executing " + request.httpMethod() + " " + request.url());
-        if (request.body() != null) {
-            System.out.println("[RestAssuredFeignClient] Body length: " + request.body().length);
-        } else {
-            System.out.println("[RestAssuredFeignClient] Body is null");
-        }
-        request.headers().forEach((k, v) -> System.out.println("[RestAssuredFeignClient] Header: " + k + " = " + v));
-
         // 1. 設定 Headers (尋找 Content-Type)
         String contentType = null;
         for (Map.Entry<String, Collection<String>> entry : request.headers().entrySet()) {
@@ -44,7 +35,6 @@ public class RestAssuredFeignClient implements Client {
 
         // 2. 預設 Content-Type (若未設定且有 Body，預設為 JSON)
         if (contentType == null && request.body() != null) {
-            System.out.println("[RestAssuredFeignClient] Content-Type missing, defaulting to application/json");
             contentType = "application/json";
             spec.contentType(contentType);
         }
