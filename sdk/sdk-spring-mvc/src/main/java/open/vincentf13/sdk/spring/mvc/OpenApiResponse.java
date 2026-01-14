@@ -1,5 +1,6 @@
 package open.vincentf13.sdk.spring.mvc;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.Map;
@@ -72,6 +73,7 @@ public record OpenApiResponse<T>(
     return new OpenApiResponse<>(code, message, data, timestamp, merge(meta, additional));
   }
 
+  @JsonIgnore
   public boolean isSuccess() {
     return Objects.equals(SUCCESS_CODE, code);
   }
