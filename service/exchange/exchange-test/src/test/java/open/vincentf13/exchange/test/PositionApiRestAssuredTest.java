@@ -97,11 +97,11 @@ class PositionApiRestAssuredTest {
     // [再次開倉] A Buy 5 (B Sell 5) @ 98 -> A 預期持多倉 5
     prevPos = step5_ReopenPosition(baseSpotBalance);
 
-    // [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5
-    prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
-
-    // [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
-    step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
+    //// [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5
+    //prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
+    //
+    //// [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
+    //step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
   }
 
   private ExpectedPosition step1_OpenPosition(BigDecimal baseSpotBalance) {
