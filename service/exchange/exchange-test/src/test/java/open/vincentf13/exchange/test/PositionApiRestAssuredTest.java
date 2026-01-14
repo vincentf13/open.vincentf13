@@ -83,6 +83,8 @@ class PositionApiRestAssuredTest {
     ExpectedPosition prevPos = new ExpectedPosition(null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
     BigDecimal price;
     BigDecimal qty;
+    BigDecimal expMargin;
+    BigDecimal expSpot;
 
     // [開倉] A Buy 5 (B Sell 5) @ 100 -> A 預期持多倉 5
     price = new BigDecimal("100");
@@ -104,14 +106,9 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, new ExpectedAccount(
-        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl), // Spot Balance
-        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl), // Spot Available
-        BigDecimal.ZERO, // Spot Reserved
-        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr), // Margin Balance
-        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr), // Margin Available
-        BigDecimal.ZERO // Margin Reserved
-    ));
+    expMargin = prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr);
+    expSpot = baseSpotBalance.subtract(expMargin).add(prevPos.cumRealizedPnl);
+    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
 
     // [減倉] A Sell 3 (B Buy 3) @ 101 -> A 預期持多倉 2
     price = new BigDecimal("101");
@@ -133,14 +130,9 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, new ExpectedAccount(
-        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
-        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
-        BigDecimal.ZERO,
-        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
-        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
-        BigDecimal.ZERO
-    ));
+    expMargin = prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr);
+    expSpot = baseSpotBalance.subtract(expMargin).add(prevPos.cumRealizedPnl);
+    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
 
     // [增倉] A Buy 2 (B Sell 2) @ 102 -> A 預期持多倉 4
     price = new BigDecimal("102");
@@ -162,14 +154,9 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, new ExpectedAccount(
-        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
-        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
-        BigDecimal.ZERO,
-        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
-        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
-        BigDecimal.ZERO
-    ));
+    expMargin = prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr);
+    expSpot = baseSpotBalance.subtract(expMargin).add(prevPos.cumRealizedPnl);
+    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
 
     // [平倉] A Sell 4 (B Buy 4) @ 99 -> A 預期持倉 0
     price = new BigDecimal("99");
@@ -191,14 +178,9 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, new ExpectedAccount(
-        baseSpotBalance.add(prevPos.cumRealizedPnl),
-        baseSpotBalance.add(prevPos.cumRealizedPnl),
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO,
-        BigDecimal.ZERO
-    ));
+    expMargin = BigDecimal.ZERO;
+    expSpot = baseSpotBalance.add(prevPos.cumRealizedPnl);
+    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
 
     // [再次開倉] A Buy 5 (B Sell 5) @ 98 -> A 預期持多倉 5
     price = new BigDecimal("98");
@@ -268,14 +250,9 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    verifyAccount(tokenA, new ExpectedAccount(
-        baseSpotBalance2.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
-        baseSpotBalance2.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
-        BigDecimal.ZERO,
-        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
-        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
-        BigDecimal.ZERO
-    ));
+    expMargin = prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr);
+    expSpot = baseSpotBalance2.subtract(expMargin).add(prevPos.cumRealizedPnl);
+    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
   }
 
 
