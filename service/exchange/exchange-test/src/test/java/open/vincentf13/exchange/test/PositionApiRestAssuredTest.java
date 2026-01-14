@@ -41,7 +41,7 @@ class PositionApiRestAssuredTest {
     private Integer leverage;
     private BigDecimal mmr;
     private BigDecimal imr;
-    private BigDecimal baseSpotBalance;
+  
 
     @BeforeEach
     void setUp() {
@@ -65,15 +65,17 @@ class PositionApiRestAssuredTest {
         leverage = instrument.defaultLeverage();
         mmr = risk.maintenanceMarginRate();
         imr = risk.initialMarginRate();
-
-        AccountBalanceItem spot = AccountClient.getSpotAccount(tokenA);
-        baseSpotBalance = spot.balance();
-        
         instrumentId = INSTRUMENT_ID;
+        
+        
     }
 
     @Test
     void scenario1_longMakerFlow() {
+        
+        BigDecimal baseSpotBalance = AccountClient.getSpotAccount(tokenA).balance();
+        
+        
         PositionSimulator simulator = new PositionSimulator(contractSize);
 
         OrderSide openSide = OrderSide.BUY;
