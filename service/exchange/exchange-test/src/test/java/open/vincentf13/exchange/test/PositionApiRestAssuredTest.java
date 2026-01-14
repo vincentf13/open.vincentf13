@@ -185,63 +185,48 @@ class PositionApiRestAssuredTest {
 
     private void verifyPosition(PositionResponse position, ExpectedPosition expected) {
         assertNotNull(position, "Position not found");
-
-        PositionStatus status = position.status();
-        PositionSide side = position.side();
-        Integer leverage = position.leverage();
-        BigDecimal margin = position.margin();
-        BigDecimal entryPrice = position.entryPrice();
-        BigDecimal quantity = position.quantity();
-        BigDecimal closingReserved = position.closingReservedQuantity();
-        BigDecimal markPrice = position.markPrice();
-        BigDecimal marginRatio = position.marginRatio();
-        BigDecimal unrealizedPnl = position.unrealizedPnl();
-        BigDecimal cumRealizedPnl = position.cumRealizedPnl();
-        BigDecimal cumFee = position.cumFee();
-        BigDecimal cumFundingFee = position.cumFundingFee();
-        BigDecimal liquidationPrice = position.liquidationPrice();
-
-        assertEquals(expected.status, status, "Status mismatch");
-        assertEquals(expected.side, side, "Side mismatch");
-        assertEquals(this.leverage, leverage, "Leverage mismatch");
+        
+        assertEquals(expected.status, position.status(), "Status mismatch");
+        assertEquals(expected.side, position.side(), "Side mismatch");
+        assertEquals(this.leverage, position.leverage(), "Leverage mismatch");
 
         BigDecimal expectedMargin = expected.entryPrice
             .multiply(expected.quantity)
             .multiply(contractSize)
             .multiply(imr);
-        assertNear(margin, expectedMargin, BigDecimal.valueOf(0.0001), "Margin mismatch");
-        assertNear(entryPrice, expected.entryPrice, BigDecimal.valueOf(0.0001), "Entry price mismatch");
-        assertNear(quantity, expected.quantity, BigDecimal.valueOf(0.0001), "Quantity mismatch");
-        assertNear(closingReserved, expected.closingReservedQuantity, BigDecimal.valueOf(0.0001), "Close reserved mismatch");
-        assertNear(markPrice, expected.markPrice, BigDecimal.valueOf(0.0001), "Mark price mismatch");
+        assertNear(position.margin(), expectedMargin, BigDecimal.valueOf(0.0001), "Margin mismatch");
+        assertNear(position.entryPrice(), expected.entryPrice, BigDecimal.valueOf(0.0001), "Entry price mismatch");
+        assertNear(position.quantity(), expected.quantity, BigDecimal.valueOf(0.0001), "Quantity mismatch");
+        assertNear(position.closingReservedQuantity(), expected.closingReservedQuantity, BigDecimal.valueOf(0.0001), "Close reserved mismatch");
+        assertNear(position.markPrice(), expected.markPrice, BigDecimal.valueOf(0.0001), "Mark price mismatch");
 
-        BigDecimal notional = markPrice.multiply(quantity).multiply(contractSize);
-        BigDecimal equity = margin.add(unrealizedPnl);
+        BigDecimal notional = position.markPrice().multiply(position.quantity()).multiply(contractSize);
+        BigDecimal equity = position.margin().add(position.unrealizedPnl());
         if (notional.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal expectedMarginRatio = equity.divide(notional, 10, RoundingMode.HALF_UP);
-            assertNear(marginRatio, expectedMarginRatio, BigDecimal.valueOf(0.001), "Margin ratio mismatch");
+            assertNear(position.marginRatio(), expectedMarginRatio, BigDecimal.valueOf(0.001), "Margin ratio mismatch");
         }
 
-        BigDecimal priceDiff = PositionSide.LONG == side
-            ? markPrice.subtract(entryPrice)
-            : entryPrice.subtract(markPrice);
-        BigDecimal expectedUpnl = priceDiff.multiply(quantity).multiply(contractSize);
-        assertNear(unrealizedPnl, expectedUpnl, BigDecimal.valueOf(0.01), "Unrealized PnL mismatch");
+        BigDecimal priceDiff = PositionSide.LONG == position.side()
+            ? position.markPrice().subtract(position.entryPrice())
+            : position.entryPrice().subtract(position.markPrice());
+        BigDecimal expectedUpnl = priceDiff.multiply(position.quantity()).multiply(contractSize);
+        assertNear(position.unrealizedPnl(), expectedUpnl, BigDecimal.valueOf(0.01), "Unrealized PnL mismatch");
 
-        assertNear(cumRealizedPnl, expected.cumRealizedPnl, BigDecimal.valueOf(0.01), "Cum realized PnL mismatch");
-        assertNear(cumFee, expected.cumFee, BigDecimal.valueOf(0.0001), "Cum fee mismatch");
-        assertNear(cumFundingFee, expected.cumFundingFee, BigDecimal.valueOf(0.0001), "Cum funding fee mismatch");
+        assertNear(position.cumRealizedPnl(), expected.cumRealizedPnl, BigDecimal.valueOf(0.01), "Cum realized PnL mismatch");
+        assertNear(position.cumFee(), expected.cumFee, BigDecimal.valueOf(0.0001), "Cum fee mismatch");
+        assertNear(position.cumFundingFee(), expected.cumFundingFee, BigDecimal.valueOf(0.0001), "Cum funding fee mismatch");
 
-        if (quantity.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal marginPerUnit = margin.divide(quantity.multiply(contractSize), 10, RoundingMode.HALF_UP);
-            BigDecimal calcLiq = PositionSide.LONG == side
-                ? entryPrice.subtract(marginPerUnit).divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
-                : entryPrice.add(marginPerUnit).divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
-            assertNotNull(liquidationPrice, "Liquidation price should not be null");
-            assertNear(liquidationPrice, calcLiq, BigDecimal.valueOf(0.1), "Liquidation price mismatch");
+        if (position.quantity().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal marginPerUnit = position.margin().divide(position.quantity().multiply(contractSize), 10, RoundingMode.HALF_UP);
+            BigDecimal calcLiq = PositionSide.LONG == position.side()
+                ? position.entryPrice().subtract(marginPerUnit).divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
+                : position.entryPrice().add(marginPerUnit).divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
+            assertNotNull(position.liquidationPrice(), "Liquidation price should not be null");
+            assertNear(position.liquidationPrice(), calcLiq, BigDecimal.valueOf(0.1), "Liquidation price mismatch");
         } else {
-            assertTrue(liquidationPrice == null || liquidationPrice.compareTo(BigDecimal.ZERO) == 0,
-                "Liquidation price should be null/0");
+            assertTrue(position.liquidationPrice() == null || position.liquidationPrice().compareTo(BigDecimal.ZERO) == 0,
+                       "Liquidation price should be null/0");
         }
     }
 
