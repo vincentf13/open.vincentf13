@@ -1,33 +1,37 @@
-- 所有 DDL 的審計欄位 `created_by`/`updated_by` 由資料庫統一處理：INSERT 時同時寫入 created_by 與 updated_by，UPDATE 時更新
-  updated_by；應用程式層禁止手動賦值這兩欄。`created_at`/`updated_at` 同樣由 DB 預設或 trigger 管控，Domain/PO/Mapper
-  不得手動設值。
-- 全域 MyBatis Enum TypeHandler 已將 Enum `name()` 寫入資料庫並自動還原，禁止在程式中手動轉字串或自建 enum↔字串映射。
-- Repository:
-- Repository : 使用以下規定，不要建立其他方法，除非特殊需要提出討論。
-    - 對入參標上必要的效驗參數，只對 insert,update相關方法的domain物件標上 @Vaild 註解
-    - findOne ，入參為 domain 內含給定查詢條件，在其此組成PO後，查詢 mabtis的 findBy(PO)，若返回超過一個則報錯，否則轉成domain返回
-    - findBy ，入參為 domain 內含給定查詢條件，在其此組成PO後，查詢 mabtis的 findBy(PO)，轉成domain返回
-    - getOrCreate，帳戶或快照等用戶資產，一律延遲建立。建立時 domain 負責初始化。
-    - insertSelective，入參為domain物件，在其此組成PO後，執行mabtis的 insertSelective
-    - upsertSelective，入參為domain物件，在其此組成PO後，執行mabtis的 upsertSelective
-    - 一般的update，使用 updateSelecticeBy，
-        - 第一個參數為 domain，為要更新的值，調用mybatis updateSelective，若值不為null 則更新。
-        - 第二及其他參數為 WHERE 條件 使用的參數。
-        - 所有 updateSelecticeBy 使用同一方法，只是不同場景第二~第N個參數，可能部分帶null值。
-
-- Mybatis Mapper
-    - 優先使用 insertSelective / updateSelecticeBy / findBy(PO) 模板，避免重工。
-        - Mybatis 的 updateSelecticeBy
-            - 第一個參數為 domain，為要更新的值，若值不為null 則更新。
-            - 第二及其他參數為 WHERE 條件 使用的參數。
-            - 所有 updateSelecticeBy 使用同一方法，只是不同場景第二~第N個參數，可能部分帶null值。
-        - 特殊的 update 依場景，使用專用方法，方便了解具體改動的值
-    - 所有xml內，不需要寫 resultMap 因為已經會自動轉換
-    - 若已配置 `mybatis.type-aliases-package`，`parameterType` ,`resultType` 直接寫別名（例如 `PlatformBalancePO`
-      ），可省略全限定類名。
-- 批次 insert/update 必須透過 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor` 封裝的工具執行，統一的
-  flush/clear 策略可避免單筆處理導致的效能瓶頸。
-
-
-
-
+- PO 放在 `...infra.persistence.po`，並由 `mybatis.type-aliases-package` 設定別名。
+- **時間/審計欄位**:
+    - 表欄位以 `created_at`/`updated_at` 為主；DDL 設定預設與 `ON UPDATE`，Repository 不主動賦值。
+    - 若業務事件時間需精準落地（如交易成交/事件記錄），允許由 domain/repository 明確寫入對應欄位。
+- **ID 與 Enum 映射**:
+    - PO 使用 `@TableId(..., IdType.INPUT)`，Repository 以 `DefaultIdGenerator` 產生 Snowflake ID。
+    - Enum 一律依賴全域 `EnumToStringTypeHandler`，DB 寫入 `name()`；禁止手動轉字串或自建 enum↔字串映射。
+- **並發與一致性**:
+    - 更新邏輯需帶入 `version` 做樂觀鎖；寫入方先取實體版本再更新。
+    - 序號類事件（如 position/order event）以 `SELECT ... FOR UPDATE` 取得最大序號後再寫入。
+ 
+- **Mapper 約定**:
+    - Mapper 繼承 `BaseMapper`；自訂 SQL 一律以 XML 實作。
+    - 優先使用 MyBatis-Plus 內建方法，避免重工。
+    - XML 內不寫 `resultMap`，MyBatis-Plus 依 PO 自動映射。
+    - 已配置 `mybatis.type-aliases-package` 時，XML 的 `parameterType`/`resultType` 使用別名（例如 `PlatformBalancePO`），省略全限定類名。
+- **Repository 方法規範**:
+    - Repository 方法入參需使用驗證註解，於入庫前完成必要效驗。
+        - ID 欄位使用 `Id` group，其他欄位使用 `Default` group。
+        - insert 相關方法僅使用 `Default` group，避免 insert 時的 ID not null 效驗。
+        - update 相關方法使用 `@Validated({Default.class, Id.class})`，確保 ID 存在。
+    - `insert`/`insertSelective`：先補齊 ID/預設值，再用 `OpenObjectMapper.convert` 轉 PO 後 `mapper.insert`。
+    - `updateSelectiveBy`：入參第一個參數為domain，第二個參數為 `LambdaUpdateWrapper` 表示 WHERE，必要時含 `version`。
+	    - 需將欄位更新為 `NULL` 時，使用 `updateWrapper.set(..., null)`（MyBatis-Plus 會忽略 null 欄位）。
+	- `findOne`/`findBy`：入參為 `LambdaQueryWrapper`，以 `OpenObjectMapper` 回傳 Domain；`findOne` 以 `selectOne` 或 `LIMIT 1` 為準，`selectOne` 若超過一筆會拋錯。
+    - `getOrCreate`：帳戶/快照類資產一律延遲建立，遇唯一索引衝突以 `DuplicateKeyException` 回查。
+- **批次與效能**:
+    - 單純批次 insert 可用 `Db.saveBatch`；底層走 JDBC batch，單次送出多筆參數集合，減少網路往返與 statement 建立；在使用預編譯語句時，DB 可重用解析/計劃以降低每筆 parse/optimize 成本。資料在入庫前完成 ID/必要欄位補齊。
+	    - 需開啟 rewriteBatchedStatements
+    - 單純批次 insert 與 update 在同一交易內完成，可使用 `OpenMybatisBatchExecutor`；MyBatis 的 batch mode 會先累積 statement，再批次送出，底層仍走 JDBC batch，透過同一連線/statement 與預編譯計劃重用降低 parse/optimize 成本，同時減少 round-trip，並以 flush/clear 控制記憶體占用與鎖時間。
+	    - 需開啟 rewriteBatchedStatements
+    - 若批次包含在其他交易中且同一事務內還有其他 SQL 需要執行，改用 SQL 拼接方式批次更新（如 `foreach`）；但 SQL 文字會隨筆數變動，影響計劃快取命中率，parse/optimize 成本上升，效能通常低於 JDBC batch。
+	    - 需開啟  allowMultiQueries 允許在同一個 JDBC 呼叫中送出多條 SQL（例如 UPDATE ...; UPDATE ...;），驅動會一次送到 DB 執行。效果是減少多次 round-trip，但代價是需要確保 SQL 安全性（避免拼接造成注入風險），且 SQL 變長時仍可能受限於最大包大小與  伺服器參數。
+	- batch 筆數限制 ： 
+		- JDBC batch：受單次封包大小、單條 SQL/參數數量上限、事務日誌/鎖時間影響；太大會報「packet too large」或參數過多。
+		  - SQL 拼接（multi‑queries）：受單次 SQL 長度與封包大小限制；筆數越多 SQL 越長，命中限制機率更高。
+		  實務上會用「分批」控制（例如每批 500~2000），具體上限看 DB 類型與配置（MySQL max_allowed_packet/net_buffer_length，Postgres max_stack_depth/work_mem 等）。
