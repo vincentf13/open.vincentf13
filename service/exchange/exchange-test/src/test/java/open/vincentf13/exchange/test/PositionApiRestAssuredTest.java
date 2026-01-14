@@ -80,7 +80,7 @@ class PositionApiRestAssuredTest {
     BigDecimal baseSpotBalance = initialSpot.balance();
     assertNotNull(baseSpotBalance, "Initial baseSpotBalance  missing");
 
-    ExpectedPosition prevPos = new ExpectedPosition(null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+    ExpectedPosition prevPos;
 
     // [開倉] A Buy 5 (B Sell 5) @ 100 -> A 預期持多倉 5
     prevPos = step1_OpenPosition(baseSpotBalance);
@@ -101,7 +101,7 @@ class PositionApiRestAssuredTest {
     prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
 
     // [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
-    step7_ConcurrentFlipPosition(prevPos);
+    step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
   }
 
   private ExpectedPosition step1_OpenPosition(BigDecimal baseSpotBalance) {
@@ -249,10 +249,7 @@ class PositionApiRestAssuredTest {
     return pos;
   }
 
-  private void step7_ConcurrentFlipPosition(ExpectedPosition prevPos) {
-    // 更新 A 的基準資產作為 Step 11 的基準
-    BigDecimal baseSpotBalance2 = AccountClient.getSpotAccount(tokenA).balance();
-
+  private void step7_ConcurrentFlipPosition(ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
     BigDecimal price = new BigDecimal("100");
     submitOrder(tokenA, OrderSide.BUY, price, new BigDecimal("3000"), TradeRole.MAKER);
     submitOrder(tokenA, OrderSide.BUY, price, new BigDecimal("10000"), TradeRole.MAKER);
@@ -273,7 +270,7 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = baseSpotBalance2.subtract(expMargin).add(pos.cumRealizedPnl);
+    BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
     verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
   }
 
