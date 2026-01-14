@@ -34,7 +34,7 @@ public class AccountClient extends BaseClient {
         return FeignClientSupport.assertSuccess(accountApi.getBalanceSheet(null), "account.balanceSheet");
     }
 
-    public static AccountBalanceItem getSpotAccount(String token) {
+    public static BigDecimal getSpotAccountBalance(String token) {
         AccountBalanceSheetResponse balanceSheet = getBalanceSheet(token);
         List<AccountBalanceItem> assets = balanceSheet.assets();
         if (assets == null) {
@@ -45,6 +45,8 @@ public class AccountClient extends BaseClient {
             .findFirst()
             .orElse(null);
         assertNotNull(spot, "Spot account not found for baseline");
-        return spot;
+        BigDecimal balance = spot.balance();
+        assertNotNull(balance, "Spot account balance not found for baseline");
+        return balance;
     }
 }

@@ -83,7 +83,7 @@ class PositionApiRestAssuredTest {
     @Test
     void scenario1_longMakerFlow() {
         
-        BigDecimal baseSpotBalance = AccountClient.getSpotAccount(tokenA).balance();
+        BigDecimal baseSpotBalance = AccountClient.getSpotAccountBalance(tokenA);
         
         
         PositionSimulator simulator = new PositionSimulator(contractSize);
