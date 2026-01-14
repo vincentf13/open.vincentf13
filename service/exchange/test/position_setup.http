@@ -76,7 +76,62 @@ Authorization: Bearer {{tokenA}}
     client.log("Risk Config Loaded: MMR=" + client.global.get("mmr") + ", IMR=" + client.global.get("imr"));
     client.global.set("instrumentId", limit.instrumentId);
     client.log("instrumentId(global)=" + client.global.get("instrumentId"));
+%}
 
+### 6. 帳號 A 儲值 10000 USDT (共用)
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenA}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 10000,
+  "txId": "setup-dep-A-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+### 7. 帳號 B 儲值 10000 USDT (共用)
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenB}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 10000,
+  "txId": "setup-dep-B-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+### 8. 帳號 C 儲值 10000 USDT (共用)
+POST {{gatewayHost}}/account/api/account/deposits
+Authorization: Bearer {{tokenC}}
+Content-Type: application/json
+
+{
+  "asset": "USDT",
+  "amount": 10000,
+  "txId": "setup-dep-C-{{$timestamp}}",
+  "creditedAt": "{{$isoTimestamp}}"
+}
+
+> {%
+    // Define Wait Scripts
+    client.global.set("waitMaker", `
+        var start = new Date().getTime();
+        while (new Date().getTime() < start + 2000); // 2s for Maker
+    `);
+
+    client.global.set("waitTaker", `
+        var start = new Date().getTime();
+        while (new Date().getTime() < start + 5000); // 5s for Taker
+    `);
+%}
+
+### 9. 載入驗證腳本
+GET {{gatewayHost}}/admin/api/admin/instruments
+Authorization: Bearer {{tokenA}}
+
+> {%
     // Define Common Verification Script (Position Logic)
     client.global.set("verifyScript", `
         var pos = response.body.data.find(p => p.instrumentId == 10001);
@@ -229,54 +284,5 @@ Authorization: Bearer {{tokenA}}
         assertEqual(parseFloat(margin.balance), expectedMarginBalance, "Margin balance");
         assertEqual(parseFloat(margin.available), expectedMarginAvailable, "Margin available");
         assertEqual(parseFloat(margin.reserved), expectedMarginReserved, "Margin reserved");
-    `);
-%}
-
-### 6. 帳號 A 儲值 10000 USDT (共用)
-POST {{gatewayHost}}/account/api/account/deposits
-Authorization: Bearer {{tokenA}}
-Content-Type: application/json
-
-{
-  "asset": "USDT",
-  "amount": 10000,
-  "txId": "setup-dep-A-{{$timestamp}}",
-  "creditedAt": "{{$isoTimestamp}}"
-}
-
-### 7. 帳號 B 儲值 10000 USDT (共用)
-POST {{gatewayHost}}/account/api/account/deposits
-Authorization: Bearer {{tokenB}}
-Content-Type: application/json
-
-{
-  "asset": "USDT",
-  "amount": 10000,
-  "txId": "setup-dep-B-{{$timestamp}}",
-  "creditedAt": "{{$isoTimestamp}}"
-}
-
-### 8. 帳號 C 儲值 10000 USDT (共用)
-POST {{gatewayHost}}/account/api/account/deposits
-Authorization: Bearer {{tokenC}}
-Content-Type: application/json
-
-{
-  "asset": "USDT",
-  "amount": 10000,
-  "txId": "setup-dep-C-{{$timestamp}}",
-  "creditedAt": "{{$isoTimestamp}}"
-}
-
-> {%
-    // Define Wait Scripts
-    client.global.set("waitMaker", `
-        var start = new Date().getTime();
-        while (new Date().getTime() < start + 2000); // 2s for Maker
-    `);
-
-    client.global.set("waitTaker", `
-        var start = new Date().getTime();
-        while (new Date().getTime() < start + 5000); // 5s for Taker
     `);
 %}
