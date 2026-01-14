@@ -74,92 +74,160 @@ class PositionApiRestAssuredTest {
   }
 
   @Test
-  void testScenario1_OpenPosition_5Contracts() {
-    // 讀取帳號 A 資產 (現貨/逐倉) 作為基準
+  void testPositionTradingFlow() {
+    // ### 讀取帳號 A 資產 (現貨/逐倉) 作為基準
     AccountBalanceItem initialSpot = AccountClient.getSpotAccount(tokenA);
     BigDecimal baseSpotBalance = initialSpot.balance();
+    assertNotNull(baseSpotBalance, "Initial baseSpotBalance  missing");
 
-    // [開倉] A Buy 5 (B Sell 5) @ 100 -> A 預期持多倉 5
-    submitOrder(tokenA, OrderSide.BUY, BigDecimal.valueOf(100), BigDecimal.valueOf(5000), TradeRole.MAKER);
+    // ### [開倉] A Buy 5 (B Sell 5) @ 100 -> A 預期持多倉 5
+    submitOrder(tokenA, OrderSide.BUY, new BigDecimal("100"), new BigDecimal("5000"), TradeRole.MAKER);
 
-    // B 成交 A 的 5 張
-    submitOrder(tokenB, OrderSide.SELL, BigDecimal.valueOf(100), BigDecimal.valueOf(5000), TradeRole.TAKER);
+    // ### B 成交 A 的 5 張
+    submitOrder(tokenB, OrderSide.SELL, new BigDecimal("100"), new BigDecimal("5000"), TradeRole.TAKER);
 
     // ### 驗證 A 持倉: Long 5, Price 100
     verifyPosition(tokenA, new ExpectedPosition(
         PositionStatus.ACTIVE,
         PositionSide.LONG,
-        BigDecimal.valueOf(5000),
-        BigDecimal.valueOf(100),
-        BigDecimal.valueOf(100),
-        BigDecimal.valueOf(-0.1), // Fee (this step): 5 * 100 * 0.0002 = 0.1, PnL - Fee = 0 - 0.1 = -0.1
-        BigDecimal.valueOf(0.1),
+        new BigDecimal("5000"),
+        new BigDecimal("100"),
+        new BigDecimal("100"),
+        new BigDecimal("-0.1"), // Fee (this step): 5 * 100 * 0.0002 = 0.1, PnL - Fee = 0 - 0.1 = -0.1
+        new BigDecimal("0.1"),
         BigDecimal.ZERO
     ));
 
-    // 驗證 A 資產: Spot/Margin
- 
-    verifyAccount(tokenA, baseSpotBalance, BigDecimal.valueOf(100), BigDecimal.valueOf(5000), BigDecimal.valueOf(-0.1));
+    // ### 驗證 A 資產: Spot/Margin
+    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("100"), new BigDecimal("5000"), new BigDecimal("-0.1"));
+
+    // ### [減倉] A Sell 3 (B Buy 3) @ 101 -> A 預期持多倉 2
+    submitOrder(tokenA, OrderSide.SELL, new BigDecimal("101"), new BigDecimal("3000"), TradeRole.MAKER);
+
+    // ### B 成交 A 的 3 張
+    submitOrder(tokenB, OrderSide.BUY, new BigDecimal("101"), new BigDecimal("3000"), TradeRole.TAKER);
+
+    // ### 驗證 A 持倉: Long 2
+    // client.test("Step 6: Position Logic Check", ...
+    verifyPosition(tokenA, new ExpectedPosition(
+        PositionStatus.ACTIVE,
+        PositionSide.LONG,
+        new BigDecimal("2000"),
+        new BigDecimal("100"), // Entry = (100 * 2) / 2 = 100 (reduce only)
+        new BigDecimal("101"), // Mark
+        new BigDecimal("2.8394"), // PnL: (101 - 100) * 3 = 3, Fee: 3 * 101 * 0.0002 = 0.0606, PnL - Fee = 2.9394, Cum = -0.1 + 2.9394 = 2.8394
+        new BigDecimal("0.1606"), // Fee: 0.1 + 0.0606 = 0.1606
+        BigDecimal.ZERO
+    ));
+
+    // ### 驗證 A 資產: Spot/Margin
+    // client.test("Step 6: Account Balance Check", ...
+    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("100"), new BigDecimal("2000"), new BigDecimal("2.8394"));
+
+    // ### [增倉] A Buy 2 (B Sell 2) @ 102 -> A 預期持多倉 4
+    submitOrder(tokenA, OrderSide.BUY, new BigDecimal("102"), new BigDecimal("2000"), TradeRole.MAKER);
+
+    // ### B 成交 A 的 2 張
+    submitOrder(tokenB, OrderSide.SELL, new BigDecimal("102"), new BigDecimal("2000"), TradeRole.TAKER);
+
+    // ### 驗證 A 持倉: Long 4
+    // client.test("Step 7: Position Logic Check", ...
+    verifyPosition(tokenA, new ExpectedPosition(
+        PositionStatus.ACTIVE,
+        PositionSide.LONG,
+        new BigDecimal("4000"),
+        new BigDecimal("101"), // Entry avg = (100 * 2 + 102 * 2) / 4 = 101
+        new BigDecimal("102"), // Mark
+        new BigDecimal("2.7986"), // PnL: 3 (No change on increase), Fee: 2 * 102 * 0.0002 = 0.0408, PnL - Fee = -0.0408, Cum = 2.8394 - 0.0408 = 2.7986
+        new BigDecimal("0.2014"), // Fee: 0.1606 + 0.0408 = 0.2014
+        BigDecimal.ZERO
+    ));
+
+    // ### 驗證 A 資產: Spot/Margin
+    // client.test("Step 7: Account Balance Check", ...
+    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("101"), new BigDecimal("4000"), new BigDecimal("2.7986"));
+
+    // ### [平倉] A Sell 4 (B Buy 4) @ 99 -> A 預期持倉 0 (因為之前是多倉 4)
+    submitOrder(tokenA, OrderSide.SELL, new BigDecimal("99"), new BigDecimal("4000"), TradeRole.MAKER);
+
+    // ### B 成交 A 的 4 張
+    submitOrder(tokenB, OrderSide.BUY, new BigDecimal("99"), new BigDecimal("4000"), TradeRole.TAKER);
+
+    // ### 驗證 A 持倉: Closed
+    // client.test("Step 8: Position Logic Check (Close)", ...
+    verifyPosition(tokenA, new ExpectedPosition(
+        PositionStatus.CLOSED,
+        PositionSide.LONG,
+        BigDecimal.ZERO,
+        new BigDecimal("101"), // Entry avg = 101
+        new BigDecimal("99"), // Mark
+        new BigDecimal("-5.2806"), // PnL: (99 - 101) * 4 = -8, Fee: 4 * 99 * 0.0002 = 0.0792, PnL - Fee = -8.0792, Cum = 2.7986 - 8.0792 = -5.2806
+        new BigDecimal("0.2806"), // Fee: 0.2014 + 0.0792 = 0.2806
+        BigDecimal.ZERO
+    ));
+
+    // ### 驗證 A 資產: Spot/Margin
+    // client.test("Step 8: Account Balance Check", ...
+    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("101"), BigDecimal.ZERO, new BigDecimal("-5.2806"));
   }
 
 
-  
   private void verifyPosition(String token, ExpectedPosition exp) {
     PositionResponse pos = PositionClient.findPosition(token, instrumentId);
     assertNotNull(pos, "Position not found");
 
-    // 1. Status (狀態)
+    // Status (狀態)
     assertEquals(exp.status, pos.status(), "Status mismatch");
 
-    // 2. Side (方向)
+    // Side (方向)
     assertEquals(exp.side, pos.side(), "Side mismatch");
 
-    // 3. Leverage (槓桿)
+    // Leverage (槓桿)
     assertEquals(this.leverage, pos.leverage(), "Leverage mismatch");
 
-    // 4. Margin (保證金)
+    // Margin (保證金)
     // 計算公式: Price * Quantity * ContractValue * InitialMarginRate
     BigDecimal expectedMargin = exp.entryPrice.multiply(exp.qty).multiply(contractSize).multiply(imr);
     assertNear(expectedMargin, pos.margin(), "Margin mismatch");
 
-    // 5. Entry Price (入場價)
+    // Entry Price (入場價)
     assertNear(exp.entryPrice, pos.entryPrice(), "Entry Price mismatch");
 
-    // 6. Quantity (持倉量)
+    // Quantity (持倉量)
     assertNear(exp.qty, pos.quantity(), "Quantity mismatch");
 
-    // 7. Closing Reserved Quantity (平倉凍結量)
+    // Closing Reserved Quantity (平倉凍結量)
     assertNear(exp.closeReserved, pos.closingReservedQuantity(), "Closing Reserved Quantity mismatch");
 
-    // 8. Mark Price (標記價格)
+    // Mark Price (標記價格)
     assertNear(exp.markPrice, pos.markPrice(), "Mark Price mismatch");
 
-    // 9. Margin Ratio (保證金率)
+    // Margin Ratio (保證金率)
     // Ratio = Equity / Notional = (Margin + Upnl) / (Mark * Qty * Size)
     BigDecimal notional = pos.markPrice().multiply(pos.quantity()).multiply(contractSize);
     BigDecimal equity = pos.margin().add(pos.unrealizedPnl());
     if (notional.compareTo(BigDecimal.ZERO) > 0) {
       BigDecimal expectedRatio = equity.divide(notional, 10, RoundingMode.HALF_UP);
-      assertNear(expectedRatio, pos.marginRatio(), BigDecimal.valueOf(0.001), "Margin Ratio mismatch");
+      assertNear(expectedRatio, pos.marginRatio(), new BigDecimal("0.001"), "Margin Ratio mismatch");
     }
 
-    // 10. Unrealized Pnl (未實現損益)
+    // Unrealized Pnl (未實現損益)
     BigDecimal priceDiff = (pos.side() == PositionSide.LONG) 
         ? pos.markPrice().subtract(pos.entryPrice()) 
         : pos.entryPrice().subtract(pos.markPrice());
     BigDecimal expectedUpnl = priceDiff.multiply(pos.quantity()).multiply(contractSize);
-    assertNear(expectedUpnl, pos.unrealizedPnl(), BigDecimal.valueOf(0.01), "Upnl mismatch");
+    assertNear(expectedUpnl, pos.unrealizedPnl(), new BigDecimal("0.01"), "Upnl mismatch");
 
-    // 11. Cum Realized Pnl (累計已實現損益)
-    assertNear(exp.cumRealizedPnl, pos.cumRealizedPnl(), BigDecimal.valueOf(0.01), "Cum Realized Pnl mismatch");
+    // Cum Realized Pnl (累計已實現損益)
+    assertNear(exp.cumRealizedPnl, pos.cumRealizedPnl(), new BigDecimal("0.01"), "Cum Realized PnL mismatch");
 
-    // 12. Cum Fee (累計手續費)
+    // Cum Fee (累計手續費)
     assertNear(exp.cumFee, pos.cumFee(), "Cum Fee mismatch");
 
-    // 13. Cum Funding Fee (累計資金費)
-    assertNear(exp.cumFundingFee, pos.cumFundingFee(), "Cum Funding Fee mismatch");
+    // Cum Funding Fee (累計資金費)
+    assertNear(BigDecimal.ZERO, pos.cumFundingFee(), "Cum Funding Fee mismatch");
 
-    // 14. Liquidation Price (強平價格)
+    // Liquidation Price (強平價格)
     if (pos.quantity().compareTo(BigDecimal.ZERO) > 0) {
         BigDecimal marginPerUnit = pos.margin().divide(pos.quantity().multiply(contractSize), 10, RoundingMode.HALF_UP);
         BigDecimal calcLiqPrice = (pos.side() == PositionSide.LONG)
@@ -167,7 +235,7 @@ class PositionApiRestAssuredTest {
             : (pos.entryPrice().add(marginPerUnit)).divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
         
         assertNotNull(pos.liquidationPrice(), "Liquidation Price should not be null");
-        assertNear(calcLiqPrice, pos.liquidationPrice(), BigDecimal.valueOf(0.1), "Liquidation Price mismatch");
+        assertNear(calcLiqPrice, pos.liquidationPrice(), new BigDecimal("0.1"), "Liquidation Price mismatch");
     }
   }
 
@@ -195,9 +263,6 @@ class PositionApiRestAssuredTest {
     assertNear(BigDecimal.ZERO, margin.reserved(), "Margin reserved");
   }
 
-  // ==================================================================================
-  // Helpers
-  // ==================================================================================
 
   private void submitOrder(String token, OrderSide side, BigDecimal price, BigDecimal quantity, TradeRole role) {
     OrderClient.placeOrder(token, instrumentId, side, price.doubleValue(), quantity.intValueExact());
@@ -218,7 +283,7 @@ class PositionApiRestAssuredTest {
   }
 
   private void assertNear(BigDecimal expected, BigDecimal actual, String label) {
-    assertNear(expected, actual, BigDecimal.valueOf(0.0001), label);
+    assertNear(expected, actual, new BigDecimal("0.0001"), label);
   }
 
   private void assertNear(BigDecimal expected, BigDecimal actual, BigDecimal tolerance, String label) {
@@ -236,11 +301,6 @@ class PositionApiRestAssuredTest {
       BigDecimal markPrice,
       BigDecimal cumRealizedPnl,
       BigDecimal cumFee,
-      BigDecimal cumFundingFee,
       BigDecimal closeReserved
-  ) {
-    ExpectedPosition(PositionStatus status, PositionSide side, BigDecimal qty, BigDecimal entryPrice, BigDecimal markPrice, BigDecimal cumRealizedPnl, BigDecimal cumFee, BigDecimal cumFundingFee) {
-        this(status, side, qty, entryPrice, markPrice, cumRealizedPnl, cumFee, cumFundingFee, BigDecimal.ZERO);
-    }
-  }
+  ) {}
 }
