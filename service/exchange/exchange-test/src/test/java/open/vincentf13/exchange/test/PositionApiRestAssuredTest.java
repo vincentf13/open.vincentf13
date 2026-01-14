@@ -1,23 +1,24 @@
 package open.vincentf13.exchange.test;
 
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
-import io.restassured.response.Response;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-
-import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
+import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResponse;
+import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
+import open.vincentf13.exchange.admin.contract.dto.InstrumentDetailResponse;
+import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
+import open.vincentf13.exchange.common.sdk.enums.OrderSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionSide;
+import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
+import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
+import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class PositionApiRestAssuredTest {
     private static final String DEFAULT_GATEWAY_HOST = "http://localhost:12345";
@@ -55,24 +56,24 @@ class PositionApiRestAssuredTest {
         api.deposit(tokenB1, 10000);
         api.deposit(tokenC1, 10000);
         
-        Map<String, Object> instrument = api.findInstrument(tokenA1, DEFAULT_INSTRUMENT_ID);
-        Map<String, Object> risk = api.getRiskLimit(tokenA1, DEFAULT_INSTRUMENT_ID);
-        
-        BigDecimal contractSize1 = getBigDecimalOrThrow(instrument.get("contractSize"), "contractSize");
-        BigDecimal makerFeeRate1 = getBigDecimalOrThrow(instrument.get("makerFeeRate"), "makerFeeRate");
-        BigDecimal takerFeeRate1 = getBigDecimalOrThrow(instrument.get("takerFeeRate"), "takerFeeRate");
-        BigDecimal leverage1 = getBigDecimalOrThrow(instrument.get("defaultLeverage"), "defaultLeverage");
-        BigDecimal mmr1 = getBigDecimalOrThrow(risk.get("maintenanceMarginRate"), "maintenanceMarginRate");
-        BigDecimal imr1 = getBigDecimalOrThrow(risk.get("initialMarginRate"), "initialMarginRate");
-        
-        Map<String, Object> balanceSheet = api.getBalanceSheet(tokenA1);
-        List<Map<String, Object>> assets = castList(balanceSheet.get("assets"));
-        Map<String, Object> spot = assets.stream()
-            .filter(asset -> "SPOT".equals(asset.get("accountCode")) && "USDT".equals(asset.get("asset")))
+        InstrumentDetailResponse instrument = api.findInstrument(tokenA1, DEFAULT_INSTRUMENT_ID);
+        RiskLimitResponse risk = api.getRiskLimit(tokenA1, DEFAULT_INSTRUMENT_ID);
+
+        BigDecimal contractSize1 = getBigDecimalOrThow(instrument.contractSize(), "contractSize");
+        BigDecimal makerFeeRate1 = getBigDecimalOrThow(instrument.makerFeeRate(), "makerFeeRate");
+        BigDecimal takerFeeRate1 = getBigDecimalOrThow(instrument.takerFeeRate(), "takerFeeRate");
+        BigDecimal leverage1 = getBigDecimalOrThow(instrument.defaultLeverage(), "defaultLeverage");
+        BigDecimal mmr1 = getBigDecimalOrThow(risk.maintenanceMarginRate(), "maintenanceMarginRate");
+        BigDecimal imr1 = getBigDecimalOrThow(risk.initialMarginRate(), "initialMarginRate");
+
+        AccountBalanceSheetResponse balanceSheet = api.getBalanceSheet(tokenA1);
+        List<AccountBalanceItem> assets = balanceSheet.assets();
+        AccountBalanceItem spot = assets == null ? null : assets.stream()
+            .filter(asset -> UserAccountCode.SPOT.equals(asset.accountCode()) && AssetSymbol.USDT.equals(asset.asset()))
             .findFirst()
             .orElse(null);
         assertNotNull(spot, "Spot account not found for baseline");
-        BigDecimal baseSpotBalance1 = getBigDecimalOrThrow(spot.get("balance"), "spot.balance");
+        BigDecimal baseSpotBalance1 = getBigDecimalOrThow(spot.balance(), "spot.balance");
         
         instrumentId = DEFAULT_INSTRUMENT_ID;
         tokenA = tokenA1;
@@ -191,25 +192,23 @@ class PositionApiRestAssuredTest {
         pause(role == TradeRole.MAKER ? MAKER_DELAY_MS : TAKER_DELAY_MS);
     }
 
-    private void verifyPosition(Map<String, Object> position, ExpectedPosition expected) {
+    private void verifyPosition(PositionResponse position, ExpectedPosition expected) {
         assertNotNull(position, "Position not found");
 
-        String status = Objects.toString(position.get("status"), null);
-        String side = Objects.toString(position.get("side"), null);
-        BigDecimal leverage = getBigDecimalOrThrow(position.get("leverage"), "position.leverage");
-        BigDecimal margin = getBigDecimalOrThrow(position.get("margin"), "position.margin");
-        BigDecimal entryPrice = getBigDecimalOrThrow(position.get("entryPrice"), "position.entryPrice");
-        BigDecimal quantity = getBigDecimalOrThrow(position.get("quantity"), "position.quantity");
-        BigDecimal closingReserved = getBigDecimalOrThrow(position.get("closingReservedQuantity"), "position.closingReservedQuantity");
-        BigDecimal markPrice = getBigDecimalOrThrow(position.get("markPrice"), "position.markPrice");
-        BigDecimal marginRatio = getBigDecimalOrThrow(position.get("marginRatio"), "position.marginRatio");
-        BigDecimal unrealizedPnl = getBigDecimalOrThrow(position.get("unrealizedPnl"), "position.unrealizedPnl");
-        BigDecimal cumRealizedPnl = getBigDecimalOrThrow(position.get("cumRealizedPnl"), "position.cumRealizedPnl");
-        BigDecimal cumFee = getBigDecimalOrThrow(position.get("cumFee"), "position.cumFee");
-        BigDecimal cumFundingFee = getBigDecimalOrThrow(position.get("cumFundingFee"), "position.cumFundingFee");
-        BigDecimal liquidationPrice = position.get("liquidationPrice") == null
-            ? null
-            : getBigDecimalOrThrow(position.get("liquidationPrice"), "position.liquidationPrice");
+        PositionStatus status = position.status();
+        PositionSide side = position.side();
+        BigDecimal leverage = getBigDecimalOrThow(position.leverage(), "position.leverage");
+        BigDecimal margin = getBigDecimalOrThow(position.margin(), "position.margin");
+        BigDecimal entryPrice = getBigDecimalOrThow(position.entryPrice(), "position.entryPrice");
+        BigDecimal quantity = getBigDecimalOrThow(position.quantity(), "position.quantity");
+        BigDecimal closingReserved = getBigDecimalOrThow(position.closingReservedQuantity(), "position.closingReservedQuantity");
+        BigDecimal markPrice = getBigDecimalOrThow(position.markPrice(), "position.markPrice");
+        BigDecimal marginRatio = getBigDecimalOrThow(position.marginRatio(), "position.marginRatio");
+        BigDecimal unrealizedPnl = getBigDecimalOrThow(position.unrealizedPnl(), "position.unrealizedPnl");
+        BigDecimal cumRealizedPnl = getBigDecimalOrThow(position.cumRealizedPnl(), "position.cumRealizedPnl");
+        BigDecimal cumFee = getBigDecimalOrThow(position.cumFee(), "position.cumFee");
+        BigDecimal cumFundingFee = getBigDecimalOrThow(position.cumFundingFee(), "position.cumFundingFee");
+        BigDecimal liquidationPrice = position.liquidationPrice();
 
         assertEquals(expected.status, status, "Status mismatch");
         assertEquals(expected.side, side, "Side mismatch");
@@ -232,7 +231,7 @@ class PositionApiRestAssuredTest {
             assertNear(marginRatio, expectedMarginRatio, BigDecimal.valueOf(0.001), "Margin ratio mismatch");
         }
 
-        BigDecimal priceDiff = "LONG".equals(side)
+        BigDecimal priceDiff = PositionSide.LONG == side
             ? markPrice.subtract(entryPrice)
             : entryPrice.subtract(markPrice);
         BigDecimal expectedUpnl = priceDiff.multiply(quantity).multiply(contractSize);
@@ -244,7 +243,7 @@ class PositionApiRestAssuredTest {
 
         if (quantity.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal marginPerUnit = margin.divide(quantity.multiply(contractSize), 10, RoundingMode.HALF_UP);
-            BigDecimal calcLiq = "LONG".equals(side)
+            BigDecimal calcLiq = PositionSide.LONG == side
                 ? entryPrice.subtract(marginPerUnit).divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
                 : entryPrice.add(marginPerUnit).divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
             assertNotNull(liquidationPrice, "Liquidation price should not be null");
@@ -255,34 +254,35 @@ class PositionApiRestAssuredTest {
         }
     }
 
-    private void verifyAccount(Map<String, Object> balance, ExpectedAccount expected) {
-        List<Map<String, Object>> assets = castList(balance.get("assets"));
-        Map<String, Object> spot = assets.stream()
-            .filter(asset -> "SPOT".equals(asset.get("accountCode")) && "USDT".equals(asset.get("asset")))
+    private void verifyAccount(AccountBalanceSheetResponse balance, ExpectedAccount expected) {
+        List<AccountBalanceItem> assets = balance.assets();
+        AccountBalanceItem spot = assets == null ? null : assets.stream()
+            .filter(asset -> UserAccountCode.SPOT.equals(asset.accountCode()) && AssetSymbol.USDT.equals(asset.asset()))
             .findFirst()
             .orElse(null);
-        Map<String, Object> margin = assets.stream()
-            .filter(asset -> "MARGIN".equals(asset.get("accountCode"))
-                && instrumentId == parseInt(asset.get("instrumentId"))
-                && "USDT".equals(asset.get("asset")))
+        AccountBalanceItem margin = assets == null ? null : assets.stream()
+            .filter(asset -> UserAccountCode.MARGIN.equals(asset.accountCode())
+                && asset.instrumentId() != null
+                && instrumentId == asset.instrumentId().intValue()
+                && AssetSymbol.USDT.equals(asset.asset()))
             .findFirst()
             .orElse(null);
 
         assertNotNull(spot, "Spot account not found");
         assertNotNull(margin, "Margin account not found");
 
-        assertNear(getBigDecimalOrThrow(spot.get("balance"), "spot.balance"),
+        assertNear(getBigDecimalOrThow(spot.balance(), "spot.balance"),
             expected.spotBalance, BigDecimal.valueOf(0.0001), "Spot balance mismatch");
-        assertNear(getBigDecimalOrThrow(spot.get("available"), "spot.available"),
+        assertNear(getBigDecimalOrThow(spot.available(), "spot.available"),
             expected.spotAvailable, BigDecimal.valueOf(0.0001), "Spot available mismatch");
-        assertNear(getBigDecimalOrThrow(spot.get("reserved"), "spot.reserved"),
+        assertNear(getBigDecimalOrThow(spot.reserved(), "spot.reserved"),
             expected.spotReserved, BigDecimal.valueOf(0.0001), "Spot reserved mismatch");
 
-        assertNear(getBigDecimalOrThrow(margin.get("balance"), "margin.balance"),
+        assertNear(getBigDecimalOrThow(margin.balance(), "margin.balance"),
             expected.marginBalance, BigDecimal.valueOf(0.0001), "Margin balance mismatch");
-        assertNear(getBigDecimalOrThrow(margin.get("available"), "margin.available"),
+        assertNear(getBigDecimalOrThow(margin.available(), "margin.available"),
             expected.marginAvailable, BigDecimal.valueOf(0.0001), "Margin available mismatch");
-        assertNear(getBigDecimalOrThrow(margin.get("reserved"), "margin.reserved"),
+        assertNear(getBigDecimalOrThow(margin.reserved(), "margin.reserved"),
             expected.marginReserved, BigDecimal.valueOf(0.0001), "Margin reserved mismatch");
     }
 
@@ -331,17 +331,7 @@ class PositionApiRestAssuredTest {
         }
     }
 
-    private static int parseInt(Object value) {
-        if (value == null) {
-            return 0;
-        }
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        return Integer.parseInt(String.valueOf(value));
-    }
-
-    private static BigDecimal getBigDecimalOrThrow(Object value, String fieldName) {
+    private static BigDecimal getBigDecimalOrThow(Object value, String fieldName) {
         if (value == null) {
             throw new IllegalArgumentException(fieldName + " is required");
         }
@@ -355,23 +345,6 @@ class PositionApiRestAssuredTest {
         BigDecimal diff = actual.subtract(expected).abs();
         assertTrue(diff.compareTo(tolerance) <= 0,
             message + " expected=" + expected + " actual=" + actual);
-    }
-
-    private static List<Map<String, Object>> castList(Object value) {
-        if (value == null) {
-            return List.of();
-        }
-        return (List<Map<String, Object>>) value;
-    }
-
-    private enum OrderSide {
-        BUY,
-        SELL
-    }
-
-    private enum PositionSide {
-        LONG,
-        SHORT
     }
 
     private enum Counterparty {
@@ -396,123 +369,6 @@ class PositionApiRestAssuredTest {
                                    BigDecimal marginReserved) {
     }
 
-    private static class ApiClient {
-        private final String baseUri;
-
-        private ApiClient(String baseUri) {
-            this.baseUri = baseUri;
-            RestAssured.baseURI = baseUri;
-        }
-
-        private void resetData() {
-            given()
-                .when()
-                .post("/admin/api/admin/system/reset-data")
-                .then()
-                .statusCode(200);
-        }
-        
-        private String login(String email, String password) {
-            Response response = given()
-                .contentType(ContentType.JSON)
-                .body(Map.of("email", email, "password", password))
-                .when()
-                .post("/auth/api/login");
-            response.then().statusCode(200);
-            String token = response.jsonPath().getString("data.jwtToken");
-            assertNotNull(token, "Missing jwtToken");
-            return token;
-        }
-
-        private void deposit(String token, double amount) {
-            String txId = "setup-dep-" + UUID.randomUUID();
-            String creditedAt = Instant.now().toString();
-            given()
-                .header("Authorization", "Bearer " + token)
-                .contentType(ContentType.JSON)
-                .body(Map.of(
-                    "asset", "USDT",
-                    "amount", amount,
-                    "txId", txId,
-                    "creditedAt", creditedAt
-                ))
-                .when()
-                .post("/account/api/account/deposits")
-                .then()
-                .statusCode(200);
-        }
-
-        private Map<String, Object> findInstrument(String token, int instrumentId) {
-            Response response = given()
-                .header("Authorization", "Bearer " + token)
-                .when()
-                .get("/admin/api/admin/instruments");
-            response.then().statusCode(200);
-            List<Map<String, Object>> instruments = response.jsonPath().getList("data");
-            Map<String, Object> instrument = instruments.stream()
-                .filter(item -> instrumentId == parseInt(item.get("instrumentId")))
-                .findFirst()
-                .orElse(null);
-            assertNotNull(instrument, "Instrument not found");
-            return instrument;
-        }
-
-        private Map<String, Object> getRiskLimit(String token, int instrumentId) {
-            Response response = given()
-                .header("Authorization", "Bearer " + token)
-                .when()
-                .get("/risk/api/risk/limits/" + instrumentId);
-            response.then().statusCode(200);
-            Map<String, Object> risk = response.jsonPath().getMap("data");
-            assertNotNull(risk, "Risk limit not found");
-            return risk;
-        }
-
-        private void placeOrder(String token, int instrumentId, OrderSide side, double price, int quantity) {
-            given()
-                .header("Authorization", "Bearer " + token)
-                .contentType(ContentType.JSON)
-                .body(Map.of(
-                    "instrumentId", instrumentId,
-                    "side", side.name(),
-                    "type", "LIMIT",
-                    "price", price,
-                    "quantity", quantity,
-                    "clientOrderId", UUID.randomUUID().toString()
-                ))
-                .when()
-                .post("/order/api/orders")
-                .then()
-                .statusCode(200);
-        }
-
-        private Map<String, Object> findPosition(String token, int instrumentId) {
-            Response response = given()
-                .header("Authorization", "Bearer " + token)
-                .when()
-                .get("/position/api/positions?instrumentId=" + instrumentId);
-            response.then().statusCode(200);
-            List<Map<String, Object>> positions = response.jsonPath().getList("data");
-            if (positions == null) {
-                return null;
-            }
-            return positions.stream()
-                .filter(item -> instrumentId == parseInt(item.get("instrumentId")))
-                .findFirst()
-                .orElse(null);
-        }
-
-        private Map<String, Object> getBalanceSheet(String token) {
-            Response response = given()
-                .header("Authorization", "Bearer " + token)
-                .when()
-                .get("/account/api/account/balance-sheet");
-            response.then().statusCode(200);
-            Map<String, Object> data = response.jsonPath().getMap("data");
-            assertNotNull(data, "Balance sheet missing");
-            return data;
-        }
-    }
 
     private static class PositionSimulator {
         private final BigDecimal contractSize;
@@ -589,8 +445,8 @@ class PositionApiRestAssuredTest {
         private ExpectedPosition snapshot(double markPrice) {
             this.lastMarkPrice = BigDecimal.valueOf(markPrice);
             if (quantity.compareTo(BigDecimal.ZERO) == 0) {
-                return new ExpectedPosition("CLOSED",
-                    side == PositionSide.LONG ? "LONG" : "SHORT",
+                return new ExpectedPosition(PositionStatus.CLOSED,
+                    side,
                     BigDecimal.ZERO,
                     entryPrice,
                     BigDecimal.ZERO,
@@ -599,8 +455,8 @@ class PositionApiRestAssuredTest {
                     cumFee,
                     cumFundingFee);
             }
-            return new ExpectedPosition("ACTIVE",
-                side == PositionSide.LONG ? "LONG" : "SHORT",
+            return new ExpectedPosition(PositionStatus.ACTIVE,
+                side,
                 quantity,
                 entryPrice,
                 BigDecimal.ZERO,
@@ -611,8 +467,8 @@ class PositionApiRestAssuredTest {
         }
     }
 
-    private record ExpectedPosition(String status,
-                                    String side,
+    private record ExpectedPosition(PositionStatus status,
+                                    PositionSide side,
                                     BigDecimal quantity,
                                     BigDecimal entryPrice,
                                     BigDecimal closingReservedQuantity,
