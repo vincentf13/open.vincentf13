@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Map;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
@@ -18,6 +19,7 @@ import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
 import open.vincentf13.exchange.test.client.*;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +33,7 @@ class PositionApiRestAssuredTest {
     private static final long MAKER_DELAY_MS = 2000;
     private static final long TAKER_DELAY_MS = 5000;
 
-    private int instrumentId;
+    private Integer instrumentId;
     private String tokenA;
     private String tokenB;
     private String tokenC;
@@ -66,8 +68,16 @@ class PositionApiRestAssuredTest {
         mmr = risk.maintenanceMarginRate();
         imr = risk.initialMarginRate();
         instrumentId = INSTRUMENT_ID;
-        
-        
+
+        OpenValidator.assertAllNotNull(
+                Map.of(
+                        "contractSize", contractSize,
+                        "makerFeeRate", makerFeeRate,
+                        "takerFeeRate", takerFeeRate,
+                        "leverage", leverage,
+                        "mmr", mmr,
+                        "imr", imr,
+                        "instrumentId", instrumentId));
     }
 
     @Test
