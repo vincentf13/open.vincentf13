@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.test;
+package open.vincentf13.exchange.test.client;
 
 import jakarta.validation.Valid;
 import open.vincentf13.sdk.auth.server.controller.dto.JwtTokenPair;

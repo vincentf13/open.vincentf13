@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.test.client;
 
-import open.vincentf13.exchange.test.AuthLoginApi;
 import open.vincentf13.sdk.auth.server.controller.dto.JwtTokenPair;
 import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
 

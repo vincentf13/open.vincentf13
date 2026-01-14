@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.test;
+package open.vincentf13.exchange.test.client;
 
 import open.vincentf13.exchange.admin.contract.InstrumentAdminApi;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentDetailResponse;
