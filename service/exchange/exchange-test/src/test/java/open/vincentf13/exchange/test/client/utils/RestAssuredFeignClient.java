@@ -6,9 +6,7 @@ import feign.Response;
 import io.restassured.RestAssured;
 import io.restassured.response.ResponseBody;
 import io.restassured.specification.RequestSpecification;
-
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -48,7 +46,7 @@ public class RestAssuredFeignClient implements Client {
             .status(response.statusCode())
             .reason(response.statusLine())
             .headers(headers)
-            .body(payload, StandardCharsets.UTF_8)
+            .body(new java.io.ByteArrayInputStream(payload), payload.length)
             .request(request)
             .build();
     }
