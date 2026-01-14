@@ -6,8 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.List;
-import java.util.Map;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
@@ -18,8 +16,14 @@ import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
-import open.vincentf13.exchange.test.client.*;
-import open.vincentf13.sdk.core.validator.OpenValidator;
+import open.vincentf13.exchange.test.client.AccountClient;
+import open.vincentf13.exchange.test.client.AdminClient;
+import open.vincentf13.exchange.test.client.AuthClient;
+import open.vincentf13.exchange.test.client.BaseClient;
+import open.vincentf13.exchange.test.client.OrderClient;
+import open.vincentf13.exchange.test.client.PositionClient;
+import open.vincentf13.exchange.test.client.RiskClient;
+import open.vincentf13.exchange.test.client.SystemClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -67,502 +71,176 @@ class PositionApiRestAssuredTest {
     mmr = risk.maintenanceMarginRate();
     imr = risk.initialMarginRate();
     instrumentId = INSTRUMENT_ID;
-
-    OpenValidator.assertAllNotNull(
-        Map.of(
-            "contractSize", contractSize,
-            "makerFeeRate", makerFeeRate,
-            "takerFeeRate", takerFeeRate,
-            "leverage", leverage,
-            "mmr", mmr,
-            "imr", imr,
-            "instrumentId", instrumentId));
   }
 
   @Test
-  void scenario1_longMakerFlow() {
+  void testScenario1_OpenPosition_5Contracts() {
+    // 讀取帳號 A 資產 (現貨/逐倉) 作為基準
+    AccountBalanceItem initialSpot = AccountClient.getSpotAccount(tokenA);
+    BigDecimal baseSpotBalance = initialSpot.balance();
 
-    AccountBalanceItem spot = AccountClient.getSpotAccount(tokenA);
+    // [開倉] A Buy 5 (B Sell 5) @ 100 -> A 預期持多倉 5
+    submitOrder(tokenA, OrderSide.BUY, BigDecimal.valueOf(100), BigDecimal.valueOf(5000), TradeRole.MAKER);
 
-    PositionSimulator simulator = new PositionSimulator(contractSize);
+    // B 成交 A 的 5 張
+    submitOrder(tokenB, OrderSide.SELL, BigDecimal.valueOf(100), BigDecimal.valueOf(5000), TradeRole.TAKER);
 
-    OrderSide openSide = OrderSide.BUY;
-    BigDecimal openPrice = BigDecimal.valueOf(100);
-    BigDecimal openQuantity = BigDecimal.valueOf(5000);
-    submitOrder(tokenA, openSide, openPrice, openQuantity, TradeRole.TAKER);
-    submitOrder(tokenB, opposite(openSide), openPrice, openQuantity, TradeRole.MAKER);
+    // ### 驗證 A 持倉: Long 5, Price 100
+    verifyPosition(tokenA, new ExpectedPosition(
+        PositionStatus.ACTIVE,
+        PositionSide.LONG,
+        BigDecimal.valueOf(5000),
+        BigDecimal.valueOf(100),
+        BigDecimal.valueOf(100),
+        BigDecimal.valueOf(-0.1), // Fee (this step): 5 * 100 * 0.0002 = 0.1, PnL - Fee = 0 - 0.1 = -0.1
+        BigDecimal.valueOf(0.1),
+        BigDecimal.ZERO
+    ));
 
-    simulator.apply(openSide, openPrice, openQuantity, takerFeeRate);
-    verifyPosition(tokenA, simulator);
+    // 驗證 A 資產: Spot/Margin
+ 
+    verifyAccount(tokenA, baseSpotBalance, BigDecimal.valueOf(100), BigDecimal.valueOf(5000), BigDecimal.valueOf(-0.1));
+  }
+
+
+  
+  private void verifyPosition(String token, ExpectedPosition exp) {
+    PositionResponse pos = PositionClient.findPosition(token, instrumentId);
+    assertNotNull(pos, "Position not found");
+
+    // 1. Status (狀態)
+    assertEquals(exp.status, pos.status(), "Status mismatch");
+
+    // 2. Side (方向)
+    assertEquals(exp.side, pos.side(), "Side mismatch");
+
+    // 3. Leverage (槓桿)
+    assertEquals(this.leverage, pos.leverage(), "Leverage mismatch");
+
+    // 4. Margin (保證金)
+    // 計算公式: Price * Quantity * ContractValue * InitialMarginRate
+    BigDecimal expectedMargin = exp.entryPrice.multiply(exp.qty).multiply(contractSize).multiply(imr);
+    assertNear(expectedMargin, pos.margin(), "Margin mismatch");
+
+    // 5. Entry Price (入場價)
+    assertNear(exp.entryPrice, pos.entryPrice(), "Entry Price mismatch");
+
+    // 6. Quantity (持倉量)
+    assertNear(exp.qty, pos.quantity(), "Quantity mismatch");
+
+    // 7. Closing Reserved Quantity (平倉凍結量)
+    assertNear(exp.closeReserved, pos.closingReservedQuantity(), "Closing Reserved Quantity mismatch");
+
+    // 8. Mark Price (標記價格)
+    assertNear(exp.markPrice, pos.markPrice(), "Mark Price mismatch");
+
+    // 9. Margin Ratio (保證金率)
+    // Ratio = Equity / Notional = (Margin + Upnl) / (Mark * Qty * Size)
+    BigDecimal notional = pos.markPrice().multiply(pos.quantity()).multiply(contractSize);
+    BigDecimal equity = pos.margin().add(pos.unrealizedPnl());
+    if (notional.compareTo(BigDecimal.ZERO) > 0) {
+      BigDecimal expectedRatio = equity.divide(notional, 10, RoundingMode.HALF_UP);
+      assertNear(expectedRatio, pos.marginRatio(), BigDecimal.valueOf(0.001), "Margin Ratio mismatch");
+    }
+
+    // 10. Unrealized Pnl (未實現損益)
+    BigDecimal priceDiff = (pos.side() == PositionSide.LONG) 
+        ? pos.markPrice().subtract(pos.entryPrice()) 
+        : pos.entryPrice().subtract(pos.markPrice());
+    BigDecimal expectedUpnl = priceDiff.multiply(pos.quantity()).multiply(contractSize);
+    assertNear(expectedUpnl, pos.unrealizedPnl(), BigDecimal.valueOf(0.01), "Upnl mismatch");
+
+    // 11. Cum Realized Pnl (累計已實現損益)
+    assertNear(exp.cumRealizedPnl, pos.cumRealizedPnl(), BigDecimal.valueOf(0.01), "Cum Realized Pnl mismatch");
+
+    // 12. Cum Fee (累計手續費)
+    assertNear(exp.cumFee, pos.cumFee(), "Cum Fee mismatch");
+
+    // 13. Cum Funding Fee (累計資金費)
+    assertNear(exp.cumFundingFee, pos.cumFundingFee(), "Cum Funding Fee mismatch");
+
+    // 14. Liquidation Price (強平價格)
+    if (pos.quantity().compareTo(BigDecimal.ZERO) > 0) {
+        BigDecimal marginPerUnit = pos.margin().divide(pos.quantity().multiply(contractSize), 10, RoundingMode.HALF_UP);
+        BigDecimal calcLiqPrice = (pos.side() == PositionSide.LONG)
+            ? (pos.entryPrice().subtract(marginPerUnit)).divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
+            : (pos.entryPrice().add(marginPerUnit)).divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
+        
+        assertNotNull(pos.liquidationPrice(), "Liquidation Price should not be null");
+        assertNear(calcLiqPrice, pos.liquidationPrice(), BigDecimal.valueOf(0.1), "Liquidation Price mismatch");
+    }
+  }
+
+  /**
+   * 驗證帳戶餘額 (對應 .http 的 verifyAccountScript)
+   */
+  private void verifyAccount(String token, BigDecimal baseSpotBalance, BigDecimal expEntry, BigDecimal expQty, BigDecimal expCumRealizedPnl) {
+    AccountBalanceSheetResponse data = AccountClient.getBalanceSheet(token);
+    assertNotNull(data, "Account balance sheet missing");
     
-    BigDecimal expectedMargin4 =
-        simulator.entryPrice.multiply(simulator.quantity).multiply(contractSize).multiply(imr);
-    BigDecimal expectedSpotBalance4 =
-        spot.balance().subtract(expectedMargin4).add(simulator.cumRealizedPnl);
-    AssertAccount openAccount = new AssertAccount(
-            expectedSpotBalance4,
-            expectedSpotBalance4,
-            BigDecimal.ZERO,
-            expectedMargin4,
-            expectedMargin4,
-            BigDecimal.ZERO);
-
-    verifyAccount(tokenA, openAccount);
-  }
-
-  private StepResult executeTradeWithTwoCounterparties(
-      PositionSimulator simulator, OrderSide side, BigDecimal price, BigDecimal quantity) {
-    submitOrder(tokenA, side, price, quantity, TradeRole.TAKER);
-    submitOrder(tokenB, opposite(side), price, BigDecimal.valueOf(5000), TradeRole.MAKER);
-    submitOrder(tokenC, opposite(side), price, BigDecimal.valueOf(5000), TradeRole.MAKER);
-    simulator.apply(side, price, BigDecimal.valueOf(5000), takerFeeRate);
-    simulator.apply(side, price, BigDecimal.valueOf(5000), takerFeeRate);
-    ExpectedPosition expectedPosition = simulator.snapshot(price);
-    AssertAccount expectedAccount = simulateAccount(expectedPosition);
-    return new StepResult(expectedPosition, expectedAccount);
-  }
-
-  private StepResult executeConcurrentFlip(PositionSimulator simulator) {
-    OrderSide firstSide = OrderSide.BUY;
-    BigDecimal firstPrice = BigDecimal.valueOf(100);
-    BigDecimal firstQuantity = BigDecimal.valueOf(3000);
-    OrderSide secondSide = OrderSide.BUY;
-    BigDecimal secondPrice = BigDecimal.valueOf(100);
-    BigDecimal secondQuantity = BigDecimal.valueOf(10000);
-
-    submitOrder(tokenA, firstSide, firstPrice, firstQuantity, TradeRole.TAKER);
-    submitOrder(tokenA, secondSide, secondPrice, secondQuantity, TradeRole.TAKER);
-    submitOrder(tokenB, opposite(firstSide), firstPrice, secondQuantity, TradeRole.MAKER);
-    submitOrder(tokenB, opposite(firstSide), firstPrice, firstQuantity, TradeRole.MAKER);
-
-    simulator.apply(secondSide, secondPrice, secondQuantity, takerFeeRate);
-    simulator.apply(firstSide, firstPrice, firstQuantity, takerFeeRate);
-    ExpectedPosition expectedPosition = simulator.snapshot(firstPrice);
-    AssertAccount expectedAccount = simulateAccount(expectedPosition);
-    return new StepResult(expectedPosition, expectedAccount);
-  }
-
-  private void submitOrder(
-      String token, OrderSide side, BigDecimal price, BigDecimal quantity, TradeRole role) {
-    OrderClient.placeOrder(
-        token, instrumentId, side, price.doubleValue(), quantity.intValueExact());
-    pause(role == TradeRole.MAKER ? MAKER_DELAY_MS : TAKER_DELAY_MS);
-  }
-
-  private void verifyPosition(String token, PositionSimulator simulator) {
-    PositionResponse position = PositionClient.findPosition(token, instrumentId);
-    verifyPosition(position, simulator);
-  }
-
-  private void verifyPosition(String token, ExpectedPosition expected) {
-    PositionResponse position = PositionClient.findPosition(token, instrumentId);
-    verifyPosition(position, expected);
-  }
-
-  private void verifyPosition(PositionResponse position, PositionSimulator simulator) {
-    assertNotNull(position, "Position not found");
-
-    PositionStatus expectedStatus =
-        simulator.quantity.compareTo(BigDecimal.ZERO) == 0
-            ? PositionStatus.CLOSED
-            : PositionStatus.ACTIVE;
-    BigDecimal expectedClosingReservedQuantity = BigDecimal.ZERO;
-
-    assertEquals(expectedStatus, position.status(), "Status mismatch");
-    assertEquals(simulator.side, position.side(), "Side mismatch");
-    assertEquals(this.leverage, position.leverage(), "Leverage mismatch");
-
-    BigDecimal expectedMargin =
-        simulator.entryPrice.multiply(simulator.quantity).multiply(contractSize).multiply(imr);
-    assertNear(position.margin(), expectedMargin, BigDecimal.valueOf(0.0001), "Margin mismatch");
-    assertNear(
-        position.entryPrice(),
-        simulator.entryPrice,
-        BigDecimal.valueOf(0.0001),
-        "Entry price mismatch");
-    assertNear(
-        position.quantity(), simulator.quantity, BigDecimal.valueOf(0.0001), "Quantity mismatch");
-    assertNear(
-        position.closingReservedQuantity(),
-        expectedClosingReservedQuantity,
-        BigDecimal.valueOf(0.0001),
-        "Close reserved mismatch");
-    assertNear(
-        position.markPrice(),
-        simulator.lastMarkPrice,
-        BigDecimal.valueOf(0.0001),
-        "Mark price mismatch");
-
-    BigDecimal notional = position.markPrice().multiply(position.quantity()).multiply(contractSize);
-    BigDecimal equity = position.margin().add(position.unrealizedPnl());
-    if (notional.compareTo(BigDecimal.ZERO) > 0) {
-      BigDecimal expectedMarginRatio = equity.divide(notional, 10, RoundingMode.HALF_UP);
-      assertNear(
-          position.marginRatio(),
-          expectedMarginRatio,
-          BigDecimal.valueOf(0.001),
-          "Margin ratio mismatch");
-    }
-
-    BigDecimal priceDiff =
-        PositionSide.LONG == position.side()
-            ? position.markPrice().subtract(position.entryPrice())
-            : position.entryPrice().subtract(position.markPrice());
-    BigDecimal expectedUpnl = priceDiff.multiply(position.quantity()).multiply(contractSize);
-    assertNear(
-        position.unrealizedPnl(),
-        expectedUpnl,
-        BigDecimal.valueOf(0.01),
-        "Unrealized PnL mismatch");
-
-    assertNear(
-        position.cumRealizedPnl(),
-        simulator.cumRealizedPnl,
-        BigDecimal.valueOf(0.01),
-        "Cum realized PnL mismatch");
-    assertNear(position.cumFee(), simulator.cumFee, BigDecimal.valueOf(0.0001), "Cum fee mismatch");
-    assertNear(
-        position.cumFundingFee(),
-        simulator.cumFundingFee,
-        BigDecimal.valueOf(0.0001),
-        "Cum funding fee mismatch");
-
-    if (position.quantity().compareTo(BigDecimal.ZERO) > 0) {
-      BigDecimal marginPerUnit =
-          position
-              .margin()
-              .divide(position.quantity().multiply(contractSize), 10, RoundingMode.HALF_UP);
-      BigDecimal calcLiq =
-          PositionSide.LONG == position.side()
-              ? position
-                  .entryPrice()
-                  .subtract(marginPerUnit)
-                  .divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
-              : position
-                  .entryPrice()
-                  .add(marginPerUnit)
-                  .divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
-      assertNotNull(position.liquidationPrice(), "Liquidation price should not be null");
-      assertNear(
-          position.liquidationPrice(),
-          calcLiq,
-          BigDecimal.valueOf(0.1),
-          "Liquidation price mismatch");
-    } else {
-      assertTrue(
-          position.liquidationPrice() == null
-              || position.liquidationPrice().compareTo(BigDecimal.ZERO) == 0,
-          "Liquidation price should be null/0");
-    }
-  }
-
-  private void verifyPosition(PositionResponse position, ExpectedPosition expected) {
-    assertNotNull(position, "Position not found");
-
-    assertEquals(expected.status, position.status(), "Status mismatch");
-    assertEquals(expected.side, position.side(), "Side mismatch");
-    assertEquals(this.leverage, position.leverage(), "Leverage mismatch");
-
-    BigDecimal expectedMargin =
-        expected.entryPrice.multiply(expected.quantity).multiply(contractSize).multiply(imr);
-    assertNear(position.margin(), expectedMargin, BigDecimal.valueOf(0.0001), "Margin mismatch");
-    assertNear(
-        position.entryPrice(),
-        expected.entryPrice,
-        BigDecimal.valueOf(0.0001),
-        "Entry price mismatch");
-    assertNear(
-        position.quantity(), expected.quantity, BigDecimal.valueOf(0.0001), "Quantity mismatch");
-    assertNear(
-        position.closingReservedQuantity(),
-        expected.closingReservedQuantity,
-        BigDecimal.valueOf(0.0001),
-        "Close reserved mismatch");
-    assertNear(
-        position.markPrice(),
-        expected.markPrice,
-        BigDecimal.valueOf(0.0001),
-        "Mark price mismatch");
-
-    BigDecimal notional = position.markPrice().multiply(position.quantity()).multiply(contractSize);
-    BigDecimal equity = position.margin().add(position.unrealizedPnl());
-    if (notional.compareTo(BigDecimal.ZERO) > 0) {
-      BigDecimal expectedMarginRatio = equity.divide(notional, 10, RoundingMode.HALF_UP);
-      assertNear(
-          position.marginRatio(),
-          expectedMarginRatio,
-          BigDecimal.valueOf(0.001),
-          "Margin ratio mismatch");
-    }
-
-    BigDecimal priceDiff =
-        PositionSide.LONG == position.side()
-            ? position.markPrice().subtract(position.entryPrice())
-            : position.entryPrice().subtract(position.markPrice());
-    BigDecimal expectedUpnl = priceDiff.multiply(position.quantity()).multiply(contractSize);
-    assertNear(
-        position.unrealizedPnl(),
-        expectedUpnl,
-        BigDecimal.valueOf(0.01),
-        "Unrealized PnL mismatch");
-
-    assertNear(
-        position.cumRealizedPnl(),
-        expected.cumRealizedPnl,
-        BigDecimal.valueOf(0.01),
-        "Cum realized PnL mismatch");
-    assertNear(position.cumFee(), expected.cumFee, BigDecimal.valueOf(0.0001), "Cum fee mismatch");
-    assertNear(
-        position.cumFundingFee(),
-        expected.cumFundingFee,
-        BigDecimal.valueOf(0.0001),
-        "Cum funding fee mismatch");
-
-    if (position.quantity().compareTo(BigDecimal.ZERO) > 0) {
-      BigDecimal marginPerUnit =
-          position
-              .margin()
-              .divide(position.quantity().multiply(contractSize), 10, RoundingMode.HALF_UP);
-      BigDecimal calcLiq =
-          PositionSide.LONG == position.side()
-              ? position
-                  .entryPrice()
-                  .subtract(marginPerUnit)
-                  .divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
-              : position
-                  .entryPrice()
-                  .add(marginPerUnit)
-                  .divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
-      assertNotNull(position.liquidationPrice(), "Liquidation price should not be null");
-      assertNear(
-          position.liquidationPrice(),
-          calcLiq,
-          BigDecimal.valueOf(0.1),
-          "Liquidation price mismatch");
-    } else {
-      assertTrue(
-          position.liquidationPrice() == null
-              || position.liquidationPrice().compareTo(BigDecimal.ZERO) == 0,
-          "Liquidation price should be null/0");
-    }
-  }
-
-  private void verifyAccount(String token, AssertAccount expected) {
-    AccountBalanceSheetResponse balance = AccountClient.getBalanceSheet(token);
-    List<AccountBalanceItem> assets = balance.assets();
-    AccountBalanceItem spot =
-        assets == null
-            ? null
-            : assets.stream()
-                .filter(
-                    asset ->
-                        UserAccountCode.SPOT.equals(asset.accountCode())
-                            && AssetSymbol.USDT.equals(asset.asset()))
-                .findFirst()
-                .orElse(null);
-    AccountBalanceItem margin =
-        assets == null
-            ? null
-            : assets.stream()
-                .filter(
-                    asset ->
-                        UserAccountCode.MARGIN.equals(asset.accountCode())
-                            && asset.instrumentId() != null
-                            && instrumentId == asset.instrumentId().intValue()
-                            && AssetSymbol.USDT.equals(asset.asset()))
-                .findFirst()
-                .orElse(null);
-
+    AccountBalanceItem spot = getAccount(data, UserAccountCode.SPOT);
+    AccountBalanceItem margin = getAccount(data, UserAccountCode.MARGIN);
     assertNotNull(spot, "Spot account not found");
     assertNotNull(margin, "Margin account not found");
 
-    assertNear(
-        spot.balance(), expected.spotBalance, BigDecimal.valueOf(0.0001), "Spot balance mismatch");
-    assertNear(
-        spot.available(),
-        expected.spotAvailable,
-        BigDecimal.valueOf(0.0001),
-        "Spot available mismatch");
-    assertNear(
-        spot.reserved(),
-        expected.spotReserved,
-        BigDecimal.valueOf(0.0001),
-        "Spot reserved mismatch");
+    BigDecimal expectedMargin = expEntry.multiply(expQty).multiply(contractSize).multiply(imr);
+    BigDecimal expectedSpotBalance = baseSpotBalance.subtract(expectedMargin).add(expCumRealizedPnl);
 
-    assertNear(
-        margin.balance(),
-        expected.marginBalance,
-        BigDecimal.valueOf(0.0001),
-        "Margin balance mismatch");
-    assertNear(
-        margin.available(),
-        expected.marginAvailable,
-        BigDecimal.valueOf(0.0001),
-        "Margin available mismatch");
-    assertNear(
-        margin.reserved(),
-        expected.marginReserved,
-        BigDecimal.valueOf(0.0001),
-        "Margin reserved mismatch");
+    assertNear(expectedSpotBalance, spot.balance(), "Spot balance");
+    assertNear(expectedSpotBalance, spot.available(), "Spot available");
+    assertNear(BigDecimal.ZERO, spot.reserved(), "Spot reserved");
+    
+    assertNear(expectedMargin, margin.balance(), "Margin balance");
+    assertNear(expectedMargin, margin.available(), "Margin available");
+    assertNear(BigDecimal.ZERO, margin.reserved(), "Margin reserved");
   }
 
-  private AssertAccount simulateAccount(ExpectedPosition expected) {
-    BigDecimal expectedMargin =
-        expected.entryPrice.multiply(expected.quantity).multiply(contractSize).multiply(imr);
-    BigDecimal expectedSpotBalance =
-        spot.balance().subtract(expectedMargin).add(expected.cumRealizedPnl);
-    return new AssertAccount(
-        expectedSpotBalance,
-        expectedSpotBalance,
-        BigDecimal.ZERO,
-        expectedMargin,
-        expectedMargin,
-        BigDecimal.ZERO);
+  // ==================================================================================
+  // Helpers
+  // ==================================================================================
+
+  private void submitOrder(String token, OrderSide side, BigDecimal price, BigDecimal quantity, TradeRole role) {
+    OrderClient.placeOrder(token, instrumentId, side, price.doubleValue(), quantity.intValueExact());
+    pause(role == TradeRole.MAKER ? MAKER_DELAY_MS : TAKER_DELAY_MS);
   }
-  
-  private static OrderSide opposite(OrderSide side) {
-    return side == OrderSide.BUY ? OrderSide.SELL : OrderSide.BUY;
+
+  private AccountBalanceItem getAccount(AccountBalanceSheetResponse sheet, UserAccountCode code) {
+    if (sheet.assets() == null) return null;
+    return sheet.assets().stream()
+        .filter(a -> code.equals(a.accountCode()) && AssetSymbol.USDT.equals(a.asset()))
+        .filter(a -> code == UserAccountCode.SPOT || (a.instrumentId() != null && a.instrumentId().intValue() == INSTRUMENT_ID))
+        .findFirst()
+        .orElse(null);
   }
 
   private static void pause(long delayMs) {
-    if (delayMs <= 0) {
-      return;
-    }
-    try {
-      Thread.sleep(delayMs);
-    } catch (InterruptedException ex) {
-      Thread.currentThread().interrupt();
-    }
+    try { Thread.sleep(delayMs); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
   }
 
-  private static void assertNear(
-      BigDecimal actual, BigDecimal expected, BigDecimal tolerance, String message) {
-    BigDecimal diff = actual.subtract(expected).abs();
-    assertTrue(
-        diff.compareTo(tolerance) <= 0, message + " expected=" + expected + " actual=" + actual);
+  private void assertNear(BigDecimal expected, BigDecimal actual, String label) {
+    assertNear(expected, actual, BigDecimal.valueOf(0.0001), label);
   }
 
-  private enum TradeRole {
-    TAKER,
-    MAKER
+  private void assertNear(BigDecimal expected, BigDecimal actual, BigDecimal tolerance, String label) {
+    BigDecimal diff = expected.subtract(actual).abs();
+    assertTrue(diff.compareTo(tolerance) <= 0, String.format("%s mismatch. Exp: %s, Got: %s", label, expected, actual));
   }
 
-  private record StepResult(ExpectedPosition expectedPosition, AssertAccount expectedAccount) {}
-
-  private record AssertAccount(
-      BigDecimal spotBalance,
-      BigDecimal spotAvailable,
-      BigDecimal spotReserved,
-      BigDecimal marginBalance,
-      BigDecimal marginAvailable,
-      BigDecimal marginReserved) {}
-
-  private static class PositionSimulator {
-    private final BigDecimal contractSize;
-    private PositionSide side;
-    private BigDecimal quantity;
-    private BigDecimal entryPrice;
-    private BigDecimal cumRealizedPnl;
-    private BigDecimal cumFee;
-    private BigDecimal cumFundingFee;
-    private BigDecimal lastMarkPrice;
-
-    private PositionSimulator(BigDecimal contractSize) {
-      this.contractSize = contractSize;
-      this.side = PositionSide.LONG;
-      this.quantity = BigDecimal.ZERO;
-      this.entryPrice = BigDecimal.ZERO;
-      this.cumRealizedPnl = BigDecimal.ZERO;
-      this.cumFee = BigDecimal.ZERO;
-      this.cumFundingFee = BigDecimal.ZERO;
-      this.lastMarkPrice = BigDecimal.ZERO;
-    }
-
-    private void apply(
-        OrderSide orderSide, BigDecimal price, BigDecimal fillQuantity, BigDecimal feeRate) {
-      BigDecimal fee = fillQuantity.multiply(contractSize).multiply(price).multiply(feeRate);
-      lastMarkPrice = price;
-
-      if (quantity.compareTo(BigDecimal.ZERO) == 0) {
-        side = orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
-        entryPrice = price;
-        quantity = fillQuantity;
-        cumFee = BigDecimal.ZERO.add(fee);
-        cumRealizedPnl = fee.negate();
-        cumFundingFee = BigDecimal.ZERO;
-        return;
-      }
-
-      boolean sameDirection =
-          (side == PositionSide.LONG && orderSide == OrderSide.BUY)
-              || (side == PositionSide.SHORT && orderSide == OrderSide.SELL);
-      if (sameDirection) {
-        BigDecimal totalCost = entryPrice.multiply(quantity).add(price.multiply(fillQuantity));
-        BigDecimal totalQty = quantity.add(fillQuantity);
-        entryPrice = totalCost.divide(totalQty, 10, RoundingMode.HALF_UP);
-        quantity = totalQty;
-        cumFee = cumFee.add(fee);
-        cumRealizedPnl = cumRealizedPnl.subtract(fee);
-        return;
-      }
-
-      BigDecimal closedQty = quantity.min(fillQuantity);
-      BigDecimal realized =
-          side == PositionSide.LONG
-              ? price.subtract(entryPrice).multiply(closedQty).multiply(contractSize)
-              : entryPrice.subtract(price).multiply(closedQty).multiply(contractSize);
-      quantity = quantity.subtract(closedQty);
-
-      BigDecimal remaining = fillQuantity.subtract(closedQty);
-      if (remaining.compareTo(BigDecimal.ZERO) > 0) {
-        side = orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
-        entryPrice = price;
-        quantity = remaining;
-        cumFee = fee;
-        cumRealizedPnl = fee.negate();
-        cumFundingFee = BigDecimal.ZERO;
-        return;
-      }
-
-      cumFee = cumFee.add(fee);
-      cumRealizedPnl = cumRealizedPnl.add(realized).subtract(fee);
-    }
-
-    private ExpectedPosition snapshot(BigDecimal markPrice) {
-      this.lastMarkPrice = markPrice;
-      if (quantity.compareTo(BigDecimal.ZERO) == 0) {
-        return new ExpectedPosition(
-            PositionStatus.CLOSED,
-            side,
-            BigDecimal.ZERO,
-            entryPrice,
-            BigDecimal.ZERO,
-            markPrice,
-            cumRealizedPnl,
-            cumFee,
-            cumFundingFee);
-      }
-      return new ExpectedPosition(
-          PositionStatus.ACTIVE,
-          side,
-          quantity,
-          entryPrice,
-          BigDecimal.ZERO,
-          markPrice,
-          cumRealizedPnl,
-          cumFee,
-          cumFundingFee);
-    }
-  }
+  private enum TradeRole { TAKER, MAKER }
 
   private record ExpectedPosition(
       PositionStatus status,
       PositionSide side,
-      BigDecimal quantity,
+      BigDecimal qty,
       BigDecimal entryPrice,
-      BigDecimal closingReservedQuantity,
       BigDecimal markPrice,
       BigDecimal cumRealizedPnl,
       BigDecimal cumFee,
-      BigDecimal cumFundingFee) {}
+      BigDecimal cumFundingFee,
+      BigDecimal closeReserved
+  ) {
+    ExpectedPosition(PositionStatus status, PositionSide side, BigDecimal qty, BigDecimal entryPrice, BigDecimal markPrice, BigDecimal cumRealizedPnl, BigDecimal cumFee, BigDecimal cumFundingFee) {
+        this(status, side, qty, entryPrice, markPrice, cumRealizedPnl, cumFee, cumFundingFee, BigDecimal.ZERO);
+    }
+  }
 }
