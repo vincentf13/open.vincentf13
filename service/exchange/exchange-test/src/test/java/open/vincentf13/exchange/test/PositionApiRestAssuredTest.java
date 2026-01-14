@@ -104,17 +104,12 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    // ExpMargin = EntryPrice * Qty * Size * IMR
-    BigDecimal expMargin1 = prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr);
-    // ExpSpot = Base - Margin + CumPnl
-    BigDecimal expSpot1 = baseSpotBalance.subtract(expMargin1).add(prevPos.cumRealizedPnl);
-    
     verifyAccount(tokenA, new ExpectedAccount(
-        expSpot1, // Spot Balance
-        expSpot1, // Spot Available
+        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl), // Spot Balance
+        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl), // Spot Available
         BigDecimal.ZERO, // Spot Reserved
-        expMargin1, // Margin Balance
-        expMargin1, // Margin Available
+        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr), // Margin Balance
+        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr), // Margin Available
         BigDecimal.ZERO // Margin Reserved
     ));
 
@@ -138,17 +133,12 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    // ExpMargin = EntryPrice * Qty * Size * IMR
-    BigDecimal expMargin2 = prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr);
-    // ExpSpot = Base - Margin + CumPnl
-    BigDecimal expSpot2 = baseSpotBalance.subtract(expMargin2).add(prevPos.cumRealizedPnl);
-
     verifyAccount(tokenA, new ExpectedAccount(
-        expSpot2,
-        expSpot2,
+        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
+        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
         BigDecimal.ZERO,
-        expMargin2,
-        expMargin2,
+        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
+        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
         BigDecimal.ZERO
     ));
 
@@ -172,17 +162,12 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    // ExpMargin = EntryPrice * Qty * Size * IMR
-    BigDecimal expMargin3 = prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr);
-    // ExpSpot = Base - Margin + CumPnl
-    BigDecimal expSpot3 = baseSpotBalance.subtract(expMargin3).add(prevPos.cumRealizedPnl);
-
     verifyAccount(tokenA, new ExpectedAccount(
-        expSpot3,
-        expSpot3,
+        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
+        baseSpotBalance.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
         BigDecimal.ZERO,
-        expMargin3,
-        expMargin3,
+        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
+        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
         BigDecimal.ZERO
     ));
 
@@ -206,17 +191,12 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    // ExpMargin = 0
-    BigDecimal expMargin4 = BigDecimal.ZERO;
-    // ExpSpot = Base - Margin + CumPnl
-    BigDecimal expSpot4 = baseSpotBalance.subtract(expMargin4).add(prevPos.cumRealizedPnl);
-
     verifyAccount(tokenA, new ExpectedAccount(
-        expSpot4,
-        expSpot4,
+        baseSpotBalance.add(prevPos.cumRealizedPnl),
+        baseSpotBalance.add(prevPos.cumRealizedPnl),
         BigDecimal.ZERO,
-        expMargin4,
-        expMargin4,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
         BigDecimal.ZERO
     ));
 
@@ -288,17 +268,12 @@ class PositionApiRestAssuredTest {
     verifyPosition(tokenA, prevPos);
 
     // 驗證 A 資產: Spot/Margin
-    // ExpMargin = EntryPrice * Qty * Size * IMR
-    BigDecimal expMargin11 = prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr);
-    // ExpSpot = Base2 - Margin + CumPnl
-    BigDecimal expSpot11 = baseSpotBalance2.subtract(expMargin11).add(prevPos.cumRealizedPnl);
-
     verifyAccount(tokenA, new ExpectedAccount(
-        expSpot11,
-        expSpot11,
+        baseSpotBalance2.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
+        baseSpotBalance2.subtract(prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr)).add(prevPos.cumRealizedPnl),
         BigDecimal.ZERO,
-        expMargin11,
-        expMargin11,
+        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
+        prevPos.entryPrice.multiply(prevPos.qty).multiply(contractSize).multiply(imr),
         BigDecimal.ZERO
     ));
   }
