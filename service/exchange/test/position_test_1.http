@@ -33,7 +33,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 5000
+  "quantity": 5000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -50,7 +51,8 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 5000
+  "quantity": 5000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -100,7 +102,8 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 101,
-  "quantity": 3000
+  "quantity": 3000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -117,7 +120,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 101,
-  "quantity": 3000
+  "quantity": 3000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -168,7 +172,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 102,
-  "quantity": 2000
+  "quantity": 2000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -185,7 +190,8 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 102,
-  "quantity": 2000
+  "quantity": 2000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -236,7 +242,8 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 99,
-  "quantity": 4000
+  "quantity": 4000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -253,7 +260,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 99,
-  "quantity": 4000
+  "quantity": 4000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -304,7 +312,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 98,
-  "quantity": 5000
+  "quantity": 5000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -323,7 +332,8 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 10000
+  "quantity": 10000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -340,7 +350,8 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 98,
-  "quantity": 5000
+  "quantity": 5000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -382,7 +393,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 5000
+  "quantity": 5000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -399,7 +411,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 5000
+  "quantity": 5000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -450,7 +463,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 3000
+  "quantity": 3000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -467,7 +481,8 @@ Content-Type: application/json
   "side": "BUY",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 10000
+  "quantity": 10000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -484,7 +499,8 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 10000
+  "quantity": 10000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
@@ -501,7 +517,8 @@ Content-Type: application/json
   "side": "SELL",
   "type": "LIMIT",
   "price": 100,
-  "quantity": 3000
+  "quantity": 3000,
+  "clientOrderId": "{{$uuid}}"
 }
 
 > {%
