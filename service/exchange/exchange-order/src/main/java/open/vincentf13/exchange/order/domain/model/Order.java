@@ -18,6 +18,7 @@ import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 import open.vincentf13.sdk.core.exception.OpenException;
+import open.vincentf13.sdk.core.validator.Id;
 import open.vincentf13.sdk.core.values.OpenDecimal;
 
 @Data
@@ -26,6 +27,7 @@ import open.vincentf13.sdk.core.values.OpenDecimal;
 @AllArgsConstructor
 public class Order {
 
+  @NotNull(groups = Id.class)
   private Long orderId;
   @NotNull private Long userId;
   @NotNull private Long instrumentId;

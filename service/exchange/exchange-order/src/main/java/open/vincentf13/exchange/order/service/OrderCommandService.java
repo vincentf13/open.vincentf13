@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.order.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.github.yitter.idgen.DefaultIdGenerator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -36,8 +37,8 @@ import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckResponse;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
-import open.vincentf13.sdk.core.object.OpenObjectDiff;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.object.OpenObjectDiff;
 import open.vincentf13.sdk.core.values.OpenString;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskResult;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskService;
@@ -66,6 +67,7 @@ public class OrderCommandService {
           OrderStatus.CANCELLING,
           OrderStatus.CANCELLED);
   private static final int MAX_REJECTED_REASON_LENGTH = 255;
+  private final DefaultIdGenerator idGenerator;
   private final OrderRepository orderRepository;
   private final OrderEventPublisher orderEventPublisher;
   private final OrderEventRepository orderEventRepository;
@@ -81,6 +83,7 @@ public class OrderCommandService {
   public OrderResponse createOrder(@NotNull Long userId, @Valid OrderCreateRequest request) {
     try {
       Order order = Order.initWithVaildate(userId, request);
+      order.setOrderId(idGenerator.newLong());
 
       OrderPrepareIntentPayload payload =
           new OrderPrepareIntentPayload(order.getOrderId(), userId, request);

@@ -1,4 +1,4 @@
-@port = 14935
+@port = 5047
 
 ### 重置 Kafka Offset 範例
 POST http://localhost:{{port}}/infra/kafka/seek
@@ -18,6 +18,6 @@ Content-Type: application/json
 {
   "kafka": false,
   "mvc": false,
-  "feign": false,
+  "feign": true,
   "mybatis": false
 }
