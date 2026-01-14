@@ -17,15 +17,50 @@ public class RestAssuredFeignClient implements Client {
     @Override
     public Response execute(Request request, Request.Options options) throws IOException {
         RequestSpecification spec = RestAssured.given();
+
+        // Debug Log
+        System.out.println("[RestAssuredFeignClient] Executing " + request.httpMethod() + " " + request.url());
         if (request.body() != null) {
-            spec.body(request.body());
+            System.out.println("[RestAssuredFeignClient] Body length: " + request.body().length);
+        } else {
+            System.out.println("[RestAssuredFeignClient] Body is null");
         }
-        
-        request.headers().forEach((name, values) -> {
-            if (!"Content-Length".equalsIgnoreCase(name)) {
-                values.forEach(value -> spec.header(name, value));
+        request.headers().forEach((k, v) -> System.out.println("[RestAssuredFeignClient] Header: " + k + " = " + v));
+
+        // 1. 設定 Headers (尋找 Content-Type)
+        String contentType = null;
+        for (Map.Entry<String, Collection<String>> entry : request.headers().entrySet()) {
+            String name = entry.getKey();
+            if ("Content-Type".equalsIgnoreCase(name)) {
+                Collection<String> values = entry.getValue();
+                if (values != null && !values.isEmpty()) {
+                    contentType = values.iterator().next();
+                    spec.contentType(contentType);
+                }
+            } else if (!"Content-Length".equalsIgnoreCase(name)) {
+                entry.getValue().forEach(value -> spec.header(name, value));
             }
-        });
+        }
+
+        // 2. 預設 Content-Type (若未設定且有 Body，預設為 JSON)
+        if (contentType == null && request.body() != null) {
+            System.out.println("[RestAssuredFeignClient] Content-Type missing, defaulting to application/json");
+            contentType = "application/json";
+            spec.contentType(contentType);
+        }
+
+        // 3. 設定 Body
+        if (request.body() != null) {
+            if (contentType != null && contentType.toLowerCase().contains("json")) {
+                java.nio.charset.Charset charset = request.charset();
+                if (charset == null) {
+                    charset = java.nio.charset.StandardCharsets.UTF_8;
+                }
+                spec.body(new String(request.body(), charset));
+            } else {
+                spec.body(request.body());
+            }
+        }
 
         io.restassured.response.Response response = switch (request.httpMethod()) {
             case GET -> spec.get(request.url());
