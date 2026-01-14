@@ -6,14 +6,8 @@ import open.vincentf13.sdk.auth.server.controller.dto.JwtTokenPair;
 import open.vincentf13.sdk.auth.server.controller.dto.LoginRequest;
 
 public class AuthClient extends BaseClient {
-    private final AuthLoginApi authApi;
-
-    public AuthClient(String host) {
-        super(host);
-        this.authApi = FeignClientSupport.buildClient(AuthLoginApi.class, host + "/auth/api");
-    }
-
-    public String login(String email, String password) {
+    public static String login(String email, String password) {
+        AuthLoginApi authApi = FeignClientSupport.buildClient(AuthLoginApi.class, host() + "/auth/api");
         JwtTokenPair tokenPair = FeignClientSupport.assertSuccess(
             authApi.login(new LoginRequest(email, password)), "login");
         return tokenPair.jwtToken();

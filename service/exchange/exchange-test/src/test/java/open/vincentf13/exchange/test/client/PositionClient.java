@@ -7,15 +7,9 @@ import open.vincentf13.exchange.test.client.utils.FeignClientSupport;
 import java.util.List;
 
 public class PositionClient extends BaseClient {
-    private final PositionApi positionApi;
-
-    public PositionClient(String host, String token) {
-        super(host);
-        this.positionApi = FeignClientSupport.buildClient(
-            PositionApi.class, host + "/position/api/positions", token);
-    }
-
-    public PositionResponse findPosition(int instrumentId) {
+    public static PositionResponse findPosition(String token, int instrumentId) {
+        PositionApi positionApi = FeignClientSupport.buildClient(
+            PositionApi.class, host() + "/position/api/positions", token);
         List<PositionResponse> positions = FeignClientSupport.assertSuccess(
             positionApi.getPositions(null, (long) instrumentId), "position.list");
         if (positions == null) {

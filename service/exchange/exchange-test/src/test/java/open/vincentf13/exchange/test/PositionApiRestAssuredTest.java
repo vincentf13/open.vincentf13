@@ -31,18 +31,10 @@ class PositionApiRestAssuredTest {
     private static final long MAKER_DELAY_MS = 2000;
     private static final long TAKER_DELAY_MS = 5000;
 
-    private AuthClient authClient;
-    private SystemClient systemClient;
-    private AdminClient adminClient;
-    private RiskClient riskClient;
-    private AccountClient accountClientA;
-    private AccountClient accountClientB;
-    private AccountClient accountClientC;
-    private OrderClient orderClientA;
-    private OrderClient orderClientB;
-    private OrderClient orderClientC;
-    private PositionClient positionClientA;
     private int instrumentId;
+    private String tokenA;
+    private String tokenB;
+    private String tokenC;
     private BigDecimal contractSize;
     private BigDecimal makerFeeRate;
     private BigDecimal takerFeeRate;
@@ -53,30 +45,19 @@ class PositionApiRestAssuredTest {
 
     @BeforeEach
     void setUp() {
-        authClient = new AuthClient(DEFAULT_GATEWAY_HOST);
-        systemClient = new SystemClient(DEFAULT_GATEWAY_HOST);
-        systemClient.resetData();
+        BaseClient.setHost(DEFAULT_GATEWAY_HOST);
+        SystemClient.resetData();
 
-        String tokenA = authClient.login(EMAIL_A, DEFAULT_PASSWORD);
-        String tokenB = authClient.login(EMAIL_B, DEFAULT_PASSWORD);
-        String tokenC = authClient.login(EMAIL_C, DEFAULT_PASSWORD);
+        tokenA = AuthClient.login(EMAIL_A, DEFAULT_PASSWORD);
+        tokenB = AuthClient.login(EMAIL_B, DEFAULT_PASSWORD);
+        tokenC = AuthClient.login(EMAIL_C, DEFAULT_PASSWORD);
 
-        adminClient = new AdminClient(DEFAULT_GATEWAY_HOST, tokenA);
-        riskClient = new RiskClient(DEFAULT_GATEWAY_HOST, tokenA);
-        accountClientA = new AccountClient(DEFAULT_GATEWAY_HOST, tokenA);
-        accountClientB = new AccountClient(DEFAULT_GATEWAY_HOST, tokenB);
-        accountClientC = new AccountClient(DEFAULT_GATEWAY_HOST, tokenC);
-        orderClientA = new OrderClient(DEFAULT_GATEWAY_HOST, tokenA);
-        orderClientB = new OrderClient(DEFAULT_GATEWAY_HOST, tokenB);
-        orderClientC = new OrderClient(DEFAULT_GATEWAY_HOST, tokenC);
-        positionClientA = new PositionClient(DEFAULT_GATEWAY_HOST, tokenA);
+        AccountClient.deposit(tokenA, 10000);
+        AccountClient.deposit(tokenB, 10000);
+        AccountClient.deposit(tokenC, 10000);
 
-        accountClientA.deposit(10000);
-        accountClientB.deposit(10000);
-        accountClientC.deposit(10000);
-
-        InstrumentDetailResponse instrument = adminClient.getInstrument(DEFAULT_INSTRUMENT_ID);
-        RiskLimitResponse risk = riskClient.getRiskLimit(DEFAULT_INSTRUMENT_ID);
+        InstrumentDetailResponse instrument = AdminClient.getInstrument(tokenA, DEFAULT_INSTRUMENT_ID);
+        RiskLimitResponse risk = RiskClient.getRiskLimit(tokenA, DEFAULT_INSTRUMENT_ID);
 
         contractSize = getBigDecimalOrThow(instrument.contractSize(), "contractSize");
         makerFeeRate = getBigDecimalOrThow(instrument.makerFeeRate(), "makerFeeRate");
@@ -85,7 +66,7 @@ class PositionApiRestAssuredTest {
         mmr = getBigDecimalOrThow(risk.maintenanceMarginRate(), "maintenanceMarginRate");
         imr = getBigDecimalOrThow(risk.initialMarginRate(), "initialMarginRate");
 
-        AccountBalanceItem spot = accountClientA.getSpotAccount();
+        AccountBalanceItem spot = AccountClient.getSpotAccount(tokenA);
         assertNotNull(spot, "Spot account not found for baseline");
         baseSpotBalance = getBigDecimalOrThow(spot.balance(), "spot.balance");
         
@@ -103,8 +84,8 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(openSide), openPrice, openQuantity, TradeRole.MAKER);
         ExpectedPosition openPosition = simulatePosition(simulator, openSide, openPrice, true, openQuantity);
         ExpectedAccount openAccount = simulateAccount(openPosition);
-        verifyPosition(positionClientA.findPosition(instrumentId), openPosition);
-        verifyAccount(accountClientA.getBalanceSheet(), openAccount);
+        verifyPosition(PositionClient.findPosition(tokenA, instrumentId), openPosition);
+        verifyAccount(AccountClient.getBalanceSheet(tokenA), openAccount);
 
         OrderSide reduceSide = OrderSide.SELL;
         double reducePrice = 101;
@@ -113,8 +94,8 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(reduceSide), reducePrice, reduceQuantity, TradeRole.MAKER);
         ExpectedPosition reducePosition = simulatePosition(simulator, reduceSide, reducePrice, true, reduceQuantity);
         ExpectedAccount reduceAccount = simulateAccount(reducePosition);
-        verifyPosition(positionClientA.findPosition(instrumentId), reducePosition);
-        verifyAccount(accountClientA.getBalanceSheet(), reduceAccount);
+        verifyPosition(PositionClient.findPosition(tokenA, instrumentId), reducePosition);
+        verifyAccount(AccountClient.getBalanceSheet(tokenA), reduceAccount);
 
         OrderSide increaseSide = OrderSide.BUY;
         double increasePrice = 102;
@@ -123,8 +104,8 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(increaseSide), increasePrice, increaseQuantity, TradeRole.MAKER);
         ExpectedPosition increasePosition = simulatePosition(simulator, increaseSide, increasePrice, true, increaseQuantity);
         ExpectedAccount increaseAccount = simulateAccount(increasePosition);
-        verifyPosition(positionClientA.findPosition(instrumentId), increasePosition);
-        verifyAccount(accountClientA.getBalanceSheet(), increaseAccount);
+        verifyPosition(PositionClient.findPosition(tokenA, instrumentId), increasePosition);
+        verifyAccount(AccountClient.getBalanceSheet(tokenA), increaseAccount);
 
         OrderSide closeSide = OrderSide.SELL;
         double closePrice = 99;
@@ -133,8 +114,8 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(closeSide), closePrice, closeQuantity, TradeRole.MAKER);
         ExpectedPosition closePosition = simulatePosition(simulator, closeSide, closePrice, true, closeQuantity);
         ExpectedAccount closeAccount = simulateAccount(closePosition);
-        verifyPosition(positionClientA.findPosition(instrumentId), closePosition);
-        verifyAccount(accountClientA.getBalanceSheet(), closeAccount);
+        verifyPosition(PositionClient.findPosition(tokenA, instrumentId), closePosition);
+        verifyAccount(AccountClient.getBalanceSheet(tokenA), closeAccount);
 
         OrderSide reopenSide = OrderSide.BUY;
         double reopenPrice = 98;
@@ -143,16 +124,16 @@ class PositionApiRestAssuredTest {
         submitOrder(Counterparty.B, opposite(reopenSide), reopenPrice, reopenQuantity, TradeRole.MAKER);
         ExpectedPosition reopenPosition = simulatePosition(simulator, reopenSide, reopenPrice, true, reopenQuantity);
         ExpectedAccount reopenAccount = simulateAccount(reopenPosition);
-        verifyPosition(positionClientA.findPosition(instrumentId), reopenPosition);
-        verifyAccount(accountClientA.getBalanceSheet(), reopenAccount);
+        verifyPosition(PositionClient.findPosition(tokenA, instrumentId), reopenPosition);
+        verifyAccount(AccountClient.getBalanceSheet(tokenA), reopenAccount);
 
         StepResult flipResult = executeTradeWithTwoCounterparties(simulator, OrderSide.SELL, 100, 10000);
-        verifyPosition(positionClientA.findPosition(instrumentId), flipResult.expectedPosition);
-        verifyAccount(accountClientA.getBalanceSheet(), flipResult.expectedAccount);
+        verifyPosition(PositionClient.findPosition(tokenA, instrumentId), flipResult.expectedPosition);
+        verifyAccount(AccountClient.getBalanceSheet(tokenA), flipResult.expectedAccount);
 
         StepResult concurrentResult = executeConcurrentFlip(simulator);
-        verifyPosition(positionClientA.findPosition(instrumentId), concurrentResult.expectedPosition);
-        verifyAccount(accountClientA.getBalanceSheet(), concurrentResult.expectedAccount);
+        verifyPosition(PositionClient.findPosition(tokenA, instrumentId), concurrentResult.expectedPosition);
+        verifyAccount(AccountClient.getBalanceSheet(tokenA), concurrentResult.expectedAccount);
     }
 
     private StepResult executeTradeWithTwoCounterparties(PositionSimulator simulator, OrderSide side, double price, int quantity) {
@@ -187,12 +168,12 @@ class PositionApiRestAssuredTest {
     }
 
     private void submitOrder(Counterparty counterparty, OrderSide side, double price, int quantity, TradeRole role) {
-        OrderClient client = switch (counterparty) {
-            case A -> orderClientA;
-            case B -> orderClientB;
-            case C -> orderClientC;
+        String token = switch (counterparty) {
+            case A -> tokenA;
+            case B -> tokenB;
+            case C -> tokenC;
         };
-        client.placeOrder(instrumentId, side, price, quantity);
+        OrderClient.placeOrder(token, instrumentId, side, price, quantity);
         pause(role == TradeRole.MAKER ? MAKER_DELAY_MS : TAKER_DELAY_MS);
     }
 
