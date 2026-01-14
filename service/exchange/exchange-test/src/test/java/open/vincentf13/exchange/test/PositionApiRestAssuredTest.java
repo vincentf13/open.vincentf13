@@ -22,12 +22,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class PositionApiRestAssuredTest {
-    private static final String DEFAULT_GATEWAY_HOST = "http://localhost:12345";
-    private static final int DEFAULT_INSTRUMENT_ID = 10001;
-    private static final String DEFAULT_PASSWORD = "12345678";
-    private static final String EMAIL_A = "c.p.kevinf13@gmail.com";
-    private static final String EMAIL_B = "c.p.kevinf13-2@gmail.com";
-    private static final String EMAIL_C = "c.p.kevinf13-3@gmail.com";
+    private static final String GATEWAY_HOST = "http://localhost:12345";
+    private static final int INSTRUMENT_ID = 10001;
+    private static final String PASSWORD = "12345678";
+    private static final String USER_A = "c.p.kevinf13@gmail.com";
+    private static final String USER_B = "c.p.kevinf13-2@gmail.com";
+    private static final String USER_C = "c.p.kevinf13-3@gmail.com";
     private static final long MAKER_DELAY_MS = 2000;
     private static final long TAKER_DELAY_MS = 5000;
 
@@ -38,39 +38,38 @@ class PositionApiRestAssuredTest {
     private BigDecimal contractSize;
     private BigDecimal makerFeeRate;
     private BigDecimal takerFeeRate;
-    private BigDecimal leverage;
+    private Integer leverage;
     private BigDecimal mmr;
     private BigDecimal imr;
     private BigDecimal baseSpotBalance;
 
     @BeforeEach
     void setUp() {
-        BaseClient.setHost(DEFAULT_GATEWAY_HOST);
+        BaseClient.setHost(GATEWAY_HOST);
         SystemClient.resetData();
 
-        tokenA = AuthClient.login(EMAIL_A, DEFAULT_PASSWORD);
-        tokenB = AuthClient.login(EMAIL_B, DEFAULT_PASSWORD);
-        tokenC = AuthClient.login(EMAIL_C, DEFAULT_PASSWORD);
+        tokenA = AuthClient.login(USER_A, PASSWORD);
+        tokenB = AuthClient.login(USER_B, PASSWORD);
+        tokenC = AuthClient.login(USER_C, PASSWORD);
 
         AccountClient.deposit(tokenA, 10000);
         AccountClient.deposit(tokenB, 10000);
         AccountClient.deposit(tokenC, 10000);
 
-        InstrumentDetailResponse instrument = AdminClient.getInstrument(tokenA, DEFAULT_INSTRUMENT_ID);
-        RiskLimitResponse risk = RiskClient.getRiskLimit(tokenA, DEFAULT_INSTRUMENT_ID);
+        InstrumentDetailResponse instrument = AdminClient.getInstrument(INSTRUMENT_ID);
+        RiskLimitResponse risk = RiskClient.getRiskLimit(INSTRUMENT_ID);
 
-        contractSize = getBigDecimalOrThow(instrument.contractSize(), "contractSize");
-        makerFeeRate = getBigDecimalOrThow(instrument.makerFeeRate(), "makerFeeRate");
-        takerFeeRate = getBigDecimalOrThow(instrument.takerFeeRate(), "takerFeeRate");
-        leverage = getBigDecimalOrThow(instrument.defaultLeverage(), "defaultLeverage");
-        mmr = getBigDecimalOrThow(risk.maintenanceMarginRate(), "maintenanceMarginRate");
-        imr = getBigDecimalOrThow(risk.initialMarginRate(), "initialMarginRate");
+        contractSize = instrument.contractSize();
+        makerFeeRate = instrument.makerFeeRate();
+        takerFeeRate = instrument.takerFeeRate();
+        leverage = instrument.defaultLeverage();
+        mmr = risk.maintenanceMarginRate();
+        imr = risk.initialMarginRate();
 
         AccountBalanceItem spot = AccountClient.getSpotAccount(tokenA);
-        assertNotNull(spot, "Spot account not found for baseline");
-        baseSpotBalance = getBigDecimalOrThow(spot.balance(), "spot.balance");
+        baseSpotBalance = spot.balance();
         
-        instrumentId = DEFAULT_INSTRUMENT_ID;
+        instrumentId = INSTRUMENT_ID;
     }
 
     @Test
@@ -182,22 +181,22 @@ class PositionApiRestAssuredTest {
 
         PositionStatus status = position.status();
         PositionSide side = position.side();
-        BigDecimal leverage = getBigDecimalOrThow(position.leverage(), "position.leverage");
-        BigDecimal margin = getBigDecimalOrThow(position.margin(), "position.margin");
-        BigDecimal entryPrice = getBigDecimalOrThow(position.entryPrice(), "position.entryPrice");
-        BigDecimal quantity = getBigDecimalOrThow(position.quantity(), "position.quantity");
-        BigDecimal closingReserved = getBigDecimalOrThow(position.closingReservedQuantity(), "position.closingReservedQuantity");
-        BigDecimal markPrice = getBigDecimalOrThow(position.markPrice(), "position.markPrice");
-        BigDecimal marginRatio = getBigDecimalOrThow(position.marginRatio(), "position.marginRatio");
-        BigDecimal unrealizedPnl = getBigDecimalOrThow(position.unrealizedPnl(), "position.unrealizedPnl");
-        BigDecimal cumRealizedPnl = getBigDecimalOrThow(position.cumRealizedPnl(), "position.cumRealizedPnl");
-        BigDecimal cumFee = getBigDecimalOrThow(position.cumFee(), "position.cumFee");
-        BigDecimal cumFundingFee = getBigDecimalOrThow(position.cumFundingFee(), "position.cumFundingFee");
+        Integer leverage = position.leverage();
+        BigDecimal margin = position.margin();
+        BigDecimal entryPrice = position.entryPrice();
+        BigDecimal quantity = position.quantity();
+        BigDecimal closingReserved = position.closingReservedQuantity();
+        BigDecimal markPrice = position.markPrice();
+        BigDecimal marginRatio = position.marginRatio();
+        BigDecimal unrealizedPnl = position.unrealizedPnl();
+        BigDecimal cumRealizedPnl = position.cumRealizedPnl();
+        BigDecimal cumFee = position.cumFee();
+        BigDecimal cumFundingFee = position.cumFundingFee();
         BigDecimal liquidationPrice = position.liquidationPrice();
 
         assertEquals(expected.status, status, "Status mismatch");
         assertEquals(expected.side, side, "Side mismatch");
-        assertNear(leverage, this.leverage, BigDecimal.valueOf(0.0001), "Leverage mismatch");
+        assertEquals(this.leverage, leverage, "Leverage mismatch");
 
         BigDecimal expectedMargin = expected.entryPrice
             .multiply(expected.quantity)
@@ -256,18 +255,18 @@ class PositionApiRestAssuredTest {
         assertNotNull(spot, "Spot account not found");
         assertNotNull(margin, "Margin account not found");
 
-        assertNear(getBigDecimalOrThow(spot.balance(), "spot.balance"),
+        assertNear(spot.balance(),
             expected.spotBalance, BigDecimal.valueOf(0.0001), "Spot balance mismatch");
-        assertNear(getBigDecimalOrThow(spot.available(), "spot.available"),
+        assertNear(spot.available(),
             expected.spotAvailable, BigDecimal.valueOf(0.0001), "Spot available mismatch");
-        assertNear(getBigDecimalOrThow(spot.reserved(), "spot.reserved"),
+        assertNear(spot.reserved(),
             expected.spotReserved, BigDecimal.valueOf(0.0001), "Spot reserved mismatch");
 
-        assertNear(getBigDecimalOrThow(margin.balance(), "margin.balance"),
+        assertNear(margin.balance(),
             expected.marginBalance, BigDecimal.valueOf(0.0001), "Margin balance mismatch");
-        assertNear(getBigDecimalOrThow(margin.available(), "margin.available"),
+        assertNear(margin.available(),
             expected.marginAvailable, BigDecimal.valueOf(0.0001), "Margin available mismatch");
-        assertNear(getBigDecimalOrThow(margin.reserved(), "margin.reserved"),
+        assertNear(margin.reserved(),
             expected.marginReserved, BigDecimal.valueOf(0.0001), "Margin reserved mismatch");
     }
 
@@ -314,16 +313,6 @@ class PositionApiRestAssuredTest {
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-    }
-
-    private static BigDecimal getBigDecimalOrThow(Object value, String fieldName) {
-        if (value == null) {
-            throw new IllegalArgumentException(fieldName + " is required");
-        }
-        if (value instanceof BigDecimal decimal) {
-            return decimal;
-        }
-        return new BigDecimal(String.valueOf(value));
     }
 
     private static void assertNear(BigDecimal actual, BigDecimal expected, BigDecimal tolerance, String message) {

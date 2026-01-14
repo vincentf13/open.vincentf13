@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class AccountClient extends BaseClient {
     public static void deposit(String token, double amount) {
@@ -39,9 +40,11 @@ public class AccountClient extends BaseClient {
         if (assets == null) {
             return null;
         }
-        return assets.stream()
+        AccountBalanceItem spot = assets.stream()
             .filter(asset -> UserAccountCode.SPOT.equals(asset.accountCode()) && AssetSymbol.USDT.equals(asset.asset()))
             .findFirst()
             .orElse(null);
+        assertNotNull(spot, "Spot account not found for baseline");
+        return spot;
     }
 }
