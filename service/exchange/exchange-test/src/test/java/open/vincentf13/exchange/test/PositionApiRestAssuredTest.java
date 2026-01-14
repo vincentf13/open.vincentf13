@@ -75,18 +75,18 @@ class PositionApiRestAssuredTest {
 
   @Test
   void testPositionTradingFlow() {
-    // ### 讀取帳號 A 資產 (現貨/逐倉) 作為基準
+    // 讀取帳號 A 資產 (現貨/逐倉) 作為基準
     AccountBalanceItem initialSpot = AccountClient.getSpotAccount(tokenA);
     BigDecimal baseSpotBalance = initialSpot.balance();
     assertNotNull(baseSpotBalance, "Initial baseSpotBalance  missing");
 
-    // ### [開倉] A Buy 5 (B Sell 5) @ 100 -> A 預期持多倉 5
+    // [開倉] A Buy 5 (B Sell 5) @ 100 -> A 預期持多倉 5
     submitOrder(tokenA, OrderSide.BUY, new BigDecimal("100"), new BigDecimal("5000"), TradeRole.MAKER);
 
-    // ### B 成交 A 的 5 張
+    // B 成交 A 的 5 張
     submitOrder(tokenB, OrderSide.SELL, new BigDecimal("100"), new BigDecimal("5000"), TradeRole.TAKER);
 
-    // ### 驗證 A 持倉: Long 5, Price 100
+    // 驗證 A 持倉: Long 5, Price 100
     verifyPosition(tokenA, new ExpectedPosition(
         PositionStatus.ACTIVE,
         PositionSide.LONG,
@@ -98,17 +98,16 @@ class PositionApiRestAssuredTest {
         BigDecimal.ZERO
     ));
 
-    // ### 驗證 A 資產: Spot/Margin
+    // 驗證 A 資產: Spot/Margin
     verifyAccount(tokenA, baseSpotBalance, new BigDecimal("100"), new BigDecimal("5000"), new BigDecimal("-0.1"));
 
-    // ### [減倉] A Sell 3 (B Buy 3) @ 101 -> A 預期持多倉 2
+    // [減倉] A Sell 3 (B Buy 3) @ 101 -> A 預期持多倉 2
     submitOrder(tokenA, OrderSide.SELL, new BigDecimal("101"), new BigDecimal("3000"), TradeRole.MAKER);
 
-    // ### B 成交 A 的 3 張
+    // B 成交 A 的 3 張
     submitOrder(tokenB, OrderSide.BUY, new BigDecimal("101"), new BigDecimal("3000"), TradeRole.TAKER);
 
-    // ### 驗證 A 持倉: Long 2
-    // client.test("Step 6: Position Logic Check", ...
+    // 驗證 A 持倉: Long 2
     verifyPosition(tokenA, new ExpectedPosition(
         PositionStatus.ACTIVE,
         PositionSide.LONG,
@@ -120,18 +119,16 @@ class PositionApiRestAssuredTest {
         BigDecimal.ZERO
     ));
 
-    // ### 驗證 A 資產: Spot/Margin
-    // client.test("Step 6: Account Balance Check", ...
+    // 驗證 A 資產: Spot/Margin
     verifyAccount(tokenA, baseSpotBalance, new BigDecimal("100"), new BigDecimal("2000"), new BigDecimal("2.8394"));
 
-    // ### [增倉] A Buy 2 (B Sell 2) @ 102 -> A 預期持多倉 4
+    // [增倉] A Buy 2 (B Sell 2) @ 102 -> A 預期持多倉 4
     submitOrder(tokenA, OrderSide.BUY, new BigDecimal("102"), new BigDecimal("2000"), TradeRole.MAKER);
 
-    // ### B 成交 A 的 2 張
+    // B 成交 A 的 2 張
     submitOrder(tokenB, OrderSide.SELL, new BigDecimal("102"), new BigDecimal("2000"), TradeRole.TAKER);
 
-    // ### 驗證 A 持倉: Long 4
-    // client.test("Step 7: Position Logic Check", ...
+    // 驗證 A 持倉: Long 4
     verifyPosition(tokenA, new ExpectedPosition(
         PositionStatus.ACTIVE,
         PositionSide.LONG,
@@ -143,18 +140,16 @@ class PositionApiRestAssuredTest {
         BigDecimal.ZERO
     ));
 
-    // ### 驗證 A 資產: Spot/Margin
-    // client.test("Step 7: Account Balance Check", ...
+    // 驗證 A 資產: Spot/Margin
     verifyAccount(tokenA, baseSpotBalance, new BigDecimal("101"), new BigDecimal("4000"), new BigDecimal("2.7986"));
 
-    // ### [平倉] A Sell 4 (B Buy 4) @ 99 -> A 預期持倉 0 (因為之前是多倉 4)
+    // [平倉] A Sell 4 (B Buy 4) @ 99 -> A 預期持倉 0 (因為之前是多倉 4)
     submitOrder(tokenA, OrderSide.SELL, new BigDecimal("99"), new BigDecimal("4000"), TradeRole.MAKER);
 
-    // ### B 成交 A 的 4 張
+    // B 成交 A 的 4 張
     submitOrder(tokenB, OrderSide.BUY, new BigDecimal("99"), new BigDecimal("4000"), TradeRole.TAKER);
 
-    // ### 驗證 A 持倉: Closed
-    // client.test("Step 8: Position Logic Check (Close)", ...
+    // 驗證 A 持倉: Closed
     verifyPosition(tokenA, new ExpectedPosition(
         PositionStatus.CLOSED,
         PositionSide.LONG,
@@ -166,9 +161,78 @@ class PositionApiRestAssuredTest {
         BigDecimal.ZERO
     ));
 
-    // ### 驗證 A 資產: Spot/Margin
-    // client.test("Step 8: Account Balance Check", ...
+    // 驗證 A 資產: Spot/Margin
     verifyAccount(tokenA, baseSpotBalance, new BigDecimal("101"), BigDecimal.ZERO, new BigDecimal("-5.2806"));
+
+    // [再次開倉] A Buy 5 (B Sell 5) @ 98 -> A 預期持多倉 5
+    submitOrder(tokenA, OrderSide.BUY, new BigDecimal("98"), new BigDecimal("5000"), TradeRole.MAKER);
+
+    // B 成交 A 的 5 張
+    submitOrder(tokenB, OrderSide.SELL, new BigDecimal("98"), new BigDecimal("5000"), TradeRole.TAKER);
+
+    // 驗證 A 持倉: Long 5
+    verifyPosition(tokenA, new ExpectedPosition(
+        PositionStatus.ACTIVE,
+        PositionSide.LONG,
+        new BigDecimal("5000"),
+        new BigDecimal("98"), // Entry avg = 98
+        new BigDecimal("98"), // Mark
+        new BigDecimal("-0.098"), // Fee: 5 * 98 * 0.0002 = 0.098, PnL - Fee = -0.098 (Reset after close)
+        new BigDecimal("0.098"),
+        BigDecimal.ZERO
+    ));
+
+    // [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5 (原多 5 - 賣 10)
+    // A 原本持多倉 5，賣 10 變空 5
+    submitOrder(tokenA, OrderSide.SELL, new BigDecimal("100"), new BigDecimal("10000"), TradeRole.MAKER);
+
+    // C 成交 A 的 5 張
+    submitOrder(tokenC, OrderSide.BUY, new BigDecimal("100"), new BigDecimal("5000"), TradeRole.TAKER);
+
+    // B 成交 A 的 5 張
+    submitOrder(tokenB, OrderSide.BUY, new BigDecimal("100"), new BigDecimal("5000"), TradeRole.TAKER);
+
+    // 驗證 A 持倉: Short 5
+    verifyPosition(tokenA, new ExpectedPosition(
+        PositionStatus.ACTIVE,
+        PositionSide.SHORT,
+        new BigDecimal("5000"),
+        new BigDecimal("100"), // Entry avg = 100
+        new BigDecimal("100"), // Mark
+        new BigDecimal("-0.1"), // Fee: 5 * 100 * 0.0002 = 0.1, PnL - Fee = -0.1 (Reset after flip)
+        new BigDecimal("0.1"),
+        BigDecimal.ZERO
+    ));
+
+    // [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
+    // A 原本持空倉 5，買 3 變空 2，再買 10 變多 8
+    
+    // 更新 A 的基準資產作為 Step 11 的基準
+    baseSpotBalance = AccountClient.getSpotAccount(tokenA).balance();
+
+    submitOrder(tokenA, OrderSide.BUY, new BigDecimal("100"), new BigDecimal("3000"), TradeRole.MAKER);
+    submitOrder(tokenA, OrderSide.BUY, new BigDecimal("100"), new BigDecimal("10000"), TradeRole.MAKER);
+
+    // B 成交 A 的 10 張
+    submitOrder(tokenB, OrderSide.SELL, new BigDecimal("100"), new BigDecimal("10000"), TradeRole.TAKER);
+
+    // B 成交 A 的 3 張
+    submitOrder(tokenB, OrderSide.SELL, new BigDecimal("100"), new BigDecimal("3000"), TradeRole.TAKER);
+
+    // 驗證 A 持倉: Long 8
+    verifyPosition(tokenA, new ExpectedPosition(
+        PositionStatus.ACTIVE,
+        PositionSide.LONG,
+        new BigDecimal("8000"),
+        new BigDecimal("100"), // Entry avg = 100
+        new BigDecimal("100"), // Mark
+        new BigDecimal("-0.26"), // Fee: 13 * 100 * 0.0002 = 0.26, PnL - Fee = -0.26 (Reset after flip)
+        new BigDecimal("0.26"),
+        BigDecimal.ZERO
+    ));
+
+    // 驗證 A 資產: Spot/Margin
+    verifyAccount(tokenA, baseSpotBalance, new BigDecimal("100"), new BigDecimal("8000"), new BigDecimal("-0.26"));
   }
 
 
