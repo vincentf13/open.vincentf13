@@ -311,18 +311,20 @@ class PositionApiRestAssuredTest {
 
     // Margin Ratio (保證金率)
     // Ratio = Equity / Notional = (Margin + Upnl) / (Mark * Qty * Size)
-    BigDecimal notional = pos.markPrice().multiply(pos.quantity()).multiply(contractSize);
-    BigDecimal equity = pos.margin().add(pos.unrealizedPnl());
-    if (notional.compareTo(BigDecimal.ZERO) > 0) {
-      BigDecimal expectedRatio = equity.divide(notional, 10, RoundingMode.HALF_UP);
+    BigDecimal priceDiff = (exp.side == PositionSide.LONG) 
+        ? exp.markPrice.subtract(exp.entryPrice) 
+        : exp.entryPrice.subtract(exp.markPrice);
+    BigDecimal expectedUpnl = priceDiff.multiply(exp.qty).multiply(contractSize);
+    
+    BigDecimal expectedNotional = exp.markPrice.multiply(exp.qty).multiply(contractSize);
+    BigDecimal expectedEquity = expectedMargin.add(expectedUpnl);
+    
+    if (expectedNotional.compareTo(BigDecimal.ZERO) > 0) {
+      BigDecimal expectedRatio = expectedEquity.divide(expectedNotional, 10, RoundingMode.HALF_UP);
       assertNear(expectedRatio, pos.marginRatio(), new BigDecimal("0.001"), "Margin Ratio mismatch");
     }
 
     // Unrealized Pnl (未實現損益)
-    BigDecimal priceDiff = (pos.side() == PositionSide.LONG) 
-        ? pos.markPrice().subtract(pos.entryPrice()) 
-        : pos.entryPrice().subtract(pos.markPrice());
-    BigDecimal expectedUpnl = priceDiff.multiply(pos.quantity()).multiply(contractSize);
     assertNear(expectedUpnl, pos.unrealizedPnl(), new BigDecimal("0.01"), "Unrealized PnL mismatch");
 
     // Cum Realized Pnl (累計已實現損益)
@@ -335,11 +337,11 @@ class PositionApiRestAssuredTest {
     assertNear(BigDecimal.ZERO, pos.cumFundingFee(), "Cum Funding Fee mismatch");
 
     // Liquidation Price (強平價格)
-    if (pos.quantity().compareTo(BigDecimal.ZERO) > 0) {
-        BigDecimal marginPerUnit = pos.margin().divide(pos.quantity().multiply(contractSize), 10, RoundingMode.HALF_UP);
-        BigDecimal calcLiqPrice = (pos.side() == PositionSide.LONG)
-            ? (pos.entryPrice().subtract(marginPerUnit)).divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
-            : (pos.entryPrice().add(marginPerUnit)).divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
+    if (exp.qty.compareTo(BigDecimal.ZERO) > 0) {
+        BigDecimal marginPerUnit = expectedMargin.divide(exp.qty.multiply(contractSize), 10, RoundingMode.HALF_UP);
+        BigDecimal calcLiqPrice = (exp.side == PositionSide.LONG)
+            ? (exp.entryPrice.subtract(marginPerUnit)).divide(BigDecimal.ONE.subtract(mmr), 10, RoundingMode.HALF_UP)
+            : (exp.entryPrice.add(marginPerUnit)).divide(BigDecimal.ONE.add(mmr), 10, RoundingMode.HALF_UP);
         
         assertNotNull(pos.liquidationPrice(), "Liquidation Price should not be null");
         assertNear(calcLiqPrice, pos.liquidationPrice(), new BigDecimal("0.1"), "Liquidation Price mismatch");
