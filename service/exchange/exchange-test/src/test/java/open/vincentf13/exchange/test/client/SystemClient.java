@@ -1,16 +1,18 @@
 package open.vincentf13.exchange.test.client;
 
 import open.vincentf13.exchange.admin.contract.SystemMaintenanceApi;
+import open.vincentf13.exchange.test.client.utils.FeignClientSupport;
 
-class SystemClient {
+public class SystemClient extends BaseClient {
     private final SystemMaintenanceApi systemApi;
 
-    SystemClient(String gatewayHost) {
+    public SystemClient(String host) {
+        super(host);
         this.systemApi = FeignClientSupport.buildClient(
-            SystemMaintenanceApi.class, gatewayHost + "/admin/api/admin/system");
+            SystemMaintenanceApi.class, host + "/admin/api/admin/system");
     }
 
-    void resetData() {
+    public void resetData() {
         FeignClientSupport.assertSuccess(systemApi.resetSystemData(), "resetSystemData");
     }
 }

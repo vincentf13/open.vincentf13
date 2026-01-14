@@ -4,20 +4,19 @@ import open.vincentf13.exchange.common.sdk.enums.OrderSide;
 import open.vincentf13.exchange.common.sdk.enums.OrderType;
 import open.vincentf13.exchange.order.sdk.rest.api.OrderApi;
 import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
+import open.vincentf13.exchange.test.client.utils.FeignClientSupport;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-class OrderClient {
-    private final String gatewayHost;
-
-    OrderClient(String gatewayHost) {
-        this.gatewayHost = gatewayHost;
+public class OrderClient extends BaseClient {
+    public OrderClient(String host) {
+        super(host);
     }
 
-    void placeOrder(String token, int instrumentId, OrderSide side, double price, int quantity) {
+    public void placeOrder(String token, int instrumentId, OrderSide side, double price, int quantity) {
         OrderApi orderApi = FeignClientSupport.buildClient(
-            OrderApi.class, gatewayHost + "/order/api/orders", token);
+            OrderApi.class, host + "/order/api/orders", token);
         OrderCreateRequest request = OrderCreateRequest.builder()
             .instrumentId((long) instrumentId)
             .side(side)

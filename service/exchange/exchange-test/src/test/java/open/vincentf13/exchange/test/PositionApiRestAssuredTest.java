@@ -7,13 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
-import open.vincentf13.exchange.test.client.AccountClient;
-import open.vincentf13.exchange.test.client.AdminClient;
-import open.vincentf13.exchange.test.client.AuthClient;
-import open.vincentf13.exchange.test.client.OrderClient;
-import open.vincentf13.exchange.test.client.PositionClient;
-import open.vincentf13.exchange.test.client.RiskClient;
-import open.vincentf13.exchange.test.client.SystemClient;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
@@ -68,44 +61,32 @@ class PositionApiRestAssuredTest {
         positionClient = new PositionClient(DEFAULT_GATEWAY_HOST);
         systemClient.resetData();
 
-        String tokenA1 = authClient.login(EMAIL_A, DEFAULT_PASSWORD);
-        String tokenB1 = authClient.login(EMAIL_B, DEFAULT_PASSWORD);
-        String tokenC1 = authClient.login(EMAIL_C, DEFAULT_PASSWORD);
+        String tokenA = authClient.login(EMAIL_A, DEFAULT_PASSWORD);
+        String tokenB = authClient.login(EMAIL_B, DEFAULT_PASSWORD);
+        String tokenC = authClient.login(EMAIL_C, DEFAULT_PASSWORD);
 
-        accountClient.deposit(tokenA1, 10000);
-        accountClient.deposit(tokenB1, 10000);
-        accountClient.deposit(tokenC1, 10000);
+        accountClient.deposit(tokenA, 10000);
+        accountClient.deposit(tokenB, 10000);
+        accountClient.deposit(tokenC, 10000);
 
-        InstrumentDetailResponse instrument = adminClient.getInstrument(tokenA1, DEFAULT_INSTRUMENT_ID);
-        RiskLimitResponse risk = riskClient.getRiskLimit(tokenA1, DEFAULT_INSTRUMENT_ID);
+        InstrumentDetailResponse instrument = adminClient.getInstrument(tokenA, DEFAULT_INSTRUMENT_ID);
+        RiskLimitResponse risk = riskClient.getRiskLimit(tokenA, DEFAULT_INSTRUMENT_ID);
 
-        BigDecimal contractSize1 = getBigDecimalOrThow(instrument.contractSize(), "contractSize");
-        BigDecimal makerFeeRate1 = getBigDecimalOrThow(instrument.makerFeeRate(), "makerFeeRate");
-        BigDecimal takerFeeRate1 = getBigDecimalOrThow(instrument.takerFeeRate(), "takerFeeRate");
-        BigDecimal leverage1 = getBigDecimalOrThow(instrument.defaultLeverage(), "defaultLeverage");
-        BigDecimal mmr1 = getBigDecimalOrThow(risk.maintenanceMarginRate(), "maintenanceMarginRate");
-        BigDecimal imr1 = getBigDecimalOrThow(risk.initialMarginRate(), "initialMarginRate");
+        contractSize = getBigDecimalOrThow(instrument.contractSize(), "contractSize");
+        makerFeeRate = getBigDecimalOrThow(instrument.makerFeeRate(), "makerFeeRate");
+        takerFeeRate = getBigDecimalOrThow(instrument.takerFeeRate(), "takerFeeRate");
+        leverage = getBigDecimalOrThow(instrument.defaultLeverage(), "defaultLeverage");
+        mmr = getBigDecimalOrThow(risk.maintenanceMarginRate(), "maintenanceMarginRate");
+        imr = getBigDecimalOrThow(risk.initialMarginRate(), "initialMarginRate");
 
-        AccountBalanceSheetResponse balanceSheet = accountClient.getBalanceSheet(tokenA1);
-        List<AccountBalanceItem> assets = balanceSheet.assets();
-        AccountBalanceItem spot = assets == null ? null : assets.stream()
-            .filter(asset -> UserAccountCode.SPOT.equals(asset.accountCode()) && AssetSymbol.USDT.equals(asset.asset()))
-            .findFirst()
-            .orElse(null);
+        AccountBalanceItem spot = accountClient.getSpotAccount(tokenA);
         assertNotNull(spot, "Spot account not found for baseline");
-        BigDecimal baseSpotBalance1 = getBigDecimalOrThow(spot.balance(), "spot.balance");
+        baseSpotBalance = getBigDecimalOrThow(spot.balance(), "spot.balance");
         
         instrumentId = DEFAULT_INSTRUMENT_ID;
-        tokenA = tokenA1;
-        tokenB = tokenB1;
-        tokenC = tokenC1;
-        contractSize = contractSize1;
-        makerFeeRate = makerFeeRate1;
-        takerFeeRate = takerFeeRate1;
-        leverage = leverage1;
-        mmr = mmr1;
-        imr = imr1;
-        baseSpotBalance = baseSpotBalance1;
+        this.tokenA = tokenA;
+        this.tokenB = tokenB;
+        this.tokenC = tokenC;
     }
 
     @Test

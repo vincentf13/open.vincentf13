@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.test.client;
+package open.vincentf13.exchange.test.client.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.Feign;
@@ -13,7 +13,7 @@ import org.springframework.cloud.openfeign.support.SpringMvcContract;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-final class FeignClientSupport {
+public final class FeignClientSupport {
     private static final Encoder ENCODER = new JacksonEncoder(new ObjectMapper().findAndRegisterModules());
     private static final Decoder DECODER = new JacksonDecoder(new ObjectMapper().findAndRegisterModules());
     private static final SpringMvcContract CONTRACT = new SpringMvcContract();
@@ -21,7 +21,7 @@ final class FeignClientSupport {
     private FeignClientSupport() {
     }
 
-    static <T> T buildClient(Class<T> type, String baseUrl) {
+    public static <T> T buildClient(Class<T> type, String baseUrl) {
         return Feign.builder()
             .client(new RestAssuredFeignClient())
             .encoder(ENCODER)
@@ -30,7 +30,7 @@ final class FeignClientSupport {
             .target(type, baseUrl);
     }
 
-    static <T> T buildClient(Class<T> type, String baseUrl, String token) {
+    public static <T> T buildClient(Class<T> type, String baseUrl, String token) {
         RequestInterceptor auth = template -> template.header("Authorization", "Bearer " + token);
         return Feign.builder()
             .client(new RestAssuredFeignClient())
@@ -41,7 +41,7 @@ final class FeignClientSupport {
             .target(type, baseUrl);
     }
 
-    static <T> T assertSuccess(OpenApiResponse<T> response, String action) {
+    public static <T> T assertSuccess(OpenApiResponse<T> response, String action) {
         assertNotNull(response, action + " response missing");
         assertTrue(response.isSuccess(), action + " failed: " + response.message());
         return response.data();

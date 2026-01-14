@@ -1,4 +1,4 @@
-package open.vincentf13.exchange.test.client;
+package open.vincentf13.exchange.test.client.utils;
 
 import feign.Client;
 import feign.Request;
@@ -14,7 +14,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-class RestAssuredFeignClient implements Client {
+public class RestAssuredFeignClient implements Client {
 
     @Override
     public Response execute(Request request, Request.Options options) throws IOException {
