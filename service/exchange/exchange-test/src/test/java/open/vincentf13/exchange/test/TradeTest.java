@@ -117,11 +117,11 @@ class TradeTest {
     prevPos = step5_ReopenPosition(baseSpotBalance);
     log.info("Scenario [Reopen Position]: PASSED");
 
-    //// [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5
-    // log.info("Scenario [Flip Position]: A Sell 10 @ 100");
-    // prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
-    // log.info("Scenario [Flip Position]: PASSED");
-    //
+    // [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5
+    log.info("Scenario [Flip Position]: A Sell 10 @ 100");
+    prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
+    log.info("Scenario [Flip Position]: PASSED");
+
     //// [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
     // log.info("Scenario [Concurrent Flip]: A Buy 3 & 10 @ 100");
     // step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
@@ -135,93 +135,114 @@ class TradeTest {
     submitOrder(tokenA, OrderSide.BUY, price, qty, TradeRole.MAKER);
     submitOrder(tokenB, OrderSide.SELL, price, qty, TradeRole.TAKER);
 
-    ExpectedPosition pos = new ExpectedPosition(
-        PositionStatus.ACTIVE,
-        PositionSide.LONG,
-        new BigDecimal("5000"),
-        new BigDecimal("100"),
-        price,
-        new BigDecimal("-0.1"), // Fee: 5 * 100 * 0.0002 = 0.1, PnL - Fee = 0 - 0.1 = -0.1
-        new BigDecimal("0.1"),
-        BigDecimal.ZERO
-    );
+    ExpectedPosition pos =
+        new ExpectedPosition(
+            PositionStatus.ACTIVE,
+            PositionSide.LONG,
+            new BigDecimal("5000"),
+            new BigDecimal("100"),
+            price,
+            new BigDecimal("-0.1"), // Fee: 5 * 100 * 0.0002 = 0.1, PnL - Fee = 0 - 0.1 = -0.1
+            new BigDecimal("0.1"),
+            BigDecimal.ZERO);
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
     BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
-    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
+    verifyAccount(
+        tokenA,
+        new ExpectedAccount(
+            expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
     return pos;
   }
 
-  private ExpectedPosition step2_ReducePosition(ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
+  private ExpectedPosition step2_ReducePosition(
+      ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
     BigDecimal price = new BigDecimal("101");
     BigDecimal qty = new BigDecimal("3000");
     submitOrder(tokenA, OrderSide.SELL, price, qty, TradeRole.MAKER);
     submitOrder(tokenB, OrderSide.BUY, price, qty, TradeRole.TAKER);
 
-    ExpectedPosition pos = new ExpectedPosition(
-        PositionStatus.ACTIVE,
-        PositionSide.LONG,
-        new BigDecimal("2000"),
-        new BigDecimal("100"), // Entry = (100 * 2) / 2 = 100 (reduce only)
-        price, // Mark
-        new BigDecimal("2.8394"), // PnL: (101 - 100) * 3 = 3, Fee: 3 * 101 * 0.0002 = 0.0606, PnL - Fee = 2.9394, Cum = -0.1 + 2.9394 = 2.8394
-        new BigDecimal("0.1606"), // Fee: 0.1 + 0.0606 = 0.1606
-        BigDecimal.ZERO
-    );
+    ExpectedPosition pos =
+        new ExpectedPosition(
+            PositionStatus.ACTIVE,
+            PositionSide.LONG,
+            new BigDecimal("2000"),
+            new BigDecimal("100"), // Entry = (100 * 2) / 2 = 100 (reduce only)
+            price, // Mark
+            new BigDecimal(
+                "2.8394"), // PnL: (101 - 100) * 3 = 3, Fee: 3 * 101 * 0.0002 = 0.0606, PnL - Fee =
+                           // 2.9394, Cum = -0.1 + 2.9394 = 2.8394
+            new BigDecimal("0.1606"), // Fee: 0.1 + 0.0606 = 0.1606
+            BigDecimal.ZERO);
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
     BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
-    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
+    verifyAccount(
+        tokenA,
+        new ExpectedAccount(
+            expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
     return pos;
   }
 
-  private ExpectedPosition step3_IncreasePosition(ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
+  private ExpectedPosition step3_IncreasePosition(
+      ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
     BigDecimal price = new BigDecimal("102");
     BigDecimal qty = new BigDecimal("2000");
     submitOrder(tokenA, OrderSide.BUY, price, qty, TradeRole.MAKER);
     submitOrder(tokenB, OrderSide.SELL, price, qty, TradeRole.TAKER);
 
-    ExpectedPosition pos = new ExpectedPosition(
-        PositionStatus.ACTIVE,
-        PositionSide.LONG,
-        new BigDecimal("4000"),
-        new BigDecimal("101"), // Entry avg = (100 * 2 + 102 * 2) / 4 = 101
-        price, // Mark
-        new BigDecimal("2.7986"), // PnL: 3 (No change on increase), Fee: 2 * 102 * 0.0002 = 0.0408, PnL - Fee = -0.0408, Cum = 2.8394 - 0.0408 = 2.7986
-        new BigDecimal("0.2014"), // Fee: 0.1606 + 0.0408 = 0.2014
-        BigDecimal.ZERO
-    );
+    ExpectedPosition pos =
+        new ExpectedPosition(
+            PositionStatus.ACTIVE,
+            PositionSide.LONG,
+            new BigDecimal("4000"),
+            new BigDecimal("101"), // Entry avg = (100 * 2 + 102 * 2) / 4 = 101
+            price, // Mark
+            new BigDecimal(
+                "2.7986"), // PnL: 3 (No change on increase), Fee: 2 * 102 * 0.0002 = 0.0408, PnL -
+                           // Fee = -0.0408, Cum = 2.8394 - 0.0408 = 2.7986
+            new BigDecimal("0.2014"), // Fee: 0.1606 + 0.0408 = 0.2014
+            BigDecimal.ZERO);
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
     BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
-    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
+    verifyAccount(
+        tokenA,
+        new ExpectedAccount(
+            expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
     return pos;
   }
 
-  private ExpectedPosition step4_ClosePosition(ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
+  private ExpectedPosition step4_ClosePosition(
+      ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
     BigDecimal price = new BigDecimal("99");
     BigDecimal qty = new BigDecimal("4000");
     submitOrder(tokenA, OrderSide.SELL, price, qty, TradeRole.MAKER);
     submitOrder(tokenB, OrderSide.BUY, price, qty, TradeRole.TAKER);
 
-    ExpectedPosition pos = new ExpectedPosition(
-        PositionStatus.CLOSED,
-        PositionSide.LONG,
-        BigDecimal.ZERO,
-        new BigDecimal("101"), // Entry avg = 101
-        price, // Mark
-        new BigDecimal("-5.2806"), // PnL: (99 - 101) * 4 = -8, Fee: 4 * 99 * 0.0002 = 0.0792, PnL - Fee = -8.0792, Cum = 2.7986 - 8.0792 = -5.2806
-        new BigDecimal("0.2806"), // Fee: 0.2014 + 0.0792 = 0.2806
-        BigDecimal.ZERO
-    );
+    ExpectedPosition pos =
+        new ExpectedPosition(
+            PositionStatus.CLOSED,
+            PositionSide.LONG,
+            BigDecimal.ZERO,
+            new BigDecimal("101"), // Entry avg = 101
+            price, // Mark
+            new BigDecimal(
+                "-5.2806"), // PnL: (99 - 101) * 4 = -8, Fee: 4 * 99 * 0.0002 = 0.0792, PnL - Fee =
+                            // -8.0792, Cum = 2.7986 - 8.0792 = -5.2806
+            new BigDecimal("0.2806"), // Fee: 0.2014 + 0.0792 = 0.2806
+            BigDecimal.ZERO);
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = BigDecimal.ZERO;
     BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
-    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
+    verifyAccount(
+        tokenA,
+        new ExpectedAccount(
+            expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
     return pos;
   }
 
@@ -231,26 +252,29 @@ class TradeTest {
     submitOrder(tokenA, OrderSide.BUY, price, qty, TradeRole.MAKER);
     submitOrder(tokenB, OrderSide.SELL, price, qty, TradeRole.TAKER);
 
-    ExpectedPosition pos = new ExpectedPosition(
-        PositionStatus.ACTIVE,
-        PositionSide.LONG,
-        new BigDecimal("5000"),
-        new BigDecimal("98"), // Entry avg = 98
-        price, // Mark
-        new BigDecimal("-0.098"), // Fee: 5 * 98 * 0.0002 = 0.098, PnL - Fee = -0.098 (Reset after close)
-        new BigDecimal("0.098"),
-        BigDecimal.ZERO
-    );
+    ExpectedPosition pos =
+        new ExpectedPosition(
+            PositionStatus.ACTIVE,
+            PositionSide.LONG,
+            new BigDecimal("5000"),
+            new BigDecimal("98"), // Entry avg = 98
+            price, // Mark
+            new BigDecimal(
+                "-0.098"), // Fee: 5 * 98 * 0.0002 = 0.098, PnL - Fee = -0.098 (Reset after close)
+            new BigDecimal("0.098"),
+            BigDecimal.ZERO);
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
-    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
+    BigDecimal expSpot = new BigDecimal("9852.902"); // repoen 這裡要加上 所有 closed 倉位的已實現盈虧 不能用算的
+    verifyAccount(
+        tokenA,
+        new ExpectedAccount(
+            expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
     return pos;
   }
 
-  private ExpectedPosition step6_FlipPosition(
-      ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
+  private ExpectedPosition step6_FlipPosition(ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
     BigDecimal price = new BigDecimal("100");
     BigDecimal qty = new BigDecimal("10000");
     submitOrder(tokenA, OrderSide.SELL, price, qty, TradeRole.MAKER);
@@ -271,11 +295,8 @@ class TradeTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
-    verifyAccount(
-        tokenA,
-        new ExpectedAccount(
-            expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
+    BigDecimal expSpot = new BigDecimal("0"); // repoen 這裡要加上 所有 closed 倉位的已實現盈虧 不能用算的
+    verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
     return pos;
   }
 
@@ -397,6 +418,7 @@ class TradeTest {
   /** 驗證帳戶餘額 (對應 .http 的 verifyAccountScript) */
   private void verifyAccount(String token, ExpectedAccount exp) {
     AccountBalanceSheetResponse data = AccountClient.getBalanceSheet(token);
+
     assertNotNull(data, "Account balance sheet missing");
 
     AccountBalanceItem spot = getAccount(data, UserAccountCode.SPOT);
