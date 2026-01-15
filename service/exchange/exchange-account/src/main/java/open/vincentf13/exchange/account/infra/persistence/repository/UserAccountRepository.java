@@ -22,6 +22,7 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.validator.Id;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.validation.annotation.Validated;
 
@@ -92,7 +93,14 @@ public class UserAccountRepository {
               OpenObjectMapper.convert(account, UserAccountPO.class), expectedVersions.get(i)));
     }
 
-    mapper.batchUpdateWithOptimisticLock(tasks);
+    int updatedRows = mapper.batchUpdateWithOptimisticLock(tasks);
+    if (updatedRows != accounts.size()) {
+      throw new OptimisticLockingFailureException(
+          "Batch update failed due to optimistic locking. Expected: "
+              + accounts.size()
+              + ", Actual: "
+              + updatedRows);
+    }
   }
 
   public List<UserAccount> findBy(@NotNull LambdaQueryWrapper<UserAccountPO> wrapper) {

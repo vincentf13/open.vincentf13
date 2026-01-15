@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="open.vincentf13.exchange.account.infra.persistence.mapper.UserAccountMapper">
+
+    <update id="batchUpdateWithOptimisticLock">
+        UPDATE user_accounts
+        <trim prefix="SET" suffixOverrides=",">
+            <trim prefix="balance = CASE account_id" suffix="END,">
+                <foreach collection="list" item="item">
+                    WHEN #{item.po.accountId} THEN #{item.po.balance}
+                </foreach>
+            </trim>
+            <trim prefix="available = CASE account_id" suffix="END,">
+                <foreach collection="list" item="item">
+                    WHEN #{item.po.accountId} THEN #{item.po.available}
+                </foreach>
+            </trim>
+            <trim prefix="reserved = CASE account_id" suffix="END,">
+                <foreach collection="list" item="item">
+                    WHEN #{item.po.accountId} THEN #{item.po.reserved}
+                </foreach>
+            </trim>
+            <trim prefix="version = CASE account_id" suffix="END,">
+                <foreach collection="list" item="item">
+                    WHEN #{item.po.accountId} THEN #{item.po.version}
+                </foreach>
+            </trim>
+        </trim>
+        WHERE
+        <foreach collection="list" item="item" separator=" OR ">
+            (account_id = #{item.po.accountId} AND version = #{item.expectedVersion})
+        </foreach>
+    </update>
+
+</mapper>
