@@ -223,7 +223,11 @@ public class PositionCommandService {
 
     // 判斷當前數量 夠不夠平倉
     // 若不夠，就是 flip 的流程，搶奪了預佔倉位
-    if (position == null || safe(position.getQuantity()).compareTo(BigDecimal.ZERO) <= 0) {
+
+    // [ 當前沒倉位] || [ 當前有倉位 && 但與下平倉單時方向相同 ]  -> 平倉轉開倉
+    if (position == null
+        || safe(position.getQuantity()).compareTo(BigDecimal.ZERO) <= 0
+        || position.getSide() == PositionSide.fromOrderSide(orderSide)) {
       // 平倉轉開倉，要補保證金，若保證金為負，風控要限制後續下單並強平。
       positionEventPublisher.publishCloseToOpenCompensation(
           new PositionCloseToOpenCompensationEvent(
@@ -240,12 +244,16 @@ public class PositionCommandService {
       return;
     }
 
-    BigDecimal closeQuantity = quantity.min(position.getQuantity());
+    // [ 當前有倉位 && 與下單時方向不同 ]
+    
+    // 只要 position 還有數量 -> 凍結倉位 一定有凍結倒的倉位可以平倉
+    // 若 position 的數量比平倉單少，代表被少的數量被  flip 搶走了
+    BigDecimal closeQuantity = position.getQuantity().min(quantity);
+    // 被 flip 搶走的數量，要平倉轉開倉
     BigDecimal openQuantity = quantity.subtract(closeQuantity);
-
     BigDecimal closeFee = fee;
     BigDecimal openFee = BigDecimal.ZERO;
-    // 平能平的數量，若不夠平，轉開倉，不夠，是因為 flip 的流程，搶奪了預佔倉位
+    // 平倉轉開倉
     if (openQuantity.compareTo(BigDecimal.ZERO) > 0) {
       BigDecimal openRatio =
           openQuantity.divide(
@@ -265,6 +273,8 @@ public class PositionCommandService {
               openFee,
               eventTime));
     }
+    
+    // 平倉能平的數量
     if (closeQuantity.compareTo(BigDecimal.ZERO) > 0) {
       PositionDomainService.PositionCloseResult result =
           positionDomainService.closePosition(

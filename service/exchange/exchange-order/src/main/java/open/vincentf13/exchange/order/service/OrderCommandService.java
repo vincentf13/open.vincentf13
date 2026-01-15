@@ -151,7 +151,7 @@ public class OrderCommandService {
                       new PositionIntentRequest(
                           userId,
                           request.getInstrumentId(),
-                          toPositionSide(request.getSide()),
+                          PositionSide.fromOrderSide(request.getSide()),
                           request.getQuantity(),
                           request.getClientOrderId())),
               msg ->
@@ -489,13 +489,6 @@ public class OrderCommandService {
     }
     return orderRepository.findOne(
         Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId));
-  }
-
-  private PositionSide toPositionSide(OrderSide orderSide) {
-    if (orderSide == null) {
-      return null;
-    }
-    return orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
   }
 
   private String releaseClosingReservation(Long userId, OrderCreateRequest request) {

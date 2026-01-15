@@ -162,13 +162,6 @@ public class PositionDomainService {
     positionEventRepository.insert(event);
   }
 
-  public PositionSide toPositionSide(OrderSide orderSide) {
-    if (orderSide == null) {
-      return null;
-    }
-    return orderSide == OrderSide.BUY ? PositionSide.LONG : PositionSide.SHORT;
-  }
-
   public Collection<Position> openPosition(
       @NotNull Long userId,
       @NotNull Long instrumentId,
@@ -195,7 +188,7 @@ public class PositionDomainService {
           Map.of("referenceId", referenceId, "userId", userId));
     }
 
-    PositionSide side = toPositionSide(orderSide);
+    PositionSide side = PositionSide.fromOrderSide(orderSide);
     Position position =
         positionRepository
             .findOne(
