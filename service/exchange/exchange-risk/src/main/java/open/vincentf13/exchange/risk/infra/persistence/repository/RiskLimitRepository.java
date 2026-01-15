@@ -18,6 +18,9 @@ public class RiskLimitRepository {
 
   private final RiskLimitMapper mapper;
 
+import java.util.List;
+import java.util.Optional;
+...
   public Optional<RiskLimit> findByInstrumentId(@NotNull Long instrumentId) {
     RiskLimitPO po =
         mapper.selectOne(
@@ -25,5 +28,11 @@ public class RiskLimitRepository {
                 .eq(RiskLimitPO::getInstrumentId, instrumentId)
                 .eq(RiskLimitPO::getIsActive, true));
     return Optional.ofNullable(OpenObjectMapper.convert(po, RiskLimit.class));
+  }
+
+  public List<RiskLimit> findAll() {
+    List<RiskLimitPO> pos =
+        mapper.selectList(Wrappers.lambdaQuery(RiskLimitPO.class).eq(RiskLimitPO::getIsActive, true));
+    return OpenObjectMapper.convertList(pos, RiskLimit.class);
   }
 }

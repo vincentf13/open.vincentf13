@@ -17,6 +17,9 @@ public class RiskLimitQueryService {
 
   private final RiskLimitRepository riskLimitRepository;
 
+import java.util.List;
+import java.util.Map;
+...
   public RiskLimit getRiskLimitByInstrumentId(@NotNull Long instrumentId) {
     return riskLimitRepository
         .findByInstrumentId(instrumentId)
@@ -24,5 +27,9 @@ public class RiskLimitQueryService {
             () ->
                 OpenException.of(
                     RiskErrorCode.RISK_LIMIT_NOT_FOUND, Map.of("instrumentId", instrumentId)));
+  }
+
+  public List<RiskLimit> getAllRiskLimits() {
+    return riskLimitRepository.findAll();
   }
 }

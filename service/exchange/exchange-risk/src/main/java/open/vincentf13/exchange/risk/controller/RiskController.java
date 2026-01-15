@@ -21,18 +21,34 @@ public class RiskController implements RiskApi {
   private final RiskLimitQueryService riskLimitQueryService;
   private final OrderPrecheckService orderPrecheckService;
 
+import java.util.List;
+...
   @Override
   public OpenApiResponse<RiskLimitResponse> getRiskLimit(@NotNull Long instrumentId) {
     RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(instrumentId);
-    return OpenApiResponse.success(
-        new RiskLimitResponse(
-            riskLimit.getInstrumentId(),
-            riskLimit.getInitialMarginRate(),
-            riskLimit.getMaxLeverage(),
-            riskLimit.getMaintenanceMarginRate(),
-            riskLimit.getLiquidationFeeRate(),
-            riskLimit.getActive(),
-            riskLimit.getUpdatedAt()));
+    return OpenApiResponse.success(toResponse(riskLimit));
+  }
+
+  @Override
+  public OpenApiResponse<List<RiskLimitResponse>> list(Long instrumentId) {
+    if (instrumentId != null) {
+      RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(instrumentId);
+      return OpenApiResponse.success(List.of(toResponse(riskLimit)));
+    }
+    List<RiskLimitResponse> list =
+        riskLimitQueryService.getAllRiskLimits().stream().map(this::toResponse).toList();
+    return OpenApiResponse.success(list);
+  }
+
+  private RiskLimitResponse toResponse(RiskLimit riskLimit) {
+    return new RiskLimitResponse(
+        riskLimit.getInstrumentId(),
+        riskLimit.getInitialMarginRate(),
+        riskLimit.getMaxLeverage(),
+        riskLimit.getMaintenanceMarginRate(),
+        riskLimit.getLiquidationFeeRate(),
+        riskLimit.getActive(),
+        riskLimit.getUpdatedAt());
   }
 
   @Override
