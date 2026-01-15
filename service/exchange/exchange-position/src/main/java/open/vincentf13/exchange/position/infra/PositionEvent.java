@@ -20,7 +20,8 @@ public enum PositionEvent implements OpenEvent {
   STARTUP_RISK_LIMIT_LOAD_PARTIAL(
       "PositionStartupRiskLimitLoadPartial", "Partial risk limit loading"),
   STARTUP_CACHE_LOAD_PARTIAL(
-      "PositionStartupCacheLoadPartial", "Partial cache loading during startup");
+      "PositionStartupCacheLoadPartial", "Partial cache loading during startup"),
+  STARTUP_MARK_PRICES_LOADED("PositionStartupMarkPricesLoaded", "Mark prices loaded successfully");
 
   private final String event;
   private final String message;

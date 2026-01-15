@@ -38,22 +38,16 @@ public class StartupCacheLoader extends OpenStartupCacheLoader {
   }
 
   private void loadMarkPrices() {
-    instrumentCache
-        .getAll()
-        .forEach(
-            instrument -> {
-              try {
-                var response = marketClient.getMarkPrice(instrument.instrumentId());
-                if (response.isSuccess() && response.data() != null) {
-                  markPriceCache.put(instrument.instrumentId(), response.data().getMarkPrice());
-                }
-              } catch (Exception e) {
-                OpenLog.warn(
-                    RiskEvent.STARTUP_MARK_PRICE_LOAD_FAILED,
-                    e,
-                    "instrumentId",
-                    instrument.instrumentId());
-              }
-            });
+    OpenLog.info(RiskEvent.STARTUP_MARK_PRICE_LOAD_START);
+    var response = marketClient.getAllMarkPrices();
+    if (response != null && response.data() != null) {
+      response.data().forEach(
+          markPrice -> {
+            if (markPrice.getMarkPrice() != null) {
+              markPriceCache.put(markPrice.getInstrumentId(), markPrice.getMarkPrice());
+            }
+          });
+      OpenLog.info(RiskEvent.STARTUP_MARK_PRICE_LOADED, "count", response.data().size());
+    }
   }
 }

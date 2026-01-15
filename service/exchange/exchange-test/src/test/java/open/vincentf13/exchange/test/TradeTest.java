@@ -1,12 +1,6 @@
-package open.vincentf13.exchange.test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import lombok.extern.slf4j.Slf4j;
+
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceItem;
 import open.vincentf13.exchange.account.sdk.rest.api.dto.AccountBalanceSheetResponse;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.UserAccountCode;
@@ -17,14 +11,7 @@ import open.vincentf13.exchange.common.sdk.enums.PositionSide;
 import open.vincentf13.exchange.common.sdk.enums.PositionStatus;
 import open.vincentf13.exchange.position.sdk.rest.api.dto.PositionResponse;
 import open.vincentf13.exchange.risk.sdk.rest.api.RiskLimitResponse;
-import open.vincentf13.exchange.test.client.AccountClient;
-import open.vincentf13.exchange.test.client.AdminClient;
-import open.vincentf13.exchange.test.client.AuthClient;
-import open.vincentf13.exchange.test.client.BaseClient;
-import open.vincentf13.exchange.test.client.OrderClient;
-import open.vincentf13.exchange.test.client.PositionClient;
-import open.vincentf13.exchange.test.client.RiskClient;
-import open.vincentf13.exchange.test.client.SystemClient;
+import open.vincentf13.exchange.test.client.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +36,7 @@ class TradeTest {
   private Integer leverage;
   private BigDecimal mmr;
   private BigDecimal imr;
+  private BigDecimal totalClosedPnl = BigDecimal.ZERO;
 
   @BeforeEach
   public void setUp() {
@@ -79,6 +67,7 @@ class TradeTest {
     mmr = risk.maintenanceMarginRate();
     imr = risk.initialMarginRate();
     instrumentId = INSTRUMENT_ID;
+    totalClosedPnl = BigDecimal.ZERO;
     log.info("<<< setUp completed");
   }
 
@@ -110,6 +99,7 @@ class TradeTest {
     // [平倉] A Sell 4 (B Buy 4) @ 99 -> A 預期持倉 0
     log.info("Scenario [Close Position]: A Sell 4 @ 99");
     prevPos = step4_ClosePosition(prevPos, baseSpotBalance);
+    totalClosedPnl = totalClosedPnl.add(prevPos.cumRealizedPnl);
     log.info("Scenario [Close Position]: PASSED");
 
     // [再次開倉] A Buy 5 (B Sell 5) @ 98 -> A 預期持多倉 5
@@ -132,6 +122,7 @@ class TradeTest {
     // [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5
     log.info("Scenario [Flip Position]: A Sell 10 @ 100");
     prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
+    totalClosedPnl = totalClosedPnl.add(prevPos.cumRealizedPnl);
     log.info("Scenario [Flip Position]: PASSED");
 
     //// [Flip 並發測試] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
@@ -149,18 +140,18 @@ class TradeTest {
 
     ExpectedPosition pos =
         new ExpectedPosition(
-            PositionStatus.ACTIVE,
-            PositionSide.LONG,
-            new BigDecimal("5000"),
-            new BigDecimal("100"),
-            price,
-            new BigDecimal("-0.1"), // Fee: 5 * 100 * 0.0002 = 0.1, PnL - Fee = 0 - 0.1 = -0.1
-            new BigDecimal("0.1"),
-            BigDecimal.ZERO);
+                PositionStatus.ACTIVE,
+                PositionSide.LONG,
+                new BigDecimal("5000"),
+                new BigDecimal("100"),
+                price,
+                new BigDecimal("-0.1"), // Fee: 5 * 100 * 0.0002 = 0.1, PnL - Fee = 0 - 0.1 = -0.1
+                new BigDecimal("0.1"),
+                BigDecimal.ZERO);
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
+    BigDecimal expSpot = baseSpotBalance.add(totalClosedPnl).subtract(expMargin).add(pos.cumRealizedPnl);
     verifyAccount(
         tokenA,
         new ExpectedAccount(
@@ -190,7 +181,7 @@ class TradeTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
+    BigDecimal expSpot = baseSpotBalance.add(totalClosedPnl).subtract(expMargin).add(pos.cumRealizedPnl);
     verifyAccount(
         tokenA,
         new ExpectedAccount(
@@ -220,7 +211,7 @@ class TradeTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
+    BigDecimal expSpot = baseSpotBalance.add(totalClosedPnl).subtract(expMargin).add(pos.cumRealizedPnl);
     verifyAccount(
         tokenA,
         new ExpectedAccount(
@@ -250,7 +241,7 @@ class TradeTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = BigDecimal.ZERO;
-    BigDecimal expSpot = baseSpotBalance.subtract(expMargin).add(pos.cumRealizedPnl);
+    BigDecimal expSpot = baseSpotBalance.add(totalClosedPnl).subtract(expMargin).add(pos.cumRealizedPnl);
     verifyAccount(
         tokenA,
         new ExpectedAccount(
@@ -278,7 +269,7 @@ class TradeTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = new BigDecimal("9847.6214"); // repoen 這裡要加上 所有 closed 倉位的已實現盈虧 不能用算的
+    BigDecimal expSpot = baseSpotBalance.add(totalClosedPnl).subtract(expMargin).add(pos.cumRealizedPnl);
     verifyAccount(
         tokenA,
         new ExpectedAccount(
@@ -307,7 +298,7 @@ class TradeTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = new BigDecimal("0"); // repoen 這裡要加上 所有 closed 倉位的已實現盈虧 不能用算的
+    BigDecimal expSpot = baseSpotBalance.add(totalClosedPnl).subtract(expMargin).add(pos.cumRealizedPnl);
     verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
     return pos;
   }

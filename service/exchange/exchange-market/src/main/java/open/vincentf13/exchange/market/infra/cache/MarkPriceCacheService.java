@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,8 +32,13 @@ public class MarkPriceCacheService {
     this.eventPublisher = eventPublisher;
   }
 
+
   public void reset() {
     cache.clear();
+  }
+
+  public Collection<MarkPriceSnapshot> getAllLatest() {
+    return cache.values();
   }
 
   public Optional<MarkPriceSnapshot> getLatest(Long instrumentId) {

@@ -62,4 +62,9 @@ public class MarketController implements MarketApi {
                         .markPriceChangeRate(BigDecimal.ONE)
                         .build()));
   }
+
+  @Override
+  public OpenApiResponse<List<MarkPriceResponse>> getAllMarkPrices() {
+    return OpenApiResponse.success(markPriceQueryService.getAllMarkPrices());
+  }
 }

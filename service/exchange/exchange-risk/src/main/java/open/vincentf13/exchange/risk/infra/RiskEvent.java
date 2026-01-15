@@ -6,7 +6,9 @@ public enum RiskEvent implements OpenEvent {
   STARTUP_LOADING_INSTRUMENTS(
       "RiskStartupLoadingInstruments", "Loading instruments from Admin service"),
   STARTUP_INSTRUMENTS_LOADED("RiskStartupInstrumentsLoaded", "Instruments loaded successfully"),
-  STARTUP_MARK_PRICE_LOAD_FAILED("RiskStartupMarkPriceLoadFailed", "Mark price load failed");
+  STARTUP_MARK_PRICE_LOAD_FAILED("RiskStartupMarkPriceLoadFailed", "Mark price load failed"),
+  STARTUP_MARK_PRICE_LOAD_START("RiskStartupMarkPriceLoadStart", "Loading mark prices from Market service"),
+  STARTUP_MARK_PRICE_LOADED("RiskStartupMarkPriceLoaded", "Mark prices loaded successfully");
 
   private final String event;
   private final String message;

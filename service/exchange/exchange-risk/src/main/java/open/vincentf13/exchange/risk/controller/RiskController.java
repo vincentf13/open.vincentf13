@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.risk.controller;
 
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
@@ -21,8 +22,6 @@ public class RiskController implements RiskApi {
   private final RiskLimitQueryService riskLimitQueryService;
   private final OrderPrecheckService orderPrecheckService;
 
-import java.util.List;
-...
   @Override
   public OpenApiResponse<RiskLimitResponse> getRiskLimit(@NotNull Long instrumentId) {
     RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(instrumentId);

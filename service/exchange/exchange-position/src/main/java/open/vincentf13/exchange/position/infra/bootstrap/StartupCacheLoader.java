@@ -57,52 +57,29 @@ public class StartupCacheLoader extends OpenStartupCacheLoader {
     OpenLog.info(
         PositionEvent.STARTUP_LOADING_RISK_LIMITS, "instrumentCount", instrumentCache.size());
 
-    AtomicInteger successCount = new AtomicInteger(0);
-    AtomicInteger failureCount = new AtomicInteger(0);
+    List<RiskLimitResponse> riskLimits = riskClient.list(null).data();
 
-    instrumentCache
-        .getAll()
-        .forEach(
-            instrument -> {
-              Long instrumentId = instrument.instrumentId();
-              try {
-                RiskLimitResponse riskLimit = riskClient.getRiskLimit(instrumentId).data();
-                riskLimitCache.put(instrumentId, riskLimit);
-                successCount.incrementAndGet();
-              } catch (Exception e) {
-                failureCount.incrementAndGet();
-                OpenLog.warn(
-                    PositionEvent.STARTUP_RISK_LIMIT_FETCH_FAILED, e, "instrumentId", instrumentId);
-              }
-            });
-
-    OpenLog.info(
-        PositionEvent.STARTUP_RISK_LIMITS_LOADED,
-        "succeeded",
-        successCount.get(),
-        "failed",
-        failureCount.get());
+    if (riskLimits != null) {
+      riskLimits.forEach(
+          riskLimit -> riskLimitCache.put(riskLimit.instrumentId(), riskLimit));
+      OpenLog.info(PositionEvent.STARTUP_RISK_LIMITS_LOADED, "count", riskLimits.size());
+    }
   }
 
   private void loadMarkPrices() {
     OpenLog.info(CoreEvent.STARTUP_CACHE_LOADING, "Loading mark prices");
-    instrumentCache
-        .getAll()
-        .forEach(
-            instrument -> {
-              Long instrumentId = instrument.instrumentId();
-              try {
-                var response = marketClient.getMarkPrice(instrumentId);
-                if (response.isSuccess() && response.data() != null) {
-                  markPriceCache.update(
-                      instrumentId,
-                      response.data().getMarkPrice(),
-                      response.data().getCalculatedAt());
-                }
-              } catch (Exception e) {
-                OpenLog.warn(
-                    PositionEvent.STARTUP_CACHE_LOAD_PARTIAL, e, "instrumentId", instrumentId);
-              }
-            });
+    var response = marketClient.getAllMarkPrices();
+    if (response != null && response.data() != null) {
+      response.data().forEach(
+          markPrice -> {
+            if (markPrice.getMarkPrice() != null) {
+              markPriceCache.update(
+                  markPrice.getInstrumentId(),
+                  markPrice.getMarkPrice(),
+                  markPrice.getCalculatedAt());
+            }
+          });
+      OpenLog.info(PositionEvent.STARTUP_MARK_PRICES_LOADED, "count", response.data().size());
+    }
   }
 }

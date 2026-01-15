@@ -39,4 +39,8 @@ public interface MarketApi {
   @PublicAPI
   OpenApiResponse<MarkPriceResponse> getMarkPrice(
       @PathVariable("instrumentId") @NotNull Long instrumentId);
+
+  @GetMapping("/mark-prices")
+  @PublicAPI
+  OpenApiResponse<List<MarkPriceResponse>> getAllMarkPrices();
 }
