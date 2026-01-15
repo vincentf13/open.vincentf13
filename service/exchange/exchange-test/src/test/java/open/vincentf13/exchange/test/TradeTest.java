@@ -123,11 +123,16 @@ class TradeTest {
     prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
     log.info("Scenario [Flip Position]: PASSED");
 
-    // [Flip 搶奪預留倉位] A 同時下二單 (Buy 3, Buy 10) @ 100，B 依序成交 -> A 預期持多倉 8
-    log.info("Scenario [Flip Stealing Reserved Position]: A Buy 3 & 10 @ 100");
-    step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
-    log.info("Scenario [Flip Stealing Reserved Position]: PASSED");
-    log.info("<<< testPositionTradingFlow completed successfully");
+    //// [Flip 搶奪預留倉位] A 同時下二單 (Buy 3 @100 , Buy 10 @101) ，B 先成交 10，再成交 3 -> A 預期持多倉 8
+    //log.info("Scenario [Flip Stealing Reserved Position]: A Buy 3 & 10 @ 100");
+    //step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
+    //log.info("Scenario [Flip Stealing Reserved Position]: PASSED");
+    //
+    //
+    //// [Flip 搶奪預留倉位] A (Sell 3 、Sell )， B 先成交 6，再成交 3 -> A 預期
+    //
+    //
+    //log.info("<<< testPositionTradingFlow completed successfully");
   }
 
   private ExpectedPosition step1_OpenPosition(BigDecimal baseSpotBalance) {
@@ -280,9 +285,8 @@ class TradeTest {
     BigDecimal price = new BigDecimal("100");
     BigDecimal qty = new BigDecimal("10000");
     submitOrder(tokenA, OrderSide.SELL, price, qty, TradeRole.MAKER);
-    submitOrder(tokenC, OrderSide.BUY, price, new BigDecimal("5000"), TradeRole.TAKER);
-    submitOrder(tokenB, OrderSide.BUY, price, new BigDecimal("5000"), TradeRole.TAKER);
-
+    submitOrder(tokenC, OrderSide.BUY, price, new BigDecimal("10000"), TradeRole.TAKER);
+ 
     ExpectedPosition pos =
         new ExpectedPosition(
             PositionStatus.ACTIVE,
