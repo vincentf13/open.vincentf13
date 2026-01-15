@@ -86,11 +86,11 @@ public class PositionDomainService {
       Position position, BigDecimal reservedQuantity, String clientOrderId) {
 
     BigDecimal availableToClose = position.availableToClose();
-  
-    //  若有倉位，檔住會 flip 的平倉訂單
-    //if (availableToClose.compareTo(reservedQuantity) < 0) {
-    //  throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE);
-    //}
+
+    // 若有倉位，檔住會 flip 的平倉訂單
+    if (availableToClose.compareTo(reservedQuantity) < 0) {
+      throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE);
+    }
 
     Position originalPosition = OpenObjectMapper.convert(position, Position.class);
     int expectedVersion = position.safeVersion();
