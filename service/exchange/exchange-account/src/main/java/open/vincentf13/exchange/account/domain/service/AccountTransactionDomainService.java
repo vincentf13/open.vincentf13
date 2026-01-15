@@ -16,6 +16,7 @@ import open.vincentf13.exchange.account.domain.model.UserJournal;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
 import open.vincentf13.exchange.account.infra.AccountEvent;
 import open.vincentf13.exchange.account.infra.cache.InstrumentCache;
+import open.vincentf13.exchange.account.infra.cache.RiskLimitCache;
 import open.vincentf13.exchange.account.infra.messaging.publisher.TradeSettlementEventPublisher;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformAccountRepository;
 import open.vincentf13.exchange.account.infra.persistence.repository.PlatformJournalRepository;
@@ -55,6 +56,7 @@ public class AccountTransactionDomainService {
   private final PlatformJournalRepository platformJournalRepository;
   private final TradeSettlementEventPublisher tradeSettlementEventPublisher;
   private final InstrumentCache instrumentCache;
+  private final RiskLimitCache riskLimitCache;
   private final DefaultIdGenerator idGenerator;
 
   @Transactional(rollbackFor = Exception.class)
@@ -756,7 +758,13 @@ public class AccountTransactionDomainService {
     }
 
     BigDecimal contractMultiplier = requireContractSize(event.instrumentId());
-    BigDecimal marginUsed = event.price().multiply(event.quantity()).multiply(contractMultiplier);
+    BigDecimal initialMarginRate = RiskLimitCache.resolveInitialMarginRate(riskLimitCache, event.instrumentId());
+    BigDecimal marginUsed =
+        event
+            .price()
+            .multiply(event.quantity())
+            .multiply(contractMultiplier)
+            .multiply(initialMarginRate);
     BigDecimal actualFee = event.feeCharged();
 
     UserAccount userMargin =

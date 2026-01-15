@@ -7,6 +7,9 @@ public enum AccountEvent implements OpenEvent {
   STARTUP_LOADING_INSTRUMENTS(
       "AccountStartupLoadingInstruments", "Loading instruments from Admin service"),
   STARTUP_INSTRUMENTS_LOADED("AccountStartupInstrumentsLoaded", "Instruments loaded successfully"),
+  STARTUP_LOADING_RISK_LIMITS(
+      "AccountStartupLoadingRiskLimits", "Loading risk limits from Risk service"),
+  STARTUP_RISK_LIMITS_LOADED("AccountStartupRiskLimitsLoaded", "Risk limits loaded successfully"),
   INSTRUMENT_FETCH_FAILED("AccountInstrumentFetchFailed", "Instrument fetch failed"),
   MATCHING_TRADE_PAYLOAD_MISSING("MatchingTradePayloadMissing", "TradeExecuted payload missing"),
   FUNDS_FREEZE_REQUEST_PAYLOAD_INVALID(
