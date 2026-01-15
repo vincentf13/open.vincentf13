@@ -123,16 +123,19 @@ class TradeTest {
     prevPos = step6_FlipPosition(prevPos, baseSpotBalance);
     log.info("Scenario [Flip Position]: PASSED");
 
-    //// [Flip 搶奪預留倉位] A 同時下二單 (Buy 3 @100 , Buy 10 @101) ，B 先成交 10，再成交 3 -> A 預期持多倉 8
-    //log.info("Scenario [Flip Stealing Reserved Position]: A Buy 3 & 10 @ 100");
-    //step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
-    //log.info("Scenario [Flip Stealing Reserved Position]: PASSED");
-    //
-    //
-    //// [Flip 搶奪預留倉位] A (Sell 3 、Sell )， B 先成交 6，再成交 3 -> A 預期
-    //
-    //
-    //log.info("<<< testPositionTradingFlow completed successfully");
+    // [Flip 搶奪預留倉位] A  (Buy 3 @100 , Buy 10 @101) ，B 先成交 10，再成交 3 -> A 預期持多倉 8
+    //                          ^^ 這筆預留 3 ，將被後面的成交 10 搶去平倉，並且反向開倉。  之後成交這筆預留 3 時 ， 自動平倉轉開倉。
+    log.info("Scenario [Flip Stealing Reserved Position]: A Buy 3 & 10 @ 100");
+    step7_ConcurrentFlipPosition(prevPos, baseSpotBalance);
+    log.info("Scenario [Flip Stealing Reserved Position]: PASSED");
+
+
+    // [Flip 搶奪預留倉位] A (Sell 5 @100 , Sell 6 @101 )， B 先成交 6，再成交 5 -> A 預期空倉 3
+    //                          ^^ 這筆預留 5，將被後面的成交 6 搶去平倉。 倉位會剩下 空倉2，之後成交預留 5 時，將先平倉 2 再 開倉3。
+    
+
+
+    log.info("<<< testPositionTradingFlow completed successfully");
   }
 
   private ExpectedPosition step1_OpenPosition(BigDecimal baseSpotBalance) {
