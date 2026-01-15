@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.risk.service;
 
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
@@ -17,9 +18,7 @@ public class RiskLimitQueryService {
 
   private final RiskLimitRepository riskLimitRepository;
 
-import java.util.List;
-import java.util.Map;
-...
+
   public RiskLimit getRiskLimitByInstrumentId(@NotNull Long instrumentId) {
     return riskLimitRepository
         .findByInstrumentId(instrumentId)

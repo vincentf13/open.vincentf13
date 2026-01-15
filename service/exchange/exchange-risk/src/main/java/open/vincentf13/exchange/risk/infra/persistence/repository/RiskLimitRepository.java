@@ -2,6 +2,7 @@ package open.vincentf13.exchange.risk.infra.persistence.repository;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
@@ -17,10 +18,7 @@ import org.springframework.validation.annotation.Validated;
 public class RiskLimitRepository {
 
   private final RiskLimitMapper mapper;
-
-import java.util.List;
-import java.util.Optional;
-...
+  
   public Optional<RiskLimit> findByInstrumentId(@NotNull Long instrumentId) {
     RiskLimitPO po =
         mapper.selectOne(
