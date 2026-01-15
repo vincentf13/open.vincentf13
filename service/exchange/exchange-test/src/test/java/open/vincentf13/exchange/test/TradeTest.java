@@ -117,6 +117,18 @@ class TradeTest {
     prevPos = step5_ReopenPosition(baseSpotBalance);
     log.info("Scenario [Reopen Position]: PASSED");
 
+    /**
+     * 以下 flip 流程，需移除此驗證邏輯
+     * open/vincentf13/exchange/position/domain/service/PositionDomainService.java:92
+     *
+     * 因為 flip 補償流程，要補償的場景是:  多筆訂單，在撮合長時間後才陸續成交 在結算時造成的 flip
+     * 當真的發生時，會自動平倉後反向開倉，再扣除用戶資金。
+     * 當用戶資金為負數時，需觸發強平流程。 ( 此處未已強平流程實現，僅簡單再用戶餘額為負數時禁止開倉)
+     *
+     * 因此一般正常的下單，會有這個驗證邏輯，擋下flip。
+     * 移除這個驗證，才方便進行 flip 場景測試。
+     */
+
     // [Flip 反手] A Sell 10 (B Buy 5 + C Buy 5) @ 100 -> A 預期持空倉 5
     log.info("Scenario [Flip Position]: A Sell 10 @ 100");
     prevPos = step6_FlipPosition(prevPos, baseSpotBalance);

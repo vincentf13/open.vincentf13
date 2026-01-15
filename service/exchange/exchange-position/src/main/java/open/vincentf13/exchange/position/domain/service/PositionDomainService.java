@@ -87,7 +87,7 @@ public class PositionDomainService {
 
     BigDecimal availableToClose = position.availableToClose();
   
-    // 若有倉位，不檔會 flip 的平倉
+    //  若有倉位，檔住會 flip 的平倉訂單
     //if (availableToClose.compareTo(reservedQuantity) < 0) {
     //  throw OpenException.of(PositionErrorCode.POSITION_INSUFFICIENT_AVAILABLE);
     //}
