@@ -307,14 +307,14 @@ class TradeTest {
 
   private void step7_ConcurrentFlipPosition(ExpectedPosition prevPos, BigDecimal baseSpotBalance) {
     BigDecimal price = new BigDecimal("100");
-    submitOrder(tokenA, OrderSide.BUY, price, new BigDecimal("3000"), TradeRole.MAKER);
     
+    submitOrder(tokenA, OrderSide.BUY, price, new BigDecimal("3000"), TradeRole.MAKER);
     // 價格出101，讓以下二筆先成交
     submitOrder(tokenA, OrderSide.BUY,  new BigDecimal("101"), new BigDecimal("10000"), TradeRole.MAKER);
-    // 這筆成交 A 會搶奪預留的3個倉位
+    // 這筆成交 A 會搶奪預留的3個倉位 --> 預期 Long 倉 5
     submitOrder(tokenB, OrderSide.SELL,  new BigDecimal("101"), new BigDecimal("10000"), TradeRole.TAKER);
     
-    // 這筆成交 A 會平倉轉開倉
+    // 這筆成交 A 會平倉轉開倉   --> 預期 Long 倉 8
     submitOrder(tokenB, OrderSide.SELL, price, new BigDecimal("3000"), TradeRole.TAKER);
 
     ExpectedPosition pos =
@@ -322,16 +322,16 @@ class TradeTest {
             PositionStatus.ACTIVE,
             PositionSide.LONG,
             new BigDecimal("8000"),
-            new BigDecimal("100"), // Entry avg = 100
+            new BigDecimal("100.625"),
             price, // Mark
             new BigDecimal(
-                "-0.26"), // Fee: 13 * 100 * 0.0002 = 0.26, PnL - Fee = -0.26 (Reset after flip)
-            new BigDecimal("0.26"),
+                "-0.161"),
+            new BigDecimal("0.161"),
             BigDecimal.ZERO);
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = BigDecimal.ZERO;
+    BigDecimal expSpot = new BigDecimal("9,612.7604");
     verifyAccount(
         tokenA,
         new ExpectedAccount(

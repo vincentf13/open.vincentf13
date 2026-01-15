@@ -220,7 +220,11 @@ public class PositionCommandService {
                     .eq(PositionPO::getInstrumentId, instrumentId)
                     .eq(PositionPO::getStatus, PositionStatus.ACTIVE))
             .orElse(null);
-
+    
+    /**
+     以下 flip 處理較為細節，需了解 flip 流程
+     */
+    
     // 判斷當前數量 夠不夠平倉
     // 若不夠，就是 flip 的流程，搶奪了預佔倉位
 
@@ -246,8 +250,8 @@ public class PositionCommandService {
 
     // [ 當前有倉位 && 與下單時方向不同 ]
     
-    // 只要 position 還有數量 -> 凍結倉位 一定有凍結倒的倉位可以平倉
-    // 若 position 的數量比平倉單少，代表被少的數量被  flip 搶走了
+    // 只要 position 還有數量 -> 代表 凍結倉位 一定有下單凍結到的倉位可以平倉
+    // 若 position 的數量比平倉單少，代表少的數量被 flip 搶走了
     BigDecimal closeQuantity = position.getQuantity().min(quantity);
     // 被 flip 搶走的數量，要平倉轉開倉
     BigDecimal openQuantity = quantity.subtract(closeQuantity);

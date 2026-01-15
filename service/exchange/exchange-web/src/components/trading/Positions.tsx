@@ -5,7 +5,7 @@ import type {InstrumentSummary} from '../../api/instrument';
 import {getOrderEvents, getOrders, type OrderEventItem, type OrderResponse} from '../../api/order';
 import {getPositionEvents, getPositions, type PositionEventItem, type PositionResponse} from '../../api/position';
 import {getTradesByInstrument, getTradesByOrderId, type TradeResponse} from '../../api/trade';
-import {type RiskLimitResponse} from '../../api/risk';
+import {getRiskLimit, type RiskLimitResponse} from '../../api/risk';
 import {getCurrentUser} from '../../api/user';
 
 type PositionsProps = {
@@ -83,6 +83,7 @@ export default function Positions({
     const [instrumentTrades, setInstrumentTrades] = useState<TradeResponse[]>([]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [riskLimits, setRiskLimits] = useState<Record<string, RiskLimitResponse>>({});
+    const riskLimitLoadingRef = useRef<Set<string>>(new Set());
 
     const previousPositionsRef = useRef<Map<string, PositionResponse>>(new Map());
     const positionChangedFieldsRef = useRef<Map<string, Set<string>>>(new Map());
@@ -130,9 +131,9 @@ export default function Positions({
                 const prevQ = Number(prevPayload.quantity || 0);
                 const curE = Number(latestPayload.entryPrice || 0);
                 const prevE = Number(prevPayload.entryPrice || 0);
-                const tradeQ = Math.abs(curQ - prevQ);
-                // Derived Trade Price: (CurE * CurQ - PrevE * PrevQ) / TradeQ
-                const tradeP = tradeQ === 0 ? 0 : (curE * curQ - prevE * prevQ) / (curQ - prevQ);
+                const deltaQ = curQ - prevQ;
+                const weightedSum = prevE * prevQ + mark * deltaQ;
+                const impliedEntry = curQ === 0 ? 0 : weightedSum / curQ;
 
                 content = (
                     <div className="flex flex-col gap-1">
@@ -144,13 +145,16 @@ export default function Positions({
                         <div className="grid grid-cols-[auto_1fr] gap-x-2 text-[10px] text-slate-600">
                             <span>Prev:</span> <span
                             className="font-mono">{formatNumber(prevE)} × {formatNumber(prevQ)}</span>
-                            <span>Trade:</span> <span
-                            className="font-mono text-emerald-600">{formatNumber(tradeP)} × {formatNumber(tradeQ)}</span>
+                            <span>Mark:</span> <span
+                            className="font-mono text-emerald-600">{formatNumber(mark)} × ({formatNumber(curQ)} - {formatNumber(prevQ)})</span>
                         </div>
                         <div
                             className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
-                            ({formatNumber(prevE)}×{prevQ} + {formatNumber(tradeP)}×{tradeQ})
-                            / {curQ} = {formatNumber(curE)}
+                            ({formatNumber(prevE)}×{formatNumber(prevQ)} + {formatNumber(mark)}×({formatNumber(curQ)} - {formatNumber(prevQ)}))
+                            / {formatNumber(curQ)} = {formatNumber(curE)}
+                        </div>
+                        <div className="text-[8px] text-slate-400 italic mt-0.5 text-right">
+                            Implied: {formatNumber(impliedEntry)}
                         </div>
                     </div>
                 );
@@ -462,6 +466,22 @@ export default function Positions({
         }
     };
 
+    const ensureRiskLimit = (instrumentId?: string | number | null) => {
+        if (instrumentId === null || instrumentId === undefined) return;
+        const key = String(instrumentId);
+        if (riskLimits[key] || riskLimitLoadingRef.current.has(key)) return;
+        riskLimitLoadingRef.current.add(key);
+        getRiskLimit(instrumentId)
+            .then((response) => {
+                if (String(response?.code) === '0' && response.data) {
+                    setRiskLimits(prev => ({...prev, [key]: response.data}));
+                }
+            })
+            .finally(() => {
+                riskLimitLoadingRef.current.delete(key);
+            });
+    };
+
     const fetchOrders = async () => {
         if (!isTabVisible) {
             onSyncComplete?.('Positions');
@@ -513,6 +533,12 @@ export default function Positions({
         else if (activeTab === 'Orders') fetchOrders();
         else if (activeTab === 'Traders') fetchInstrumentTrades();
     }, [activeTab, selectedInstrumentId, refreshTrigger, isPaused, isTabVisible]);
+
+    useEffect(() => {
+        if (activeTab !== 'Positions') return;
+        positions.forEach(p => ensureRiskLimit(p.instrumentId));
+        if (selectedInstrumentId) ensureRiskLimit(selectedInstrumentId);
+    }, [activeTab, positions, selectedInstrumentId]);
 
     useEffect(() => {
         getCurrentUser().then(res => {
@@ -609,55 +635,6 @@ export default function Positions({
         } else if (['entryPrice', 'quantity', 'markPrice', 'liquidationPrice'].includes(k)) {
             content = <span className="text-sky-600 font-bold">{formatNumber(v)}</span>;
 
-            // Special logic for Entry Price in Position Events: Show implied trade price
-            if (k === 'entryPrice' && eventContext && eventContext.prevState) {
-                const curE = Number(v || 0);
-                const prevE = Number(eventContext.prevState.entryPrice || 0);
-                // Only show if Entry Price changed (and it's a trade event usually, but strict value change is safer)
-                if (Math.abs(curE - prevE) > 0.000001) {
-                    const curQ = Number(p.quantity || 0);
-                    const prevQ = Number(eventContext.prevState.quantity || 0);
-                    const tradeQ = curQ - prevQ;
-
-                    if (Math.abs(tradeQ) > 0) {
-                        // (NewE * NewQ - OldE * OldQ) / TradeQ
-                        const tradeP = (curE * curQ - prevE * prevQ) / tradeQ;
-
-                        const tooltipContent = (
-                            <div className="flex flex-col gap-1">
-                                <div className="font-bold text-slate-800 border-b border-slate-900/10 pb-1 mb-1">Implied
-                                    Trade Info
-                                </div>
-                                <div className="grid grid-cols-[auto_1fr] gap-x-2 text-[10px] text-slate-600">
-                                    <span>Trade Price:</span> <span
-                                    className="font-mono text-emerald-600">{formatNumber(tradeP)}</span>
-                                    <span>Trade Qty:</span> <span
-                                    className="font-mono text-slate-700">{tradeQ > 0 ? '+' : ''}{formatNumber(tradeQ)}</span>
-                                </div>
-                                <div
-                                    className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[9px] text-blue-700">
-                                    ({formatNumber(curE)}×{formatNumber(curQ)} - {formatNumber(prevE)}×{formatNumber(prevQ)})
-                                    / {formatNumber(tradeQ)}
-                                </div>
-                                <div className="text-[8px] text-slate-400 italic mt-0.5 text-right">*Derived from event
-                                    state change
-                                </div>
-                            </div>
-                        );
-
-                        content = (
-                            <div className="flex items-center justify-end gap-1">
-                                {content}
-                                <Tooltip classNames={{root: 'liquid-tooltip'}} title={tooltipContent}>
-                                    <div
-                                        className="liquid-tooltip-trigger cursor-help text-[9px] text-slate-400 hover:text-blue-500 transition-colors px-0.5">∆
-                                    </div>
-                                </Tooltip>
-                            </div>
-                        );
-                    }
-                }
-            }
         } else if (k === 'closingReservedQuantity') {
             content = <span className="text-amber-600 font-bold">{formatNumber(v)}</span>;
         } else if (['createdAt', 'updatedAt', 'closedAt', 'submittedAt', 'filledAt', 'cancelledAt'].includes(k)) {
@@ -958,25 +935,11 @@ export default function Positions({
                                     <th key={c.key} className="py-2 px-2 font-semibold">
                                         <div className="flex items-center justify-end gap-1">
                                             {c.label}
-                                            {['entryPrice', 'margin', 'marginRatio', 'unrealizedPnl', 'cumRealizedPnl', 'liquidationPrice'].includes(c.key) && (
+                                            {['margin', 'marginRatio', 'unrealizedPnl', 'cumRealizedPnl', 'liquidationPrice'].includes(c.key) && (
                                                 <Tooltip
                                                     classNames={{root: 'liquid-tooltip'}}
                                                     title={
-                                                        c.key === 'entryPrice' ? (
-                                                                <div className="flex flex-col gap-2 p-1">
-                                                                    <div className="font-bold text-slate-800">Avg Entry
-                                                                        Price
-                                                                    </div>
-                                                                    <div className="text-[10px] text-slate-600">
-                                                                        Weighted average of all fills.
-                                                                    </div>
-                                                                    <div
-                                                                        className="mt-1 bg-slate-900/5 p-1.5 rounded border border-slate-900/10 font-mono text-[10px] text-blue-700">
-                                                                        Σ(Fill Price × Fill Qty) / Total Qty
-                                                                    </div>
-                                                                </div>
-                                                            ) :
-                                                            c.key === 'margin' ? (
+                                                        c.key === 'margin' ? (
                                                                     <div className="flex flex-col gap-2 p-1">
                                                                         <div className="font-bold text-slate-800">Margin
                                                                         </div>
