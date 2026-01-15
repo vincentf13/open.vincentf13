@@ -297,7 +297,7 @@ class TradeTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = new BigDecimal("0"); // repoen 這裡要加上 所有 closed 倉位的已實現盈虧 不能用算的
+    BigDecimal expSpot = new BigDecimal("9854.4214"); // repoen 這裡要加上 所有 closed 倉位的已實現盈虧 不能用算的
     verifyAccount(tokenA, new ExpectedAccount(expSpot, expSpot, BigDecimal.ZERO, expMargin, expMargin, BigDecimal.ZERO));
     return pos;
   }
