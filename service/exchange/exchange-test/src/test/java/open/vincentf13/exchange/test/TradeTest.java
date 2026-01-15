@@ -37,7 +37,7 @@ class TradeTest {
   private static final String USER_B = "c.p.kevinf13-2@gmail.com";
   private static final String USER_C = "c.p.kevinf13-3@gmail.com";
   private static final long MAKER_DELAY_MS = 2000;
-  private static final long TAKER_DELAY_MS = 5000;
+  private static final long TAKER_DELAY_MS = 2000;
 
   private Integer instrumentId;
   private String tokenA;
@@ -266,7 +266,7 @@ class TradeTest {
     verifyPosition(tokenA, pos);
 
     BigDecimal expMargin = pos.entryPrice.multiply(pos.qty).multiply(contractSize).multiply(imr);
-    BigDecimal expSpot = new BigDecimal("9852.902"); // repoen 這裡要加上 所有 closed 倉位的已實現盈虧 不能用算的
+    BigDecimal expSpot = new BigDecimal("9847.6214"); // repoen 這裡要加上 所有 closed 倉位的已實現盈虧 不能用算的
     verifyAccount(
         tokenA,
         new ExpectedAccount(
