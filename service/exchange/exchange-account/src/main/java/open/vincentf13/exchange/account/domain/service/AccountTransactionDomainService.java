@@ -37,6 +37,7 @@ import open.vincentf13.exchange.common.sdk.enums.PositionIntentType;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.order.mq.event.FundsFreezeRequestedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionCloseToOpenCompensationEvent;
+import open.vincentf13.exchange.position.sdk.mq.event.PositionMarginReleasedEvent;
 import open.vincentf13.exchange.position.sdk.mq.event.PositionOpenToCloseCompensationEvent;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -1126,6 +1127,274 @@ public class AccountTransactionDomainService {
     userJournalRepository.insertBatch(userJournals);
     platformJournalRepository.insertBatch(
         List.of(platformLiabilityJournal, revenueJournal, platformFeeEquityJournal));
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public void releaseMargin(@NotNull @Valid PositionMarginReleasedEvent event) {
+    AssetSymbol asset = event.asset();
+    String referenceId = event.tradeId() + ":" + event.side().name();
+    UserAccount marginAccount =
+        userAccountRepository.getOrCreate(
+            event.userId(), UserAccountCode.MARGIN, event.instrumentId(), asset);
+
+    boolean exists =
+        userJournalRepository
+            .findLatestByReference(
+                marginAccount.getAccountId(), asset, ReferenceType.POSITION_MARGIN_RELEASED, referenceId)
+            .isPresent();
+    if (exists) {
+      throw OpenException.of(
+          AccountErrorCode.DUPLICATE_REQUEST,
+          Map.of(
+              "accountId",
+              marginAccount.getAccountId(),
+              "asset",
+              asset,
+              "referenceType",
+              ReferenceType.POSITION_MARGIN_RELEASED,
+              "referenceId",
+              referenceId));
+    }
+
+    if (marginAccount.getBalance().compareTo(event.marginReleased()) < 0) {
+      throw OpenException.of(
+          AccountErrorCode.INSUFFICIENT_FUNDS,
+          Map.of(
+              "userId",
+              event.userId(),
+              "asset",
+              asset,
+              "available",
+              marginAccount.getBalance(),
+              "amount",
+              event.marginReleased()));
+    }
+
+    UserAccount spotAccount =
+        userAccountRepository.getOrCreate(event.userId(), UserAccountCode.SPOT, null, asset);
+    UserAccount realizedPnlEquity =
+        userAccountRepository.getOrCreate(
+            event.userId(), UserAccountCode.REALIZED_PNL_EQUITY, null, asset);
+    UserAccount realizedPnlRevenue =
+        userAccountRepository.getOrCreate(
+            event.userId(), UserAccountCode.REALIZED_PNL_REVENUE, null, asset);
+    UserAccount feeExpenseAccount =
+        userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EXPENSE, null, asset);
+    UserAccount feeEquityAccount =
+        userAccountRepository.getOrCreate(event.userId(), UserAccountCode.FEE_EQUITY, null, asset);
+    PlatformAccount platformLiability =
+        platformAccountRepository.getOrCreate(PlatformAccountCode.USER_LIABILITY, asset);
+    PlatformAccount platformRevenue =
+        platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_REVENUE, asset);
+    PlatformAccount platformFeeEquity =
+        platformAccountRepository.getOrCreate(PlatformAccountCode.TRADING_FEE_EQUITY, asset);
+
+    int uSeq = 1;
+    List<UserJournal> journals = new java.util.ArrayList<>();
+
+    var marginResult =
+        marginAccount.applyWithJournal(
+            Direction.CREDIT,
+            event.marginReleased(),
+            idGenerator.newLong(),
+            ReferenceType.POSITION_MARGIN_RELEASED,
+            referenceId,
+            uSeq++,
+            "Margin released to spot",
+            event.releasedAt());
+    UserAccount updatedMargin = marginResult.account();
+    journals.addAll(marginResult.journals());
+
+    var spotMarginResult =
+        spotAccount.applyWithJournal(
+            Direction.DEBIT,
+            event.marginReleased(),
+            idGenerator.newLong(),
+            ReferenceType.POSITION_MARGIN_RELEASED,
+            referenceId,
+            uSeq++,
+            "Margin returned to spot",
+            event.releasedAt());
+    UserAccount spotAfterMargin = spotMarginResult.account();
+    journals.addAll(spotMarginResult.journals());
+
+    Direction direction = event.realizedPnl().signum() >= 0 ? Direction.CREDIT : Direction.DEBIT;
+    var equityResult =
+        realizedPnlEquity.applyAllowNegativeWithJournal(
+            direction,
+            event.realizedPnl().abs(),
+            idGenerator.newLong(),
+            ReferenceType.POSITION_REALIZED_PNL,
+            referenceId,
+            uSeq++,
+            "Realized PnL equity",
+            event.releasedAt());
+    UserAccount updatedRealizedEquity = equityResult.account();
+    journals.addAll(equityResult.journals());
+
+    var revenueResult =
+        realizedPnlRevenue.applyAllowNegativeWithJournal(
+            direction,
+            event.realizedPnl().abs(),
+            idGenerator.newLong(),
+            ReferenceType.POSITION_REALIZED_PNL,
+            referenceId,
+            uSeq++,
+            "Realized PnL revenue",
+            event.releasedAt());
+    UserAccount updatedRealizedRevenue = revenueResult.account();
+    journals.addAll(revenueResult.journals());
+
+    UserAccount updatedSpot;
+    if (event.realizedPnl().signum() >= 0) {
+      var pnlSpotResult =
+          spotAfterMargin.applyWithJournal(
+              Direction.DEBIT,
+              event.realizedPnl(),
+              idGenerator.newLong(),
+              ReferenceType.POSITION_REALIZED_PNL,
+              referenceId,
+              uSeq++,
+              "Realized PnL settlement",
+              event.releasedAt());
+      updatedSpot = pnlSpotResult.account();
+      journals.addAll(pnlSpotResult.journals());
+    } else {
+      var pnlSpotResult =
+          spotAfterMargin.applyWithJournal(
+              Direction.CREDIT,
+              event.realizedPnl().abs(),
+              idGenerator.newLong(),
+              ReferenceType.POSITION_REALIZED_PNL,
+              referenceId,
+              uSeq++,
+              "Realized PnL settlement",
+              event.releasedAt());
+      updatedSpot = pnlSpotResult.account();
+      journals.addAll(pnlSpotResult.journals());
+    }
+
+    BigDecimal feeCharged = event.feeCharged();
+    boolean hasFee = feeCharged.signum() > 0;
+    UserAccount updatedSpotAfterFee = updatedSpot;
+    UserAccount updatedFeeExpense = feeExpenseAccount;
+    UserAccount updatedFeeEquity = feeEquityAccount;
+    PlatformAccount updatedPlatformLiability = platformLiability;
+    PlatformAccount updatedPlatformRevenue = platformRevenue;
+    PlatformAccount updatedPlatformFeeEquity = platformFeeEquity;
+    List<PlatformJournal> platformJournals = new java.util.ArrayList<>();
+
+    if (hasFee) {
+      var feeSpotResult =
+          updatedSpot.applyWithJournal(
+              Direction.CREDIT,
+              feeCharged,
+              idGenerator.newLong(),
+              ReferenceType.TRADE_FEE,
+              referenceId,
+              uSeq++,
+              "Trading fee deducted from spot",
+              event.releasedAt());
+      updatedSpotAfterFee = feeSpotResult.account();
+      journals.addAll(feeSpotResult.journals());
+
+      var feeExpenseResult =
+          feeExpenseAccount.applyWithJournal(
+              Direction.DEBIT,
+              feeCharged,
+              idGenerator.newLong(),
+              ReferenceType.TRADE_FEE,
+              referenceId,
+              uSeq++,
+              "Trading fee expense",
+              event.releasedAt());
+      updatedFeeExpense = feeExpenseResult.account();
+      journals.addAll(feeExpenseResult.journals());
+
+      var feeEquityResult =
+          feeEquityAccount.applyAllowNegativeWithJournal(
+              Direction.DEBIT,
+              feeCharged,
+              idGenerator.newLong(),
+              ReferenceType.TRADE_FEE,
+              referenceId,
+              uSeq++,
+              "Trading fee equity",
+              event.releasedAt());
+      updatedFeeEquity = feeEquityResult.account();
+      journals.addAll(feeEquityResult.journals());
+
+      int pSeq = 1;
+      var platformLiabilityResult =
+          platformLiability.applyWithJournal(
+              Direction.DEBIT,
+              feeCharged,
+              idGenerator.newLong(),
+              ReferenceType.TRADE_FEE,
+              referenceId,
+              pSeq++,
+              "User liability decreased by trading fee",
+              event.releasedAt());
+      updatedPlatformLiability = platformLiabilityResult.account();
+      platformJournals.add(platformLiabilityResult.journal());
+
+      var platformRevenueResult =
+          platformRevenue.applyWithJournal(
+              Direction.CREDIT,
+              feeCharged,
+              idGenerator.newLong(),
+              ReferenceType.TRADE_FEE,
+              referenceId,
+              pSeq++,
+              "Trading fee revenue",
+              event.releasedAt());
+      updatedPlatformRevenue = platformRevenueResult.account();
+      platformJournals.add(platformRevenueResult.journal());
+
+      var platformFeeEquityResult =
+          platformFeeEquity.applyWithJournal(
+              Direction.CREDIT,
+              feeCharged,
+              idGenerator.newLong(),
+              ReferenceType.TRADE_FEE,
+              referenceId,
+              pSeq++,
+              "Trading fee equity",
+              event.releasedAt());
+      updatedPlatformFeeEquity = platformFeeEquityResult.account();
+      platformJournals.add(platformFeeEquityResult.journal());
+    }
+
+    List<UserAccount> accountUpdates = new java.util.ArrayList<>(5);
+    List<Integer> expectedVersions = new java.util.ArrayList<>(5);
+    accountUpdates.add(updatedMargin);
+    expectedVersions.add(marginAccount.safeVersion());
+    accountUpdates.add(updatedSpotAfterFee);
+    expectedVersions.add(spotAccount.safeVersion());
+    accountUpdates.add(updatedRealizedEquity);
+    expectedVersions.add(realizedPnlEquity.safeVersion());
+    accountUpdates.add(updatedRealizedRevenue);
+    expectedVersions.add(realizedPnlRevenue.safeVersion());
+    if (hasFee) {
+      accountUpdates.add(updatedFeeExpense);
+      expectedVersions.add(feeExpenseAccount.safeVersion());
+      accountUpdates.add(updatedFeeEquity);
+      expectedVersions.add(feeEquityAccount.safeVersion());
+    }
+    userAccountRepository.updateSelectiveBatch(
+        accountUpdates, expectedVersions, "position-margin-release");
+
+    if (hasFee) {
+      platformAccountRepository.updateSelectiveBatch(
+          List.of(updatedPlatformLiability, updatedPlatformRevenue, updatedPlatformFeeEquity),
+          List.of(
+              platformLiability.safeVersion(),
+              platformRevenue.safeVersion(),
+              platformFeeEquity.safeVersion()),
+          "position-margin-release");
+      platformJournalRepository.insertBatch(platformJournals);
+    }
+    userJournalRepository.insertBatch(journals);
   }
 
   private BigDecimal requireContractSize(Long instrumentId) {

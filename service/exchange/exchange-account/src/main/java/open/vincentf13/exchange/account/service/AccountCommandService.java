@@ -3,7 +3,6 @@ package open.vincentf13.exchange.account.service;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.exchange.account.domain.service.AccountPositionDomainService;
 import open.vincentf13.exchange.account.domain.service.AccountTransactionDomainService;
 import open.vincentf13.exchange.account.domain.service.AccountTransactionDomainService.AccountDepositResult;
 import open.vincentf13.exchange.account.domain.service.AccountTransactionDomainService.AccountWithdrawalResult;
@@ -27,7 +26,6 @@ import org.springframework.validation.annotation.Validated;
 public class AccountCommandService {
 
   private final AccountTransactionDomainService accountTransactionDomainService;
-  private final AccountPositionDomainService accountPositionDomainService;
   private final TransactionTemplate transactionTemplate;
 
   @Transactional(rollbackFor = Exception.class)
@@ -90,7 +88,7 @@ public class AccountCommandService {
 
   @Transactional(rollbackFor = Exception.class)
   public void handlePositionMarginReleased(@NotNull @Valid PositionMarginReleasedEvent event) {
-    accountPositionDomainService.releaseMargin(event);
+    accountTransactionDomainService.releaseMargin(event);
   }
 
   @Transactional(rollbackFor = Exception.class)
