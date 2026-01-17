@@ -333,48 +333,8 @@
     <build>
         <pluginManagement>
             <plugins>
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>${spring-boot.version}</version>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>repackage</goal>
-                                <goal>build-info</goal>
-                            </goals>
-                            <configuration>
-                                <additionalProperties>
-                                    <build.timestamp>${maven.build.timestamp}</build.timestamp>
-                                    <image.tag>${image.tag}</image.tag>
-                                </additionalProperties>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <configuration>
-                        <failIfNoTests>false</failIfNoTests>
-                        <reuseForks>true</reuseForks>
-                        <!-- 多 JVM 需求大時再調，平時交給 JUnit 內部並行即可 -->
-                        <!-- <forkCount>1</forkCount> -->
-                    </configuration>
-                </plugin>
 
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-failsafe-plugin</artifactId>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>integration-test</goal>
-                                <goal>verify</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
+                <!-- 編譯  -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
@@ -407,6 +367,53 @@
                         </compilerArgs>
                     </configuration>
                 </plugin>
+                <!-- 打包: 插入 image 與 打包 info                -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                                <goal>build-info</goal>
+                            </goals>
+                            <configuration>
+                                <additionalProperties>
+                                    <build.timestamp>${maven.build.timestamp}</build.timestamp>
+                                    <image.tag>${image.tag}</image.tag>
+                                </additionalProperties>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- 單元測試               -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <!--  沒有測試也不報錯，建置可繼續-->
+                        <failIfNoTests>false</failIfNoTests>
+                        <!--  測試 JVM 可重用，減少啟動成本-->
+                        <reuseForks>true</reuseForks>
+                        <!-- 預設由 JUnit 內部並行控制，不額外開多 JVM，多 JVM 需求大時再調，平時交給 JUnit 內部並行即可 -->
+                        <!-- <forkCount>1</forkCount> -->
+                    </configuration>
+                </plugin>
+                <!-- 整合測試 -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
             </plugins>
         </pluginManagement>
 
