@@ -42,8 +42,8 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              cpu: 100m             # 最小 CPU 保證（節省資源）
-              memory: 256Mi         # 最小記憶體保證
+              cpu: 300m             # 最小 CPU 保證（節省資源）
+              memory: 512Mi         # 最小記憶體保證
             limits:
               cpu: 1                # 最大可用 CPU（需要時可達 1 core）
               memory: 1Gi           # 最大可用記憶體

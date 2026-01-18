@@ -58,11 +58,11 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              cpu: "50m"            # 最小 CPU 保證（節省資源）
-              memory: "128Mi"       # 最小記憶體保證
+              cpu: "300m"            # 最小 CPU 保證（節省資源）
+              memory: "512Mi"       # 最小記憶體保證
             limits:
-              cpu: "500m"           # 最大可用 CPU
-              memory: "512Mi"       # 最大可用記憶體
+              cpu: "1000m"           # 最大可用 CPU
+              memory: "1024Mi"       # 最大可用記憶體
       volumes:
         - name: datasources
           configMap:
