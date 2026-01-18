@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** Spring MVC 統一例外處理，轉換成統一的 {@link OpenApiResponse} 物件。 */
 @RestControllerAdvice
@@ -128,6 +129,28 @@ public class OpenRestExceptionAdvice implements MessageSourceAware {
         "error.bad-request",
         Map.of("reason", reason));
   }
+
+  /*
+   處理靜態資源不存在的錯誤
+   - 對應 /xxx.css.map 等資源請求
+   - 回傳 404 NOT_FOUND
+  */
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<Object> handleNoResourceFound(
+      NoResourceFoundException ex, WebRequest request) {
+    HttpServletRequest servletRequest = extractRequest(request);
+    Map<String, Object> additionalMeta = new LinkedHashMap<>();
+    if (ex.getResourcePath() != null) {
+      additionalMeta.put("resourcePath", ex.getResourcePath());
+    }
+    return buildErrorResponse(
+        servletRequest,
+        HttpStatus.NOT_FOUND,
+        OpenErrorCodes.RESOURCE_NOT_FOUND,
+        "error.not-found",
+        additionalMeta);
+  }
+
 
   /*
    處理不支援的 HTTP 方法錯誤
