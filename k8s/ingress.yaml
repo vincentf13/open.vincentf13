@@ -18,3 +18,10 @@ spec:
                 name: service-template
                 port:
                   number: 8080
+          - path: /service-test/?(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: service-test
+                port:
+                  number: 8080

@@ -20,6 +20,9 @@ APPLICATION_MANIFESTS=(
   service-template/deployment.yaml
   service-template/service.yaml
   service-template/hpa.yaml
+  service-test/deployment.yaml
+  service-test/service.yaml
+  service-test/hpa.yaml
   ingress.yaml
 )
 
