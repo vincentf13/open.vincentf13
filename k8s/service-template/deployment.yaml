@@ -21,7 +21,7 @@ spec:
       containers:
         - name: service-template
           image: victorf13/service-template:latest
-          imagePullPolicy: Always
+          imagePullPolicy: Never  # Always | Never
           ports:
             - name: http
               containerPort: 8080
