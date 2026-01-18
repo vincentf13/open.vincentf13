@@ -758,6 +758,9 @@ apply_foundational_services() {
 }
 
 main() {
+  local start_ts end_ts duration
+  start_ts=$(date +%s)
+
   parse_args "$@"
 
   KUBECTL_CONTEXT_ARGS=()
@@ -966,6 +969,10 @@ main() {
       exit 1
       ;;
   esac
+
+  end_ts=$(date +%s)
+  duration=$((end_ts - start_ts))
+  printf 'Execution time: %s seconds\n' "$duration"
 }
 
 main "$@"
