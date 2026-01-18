@@ -125,6 +125,15 @@ log_step() {
   printf '\n==> %s\n' "$1"
 }
 
+get_secret_value() {
+  local namespace=$1
+  local secret=$2
+  local key=$3
+
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n "$namespace" get secret "$secret" \
+    -o "jsonpath={.data.$key}" 2>/dev/null | base64 --decode
+}
+
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -691,12 +700,23 @@ main() {
       ;;
     mysql)
       require_cmd kubectl
+      require_cmd base64
       [[ -d "$MYSQL_DIR" ]] || { printf 'Missing directory: %s\n' "$MYSQL_DIR" >&2; exit 1; }
       log_step "Applying MySQL manifests"
       apply_mysql_cluster
       printf '\nMySQL infrastructure ready. Connect via:\n'
       printf '  mysql -h infra-mysql-0.infra-mysql-headless.default.svc.cluster.local -P 3306 -u root\n'
       printf '  mysql -h infra-mysql-1.infra-mysql-headless.default.svc.cluster.local -P 3306 -u root\n'
+      local mysql_root_password mysql_app_user mysql_app_password
+      mysql_root_password=$(get_secret_value default infra-mysql-secret MYSQL_ROOT_PASSWORD || true)
+      mysql_app_user=$(get_secret_value default infra-mysql-secret MYSQL_USER || true)
+      mysql_app_password=$(get_secret_value default infra-mysql-secret MYSQL_PASSWORD || true)
+      if [[ -n "$mysql_root_password" ]]; then
+        printf '  root password: %s\n' "$mysql_root_password"
+      fi
+      if [[ -n "$mysql_app_user" && -n "$mysql_app_password" ]]; then
+        printf '  app user/password: %s / %s\n' "$mysql_app_user" "$mysql_app_password"
+      fi
       printf '\n'
       ;;
     redis)
@@ -795,15 +815,36 @@ main() {
       printf '\nCluster endpoints are ready. Access services using in-cluster DNS:\n'
       printf '  MySQL primary: infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306\n'
       printf '  MySQL secondary: infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306\n'
+      local mysql_root_password mysql_app_user mysql_app_password
+      mysql_root_password=$(get_secret_value default infra-mysql-secret MYSQL_ROOT_PASSWORD || true)
+      mysql_app_user=$(get_secret_value default infra-mysql-secret MYSQL_USER || true)
+      mysql_app_password=$(get_secret_value default infra-mysql-secret MYSQL_PASSWORD || true)
+      if [[ -n "$mysql_root_password" ]]; then
+        printf '    root password: %s\n' "$mysql_root_password"
+      fi
+      if [[ -n "$mysql_app_user" && -n "$mysql_app_password" ]]; then
+        printf '    app user/password: %s / %s\n' "$mysql_app_user" "$mysql_app_password"
+      fi
       printf '  Redis cluster: infra-redis.default.svc.cluster.local:6379\n'
       printf '  Kafka broker: infra-kafka.default.svc.cluster.local:9092\n'
       printf '  Kafka Connect REST: http://infra-kafka-connect.default.svc.cluster.local:8083\n'
       printf '  Redpanda Console: http://redpanda-console.default.svc.cluster.local:8080\n'
       printf '  Nacos console: http://infra-nacos.default.svc.cluster.local:8848\n'
       printf '  Argo CD API/UI: https://argocd-server.argocd.svc.cluster.local\n'
+      local argocd_password
+      argocd_password=$(get_secret_value argocd argocd-initial-admin-secret password || true)
+      if [[ -n "$argocd_password" ]]; then
+        printf '    argocd admin/password: admin / %s\n' "$argocd_password"
+      fi
       printf '  Prometheus: http://prometheus.monitoring.svc.cluster.local:9090\n'
       printf '  Alertmanager: http://alertmanager.monitoring.svc.cluster.local:9093\n'
       printf '  Grafana: http://grafana.monitoring.svc.cluster.local:3000\n'
+      local grafana_user grafana_password
+      grafana_user=$(get_secret_value monitoring grafana-admin admin-user || true)
+      grafana_password=$(get_secret_value monitoring grafana-admin admin-password || true)
+      if [[ -n "$grafana_user" && -n "$grafana_password" ]]; then
+        printf '    grafana admin/password: %s / %s\n' "$grafana_user" "$grafana_password"
+      fi
       printf '\n'
       ;;
     *)
