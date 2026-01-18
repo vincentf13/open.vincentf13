@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: service-test
-          image: victorf13/service-test:latest
+          image: service-template:local # victorf13/service-test:latest
           imagePullPolicy: Always
           ports:
             - name: http

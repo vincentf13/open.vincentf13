@@ -2,9 +2,9 @@
 
 1. mvn package 後，出現jar包
 2. 執行
-docker build -t service-template:latest -f service/service-template/Dockerfile service/service-template
+docker build -t service-template:local -f service/service-template/Dockerfile service/service-template
 3. 更新 Deployment 使用本地鏡像
-kubectl set image deploy/service-template service-template=service-template:latest
+kubectl set image deploy/service-template service-template=service-template:local
 
 # port-forward ingress
 kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
