@@ -121,6 +121,23 @@ require_cmd() {
   fi
 }
 
+ensure_port_probe_tool() {
+  if command -v python3 >/dev/null 2>&1; then
+    return 0
+  fi
+  if command -v python >/dev/null 2>&1; then
+    return 0
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    return 0
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    return 0
+  fi
+  printf 'Missing required command: python3/python/ss/lsof (need one for port selection)\n' >&2
+  exit 1
+}
+
 log_step() {
   printf '\n==> %s\n' "$1"
 }
@@ -835,6 +852,7 @@ main() {
       require_cmd argocd
       require_cmd base64
       require_cmd docker
+      ensure_port_probe_tool
       ensure_directories
 
       log_step "Ensuring Docker images"
