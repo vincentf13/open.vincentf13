@@ -6,7 +6,6 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
     nginx.ingress.kubernetes.io/use-regex: "true"
 
-# kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
 spec:
   ingressClassName: nginx
   rules:
