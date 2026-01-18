@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: service-template
   minReplicas: 1        # Pod 最少數量（最小化資源佔用）
-  maxReplicas: 10       # Pod 最多數量（保留擴展能力）
+  maxReplicas: 5       # Pod 最多數量（保留擴展能力）
   metrics:
     - type: Resource
       resource:

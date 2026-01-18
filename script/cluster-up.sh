@@ -125,6 +125,52 @@ log_step() {
   printf '\n==> %s\n' "$1"
 }
 
+find_free_port() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - <<'PY'
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind(("127.0.0.1", 0))
+print(s.getsockname()[1])
+s.close()
+PY
+    return
+  fi
+
+  if command -v python >/dev/null 2>&1; then
+    python - <<'PY'
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind(("127.0.0.1", 0))
+print(s.getsockname()[1])
+s.close()
+PY
+    return
+  fi
+
+  local start_port=18080
+  local end_port=18180
+  local port
+
+  if command -v ss >/dev/null 2>&1; then
+    for ((port=start_port; port<=end_port; port++)); do
+      if ! ss -ltn 2>/dev/null | awk '{print $4}' | rg -q "[:.]${port}$"; then
+        printf '%s\n' "$port"
+        return
+      fi
+    done
+  elif command -v lsof >/dev/null 2>&1; then
+    for ((port=start_port; port<=end_port; port++)); do
+      if ! lsof -iTCP -sTCP:LISTEN -P 2>/dev/null | rg -q "[:.]${port}[[:space:]]"; then
+        printf '%s\n' "$port"
+        return
+      fi
+    done
+  fi
+
+  printf '%s\n' "$start_port"
+}
+
 get_secret_value() {
   local namespace=$1
   local secret=$2
@@ -561,7 +607,13 @@ configure_argocd() {
   log_step "Configuring Argo CD"
 
   # Port forward in the background to make the server accessible.
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd port-forward svc/argocd-server 8080:443 &
+  local argocd_port
+  argocd_port=$(find_free_port)
+  if [[ -z "$argocd_port" ]]; then
+    printf 'Failed to select a local port for Argo CD port-forward.\n' >&2
+    return 1
+  fi
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd port-forward svc/argocd-server ${argocd_port}:443 &
   local pf_pid=$!
 
   # Use a subshell to ensure the trap cleans up the port-forward process correctly.
@@ -591,7 +643,7 @@ configure_argocd() {
     # Retry logging in, as the server might not be ready immediately.
     local login_success=false
     for i in {1..12}; do
-      if argocd login localhost:8080 \
+      if argocd login localhost:${argocd_port} \
         --username admin \
         --password "$argo_password" \
         --insecure --grpc-web; then
@@ -813,6 +865,17 @@ main() {
       kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pods
 
       printf '\nCluster endpoints are ready. Access services using in-cluster DNS:\n'
+      local ingress_ns ingress_svc ingress_host
+      read -r ingress_ns ingress_svc < <(
+        kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get svc -A \
+          -l app.kubernetes.io/component=controller,app.kubernetes.io/name=ingress-nginx \
+          -o jsonpath='{.items[0].metadata.namespace} {.items[0].metadata.name}' 2>/dev/null || true
+        printf '\n'
+      )
+      if [[ -n "$ingress_ns" && -n "$ingress_svc" ]]; then
+        ingress_host="${ingress_svc}.${ingress_ns}.svc.cluster.local"
+        printf '  Ingress: http://%s/\n' "$ingress_host"
+      fi
       printf '  MySQL primary: infra-mysql-0.infra-mysql-headless.default.svc.cluster.local:3306\n'
       printf '  MySQL secondary: infra-mysql-1.infra-mysql-headless.default.svc.cluster.local:3306\n'
       local mysql_root_password mysql_app_user mysql_app_password
