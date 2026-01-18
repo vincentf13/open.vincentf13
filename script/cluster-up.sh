@@ -362,19 +362,35 @@ apply_application_manifests() {
 setup_ingress_and_metrics() {
   local metrics_manifest="https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
 
-  log_step "Ensuring ingress controller"
-  ensure_ingress_controller
+  local ingress_pid metrics_pid failures=0
 
-  log_step "Ensuring metrics-server"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$metrics_manifest"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system patch deployment metrics-server \
-    --type='json' -p='[
-      {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
-      {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}
-    ]'
+  (
+    log_step "Ensuring ingress controller"
+    ensure_ingress_controller
+  ) &
+  ingress_pid=$!
 
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system rollout status deploy/metrics-server
-  kubectl get hpa
+  (
+    log_step "Ensuring metrics-server"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$metrics_manifest"
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system patch deployment metrics-server \
+      --type='json' -p='[
+        {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
+        {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}
+      ]'
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system rollout status deploy/metrics-server
+    kubectl get hpa
+  ) &
+  metrics_pid=$!
+
+  if ! wait "$ingress_pid"; then
+    failures=1
+  fi
+  if ! wait "$metrics_pid"; then
+    failures=1
+  fi
+
+  return $failures
 }
 
 apply_prometheus_manifests() {
@@ -606,6 +622,22 @@ apply_monitoring_stack() {
 configure_argocd() {
   log_step "Configuring Argo CD"
 
+  log_step "Waiting for Argo CD server"
+  local ready=false
+  for i in {1..36}; do
+    if kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd get deploy argocd-server >/dev/null 2>&1 \
+      && kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd get svc argocd-server >/dev/null 2>&1; then
+      ready=true
+      break
+    fi
+    sleep 5
+  done
+  if [[ "$ready" = false ]]; then
+    printf 'Argo CD server resources not ready; aborting configuration.\n' >&2
+    return 1
+  fi
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=180s
+
   # Port forward in the background to make the server accessible.
   local argocd_port
   argocd_port=$(find_free_port)
@@ -693,19 +725,6 @@ apply_foundational_services() {
   ) &
   pids+=($!)
   names+=("Ingress and Metrics")
-
-  (
-    ensure_argocd
-  ) &
-  pids+=($!)
-  names+=("ArgoCD")
-
-  (
-    log_step "Applying monitoring stack"
-    apply_monitoring_stack
-  ) &
-  pids+=($!)
-  names+=("Monitoring")
 
   local failures=0
   local idx
@@ -821,15 +840,30 @@ main() {
       log_step "Ensuring Docker images"
       ensure_docker_images
 
-      log_step "Applying foundational services in parallel"
-      if ! apply_foundational_services; then
-        printf '\nFailed to apply foundational services. Aborting.\n' >&2
-        exit 1
-      fi
-
-      log_step "Applying dependent services"
+      log_step "Applying services in parallel"
       local pids=()
       local names=()
+
+      (
+        log_step "Applying foundational services"
+        apply_foundational_services
+      ) &
+      pids+=($!)
+      names+=("Foundational Services")
+
+      (
+        log_step "Applying monitoring stack"
+        apply_monitoring_stack
+      ) &
+      pids+=($!)
+      names+=("Monitoring")
+
+      (
+        log_step "Ensuring ArgoCD"
+        ensure_argocd
+      ) &
+      pids+=($!)
+      names+=("ArgoCD")
 
       (
         log_step "Applying application manifests"
@@ -839,7 +873,6 @@ main() {
       names+=("Application Manifests")
 
       (
-        log_step "Configuring ArgoCD"
         configure_argocd
       ) &
       pids+=($!)
@@ -849,15 +882,15 @@ main() {
       local idx
       for idx in "${!pids[@]}"; do
         if ! wait "${pids[$idx]}"; then
-          printf 'Dependent service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
+          printf 'Service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
           failures=1
         else
-          printf 'Dependent service "%s" completed.\n' "${names[$idx]}"
+          printf 'Service "%s" completed.\n' "${names[$idx]}"
         fi
       done
 
       if [[ $failures -ne 0 ]]; then
-        printf '\nOne or more dependent services failed to apply.\n' >&2
+        printf '\nOne or more services failed to apply.\n' >&2
         exit 1
       fi
 
