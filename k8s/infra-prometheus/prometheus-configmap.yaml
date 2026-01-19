@@ -9,6 +9,12 @@ metadata:
     kubernetes.io/description: Base Prometheus configuration with kube discovery
     # 這裡可以按需加入自訂 job
 
+# job_name: kubernetes-pods 使用 kubernetes_sd_configs: role: pod，這一段從 API Server 拉 Pod 清單。
+#     - 不是所有 Pod 都抓，必須有 annotation prometheus.io/scrape: "true" 才會被保留（action: keep 那段）。
+#     - 抓取位置由 annotation 決定：
+#        - prometheus.io/path → __metrics_path__
+#        - prometheus.io/port → 透過 __address__ 重新組成
+#        - prometheus.io/scheme → __scheme__
 data:
   prometheus.yml: |
     global:
