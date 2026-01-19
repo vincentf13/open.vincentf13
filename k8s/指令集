@@ -1,7 +1,6 @@
 # 打包鏡像載入本地k8s
-
 1. mvn package 後，出現jar包
-2. 執行
+2. docker build
 docker build -t service-template:local -f service/service-template/Dockerfile service/service-template
 3. 更新 Deployment 使用本地鏡像
 kubectl set image deploy/service-template service-template=service-template:local
