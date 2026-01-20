@@ -44,7 +44,7 @@ spec:
               memory: "512Mi"  # 承諾最少只要 512MB，方便調度
             limits:
               cpu: "2000m"     # 允許爆發到 2 核 (加速啟動)
-              memory: "1500Mi" # 【關鍵】強制封頂 1.5GB，防止 JVM 誤判
+              memory: "1500Mi" # 【關鍵】強制封頂 1.5GB
           volumeMounts:
             - name: alertmanager-config
               mountPath: /etc/alertmanager
