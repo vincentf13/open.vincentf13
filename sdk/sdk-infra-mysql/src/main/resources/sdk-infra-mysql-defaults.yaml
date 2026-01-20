@@ -16,7 +16,7 @@ spring:
   datasource:
     dynamic:
       # 預設資料源群組，未標註 @DS 時會使用這組
-      primary: db0
+      primary: db0_master
       # 找不到指定資料源時是否拋錯；開發期建議 false 方便 fallback
       strict: false
       # 僅在首次使用時才初始化連線池，減少啟動時間
