@@ -17,7 +17,6 @@ SERVICES=(
   "exchange-position"
   "exchange-risk"
   "exchange-user"
-  "exchange-web"
 )
 
 echo "Starting build and redeploy process for Exchange services..."
