@@ -42,11 +42,11 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              cpu: 300m             # 最小 CPU 保證（節省資源）
-              memory: 512Mi         # 最小記憶體保證
-            limits:
-              cpu: 1                # 最大可用 CPU（需要時可達 1 core）
-              memory: 1Gi           # 最大可用記憶體
+              cpu: 50m
+              memory: 128Mi
+            # limits:
+              # cpu: 1                # 最大可用 CPU（需要時可達 1 core）
+              # memory: 1Gi           # 最大可用記憶體
           volumeMounts:
             - name: prometheus-config
               mountPath: /etc/prometheus/config

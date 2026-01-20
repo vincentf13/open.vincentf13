@@ -69,11 +69,11 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              cpu: 100m              # 最小 CPU 保證（節省資源）
-              memory: 512Mi          # 最小記憶體保證（配合 JVM Xmx）
-            limits:
-              cpu: 1000m             # 最大可用 CPU（需要時可達 1 core）
-              memory: 1Gi            # 最大可用記憶體
+              cpu: 50m
+              memory: 128Mi
+            # limits:
+              # cpu: 1000m             # 最大可用 CPU（需要時可達 1 core）
+              # memory: 1Gi            # 最大可用記憶體
       volumes:
         - name: nacos-config
           configMap:

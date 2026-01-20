@@ -50,11 +50,11 @@ spec:
               mountPath: /var/lib/kafka/data  # 使用 emptyDir，重啟即重置資料。
           resources:
             requests:
-              cpu: 300m
-              memory: 768Mi
-            limits:
-              cpu: 800m
-              memory: 1.5Gi
+              cpu: 50m
+              memory: 128Mi
+            # limits:
+              # cpu: 800m
+              # memory: 1.5Gi
           startupProbe:
             tcpSocket: { port: 9092 }
             periodSeconds: 2

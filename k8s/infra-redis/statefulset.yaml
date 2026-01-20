@@ -54,9 +54,9 @@ spec:
             requests:
               cpu: 50m
               memory: 128Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
+            # limits:
+              # cpu: 200m
+              # memory: 256Mi
           livenessProbe:
             tcpSocket:
               port: 6379

@@ -6,6 +6,8 @@ metadata:
     app: exchange-gateway
 spec:
   replicas: 1  # 最小化初始資源佔用，HPA 會根據負載自動擴展
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: exchange-gateway
@@ -22,17 +24,20 @@ spec:
         - name: exchange-gateway
           image: exchange-gateway:local #  victorf13/exchange-gateway:latest
           imagePullPolicy: Never  # Always | Never
+          env:
+            - name: SERVER_PORT
+              value: "8080"
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
           resources:
             requests:
-              cpu: "300m"            # 最小 CPU 保證（節省資源）
-              memory: "512Mi"       # 最小記憶體保證
-            limits:
-              cpu: "1000m"          # 最大可用 CPU（需要時可達 1 core）
-              memory: "1024Mi"       # 最大可用記憶體
+              cpu: 50m
+              memory: 128Mi
+#             limits:
+#               cpu: "1000m"          # 最大可用 CPU（需要時可達 1 core）
+#               memory: "1024Mi"       # 最大可用記憶體
           startupProbe:
             httpGet:
               path: /actuator/health/liveness

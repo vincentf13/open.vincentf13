@@ -784,6 +784,11 @@ main() {
     KUBECTL_APP_ARGS+=(--namespace "$NAMESPACE")
   fi
 
+  # Ensure all nodes are schedulable (untouch control-plane/master taints)
+  log_step "Ensuring all nodes are schedulable"
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" taint nodes --all node-role.kubernetes.io/control-plane- || true
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" taint nodes --all node-role.kubernetes.io/master- || true
+
   case "$MODE" in
     k8s)
       require_cmd kubectl
