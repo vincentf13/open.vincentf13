@@ -304,7 +304,7 @@ ensure_ingress_controller() {
   local manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$manifest"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" --namespace ingress-nginx \
-    wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=300s
+    wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=600s
 }
 
 handle_ingress_apply_error() {
@@ -487,7 +487,7 @@ apply_mysql_cluster() {
     fi
   done
 
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-mysql --timeout=180s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-mysql --timeout=600s
 }
 
 apply_redis_cluster() {
@@ -502,14 +502,14 @@ apply_redis_cluster() {
     kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
   done
 
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-redis --timeout=180s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-redis --timeout=600s
 
   local job_file="$REDIS_DIR/cluster-job.yaml"
   if [[ -f "$job_file" ]]; then
     kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete job infra-redis-cluster-create --ignore-not-found
     printf 'Applying %s\n' "$job_file"
     kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$job_file"
-    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" wait --for=condition=complete --timeout=180s job/infra-redis-cluster-create
+    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" wait --for=condition=complete --timeout=600s job/infra-redis-cluster-create
   fi
 }
 
@@ -529,8 +529,8 @@ apply_kafka_cluster() {
     kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
   done
 
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka --timeout=300s
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/redpanda-console --timeout=180s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka --timeout=600s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/redpanda-console --timeout=600s
 }
 
 apply_kafka_connect() {
@@ -551,7 +551,7 @@ apply_kafka_connect() {
     fi
   done
 
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka-connect --timeout=180s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-kafka-connect --timeout=600s
 }
 
 apply_nacos_cluster() {
@@ -570,7 +570,7 @@ apply_nacos_cluster() {
     fi
   done
 
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-nacos --timeout=180s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status statefulset/infra-nacos --timeout=600s
 }
 
 apply_infra_clusters() {
@@ -621,7 +621,7 @@ ensure_argocd() {
     kubectl "${KUBECTL_CONTEXT_ARGS[@]}" create namespace argocd
     kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
   fi
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=180s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=600s
 }
 
 apply_monitoring_stack() {
@@ -665,7 +665,7 @@ configure_argocd() {
     printf 'Argo CD server resources not ready; aborting configuration.\n' >&2
     return 1
   fi
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=180s
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=600s
 
   # Port forward in the background to make the server accessible.
   local argocd_port
