@@ -52,30 +52,30 @@
     </SpringProfile>
 
     <!-- ========== prod ========== -->
-    <SpringProfile name="prod">
-        <Appenders>
-            <RollingFile name="FILE"
-                         fileName="${LOG_PATH}/app.log"
-                         filePattern="${LOG_PATH}/app-%d{yyyy-MM-dd}-%i.log.gz">
-                <PatternLayout pattern="${LOG_PATTERN_FILE}"/>
-                <Policies>
-                    <TimeBasedTriggeringPolicy interval="1"/>
-                    <SizeBasedTriggeringPolicy size="100 MB"/>
-                </Policies>
-                <DefaultRolloverStrategy>
-                    <Delete basePath="${LOG_PATH}">
-                        <IfFileName glob="app-*.log.gz"/>
-                        <IfLastModified age="30d"/>
-                    </Delete>
-                </DefaultRolloverStrategy>
-            </RollingFile>
-        </Appenders>
+<!--    <SpringProfile name="prod">-->
+<!--        <Appenders>-->
+<!--            <RollingFile name="FILE"-->
+<!--                         fileName="${LOG_PATH}/app.log"-->
+<!--                         filePattern="${LOG_PATH}/app-%d{yyyy-MM-dd}-%i.log.gz">-->
+<!--                <PatternLayout pattern="${LOG_PATTERN_FILE}"/>-->
+<!--                <Policies>-->
+<!--                    <TimeBasedTriggeringPolicy interval="1"/>-->
+<!--                    <SizeBasedTriggeringPolicy size="100 MB"/>-->
+<!--                </Policies>-->
+<!--                <DefaultRolloverStrategy>-->
+<!--                    <Delete basePath="${LOG_PATH}">-->
+<!--                        <IfFileName glob="app-*.log.gz"/>-->
+<!--                        <IfLastModified age="30d"/>-->
+<!--                    </Delete>-->
+<!--                </DefaultRolloverStrategy>-->
+<!--            </RollingFile>-->
+<!--        </Appenders>-->
 
-        <Loggers>
-            <Root level="${LOG_LEVEL_ROOT}">
-                <AppenderRef ref="FILE"/>
-            </Root>
-        </Loggers>
-    </SpringProfile>
+<!--        <Loggers>-->
+<!--            <Root level="${LOG_LEVEL_ROOT}">-->
+<!--                <AppenderRef ref="FILE"/>-->
+<!--            </Root>-->
+<!--        </Loggers>-->
+<!--    </SpringProfile>-->
 
 </Configuration>

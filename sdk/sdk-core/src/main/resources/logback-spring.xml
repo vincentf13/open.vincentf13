@@ -1,167 +1,167 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Logback 配置（含 dev 與 prod 兩個 Spring Profile）
-  重點：
-  - 使用 Spring 屬性注入 LOG_PATH 與 LOG_LEVEL_ROOT
-  - Console 與 File 皆可透過 AsyncAppender 異步寫入
-  - Pattern 內含 MDC 的 X-Trace-Id / X-Request-Id（與 RequestCorrelationFilter 一致）
--->
-<configuration scan="true" scanPeriod="60 seconds">
-    <!--
-      scan=true            變更自動重載
-      scanPeriod=60s       每 60 秒掃描配置變更
-    -->
+<!--<?xml version="1.0" encoding="UTF-8"?>-->
+<!--&lt;!&ndash;-->
+<!--  Logback 配置（含 dev 與 prod 兩個 Spring Profile）-->
+<!--  重點：-->
+<!--  - 使用 Spring 屬性注入 LOG_PATH 與 LOG_LEVEL_ROOT-->
+<!--  - Console 與 File 皆可透過 AsyncAppender 異步寫入-->
+<!--  - Pattern 內含 MDC 的 X-Trace-Id / X-Request-Id（與 RequestCorrelationFilter 一致）-->
+<!--&ndash;&gt;-->
+<!--<configuration scan="true" scanPeriod="60 seconds">-->
+<!--    &lt;!&ndash;-->
+<!--      scan=true            變更自動重載-->
+<!--      scanPeriod=60s       每 60 秒掃描配置變更-->
+<!--    &ndash;&gt;-->
 
-    <!--
-      性能與可靠性備註：
-      - AsyncAppender 會複製 MDC（含 X-Trace-Id、X-Request-Id）
-      - 未使用 %caller 時，保持 includeCallerData=false（預設）避免取堆疊
-      - neverBlock=true 佇列滿時不阻塞，可能丟棄低等級日誌；生產多用 false 確保不丟
-    -->
+<!--    &lt;!&ndash;-->
+<!--      性能與可靠性備註：-->
+<!--      - AsyncAppender 會複製 MDC（含 X-Trace-Id、X-Request-Id）-->
+<!--      - 未使用 %caller 時，保持 includeCallerData=false（預設）避免取堆疊-->
+<!--      - neverBlock=true 佇列滿時不阻塞，可能丟棄低等級日誌；生產多用 false 確保不丟-->
+<!--    &ndash;&gt;-->
 
-    <!--
-      Spring Boot 屬性注入
-      logging.file.path     → LOG_PATH，預設 ./logs
-      logging.level.root    → LOG_LEVEL_ROOT，預設 INFO
-    -->
-    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>
-    <springProperty scope="context" name="LOG_LEVEL_ROOT" source="logging.level.root" defaultValue="INFO"/>
+<!--    &lt;!&ndash;-->
+<!--      Spring Boot 屬性注入-->
+<!--      logging.file.path     → LOG_PATH，預設 ./logs-->
+<!--      logging.level.root    → LOG_LEVEL_ROOT，預設 INFO-->
+<!--    &ndash;&gt;-->
+<!--    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>-->
+<!--    <springProperty scope="context" name="LOG_LEVEL_ROOT" source="logging.level.root" defaultValue="INFO"/>-->
 
-    <!--
-      日誌格式
-      - LOG_PATTERN_CONSOLE：短時間格式，含 X-Trace-Id / X-Request-Id
-      - LOG_PATTERN_FILE   ：完整日期時間格式，含 X-Trace-Id / X-Request-Id
-    -->
-    <property name="LOG_PATTERN_CONSOLE"
-              value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id:-} %X{X-Request-Id:-}] - %msg%n"/>
-    <property name="LOG_PATTERN_FILE"
-              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id:-} %X{X-Request-Id:-}] - %msg%n"/>
+<!--    &lt;!&ndash;-->
+<!--      日誌格式-->
+<!--      - LOG_PATTERN_CONSOLE：短時間格式，含 X-Trace-Id / X-Request-Id-->
+<!--      - LOG_PATTERN_FILE   ：完整日期時間格式，含 X-Trace-Id / X-Request-Id-->
+<!--    &ndash;&gt;-->
+<!--    <property name="LOG_PATTERN_CONSOLE"-->
+<!--              value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id:-} %X{X-Request-Id:-}] - %msg%n"/>-->
+<!--    <property name="LOG_PATTERN_FILE"-->
+<!--              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id:-} %X{X-Request-Id:-}] - %msg%n"/>-->
 
-    <!-- ======================================== -->
-    <!-- 開發環境 profile: dev -->
-    <!-- ======================================== -->
-    <springProfile name="dev">
+<!--    &lt;!&ndash; ======================================== &ndash;&gt;-->
+<!--    &lt;!&ndash; 開發環境 profile: dev &ndash;&gt;-->
+<!--    &lt;!&ndash; ======================================== &ndash;&gt;-->
+<!--    <springProfile name="dev">-->
 
-        <!--
-          Console 同步 appender（彩色輸出）
-          - 僅用於終端觀察，正式輸出由 ASYNC_CONSOLE 包裹
-        -->
-        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder>
-                <pattern>%cyan(%d{HH:mm:ss.SSS}) %highlight(%-5level) [%magenta(%thread)] %green(%logger{36}) - %msg%n
-                </pattern>
-            </encoder>
-        </appender>
+<!--        &lt;!&ndash;-->
+<!--          Console 同步 appender（彩色輸出）-->
+<!--          - 僅用於終端觀察，正式輸出由 ASYNC_CONSOLE 包裹-->
+<!--        &ndash;&gt;-->
+<!--        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">-->
+<!--            <encoder>-->
+<!--                <pattern>%cyan(%d{HH:mm:ss.SSS}) %highlight(%-5level) [%magenta(%thread)] %green(%logger{36}) - %msg%n-->
+<!--                </pattern>-->
+<!--            </encoder>-->
+<!--        </appender>-->
 
-        <!--
-          Console 異步包裹
-          - queueSize：佇列容量
-          - discardingThreshold=0：不主動丟棄低等級日誌
-          - neverBlock=false：佇列滿時阻塞，確保不丟（dev 也可改 true 測吞吐）
-        -->
-        <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
-            <queueSize>8192</queueSize>
-            <discardingThreshold>0</discardingThreshold>
-            <neverBlock>false</neverBlock>
-            <appender-ref ref="CONSOLE"/>
-        </appender>
+<!--        &lt;!&ndash;-->
+<!--          Console 異步包裹-->
+<!--          - queueSize：佇列容量-->
+<!--          - discardingThreshold=0：不主動丟棄低等級日誌-->
+<!--          - neverBlock=false：佇列滿時阻塞，確保不丟（dev 也可改 true 測吞吐）-->
+<!--        &ndash;&gt;-->
+<!--        <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">-->
+<!--            <queueSize>8192</queueSize>-->
+<!--            <discardingThreshold>0</discardingThreshold>-->
+<!--            <neverBlock>false</neverBlock>-->
+<!--            <appender-ref ref="CONSOLE"/>-->
+<!--        </appender>-->
 
-        <!--
-          dev 根 logger
-          - 輸出到 ASYNC_CONSOLE
-          - 要同時寫檔案，請在下方 root 中加上 <appender-ref ref="ASYNC_FILE"/>
-        -->
-        <root level="${LOG_LEVEL_ROOT}">
-            <appender-ref ref="ASYNC_CONSOLE"/>
-            <appender-ref ref="ASYNC_FILE"/>
-        </root>
+<!--        &lt;!&ndash;-->
+<!--          dev 根 logger-->
+<!--          - 輸出到 ASYNC_CONSOLE-->
+<!--          - 要同時寫檔案，請在下方 root 中加上 <appender-ref ref="ASYNC_FILE"/>-->
+<!--        &ndash;&gt;-->
+<!--        <root level="${LOG_LEVEL_ROOT}">-->
+<!--            <appender-ref ref="ASYNC_CONSOLE"/>-->
+<!--            <appender-ref ref="ASYNC_FILE"/>-->
+<!--        </root>-->
 
-        <!--
-          dev：File 同步 appender（可選）
-          - 檔名：app-dev.log
-          - 滾動：按天 + 依大小分片
-          - maxHistory=7：保留 7 天
-          - SizeAndTimeBasedFNATP：時間 + 大小的觸發策略
-            注意：在較新 Logback 版本可改用 SizeAndTimeBasedRollingPolicy
-        -->
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_PATH}/app-dev.log</file>
-            <encoder>
-                <pattern>${LOG_PATTERN_FILE}</pattern>
-            </encoder>
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_PATH}/app-dev.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-                <maxHistory>7</maxHistory>
-                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                    <maxFileSize>50MB</maxFileSize>
-                </timeBasedFileNamingAndTriggeringPolicy>
-            </rollingPolicy>
-        </appender>
+<!--        &lt;!&ndash;-->
+<!--          dev：File 同步 appender（可選）-->
+<!--          - 檔名：app-dev.log-->
+<!--          - 滾動：按天 + 依大小分片-->
+<!--          - maxHistory=7：保留 7 天-->
+<!--          - SizeAndTimeBasedFNATP：時間 + 大小的觸發策略-->
+<!--            注意：在較新 Logback 版本可改用 SizeAndTimeBasedRollingPolicy-->
+<!--        &ndash;&gt;-->
+<!--&lt;!&ndash;        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">&ndash;&gt;-->
+<!--&lt;!&ndash;            <file>${LOG_PATH}/app-dev.log</file>&ndash;&gt;-->
+<!--&lt;!&ndash;            <encoder>&ndash;&gt;-->
+<!--&lt;!&ndash;                <pattern>${LOG_PATTERN_FILE}</pattern>&ndash;&gt;-->
+<!--&lt;!&ndash;            </encoder>&ndash;&gt;-->
+<!--&lt;!&ndash;            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">&ndash;&gt;-->
+<!--&lt;!&ndash;                <fileNamePattern>${LOG_PATH}/app-dev.%d{yyyy-MM-dd}.%i.log</fileNamePattern>&ndash;&gt;-->
+<!--&lt;!&ndash;                <maxHistory>7</maxHistory>&ndash;&gt;-->
+<!--&lt;!&ndash;                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <maxFileSize>50MB</maxFileSize>&ndash;&gt;-->
+<!--&lt;!&ndash;                </timeBasedFileNamingAndTriggeringPolicy>&ndash;&gt;-->
+<!--&lt;!&ndash;            </rollingPolicy>&ndash;&gt;-->
+<!--&lt;!&ndash;        </appender>&ndash;&gt;-->
 
-        <!--
-          dev：File 異步包裹（可選）
-          - neverBlock=false：確保 dev 檔案不丟
-          - 啟用方式：在上方 root 增加 <appender-ref ref="ASYNC_FILE"/>
-        -->
-        <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
-            <queueSize>8192</queueSize>
-            <discardingThreshold>0</discardingThreshold>
-            <neverBlock>false</neverBlock>
-            <appender-ref ref="FILE"/>
-        </appender>
+<!--        &lt;!&ndash;-->
+<!--          dev：File 異步包裹（可選）-->
+<!--          - neverBlock=false：確保 dev 檔案不丟-->
+<!--          - 啟用方式：在上方 root 增加 <appender-ref ref="ASYNC_FILE"/>-->
+<!--        &ndash;&gt;-->
+<!--        <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">-->
+<!--            <queueSize>8192</queueSize>-->
+<!--            <discardingThreshold>0</discardingThreshold>-->
+<!--            <neverBlock>false</neverBlock>-->
+<!--            <appender-ref ref="FILE"/>-->
+<!--        </appender>-->
 
 
-    </springProfile>
+<!--    </springProfile>-->
 
-    <!-- ======================================== -->
-    <!-- 生產環境 profile: prod -->
-    <!-- ======================================== -->
-    <springProfile name="prod">
+<!--    &lt;!&ndash; ======================================== &ndash;&gt;-->
+<!--    &lt;!&ndash; 生產環境 profile: prod &ndash;&gt;-->
+<!--    &lt;!&ndash; ======================================== &ndash;&gt;-->
+<!--    <springProfile name="prod">-->
 
-        <!--
-          prod：File 同步 appender
-          - 檔名：app.log
-          - 滾動：每天一個檔案，並按大小切分為多個 index 檔
-          - maxHistory=30：保留 30 天
-          - immediateFlush（可選）：關閉可減少 flush 開銷，但遇到崩潰可能丟少量日誌
-        -->
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_PATH}/app.log</file>
-            <encoder>
-                <pattern>${LOG_PATTERN_FILE}</pattern>
-            </encoder>
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_PATH}/app.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-                <maxHistory>30</maxHistory>
-                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                    <maxFileSize>100MB</maxFileSize>
-                </timeBasedFileNamingAndTriggeringPolicy>
-            </rollingPolicy>
-            <!-- <immediateFlush>false</immediateFlush> -->
-        </appender>
+<!--        &lt;!&ndash;-->
+<!--          prod：File 同步 appender-->
+<!--          - 檔名：app.log-->
+<!--          - 滾動：每天一個檔案，並按大小切分為多個 index 檔-->
+<!--          - maxHistory=30：保留 30 天-->
+<!--          - immediateFlush（可選）：關閉可減少 flush 開銷，但遇到崩潰可能丟少量日誌-->
+<!--        &ndash;&gt;-->
+<!--        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">-->
+<!--            <file>${LOG_PATH}/app.log</file>-->
+<!--            <encoder>-->
+<!--                <pattern>${LOG_PATTERN_FILE}</pattern>-->
+<!--            </encoder>-->
+<!--            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">-->
+<!--                <fileNamePattern>${LOG_PATH}/app.%d{yyyy-MM-dd}.%i.log</fileNamePattern>-->
+<!--                <maxHistory>30</maxHistory>-->
+<!--                <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">-->
+<!--                    <maxFileSize>100MB</maxFileSize>-->
+<!--                </timeBasedFileNamingAndTriggeringPolicy>-->
+<!--            </rollingPolicy>-->
+<!--            &lt;!&ndash; <immediateFlush>false</immediateFlush> &ndash;&gt;-->
+<!--        </appender>-->
 
-        <!--
-          prod：File 異步包裹
-          - queueSize：生產建議較大
-          - neverBlock=false：尖峰時阻塞呼叫執行緒，避免丟失
-          - discardingThreshold=0：不主動丟棄低等級日誌
-        -->
-        <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
-            <queueSize>16384</queueSize>
-            <discardingThreshold>0</discardingThreshold>
-            <neverBlock>false</neverBlock>
-            <appender-ref ref="FILE"/>
-        </appender>
+<!--        &lt;!&ndash;-->
+<!--          prod：File 異步包裹-->
+<!--          - queueSize：生產建議較大-->
+<!--          - neverBlock=false：尖峰時阻塞呼叫執行緒，避免丟失-->
+<!--          - discardingThreshold=0：不主動丟棄低等級日誌-->
+<!--        &ndash;&gt;-->
+<!--        <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">-->
+<!--            <queueSize>16384</queueSize>-->
+<!--            <discardingThreshold>0</discardingThreshold>-->
+<!--            <neverBlock>false</neverBlock>-->
+<!--            <appender-ref ref="FILE"/>-->
+<!--        </appender>-->
 
-        <!--
-          prod 根 logger
-          - 僅輸出到檔案（異步）
-          - 若另需 Console，可額外定義 CONSOLE/ASYNC_CONSOLE 並加上 appender-ref
-        -->
-        <root level="${LOG_LEVEL_ROOT}">
-            <appender-ref ref="ASYNC_FILE"/>
-        </root>
+<!--        &lt;!&ndash;-->
+<!--          prod 根 logger-->
+<!--          - 僅輸出到檔案（異步）-->
+<!--          - 若另需 Console，可額外定義 CONSOLE/ASYNC_CONSOLE 並加上 appender-ref-->
+<!--        &ndash;&gt;-->
+<!--        <root level="${LOG_LEVEL_ROOT}">-->
+<!--            <appender-ref ref="ASYNC_FILE"/>-->
+<!--        </root>-->
 
-    </springProfile>
+<!--    </springProfile>-->
 
-</configuration>
+<!--</configuration>-->

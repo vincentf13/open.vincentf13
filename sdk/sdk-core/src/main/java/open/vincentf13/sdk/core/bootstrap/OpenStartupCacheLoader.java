@@ -5,7 +5,7 @@ import open.vincentf13.sdk.core.log.OpenLog;
 
 public abstract class OpenStartupCacheLoader {
 
-  private static final long DEFAULT_RETRY_DELAY_MS = 3000;
+  private static final long DEFAULT_RETRY_DELAY_MS = 5000;
 
   public final void loadCaches() {
     OpenLog.info(CoreEvent.STARTUP_CACHE_LOADING);
