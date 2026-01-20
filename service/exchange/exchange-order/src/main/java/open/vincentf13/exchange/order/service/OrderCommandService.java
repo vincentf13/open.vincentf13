@@ -13,7 +13,6 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.ExchangeMetric;
 import open.vincentf13.exchange.common.sdk.enums.*;
-import open.vincentf13.sdk.core.metrics.MCounter;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
@@ -40,6 +39,7 @@ import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
 import open.vincentf13.sdk.core.exception.OpenException;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
+import open.vincentf13.sdk.core.metrics.MCounter;
 import open.vincentf13.sdk.core.object.OpenObjectDiff;
 import open.vincentf13.sdk.core.values.OpenString;
 import open.vincentf13.sdk.infra.mysql.retry.task.RetryTaskResult;
@@ -109,12 +109,11 @@ public class OrderCommandService {
           retryTaskService.handleTask(
               retryTask, retryDelay, retryTask2 -> determineIntentAndReserveAndProcess(payload));
       
-      // 埋點：下單請求成功
-      MCounter.one(ExchangeMetric.ORDER_REQUEST,
-                   "symbol", request.getInstrumentId(),
-                   "side", request.getSide().name(),
-                   "status", "success");
-
+            // 埋點：下單請求成功
+            MCounter.one(ExchangeMetric.ORDER_REQUEST, 
+                "symbol", String.valueOf(request.getInstrumentId()), 
+                "side", request.getSide().name(), 
+                "status", "success");
       if (response != null) {
         return OpenObjectMapper.convert(response, OrderResponse.class);
       }
@@ -124,7 +123,7 @@ public class OrderCommandService {
     } catch (DuplicateKeyException ex) {
       // 埋點：下單請求失敗 (重複下單)
       MCounter.one(ExchangeMetric.ORDER_REQUEST, 
-          "symbol", request.getInstrumentId(), 
+          "symbol", String.valueOf(request.getInstrumentId()), 
           "side", request.getSide().name(), 
           "status", "duplicate");
       OpenLog.info(
@@ -147,7 +146,7 @@ public class OrderCommandService {
     } catch (Exception ex) {
       // 埋點：下單請求失敗 (其他異常)
       MCounter.one(ExchangeMetric.ORDER_REQUEST, 
-          "symbol", request.getInstrumentId(), 
+          "symbol", String.valueOf(request.getInstrumentId()), 
           "side", request.getSide().name(), 
           "status", "error");
       throw ex;
