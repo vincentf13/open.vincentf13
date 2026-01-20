@@ -898,6 +898,26 @@ main() {
       pids+=($!)
       names+=("ArgoCD")
 
+      local failures=0
+      local idx
+      for idx in "${!pids[@]}"; do
+        if ! wait "${pids[$idx]}"; then
+          printf 'Service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
+          failures=1
+        else
+          printf 'Service "%s" completed.\n' "${names[$idx]}"
+        fi
+      done
+
+      if [[ $failures -ne 0 ]]; then
+        printf '\nOne or more foundational services failed to apply.\n' >&2
+        exit 1
+      fi
+
+      log_step "Foundational services ready. Proceeding to application deployment."
+      pids=()
+      names=()
+
       (
         log_step "Applying application manifests"
         apply_application_manifests
@@ -911,8 +931,7 @@ main() {
       pids+=($!)
       names+=("ArgoCD Configuration")
 
-      local failures=0
-      local idx
+      failures=0
       for idx in "${!pids[@]}"; do
         if ! wait "${pids[$idx]}"; then
           printf 'Service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
@@ -923,7 +942,7 @@ main() {
       done
 
       if [[ $failures -ne 0 ]]; then
-        printf '\nOne or more services failed to apply.\n' >&2
+        printf '\nOne or more application services failed to apply.\n' >&2
         exit 1
       fi
 

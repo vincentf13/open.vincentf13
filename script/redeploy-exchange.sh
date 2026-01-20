@@ -45,6 +45,30 @@ for SVC in "${SERVICES[@]}"; do
   echo "Building Docker image: $SVC:local"
   docker build -t "$SVC:local" -f "$DOCKERFILE" "$SERVICE_DIR"
 
+  # Load image into Kind cluster
+  if command -v kind >/dev/null 2>&1; then
+      echo "Loading image into Kind cluster 'desktop' manually..."
+      TEMP_TAR="${SVC}.tar"
+      docker save -o "$TEMP_TAR" "$SVC:local"
+      
+      # Find all Kind nodes for this cluster
+      NODES=$(docker ps --format "{{.Names}}" | grep "^desktop-")
+      
+      for NODE in $NODES; do
+          echo "  -> Importing into $NODE..."
+          # Copy tar to the node container
+          docker cp "$TEMP_TAR" "$NODE:/${TEMP_TAR}"
+          # Import image using containerd (ctr)
+          # We use namespace 'k8s.io' which is standard for Kind/K8s
+          docker exec "$NODE" ctr -n k8s.io images import "/${TEMP_TAR}" >/dev/null
+          # Clean up inside the node
+          docker exec "$NODE" rm "/${TEMP_TAR}"
+      done
+      
+      # Clean up local tar
+      rm "$TEMP_TAR"
+  fi
+
   # Kubernetes Update
   echo "Updating Kubernetes deployment..."
   # We use '|| true' to prevent script failure if the deployment doesn't exist yet
