@@ -1,6 +1,6 @@
 logging:
   level:
-    root: WARN
+    root: INFO
     open.vincentf13: INFO
 
 server:
