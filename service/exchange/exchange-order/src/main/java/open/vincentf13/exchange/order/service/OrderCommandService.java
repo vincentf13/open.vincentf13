@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.common.sdk.enums.*;
+import open.vincentf13.sdk.core.metrics.MCounter;
 import open.vincentf13.exchange.order.domain.model.Order;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.infra.OrderEvent;
@@ -106,6 +107,13 @@ public class OrderCommandService {
       Order response =
           retryTaskService.handleTask(
               retryTask, retryDelay, retryTask2 -> determineIntentAndReserveAndProcess(payload));
+      
+      // 埋點：下單請求成功
+      MCounter.one(ExchangeMetric.ORDER_REQUEST, 
+          "symbol", request.getInstrumentId(), 
+          "side", request.getSide().name(), 
+          "status", "success");
+
       if (response != null) {
         return OpenObjectMapper.convert(response, OrderResponse.class);
       }
@@ -113,6 +121,11 @@ public class OrderCommandService {
           .map(o -> OpenObjectMapper.convert(o, OrderResponse.class))
           .orElse(OpenObjectMapper.convert(order, OrderResponse.class));
     } catch (DuplicateKeyException ex) {
+      // 埋點：下單請求失敗 (重複下單)
+      MCounter.one(ExchangeMetric.ORDER_REQUEST, 
+          "symbol", request.getInstrumentId(), 
+          "side", request.getSide().name(), 
+          "status", "duplicate");
       OpenLog.info(
           OrderEvent.ORDER_DUPLICATE_INSERT,
           "userId",
@@ -130,6 +143,13 @@ public class OrderCommandService {
                   OpenException.of(
                       OrderErrorCode.ORDER_STATE_CONFLICT,
                       Map.of("userId", userId, "clientOrderId", request.getClientOrderId())));
+    } catch (Exception ex) {
+      // 埋點：下單請求失敗 (其他異常)
+      MCounter.one(ExchangeMetric.ORDER_REQUEST, 
+          "symbol", request.getInstrumentId(), 
+          "side", request.getSide().name(), 
+          "status", "error");
+      throw ex;
     }
   }
 

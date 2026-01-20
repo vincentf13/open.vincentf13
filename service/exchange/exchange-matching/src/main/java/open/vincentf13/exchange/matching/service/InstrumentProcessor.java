@@ -1,5 +1,9 @@
 package open.vincentf13.exchange.matching.service;
 
+import open.vincentf13.exchange.common.sdk.enums.ExchangeMetric;
+import open.vincentf13.sdk.core.metrics.MCounter;
+import open.vincentf13.sdk.core.metrics.MGauge;
+import open.vincentf13.sdk.core.metrics.MTimer;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -33,6 +37,9 @@ public class InstrumentProcessor {
     this.orderBook = new OrderBook();
     this.executor =
         Executors.newSingleThreadExecutor(r -> new Thread(r, "matching-" + instrumentId));
+    
+    // 埋點：監控撮合引擎執行緒池
+    MGauge.monitorExecutor(SysMetric.EVENT, this.executor, "name", "matching-" + instrumentId);
   }
 
   public void init() {
@@ -47,43 +54,51 @@ public class InstrumentProcessor {
       return;
     }
 
-    long lastSeq = -1L;
-    for (Order order : batch) {
-      if (!Objects.equals(order.getInstrumentId(), instrumentId)) {
-        OpenLog.warn(
-            MatchingEvent.ORDER_ROUTING_ERROR,
-            "expected",
-            instrumentId,
-            "actual",
-            order.getInstrumentId());
-        continue;
-      }
-      Objects.requireNonNull(order, "order batch item must not be null");
-      OpenValidator.validateOrThrow(order);
+    // 埋點：監控撮合批次處理延遲
+    MTimer.record(ExchangeMetric.MATCHING_LATENCY, () -> {
+        long lastSeq = -1L;
+        for (Order order : batch) {
+          if (!Objects.equals(order.getInstrumentId(), instrumentId)) {
+            OpenLog.warn(
+                MatchingEvent.ORDER_ROUTING_ERROR,
+                "expected",
+                instrumentId,
+                "actual",
+                order.getInstrumentId());
+            continue;
+          }
+          Objects.requireNonNull(order, "order batch item must not be null");
+          OpenValidator.validateOrThrow(order);
 
-      if (orderBook.alreadyProcessed(order.getOrderId())) {
-        continue;
-      }
+          if (orderBook.alreadyProcessed(order.getOrderId())) {
+            continue;
+          }
 
-      // 1. Calculate Match
-      MatchResult result = orderBook.match(order);
+          // 1. Calculate Match
+          MatchResult result = orderBook.match(order);
 
-      // 2. Persist to WAL (Sequentially)
-      List<WalEntry> appended = wal.appendBatch(List.of(result));
-      if (appended.isEmpty()) {
-        continue;
-      }
+          // 2. Persist to WAL (Sequentially)
+          List<WalEntry> appended = wal.appendBatch(List.of(result));
+          if (appended.isEmpty()) {
+            continue;
+          }
 
-      // 3. Apply to OrderBook (Update State)
-      orderBook.apply(result);
-      orderBook.markProcessed(result.getTakerOrder().getOrderId());
-      lastSeq = appended.get(0).getSeq();
-    }
+          // 3. Apply to OrderBook (Update State)
+          orderBook.apply(result);
+          orderBook.markProcessed(result.getTakerOrder().getOrderId());
+          lastSeq = appended.get(0).getSeq();
+          
+          // 埋點：如果成交，增加成交次數
+          if (result.getTrades() != null && !result.getTrades().isEmpty()) {
+              MCounter.inc(ExchangeMetric.MATCHING_TRADE, result.getTrades().size(), "symbol", String.valueOf(instrumentId));
+          }
+        }
 
-    // 4. Snapshot Check (Once per batch)
-    if (lastSeq > 0) {
-      snapshotStore.maybeSnapshot(lastSeq, orderBook);
-    }
+        // 4. Snapshot Check (Once per batch)
+        if (lastSeq > 0) {
+          snapshotStore.maybeSnapshot(lastSeq, orderBook);
+        }
+    }, "symbol", String.valueOf(instrumentId));
   }
 
   private void restoreSnapshot() {
