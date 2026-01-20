@@ -47,4 +47,5 @@
 ## Agent Notes
 
 - 除非有要求，否則不撰寫任何測試碼；不跑 Maven；回覆最終總結使用中文。
+- 為了任務執行而建立的臨時性或輔助性腳本，應統一存放在 `script/ai-tools/` 目錄下，避免汙染專案正式腳本目錄。
 - exchange 需求以 `service/exchange/design/` 為最高優先指引。
