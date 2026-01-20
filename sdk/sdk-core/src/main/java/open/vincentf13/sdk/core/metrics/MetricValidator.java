@@ -1,5 +1,7 @@
 package open.vincentf13.sdk.core.metrics;
 
+import open.vincentf13.sdk.core.metrics.enums.IMetric;
+
 import java.util.Arrays;
 
 /**

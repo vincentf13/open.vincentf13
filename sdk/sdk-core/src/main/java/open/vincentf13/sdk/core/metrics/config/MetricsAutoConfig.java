@@ -1,6 +1,7 @@
- package open.vincentf13.sdk.core.metrics;
+ package open.vincentf13.sdk.core.metrics.config;
 
  import io.micrometer.core.instrument.MeterRegistry;
+ import open.vincentf13.sdk.core.metrics.Metrics;
  import org.springframework.boot.autoconfigure.AutoConfiguration;
  import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
  import org.springframework.context.annotation.Bean;

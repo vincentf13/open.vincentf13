@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.metrics;
+package open.vincentf13.sdk.core.metrics.enums;
 
 /**
  * 定義指標的介面，建議使用 Enum 實作此介面以管理指標名稱與標籤。

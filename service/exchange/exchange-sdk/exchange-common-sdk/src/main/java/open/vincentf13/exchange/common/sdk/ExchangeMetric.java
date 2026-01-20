@@ -1,6 +1,6 @@
-package open.vincentf13.exchange.common.sdk.enums;
+package open.vincentf13.exchange.common.sdk;
 
-import open.vincentf13.sdk.core.metrics.IMetric;
+import open.vincentf13.sdk.core.metrics.enums.IMetric;
 
 /**
  * 定義 Exchange 業務層級的監控指標。

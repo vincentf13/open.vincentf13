@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import open.vincentf13.exchange.common.sdk.ExchangeMetric;
 import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.sdk.core.metrics.MCounter;
 import open.vincentf13.exchange.order.domain.model.Order;
@@ -109,10 +110,10 @@ public class OrderCommandService {
               retryTask, retryDelay, retryTask2 -> determineIntentAndReserveAndProcess(payload));
       
       // 埋點：下單請求成功
-      MCounter.one(ExchangeMetric.ORDER_REQUEST, 
-          "symbol", request.getInstrumentId(), 
-          "side", request.getSide().name(), 
-          "status", "success");
+      MCounter.one(ExchangeMetric.ORDER_REQUEST,
+                   "symbol", request.getInstrumentId(),
+                   "side", request.getSide().name(),
+                   "status", "success");
 
       if (response != null) {
         return OpenObjectMapper.convert(response, OrderResponse.class);

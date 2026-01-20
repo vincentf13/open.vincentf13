@@ -3,6 +3,8 @@ package open.vincentf13.sdk.core.metrics;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
+import open.vincentf13.sdk.core.metrics.enums.IMetric;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 

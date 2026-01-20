@@ -1,6 +1,8 @@
 package open.vincentf13.sdk.core.metrics;
 
 import io.micrometer.core.instrument.LongTaskTimer;
+import open.vincentf13.sdk.core.metrics.enums.IMetric;
+
 import java.util.concurrent.ConcurrentHashMap;
 
 /**

@@ -1,14 +1,11 @@
 package open.vincentf13.exchange.matching.service;
 
-import open.vincentf13.exchange.common.sdk.enums.ExchangeMetric;
-import open.vincentf13.sdk.core.metrics.MCounter;
-import open.vincentf13.sdk.core.metrics.MGauge;
-import open.vincentf13.sdk.core.metrics.MTimer;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.Getter;
+import open.vincentf13.exchange.common.sdk.ExchangeMetric;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.domain.order.book.OrderBook;
@@ -18,6 +15,10 @@ import open.vincentf13.exchange.matching.infra.snapshot.SnapshotState;
 import open.vincentf13.exchange.matching.infra.wal.InstrumentWal;
 import open.vincentf13.exchange.matching.infra.wal.WalEntry;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.core.metrics.MCounter;
+import open.vincentf13.sdk.core.metrics.MGauge;
+import open.vincentf13.sdk.core.metrics.MTimer;
+import open.vincentf13.sdk.core.metrics.enums.SysMetric;
 import open.vincentf13.sdk.core.validator.OpenValidator;
 
 public class InstrumentProcessor {
@@ -39,7 +40,7 @@ public class InstrumentProcessor {
         Executors.newSingleThreadExecutor(r -> new Thread(r, "matching-" + instrumentId));
     
     // 埋點：監控撮合引擎執行緒池
-    MGauge.monitorExecutor(SysMetric.EVENT, this.executor, "name", "matching-" + instrumentId);
+    MGauge.monitorExecutor(SysMetric.EXECUTOR, this.executor, "name", "matching-" + instrumentId);
   }
 
   public void init() {

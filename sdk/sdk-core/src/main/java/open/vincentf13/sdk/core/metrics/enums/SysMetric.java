@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.core.metrics;
+package open.vincentf13.sdk.core.metrics.enums;
 
 /**
  * 定義系統層級通用的監控指標。
@@ -47,7 +47,17 @@ public enum SysMetric implements IMetric {
      *   <li><b>name</b>: 事件名稱 (如 "startup", "config_reload", "leader_election")</li>
      * </ul>
      */
-    EVENT("sys.event", "name");
+    EVENT("sys.event", "name"),
+
+    /**
+     * 執行緒池 (Executor) 監控。
+     * <p>
+     * Tags:
+     * <ul>
+     *   <li><b>name</b>: 執行緒池名稱 (如 "matching-engine", "order-handler")</li>
+     * </ul>
+     */
+    EXECUTOR("sys.executor", "name");
 
     private final String name;
     private final String[] tagKeys;
