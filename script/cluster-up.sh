@@ -367,6 +367,15 @@ apply_application_manifests() {
     pids+=($!)
   done
 
+  (
+    local dir="$K8S_DIR/service-exchange"
+    if [[ -d "$dir" ]]; then
+      printf 'Applying %s\n' "$dir"
+      kubectl "${KUBECTL_APP_ARGS[@]}" apply -f "$dir"
+    fi
+  ) &
+  pids+=($!)
+
   local status=0
   for pid in "${pids[@]}"; do
     if ! wait "$pid"; then

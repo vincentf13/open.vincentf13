@@ -1,18 +1,16 @@
 // package open.vincentf13.sdk.core.metrics;
 //
-// import io.micrometer.core.instrument.*;
-// import io.micrometer.core.instrument.binder.jvm.*;
-// import io.micrometer.core.instrument.binder.kafka.KafkaClientMetrics;
-// import io.micrometer.core.instrument.binder.logging.LogbackMetrics;
-// import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
+//import io.micrometer.core.instrument.*;
+//import io.micrometer.core.instrument.binder.jvm.*;
+//import io.micrometer.core.instrument.binder.logging.LogbackMetrics;
+//import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
+//import java.util.Objects;
+//import java.util.concurrent.Callable;
+//import java.util.concurrent.ConcurrentHashMap;
+//import java.util.concurrent.ExecutorService;
+//import java.util.concurrent.atomic.AtomicLong;
 //
-// import java.util.Objects;
-// import java.util.concurrent.Callable;
-// import java.util.concurrent.ConcurrentHashMap;
-// import java.util.concurrent.ExecutorService;
-// import java.util.concurrent.atomic.AtomicLong;
-//
-// public final class Metrics {
+//public final class Metrics {
 //    private static MeterRegistry REG;
 //    private static final ConcurrentHashMap<String, Counter> CACH_COUNTER = new
 // ConcurrentHashMap<>();
@@ -77,15 +75,15 @@
 //        ExecutorServiceMetrics.monitor(REG, ex, name, Tags.of(tags));
 //    }
 //
-//    public static void bindKafkaMetrics(org.apache.kafka.clients.producer.Producer<?, ?> p, String
-// clientId) {
-//        new KafkaClientMetrics(p).bindTo(REG);
-//    }
-//
-//    public static void bindKafkaMetrics(org.apache.kafka.clients.consumer.Consumer<?, ?> c, String
-// clientId) {
-//        new KafkaClientMetrics(c).bindTo(REG);
-//    }
+// //   public static void bindKafkaMetrics(org.apache.kafka.clients.producer.Producer<?, ?> p, String
+// //clientId) {
+// //       new KafkaClientMetrics(p).bindTo(REG);
+// //   }
+// //
+// //   public static void bindKafkaMetrics(org.apache.kafka.clients.consumer.Consumer<?, ?> c, String
+// //clientId) {
+// //       new KafkaClientMetrics(c).bindTo(REG);
+// //   }
 //
 //    private static Counter counter(String name, String... tags) {
 //        String key = key(name, tags);

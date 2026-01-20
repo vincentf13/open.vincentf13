@@ -25,3 +25,10 @@ spec:
                 name: service-test
                 port:
                   number: 8080
+          - path: /exchange/?(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: exchange-gateway
+                port:
+                  number: 8080

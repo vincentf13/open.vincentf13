@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exchange-gateway
+  labels:
+    app: exchange-gateway
+spec:
+  replicas: 1  # 最小化初始資源佔用，HPA 會根據負載自動擴展
+  selector:
+    matchLabels:
+      app: exchange-gateway
+  template:
+    metadata:
+      labels:
+        app: exchange-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: exchange-gateway
+          image: exchange-gateway:local #  victorf13/exchange-gateway:latest
+          imagePullPolicy: Never  # Always | Never
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "300m"            # 最小 CPU 保證（節省資源）
+              memory: "512Mi"       # 最小記憶體保證
+            limits:
+              cpu: "1000m"          # 最大可用 CPU（需要時可達 1 core）
+              memory: "1024Mi"       # 最大可用記憶體
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: exchange-gateway
+  labels:
+    app: exchange-gateway
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/actuator/prometheus"
+    prometheus.io/port: "8080"
+spec:
+  type: ClusterIP
+  selector:
+    app: exchange-gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
