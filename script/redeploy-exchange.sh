@@ -2,21 +2,20 @@
 set -e
 
 # 用途：
-# 自動化重新建置並部署所有 Exchange 微服務。
+# 自動化重新建置並部署所有 Exchange 微服務 (平行化優化版)。
 #
 # 功能：
-# 1. 遍歷所有 Exchange 服務 (Account, Admin, Auth, Gateway, Market, Matching, Order, Position, Risk, User)。
-# 2. 為每個服務執行 Docker Build (標籤為 :local)。
-# 3. 將建置好的映像檔載入 Kind 叢集節點 (支援 desktop 叢集)。
-# 4. 更新 Kubernetes Deployment 以觸發滾動更新 (Rollout)。
+# 1. 平行執行所有服務的 Docker Build。
+# 2. 平行載入映像檔到 Kind 叢集。
+# 3. 批次更新 Kubernetes Deployment。
 #
 # 使用方式：
-# 直接執行腳本即可，無須參數。
 # ./script/redeploy-exchange.sh
 
-# Get the directory of the script and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+LOG_DIR="$PROJECT_ROOT/script/logs"
+mkdir -p "$LOG_DIR"
 
 # List of services to process
 SERVICES=(
@@ -32,67 +31,92 @@ SERVICES=(
   "exchange-user"
 )
 
-echo "Starting build and redeploy process for Exchange services..."
+# 取得 Kind 節點列表 (一次性取得)
+NODES=$(docker ps --format "{{.Names}}" | grep "^desktop-" || true)
 
-for SVC in "${SERVICES[@]}"; do
-  echo "--------------------------------------------------"
-  echo "Processing $SVC..."
+# 顏色定義
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-  SERVICE_DIR="$PROJECT_ROOT/service/exchange/$SVC"
-  DOCKERFILE="$SERVICE_DIR/Dockerfile"
+echo "Starting PARALLEL build and manual redeploy process for Exchange services..."
 
-  # Check if the service directory exists
-  if [[ ! -d "$SERVICE_DIR" ]]; then
-    echo "Directory not found: $SERVICE_DIR. Skipping."
-    continue
-  fi
-  
-  # Check if Dockerfile exists
-  if [[ ! -f "$DOCKERFILE" ]]; then
-    echo "Dockerfile not found in $SERVICE_DIR. Skipping."
-    continue
-  fi
+# 函數：處理單一服務 (Build + Load + Update)
+process_service() {
+  local SVC=$1
+  local SERVICE_DIR="$PROJECT_ROOT/service/exchange/$SVC"
+  local DOCKERFILE="$SERVICE_DIR/Dockerfile"
+  local LOG_FILE="$LOG_DIR/${SVC}.log"
 
-  # Docker Build
-  # Context is SERVICE_DIR
-  echo "Building Docker image: $SVC:local"
-  docker build -t "$SVC:local" -f "$DOCKERFILE" "$SERVICE_DIR"
+  echo "[$SVC] Processing... (Logs: $LOG_FILE)" > "$LOG_FILE"
 
-  # Load image into Kind cluster
-  if command -v kind >/dev/null 2>&1; then
-      echo "Loading image into Kind cluster 'desktop' manually..."
-      TEMP_TAR="${SVC}.tar"
-      docker save -o "$TEMP_TAR" "$SVC:local"
-      
-      # Find all Kind nodes for this cluster
-      NODES=$(docker ps --format "{{.Names}}" | grep "^desktop-")
-      
-      for NODE in $NODES; do
-          echo "  -> Importing into $NODE..."
-          # Copy tar to the node container
-          docker cp "$TEMP_TAR" "$NODE:/${TEMP_TAR}"
-          # Import image using containerd (ctr)
-          # We use namespace 'k8s.io' which is standard for Kind/K8s
-          docker exec "$NODE" ctr -n k8s.io images import "/${TEMP_TAR}" >/dev/null
-          # Clean up inside the node
-          docker exec "$NODE" rm "/${TEMP_TAR}"
-      done
-      
-      # Clean up local tar
-      rm "$TEMP_TAR"
+  if [[ ! -d "$SERVICE_DIR" || ! -f "$DOCKERFILE" ]]; then
+    echo "[$SVC] Directory or Dockerfile not found. Skipping." >> "$LOG_FILE"
+    return 0
   fi
 
-  # Kubernetes Update
-  echo "Updating Kubernetes deployment..."
-  # We use '|| true' to prevent script failure if the deployment doesn't exist yet
+  # 1. Docker Build
+  echo "[$SVC] Building..." >> "$LOG_FILE"
+  if ! docker build -t "$SVC:local" -f "$DOCKERFILE" "$SERVICE_DIR" >> "$LOG_FILE" 2>&1; then
+    echo "[$SVC] Build FAILED. See $LOG_FILE"
+    return 1
+  fi
+
+  # 2. Load into Kind (Manual Method - Fast Parallel)
+  echo "[$SVC] Loading into Kind nodes..." >> "$LOG_FILE"
+  local TEMP_TAR="${SVC}_$(date +%s)_$$.tar"
+  if ! docker save -o "$TEMP_TAR" "$SVC:local" >> "$LOG_FILE" 2>&1; then
+    echo "[$SVC] Docker save FAILED." >> "$LOG_FILE"
+    return 1
+  fi
+
+  for NODE in $NODES; do
+      echo "  -> Importing into $NODE..." >> "$LOG_FILE"
+      docker cp "$TEMP_TAR" "$NODE:/${TEMP_TAR}" >> "$LOG_FILE" 2>&1
+      docker exec "$NODE" ctr -n k8s.io images import "/${TEMP_TAR}" >> "$LOG_FILE" 2>&1
+      docker exec "$NODE" rm "/${TEMP_TAR}" >> "$LOG_FILE" 2>&1
+  done
+  rm -f "$TEMP_TAR"
+
+  # 3. K8s Update
+  echo "[$SVC] Updating Deployment..." >> "$LOG_FILE"
   if kubectl get deployment "$SVC" >/dev/null 2>&1; then
-      kubectl set image "deploy/$SVC" "$SVC=$SVC:local"
-      echo "Deployment updated."
+      kubectl set image "deploy/$SVC" "$SVC=$SVC:local" >> "$LOG_FILE" 2>&1
+      echo "[$SVC] Deployment updated." >> "$LOG_FILE"
   else
-      echo "Deployment '$SVC' not found in current namespace. Skipping K8s update."
+      echo "[$SVC] Deployment not found. Skipping update." >> "$LOG_FILE"
   fi
 
+  echo -e "${GREEN}[$SVC] Completed successfully.${NC}"
+}
+
+# 匯出變數供子 shell 使用
+export -f process_service
+export PROJECT_ROOT
+export LOG_DIR
+export NODES
+export GREEN RED NC
+
+# 平行執行
+PIDS=()
+for SVC in "${SERVICES[@]}"; do
+  process_service "$SVC" &
+  PIDS+=($!)
+done
+
+# 等待所有任務完成
+FAILURES=0
+for PID in "${PIDS[@]}"; do
+  wait "$PID" || FAILURES=$((FAILURES+1))
 done
 
 echo "--------------------------------------------------"
-echo "Redeploy process completed."
+if [ $FAILURES -eq 0 ]; then
+  echo -e "${GREEN}All services images built and loaded successfully!${NC}"
+  echo "Triggering rollout restart for all Exchange services..."
+  kubectl rollout restart deployment -l 'app in (exchange-account, exchange-admin, exchange-auth, exchange-gateway, exchange-market, exchange-matching, exchange-order, exchange-position, exchange-risk, exchange-user)'
+  echo "Check Kubernetes status with: kubectl get pods"
+else
+  echo -e "${RED}$FAILURES services failed to redeploy. Check logs in $LOG_DIR${NC}"
+  exit 1
+fi
