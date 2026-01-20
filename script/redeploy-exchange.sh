@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
+# 用途：
+# 自動化重新建置並部署所有 Exchange 微服務。
+#
+# 功能：
+# 1. 遍歷所有 Exchange 服務 (Account, Admin, Auth, Gateway, Market, Matching, Order, Position, Risk, User)。
+# 2. 為每個服務執行 Docker Build (標籤為 :local)。
+# 3. 將建置好的映像檔載入 Kind 叢集節點 (支援 desktop 叢集)。
+# 4. 更新 Kubernetes Deployment 以觸發滾動更新 (Rollout)。
+#
+# 使用方式：
+# 直接執行腳本即可，無須參數。
+# ./script/redeploy-exchange.sh
+
 # Get the directory of the script and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
