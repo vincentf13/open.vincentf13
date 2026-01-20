@@ -45,9 +45,8 @@ spec:
             - name: nacos-data
               mountPath: /home/nacos/data
               subPath: data
-            - name: nacos-data
+            - name: nacos-logs
               mountPath: /home/nacos/logs
-              subPath: logs
             - name: nacos-config
               mountPath: /home/nacos/init.d/custom.properties
               subPath: custom.properties
@@ -81,6 +80,8 @@ spec:
             items:
               - key: custom.properties
                 path: custom.properties
+        - name: nacos-logs
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: nacos-data
