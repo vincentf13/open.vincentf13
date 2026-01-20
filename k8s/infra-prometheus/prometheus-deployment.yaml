@@ -42,11 +42,11 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
-            # limits:
-              # cpu: 1                # 最大可用 CPU（需要時可達 1 core）
-              # memory: 1Gi           # 最大可用記憶體
+              cpu: "250m"      # 降低預留，讓 10 個服務只要 2.5 核就能被調度
+              memory: "512Mi"  # 承諾最少只要 512MB，方便調度
+            limits:
+              cpu: "2000m"     # 允許爆發到 2 核 (加速啟動)
+              memory: "1500Mi" # 【關鍵】強制封頂 1.5GB，防止 JVM 誤判
           volumeMounts:
             - name: prometheus-config
               mountPath: /etc/prometheus/config

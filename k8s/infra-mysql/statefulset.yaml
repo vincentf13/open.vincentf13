@@ -63,11 +63,11 @@ spec:
             timeoutSeconds: 5
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
-            # limits:
-              # cpu: 2000m
-              # memory: 2Gi
+              cpu: "250m"      # 降低預留，讓 10 個服務只要 2.5 核就能被調度
+              memory: "512Mi"  # 承諾最少只要 512MB，方便調度
+            limits:
+              cpu: "2000m"     # 允許爆發到 2 核 (加速啟動)
+              memory: "1500Mi" # 【關鍵】強制封頂 1.5GB，防止 JVM 誤判
       volumes:
         - name: mysql-config
           configMap:
