@@ -27,22 +27,24 @@ public final class MCounter {
     /**
      * 增加計數器數值。
      *
-     * @param name 指標名稱
-     * @param step 增加的數值
-     * @param tags 標籤 (key, value 配對)
+     * @param metric 指標定義 (Enum)
+     * @param step   增加的數值
+     * @param tags   標籤 (key, value 配對)
      */
-    public static void inc(String name, double step, String... tags) {
-        get(name, tags).increment(step);
+    public static void inc(IMetric metric, double step, String... tags) {
+        MetricValidator.validate(metric, tags);
+        get(metric.getName(), tags).increment(step);
     }
 
     /**
      * 計數器數值加一。
      *
-     * @param name 指標名稱
-     * @param tags 標籤 (key, value 配對)
+     * @param metric 指標定義 (Enum)
+     * @param tags   標籤 (key, value 配對)
      */
-    public static void one(String name, String... tags) {
-        get(name, tags).increment();
+    public static void one(IMetric metric, String... tags) {
+        MetricValidator.validate(metric, tags);
+        get(metric.getName(), tags).increment();
     }
 
     private static Counter get(String name, String... tags) {

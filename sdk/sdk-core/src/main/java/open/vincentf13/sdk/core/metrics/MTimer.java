@@ -28,24 +28,26 @@ public final class MTimer {
     /**
      * 記錄 Callable 執行的時間。
      */
-    public static <T> T record(String name, Callable<T> c, String... tags) throws Exception {
+    public static <T> T record(IMetric metric, Callable<T> c, String... tags) throws Exception {
+        MetricValidator.validate(metric, tags);
         Timer.Sample s = Timer.start(Metrics.getRegistry());
         try {
             return c.call();
         } finally {
-            s.stop(get(name, tags));
+            s.stop(get(metric.getName(), tags));
         }
     }
 
     /**
      * 記錄 Runnable 執行的時間。
      */
-    public static void record(String name, Runnable r, String... tags) {
+    public static void record(IMetric metric, Runnable r, String... tags) {
+        MetricValidator.validate(metric, tags);
         Timer.Sample s = Timer.start(Metrics.getRegistry());
         try {
             r.run();
         } finally {
-            s.stop(get(name, tags));
+            s.stop(get(metric.getName(), tags));
         }
     }
 

@@ -18,8 +18,26 @@ import java.util.Objects;
 public final class Metrics {
 
     private static MeterRegistry REG;
+    private static volatile boolean validationEnabled = true;
 
     private Metrics() {}
+
+    /**
+     * 設定是否啟用指標 Tag 驗證。
+     * 建議在生產環境 (Prod) 可以關閉以提升些微效能，但在開發環境 (Dev/Test) 開啟以確保規範。
+     *
+     * @param enabled 是否啟用
+     */
+    public static void setValidationEnabled(boolean enabled) {
+        validationEnabled = enabled;
+    }
+
+    /**
+     * 檢查是否啟用指標 Tag 驗證。
+     */
+    public static boolean isValidationEnabled() {
+        return validationEnabled;
+    }
 
     /**
      * 初始化 Metrics 系統。

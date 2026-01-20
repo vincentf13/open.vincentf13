@@ -26,12 +26,13 @@ public final class MSummary {
     /**
      * 記錄一個數值。
      *
-     * @param name   指標名稱
+     * @param metric 指標定義 (Enum)
      * @param amount 數值 (如 bytes 大小、筆數)
      * @param tags   標籤
      */
-    public static void record(String name, double amount, String... tags) {
-        get(name, tags).record(amount);
+    public static void record(IMetric metric, double amount, String... tags) {
+        MetricValidator.validate(metric, tags);
+        get(metric.getName(), tags).record(amount);
     }
 
     private static DistributionSummary get(String name, String... tags) {

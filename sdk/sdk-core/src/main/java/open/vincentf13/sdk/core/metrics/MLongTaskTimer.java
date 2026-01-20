@@ -26,20 +26,21 @@ public final class MLongTaskTimer {
     /**
      * 開始一個長任務計時。
      * <p>
-     * 務必在 finally區塊中呼叫 {@link #stop(LongTaskTimer.Sample)}。
-     * 
-     * @param name 指標名稱
-     * @param tags 標籤
+     * 務必在 finally 區塊中呼叫 {@link #stop(LongTaskTimer.Sample)}。
+     *
+     * @param metric 指標定義 (Enum)
+     * @param tags   標籤
      * @return 任務樣本 (Sample)，用於停止計時
      */
-    public static LongTaskTimer.Sample start(String name, String... tags) {
-        return get(name, tags).start();
+    public static LongTaskTimer.Sample start(IMetric metric, String... tags) {
+        MetricValidator.validate(metric, tags);
+        return get(metric.getName(), tags).start();
     }
 
     /**
      * 停止長任務計時。
      *
-     * @param sample {@link #start(String, String...)} 返回的樣本物件
+     * @param sample {@link #start(IMetric, String...)} 返回的樣本物件
      */
     public static void stop(LongTaskTimer.Sample sample) {
         if (sample != null) {

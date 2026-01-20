@@ -19,13 +19,14 @@ public final class MGauge {
     /**
      * 註冊一個基於 AtomicLong 的 Gauge。
      *
-     * @param name 指標名稱
-     * @param ref  要監測的 AtomicLong 物件
-     * @param tags 標籤
+     * @param metric 指標定義 (Enum)
+     * @param ref    要監測的 AtomicLong 物件
+     * @param tags   標籤
      * @return 傳入的 AtomicLong 物件，方便鏈式調用
      */
-    public static AtomicLong register(String name, AtomicLong ref, String... tags) {
-        Gauge.builder(name, ref, AtomicLong::get).tags(tags).register(Metrics.getRegistry());
+    public static AtomicLong register(IMetric metric, AtomicLong ref, String... tags) {
+        MetricValidator.validate(metric, tags);
+        Gauge.builder(metric.getName(), ref, AtomicLong::get).tags(tags).register(Metrics.getRegistry());
         return ref;
     }
 
@@ -45,11 +46,12 @@ public final class MGauge {
      *   <li><b>executor.idle</b> (Gauge): 閒置中的執行緒數</li>
      * </ul>
      *
-     * @param ex   要監控的 ExecutorService
-     * @param name 指標名稱前綴，通常建議與執行緒池用途相關 (如 "order.processor")
-     * @param tags 標籤
+     * @param metric 指標定義 (Enum)，其名稱將作為指標前綴
+     * @param ex     要監控的 ExecutorService
+     * @param tags   標籤
      */
-    public static void monitorExecutor(ExecutorService ex, String name, String... tags) {
-        ExecutorServiceMetrics.monitor(Metrics.getRegistry(), ex, name, Tags.of(tags));
+    public static void monitorExecutor(IMetric metric, ExecutorService ex, String... tags) {
+        MetricValidator.validate(metric, tags);
+        ExecutorServiceMetrics.monitor(Metrics.getRegistry(), ex, metric.getName(), Tags.of(tags));
     }
 }
