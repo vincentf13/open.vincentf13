@@ -33,21 +33,22 @@ spec:
               value: embedded  # 如果你有跑 infra-mysql，這裡建議改成 "mysql" 並配置 DB 連線，這樣資料才不會因為 Pod 重建而消失
             - name: NACOS_AUTH_ENABLE
               value: "false"
+            - name: JVM_XMS
+              value: "128m"
+            - name: JVM_XMX
+              value: "384m"
             - name: MALLOC_ARENA_MAX
               value: "2"
             - name: JAVA_TOOL_OPTIONS
               # 解說：
               # 1. SerialGC: 單線程GC，最省資源
-              # 2. Xms128m: 起步給 128m 避免頻繁擴容
-              # 3. Xmx384m: 上限 384m (配合 Limit: 512Mi)
-              # 4. Xss512k: 執行緒堆疊減半
-              # 5. ReservedCodeCacheSize=64m: 限制 JIT 緩存
-              # 6. TieredStopAtLevel=1: [大招] 只用 C1 編譯器，啟動快、超省 RAM
-              # 7. MaxDirectMemorySize=64m: 限制堆外記憶體
-              # 8. MaxMetaspaceSize=128m: 限制類別區
+              # 2. Xss512k: 執行緒堆疊減半
+              # 3. ReservedCodeCacheSize=64m: 限制 JIT 緩存
+              # 4. TieredStopAtLevel=1: [大招] 只用 C1 編譯器，啟動快、超省 RAM
+              # 5. MaxDirectMemorySize=64m: 限制堆外記憶體
+              # 6. MaxMetaspaceSize=128m: 限制類別區
               value: >-
                 -XX:+UseSerialGC
-                -Xms128m -Xmx384m
                 -Xss512k
                 -XX:ReservedCodeCacheSize=64m
                 -XX:TieredStopAtLevel=1
