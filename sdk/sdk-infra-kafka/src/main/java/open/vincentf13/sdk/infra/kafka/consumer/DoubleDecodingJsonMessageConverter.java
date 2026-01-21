@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.devtool.kafka.consumer;
+package open.vincentf13.sdk.infra.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Type;

@@ -34,7 +34,7 @@ public class OpenFeignLogger extends feign.Logger {
               request.charset() != null ? request.charset() : StandardCharsets.UTF_8);
     }
 
-    OpenLog.info(
+    OpenLog.debug(
         FeignEvent.FEIGN_REQUEST,
         "method",
         request.httpMethod(),

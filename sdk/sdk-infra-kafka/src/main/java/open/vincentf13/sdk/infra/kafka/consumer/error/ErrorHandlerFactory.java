@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.devtool.kafka.consumer.error;
+package open.vincentf13.sdk.infra.kafka.consumer.error;
 
 import java.util.function.BiFunction;
 import open.vincentf13.sdk.core.log.OpenLog;

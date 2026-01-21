@@ -105,7 +105,7 @@ public class LogService {
 
     ServerHttpResponse response = exchange.getResponse();
 
-    OpenLog.info(
+    OpenLog.debug(
         GatewayEvent.RESPONSE,
         "status",
         response.getStatusCode(),
