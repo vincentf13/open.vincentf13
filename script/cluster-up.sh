@@ -331,24 +331,36 @@ configure_argocd() {
     sleep 2
   done
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=600s
+  
   local port=$(find_free_port)
+  printf "Port-forwarding ArgoCD to localhost:%s...\n" "$port"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd port-forward svc/argocd-server ${port}:443 >/dev/null 2>&1 &
   local pf_pid=$!
-  trap "kill $pf_pid 2>/dev/null" EXIT
-  sleep 5
-  local pw=$(get_secret_value argocd argocd-initial-admin-secret password)
   
-  # Wait for GitHub to be accessible from within the context of argocd login
+  # Ensure port-forward is killed on function exit
+  trap "kill $pf_pid 2>/dev/null || true" RETURN EXIT
+
+  # Wait for port to be ready
   local retry=0
-  until argocd login localhost:${port} --username admin --password "$pw" --insecure --grpc-web >/dev/null 2>&1 || [ $retry -gt 10 ]; do
-    sleep 5
+  until nc -z localhost ${port} >/dev/null 2>&1 || [ $retry -gt 20 ]; do
+    sleep 1
     ((retry++))
   done
 
+  local pw=$(get_secret_value argocd argocd-initial-admin-secret password)
+  
+  # Login with retry
+  retry=0
+  until argocd login localhost:${port} --username admin --password "$pw" --insecure --grpc-web >/dev/null 2>&1 || [ $retry -gt 10 ]; do
+    sleep 2
+    ((retry++))
+  done
+
+  # Check and create app with better error visibility in log
   if ! argocd app get gitops --grpc-web >/dev/null 2>&1; then
-    # Final retry logic for app creation in case of DNS lag
     retry=0
-    until argocd app create gitops --repo https://github.com/vincentf13/GitOps.git --path k8s --dest-server https://kubernetes.default.svc --dest-namespace default --sync-policy automated --grpc-web >/dev/null 2>&1 || [ $retry -gt 5 ]; do
+    until argocd app create gitops --repo https://github.com/vincentf13/GitOps.git --path k8s --dest-server https://kubernetes.default.svc --dest-namespace default --sync-policy automated --grpc-web || [ $retry -gt 5 ]; do
+      echo "Retrying ArgoCD app creation (attempt $((retry+1)))..."
       sleep 10
       ((retry++))
     done
