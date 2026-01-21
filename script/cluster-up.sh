@@ -6,14 +6,17 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-K8S_DIR="$REPO_ROOT/k8s"
-PROM_DIR="$K8S_DIR/infra-prometheus"
-GRAFANA_DIR="$K8S_DIR/infra-grafana"
-MYSQL_DIR="$K8S_DIR/infra-mysql"
-REDIS_DIR="$K8S_DIR/infra-redis"
-KAFKA_DIR="$K8S_DIR/infra-kafka"
-KAFKA_CONNECT_DIR="$K8S_DIR/infra-kafka-connect"
-NACOS_DIR="$K8S_DIR/infra-nacos"
+LOG_DIR="$REPO_ROOT/script/logs"
+mkdir -p "$LOG_DIR"
+
+export K8S_DIR="$REPO_ROOT/k8s"
+export PROM_DIR="$K8S_DIR/infra-prometheus"
+export GRAFANA_DIR="$K8S_DIR/infra-grafana"
+export MYSQL_DIR="$K8S_DIR/infra-mysql"
+export REDIS_DIR="$K8S_DIR/infra-redis"
+export KAFKA_DIR="$K8S_DIR/infra-kafka"
+export KAFKA_CONNECT_DIR="$K8S_DIR/infra-kafka-connect"
+export NACOS_DIR="$K8S_DIR/infra-nacos"
 
 # Core application manifests applied to the cluster in order.
 APPLICATION_MANIFESTS=(
@@ -139,6 +142,27 @@ ensure_port_probe_tool() {
   fi
   printf 'Missing required command: python3/python/ss/lsof (need one for port selection)\n' >&2
   exit 1
+}
+
+# --- Logging Helper ---
+# Uses a separate log file for each task.
+# Usage: run_with_log "task-name" command arg1 arg2 ...
+run_with_log() {
+  local task_name="$1"
+  shift
+  local log_file="$LOG_DIR/${task_name}.log"
+
+  # Clean/Create log file
+  : > "$log_file"
+
+  printf "[%s] Processing... (Log: %s)\n" "$task_name" "$log_file"
+
+  if "$@" >> "$log_file" 2>&1; then
+    printf "[%s] \033[0;32mCompleted\033[0m\n" "$task_name"
+  else
+    printf "[%s] \033[0;31mFailed\033[0m. Check log: %s\n" "$task_name" "$log_file" >&2
+    return 1
+  fi
 }
 
 log_step() {
@@ -273,7 +297,6 @@ ensure_directories() {
 }
 
 ensure_docker_images() {
-  log_step "Checking for required Docker images"
   local images=(
     "mysql:8.0"
     "redis:7.2.4-alpine"
@@ -298,13 +321,23 @@ ensure_docker_images() {
   done
 }
 
-
-
 ensure_ingress_controller() {
   local manifest="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$manifest"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" --namespace ingress-nginx \
     wait --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=600s
+}
+
+ensure_metrics_server() {
+  local metrics_manifest="https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$metrics_manifest"
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system patch deployment metrics-server \
+    --type='json' -p='[
+      {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
+      {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}
+    ]'
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system rollout status deploy/metrics-server
+  kubectl get hpa
 }
 
 handle_ingress_apply_error() {
@@ -389,27 +422,12 @@ apply_application_manifests() {
 }
 
 setup_ingress_and_metrics() {
-  local metrics_manifest="https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
-
   local ingress_pid metrics_pid failures=0
 
-  (
-    log_step "Ensuring ingress controller"
-    ensure_ingress_controller
-  ) &
+  run_with_log "ingress-controller" ensure_ingress_controller &
   ingress_pid=$!
 
-  (
-    log_step "Ensuring metrics-server"
-    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$metrics_manifest"
-    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system patch deployment metrics-server \
-      --type='json' -p='[
-        {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
-        {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}
-      ]'
-    kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n kube-system rollout status deploy/metrics-server
-    kubectl get hpa
-  ) &
+  run_with_log "metrics-server" ensure_metrics_server &
   metrics_pid=$!
 
   if ! wait "$ingress_pid"; then
@@ -471,7 +489,6 @@ apply_grafana_manifests() {
 }
 
 apply_mysql_cluster() {
-  log_step "Applying infra-mysql manifests"
   for manifest in "${MYSQL_MANIFEST_ORDER[@]}"; do
     local file="$MYSQL_DIR/$manifest"
     if [[ ! -f "$file" ]]; then
@@ -480,7 +497,7 @@ apply_mysql_cluster() {
     fi
     printf 'Applying %s\n' "$file"
     if [[ "$manifest" == "pv.yaml" ]]; then
-      # kind/docker-desktop 等本地叢集常無法提供 PV 的 OpenAPI 定義，需略過驗證。
+      # kind/docker-desktop local clusters often can't provide PV OpenAPI definitions.
       kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply --validate=false -f "$file"
     else
       kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$file"
@@ -491,7 +508,6 @@ apply_mysql_cluster() {
 }
 
 apply_redis_cluster() {
-  log_step "Applying infra-redis manifests"
   for manifest in "${REDIS_MANIFEST_ORDER[@]}"; do
     local file="$REDIS_DIR/$manifest"
     if [[ ! -f "$file" ]]; then
@@ -514,7 +530,6 @@ apply_redis_cluster() {
 }
 
 apply_kafka_cluster() {
-  log_step "Applying infra-kafka manifests"
   printf 'Deleting existing StatefulSet infra-kafka (if present)\n'
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete statefulset infra-kafka --ignore-not-found
   printf 'Deleting existing Deployment redpanda-console (if present)\n'
@@ -534,7 +549,6 @@ apply_kafka_cluster() {
 }
 
 apply_kafka_connect() {
-  log_step "Applying infra-kafka-connect manifests"
   printf 'Deleting existing StatefulSet infra-kafka-connect (if present)\n'
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete statefulset infra-kafka-connect --ignore-not-found
   for manifest in "${KAFKA_CONNECT_MANIFEST_ORDER[@]}"; do
@@ -555,7 +569,6 @@ apply_kafka_connect() {
 }
 
 apply_nacos_cluster() {
-  log_step "Applying infra-nacos manifests"
   for manifest in "${NACOS_MANIFEST_ORDER[@]}"; do
     local file="$NACOS_DIR/$manifest"
     if [[ ! -f "$file" ]]; then
@@ -592,18 +605,17 @@ apply_infra_clusters() {
   local pids=()
   local idx
   for idx in "${!funcs[@]}"; do
-    "${funcs[$idx]}" &
+    local log_name="infra-${names[$idx]// /-}" # replace space with dash
+    log_name="${log_name,,}" # to lowercase
+    
+    run_with_log "$log_name" "${funcs[$idx]}" &
     pids+=($!)
-    printf 'Started provisioning %s (pid %s)\n' "${names[$idx]}" "${pids[-1]}"
   done
 
   local failures=0
   for idx in "${!pids[@]}"; do
     if ! wait "${pids[$idx]}"; then
-      printf 'Provisioning %s failed. Check logs above for details.\n' "${names[$idx]}" >&2
       failures=1
-    else
-      printf '%s provisioning completed.\n' "${names[$idx]}"
     fi
   done
 
@@ -627,14 +639,14 @@ ensure_argocd() {
 apply_monitoring_stack() {
   local prom_pid graf_pid status=0
 
-  apply_prometheus_manifests &
+  run_with_log "monitoring-prometheus" apply_prometheus_manifests &
   prom_pid=$!
 
   (
     until kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get namespace monitoring >/dev/null 2>&1; do
       sleep 2
     done
-    apply_grafana_manifests
+    run_with_log "monitoring-grafana" apply_grafana_manifests
   ) &
   graf_pid=$!
 
@@ -649,9 +661,7 @@ apply_monitoring_stack() {
 }
 
 configure_argocd() {
-  log_step "Configuring Argo CD"
-
-  log_step "Waiting for Argo CD server"
+  printf "Waiting for Argo CD server\n"
   local ready=false
   for i in {1..36}; do
     if kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd get deploy argocd-server >/dev/null 2>&1 \
@@ -684,7 +694,7 @@ configure_argocd() {
     # Give port-forward a moment to establish connection.
     sleep 5
 
-    log_step "Logging into Argo CD"
+    printf "Logging into Argo CD\n"
     local argo_password
     # Retry getting the secret, as it may take a moment to be created.
     for i in {1..12}; do
@@ -720,7 +730,7 @@ configure_argocd() {
         return 1
     fi
 
-    log_step "Configuring Argo CD application"
+    printf "Configuring Argo CD application\n"
     if argocd app get gitops --grpc-web >/dev/null 2>&1; then
       printf 'Argo CD application "gitops" already exists; skipping create.\n'
     else
@@ -742,14 +752,12 @@ apply_foundational_services() {
   local names=()
 
   (
-    log_step "Applying infrastructure clusters"
     apply_infra_clusters
   ) &
   pids+=($!)
   names+=("Infrastructure")
 
   (
-    log_step "Setting up ingress and metrics"
     setup_ingress_and_metrics
   ) &
   pids+=($!)
@@ -759,10 +767,8 @@ apply_foundational_services() {
   local idx
   for idx in "${!pids[@]}"; do
     if ! wait "${pids[$idx]}"; then
-      printf 'Foundational service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
+      printf 'Foundational service group "%s" failed. Check individual logs.\n' "${names[$idx]}" >&2
       failures=1
-    else
-      printf 'Foundational service "%s" completed.\n' "${names[$idx]}"
     fi
   done
 
@@ -784,17 +790,15 @@ main() {
     KUBECTL_APP_ARGS+=(--namespace "$NAMESPACE")
   fi
 
-  # Ensure all nodes are schedulable (untouch control-plane/master taints)
   log_step "Ensuring all nodes are schedulable"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" taint nodes --all node-role.kubernetes.io/control-plane- || true
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" taint nodes --all node-role.kubernetes.io/master- || true
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" taint nodes --all node-role.kubernetes.io/control-plane- 2>/dev/null || true
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" taint nodes --all node-role.kubernetes.io/master- 2>/dev/null || true
 
   case "$MODE" in
     k8s)
       require_cmd kubectl
       ensure_directories
-      log_step "Applying application manifests"
-      apply_application_manifests
+      run_with_log "app-manifests" apply_application_manifests
       printf '\nApplication manifests applied.\n'
       return
       ;;
@@ -802,16 +806,14 @@ main() {
       require_cmd kubectl
       require_cmd base64
       ensure_directories
-      log_step "Applying monitoring stack manifests"
-      apply_monitoring_stack
+      run_with_log "monitoring-stack" apply_monitoring_stack
       return
       ;;
     mysql)
       require_cmd kubectl
       require_cmd base64
       [[ -d "$MYSQL_DIR" ]] || { printf 'Missing directory: %s\n' "$MYSQL_DIR" >&2; exit 1; }
-      log_step "Applying MySQL manifests"
-      apply_mysql_cluster
+      run_with_log "infra-mysql" apply_mysql_cluster
       printf '\nMySQL infrastructure ready. Connect via:\n'
       printf '  mysql -h infra-mysql-0.infra-mysql-headless.default.svc.cluster.local -P 3306 -u root\n'
       printf '  mysql -h infra-mysql-1.infra-mysql-headless.default.svc.cluster.local -P 3306 -u root\n'
@@ -830,8 +832,7 @@ main() {
     redis)
       require_cmd kubectl
       [[ -d "$REDIS_DIR" ]] || { printf 'Missing directory: %s\n' "$REDIS_DIR" >&2; exit 1; }
-      log_step "Applying Redis manifests"
-      apply_redis_cluster
+      run_with_log "infra-redis" apply_redis_cluster
       printf '\nRedis infrastructure ready. Cluster endpoints:\n'
       printf '  redis://infra-redis.default.svc.cluster.local:6379\n'
       printf '  redis://infra-redis-0.infra-redis-headless.default.svc.cluster.local:6379\n'
@@ -842,8 +843,7 @@ main() {
     kafka)
       require_cmd kubectl
       [[ -d "$KAFKA_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_DIR" >&2; exit 1; }
-      log_step "Applying Kafka manifests"
-      apply_kafka_cluster
+      run_with_log "infra-kafka" apply_kafka_cluster
       printf '\nKafka infrastructure ready. Client endpoints:\n'
       printf '  PLAINTEXT://infra-kafka.default.svc.cluster.local:9092\n'
       printf '  Redpanda Console: http://redpanda-console.default.svc.cluster.local:8080\n'
@@ -852,8 +852,7 @@ main() {
     kafka-connect)
       require_cmd kubectl
       [[ -d "$KAFKA_CONNECT_DIR" ]] || { printf 'Missing directory: %s\n' "$KAFKA_CONNECT_DIR" >&2; exit 1; }
-      log_step "Applying Kafka Connect manifests"
-      apply_kafka_connect
+      run_with_log "infra-kafka-connect" apply_kafka_connect
       printf '\nKafka Connect ready. REST endpoint:\n'
       printf '  http://infra-kafka-connect.default.svc.cluster.local:8083\n'
       printf '\n'
@@ -861,8 +860,7 @@ main() {
     nacos)
       require_cmd kubectl
       [[ -d "$NACOS_DIR" ]] || { printf 'Missing directory: %s\n' "$NACOS_DIR" >&2; exit 1; }
-      log_step "Applying Nacos manifests"
-      apply_nacos_cluster
+      run_with_log "infra-nacos" apply_nacos_cluster
       printf '\nNacos infrastructure ready. Access via:\n'
       printf '  http://infra-nacos.default.svc.cluster.local:8848\n'
       printf '\n'
@@ -875,31 +873,27 @@ main() {
       ensure_port_probe_tool
       ensure_directories
 
-      log_step "Ensuring Docker images"
-      ensure_docker_images
+      run_with_log "docker-images" ensure_docker_images
 
       log_step "Applying services in parallel"
       local pids=()
       local names=()
 
+      # Foundational services already logs via run_with_log internally
       (
-        log_step "Applying foundational services"
         apply_foundational_services
       ) &
       pids+=($!)
       names+=("Foundational Services")
 
+      # Monitoring logs via run_with_log internally
       (
-        log_step "Applying monitoring stack"
         apply_monitoring_stack
       ) &
       pids+=($!)
       names+=("Monitoring")
 
-      (
-        log_step "Ensuring ArgoCD"
-        ensure_argocd
-      ) &
+      run_with_log "argocd-install" ensure_argocd &
       pids+=($!)
       names+=("ArgoCD")
 
@@ -907,7 +901,7 @@ main() {
       local idx
       for idx in "${!pids[@]}"; do
         if ! wait "${pids[$idx]}"; then
-          printf 'Service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
+          printf 'Service "%s" failed. Check logs in %s\n' "${names[$idx]}" "$LOG_DIR" >&2
           failures=1
         else
           printf 'Service "%s" completed.\n' "${names[$idx]}"
@@ -923,23 +917,18 @@ main() {
       pids=()
       names=()
 
-      (
-        log_step "Applying application manifests"
-        apply_application_manifests
-      ) &
+      run_with_log "app-manifests" apply_application_manifests &
       pids+=($!)
       names+=("Application Manifests")
 
-      (
-        configure_argocd
-      ) &
+      run_with_log "argocd-config" configure_argocd &
       pids+=($!)
       names+=("ArgoCD Configuration")
 
       failures=0
       for idx in "${!pids[@]}"; do
         if ! wait "${pids[$idx]}"; then
-          printf 'Service "%s" failed to apply. Check logs.\n' "${names[$idx]}" >&2
+          printf 'Service "%s" failed. Check logs.\n' "${names[$idx]}" >&2
           failures=1
         else
           printf 'Service "%s" completed.\n' "${names[$idx]}"

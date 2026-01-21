@@ -37,8 +37,10 @@ data:
         socket.send.buffer.bytes=102400
         socket.receive.buffer.bytes=102400
         socket.request.max.bytes=104857600
+        controller.quorum.fetch.timeout.ms=5000
+        controller.quorum.request.timeout.ms=5000
+        controller.quorum.retry.backoff.ms=100
     EOF_CONF
-
     mkdir -p "${DATA_DIR}"
     if [[ ! -f "${DATA_DIR}/meta.properties" ]]; then
       /opt/kafka/bin/kafka-storage.sh format --config "${CONFIG_PATH}" --cluster-id "${KAFKA_CLUSTER_ID}" --ignore-formatted
