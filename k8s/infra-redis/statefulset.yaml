@@ -51,10 +51,10 @@ spec:
             - name: redis-data
               mountPath: /data  # 儲存 nodes.conf，使用 emptyDir 即可。
           resources:
+            requests:
+              memory: "64Mi"
             limits:
               memory: "256Mi"  # 開發環境上限
-            requests:
-              memory: "30Mi"   # 最小啟動需求
           startupProbe:
             tcpSocket:
               port: 6379

@@ -74,10 +74,10 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
           resources:
+            requests:
+              memory: "64Mi"
             limits:
               memory: "512Mi"   # 對於開發測試，512MB 綽綽有餘
-            requests:
-              memory: "256Mi"
       volumes:
         - name: mysql-config
           configMap:

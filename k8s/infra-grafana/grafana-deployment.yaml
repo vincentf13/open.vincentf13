@@ -58,9 +58,9 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              memory: "256Mi"  # 預留資源
+              memory: "64Mi"
             limits:
-              memory: "512Mi"  # 硬上限，超過就殺掉
+              memory: "512Mi"  # 硬上限，超過就殺掉  # 硬上限，超過就殺掉
       volumes:
         - name: datasources
           configMap:

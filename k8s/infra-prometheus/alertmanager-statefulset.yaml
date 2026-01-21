@@ -40,9 +40,9 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              memory: "64Mi"  # 預留資源
+              memory: "64Mi"
             limits:
-              memory: "256Mi"  # 硬上限，超過就殺掉
+              memory: "256Mi"  # 硬上限，超過就殺掉  # 硬上限，超過就殺掉
           volumeMounts:
             - name: alertmanager-config
               mountPath: /etc/alertmanager
