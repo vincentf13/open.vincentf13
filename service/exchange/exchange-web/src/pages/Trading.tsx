@@ -916,7 +916,7 @@ export default function Trading() {
     }, [refreshTrigger]);
 
     const handleLoginSuccess = () => {
-        setIsPaused(false);
+        setIsPaused(true);
         handleRefresh();
     };
 

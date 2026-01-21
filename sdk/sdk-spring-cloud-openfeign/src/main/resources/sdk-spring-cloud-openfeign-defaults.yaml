@@ -1,6 +1,6 @@
 logging:
   level:
-    feign.http: DEBUG
+    feign.http: INFO
 
 spring:
   cloud:
