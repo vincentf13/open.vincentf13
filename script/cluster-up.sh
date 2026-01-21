@@ -340,7 +340,7 @@ main() {
   apply_infra_clusters & local p1=$!
   run_with_log "ingress-metrics" setup_ingress_and_metrics & local p2=$!
   apply_monitoring_stack & local p3=$!
-  run_with_log "argocd-install" kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml & local p4=$!
+  run_with_log "argocd-install" bash -c "kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd; kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml" & local p4=$!
   
   wait "$p1" "$p2" "$p3" "$p4" || { printf '\nFoundational services failed.\n' >&2; exit 1; }
 
