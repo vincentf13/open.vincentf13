@@ -35,7 +35,12 @@ public class RetryTaskRepository {
             .bizKey(bizKey)
             .status(RetryTaskStatus.PENDING)
             .priority(priority != null ? priority : DEFAULT_PRIORITY)
-            .payload(payload == null ? null : OpenObjectMapper.toJson(payload))
+            .payload(
+                payload == null
+                    ? null
+                    : (payload instanceof String
+                        ? (String) payload
+                        : OpenObjectMapper.toJson(payload)))
             .retryCount(0)
             .maxRetries(maxRetries != null ? maxRetries : DEFAULT_MAX_RETRIES)
             .nextRunTime(nextRunTime != null ? nextRunTime : Instant.now().plusSeconds(10))
