@@ -34,14 +34,12 @@ spec:
             - name: NACOS_AUTH_ENABLE
               value: "false"
             # --- 記憶體優化區 ---
-            - name: JVM_XMS
-              value: 256m
             - name: JVM_XMX
               value: 256m
             - name: JVM_XMN
               value: 128m
             - name: JAVA_OPT_EXT
-              value: "-XX:+UseSerialGC -Xss512k -XX:MaxDirectMemorySize=64m" # [關鍵優化] 使用 SerialGC 省 CPU/RAM，限制 Netty 直接記憶體
+              value: "-XX:+UseSerialGC -Xss512k -XX:MaxDirectMemorySize=64m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=128m"
             # ------------------
             - name: PREFER_HOST_MODE
               value: hostname
@@ -81,9 +79,9 @@ spec:
             failureThreshold: 3
           resources:
             limits:
-              memory: "512Mi" # 硬上限
+              memory: "768Mi" # 提升上限至 768Mi 確保穩定
             requests:
-              memory: "256Mi" # 預留
+              memory: "512Mi" # 預留 512Mi 符合目前實際用量
       volumes:
         - name: nacos-config
           configMap:
