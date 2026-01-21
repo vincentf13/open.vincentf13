@@ -28,7 +28,7 @@ spec:
             - name: SERVER_PORT
               value: "8080"
             - name: JAVA_TOOL_OPTIONS
-              value: "-Xmx256m -XX:MaxRAMPercentage=75.0"
+              value: "-Xmx256m -XX:+UseSerialGC -Xss512k"
           ports:
             - name: http
               containerPort: 8080

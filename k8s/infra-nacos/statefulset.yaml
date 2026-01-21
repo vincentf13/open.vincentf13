@@ -37,11 +37,11 @@ spec:
             - name: JVM_XMS
               value: 256m
             - name: JVM_XMX
-              value: 384m      # [關鍵優化] 留 128MB 給 Metaspace 和 Threads，避免被 K8s 殺掉
+              value: 256m
             - name: JVM_XMN
               value: 128m
             - name: JAVA_OPT_EXT
-              value: "-XX:+UseSerialGC -XX:MaxDirectMemorySize=64m" # [關鍵優化] 使用 SerialGC 省 CPU/RAM，限制 Netty 直接記憶體
+              value: "-XX:+UseSerialGC -Xss512k -XX:MaxDirectMemorySize=64m" # [關鍵優化] 使用 SerialGC 省 CPU/RAM，限制 Netty 直接記憶體
             # ------------------
             - name: PREFER_HOST_MODE
               value: hostname

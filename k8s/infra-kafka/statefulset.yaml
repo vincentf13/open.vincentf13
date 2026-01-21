@@ -42,7 +42,7 @@ spec:
               value: 0@infra-kafka-0.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093,1@infra-kafka-1.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093,2@infra-kafka-2.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093
             - # 限制 JVM Heap Size，確保留有空間給 Page Cache 且不觸發 K8s OOMKill。
               name: KAFKA_HEAP_OPTS
-              value: "-Xmx512m -Xms512m"
+              value: "-Xmx256m -Xms256m -XX:+UseSerialGC -Xss512k"
             - # 固定的 Cluster ID，首次啟動時用於格式化儲存目錄。
               name: KAFKA_CLUSTER_ID
               value: 4L6g3nG2RDeXh7Ya9Bc2fA
