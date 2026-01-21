@@ -1445,7 +1445,6 @@ export default function Trading() {
                                             )}
                                             placement="right"
                                             classNames={{root: 'liquid-tooltip'}}
-                                            classNames={{root: 'liquid-tooltip'}}
                                             styles={{root: {maxWidth: 'none'}}}
                                         >
                                             <div
@@ -1548,7 +1547,6 @@ export default function Trading() {
                                                 </div>
                                             )}
                                             placement="right"
-                                            classNames={{root: 'liquid-tooltip'}}
                                             classNames={{root: 'liquid-tooltip'}}
                                             styles={{root: {maxWidth: 'none'}}}
                                         >
