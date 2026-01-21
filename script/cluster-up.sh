@@ -317,11 +317,19 @@ apply_infra_clusters() {
 }
 
 apply_monitoring_stack() {
-  run_with_log "monitoring-prometheus" apply_prometheus_manifests
-  run_with_log "monitoring-grafana" apply_grafana_manifests
+  # Ensure the shared namespace is created first to avoid race conditions
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f "$PROM_DIR/monitoring-namespace.yaml" >/dev/null 2>&1
+  
+  run_with_log "monitoring-prometheus" apply_prometheus_manifests &
+  run_with_log "monitoring-grafana" apply_grafana_manifests &
+  wait
 }
 
 configure_argocd() {
+  # Wait for namespace to exist
+  until kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get ns argocd >/dev/null 2>&1; do
+    sleep 2
+  done
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=600s
   local port=$(find_free_port)
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd port-forward svc/argocd-server ${port}:443 >/dev/null 2>&1 &
@@ -329,9 +337,21 @@ configure_argocd() {
   trap "kill $pf_pid 2>/dev/null" EXIT
   sleep 5
   local pw=$(get_secret_value argocd argocd-initial-admin-secret password)
-  argocd login localhost:${port} --username admin --password "$pw" --insecure --grpc-web >/dev/null
+  
+  # Wait for GitHub to be accessible from within the context of argocd login
+  local retry=0
+  until argocd login localhost:${port} --username admin --password "$pw" --insecure --grpc-web >/dev/null 2>&1 || [ $retry -gt 10 ]; do
+    sleep 5
+    ((retry++))
+  done
+
   if ! argocd app get gitops --grpc-web >/dev/null 2>&1; then
-    argocd app create gitops --repo https://github.com/vincentf13/GitOps.git --path k8s --dest-server https://kubernetes.default.svc --dest-namespace default --sync-policy automated --grpc-web >/dev/null
+    # Final retry logic for app creation in case of DNS lag
+    retry=0
+    until argocd app create gitops --repo https://github.com/vincentf13/GitOps.git --path k8s --dest-server https://kubernetes.default.svc --dest-namespace default --sync-policy automated --grpc-web >/dev/null 2>&1 || [ $retry -gt 5 ]; do
+      sleep 10
+      ((retry++))
+    done
   fi
 }
 
@@ -349,7 +369,9 @@ main() {
 
   require_cmd kubectl; require_cmd docker; ensure_directories
 
-  run_with_log "docker-images" ensure_docker_images
+  # Background tasks: Pull images and apply foundational services concurrently
+  run_with_log "docker-images" ensure_docker_images & local p0=$!
+  
   log_step "Applying foundational services"
   apply_infra_clusters & local p1=$!
   run_with_log "ingress-metrics" setup_ingress_and_metrics & local p2=$!
@@ -357,7 +379,7 @@ main() {
   run_with_log "argocd-install" bash -c "kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd; kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml" & local p4=$!
   run_with_log "argocd-config" configure_argocd & local p5=$!
   
-  wait "$p1" "$p2" "$p3" "$p4" "$p5" || { printf '\nFoundational services failed.\n' >&2; exit 1; }
+  wait "$p0" "$p1" "$p2" "$p3" "$p4" "$p5" || { printf '\nFoundational services failed.\n' >&2; exit 1; }
 
   log_step "Applying application"
   run_with_log "app-manifests" apply_application_manifests
