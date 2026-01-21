@@ -33,6 +33,10 @@ spec:
               containerPort: 9093
               protocol: TCP
           env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - # 提供三節點共用的 KRaft 投票配置 (使用完整 FQDN 以確保解析穩定)。
               name: KAFKA_CONTROLLER_QUORUM_VOTERS
               value: 0@infra-kafka-0.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093,1@infra-kafka-1.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093,2@infra-kafka-2.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093
@@ -46,10 +50,6 @@ spec:
               value: WARN
             - name: KAFKA_TOOLS_LOG4J_LOGLEVEL
               value: WARN
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
           volumeMounts:
             - name: kafka-config
               mountPath: /opt/kafka/custom-config
