@@ -51,12 +51,10 @@ spec:
             - name: redis-data
               mountPath: /data  # 儲存 nodes.conf，使用 emptyDir 即可。
           resources:
-            requests:
-              cpu: "250m"      # 降低預留，讓 10 個服務只要 2.5 核就能被調度
-              memory: "512Mi"  # 承諾最少只要 512MB，方便調度
             limits:
-              cpu: "2000m"     # 允許爆發到 2 核 (加速啟動)
-              memory: "1500Mi" # 【關鍵】強制封頂 1.5GB
+              memory: "256Mi"  # 開發環境上限
+            requests:
+              memory: "30Mi"   # 最小啟動需求
           livenessProbe:
             tcpSocket:
               port: 6379

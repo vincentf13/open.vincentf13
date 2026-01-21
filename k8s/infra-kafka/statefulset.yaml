@@ -42,7 +42,7 @@ spec:
               value: 0@infra-kafka-0.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093,1@infra-kafka-1.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093,2@infra-kafka-2.infra-kafka-headless.$(POD_NAMESPACE).svc.cluster.local:9093
             - # 限制 JVM Heap Size，確保留有空間給 Page Cache 且不觸發 K8s OOMKill。
               name: KAFKA_HEAP_OPTS
-              value: "-Xmx1G -Xms1G"
+              value: "-Xmx512m -Xms512m"
             - # 固定的 Cluster ID，首次啟動時用於格式化儲存目錄。
               name: KAFKA_CLUSTER_ID
               value: 4L6g3nG2RDeXh7Ya9Bc2fA
@@ -56,12 +56,10 @@ spec:
             - name: kafka-data
               mountPath: /var/lib/kafka/data  # 使用 emptyDir，重啟即重置資料。
           resources:
-            requests:
-              cpu: "250m"      # 降低預留，讓 10 個服務只要 2.5 核就能被調度
-              memory: "512Mi"  # 承諾最少只要 512MB，方便調度
             limits:
-              cpu: "2000m"     # 允許爆發到 2 核 (加速啟動)
-              memory: "1500Mi" # 【關鍵】強制封頂 1.5GB
+              memory: "768Mi"   # 強制上限，開發環境 768MB 非常夠用了
+            requests:
+              memory: "512Mi"
           startupProbe:
             tcpSocket: { port: 9092 }
             periodSeconds: 2
