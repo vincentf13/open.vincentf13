@@ -55,11 +55,19 @@ spec:
               mountPath: /home/nacos/init.d/custom.properties
               subPath: custom.properties
           # --- 探針優化：開發環境可以寬容一點 ---
+          startupProbe:
+            httpGet:
+              path: /nacos/v1/console/health/readiness
+              port: 8848
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 20
           readinessProbe:
             httpGet:
               path: /nacos/v1/console/health/readiness
               port: 8848
-            initialDelaySeconds: 60
+            initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
@@ -67,7 +75,7 @@ spec:
             httpGet:
               path: /nacos/v1/console/health/liveness
               port: 8848
-            initialDelaySeconds: 120
+            initialDelaySeconds: 5
             periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 3

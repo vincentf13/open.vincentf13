@@ -43,24 +43,36 @@ spec:
               mountPath: /var/lib/mysql  # MySQL 預設資料目錄，掛載 PVC 實現持久化。
             - name: mysql-config
               mountPath: /etc/mysql/conf.d  # 將 ConfigMap 中的 my.cnf 掛入。
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p"${MYSQL_ROOT_PASSWORD}" || exit 1
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 20
           readinessProbe:
             exec:
               command:
                 - /bin/sh
                 - -c
                 - mysqladmin ping -h 127.0.0.1 -uroot -p"${MYSQL_ROOT_PASSWORD}" || exit 1
-            initialDelaySeconds: 30  # 等待資料庫啟動。
+            initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             exec:
               command:
                 - /bin/sh
                 - -c
                 - mysqladmin ping -h 127.0.0.1 -uroot -p"${MYSQL_ROOT_PASSWORD}" || exit 1
-            initialDelaySeconds: 60  # 啟動時間較久，延後第一次探測。
+            initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             limits:
               memory: "512Mi"   # 對於開發測試，512MB 綽綽有餘
