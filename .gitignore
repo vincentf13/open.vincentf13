@@ -34,3 +34,4 @@ build/
 data/
 script/ai-tools/
 *.tar
+/tmp/

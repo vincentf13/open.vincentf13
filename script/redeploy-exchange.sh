@@ -64,7 +64,9 @@ process_service() {
 
   # 2. Load into Kind (Manual Method - Fast Parallel)
   echo "[$SVC] Loading into Kind nodes..." >> "$LOG_FILE"
-  local TEMP_TAR="${SVC}_$(date +%s)_$$.tar"
+  local TMP_DIR="$PROJECT_ROOT/tmp"
+  mkdir -p "$TMP_DIR"
+  local TEMP_TAR="$TMP_DIR/${SVC}_$(date +%s)_$$.tar"
   if ! docker save -o "$TEMP_TAR" "$SVC:local" >> "$LOG_FILE" 2>&1; then
     echo "[$SVC] Docker save FAILED." >> "$LOG_FILE"
     return 1
@@ -72,9 +74,9 @@ process_service() {
 
   for NODE in $NODES; do
       echo "  -> Importing into $NODE..." >> "$LOG_FILE"
-      docker cp "$TEMP_TAR" "$NODE:/${TEMP_TAR}" >> "$LOG_FILE" 2>&1
-      docker exec "$NODE" ctr -n k8s.io images import "/${TEMP_TAR}" >> "$LOG_FILE" 2>&1
-      docker exec "$NODE" rm "/${TEMP_TAR}" >> "$LOG_FILE" 2>&1
+      docker cp "$TEMP_TAR" "$NODE:/$(basename "$TEMP_TAR")" >> "$LOG_FILE" 2>&1
+      docker exec "$NODE" ctr -n k8s.io images import "/$(basename "$TEMP_TAR")" >> "$LOG_FILE" 2>&1
+      docker exec "$NODE" rm "/$(basename "$TEMP_TAR")" >> "$LOG_FILE" 2>&1
   done
   rm -f "$TEMP_TAR"
 
