@@ -6,7 +6,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-LOG_DIR="$REPO_ROOT/script/logs"
+LOG_DIR="$REPO_ROOT/log"
 mkdir -p "$LOG_DIR"
 
 export K8S_DIR="$REPO_ROOT/k8s"
@@ -270,6 +270,15 @@ apply_kafka_cluster() {
 
 apply_kafka_connect() {
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" delete statefulset infra-kafka-connect --ignore-not-found
+  
+  # Auto-fix: Release PV if it's stuck in 'Released' state to allow re-binding
+  if kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pv infra-kafka-connect-plugins-pv >/dev/null 2>&1; then
+    if [[ $(kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pv infra-kafka-connect-plugins-pv -o jsonpath='{.status.phase}') == "Released" ]]; then
+      printf "Fixing Released PV: infra-kafka-connect-plugins-pv\n"
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" patch pv infra-kafka-connect-plugins-pv -p '{"spec":{"claimRef": null}}'
+    fi
+  fi
+
   for m in "${KAFKA_CONNECT_MANIFEST_ORDER[@]}"; do
     if [[ "$m" == "pv.yaml" ]]; then
       kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply --validate=false -f "$KAFKA_CONNECT_DIR/$m"
