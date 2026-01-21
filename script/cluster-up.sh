@@ -178,7 +178,8 @@ ensure_docker_images() {
   local images=("mysql:8.0" "redis:7.2.4-alpine" "apache/kafka:3.7.0" "docker.redpanda.com/redpandadata/console:latest" "confluentinc/cp-kafka-connect:7.5.0" "curlimages/curl:8.9.1" "nacos/nacos-server:v2.3.2" "registry.k8s.io/ingress-nginx/controller:v1.14.0@sha256:e4127065d0317bd11dc64c4dd38dcf7fb1c3d72e468110b4086e636dbaac943d")
   for image in "${images[@]}"; do
     if ! docker image inspect "$image" >/dev/null 2>&1; then
-      docker pull "$image" >/dev/null 2>&1 || return 1
+      printf "Pulling %s...\n" "$image"
+      docker pull "$image" || return 1
     fi
   done
 }

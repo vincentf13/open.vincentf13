@@ -36,11 +36,12 @@ public class InstrumentProcessor {
     this.wal = new InstrumentWal(instrumentId);
     this.snapshotStore = new InstrumentSnapshot(instrumentId);
     this.orderBook = new OrderBook();
-    this.executor =
-        Executors.newSingleThreadExecutor(r -> new Thread(r, "matching-" + instrumentId));
+    // 使用 newFixedThreadPool 代替 newSingleThreadExecutor 以便 Micrometer 能取得 ThreadPoolExecutor 的內部指標 (active, queued, etc.)
+    ExecutorService rawExecutor =
+        Executors.newFixedThreadPool(1, r -> new Thread(r, "matching-" + instrumentId));
     
-    // 埋點：監控撮合引擎執行緒池
-    MGauge.monitorExecutor(SysMetric.EXECUTOR, this.executor, "name", "matching-" + instrumentId);
+    // 埋點：監控撮合引擎執行緒池，並取得包裝後的實例以啟用計時功能
+    this.executor = MGauge.monitorExecutor(SysMetric.EXECUTOR, rawExecutor, "name", "matching-" + instrumentId);
   }
 
   public void init() {
