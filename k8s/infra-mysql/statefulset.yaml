@@ -75,9 +75,9 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              memory: "64Mi"
+              memory: "256Mi"
             limits:
-              memory: "512Mi"   # 對於開發測試，512MB 綽綽有餘
+              memory: "1024Mi"   # 對於開發測試，512MB 綽綽有餘
       volumes:
         - name: mysql-config
           configMap:
