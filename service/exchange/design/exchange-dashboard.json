@@ -100,7 +100,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (rate(exchange_order_request_total{symbol=~\"$symbol\"}[1m]))",
+          "expr": "sum by (status) (rate(exchange_order_request_total{symbol=~\"$symbol\", job=~\"$job\"}[1m]))",
           "legendFormat": "{{status}}",
           "refId": "A"
         }
@@ -177,7 +177,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (symbol) (rate(exchange_matching_trade_total{symbol=~\"$symbol\"}[1m]))",
+          "expr": "sum by (symbol) (rate(exchange_matching_trade_total{symbol=~\"$symbol\", job=~\"$job\"}[1m]))",
           "legendFormat": "{{symbol}}",
           "refId": "A"
         }
@@ -254,12 +254,12 @@
       },
       "targets": [
         {
-          "expr": "rate(exchange_matching_latency_seconds_sum{symbol=~\"$symbol\"}[1m]) / rate(exchange_matching_latency_seconds_count{symbol=~\"$symbol\"}[1m])",
+          "expr": "rate(exchange_matching_latency_seconds_sum{symbol=~\"$symbol\", job=~\"$job\"}[1m]) / rate(exchange_matching_latency_seconds_count{symbol=~\"$symbol\", job=~\"$job\"}[1m])",
           "legendFormat": "Avg Latency ({{symbol}})",
           "refId": "A"
         },
         {
-          "expr": "max_over_time(exchange_matching_latency_seconds_max{symbol=~\"$symbol\"}[1m])",
+          "expr": "max_over_time(exchange_matching_latency_seconds_max{symbol=~\"$symbol\", job=~\"$job\"}[1m])",
           "legendFormat": "Max Latency ({{symbol}})",
           "refId": "B"
         }
@@ -328,7 +328,7 @@
       },
       "targets": [
         {
-          "expr": "sum(executor_queued_tasks{name=~\"sys.executor.*\"})",
+          "expr": "sum(executor_queued_tasks{name=~\"sys.executor.*\", job=~\"$job\"})",
           "legendFormat": "Matching Queue Depth",
           "refId": "A"
         }
@@ -405,12 +405,12 @@
       },
       "targets": [
         {
-          "expr": "executor_active_threads{name=~\"sys.executor.*\"}",
+          "expr": "executor_active_threads{name=~\"sys.executor.*\", job=~\"$job\"}",
           "legendFormat": "{{name}} (Active)",
           "refId": "A"
         },
         {
-          "expr": "executor_pool_size_threads{name=~\"sys.executor.*\"}",
+          "expr": "executor_pool_size_threads{name=~\"sys.executor.*\", job=~\"$job\"}",
           "legendFormat": "{{name}} (Pool Size)",
           "refId": "B"
         }
@@ -487,7 +487,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (module, type) (increase(sys_error_total[1m]))",
+          "expr": "sum by (module, type) (increase(sys_error_total{job=~\"$job\"}[1m]))",
           "legendFormat": "{{module}} - {{type}}",
           "refId": "A"
         }
@@ -564,12 +564,12 @@
       },
       "targets": [
         {
-          "expr": "rate(executor_seconds_sum{name=~\"sys.executor.*\"}[1m])",
+          "expr": "rate(executor_seconds_sum{name=~\"sys.executor.*\", job=~\"$job\"}[1m])",
           "legendFormat": "{{name}} (Exec)",
           "refId": "A"
         },
         {
-          "expr": "rate(executor_idle_seconds_sum{name=~\"sys.executor.*\"}[1m])",
+          "expr": "rate(executor_idle_seconds_sum{name=~\"sys.executor.*\", job=~\"$job\"}[1m])",
           "legendFormat": "{{name}} (Idle)",
           "refId": "B"
         }
@@ -586,6 +586,27 @@
   ],
   "templating": {
     "list": [
+      {
+        "allValue": null,
+        "current": {},
+        "datasource": "Prometheus",
+        "definition": "label_values(job)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Job",
+        "multi": true,
+        "name": "job",
+        "options": [],
+        "query": "label_values(job)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
       {
         "allValue": null,
         "current": {},
