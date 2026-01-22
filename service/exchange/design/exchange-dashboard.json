@@ -328,7 +328,7 @@
       },
       "targets": [
         {
-          "expr": "sum(sys_executor_queued{name=~\"matching.*\"})",
+          "expr": "sum(executor_queued_tasks{name=~\"sys.executor.*\"})",
           "legendFormat": "Matching Queue Depth",
           "refId": "A"
         }
@@ -405,12 +405,12 @@
       },
       "targets": [
         {
-          "expr": "sys_executor_active{name=~\"matching.*\"}",
+          "expr": "executor_active_threads{name=~\"sys.executor.*\"}",
           "legendFormat": "{{name}} (Active)",
           "refId": "A"
         },
         {
-          "expr": "sys_executor_pool_size{name=~\"matching.*\"}",
+          "expr": "executor_pool_size_threads{name=~\"sys.executor.*\"}",
           "legendFormat": "{{name}} (Pool Size)",
           "refId": "B"
         }
@@ -564,12 +564,12 @@
       },
       "targets": [
         {
-          "expr": "rate(sys_executor_seconds_sum{name=~\"matching.*\"}[1m])",
+          "expr": "rate(executor_seconds_sum{name=~\"sys.executor.*\"}[1m])",
           "legendFormat": "{{name}} (Exec)",
           "refId": "A"
         },
         {
-          "expr": "rate(sys_executor_idle_seconds_sum{name=~\"matching.*\"}[1m])",
+          "expr": "rate(executor_idle_seconds_sum{name=~\"sys.executor.*\"}[1m])",
           "legendFormat": "{{name}} (Idle)",
           "refId": "B"
         }

@@ -77,8 +77,7 @@ public final class MGauge {
      * @param tags   標籤
      * @return 經過 Micrometer 包裝後的 ExecutorService，請使用此物件來執行任務以啟用完整監控
      */
-    public static ExecutorService monitorExecutor(IMetric metric, ExecutorService ex, String... tags) {
-        MetricValidator.validate(metric, tags);
-        return ExecutorServiceMetrics.monitor(Metrics.getRegistry(), ex, metric.getName(), Tags.of(tags));
+    public static ExecutorService monitorExecutor(IMetric metric, ExecutorService ex, String name, String... tags) {
+        return ExecutorServiceMetrics.monitor(Metrics.getRegistry(), ex, name, Tags.of(tags));
     }
 }

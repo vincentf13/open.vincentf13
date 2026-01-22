@@ -36,12 +36,14 @@ public class InstrumentProcessor {
     this.wal = new InstrumentWal(instrumentId);
     this.snapshotStore = new InstrumentSnapshot(instrumentId);
     this.orderBook = new OrderBook();
-    // 使用 newFixedThreadPool 代替 newSingleThreadExecutor 以便 Micrometer 能取得 ThreadPoolExecutor 的內部指標 (active, queued, etc.)
+    // 使用 newFixedThreadPool 代替 newSingleThreadExecutor 以便 Micrometer 能取得 ThreadPoolExecutor 的內部指標
+    // (active, queued, etc.)
     ExecutorService rawExecutor =
         Executors.newFixedThreadPool(1, r -> new Thread(r, "matching-" + instrumentId));
-    
+
     // 埋點：監控撮合引擎執行緒池，並取得包裝後的實例以啟用計時功能
-    this.executor = MGauge.monitorExecutor(SysMetric.EXECUTOR, rawExecutor, "name", "matching-" + instrumentId);
+    this.executor =
+        MGauge.monitorExecutor(SysMetric.EXECUTOR, rawExecutor, "matching-" + instrumentId, null);
   }
 
   public void init() {
@@ -57,50 +59,58 @@ public class InstrumentProcessor {
     }
 
     // 埋點：監控撮合批次處理延遲
-    MTimer.record(ExchangeMetric.MATCHING_LATENCY, () -> {
-        long lastSeq = -1L;
-        for (Order order : batch) {
-          if (!Objects.equals(order.getInstrumentId(), instrumentId)) {
-            OpenLog.warn(
-                MatchingEvent.ORDER_ROUTING_ERROR,
-                "expected",
-                instrumentId,
-                "actual",
-                order.getInstrumentId());
-            continue;
+    MTimer.record(
+        ExchangeMetric.MATCHING_LATENCY,
+        () -> {
+          long lastSeq = -1L;
+          for (Order order : batch) {
+            if (!Objects.equals(order.getInstrumentId(), instrumentId)) {
+              OpenLog.warn(
+                  MatchingEvent.ORDER_ROUTING_ERROR,
+                  "expected",
+                  instrumentId,
+                  "actual",
+                  order.getInstrumentId());
+              continue;
+            }
+            Objects.requireNonNull(order, "order batch item must not be null");
+            OpenValidator.validateOrThrow(order);
+
+            if (orderBook.alreadyProcessed(order.getOrderId())) {
+              continue;
+            }
+
+            // 1. Calculate Match
+            MatchResult result = orderBook.match(order);
+
+            // 2. Persist to WAL (Sequentially)
+            List<WalEntry> appended = wal.appendBatch(List.of(result));
+            if (appended.isEmpty()) {
+              continue;
+            }
+
+            // 3. Apply to OrderBook (Update State)
+            orderBook.apply(result);
+            orderBook.markProcessed(result.getTakerOrder().getOrderId());
+            lastSeq = appended.get(0).getSeq();
+
+            // 埋點：如果成交，增加成交次數
+            if (result.getTrades() != null && !result.getTrades().isEmpty()) {
+              MCounter.inc(
+                  ExchangeMetric.MATCHING_TRADE,
+                  result.getTrades().size(),
+                  "symbol",
+                  String.valueOf(instrumentId));
+            }
           }
-          Objects.requireNonNull(order, "order batch item must not be null");
-          OpenValidator.validateOrThrow(order);
 
-          if (orderBook.alreadyProcessed(order.getOrderId())) {
-            continue;
+          // 4. Snapshot Check (Once per batch)
+          if (lastSeq > 0) {
+            snapshotStore.maybeSnapshot(lastSeq, orderBook);
           }
-
-          // 1. Calculate Match
-          MatchResult result = orderBook.match(order);
-
-          // 2. Persist to WAL (Sequentially)
-          List<WalEntry> appended = wal.appendBatch(List.of(result));
-          if (appended.isEmpty()) {
-            continue;
-          }
-
-          // 3. Apply to OrderBook (Update State)
-          orderBook.apply(result);
-          orderBook.markProcessed(result.getTakerOrder().getOrderId());
-          lastSeq = appended.get(0).getSeq();
-          
-          // 埋點：如果成交，增加成交次數
-          if (result.getTrades() != null && !result.getTrades().isEmpty()) {
-              MCounter.inc(ExchangeMetric.MATCHING_TRADE, result.getTrades().size(), "symbol", String.valueOf(instrumentId));
-          }
-        }
-
-        // 4. Snapshot Check (Once per batch)
-        if (lastSeq > 0) {
-          snapshotStore.maybeSnapshot(lastSeq, orderBook);
-        }
-    }, "symbol", String.valueOf(instrumentId));
+        },
+        "symbol",
+        String.valueOf(instrumentId));
   }
 
   private void restoreSnapshot() {
