@@ -101,9 +101,9 @@ public class Order {
     String clientOrderId = request.clientOrderId();
     if (clientOrderId == null || clientOrderId.trim().isEmpty()) {
       clientOrderId = UUID.randomUUID().toString();
-      throw OpenException.of(
-          OrderErrorCode.ORDER_VALIDATION_FAILED,
-          Map.of("field", "clientOrderId", "reason", "required"));
+      //throw OpenException.of(
+      //    OrderErrorCode.ORDER_VALIDATION_FAILED,
+      //    Map.of("field", "clientOrderId", "reason", "required"));
     }
     if (clientOrderId.length() > OrderCreateRequest.CLIENT_ORDER_ID_MAX_LENGTH) {
       throw OpenException.of(
