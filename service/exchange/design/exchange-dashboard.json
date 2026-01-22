@@ -100,7 +100,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (rate(exchange_order_request_total{symbol=~\"$symbol\", job=~\"$job\"}[1m]))",
+          "expr": "sum by (status) (rate(exchange_order_request_total{name=~\"$name\", job=~\"$job\"}[1m]))",
           "legendFormat": "{{status}}",
           "refId": "A"
         }
@@ -177,8 +177,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (symbol) (rate(exchange_matching_trade_total{symbol=~\"$symbol\", job=~\"$job\"}[1m]))",
-          "legendFormat": "{{symbol}}",
+          "expr": "sum by (name) (rate(exchange_matching_trade_total{name=~\"$name\", job=~\"$job\"}[1m]))",
+          "legendFormat": "{{name}}",
           "refId": "A"
         }
       ],
@@ -254,13 +254,13 @@
       },
       "targets": [
         {
-          "expr": "rate(exchange_matching_latency_seconds_sum{symbol=~\"$symbol\", job=~\"$job\"}[1m]) / rate(exchange_matching_latency_seconds_count{symbol=~\"$symbol\", job=~\"$job\"}[1m])",
-          "legendFormat": "Avg Latency ({{symbol}})",
+          "expr": "rate(exchange_matching_latency_seconds_sum{name=~\"$name\", job=~\"$job\"}[1m]) / rate(exchange_matching_latency_seconds_count{name=~\"$name\", job=~\"$job\"}[1m])",
+          "legendFormat": "Avg Latency ({{name}})",
           "refId": "A"
         },
         {
-          "expr": "max_over_time(exchange_matching_latency_seconds_max{symbol=~\"$symbol\", job=~\"$job\"}[1m])",
-          "legendFormat": "Max Latency ({{symbol}})",
+          "expr": "max_over_time(exchange_matching_latency_seconds_max{name=~\"$name\", job=~\"$job\"}[1m])",
+          "legendFormat": "Max Latency ({{name}})",
           "refId": "B"
         }
       ],
@@ -328,7 +328,7 @@
       },
       "targets": [
         {
-          "expr": "sum(executor_queued_tasks{name=~\"sys.executor.*\", job=~\"$job\"})",
+          "expr": "sum(executor_queued_tasks{name=~\"matching-.*\", job=~\"$job\"})",
           "legendFormat": "Matching Queue Depth",
           "refId": "A"
         }
@@ -405,12 +405,12 @@
       },
       "targets": [
         {
-          "expr": "executor_active_threads{name=~\"sys.executor.*\", job=~\"$job\"}",
+          "expr": "executor_active_threads{name=~\"matching-.*\", job=~\"$job\"}",
           "legendFormat": "{{name}} (Active)",
           "refId": "A"
         },
         {
-          "expr": "executor_pool_size_threads{name=~\"sys.executor.*\", job=~\"$job\"}",
+          "expr": "executor_pool_size_threads{name=~\"matching-.*\", job=~\"$job\"}",
           "legendFormat": "{{name}} (Pool Size)",
           "refId": "B"
         }
@@ -564,12 +564,12 @@
       },
       "targets": [
         {
-          "expr": "rate(executor_seconds_sum{name=~\"sys.executor.*\", job=~\"$job\"}[1m])",
+          "expr": "rate(executor_seconds_sum{name=~\"matching-.*\", job=~\"$job\"}[1m])",
           "legendFormat": "{{name}} (Exec)",
           "refId": "A"
         },
         {
-          "expr": "rate(executor_idle_seconds_sum{name=~\"sys.executor.*\", job=~\"$job\"}[1m])",
+          "expr": "rate(executor_idle_seconds_sum{name=~\"matching-.*\", job=~\"$job\"}[1m])",
           "legendFormat": "{{name}} (Idle)",
           "refId": "B"
         }
@@ -590,14 +590,14 @@
         "allValue": null,
         "current": {},
         "datasource": "Prometheus",
-        "definition": "label_values(job)",
+        "definition": "label_values(executor_queued_tasks, job)",
         "hide": 0,
         "includeAll": true,
         "label": "Job",
         "multi": true,
         "name": "job",
         "options": [],
-        "query": "label_values(job)",
+        "query": "label_values(executor_queued_tasks, job)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -611,14 +611,14 @@
         "allValue": null,
         "current": {},
         "datasource": "Prometheus",
-        "definition": "label_values(exchange_order_request_total, symbol)",
+        "definition": "label_values(executor_queued_tasks{job=~\"$job\", name=~\"matching-.*\"}, name)",
         "hide": 0,
         "includeAll": true,
-        "label": "Symbol",
+        "label": "Name (Matching Engine)",
         "multi": true,
-        "name": "symbol",
+        "name": "name",
         "options": [],
-        "query": "label_values(exchange_order_request_total, symbol)",
+        "query": "label_values(executor_queued_tasks{job=~\"$job\", name=~\"matching-.*\"}, name)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
