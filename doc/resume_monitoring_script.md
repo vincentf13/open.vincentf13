@@ -2,11 +2,48 @@
 
 ## 履歷專案描述 (Project Description for Resume)
 
-> 建議將此段落加入專案介紹的「職責」或「貢獻」區塊中。
+ 標題：High-Performance Exchange Observability
+  (高性能交易所全鏈路可觀測性)
 
-*   **建構標準化監控 SDK**: 設計並實作基於 Micrometer 的通用監控 SDK，定義統一的指標介面 (`IMetric`) 與枚舉管理 (`ExchangeMetric`)，規範了全系統的指標命名與 Tag 策略，大幅降低開發團隊的接入成本。
-*   **深度業務埋點與效能分析**: 針對交易所核心路徑（下單、撮合、清算）實作高精度的延遲監控與計數統計；特別針對高併發撮合引擎，設計了執行緒池 (Thread Pool) 飽和度與佇列堆積監控，有效定位效能瓶頸。
-*   **雲原生監控平台搭建**: 在 Kubernetes 環境中整合 Prometheus Operator 與 Grafana，實現從基礎設施 (K8s Pods) 到應用層 (Application Metrics) 的統一可觀測性視圖，並配置關鍵告警規則。
+  1. Standardization (標準化)
+   * Unified SDK Design: Built a Spring Boot Starter for one-dependency integration.
+   * Metric Governance: Enforced consistent naming & tagging via ExchangeMetric Enum.
+   * Result: Zero-config monitoring for all microservices.
+
+  2. Business & Performance (業務與效能)
+   * Core Flow Tracking: Order QPS (by status), Matching TPS, and Latency (P99/Max).
+   * Thread Saturation: Deep dive into Matching Engine’s Queue Depth & Active Threads.
+   * Impact: Instantly identified "Hot Symbol" bottlenecks during load testing.
+
+  3. Architecture Vision (架構視野)
+   * Layered Dashboards: Separated views for Operations (Business Health) & Developers (System Internals).
+   * Future Roadmap: Full-stack correlation linking Business Anomalies to Node/Pod Infrastructure metrics.
+
+  ---
+
+  中文對照版 (如果你的受眾偏好中文)
+
+  標題：高性能交易所全鏈路監控體系
+
+  1. 標準化 SDK (Standardization)
+   * 開箱即用: 封裝 Spring Boot Starter，單一依賴自動接入 Prometheus/Grafana。
+   * 指標治理: 透過 ExchangeMetric Enum 統一全系統指標命名與標籤規範。
+
+  2. 深度業務觀測 (Business & Performance)
+   * 核心鏈路: 監控訂單 QPS 狀態分佈、撮合 TPS 與長尾延遲 (Max Latency)。
+   * 瓶頸定位: 深度觀測撮合引擎執行緒池的任務佇列 (Queue Depth) 與飽和度。
+   * 實戰價值: 在壓測中精準定位單一熱點交易對導致的效能阻塞。
+
+  3. 架構與規劃 (Vision)
+   * 分層視覺化: 為產品運營 (Business View) 與開發人員 (System View) 設計專屬視圖。
+   * 全棧關聯: 規劃從業務異常垂直下鑽至 Node/Pod 基礎設施的關聯診斷體系。
+
+  ---
+
+  製作建議
+   * 排版: 使用三個並列的區塊（Column），每個區塊對應一個主題。
+   * 配圖: 如果有空間，可以在右側或下方放一張你的 Grafana Dashboard 截圖（展現 QPS 曲線或 Thread Pool 狀態），視覺衝擊力會很強。
+   * 口語: 配合影片，按照這三點依序展開，時間控制在 1-2 分鐘內最佳。
 
 ---
 
