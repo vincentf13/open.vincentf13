@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -99,6 +100,7 @@ public class Order {
     }
     String clientOrderId = request.clientOrderId();
     if (clientOrderId == null || clientOrderId.trim().isEmpty()) {
+      clientOrderId = UUID.randomUUID().toString();
       throw OpenException.of(
           OrderErrorCode.ORDER_VALIDATION_FAILED,
           Map.of("field", "clientOrderId", "reason", "required"));
