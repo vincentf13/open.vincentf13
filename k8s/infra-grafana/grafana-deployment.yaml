@@ -17,6 +17,13 @@ spec:
         app.kubernetes.io/name: grafana
         app.kubernetes.io/component: dashboard
     spec:
+      initContainers:
+        - name: fix-permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 472:472 /var/lib/grafana"]
+          volumeMounts:
+            - name: storage
+              mountPath: /var/lib/grafana
       containers:
         - name: grafana
           image: grafana/grafana:10.4.3
