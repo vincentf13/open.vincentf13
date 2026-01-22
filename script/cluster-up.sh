@@ -175,18 +175,14 @@ ensure_directories() {
 }
 
 ensure_docker_images() {
-  local images=("mysql:8.0" "redis:7.2.4-alpine" "apache/kafka:3.7.0" "docker.redpanda.com/redpandadata/console:latest" "confluentinc/cp-kafka-connect:7.5.0" "curlimages/curl:8.9.1" "nacos/nacos-server:v2.3.2" "registry.k8s.io/ingress-nginx/controller:v1.14.0@sha256:e4127065d0317bd11dc64c4dd38dcf7fb1c3d72e468110b4086e636dbaac943d")
-  local pids=()
+  local images=("mysql:8.0" "redis:7.2.4-alpine" "apache/kafka:3.7.0" "docker.redpanda.com/redpandadata/console:latest" "confluentinc/cp-kafka-connect:7.5.0" "curlimages/curl:8.9.1" "nacos/nacos-server:v2.3.2" "registry.k8s.io/ingress-nginx/controller:v1.14.0@sha256:e4127065d0317bd11dc64c4dd38dcf7fb1c3d72e468110b4086e636dbaac943d" "busybox:1.36")
+  
   for image in "${images[@]}"; do
     if ! docker image inspect "$image" >/dev/null 2>&1; then
-      (printf "Pulling %s...\n" "$image" && docker pull "$image" >/dev/null 2>&1) &
-      pids+=($!)
+      printf "Pulling %s...\n" "$image"
+      docker pull "$image" >/dev/null 2>&1
     fi
   done
-  
-  if [ ${#pids[@]} -gt 0 ]; then
-    for pid in "${pids[@]}"; do wait "$pid"; done
-  fi
 }
 
 ensure_ingress_controller() {
@@ -381,8 +377,8 @@ main() {
 
   require_cmd kubectl; require_cmd docker; ensure_directories
 
-  # Background tasks: Pull images and apply foundational services concurrently
-  run_with_log "docker-images" ensure_docker_images & local p0=$!
+  # Pull images sequentially first to avoid concurrent pull issues and rate limiting
+  run_with_log "docker-images" ensure_docker_images
   
   log_step "Applying foundational services"
   apply_infra_clusters & local p1=$!
@@ -391,7 +387,7 @@ main() {
   run_with_log "argocd-install" bash -c "kubectl create ns argocd --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml" & local p4=$!
   run_with_log "argocd-config" configure_argocd & local p5=$!
   
-  wait "$p0" "$p1" "$p2" "$p3" "$p4" "$p5" || { printf '\nFoundational services failed.\n' >&2; exit 1; }
+  wait "$p1" "$p2" "$p3" "$p4" "$p5" || { printf '\nFoundational services failed.\n' >&2; exit 1; }
 
   log_step "Applying application"
   run_with_log "app-manifests" apply_application_manifests
