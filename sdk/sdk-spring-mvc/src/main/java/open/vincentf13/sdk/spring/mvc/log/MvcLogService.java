@@ -74,7 +74,7 @@ public class MvcLogService {
           "\nResBody",
           responseBody.preview());
     } else {
-      OpenLog.debug(
+      OpenLog.info(
           MvcEvent.MVC_REQUEST_COMPLETED,
           "method",
           method,
@@ -99,31 +99,31 @@ public class MvcLogService {
           "\nResBody",
           responseBody.preview());
     }
-    //
-    //OpenLog.debug(
-    //    MvcEvent.MVC_REQUEST_DETAIL,
-    //    "status",
-    //    status,
-    //    "durationMs",
-    //    durationMs,
-    //    "requestBytes",
-    //    requestBody.length(),
-    //    "responseBytes",
-    //    responseBody.length(),
-    //    "detail",
-    //    buildVerboseLog(
-    //        method,
-    //        uri,
-    //        clientIp,
-    //        handlerDisplay,
-    //        matchingPattern,
-    //        handlerRaw,
-    //        status,
-    //        durationMs,
-    //        requestHeaders,
-    //        requestBody.preview(),
-    //        responseHeaders,
-    //        responseBody.preview()));
+
+    OpenLog.debug(
+        MvcEvent.MVC_REQUEST_DETAIL,
+        "status",
+        status,
+        "durationMs",
+        durationMs,
+        "requestBytes",
+        requestBody.length(),
+        "responseBytes",
+        responseBody.length(),
+        "detail",
+        buildVerboseLog(
+            method,
+            uri,
+            clientIp,
+            handlerDisplay,
+            matchingPattern,
+            handlerRaw,
+            status,
+            durationMs,
+            requestHeaders,
+            requestBody.preview(),
+            responseHeaders,
+            responseBody.preview()));
   }
 
   private String buildRequestUri(HttpServletRequest request) {

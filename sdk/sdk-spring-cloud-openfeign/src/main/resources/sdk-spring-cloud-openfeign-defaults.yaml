@@ -1,6 +1,7 @@
 logging:
   level:
     feign.http: INFO
+    open.vincentf13.sdk.spring.cloud.openfeign.log.OpenFeignLogger: DEBUG
 
 spring:
   cloud:

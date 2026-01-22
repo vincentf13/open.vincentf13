@@ -63,7 +63,7 @@ public class OpenFeignLogger extends feign.Logger {
       body = new String(bodyData, StandardCharsets.UTF_8);
     }
 
-    OpenLog.info(
+    OpenLog.debug(
         FeignEvent.FEIGN_RESPONSE,
         "status",
         response.status(),

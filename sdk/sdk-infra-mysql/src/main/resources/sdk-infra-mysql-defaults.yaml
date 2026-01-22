@@ -6,11 +6,11 @@ logging:
 #    org.springframework.transaction.interceptor: INFO
 #    org.mybatis.spring.SqlSessionUtils: INFO
 
-#open:
-#  vincentf13:
-#    mybatis:
-#      mapper-sql-logging:
-#        enabled: true
+open:
+  vincentf13:
+    mybatis:
+      mapper-sql-logging:
+        enabled: true
 
 spring:
   datasource:
