@@ -405,7 +405,7 @@
       },
       "targets": [
         {
-          "expr": "executor_active_threads{name=~\"matching-.*\", job=~\"$job\"}",
+          "expr": "executor_pool_core_threads{name=~\"matching-.*\", job=~\"$job\"}",
           "legendFormat": "{{name}} (Active)",
           "refId": "A"
         },
