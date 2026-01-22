@@ -398,7 +398,7 @@ main() {
 
 
   log_step "Final Summary"
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pods
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pods -A
 
   printf '\nCluster endpoints are ready. Access services using in-cluster DNS:\n'
   local ingress_ns ingress_svc ingress_host
