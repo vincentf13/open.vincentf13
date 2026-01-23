@@ -1,0 +1,134 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.0 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.3.0">
+  <diagram name="第 1 页" id="miLTZGTFjPJnSkM0FyFf">
+    <mxGraphModel dx="1700" dy="939" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-1" parent="1" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;font style=&quot;font-size: 36px;&quot;&gt;Full-Stack Observability &amp;amp; High-Concurrency Monitoring&lt;/font&gt;&lt;/span&gt;&lt;/h1&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;" vertex="1">
+          <mxGeometry height="70" width="1430" x="1040" y="477" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-30" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="5. 分層視覺化" vertex="1">
+          <mxGeometry height="325" width="214" x="3091" y="1429" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-31" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="4. 監控堆疊" vertex="1">
+          <mxGeometry height="171" width="488" x="2450" y="1411" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-32" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="3. 自動發現" vertex="1">
+          <mxGeometry height="157" width="287" x="2050" y="1445" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-33" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Kubernetes Cluster Environment" vertex="1">
+          <mxGeometry height="444" width="844" x="1040" y="1301" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-34" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="2. 標準化 SDK" vertex="1">
+          <mxGeometry height="333" width="518" x="1341" y="1338" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-35" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="1. 業務微服務層" vertex="1">
+          <mxGeometry height="404" width="226" x="1065" y="1321" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-36" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Order Service&#xa;訂單服務" vertex="1">
+          <mxGeometry height="78" width="157" x="1099" y="1356" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-37" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Matching Engine&#xa;撮合引擎" vertex="1">
+          <mxGeometry height="78" width="176" x="1090" y="1484" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-38" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Account Service&#xa;帳戶服務" vertex="1">
+          <mxGeometry height="78" width="174" x="1091" y="1612" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-39" parent="1" style="rounded=1;arcSize=20;strokeWidth=2" value="Exchange Monitor SDK&#xa;(Spring Boot Starter)" vertex="1">
+          <mxGeometry height="78" width="188" x="1366" y="1484" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-40" parent="1" style="rounded=1;arcSize=20;strokeWidth=2" value="核心指標 (Metrics)&#xa;--------------&#xa;🚀 Business: QPS, TPS, Status&#xa;⚡ Performance: Latency, P99&#xa;⚙️ System: Thread Pool Queue" vertex="1">
+          <mxGeometry height="222" width="230" x="1604" y="1412" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-41" parent="1" style="rounded=1;whiteSpace=wrap;arcSize=50;strokeWidth=2;" value="ServiceMonitor&#xa;Label Selector: app=exchange-*" vertex="1">
+          <mxGeometry height="87" width="237" x="2075" y="1480" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-42" parent="1" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=10;strokeWidth=2;whiteSpace=wrap;" value="Prometheus&#xa;時序資料庫" vertex="1">
+          <mxGeometry height="96" width="99" x="2498" y="1475" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-43" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Grafana&#xa;視覺化平台" vertex="1">
+          <mxGeometry height="78" width="140" x="2772" y="1484" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-44" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Business View&#xa;產品/運營視圖" vertex="1">
+          <mxGeometry height="78" width="164" x="3116" y="1464" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-45" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="System View&#xa;開發/運維視圖" vertex="1">
+          <mxGeometry height="78" width="164" x="3116" y="1627" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-46" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Node Exporter&#xa;Node/Pod Metrics" vertex="1">
+          <mxGeometry height="78" width="187" x="2749" y="1646" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-47" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-36" style="curved=1;startArrow=none;endArrow=block;exitX=1.01;exitY=0.5;entryX=0.31;entryY=0;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-39" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1341" y="1395" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-48" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-37" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-39" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-49" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-38" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.31;entryY=1;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-39" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1341" y="1651" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-50" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-39" style="curved=1;startArrow=none;endArrow=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-40" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-51" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-40" style="curved=1;dashed=1;dashPattern=2 3;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.49;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-41" value="Expose /metrics">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-52" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-41" style="curved=1;startArrow=none;endArrow=block;strokeWidth=3;exitX=1;exitY=0.49;entryX=0;entryY=0.5;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-42" value="Auto Scrape">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-53" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-42" style="curved=1;startArrow=none;endArrow=block;strokeWidth=3;exitX=1;exitY=0.5;entryX=0;entryY=0.5;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-43" value="PromQL Query">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-54" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-43" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.35;entryX=0;entryY=0.5;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-44" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2961" y="1503" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-55" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-43" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.77;entryX=0.26;entryY=-0.01;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-45" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2961" y="1559" />
+              <mxPoint x="3091" y="1559" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-56" edge="1" parent="1" source="D9_6w-9keL3ABUTaAcxO-46" style="curved=1;dashed=1;dashPattern=2 3;startArrow=none;endArrow=block;exitX=1;exitY=0.49;entryX=0;entryY=0.68;rounded=0;" target="D9_6w-9keL3ABUTaAcxO-45" value="Correlation">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3091" y="1685" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-58" parent="1" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;b style=&quot;&quot;&gt;&lt;font&gt;1. 標準化 SDK 設計 (Standardization &amp;amp; Automation)&lt;/font&gt;&lt;/b&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&amp;nbsp; &amp;nbsp;- Spring Boot Starter：實現「單一依賴，自動接入」。&lt;/font&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&amp;nbsp; &amp;nbsp;- IMetric 規範：透過 Enum 強制統一全系統指標命名。&lt;/font&gt;&lt;/span&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&amp;nbsp; &amp;nbsp;- 指標治理：解決微服務架構下標籤 (Tags) 不一致的痛點。&lt;/font&gt;&lt;/p&gt;&lt;/h1&gt;" vertex="1">
+          <mxGeometry height="295" width="740" x="1040" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-59" parent="1" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;b style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;font&gt;&amp;nbsp;2. 核心業務與效能觀測 (Business &amp;amp; Performance Insight)&lt;/font&gt;&lt;/b&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;font&gt;&amp;nbsp;&lt;font style=&quot;font-size: 18px;&quot;&gt; &amp;nbsp;- 全鏈路追蹤：訂單 QPS (狀態分佈)、撮合 TPS、微秒級延遲。&lt;/font&gt;&lt;/font&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&amp;nbsp; &amp;nbsp;- 線程池深度觀測：實時監控撮合引擎的 Queue Depth 與飽和度。&lt;/font&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&amp;nbsp; &amp;nbsp;- 實戰價值：壓測期間秒級定位「熱點交易對」導致的效能瓶頸。&lt;/font&gt;&lt;/p&gt;&lt;/h1&gt;" vertex="1">
+          <mxGeometry height="270" width="820" x="1040" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="D9_6w-9keL3ABUTaAcxO-62" parent="1" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;b style=&quot;&quot;&gt;&lt;font&gt;3. K8s 落地與架構遠景 (Infrastructure &amp;amp; Vision)&lt;/font&gt;&lt;/b&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&amp;nbsp; &amp;nbsp;- 分層視覺化：區分 Business View (運營) 與 System View (開發)。&lt;/font&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&amp;nbsp; &amp;nbsp;- ServiceMonitor：雲原生指標自動發現與採集。&lt;/font&gt;&lt;/p&gt;&lt;p style=&quot;font-weight: 400;&quot;&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&amp;nbsp; &amp;nbsp;- 未來規劃：實作從業務異常到 Node/Pod (Disk I/O, GC) 的垂直關聯診斷。&lt;/font&gt;&lt;/p&gt;&lt;/h1&gt;" vertex="1">
+          <mxGeometry height="310" width="990" x="1040" y="1046" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
