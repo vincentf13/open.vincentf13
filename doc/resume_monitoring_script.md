@@ -39,9 +39,11 @@
 
 
 4. 
- * 高效能封裝 (High-Performance Facade)：透過 sdk.core.metrics (如 MTimer, MCounter) 封裝
-     Micrometer。針對高頻路徑實作實例快取機制，例如 MTimer#record 封裝了 Runnable/Callable 並從快取中複用 Timer
+ * 高效能封裝 (High-Performance Facade)：透過 sdk.core.metrics封裝
+     Micrometer的資料結構。針對高頻路徑實作實例快取機制，例如 MTimer 封裝了 Runnable/Callable 並從快取中複用 Timer
      實例，極小化監控對業務效能的干擾。
+ 
+ 因為micrometer 在內部查出指標是比較慢的
 
 在撮合引擎這種每秒處理數萬次操作的高頻路徑中，如果每次埋點都去執行指標的尋找或註冊，會產生不必要的對象分配與 GC
   壓力。透過快取機制，MTimer 可以直接從快取中取得已存在的 Timer
