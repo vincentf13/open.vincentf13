@@ -1,67 +1,52 @@
 # 專案亮點：全鏈路可觀測性與監控體系 (Observability & Monitoring)
 
-## 履歷專案描述 (Project Description for Resume)
-
- 標題：High-Performance Exchange Observability
-  (高性能交易所全鏈路可觀測性)
-
-  1. Standardization (標準化)
-   * Unified SDK Design: Built a Spring Boot Starter for one-dependency integration.
-   * Metric Governance: Enforced consistent naming & tagging via ExchangeMetric Enum.
-   * Result: Zero-config monitoring for all microservices.
-
-  2. Business & Performance (業務與效能)
-   * Core Flow Tracking: Order QPS (by status), Matching TPS, and Latency (P99/Max).
-   * Thread Saturation: Deep dive into Matching Engine’s Queue Depth & Active Threads.
-   * Impact: Instantly identified "Hot Symbol" bottlenecks during load testing.
-
-  3. Architecture Vision (架構視野)
-   * Layered Dashboards: Separated views for Operations (Business Health) & Developers (System Internals).
-   * Future Roadmap: Full-stack correlation linking Business Anomalies to Node/Pod Infrastructure metrics.
-
-  ---
-
-  中文對照版 (如果你的受眾偏好中文)
-
-  標題：高性能交易所全鏈路監控體系
-
-  1. 標準化 SDK (Standardization)
-   * 開箱即用: 封裝 Spring Boot Starter，單一依賴自動接入 Prometheus/Grafana。
-   * 指標治理: 透過 ExchangeMetric Enum 統一全系統指標命名與標籤規範。
-
-  2. 深度業務觀測 (Business & Performance)
-   * 核心鏈路: 監控訂單 QPS 狀態分佈、撮合 TPS 與長尾延遲 (Max Latency)。
-   * 瓶頸定位: 深度觀測撮合引擎執行緒池的任務佇列 (Queue Depth) 與飽和度。
-   * 實戰價值: 在壓測中精準定位單一熱點交易對導致的效能阻塞。
-
-  3. 架構與規劃 (Vision)
-   * 分層視覺化: 為產品運營 (Business View) 與開發人員 (System View) 設計專屬視圖。
-   * 全棧關聯: 規劃從業務異常垂直下鑽至 Node/Pod 基礎設施的關聯診斷體系。
-
-  ---
-
-  製作建議
-   * 排版: 使用三個並列的區塊（Column），每個區塊對應一個主題。
-   * 配圖: 如果有空間，可以在右側或下方放一張你的 Grafana Dashboard 截圖（展現 QPS 曲線或 Thread Pool 狀態），視覺衝擊力會很強。
-   * 口語: 配合影片，按照這三點依序展開，時間控制在 1-2 分鐘內最佳。
-
----
-
+ 
 ## 面試口述腳本 (Interview Script)
 
 當面試官問到：「你在這個專案中負責的監控部分是如何設計的？」或「你是如何保證系統穩定性的？」時，可以參考以下回答邏輯。
 
 ### 1. 開場：為什麼要做這個 SDK？ (Why SDK?)
 
-首先，**最核心的優勢是『開箱即用』的開發體驗。** 我將 SDK 設計成 Spring Boot Starter 的形式，所有的業務微服務只需要在 `pom.xml` 中引入這個依賴，系統就會自動完成 MeterRegistry 的初始化、配置通用標籤 (如 `app`, `env`)，並自動開啟 Prometheus 指標接口。這意味著新服務一啟動，其業務指標與系統指標就能**自動出現在 Grafana 儀表盤上**，完全不需要開發者手動配置基礎設施，極大地提升了團隊的開發效率。"
+  1. 開場：極致的開發體驗 (Efficiency & Automation)
+
+  "首先，我想強調這個監控 SDK 最核心的價值——『開箱即用』的極致開發體驗。
+
+  我將它設計成了標準的 Spring Boot Starter。這意味著，對於團隊中的任何業務微服務，開發者只需要在 pom.xml
+  中引入這一個依賴，完全不需要寫任何一行初始化代碼。
+
+  系統會自動完成底層 MeterRegistry 的配置、注入通用的環境標籤 (如 app, env)，並自動開啟 Prometheus
+  的指標端點。這種『零配置』的設計，讓新服務一啟動，其健康度與業務指標就能自動出現在 Grafana 儀表盤上，極大地提升了我們團隊的開發與維運效率。"
+
+  2. 核心：指標治理與 `core.metrics` 工具套件 (Standardization)
+
+  "當然，做這個 SDK 也是為了解決微服務架構下的一個常見痛點：指標治理。
+
+  如果讓每個服務各自埋點，很快就會面臨指標命名混亂、Tag 定義不一致的問題（例如有人用 service_name，有人用 app_name），這會導致 Grafana
+  的聚合查詢變得非常痛苦。
+
+  因此，我透過 SDK 實施了強制規範。我利用 Java 的 Enum 特性設計了 ExchangeMetric 統一管理類別。開發者在埋點時，不需要手打字串，而是直接引用
+  Enum。這不僅消除了拼寫錯誤，更強制規範了所有指標的命名結構與必要 Tag (如 symbol, type)，為後續的全鏈路監控打下了堅實的數據基礎。"
+
+我在 open.vincentf13.sdk.core.metrics 套件下封裝了一系列高效的工具元件：
+
+   * `MCounter`, `MTimer`, `MGauge`：這些元件並非簡單的 Micrometer 包裝，它們是帶有規範約束的 Facade（門面）。
+   * Enum 強制約束：透過配合 ExchangeMetric 這種枚舉類別，開發者在埋點時不再需要手打字串，而是直接引用枚舉。這從代碼層級強制規範了指標名稱與必要的
+     Tag（如 symbol, type），徹底杜絕了拼寫錯誤與格式衝突。
+
+  這種設計將原本零散的監控行為轉化為『標準化的資產管理』，確保了全系統監控數據的可聚合性與一致性。"
 
 
+  3. 落地：業務觀測與壓測價值 (Observability & Load Testing Value)
 
-第二部分："在微服務架構下，如果讓每個服務各自隨意埋點，很快就會面臨指標命名混亂、Tag 定義不一致的問題，導致 Grafana 儀表盤難以維護。
+ "基於這套標準化工具，我們實作了從業務到系統的全鏈路觀測能力，這對於高併發系統的效能壓測與瓶頸分析具有決定性的價值：
 
-因此，我首先開發了一個**通用的監控 SDK**。我利用 Java 的 Enum (枚舉) 特性，設計了 `ExchangeMetric` 這樣的統一管理類別。開發者在使用時，不需要手打字串，而是直接引用 Enum，這樣強制規範了指標名稱和必要的 Tag (例如 `symbol`, `type`)。
+   * 業務鏈路監控：我們能即時觀測訂單流的 QPS（按狀態分佈）、撮合引擎的 TPS，以及精確到微秒級的 Max
+     Latency。這讓我們能量化系統在極端負載下的響應能力。
+   * 效能瓶頸診斷：利用 MGauge 監控撮合引擎的執行緒池（Thread Pool）狀態。在進行負載測試時，這套指標能幫助我們快速判斷瓶頸：是 CPU
+     資源不足，還是特定『熱點交易對』導致的任務佇列堆積（Queue Depth 增加）。
 
-第三部分：
+  這種深度觀測能力，讓監控不再只是被動的報警，而是成為了我們優化系統效能、進行容量規劃的核心依據。這證明了我們的監控體系具備了從業務現象直接下鑽到代
+  碼與執行緒層級的診斷潛力。"
 
 
 ### 2. 核心：業務監控與 Thread Pool 深度觀測 (Business & Performance)
