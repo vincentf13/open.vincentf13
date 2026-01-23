@@ -37,6 +37,8 @@
 
   這種設計將原本零散的監控行為轉化為『標準化的資產管理』，確保了全系統監控數據的可聚合性與一致性。"
 
+
+4. 
  * 高效能封裝 (High-Performance Facade)：透過 sdk.core.metrics (如 MTimer, MCounter) 封裝
      Micrometer。針對高頻路徑實作實例快取機制，例如 MTimer#record 封裝了 Runnable/Callable 並從快取中複用 Timer
      實例，極小化監控對業務效能的干擾。
