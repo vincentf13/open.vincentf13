@@ -37,7 +37,14 @@
 
   這種設計將原本零散的監控行為轉化為『標準化的資產管理』，確保了全系統監控數據的可聚合性與一致性。"
 
+ * 高效能封裝 (High-Performance Facade)：透過 sdk.core.metrics (如 MTimer, MCounter) 封裝
+     Micrometer。針對高頻路徑實作實例快取機制，例如 MTimer#record 封裝了 Runnable/Callable 並從快取中複用 Timer
+     實例，極小化監控對業務效能的干擾。
 
+在撮合引擎這種每秒處理數萬次操作的高頻路徑中，如果每次埋點都去執行指標的尋找或註冊，會產生不必要的對象分配與 GC
+  壓力。透過快取機制，MTimer 可以直接從快取中取得已存在的 Timer
+  實例並開始計時。這確保了我們在獲得高精度監控數據的同時，幾乎不會對業務系統的延遲造成影響。這對於追求極致效能的交易系統來說是至關重要
+  的設計。"
 
 ### 2. 核心：業務監控與 Thread Pool 深度觀測 (Business & Performance)
 

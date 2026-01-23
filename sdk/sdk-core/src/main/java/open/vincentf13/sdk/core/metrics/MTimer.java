@@ -32,12 +32,8 @@ public final class MTimer {
      */
     public static <T> T record(IMetric metric, Callable<T> c, String... tags) throws Exception {
         MetricValidator.validate(metric, tags);
-        Timer.Sample s = Timer.start(Metrics.getRegistry());
-        try {
-            return c.call();
-        } finally {
-            s.stop(get(metric.getName(), tags));
-        }
+        // 直接從快取取得 Timer 並使用其 record 方法，避免 Timer.start() 產生額外的 Sample 物件分配
+        return get(metric.getName(), tags).recordCallable(c);
     }
 
     /**
@@ -45,12 +41,8 @@ public final class MTimer {
      */
     public static void record(IMetric metric, Runnable r, String... tags) {
         MetricValidator.validate(metric, tags);
-        Timer.Sample s = Timer.start(Metrics.getRegistry());
-        try {
-            r.run();
-        } finally {
-            s.stop(get(metric.getName(), tags));
-        }
+        // 直接從快取取得 Timer 並使用其 record 方法，避免 Timer.start() 產生額外的 Sample 物件分配
+        get(metric.getName(), tags).record(r);
     }
 
     private static Timer get(String name, String... tags) {
