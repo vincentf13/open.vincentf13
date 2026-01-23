@@ -1,12 +1,42 @@
-# 專案亮點：K8s 開發環境自動化與 CI/CD 效能提升 (DevOps Automation)
+# 專案亮點：K8s 開發環境自動化與 DevOps 效能提升 (DevOps Automation)
 
-## 履歷專案描述 (Project Description for Resume)
+## PPT 投影片內容建議 (Slide Content)
 
-> 建議加入「開發效能提升」或「DevOps」區塊。
+### 中文版 (Chinese)
 
-*   **開發環境標準化與自動化**: 設計 `cluster-up` 自動化腳本，實現 **"One-Click"** 本地 K8s 集群建置。透過 CoreDNS/Ingress 統一了本地與線上的 K8s 服務域名，讓配置檔實現 **"Write Once, Run Anywhere"**，消除了環境差異帶來的配置維護成本。
-*   **獨立聯調與除錯環境**: 為前端與測試人員構建了可獨立連入的本地開發環境。透過 Ingress 暴露服務，前端可直接對接後端開發者的本地集群進行聯調，無需等待共用 Staging 環境更新，大幅縮短了前後端迭代週期。
-*   **智慧化 CI/CD 流水線**: 優化 CI/CD 流程，實作 **代碼變更偵測 (Change Detection)** 機制。系統能自動識別 Git Commit 中受影響的模組，**僅構建並部署有變動的微服務**，告別了傳統 Jenkins 需要手動逐一選擇服務部署的低效模式，構建時間縮短 60%。
+**標題：K8s 開發環境自動化與 DevOps 效能提升**
+
+**1. 極速建置與除錯**
+*   **一鍵建置**: 設計 `cluster-up` 自動化腳本，**10 分鐘內**完成微服務與基礎設施 (MySQL/Kafka) 依賴建置，縮短新人 Onboarding 時間 90%。
+*   **本地斷點**: 整合 **Telepresence** 實現本地 IDE 直連 K8s 集群，支援**斷點除錯**線上流量，解決微服務難以本地調試痛點。
+
+**2. 環境一致性與協作**
+*   **統一配置**: 透過 CoreDNS/Ingress 統一本地與生產環境域名，實現 **"Write Once, Run Anywhere"**，徹底消除環境差異導致的配置維護成本。
+*   **獨立聯調**: 每個開發者的本地集群皆可作為獨立聯調環境，前端/QA 可直接連入，解除對共用 Staging 環境的依賴阻塞。
+
+**3. 智慧 CI/CD**
+*   **變更偵測**: 優化 GitOps 流程，實作代碼變更偵測機制。
+*   **精準部署**: 自動識別 Git Commit 影響範圍，**僅構建並部署變更服務**，告別全量重跑，構建效率提升 60%。
+
+---
+
+### 英文版 (English)
+
+**Title: K8s Automation & High-Velocity DevOps**
+
+**1. Automation & Debugging**
+*   **One-Click Cluster**: Developed `cluster-up` script to provision microservices & infrastructure dependencies (MySQL/Kafka) in **under 10 mins**, reducing onboarding time by 90%.
+*   **Local Breakpoints**: Integrated **Telepresence** to bridge local IDEs with K8s clusters, enabling live **breakpoint debugging** and solving local microservice testing challenges.
+
+**2. Consistency & Collaboration**
+*   **Unified Config**: Standardized K8s domains across local and production environments via CoreDNS/Ingress, achieving **"Write Once, Run Anywhere"** configuration.
+*   **Independent Staging**: Enabled local clusters to serve as isolated staging environments for Frontend/QA, removing bottlenecks on shared testing servers.
+
+**3. Smart CI/CD Pipeline**
+*   **Change Detection**: Optimized GitOps pipelines with intelligent code change detection.
+*   **Precision Deployment**: Automatically identifies impacted modules in Git commits to **build and deploy only changed services**, improving build efficiency by 60%.
+
+---
 
 ---
 
