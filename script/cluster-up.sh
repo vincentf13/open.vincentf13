@@ -339,8 +339,21 @@ configure_argocd() {
     sleep 2
   done
   
-  printf "[%s] Waiting for argocd-server rollout...\n" "$(date +%T)"
+  printf "[%s] Waiting for initial argocd-server rollout...\n" "$(date +%T)"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=600s
+  
+  # --- Enable Anonymous Admin Access ---
+  printf "[%s] Enabling ArgoCD anonymous admin access...\n" "$(date +%T)"
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd patch configmap argocd-cm --type merge -p '{"data":{"users.anonymous.enabled": "true"}}'
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd patch configmap argocd-rbac-cm --type merge -p '{"data":{"policy.csv": "g, anonymous, role:admin"}}'
+  
+  printf "[%s] Restarting argocd-server to apply configuration...\n" "$(date +%T)"
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd rollout restart deployment argocd-server
+  
+  printf "[%s] Waiting for argocd-server restart rollout...\n" "$(date +%T)"
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=600s
+  # -------------------------------------
+
   printf "[%s] argocd-server rollout complete\n" "$(date +%T)"
   
   local port=$(find_free_port)
