@@ -332,14 +332,19 @@ install_argocd() {
 }
 
 configure_argocd() {
+  printf "[%s] Starting configure_argocd\n" "$(date +%T)"
   # Wait for namespace to exist
   until kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get ns argocd >/dev/null 2>&1; do
+    printf "[%s] Waiting for argocd namespace...\n" "$(date +%T)"
     sleep 2
   done
+  
+  printf "[%s] Waiting for argocd-server rollout...\n" "$(date +%T)"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" rollout status deployment/argocd-server -n argocd --timeout=600s
+  printf "[%s] argocd-server rollout complete\n" "$(date +%T)"
   
   local port=$(find_free_port)
-  printf "Port-forwarding ArgoCD to localhost:%s...\n" "$port"
+  printf "[%s] Port-forwarding ArgoCD to localhost:%s...\n" "$(date +%T)" "$port"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd port-forward svc/argocd-server ${port}:443 >/dev/null 2>&1 &
   local pf_pid=$!
   
@@ -347,30 +352,58 @@ configure_argocd() {
   trap "kill $pf_pid 2>/dev/null || true" RETURN EXIT
 
   # Wait for port to be ready
+  printf "[%s] Waiting for port %s to be ready...\n" "$(date +%T)" "$port"
   local retry=0
   until nc -z localhost ${port} >/dev/null 2>&1 || [ $retry -gt 20 ]; do
+    printf "[%s] Port not ready, retrying (%d/20)...\n" "$(date +%T)" "$retry"
     sleep 1
     retry=$((retry+1))
   done
 
+  if [ $retry -gt 20 ]; then
+     printf "[%s] Timed out waiting for port %s\n" "$(date +%T)" "$port"
+     return 1
+  fi
+  printf "[%s] Port %s is ready\n" "$(date +%T)" "$port"
+
+  printf "[%s] Retrieving initial admin password...\n" "$(date +%T)"
   local pw=$(get_secret_value argocd argocd-initial-admin-secret password)
   
   # Login with retry
+  printf "[%s] Logging in to ArgoCD...\n" "$(date +%T)"
   retry=0
   until argocd login localhost:${port} --username admin --password "$pw" --insecure --grpc-web >/dev/null 2>&1 || [ $retry -gt 10 ]; do
+    printf "[%s] Login failed, retrying (%d/10)...\n" "$(date +%T)" "$retry"
     sleep 2
     retry=$((retry+1))
   done
 
+  if [ $retry -gt 10 ]; then
+     printf "[%s] Failed to login to ArgoCD after retries\n" "$(date +%T)"
+     return 1
+  fi
+  printf "[%s] Successfully logged in\n" "$(date +%T)"
+
   # Check and create app with better error visibility in log
+  printf "[%s] Checking for 'gitops' app...\n" "$(date +%T)"
   if ! argocd app get gitops --grpc-web >/dev/null 2>&1; then
+    printf "[%s] 'gitops' app not found. Creating...\n" "$(date +%T)"
     retry=0
     until argocd app create gitops --repo https://github.com/vincentf13/GitOps.git --path k8s --dest-server https://kubernetes.default.svc --dest-namespace default --sync-policy automated --grpc-web || [ $retry -gt 5 ]; do
-      echo "Retrying ArgoCD app creation (attempt $((retry+1)))..."
+      printf "[%s] Retrying ArgoCD app creation (attempt $((retry+1)))... Check error output above if visible.\n" "$(date +%T)"
       sleep 10
       retry=$((retry+1))
     done
+    if [ $retry -gt 5 ]; then
+        printf "[%s] Failed to create 'gitops' app\n" "$(date +%T)"
+    else
+        printf "[%s] 'gitops' app created successfully\n" "$(date +%T)"
+    fi
+  else
+    printf "[%s] 'gitops' app already exists\n" "$(date +%T)"
   fi
+  
+  printf "[%s] configure_argocd completed\n" "$(date +%T)"
 }
 
 main() {
