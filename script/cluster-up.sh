@@ -321,6 +321,18 @@ apply_monitoring_stack() {
   wait
 }
 
+install_argocd() {
+  if kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get ns argocd >/dev/null 2>&1; then
+    if [[ $(kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get ns argocd -o jsonpath='{.status.phase}') == "Terminating" ]]; then
+      printf "Waiting for existing argocd namespace to terminate...\n"
+      kubectl "${KUBECTL_CONTEXT_ARGS[@]}" wait --for=delete ns/argocd --timeout=300s
+    fi
+  fi
+  
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" create ns argocd --dry-run=client -o yaml | kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -f -
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+}
+
 configure_argocd() {
   # Wait for namespace to exist
   until kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get ns argocd >/dev/null 2>&1; do
@@ -340,7 +352,7 @@ configure_argocd() {
   local retry=0
   until nc -z localhost ${port} >/dev/null 2>&1 || [ $retry -gt 20 ]; do
     sleep 1
-    ((retry++))
+    retry=$((retry+1))
   done
 
   local pw=$(get_secret_value argocd argocd-initial-admin-secret password)
@@ -349,7 +361,7 @@ configure_argocd() {
   retry=0
   until argocd login localhost:${port} --username admin --password "$pw" --insecure --grpc-web >/dev/null 2>&1 || [ $retry -gt 10 ]; do
     sleep 2
-    ((retry++))
+    retry=$((retry+1))
   done
 
   # Check and create app with better error visibility in log
@@ -358,7 +370,7 @@ configure_argocd() {
     until argocd app create gitops --repo https://github.com/vincentf13/GitOps.git --path k8s --dest-server https://kubernetes.default.svc --dest-namespace default --sync-policy automated --grpc-web || [ $retry -gt 5 ]; do
       echo "Retrying ArgoCD app creation (attempt $((retry+1)))..."
       sleep 10
-      ((retry++))
+      retry=$((retry+1))
     done
   fi
 }
@@ -383,7 +395,7 @@ main() {
   log_step "Applying foundational services"
   apply_infra_clusters & local p1=$!
   run_with_log "ingress-metrics" setup_ingress_and_metrics & local p2=$!
-  run_with_log "argocd-install" bash -c "kubectl create ns argocd --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml" & local p4=$!
+  run_with_log "argocd-install" install_argocd & local p4=$!
   run_with_log "argocd-config" configure_argocd & local p5=$!
 
   # Wait for Ingress Controller to be ready before applying Ingress resources in monitoring stack
