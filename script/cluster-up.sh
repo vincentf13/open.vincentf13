@@ -345,7 +345,8 @@ configure_argocd() {
   # --- Enable Anonymous Admin Access ---
   printf "[%s] Enabling ArgoCD anonymous admin access...\n" "$(date +%T)"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd patch configmap argocd-cm --type merge -p '{"data":{"users.anonymous.enabled": "true"}}'
-  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd patch configmap argocd-rbac-cm --type merge -p '{"data":{"policy.csv": "g, anonymous, role:admin"}}'
+  # Explicitly define a full-access role to avoid issues with built-in role mapping
+  kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd patch configmap argocd-rbac-cm --type merge -p '{"data":{"policy.csv": "p, role:anonymous-admin, *, *, *, allow\ng, anonymous, role:anonymous-admin"}}'
   
   printf "[%s] Restarting argocd-server to apply configuration...\n" "$(date +%T)"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" -n argocd rollout restart deployment argocd-server
