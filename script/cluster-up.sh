@@ -210,8 +210,6 @@ apply_application_manifests() {
     fi
     pids+=($!)
   done
-  kubectl "${KUBECTL_APP_ARGS[@]}" apply -f "$K8S_DIR/service-exchange" &
-  pids+=($!)
   for pid in "${pids[@]}"; do wait "$pid"; done
 }
 
