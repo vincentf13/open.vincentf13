@@ -383,11 +383,15 @@ main() {
   log_step "Applying foundational services"
   apply_infra_clusters & local p1=$!
   run_with_log "ingress-metrics" setup_ingress_and_metrics & local p2=$!
-  apply_monitoring_stack & local p3=$!
   run_with_log "argocd-install" bash -c "kubectl create ns argocd --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml" & local p4=$!
   run_with_log "argocd-config" configure_argocd & local p5=$!
+
+  # Wait for Ingress Controller to be ready before applying Ingress resources in monitoring stack
+  wait "$p2" || { printf '\nIngress controller setup failed.\n' >&2; exit 1; }
+
+  apply_monitoring_stack & local p3=$!
   
-  wait "$p1" "$p2" "$p3" "$p4" "$p5" || { printf '\nFoundational services failed.\n' >&2; exit 1; }
+  wait "$p1" "$p3" "$p4" "$p5" || { printf '\nFoundational services failed.\n' >&2; exit 1; }
 
   log_step "Applying application"
   run_with_log "app-manifests" apply_application_manifests
