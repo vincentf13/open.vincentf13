@@ -9,7 +9,7 @@ name: CI Build and Push
 
 on:
   push:
-    branches: [ "disable" ]
+#    branches: [ "disable" ]
     branches: ["**"]
     # 任何分支推送都觸發流程
 
