@@ -24,7 +24,7 @@ public class ServiceTestApplication {
 
   @GetMapping("/")
   public String hello() {
-    return "Hello from 微服務版 ServiceTest-1!"
+    return "Hello from 微服務版 ServiceTest-0!"
         + "<br/>image.tag = "
         + buildProperties.get("image.tag")
         + "<br/>Build Time: "
