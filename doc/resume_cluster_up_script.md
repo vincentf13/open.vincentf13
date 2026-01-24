@@ -46,6 +46,8 @@ Title: K8s Automation & High-Velocity DevOps
 
 ### 1. 開場：解決新人入職痛點 (Fast Onboarding)
 
+一鍵建置本地的k8s容器化開發集群
+
 "在微服務架構下，新人入職最痛苦的就是搭建環境。我們有十幾個服務，依賴 Kafka, Redis, MySQL 等一堆組件，以前光是跑起來就要兩三天。
 
 為此，我設計了一套 `cluster-up` 自動化腳本。現在新人入職，只需要執行這一個指令，腳本會自動處理 Docker 鏡像拉取、依賴啟動順序（例如等 DB Ready 才起服務），10 分鐘內就能在本地獲得一個完整的 K8s 開發集群。"
@@ -60,7 +62,7 @@ Title: K8s Automation & High-Velocity DevOps
 
 "解決了運行與除錯，我還解決了配置分裂的問題。
 
-以前本地用 `localhost`，線上用 K8s 域名，配置檔要維護兩套，很容易錯。我透過 CoreDNS 和 Ingress 在本地也模擬了完整的 K8s DNS 環境。現在，無論是本地開發還是線上運行，服務間調用統一是 `http://order-service`。我們實現了 『一套配置檔』(One Config) 適用所有環境，徹底消除了環境差異導致的 Bug。"
+以前本地用 `localhost`，線上用 K8s 域名，配置檔要維護兩套，很容易錯。我透過 CoreDNS 和 Ingress 在本地也模擬了完整的 K8s DNS 環境。現在，無論是本地開發還是線上運行，服務間調用統一是 `http://order-service`。我們實現了 『一套配置檔』(One Config) 適用所有環境，徹底消除了環境差異導致的 Bug。也消除了上線時，與運維溝通說明服務架構、溝通配置的時間。"
 
 ### 4. 協作：獨立聯調環境 (Independent Collaboration Env)
 
@@ -70,7 +72,7 @@ Title: K8s Automation & High-Velocity DevOps
 
 ### 5. 自動化：敏捷 CI/CD (Smart CI/CD)
 
-"最後是部署環節。以前改一個小功能，不知道要重啟哪些服務，往往全量重跑，很浪費時間。
+"最後是部署環節。以前改一個小功能，要記得改了哪些服務，一一部署，很浪費時間。
 
 我優化了 CI/CD 流程（基於 GitOps）。腳本會自動分析 Git Diff，精準識別出這次 Commit 修改了哪個模組（例如只改了 `exchange-order`）。Pipeline 就只會構建並部署這一個服務。這實現了真正的敏捷——提交代碼後，系統自動、精準地更新變更部分，無需人工介入。"
 
