@@ -1,31 +1,32 @@
 # Open Exchange Core - 技術展示系列 Ep.1：系統架構與 SDK 設計
 
-**影片長度：** 約 1分30秒 - 2分鐘
-**核心亮點：** 微服務解耦、高併發支撐能力、統一架構治理 (Governance)
+**影片長度：** 約 2 分鐘
+**核心亮點：** 事件驅動架構 (EDA)、內存優先 (Memory-First)、單執行緒模型、SDK 治理
 
 ---
 
-## 1. 系統架構總覽 (Architecture Overview)
+## 1. 系統架構總覽 (System Architecture Overview)
 
-**目標：** 展示系統如何應對高併發流量，以及服務拆分的邏輯。
+**目標：** 展示系統如何透過「非同步事件驅動」與「內存運算」來突破傳統關聯式資料庫的效能瓶頸。
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
-| :--- | :--- | :--- | :--- |
-| 0:00 | **[動態架構圖]**<br>畫面中央是流量入口 Gateway。<br>後方連接四大核心服務：<br>1. **Matching** (撮合)<br>2. **Asset** (資產/帳務)<br>3. **Risk** (風控)<br>4. **Market** (行情) | 這是 Open Exchange Core，一個專為高頻交易設計的虛擬貨幣交易所核心。為了應對每秒數萬筆的下單流量，我們採用了完全解耦的微服務架構。 | 使用 Draw.io 或 Keynote 製作，強調服務間的邊界。 |
-| 0:20 | **[擴展性演示動畫]**<br>當流量上升時，**Matching** 服務方塊分裂成多個實例 (Replica)，標註 "Horizontal Scaling"。<br>Asset 服務保持穩定。 | 這種架構最關鍵的優勢在於「獨立擴展」。當市場行情劇烈波動時，我們可以針對計算密集的「撮合引擎」進行橫向擴容，而不會影響到負責資金安全的資產結算服務，確保了系統在高負載下的穩定性。 | |
+| 時間   | 畫面 (Visual)                                                                                                                                                                                             | 旁白腳本 (Audio)                                                                                                 | 執行建議                            |
+| :--- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------- | :------------------------------ |
+| 0:00 | **[動態全景架構圖]**<br>核心不是 DB，而是 **Kafka** (Message Bus)。<br>服務圍繞在 Kafka 周圍：<br>- Upstream: Gateway, Order<br>- Core: Matching (Cluster), Risk<br>- Downstream: Asset, Market, Position<br>線條顯示數據流動是單向且非同步的。 | 傳統金融系統往往受限於資料庫的鎖機制 (Locking)。Open Exchange Core 採用了徹底的**事件驅動架構 (Event-Driven Architecture)**。                | 強調 Kafka 作為系統的中樞神經。             |
+| 0:20 | **[特寫：熱數據與冷數據分離]**<br>畫面分割為二：<br>🔴 **Hot Path (交易鏈路):** Order -> Matching -> Risk。標註 "In-Memory" & "WAL"。<br>🔵 **Cold Path (查詢/報表):** 數據非同步流入 MySQL/Redis 供查詢。                                        | 我們將「交易」與「查詢」完全分離。核心交易鏈路不觸碰資料庫，而是全內存運算。這使得下單延遲從毫秒級降低到了微秒級。                                                    | 建立 "Memory-First" 的概念。          |
+| 0:35 | **[微觀架構：撮合引擎設計]**<br>透視 `Matching Service` 內部。<br>顯示多個 **Partition (Instrument)**，每個 Partition 只有**一條執行緒 (Single Thread)** 負責處理。<br>沒有 Lock，只有 Queue。                                                   | 為了解決併發競爭，撮合引擎採用**單執行緒模型 (Single-Threaded Model)** 針對每個交易對進行分片。沒有 Context Switch，也沒有鎖競爭，這是系統能支撐單機十萬級 TPS 的秘密。 | 這裡對應 `InstrumentProcessor` 的設計。 |
+|      |                                                                                                                                                                                                         |                                                                                                              |                                 |
 
 ---
 
 ## 2. SDK 設計與架構治理 (SDK Design & Governance)
 
-**目標：** 解釋如何管理數十個微服務，並展示「Spring Boot Starter」的封裝能力。
+**目標：** 解釋在這樣複雜的分佈式環境下，如何維持程式碼的整潔與一致性。
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
-| 0:40 | **[IDE 專案結構特寫]**<br>展開 Project View，聚焦在 `sdk` 模組目錄：<br>- `sdk-core`<br>- `sdk-infra-kafka`<br>- `sdk-infra-redis`<br>- `sdk-auth` | 然而，在微服務架構中，如何維護數十個服務的程式碼一致性是一大挑戰。為了避免重複造輪子，我設計並實作了一套標準化的 SDK。 | 實際錄製 IntelliJ IDEA 的畫面，展開 `sdk` 資料夾。 |
-| 0:55 | **[程式碼展示 - 依賴管理]**<br>打開一個業務服務 (如 `exchange-order`) 的 `pom.xml`。<br>高亮顯示引用 `<artifactId>sdk-infra-kafka</artifactId>`。 | 這些 SDK 基於 Spring Boot Starter 機制封裝。對於業務開發者來說，只需要引入一個 Maven 依賴... | |
-| 1:10 | **[程式碼展示 - 自動配置]**<br>快速切換到 SDK 內部的 `AutoConfiguration` 類別。<br>展示 `@Bean` 配置、攔截器 (Interceptor) 設定。 | ...所有的底層複雜度，包括 Kafka 的序列化配置、Redis 連接池優化、分佈式追蹤 (Tracing) 埋點、以及統一的 Security 認證，都會自動完成配置。 | 這邊要展示 SDK 原始碼，證明是自研封裝而非單純引用。 |
-| 1:25 | **[畫面分割：左邊 Code / 右邊 Log]**<br>左邊是簡單的 Controller 程式碼。<br>右邊是格式整齊統一的 JSON Log (包含 TraceId, SpanId)。 | 這不僅大幅提升了開發效率，更重要的是，它強制統一了全站的日誌格式與監控標準，讓問題排查變得精準且高效。 | 強調「規範」與「治理」的價值。 |
+| 0:50 | **[IDE 專案結構特寫]**<br>展開 `sdk` 目錄，快速掃過：<br>- `sdk-infra-kafka` (處理事件通訊)<br>- `sdk-core` (統一異常與工具)<br>- `sdk-auth` (統一安全)<br>背景淡出架構圖，聚焦代碼。 | 在微服務架構中，基礎設施的複雜度極高。為了讓業務團隊專注於核心邏輯，我開發了一套標準化的 SDK。 | 實際錄製 IntelliJ IDEA 畫面。 |
+| 1:05 | **[程式碼展示：Spring Boot Starter]**<br>左側：`MatchingApplication` 啟動類，乾乾淨淨。<br>右側：SDK 內的 `KafkaAutoConfiguration`，顯示複雜的序列化與重試邏輯被封裝起來。 | 我們利用 **Spring Boot Starter** 機制，將 Kafka 的序列化、Redis 的連接池管理、以及分佈式追蹤 (Tracing) 埋點全部封裝。 | 展示 "Convention over Configuration"。 |
+| 1:20 | **[視覺化效益：Trace ID]**<br>畫面顯示一條 Log：`[TraceId: a1b2c3d4] Processing Order...`<br>接著畫面跳轉到 Grafana/Zipkin，輸入該 ID，顯示完整的跨服務調用鏈路。 | 這不僅消除了重複代碼，更重要的是實現了全鏈路的**可觀測性 (Observability)**。從 Gateway 到撮合再到資產結算，每一個請求都有唯一的 Trace ID 貫穿其中。 | 證明架構的可維護性。 |
 
 ---
 
@@ -33,15 +34,18 @@
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
-| 1:40 | **[回到全景架構圖]**<br>在所有微服務底部，出現一層穩固的基座，標註 "Shared SDK Layer"。 | 透過 SDK 負責底層治理，業務服務專注核心邏輯。這就是 Open Exchange Core 構建高可靠金融系統的基石。 | |
+| 1:40 | **[回到全景架構圖 + 技術堆疊]**<br>下方出現 icon：Java 21, Spring Cloud, Kafka, Docker, K8s。<br>字幕：**Extreme Performance, Rock-Solid Consistency**。 | Open Exchange Core 透過事件驅動與內存計算極大化了效能，並透過 SDK 治理確保了系統的穩健。這是一個為規模化而生的金融交易架構。 | |
 
 ---
 
-## 準備工作清單
+## 準備工作清單 (Action Items)
 
-1.  **IDE 準備**：
-    *   確保 `sdk` 專案編譯通過，無紅色錯誤。
-    *   準備好 `sdk-infra-kafka` (或類似) 的 `AutoConfiguration` 程式碼。
-    *   準備好 `exchange-order` 的 `pom.xml`。
-2.  **架構圖**：
-    *   需要一張清晰的微服務方塊圖，最好能表達出「撮合」與「資產」分開的概念。
+1.  **架構圖繪製 (Draw.io/Keynote)**：
+    *   **圖1 (Macro)**: 中心是 Kafka，周圍是 Service。
+    *   **圖2 (Micro)**: 畫出 `Matching Service` 內部的方塊：`InstrumentProcessor` (Map<Long, Processor>) -> `Single Thread` -> `OrderBook` -> `WAL`。這張圖能展現對源碼的深刻理解。
+2.  **IDE 錄製**：
+    *   打開 `MatchingEngine.java` 展示 `ConcurrentHashMap<Long, InstrumentProcessor>`。
+    *   打開 `InstrumentProcessor.java` 展示 `Executors.newFixedThreadPool(1)` (證明單執行緒)。
+    *   打開 SDK 的 `AutoConfiguration` 類別。
+3.  **Log 準備**：
+    *   啟動服務，發送一筆交易，攔截帶有 TraceId 的 Log 截圖。
