@@ -418,7 +418,7 @@ main() {
   local start_ts=$(date +%s)
   
   printf "\nSelect components to deploy (e.g., 1, 12, 123):\n"
-  printf "  1 -> Default Infra (MySQL, Redis Cluster, Kafka Cluster, Kafka Connect, Redpanda Console)\n"
+  printf "  1 -> Default Infra (MySQL, Redis Cluster, Kafka Cluster, Kafka Connect, Redpanda Console, Nacos)\n"
   printf "  2 -> ArgoCD\n"
   printf "  3 -> Monitoring (Prometheus, Grafana, Alertmanager)\n"
   printf "Enter selection: "
