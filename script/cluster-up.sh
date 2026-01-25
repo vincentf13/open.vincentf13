@@ -20,12 +20,6 @@ export NACOS_DIR="$K8S_DIR/infra-nacos"
 
 # Core application manifests applied to the cluster in order.
 APPLICATION_MANIFESTS=(
-  service-template/deployment.yaml
-  service-template/service.yaml
-  service-template/hpa.yaml
-  service-test/deployment.yaml
-  service-test/service.yaml
-  service-test/hpa.yaml
   ingress.yaml
 )
 
@@ -422,6 +416,14 @@ configure_argocd() {
 
 main() {
   local start_ts=$(date +%s)
+  
+  printf "\nSelect components to deploy (e.g., 1, 12, 123):\n"
+  printf "  1 -> Default Infra (MySQL, Redis Cluster, Kafka Cluster, Kafka Connect, Redpanda Console)\n"
+  printf "  2 -> ArgoCD\n"
+  printf "  3 -> Monitoring (Prometheus, Grafana, Alertmanager)\n"
+  printf "Enter selection: "
+  read -r selection
+  
   parse_args "$@"
   KUBECTL_CONTEXT_ARGS=()
   [[ -n "$CONTEXT" ]] && KUBECTL_CONTEXT_ARGS=("--context" "$CONTEXT")
@@ -437,22 +439,47 @@ main() {
   # Pull images sequentially first to avoid concurrent pull issues and rate limiting
   run_with_log "docker-images" ensure_docker_images
   
-  log_step "Applying foundational services"
-  apply_infra_clusters & local p1=$!
-  run_with_log "ingress-metrics" setup_ingress_and_metrics & local p2=$!
-  run_with_log "argocd-install" install_argocd & local p4=$!
-  run_with_log "argocd-config" configure_argocd & local p5=$!
+  local pids=()
+  local infra_pid=""
+  local ingress_pid=""
 
-  # Wait for Ingress Controller to be ready before applying Ingress resources in monitoring stack
-  wait "$p2" || { printf '\nIngress controller setup failed.\n' >&2; exit 1; }
+  # Group 1: Default Infra (and Global Ingress)
+  if [[ "$selection" == *"1"* ]]; then
+      log_step "Applying Default Infra"
+      apply_infra_clusters & infra_pid=$!
+      pids+=($infra_pid)
+      
+      run_with_log "ingress-metrics" setup_ingress_and_metrics & ingress_pid=$!
+      pids+=($ingress_pid)
+  fi
 
-  apply_monitoring_stack & local p3=$!
+  # Group 2: ArgoCD
+  if [[ "$selection" == *"2"* ]]; then
+      log_step "Applying ArgoCD"
+      run_with_log "argocd-install" install_argocd & pids+=($!)
+      run_with_log "argocd-config" configure_argocd & pids+=($!)
+  fi
   
-  wait "$p1" "$p3" "$p4" "$p5" || { printf '\nFoundational services failed.\n' >&2; exit 1; }
-
-  log_step "Applying application"
-  run_with_log "app-manifests" apply_application_manifests
-
+  # Group 3: Monitoring
+  if [[ "$selection" == *"3"* ]]; then
+      log_step "Applying Monitoring"
+      # If Ingress is being deployed, we must wait for it.
+      if [[ -n "$ingress_pid" ]]; then
+          wait "$ingress_pid" || { printf '\nIngress controller setup failed.\n' >&2; exit 1; }
+      fi
+      apply_monitoring_stack & pids+=($!)
+  fi
+  
+  # Wait for infrastructure if it was started, before applying ingress manifests
+  if [[ -n "$infra_pid" ]]; then
+       wait "$infra_pid"
+       # Apply Ingress YAML only if Group 1 is selected (Foundation)
+       log_step "Applying application ingress"
+       run_with_log "app-manifests" apply_application_manifests
+  fi
+  
+  # Wait for everything else
+  for pid in "${pids[@]}"; do wait "$pid"; done
 
   log_step "Final Summary"
   kubectl "${KUBECTL_CONTEXT_ARGS[@]}" get pods -A
