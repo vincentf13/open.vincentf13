@@ -42,24 +42,44 @@
 ## 2. SDK Core Test: 整合測試標準化 (Standardized Testing)
 
 **模組：** `sdk-core-test`
-**核心價值：** 透過容器化技術，讓整合測試環境與生產環境高度一致 (Production-Like)。
+**核心價值：** 提供「容器化」與「真實環境」的靈活切換，讓整合測試既獨立又可靠。
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
-| :--- | :--- | :--- | :--- |
-| 1:55 | **[IDE 程式碼：BaseIntegrationTest]**<br>顯示一個繼承自 `BaseIntegrationTest` 的業務測試類別。<br>Highlight `@Testcontainers` 註解。 | 在微服務測試中，Mock 外部依賴往往會掩蓋真實問題。`sdk-core-test` 深度整合了 **TestContainers**。開發者只需要繼承 `BaseIntegrationTest`... | |
-| 2:10 | **[動畫：容器啟動]**<br>畫面下方 Terminal 快速滾動。<br>依序亮起圖示：🐬 MySQL, 🧊 Redis, 📨 Kafka (Redpanda)。<br>顯示測試通過的綠色勾勾。 | ...SDK 就會自動在 Docker 中拉起真實的 MySQL、Redis 與 Kafka 實例，並自動注入 Spring Context。這讓開發者能在本地跑通包含完整資料庫與消息隊列交互的整合測試，確保代碼在部署前就擁有生產級的可靠性。 | |
+| 時間   | 畫面 (Visual)                                                                                                                        | 旁白腳本 (Audio)                                                                                                                                    | 執行建議              |
+| :--- | :--------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------- | :---------------- |
+| 2:00 | **[真實環境容器化]**<br>顯示繼承 `BaseIntegrationTest`。<br>動畫演示：Maven Test -> Docker Pull/Run MySQL -> Test Passed。<br>標註：**TestContainers**。 | 在微服務測試中，Mock 外部依賴往往會導致測試與生產行為不一致。`sdk-core-test` 深度整合了 **TestContainers**，讓開發者在本地執行測試時，能自動拉起真實版本的 MySQL、Redis 與 Kafka 容器，使單元測試涵蓋到外部依賴的版本影響。<br> | 強調「版本一致性」與「並行效能」。 |
+| 2:20 | **[靈活環境切換]**<br>顯示設定檔 `application-test.yml`。<br>將 `test.container.enabled: true` 改為 `false`。<br>顯示連接字串自動切換到遠端 Dev DB。             | 更貼心的是，我們設計了環境切換開關。開發者可以透過簡單的配置，在「完全隔離的容器環境」與「真實的開發環境」之間一鍵切換。這在除錯複雜的聯調問題時非常有用，讓開發者既能享受容器化的隔離性，也能在需要時直接連接外部服務進行排查。                                | 強調「靈活切換」的開發體驗。    |
 
 ---
 
-## 3. Infra: 駕馭中間件 (Taming Middlewares)
+### 3. Infra: 駕馭中間件 (Taming Middlewares)
 
-**模組：** `sdk-infra-kafka`, `sdk-infra-mysql`, `sdk-infra-redis`
-**關鍵字：** 批次消費 (Batch Consumer), 死信隊列 (DLQ), 分佈式鎖 (Redisson), 自動填充 (MyBatis Plus)
+**模組：** `sdk-infra-kafka`, `sdk-infra-redis`, `sdk-infra-mysql`
+**核心價值：** 封裝複雜的分佈式模式，提供開箱即用的高效能與高可靠性組件。
 
-*   **待補完內容：**
-    *   **Kafka**: `BatchMessagingMessageConverter` 解決 JSON 二次編碼，`ErrorHandlerFactory` 統一重試策略。
-    *   **Redis**: Redisson 分佈式鎖的封裝，以及自定義的序列化配置。
-    *   **MySQL**: MyBatis Plus 的 `MetaObjectHandler` 自動維護 `created_time`, `updated_time`。
+#### 3.1 Kafka: 可靠性與除錯優化 (Reliability & Debugging)
+
+**設計哲學：** 讓消息處理既高效又透明，拒絕黑盒。
+
+| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
+| :--- | :--- | :--- | :--- |
+| 2:40 | **[RecordInterceptor 與 DoubleDecoding]**<br>顯示 `RecordInterceptor` 代碼。<br>動畫：JSON String `"{\"id\":1}"` 被自動解析為物件。<br>顯示 `ErrorHandlerFactory` 的 DLQ 路由邏輯。 | Kafka 的開發痛點往往在於除錯與反序列化。`sdk-infra-kafka` 內建了 **RecordInterceptor**，能自動識別並修正 JSON 的二次編碼 (Double Decoding) 問題，確保開發者拿到乾淨的物件。同時，我們實現了標準化的 **Dead Letter Queue (DLQ)** 策略，當重試耗盡時，消息會自動路由到 `Topic.DLT`，保證數據不丟失。 | |
+
+#### 3.2 Redis: 效能與分佈式鎖 (Performance & Locks)
+
+**設計哲學：** 解決 Cluster 模式下的痛點，防止緩存雪崩與擊穿。
+
+| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
+| :--- | :--- | :--- | :--- |
+| 3:00 | **[Cluster Pipeline 優化]**<br>顯示 `OpenRedisString.setBatchCluster` 代碼。<br>圖解：Key 依據 Slot 分組 -> 平行發送 Pipeline。<br>顯示 `getOrLoad` 的 Cache-Aside + Jitter 邏輯。 | 在 Redis Cluster 模式下，跨 Slot 的批量操作一直是用戶的痛點。我特別實作了 **Cluster Pipeline** 機制，SDK 會自動計算 Key 的 Slot 並分組並行發送，效能提升數倍。此外，我們封裝了標準的 **Cache-Aside** 模式，並強制加入隨機抖動 (Jitter)，從根本上防止了大規模緩存雪崩的發生。 | |
+| 3:20 | **[Redisson 分佈式鎖]**<br>顯示 `OpenRedissonLock.withLock` 的簡潔調用。<br>背景出現 Redisson 的 Watchdog 機制圖示。 | 對於分佈式鎖，我們封裝了 **Redisson**。開發者不再需要處理繁瑣的 Lease Time 續約邏輯，SDK 內建的 Watchdog 會自動為持有的鎖續命，確保業務執行期間鎖不被異常釋放，實現了真正的安全閉環。 | |
+
+#### 3.3 MySQL: 批量與安全防禦 (Batch & Safety)
+
+**設計哲學：** 極致的寫入效能與最後一道安全防線。
+
+| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
+| :--- | :--- | :--- | :--- |
+| 3:40 | **[Batch Executor 與安全攔截]**<br>顯示 `OpenMybatisBatchExecutor` 代碼。<br>顯示 `BlockAttackInnerInterceptor` 攔截無條件 Delete 語句。 | 在大量數據寫入場景，`sdk-infra-mysql` 提供了基於 MyBatis Batch 模式的 **BatchExecutor**，效能遠超普通的 Loop Insert。同時，為了防止人為失誤，我們預設啟用了 **BlockAttackInterceptor**，任何試圖執行全表更新或刪除的 SQL 都會被 SDK 直接攔截，守住資料庫安全的最後一道防線。 | |
 
 ---
 
