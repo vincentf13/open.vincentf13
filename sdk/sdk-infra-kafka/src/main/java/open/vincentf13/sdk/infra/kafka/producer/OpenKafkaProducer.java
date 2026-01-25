@@ -5,12 +5,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.log.OpenLog;
+import open.vincentf13.sdk.core.validator.OpenValidator;
 import open.vincentf13.sdk.infra.kafka.KafkaEvent;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.slf4j.MDC;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
+import org.springframework.util.StringUtils;
 import org.springframework.util.concurrent.ListenableFuture;
 
 /** Kafka Producer 靜態工具：將 payload 序列化為 bytes，並提供批次送出與自訂 key/header 的彈性。 */
@@ -30,10 +34,17 @@ public final class OpenKafkaProducer {
       String topic, String key, T msg, Map<String, Object> headers) {
     Objects.requireNonNull(topic, "topic");
     Objects.requireNonNull(msg, "msg");
+    
+    // 1. 自動執行 Bean Validation，確保發送數據合法
+    OpenValidator.validateOrThrow(msg);
+
     KafkaTemplate<String, Object> template = requireTemplate();
     try {
       ProducerRecord<String, Object> record = new ProducerRecord<>(topic, key, msg);
+      
+      // 2. 自動注入 Header (包含 Trace Context)
       addHeaders(record, headers);
+      
       OpenLog.debug(
           KafkaEvent.KAFKA_SEND,
           "topic",
@@ -131,6 +142,17 @@ public final class OpenKafkaProducer {
 
   private static void addHeaders(
       ProducerRecord<String, Object> record, Map<String, Object> headers) {
+    // 1. 自動注入 Trace Context
+    String traceId = MDC.get(OpenConstant.HttpHeader.TRACE_ID.value());
+    if (StringUtils.hasText(traceId)) {
+      record.headers().add(OpenConstant.HttpHeader.TRACE_ID.value(), traceId.getBytes(StandardCharsets.UTF_8));
+    }
+    String requestId = MDC.get(OpenConstant.HttpHeader.REQUEST_ID.value());
+    if (StringUtils.hasText(requestId)) {
+      record.headers().add(OpenConstant.HttpHeader.REQUEST_ID.value(), requestId.getBytes(StandardCharsets.UTF_8));
+    }
+
+    // 2. 添加用戶自定義 Header
     if (headers == null || headers.isEmpty()) {
       return;
     }
