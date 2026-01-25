@@ -1,66 +1,100 @@
 # Open Exchange Core - 技術展示系列 Ep.2：SDK 設計與架構治理深度解析
 
-**影片長度：** 約 2.5 - 3 分鐘
-**核心目標：** 展示如何透過模組化的 SDK 實現大規模微服務的治理，強調「約定優於配置」與「統一標準」。
+**總時長預估：** 6 - 8 分鐘
+**核心目標：** 展示如何透過模組化 SDK 實現「依賴即治理」，解決微服務架構中的碎片化與一致性問題。
 
 ---
 
-## 0. 開場 (Intro)
+## 1. SDK Core: 全方位系統基石 (The Comprehensive Foundation)
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) |
-| :--- | :--- | :--- |
-| 0:00 | **[SDK 全景圖]**<br>畫面中央是 `sdk` 父模組，四周發散出子模組圖示：<br>🛡️ Auth<br>🛠️ Core<br>📨 Kafka<br>💾 Infra (MySQL/Redis)<br>🌐 Gateway/MVC | 在微服務架構中，如果沒有強力的治理手段，系統很快就會變成一盤散沙。為了確保 Open Exchange Core 數十個服務的一致性與品質，我設計了一套全方位的 SDK 解決方案。 |
+**模組：** `sdk-core`
+**核心價值：** 提供可觀測性、生命週期治理與數據一致性的統一標準，是所有微服務的共同基因。
 
----
+### 1.1 可觀測性：日誌與監控 (Observability: Log & Metrics)
 
-## 1. 核心基礎設施 (Core & Test)
+**設計哲學：** 標準化埋點與自動上下文注入 (Context Injection)，消除業務代碼中的重複勞動。
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) |
-| :--- | :--- | :--- |
-| 0:20 | **[代碼特寫：OpenLog.java]**<br>顯示 `OpenLog.info(Event, KV)` 的調用。<br>Highlight `StackWalker` 的代碼片段。<br>右側顯示整齊劃一的 JSON Log。 | 首先是 `sdk-core`。我們統一了全站的日誌標準，開發者無需關心格式，只需傳入事件與鍵值對。底層透過 `StackWalker` 自動定位呼叫來源，大幅簡化了代碼，同時保證了日誌的可解析性，為後續的 ELK 分析打好基礎。 |
-| 0:40 | **[測試框架：sdk-core-test]**<br>顯示一個 `IntegrationTest` 類別，繼承自 SDK 提供的 Base Test。<br>一鍵啟動 TestContainers (MySQL/Kafka)。 | 而在 `sdk-core-test` 中，我們封裝了 TestContainers 與 JUnit 5。開發者只需要一個註解，就能自動拉起真實的 MySQL 與 Kafka 容器進行整合測試，確保了測試環境與生產環境的高度一致。 |
+| 時間   | 畫面 (Visual)                                                                                                                                        | 旁白腳本 (Audio)                                                                                                                                                                                                   | 執行建議 |
+| :--- | :------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--- |
+| 0:00 | **[Log 配置與效能優化]**<br>顯示 `log4j2-spring.xml` 的 AsyncLogger 配置。<br>顯示 `OpenLog.info(Event)` 代碼。<br>Log 輸出：`[TraceId: 123][ReqId: abc] Order Created` | 在高併發系統中，日誌往往是效能殺手。我們基於 **Log4j2 異步日誌** 進行了深度調優，並透過 `OpenLog` 強制推行結構化日誌。更關鍵的是，MDC 自動注入了 Trace ID 與 Request ID，確保每一行日誌都能精確關聯到具體的請求上下文，讓分佈式排錯不再是大海撈針。                                                             |      |
+| 0:25 | **[監控指標封裝]**<br>顯示 `MCounter` 和 `MTimer` 的源碼。<br>右側顯示 Prometheus 中漂亮的 Metrics 曲線。                                                                  | 對於監控，我們封裝了 Micrometer 提供了五種常見指標的靜態工具。開發者無需手動注入 Registry，只需一行代碼即可完成標準化的業務指標埋點。這些指標經過標籤化 (Tagging) 設計，讓開發者使用統一的指標命名與label進行埋點，讓Grafanfa的聚合查詢，不再會遇到雜亂無章的指標數據。並且內部也對Micrometer 內部的指標查詢與註冊進行優化，這在每秒萬級TPS的交易系統裡至關重要。 |      |
 
----
+### 1.2 系統治理：啟動與異常 (Governance: Bootstrap & Exception)
 
-## 2. 基礎設施封裝 (Infra: Kafka, MySQL, Redis)
+**設計哲學：** 統一生命週期與錯誤上下文，讓系統行為可預測、可追蹤。
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) |
-| :--- | :--- | :--- |
-| 0:55 | **[Kafka 深度封裝]**<br>顯示 `ConfigKafkaConsumer.java`。<br>Highlight `BatchMessagingMessageConverter` 與 `ErrorHandlerFactory`。<br>動畫顯示：Message -> Convert -> Retry -> DLQ。 | 針對消息隊列，`sdk-infra-kafka` 提供了開箱即用的 Batch 消費模式與 Dead Letter Queue (DLQ) 機制。我們還特別處理了 JSON 二次編碼問題，並內建了統一的錯誤重試策略，讓業務開發者無需為 Kafka 的複雜配置煩惱。 |
-| 1:15 | **[數據持久層]**<br>快速切換 `sdk-infra-mysql` (MyBatis Plus 配置) 與 `sdk-infra-redis` (Redisson 分佈式鎖)。 | 對於 MySQL 與 Redis，我們分別封裝了 MyBatis Plus 的自動填充邏輯與 Redisson 的分佈式鎖實現。這不僅減少了重複代碼，更統一了資料庫的 Audit 欄位維護與緩存的序列化標準。 |
+| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
+| :--- | :--- | :--- | :--- |
+| 0:45 | **[啟動與熱加載]**<br>顯示 `Bootstrap` 包下的 `StartupListener`。<br>Console 打印出標準的 Banner 和環境檢查資訊。 | 透過 `Bootstrap` 模組，我們統一了所有微服務的啟動流程，包括環境變數檢查、緩存預熱以及熱加載程序的初始化。這確保了無論是哪個服務，其啟動行為都是標準且可預測的。 | |
+| 1:00 | **[異常上下文注入]**<br>顯示 `OpenException` 拋出時自動捕捉 TraceId。<br>顯示 `OpenErrorCode` 介面定義。 | 錯誤處理方面，我們設計了統一的 `OpenException` 基類與 `OpenErrorCode` 介面。當異常發生時，SDK 會自動將 Trace ID 與 Request ID 注入到錯誤上下文中，並支持附加 Meta 資訊。這讓運維人員看到錯誤日誌時，能立刻獲得完整的除錯線索，而無需再回頭翻查請求參數。 | |
 
----
+### 1.3 數據一致性與審計 (Data Consistency & Audit)
 
-## 3. 安全與認證 (Auth & Security)
+**設計哲學：** 確保數據在傳輸、驗證與記錄過程中的絕對準確與安全。
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) |
-| :--- | :--- | :--- |
-| 1:30 | **[安全架構圖]**<br>Gateway (Auth-JWT 解析) -> 內部服務 (傳遞 UserContext)。<br>顯示 `sdk-auth-server` 發放 Token 的流程。 | 安全性是金融系統的命脈。`sdk-auth` 模組實現了基於 JWT 的無狀態認證。我們區分了 `sdk-auth-server`（負責發放）與 `sdk-auth-jwt`（負責解析），確保只有 Gateway 需要處理繁重的驗簽工作，內部服務則透過 ThreadLocal 無縫傳遞用戶上下文。 |
-
----
-
-## 4. 微服務生態 (Gateway, MVC, OpenFeign, Nacos)
-
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) |
-| :--- | :--- | :--- |
-| 1:50 | **[Spring Cloud 整合]**<br>顯示 `sdk-spring-mvc` 的 `GlobalExceptionHandler`。<br>顯示 `sdk-spring-cloud-openfeign` 的攔截器 (傳遞 TraceId)。 | 在微服務通訊層面，`sdk-spring-mvc` 統一了全站的 API 回應結構與異常處理。同時，我們透過 SDK 對 OpenFeign 與 Gateway 進行了增強，實現了 Trace ID 的自動透傳，確保了調用鏈路的可追蹤性。 |
-| 2:10 | **[DevTool 與 Resilience]**<br>顯示 `sdk-devtool` 的 Swagger/OpenAPI 自動生成。<br>顯示 `sdk-library-resilience4j` 的熔斷配置。 | 最後，我們還提供了 `sdk-devtool` 自動生成 API 文件，以及 `sdk-library-resilience4j` 提供統一的熔斷與限流配置。這些模組共同構成了一個強大的微服務治理底座。 |
+| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
+| :--- | :--- | :--- | :--- |
+| 1:20 | **[ID 與 Mapper]**<br>顯示 `Snowflake` ID 生成代碼。<br>顯示 `ObjectMapperConfig` (Fail on primitive null, BigDecimal)。 | 在數據層面，我們整合了 **Yitter 雪花算法** 生成全局唯一 ID。同時，針對金融數據的敏感性，我們嚴格定制了 Jackson 的序列化規則：強制檢查重複 Key、禁止 null 轉 0、並確保 BigDecimal 的精度在傳輸過程中絲毫無損。 | |
+| 1:40 | **[審計與驗證]**<br>顯示 `OpenObjectDiff.diff(old, new)` 的結果 JSON。<br>顯示 `OpenValidator` 的 Group 校驗代碼。 | 為了滿足審計需求，我開發了 **`OpenObjectDiff`** 工具，能高效比對物件差異並生成 Delta JSON，這在記錄操作日誌時極為強大。此外，透過 `OpenValidator` 的 Group 分組設計，我們能在 CRUD 不同階段，對 Domain、DTO 與持久化物件執行精確且標準化的參數校驗。 | |
 
 ---
 
-## 5. 總結 (Wrap-up)
+## 2. SDK Core Test: 整合測試標準化 (Standardized Testing)
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) |
-| :--- | :--- | :--- |
-| 2:30 | **[回到 SDK 全景圖]**<br>文字浮現：**Standardization (標準化)**, **Efficiency (效率)**, **Quality (品質)**。 | 總結來說，這套 SDK 實現了「依賴即治理」。它讓業務團隊能專注於核心邏輯，同時確保了整個 Open Exchange Core 系統具備金融級的穩定性與可維護性。 |
+**模組：** `sdk-core-test`
+**核心價值：** 透過容器化技術，讓整合測試環境與生產環境高度一致 (Production-Like)。
+
+| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
+| :--- | :--- | :--- | :--- |
+| 1:55 | **[IDE 程式碼：BaseIntegrationTest]**<br>顯示一個繼承自 `BaseIntegrationTest` 的業務測試類別。<br>Highlight `@Testcontainers` 註解。 | 在微服務測試中，Mock 外部依賴往往會掩蓋真實問題。`sdk-core-test` 深度整合了 **TestContainers**。開發者只需要繼承 `BaseIntegrationTest`... | |
+| 2:10 | **[動畫：容器啟動]**<br>畫面下方 Terminal 快速滾動。<br>依序亮起圖示：🐬 MySQL, 🧊 Redis, 📨 Kafka (Redpanda)。<br>顯示測試通過的綠色勾勾。 | ...SDK 就會自動在 Docker 中拉起真實的 MySQL、Redis 與 Kafka 實例，並自動注入 Spring Context。這讓開發者能在本地跑通包含完整資料庫與消息隊列交互的整合測試，確保代碼在部署前就擁有生產級的可靠性。 | |
 
 ---
 
-## 準備工作清單 (Action Items)
+## 3. Infra: 駕馭中間件 (Taming Middlewares)
 
-1.  **代碼準備**：
-    *   `OpenLog.java`: 展示 `resolveCallerClass` 方法。
-    *   `ConfigKafkaConsumer.java`: 展示 `ErrorHandlerFactory`。
-    *   `GlobalExceptionHandler.java`: 展示統一異常回傳 `Result<T>`。
-2.  **圖表**：
-    *   繪製一張 SDK 依賴樹狀圖，視覺上很有衝擊力。
+**模組：** `sdk-infra-kafka`, `sdk-infra-mysql`, `sdk-infra-redis`
+**關鍵字：** 批次消費 (Batch Consumer), 死信隊列 (DLQ), 分佈式鎖 (Redisson), 自動填充 (MyBatis Plus)
+
+*   **待補完內容：**
+    *   **Kafka**: `BatchMessagingMessageConverter` 解決 JSON 二次編碼，`ErrorHandlerFactory` 統一重試策略。
+    *   **Redis**: Redisson 分佈式鎖的封裝，以及自定義的序列化配置。
+    *   **MySQL**: MyBatis Plus 的 `MetaObjectHandler` 自動維護 `created_time`, `updated_time`。
+
+---
+
+## 4. Auth: 金融級安全架構 (Security Architecture)
+
+**模組：** `sdk-auth`, `sdk-auth-jwt`, `sdk-auth-server`
+**關鍵字：** 無狀態認證 (Stateless Auth), JWT 簽發與解析, 上下文傳遞 (ThreadLocal)
+
+*   **待補完內容：**
+    *   架構職責分離：`auth-server` (發證) vs `auth-jwt` (驗證)。
+    *   `UserContext` 的設計：如何在內部服務間無感傳遞用戶資訊 (ThreadLocal)。
+    *   Gateway 層的統一鑑權攔截。
+
+---
+
+## 5. Microservice Stack: 溝通與治理 (Communication & Governance)
+
+**模組：** `sdk-spring-cloud-gateway`, `sdk-spring-mvc`, `sdk-spring-cloud-openfeign`, `sdk-spring-cloud-alibaba-nacos`
+**關鍵字：** 統一響應體 (Result<T>), 全局異常處理 (Global Exception Handler), TraceId 透傳, 服務發現
+
+*   **待補完內容：**
+    *   **MVC**: `GlobalExceptionHandler` 與 `Result<T>` 統一 API 格式。
+    *   **Feign**: RequestInterceptor 如何自動將 Header (如 TraceId, UserID) 傳遞給下游。
+    *   **Gateway**: GlobalFilter 實現的統一入口邏輯。
+    *   **Nacos**: 統一的配置中心載入邏輯。
+
+---
+
+## 6. Utilities & Resilience: 效能與韌性 (Efficiency & Resilience)
+
+**模組：** `sdk-devtool`, `sdk-library-resilience4j`
+**關鍵字：** 自動文檔 (Swagger/OpenAPI), 熔斷限流 (Circuit Breaker/Rate Limiter)
+
+*   **待補完內容：**
+    *   **DevTool**: 如何自動掃描 Controller 生成標準化 API 文件。
+    *   **Resilience4j**: 統一的熔斷配置策略 (CircuitBreakerConfig)，防止雪崩效應。
+
+---
