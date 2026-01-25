@@ -56,13 +56,15 @@
 **模組：** `sdk-infra-mysql`, `sdk-infra-redis`, `sdk-infra-kafka`
 **核心價值：** 封裝複雜的分佈式模式，提供開箱即用的高效能與高可靠性組件。
 
-#### 3.1 MySQL: 批量與安全防禦 (Batch & Safety)
+#### 3.1 MySQL: 基礎設施統一管理與模式 (Infra Management & Patterns)
 
-**設計哲學：** 極致的寫入效能與最後一道安全防線。
+**設計哲學：** 統一的數據存取配置、極致的寫入效能與最後一道安全防線。
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
-| :--- | :--- | :--- | :--- |
-| 2:40 | **[Batch Executor 與安全攔截]**<br>顯示 `OpenMybatisBatchExecutor` 代碼。<br>顯示 `BlockAttackInnerInterceptor` 攔截無條件 Delete 語句。 | 在大量數據寫入場景，`sdk-infra-mysql` 提供了基於 MyBatis Batch 模式的 **BatchExecutor**，效能遠超普通的 Loop Insert。同時，為了防止人為失誤，我們預設啟用了 **BlockAttackInterceptor**，任何試圖執行全表更新或刪除的 SQL 都會被 SDK 直接攔截，守住資料庫安全的最後一道防線。 |
+| 時間   | 畫面 (Visual)                                                                                              | 旁白腳本 (Audio)                                                                                                                                                      | 執行建議       |
+| :--- | :------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------- |
+| 2:40 | **[MyBatis 與多資料源管理]**<br>顯示 `MybatisPlusConfig` 與 `DynamicDataSource` 配置。<br>展示 `TypeHandler` 與 SQL 攔截器。 | 在資料庫層面，`sdk-infra-mysql` 統一管理了 MyBatis Plus 與 **Dynamic Datasource**。我們封裝了通用的 TypeHandler 與攔截器，實現了讀寫分離與分庫分表對業務代碼的完全透明。開發者只需專注於 SQL 撰寫，底層的資料源切換與數據格式轉換都由 SDK 自動處理。 | 先提管理，再提透明。 |
+| 2:50 | **[Batch 模式與安全防禦]**<br>顯示 `OpenMybatisBatchExecutor` 代碼。<br>顯示 `BlockAttackInnerInterceptor` 攔截 SQL。     | 針對大量數據寫入，我們提供了基於 MyBatis Batch 模式的 **BatchExecutor**，效能遠超普通的單筆插入。<br><br>同時，為了防止意外，我們預設啟用了 **BlockAttackInterceptor**，任何全表更新或刪除的 SQL 都會被 SDK 直接攔截，守住資料庫安全的最後一道防線。 |            |
+| 3:00 | **[Outbox 與 Retry 模式]**<br>顯示 `MqOutboxRepository` 與 `RetryTaskRepository` 表結構。                          | 此外，SDK 標準化了 **Transactional Outbox** 與 **Retry Task** 模式。每個微服務共享相同的表結構與重試處理邏輯，確保了 DB 操作與 MQ 發送的強原子性，這讓原本複雜的分佈式事務開發變得極其簡便且高可靠。                                     | 強調開發簡便性。   |
 
 #### 3.2 Redis: 效能與分佈式鎖 (Performance & Locks)
 
