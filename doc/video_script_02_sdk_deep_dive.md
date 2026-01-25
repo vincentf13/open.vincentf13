@@ -66,14 +66,15 @@
 | 2:50 | **[Batch 模式與安全防禦]**<br>顯示 `OpenMybatisBatchExecutor` 代碼。<br>顯示 `BlockAttackInnerInterceptor` 攔截 SQL。     | 針對大量數據寫入，我們提供了基於 MyBatis Batch 模式的 **BatchExecutor**，效能遠超普通的單筆插入。<br><br>同時，為了防止意外，我們預設啟用了 **BlockAttackInterceptor**，任何全表更新或刪除的 SQL 都會被 SDK 直接攔截，守住資料庫安全的最後一道防線。 |            |
 | 3:00 | **[Outbox 與 Retry 模式]**<br>顯示 `MqOutboxRepository` 與 `RetryTaskRepository` 表結構。                          | 此外，SDK 標準化了 **Transactional Outbox** 與 **Retry Task** 模式。每個微服務共享相同的表結構與重試處理邏輯，確保了 DB 操作與 MQ 發送的強原子性，這讓原本複雜的分佈式事務開發變得極其簡便且高可靠。                                     | 強調開發簡便性。   |
 
-#### 3.2 Redis: 效能與分佈式鎖 (Performance & Locks)
+#### 3.2 Redis: 雙引擎管理與模板化開發 (Dual Engine & Templates)
 
-**設計哲學：** 解決 Cluster 模式下的痛點，防止緩存雪崩與擊穿。
+**設計哲學：** 統一管理 Lettuce 與 Redisson，透過模板化代碼消除分佈式環境下的併發隱患。
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
-| 3:00 | **[Cluster Pipeline 優化]**<br>顯示 `OpenRedisString.setBatchCluster` 代碼。<br>圖解：Key 依據 Slot 分組 -> 平行發送 Pipeline。<br>顯示 `getOrLoad` 的 Cache-Aside + Jitter 邏輯。 | 在 Redis Cluster 模式下，跨 Slot 的批量操作一直是用戶的痛點。我特別實作了 **Cluster Pipeline** 機制，SDK 會自動計算 Key 的 Slot 並分組並行發送，效能提升數倍。此外，我們封裝了標準的 **Cache-Aside** 模式，並強制加入隨機抖動 (Jitter)，從根本上防止了大規模緩存雪崩的發生。 |
-| 3:20 | **[Redisson 分佈式鎖]**<br>顯示 `OpenRedissonLock.withLock` 的簡潔調用。<br>背景出現 Redisson 的 Watchdog 機制圖示。 | 對於分佈式鎖，我們封裝了 **Redisson**。開發者不再需要處理繁瑣的 Lease Time 續約邏輯，SDK 內建的 Watchdog 會自動為持有的鎖續命，確保業務執行期間鎖不被異常釋放，實現了真正的安全閉環。 |
+| 3:10 | **[Lettuce 與 Redisson 統一管理]**<br>顯示 Redis 自動配置類別。<br>顯示 `OpenRedisString` 的各個模板方法。 | 在 Redis 層面，SDK 實現了 **Lettuce 與 Redisson 的統一管理與優化配置**。我們封裝了強大的 `OpenRedisString` 模板，提供了諸如 `getOrLoad` 模式化 Cache-Aside、`setAsync` 異步寫入、以及針對 Cluster 模式深度優化的 `setBatchCluster` 批次處理。 | |
+| 3:25 | **[Cluster 優化與 TTL 抖動]**<br>顯示 `setBatchCluster` 的 Slot 分組邏輯。<br>顯示 `RedisUtil.withJitter`。 | 針對 Redis Cluster 的效能瓶頸，我們特別實現了**自動槽位 (Slot) 路由的批次查詢與寫入**，大幅提升了集群模式下的吞吐量。同時，我們在所有緩存寫入中強制引入了 **TTL 抖動 (Jitter)** 機制，從架構層面杜絕了緩存雪崩的風險。 | |
+| 3:40 | **[Redisson 分佈式鎖模板]**<br>顯示 `OpenRedissonLock.withLock` 調用。 | 對於複雜的分佈式鎖場景，我們透過 `OpenRedissonLock` 提供了簡潔的 `withLock` 模板。它自動處理了鎖的獲取、續約與釋放，並透過 Watchdog 機制確保業務執行的安全性，將分佈式競爭的處理難度降到了最低。 | |
 
 #### 3.3 Kafka: 可靠性與除錯優化 (Reliability & Debugging)
 
