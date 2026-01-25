@@ -127,17 +127,27 @@
 **模組：** `sdk-spring-cloud-gateway`, `sdk-spring-mvc`, `sdk-spring-cloud-openfeign`, `sdk-spring-cloud-alibaba-nacos`
 **核心價值：** 實現全鏈路的上下文透傳、統一的 API 契約與動態的服務治理。
 
-#### 5.1 統一 API 契約與通訊 (Unified API & RPC)
+#### 5.1 Spring MVC: 標準化 Web 層 (Standardized Web Layer)
+
+**模組：** `sdk-spring-mvc`
+**職責定位：** 統一所有微服務的 Web 層行為，確保請求處理的一致性。
+
+| 時間   | 畫面 (Visual)                                                                                                                                                          | 旁白腳本 (Audio)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 執行建議 |
+| :--- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--- |
+| 5:30 | **[攔截器與異常處理]**<br>顯示 `RequestCorrelationFilter` 注入 TraceID。<br>顯示 `CookieConfig` 配置。<br>顯示 `OpenRestExceptionAdvice` 捕捉異常。<br>顯示 `OpenHttpUtils.resolveBearerToken`。 | `sdk-spring-mvc` 是所有微服務 Web 層的標準基石。<br><br>它預設啟用了 `RequestCorrelationFilter`，負責傳遞或自動生成唯一的 Request ID 與 Trace ID，並同步至 MDC 日誌中。<br><br>在效能優化上，它預修飾了所有 Web 請求：包括自動開啟 **Gzip 壓縮**及透過 **ShallowEtag** 實現前端緩存優化的措施來節省流量。<br><br>數據處理上，統一 **UTF-8 編碼** 與 與core統一的 `ObjectMapper` 配置、以及對所有輸入字串自動執行 **Trim** 處理。同時，它標準化了 **Date/Time 格式** 。統一**Cookie 安全策略** (HttpOnly/Lax)，防止常見的安全隱患。<br><br>最重要的是，透過 `GlobalExceptionHandler`，我們實現了全域異常的自動捕獲，對於業務異常傳遞 reqId 與 TradeID 給用戶，提供回報問題時的上下文背景信息。以及多語系 (I18n) 轉換，無論發生何種錯誤，前端收到的永遠是標準化的 JSON 結構與可讀的錯誤訊息。<br><br>此外，內建的 `OpenHttpUtils` 讓開發者能便捷地獲取 Token 與 Header，無需處理繁瑣的 Servlet API。 |      |
+|      |                                                                                                                                                                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |      |
+
+#### 5.2 OpenFeign: 服務間通訊 (Inter-service Communication)
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
-| 5:30 | **[MVC 自動包裝與 Feign 攔截器]**<br>顯示 Controller 僅回傳 POJO。<br>顯示 `DefaultFeignRequestInterceptor` 源碼。<br>動畫：請求從 A 服務帶到 B 服務，Header 中的 TraceId 保持一致。 | 為了極大化開發效率，`sdk-spring-mvc` 透過 `ResponseBodyAdvice` 實現了 API 的自動包裝。開發者只需回傳 POJO，SDK 就會自動封裝成標準的 `Result<T>` 格式。而在服務間調用上，`sdk-spring-cloud-openfeign` 則內建了強大的攔截器，能自動將用戶憑證、Trace ID 以及多語言偏好透傳給下游服務，確保了分佈式調用鏈路的一致性與透明度。 | |
+| 5:45 | **[Feign 攔截器透傳]**<br>顯示 `DefaultFeignRequestInterceptor` 源碼。<br>動畫：請求 A -> B，Header 中的 TraceId, UserId, Language 自動傳遞。 | 當服務需要相互調用時，`sdk-spring-cloud-openfeign` 扮演了關鍵角色。它內建了智慧攔截器，能自動將上游請求的用戶憑證、Trace ID 以及語言偏好，無感地透傳給下游服務。這確保了即便跨越多個微服務，業務上下文依然保持完整，讓分佈式調用像本地方法一樣簡單且可追蹤。 | |
 
-#### 5.2 邊界治理與動態配置 (Gateway & Nacos)
+#### 5.3 邊界治理與動態配置 (Gateway & Nacos)
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
-| 5:50 | **[Gateway 統一入口與 Nacos 配置]**<br>顯示 Gateway 的 GlobalFilter。<br>顯示 Nacos Dashboard 修改配置後，微服務即時生效的日誌。 | 作為系統的唯一門神，`sdk-spring-cloud-gateway` 封裝了統一的入口邏輯，包括請求計時、日誌採集與第一道安全過濾。而這一切服務的動態靈魂都在 `sdk-spring-cloud-alibaba-nacos` 中——我們透過 SDK 統一了服務註冊與配置中心的接入標準，支持配置的一鍵即時刷新，讓系統具備了極強的運行時動態調整能力。 | |
+| 6:00 | **[Gateway 統一入口與 Nacos 配置]**<br>顯示 Gateway 的 GlobalFilter。<br>顯示 Nacos Dashboard 修改配置後，微服務即時生效的日誌。 | 作為系統的唯一門神，`sdk-spring-cloud-gateway` 封裝了統一的入口邏輯，包括請求計時、日誌採集與第一道安全過濾。而這一切服務的動態靈魂都在 `sdk-spring-cloud-alibaba-nacos` 中——我們透過 SDK 統一了服務註冊與配置中心的接入標準，支持配置的一鍵即時刷新，讓系統具備了極強的運行時動態調整能力。 | |
 
 ---
 
