@@ -1,32 +1,32 @@
 # Open Exchange Core - 技術展示系列 Ep.1：系統架構與 SDK 設計
 
-**影片長度：** 約 2 分鐘
-**核心亮點：** 事件驅動架構 (EDA)、內存優先 (Memory-First)、單執行緒模型、SDK 治理
+**影片長度：** 約 2.5 - 3 分鐘
+**核心亮點：** 事件驅動 (EDA)、全內存運算 (In-Memory)、單執行緒模型 (Single-Threaded)、LMAX 架構思想
 
 ---
 
 ## 1. 系統架構總覽 (System Architecture Overview)
 
-**目標：** 展示系統如何透過「非同步事件驅動」與「內存運算」來突破傳統關聯式資料庫的效能瓶頸。
+**目標：** 深入剖析為何傳統架構無法支撐金融級高頻交易，並展示 Open Exchange Core 如何透過架構創新解決此問題。
 
-| 時間   | 畫面 (Visual)                                                                                                                                                                                             | 旁白腳本 (Audio)                                                                                                 | 執行建議                            |
-| :--- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------- | :------------------------------ |
-| 0:00 | **[動態全景架構圖]**<br>核心不是 DB，而是 **Kafka** (Message Bus)。<br>服務圍繞在 Kafka 周圍：<br>- Upstream: Gateway, Order<br>- Core: Matching (Cluster), Risk<br>- Downstream: Asset, Market, Position<br>線條顯示數據流動是單向且非同步的。 | 傳統金融系統往往受限於資料庫的鎖機制 (Locking)。Open Exchange Core 採用了徹底的**事件驅動架構 (Event-Driven Architecture)**。                | 強調 Kafka 作為系統的中樞神經。             |
-| 0:20 | **[特寫：熱數據與冷數據分離]**<br>畫面分割為二：<br>🔴 **Hot Path (交易鏈路):** Order -> Matching -> Risk。標註 "In-Memory" & "WAL"。<br>🔵 **Cold Path (查詢/報表):** 數據非同步流入 MySQL/Redis 供查詢。                                        | 我們將「交易」與「查詢」完全分離。核心交易鏈路不觸碰資料庫，而是全內存運算。這使得下單延遲從毫秒級降低到了微秒級。                                                    | 建立 "Memory-First" 的概念。          |
-| 0:35 | **[微觀架構：撮合引擎設計]**<br>透視 `Matching Service` 內部。<br>顯示多個 **Partition (Instrument)**，每個 Partition 只有**一條執行緒 (Single Thread)** 負責處理。<br>沒有 Lock，只有 Queue。                                                   | 為了解決併發競爭，撮合引擎採用**單執行緒模型 (Single-Threaded Model)** 針對每個交易對進行分片。沒有 Context Switch，也沒有鎖競爭，這是系統能支撐單機十萬級 TPS 的秘密。 | 這裡對應 `InstrumentProcessor` 的設計。 |
-|      |                                                                                                                                                                                                         |                                                                                                              |                                 |
+| 時間   | 畫面 (Visual)                                                                                                                                                                                                                  | 旁白腳本 (Audio)                                                                                                                                                                                                                      | 執行建議                     |
+| :--- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------- |
+| 0:00 | **[對比動畫：傳統 vs 現代]**<br>左邊顯示「傳統架構」：大量請求擠向一個 Database 圖示，DB 出現紅色鎖頭 (Lock)，請求排隊阻塞。<br>右邊顯示「Open Exchange Core」：數據像流水一樣通過管道 (Kafka)，毫無阻礙。                                                                                        | 傳統金融系統往往受限於資料庫的 ACID 鎖機制 (Locking)。當成千上萬筆訂單同時湧入時，資料庫的行級鎖會導致嚴重的資源競爭，讓系統效能直線下降。Open Exchange Core 徹底摒棄了這種模式，採用了**全異步的事件驅動架構 (Event-Driven Architecture)**。                                                                          | 先點出「DB Locking」這個反派角色。   |
+| 0:25 | **[架構特寫：熱冷分離]**<br>畫面將系統切分為上下兩層：<br>🔥 **Hot Path (交易核心)**: Order -> Matching -> Risk。以紅色光流表示，速度極快，標註 **"RAM Only"**。<br>🧊 **Cold Path (查詢/持久化)**: 數據非同步流入 MySQL/Redis。標註 **"Eventual Consistency"**。                       | 我們將「交易」與「查詢」完全分離。在核心的交易鏈路中，**我們完全不觸碰資料庫**，而是採用**全內存運算 (In-Memory Computing)**。這意味著，我們消除了所有磁碟 I/O 的開銷，將下單與撮合的延遲，從傳統的數百毫秒，直接壓縮到了**微秒 (Microseconds)** 級別。                                                                           | 詳細解釋 In-Memory 的價值。      |
+| 0:50 | **[微觀機制：單執行緒模型]**<br>鏡頭深入 CPU 內部視角。<br>左邊：多執行緒 (Multi-thread) 互相搶奪 CPU，頻繁出現 Context Switch (紅色閃爍)。<br>右邊：**單一執行緒 (Single-Thread)** 獨佔 CPU 核心，處理一條長長的佇列 (Queue)，行雲流水。<br>字幕關鍵字：**No Locks, No Context Switch, CPU Affinity**。 | 那麼，如何解決併發衝突？我們採用了反直覺的設計：**單執行緒模型 (Single-Threaded Model)**。針對每一個交易對（如 BTC/USDT），我們分配一個獨立的執行緒進行分片處理。<br><br>在這個模型下，**沒有 Context Switch 的損耗，更沒有任何鎖競爭 (Lock Contention)**。這就是為什麼單一節點能夠支撐十萬級 TPS 的秘密——我們不是讓電腦做得更快，而是**移除了所有讓它變慢的障礙**。 | 這段是核心精華，要把「移除障礙」這個哲學講出來。 |
+| 1:20 | **[彈性擴展演示]**<br>畫面顯示 `Matching Engine`。<br>隨著流量增加，系統自動生成新的 `Instrument Processor` 分配給不同的 CPU Core。<br>Gateway 則像無狀態服務一樣隨意複製。                                                                                                 | 這種架構不僅快，而且具備極致的彈性。Gateway 可以無限制橫向擴展，而撮合引擎則透過「交易對分片」實現資源隔離。某個熱門幣種的流量爆發，絕不會拖累整個交易所的運行。                                                                                                                                              | 補充擴展性的話題。                |
 
 ---
 
 ## 2. SDK 設計與架構治理 (SDK Design & Governance)
 
-**目標：** 解釋在這樣複雜的分佈式環境下，如何維持程式碼的整潔與一致性。
+**目標：** 展示在如此高效但複雜的架構下，如何透過標準化手段降低開發難度。
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
-| 0:50 | **[IDE 專案結構特寫]**<br>展開 `sdk` 目錄，快速掃過：<br>- `sdk-infra-kafka` (處理事件通訊)<br>- `sdk-core` (統一異常與工具)<br>- `sdk-auth` (統一安全)<br>背景淡出架構圖，聚焦代碼。 | 在微服務架構中，基礎設施的複雜度極高。為了讓業務團隊專注於核心邏輯，我開發了一套標準化的 SDK。 | 實際錄製 IntelliJ IDEA 畫面。 |
-| 1:05 | **[程式碼展示：Spring Boot Starter]**<br>左側：`MatchingApplication` 啟動類，乾乾淨淨。<br>右側：SDK 內的 `KafkaAutoConfiguration`，顯示複雜的序列化與重試邏輯被封裝起來。 | 我們利用 **Spring Boot Starter** 機制，將 Kafka 的序列化、Redis 的連接池管理、以及分佈式追蹤 (Tracing) 埋點全部封裝。 | 展示 "Convention over Configuration"。 |
-| 1:20 | **[視覺化效益：Trace ID]**<br>畫面顯示一條 Log：`[TraceId: a1b2c3d4] Processing Order...`<br>接著畫面跳轉到 Grafana/Zipkin，輸入該 ID，顯示完整的跨服務調用鏈路。 | 這不僅消除了重複代碼，更重要的是實現了全鏈路的**可觀測性 (Observability)**。從 Gateway 到撮合再到資產結算，每一個請求都有唯一的 Trace ID 貫穿其中。 | 證明架構的可維護性。 |
+| 1:40 | **[IDE 專案結構特寫]**<br>展開 `sdk` 目錄，快速掃過：<br>- `sdk-infra-kafka`<br>- `sdk-core`<br>- `sdk-auth`<br>背景淡出架構圖，聚焦代碼。 | 極致的效能往往伴隨著極高的複雜度。為了駕馭這套架構，我開發了一套標準化的 SDK，封裝了所有的底層細節。 | |
+| 1:55 | **[程式碼展示：Spring Boot Starter]**<br>左側：業務邏輯代碼，乾淨簡單。<br>右側：SDK 內的 `KafkaAutoConfiguration`，顯示複雜的序列化、批量發送、冪等性檢查邏輯。 | 透過 Spring Boot Starter 機制，開發者只需要引入依賴，就能獲得經過調優的 Kafka 配置、Redis 連接池以及分佈式鎖實現。這確保了每一行業務代碼，都運行在最優的基礎設施之上。 | |
+| 2:15 | **[視覺化效益：全鏈路追蹤]**<br>畫面顯示 Log：`[TraceId: xxxxx]`。<br>切換到 Zipkin/Grafana，顯示一條橫跨 Gateway -> Matching -> Risk 的完整調用鏈，時間軸精確到微秒。 | 同時，SDK 內建了全鏈路可觀測性。從用戶下單的那一刻起，唯一的 Trace ID 就貫穿了整個分佈式系統，讓我們能精確追蹤每一筆資金在微秒間的流動軌跡。 | |
 
 ---
 
@@ -34,18 +34,14 @@
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
-| 1:40 | **[回到全景架構圖 + 技術堆疊]**<br>下方出現 icon：Java 21, Spring Cloud, Kafka, Docker, K8s。<br>字幕：**Extreme Performance, Rock-Solid Consistency**。 | Open Exchange Core 透過事件驅動與內存計算極大化了效能，並透過 SDK 治理確保了系統的穩健。這是一個為規模化而生的金融交易架構。 | |
+| 2:35 | **[回到全景架構圖 + 關鍵字]**<br>文字依序浮現：<br>1. **Event-Driven**<br>2. **In-Memory**<br>3. **Lock-Free** | Open Exchange Core 的架構哲學很簡單：透過事件驅動解耦系統，透過內存計算極大化效能，透過無鎖設計釋放 CPU 極限。這是一個為速度與準確性而生的金融核心。 | |
 
 ---
 
 ## 準備工作清單 (Action Items)
 
-1.  **架構圖繪製 (Draw.io/Keynote)**：
-    *   **圖1 (Macro)**: 中心是 Kafka，周圍是 Service。
-    *   **圖2 (Micro)**: 畫出 `Matching Service` 內部的方塊：`InstrumentProcessor` (Map<Long, Processor>) -> `Single Thread` -> `OrderBook` -> `WAL`。這張圖能展現對源碼的深刻理解。
-2.  **IDE 錄製**：
-    *   打開 `MatchingEngine.java` 展示 `ConcurrentHashMap<Long, InstrumentProcessor>`。
-    *   打開 `InstrumentProcessor.java` 展示 `Executors.newFixedThreadPool(1)` (證明單執行緒)。
-    *   打開 SDK 的 `AutoConfiguration` 類別。
-3.  **Log 準備**：
-    *   啟動服務，發送一筆交易，攔截帶有 TraceId 的 Log 截圖。
+1.  **動畫製作重點**：
+    *   **Locking vs Flow**: 這是最直觀的對比，可以用 PPT 的「擦去」或「路徑動畫」來製作。
+    *   **CPU 視角**: 找一些 CPU Core 運作的示意圖，強調 "Single Thread" = "專注"。
+2.  **程式碼展示**：
+    *   在介紹 SDK 時，可以打開 `sdk-infra-kafka` 的 `KafkaConsumerFactory` 或類似的配置類，展示裡面對於 `BatchListener` 或 `AckMode` 的設定，證明這是經過深度優化的。
