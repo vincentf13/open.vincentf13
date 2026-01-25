@@ -141,18 +141,12 @@
 
 ---
 
-## 6. Utilities & Resilience: 效能與韌性 (Efficiency & Resilience)
+## 6.  Resilience: 效能與韌性
 
-**模組：** `sdk-devtool`, `sdk-library-resilience4j`
-**核心價值：** 提升開發者體驗 (DX) 與系統的自我保護能力。
+**模組：**  `sdk-library-resilience4j`
+**核心價值：** 系統的自我保護能力。
 
-#### 6.1 DevTool: 自動化文檔 (Swagger Automation)
-
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
-| :--- | :--- | :--- | :--- |
-| 5:30 | **[Swagger UI 自動生成]**<br>顯示 `OpenApiConfig` 代碼。<br>瀏覽器展示自動生成的 API 文件頁面。 | 文件滯後是開發協作的通病。`sdk-devtool` 深度整合了 Swagger/OpenAPI，開發者只需在 Controller 上添加標準註解，系統啟動時便會自動掃描並生成最新的 API 文檔。這確保了前端與後端的對接契約永遠與程式碼保持同步。 | |
-
-#### 6.2 Resilience: 熔斷與限流 (Circuit Breaker & Rate Limiter)
+Resilience: 熔斷與限流 (Circuit Breaker & Rate Limiter)
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
