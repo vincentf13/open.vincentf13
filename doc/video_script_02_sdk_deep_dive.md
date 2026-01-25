@@ -76,13 +76,14 @@
 | 3:25 | **[Cluster 優化與 TTL 抖動]**<br>顯示 `setBatchCluster` 的 Slot 分組邏輯。<br>顯示 `RedisUtil.withJitter`。 | 針對 Redis Cluster 的效能瓶頸，我們特別實現了**自動槽位 (Slot) 路由的批次查詢與寫入**，大幅提升了集群模式下的吞吐量。同時，我們在所有緩存寫入中強制引入了 **TTL 抖動 (Jitter)** 機制，從架構層面杜絕了緩存雪崩的風險。 | |
 | 3:40 | **[Redisson 分佈式鎖模板]**<br>顯示 `OpenRedissonLock.withLock` 調用。 | 對於複雜的分佈式鎖場景，我們透過 `OpenRedissonLock` 提供了簡潔的 `withLock` 模板。它自動處理了鎖的獲取、續約與釋放，並透過 Watchdog 機制確保業務執行的安全性，將分佈式競爭的處理難度降到了最低。 | |
 
-#### 3.3 Kafka: 可靠性與除錯優化 (Reliability & Debugging)
+#### 3.3 Kafka: 端到端的訊息治理 (End-to-End Message Governance)
 
-**設計哲學：** 讓消息處理既高效又透明，拒絕黑盒。
+**設計哲學：** 統一序列化標準與自動化容錯，拒絕黑盒操作。
 
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
-| 3:40 | **[RecordInterceptor 與 DoubleDecoding]**<br>顯示 `RecordInterceptor` 代碼。<br>動畫：JSON String `"{\"id\":1}"` 被自動解析為物件。<br>顯示 `ErrorHandlerFactory` 的 DLQ 路由邏輯。 | Kafka 的開發痛點往往在於除錯與反序列化。`sdk-infra-kafka` 內建了 **RecordInterceptor**，能自動識別並修正 JSON 的二次編碼 (Double Decoding) 問題，確保開發者拿到乾淨的物件。同時，我們實現了標準化的 **Dead Letter Queue (DLQ)** 策略，當重試耗盡時，消息會自動路由到 `Topic.DLT`，保證數據不丟失。 |
+| 3:55 | **[統一配置與生產者]**<br>顯示 Kafka 自動配置類別 (ObjectMapper 注入)。<br>顯示 `OpenKafkaProducer` 發送代碼。<br>Log: `Kafka Send Success`。 | 對於 Kafka，我們接管了生產與消費兩端的配置，強制使用 `sdk-core` 標準化的 ObjectMapper 進行序列化。生產端透過 `OpenKafkaProducer` 封裝了異步發送邏輯，內建了參數校驗與發送日誌記錄，確保消息在源頭就是正確且可追蹤的。 | |
+| 4:10 | **[智慧消費者與容錯]**<br>顯示 Consumer 接收 JSON 自動轉為 Event 物件。<br>動畫：重試 (1s -> 2s -> 4s) -> DLQ。<br>Log: `Consume Failed` -> `Retry` -> `DLQ`。 | 消費端則實現了高度自動化：SDK 能將 JSON 自動轉換為強型別的 Event 物件，並自動記錄接收、成功與失敗的日誌信息。更關鍵的是，我們內建了**指數退避 (Exponential Backoff) 重試機制**。當重試超過三次仍失敗時，消息會被自動路由到 Dead Letter Queue (DLQ)，實現了完整的容錯閉環，讓開發者無需操心底層的異常處理。 | |
 
 ---
 
