@@ -1,3 +1,33 @@
+# 影片開場 PPT 設計 (Single Slide Strategy)
+
+此頁面用於影片開頭，依照影片敘事順序，條列式介紹本集將探討的核心主題。
+
+## Option A: Chinese Version (中文版)
+
+> **標題 (Title):** Open Exchange Core: 架構與 SDK 設計揭秘
+> **副標題 (Subtitle):** 打造微秒級高頻交易系統的核心技術
+>
+> **本集大綱 (Agenda):**
+> 1.  **核心架構演進:** 突破傳統資料庫鎖瓶頸，採用 **LMAX** 純內存、全異步無鎖架構 (WAL + Sequential I/O)。
+> 2.  **CQRS 讀寫分離:** 針對「極致寫入」與「海量查詢」的差異化架構優化。
+> 3.  **風控與帳戶體系:** 嚴格的 **事前風控** (Pre-Trade Check) 與 **複式記帳** (Double-Entry)。
+> 4.  **分佈式一致性:** 設計 **Flip 協議** 與自動補償機制，解決資源競爭。
+> 5.  **彈性擴展策略:** 狀態分片 (Sharding) 與服務水平擴容 (Horizontal Scaling)。
+
+## Option B: English Version (英文版)
+
+> **Title:** Open Exchange Core: Architecture & SDK Design
+> **Subtitle:** Building the Core of a Microsecond-Level HFT System
+>
+> **Agenda:**
+> 1.  **Core Evolution:** Overcoming DB locks with **LMAX** in-memory, async lock-free architecture (WAL + Sequential I/O).
+> 2.  **CQRS Pattern:** Specialized optimizations for "Ultra-Low Latency Writes" vs. "High Concurrency Reads".
+> 3.  **Risk & Accounts:** Strict **Pre-Trade Risk Checks** & **Double-Entry Bookkeeping**.
+> 4.  **Distributed Consistency:** **Flip Protocol** & automated compensation for resolving resource contention.
+> 5.  **Scalability Strategy:** Stateful sharding & stateless horizontal scaling.
+
+---
+
 # Open Exchange Core - 技術展示系列 Ep.1：系統架構與 SDK 設計
 
 **影片長度：** 約 4 - 4.5 分鐘
