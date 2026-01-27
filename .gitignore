@@ -36,3 +36,4 @@ script/ai-tools/
 *.tar
 /tmp/
 /log/
+*.bkp
