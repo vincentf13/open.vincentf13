@@ -1,5 +1,13 @@
 # 影片開場 PPT 設計 (Single Slide Strategy)
 
+> 「各位好，歡迎來到 Open Exchange Core 的技術分享。
+>
+> 在加密貨幣的高頻交易世界裡，我們面臨著一個極致的工程挑戰：**如何在微秒級的延遲要求下，還能確保每一分錢的帳務絕對準確？**
+>
+> 傳統架構在面對海量併發時，往往束手無策：資料庫鎖會導致效能雪崩，多執行緒帶來了難以預測的**亂序執行**問題；即便是全內存系統，若無法解決鎖競爭與上下文切換，也**未必能真正壓榨出硬體的物理極限**。
+>
+> 這則影片會對整體場景做描述，相關細節請看這篇文章的對應主題影片。」
+
 此頁面用於影片開頭，依照影片敘事順序，條列式介紹本集將探討的核心主題。
 
 ## Option A: Chinese Version (中文版)
@@ -19,7 +27,7 @@
 		風控: 嚴格事前風控 (Pre-Trade Check) 與即時動態保證金計算，預防平台與用戶權益損失，大幅減少異常補償的操作耗損。
 4.  分佈式一致性：根除資源搶奪與自動補償:
 		Flip 協議: 擴展分佈式事務機制，根除多節點資源搶奪 (Anti-Stealing) 與超賣風險。
-		異常處理: 內建自動補償 (Compensation) 流程，處理分佈式事務併發異常下的最終一致性。
+		異常處理: 內建自動補償 (Compensation) 流程，確保分佈式事務併發異常下的最終一致性。
 5.  彈性擴展策略：無限水平擴容與線性增長:
 		無狀態層: 網關與查詢服務具備無限水平擴容能力，彈性應對流量洪峰。
 		有狀態核心: 透過交易對精確分片 (Sharding)，實現吞吐量與性能的線性增長。
@@ -38,7 +46,7 @@
 		Market Data Service: Based on high-depth Orderbooks and real-time K-line statistics output from the matching engine, constructing a L1/L2 Multi-Level Caching Matrix to effortlessly handle million-scale traffic storms.
 3.  Accounts & Risk: Strict Accounting Compliance & Double-Entry Iron Law:
 		Accounts: Adhering to the Double-Entry Iron Law; enabling instant balance sheet reconstruction at any moment, ensuring 100% financial integrity and full traceability for every accounting operation within the financial flow.
-		Risk: Strict Pre-Trade Checks and dynamic margin calculation; safeguarding equity and minimizing performance overhead from anomaly compensation.
+		Risk: Strict Pre-Trade Checks and dynamic margin calculation; preventing loss of platform and user equity, substantially reducing operational overhead from anomaly compensation.
 4.  Distributed Consistency: Eradicating Contention & Auto-Compensation:
 		Flip Protocol: Extending distributed transaction mechanism; eradicating multi-node Resource Contention (Anti-Stealing) and overselling risks.
 		Error Handling: Built-in Auto-Compensation flow; handling eventual consistency under concurrent distributed transaction anomalies.
@@ -78,7 +86,7 @@
 | 1:40 | **[Market Data (查詢與緩存)]**<br>特寫行情服務。<br>畫面顯示：Request -> **L1 Cache (Local)** -> **L2 Cache (Redis)**。<br>內容：深度訂單簿 (Orderbook) 與即時 K 線統計。                                                   | 對於查詢密集的 **Market Data Service**，挑戰在於海量數據的頻繁讀取。我們構建了 **L1/L2 多級緩存矩陣**，基於撮合引擎輸出的**深度訂單簿**與**即時 K 線統計**，讓系統能從容應對百萬級的行情風暴。                                                                                                                                                                                                                                                           |                          |
 | 2:00 | **[Asset & Risk (帳戶與風控)]**<br>特寫資產與風控模組。<br>Asset 顯示：**Double-Entry (複式記帳)** 與 **Accounting Compliance**。<br>Risk 顯示：**Pre-Trade Check (事前風控)**。                                           | 對於最核心的 **Asset (帳戶)** 與 **Risk (風控)**，我們嚴守**會計準則與複式記帳鐵律**。資產層能隨時重建任意時刻的資產負債表快照，確保 100% 財務數據完整性，使體系內每一筆金流的操作皆精確可追溯。而風控則採用**事前檢查模型 (Pre-Trade Check)**，在即時保障用戶與平台權益的同時，極大化減少了因異常補償帶來的效能損耗。                                                                                                                                                                                         |                          |
 | 2:20 | **[分佈式事務：Flip 協議]**<br>畫面顯示兩個節點同時嘗試扣款。<br>出現 **Flip Protocol** 的動畫：<br>1. **Try Flip**: 嘗試翻轉狀態。<br>2. **Confirm/Cancel**: 成功則提交，失敗則回滾。<br>關鍵字：**Anti-Stealing**, **Eventual Consistency**。 |   「在分佈式環境下，最難處理的就是『意圖與現實的落差』。<br>  舉個例子：用戶原本持有多倉並下單買入，但當這筆訂單真正成交時，他的倉位可能因為其他交易已經變成了空倉。這時候，原本的『加倉買入』必須瞬間變成『平倉買回』，甚至如果買得夠多，還得再轉回『做多』。<br>  <br>  更棘手的是，如果這時候倉位額度已經被其他還沒成交的訂單鎖住了怎麼辦？<br>我們設計了 Flip 分佈式事務協議。它賦予了『已成交訂單』最高權限，能即時搶奪 (Steal) 被預佔的資源，並讓被搶奪的訂單在未來成交時自動進行邏輯修正。這套機制完美解決了多節點間的資源競爭與超賣風險，確保了極端併發下的帳務準確性。」<br><br>另外當發生異常時，系統會自動觸發**補償機制 (Compensation)**，回滾已執行的操作，確保最終一致性。 | **(新增重點)** Flip 協議與補償機制。 |
-| 2:50 | **[彈性擴展總結]**<br>畫面縮小回全景。<br>Gateway, Market, Asset像細胞分裂一樣快速複製 (Stateless/DB-Backed)。<br>Matching 則依據幣種分片 (Stateful In-Memory)。                                                            | 正因如此，我們的擴展策略也是分層的：Gateway、Market 甚至 Asset Service 等服務，因為不持有內存狀態，可以無限水平擴展以應對流量；而唯獨擁有核心內存狀態的 Matching Engine，透過**交易對分片 (Sharding)** 來實現資源隔離與線性擴容。                                                                                                                                                                                                                                  |                          |
+| 2:50 | **[彈性擴展總結]**<br>畫面縮小回全景。<br>Gateway, Market, Asset 像細胞分裂一樣快速複製 (Stateless/DB-Backed)。<br>Matching 則依據幣種分片 (Stateful In-Memory)。                                                            | 正因如此，我們的擴展策略也是分層的：Gateway、Market 甚至 Asset Service 等服務，因為不持有內存狀態，可以無限水平擴展以應對流量；而唯獨擁有核心內存狀態的 Matching Engine，透過**交易對分片 (Sharding)** 來實現資源隔離與線性擴容。                                                                                                                                                                                                                                  |                          |
 
 ---
 
