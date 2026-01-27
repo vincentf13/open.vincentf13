@@ -10,18 +10,18 @@
 > **本集大綱 (Agenda):**
 > 1.  **SDK Core 基石 (Foundation):**
 >     *   **可觀測性與監控 (Observability):**
->         *   **Log4j2 深度調優:** 啟用全異步日誌 (Async Logger)，極致優化吞吐量與低延遲寫入；簡化 Logger 宣告並統一格式。
->         *   **上下文自動化:** 透過 MDC 自動注入 **TraceId** 與 **ReqId**，確保全鏈路追蹤資訊無斷點。
->         *   **指標治理 (Metrics):** 設計標準化 Metrics SDK，提供高效能指標封裝與 Tag 管理；深度整合 **ThreadPool 埋點**，即時監控核心資源水位。
+>         *   **異步高效日誌 (Log4j2):** 啟用全異步日誌 (Async Logger)，極致優化吞吐量與低延遲寫入；簡化 Logger 宣告並統一格式。
+>         *   **自動化上下文 (Context):** 透過 MDC 自動注入 **TraceId** 與 **ReqId**，確保全鏈路追蹤資訊無斷點。
+>         *   **標準化指標 (Metrics):** 設計標準化 Metrics SDK，提供高效能指標封裝與 Tag 管理；深度整合 **ThreadPool 埋點**，即時監控核心資源水位。
 >     *   **系統治理 (Governance):**
->         *   **統一生命週期:** 標準化 **Bootstrap** 啟動流程與環境檢查，確保服務行為一致且可預測。
->         *   **異常規範:** 建立 **Global Exception** 轉換機制，異常拋出時自動攜帶 MDC 上下文，提升排錯效率。
+>         *   **標準化啟動 (Bootstrap):** 標準化 **Bootstrap** 啟動流程與環境檢查，確保服務行為一致且可預測。
+>         *   **全域異常治理 (Exception):** 建立 **Global Exception** 轉換機制，異常拋出時自動攜帶 MDC 上下文，提升排錯效率。
 >     *   **數據一致性與安全 (Data & Security):**
->         *   **序列化防禦:** 嚴格訂製 **Jackson** 規則 (禁用科學記號、禁止 Null 隱式轉型、RFC 3339 時間標準)，防禦 JSON 混淆攻擊並確保金額精度。
->         *   **審計與校驗:** 獨創 **OpenObjectDiff** 生成物件差異 (Delta JSON) 賦能操作審計；統一 **OpenValidator** 實現從 API 到 DB 的多層次防禦體系。
->         *   **分佈式 ID:** 整合 **Snowflake** 算法，確保高併發下的 ID 全域唯一性。
+>         *   **嚴格序列化防禦 (Jackson):** 嚴格訂製 **Jackson** 規則 (禁用科學記號、禁止 Null 隱式轉型、RFC 3339 時間標準)，防禦 JSON 混淆攻擊並確保金額精度。
+>         *   **多層次審計防禦 (Audit & Validation):** 獨創 **OpenObjectDiff** 生成物件差異 (Delta JSON) 賦能操作審計；統一 **OpenValidator** 實現從 API 到 DB 的多層次防禦體系。
+>         *   **全局唯一 ID (Snowflake):** 整合 **Snowflake** 算法，確保高併發下的 ID 全域唯一性。
 >     *   **容器化整合測試 (Containerized Testing):**
->         *   **真實環境模擬:** 測試自動拉起容器化 MySQL、Redis 與 Kafka，消除 Mock 差異，確保單元測試涵蓋真實版本影響。
+>         *   **高保真容器測試 (TestContainers):** 測試自動拉起容器化 MySQL、Redis 與 Kafka，消除 Mock 差異，確保單元測試涵蓋真實版本影響。
 > 2.  **基礎設施封裝 (Infrastructure Abstraction):**
 >     *   **MySQL 治理模式 (MySQL Governance):**
 >         *   **透明化管理:** 整合 MyBatis Plus 與動態多資料源，透過攔截器實現對業務透明的讀寫分離與資料源切換。
@@ -51,25 +51,25 @@
 > **Agenda:**
 > 1.  **SDK Core Foundation:**
 >     *   **Observability & Monitoring:**
->         *   **Log4j2 Deep Tuning:** Full Async Logger for maximized throughput and low-latency; simplified logger declaration with unified formatting.
->         *   **Context Automation:** Auto-injection of **TraceId** & **ReqId** via MDC for seamless end-to-end tracing.
->         *   **Metrics Governance:** Standardized Metrics SDK with high-perf encapsulation and tag management; deep **ThreadPool instrumentation** for real-time resource monitoring.
+>         *   **High-Performance Async Logging (Log4j2):** Full Async Logger for maximized throughput and low-latency; simplified logger declaration with unified formatting.
+>         *   **Automated Context Injection (Context):** Auto-injection of **TraceId** & **ReqId** via MDC for seamless end-to-end tracing.
+>         *   **Standardized Metrics (Metrics):** Standardized Metrics SDK with high-perf encapsulation and tag management; deep **ThreadPool instrumentation** for real-time resource monitoring.
 >     *   **System Governance:**
->         *   **Unified Lifecycle:** Standardized **Bootstrap** process and environment checks for predictable service behavior.
->         *   **Exception Standardization:** **Global Exception** translation with auto-attached MDC context for faster troubleshooting.
+>         *   **Standardized Bootstrap (Lifecycle):** Standardized **Bootstrap** process and environment checks for predictable service behavior.
+>         *   **Global Exception Governance (Exception):** **Global Exception** translation with auto-attached MDC context for faster troubleshooting.
 >     *   **Data Consistency & Security:**
->         *   **Serialization Defense:** Strict **Jackson** customization (no scientific notation, no null-to-zero coercion, RFC 3339 standard) to prevent JSON confusion attacks and ensure precision.
->         *   **Audit & Validation:** Proprietary **OpenObjectDiff** for Delta JSON generation to empower audits; unified **OpenValidator** for multi-layer defense from API to DB.
->         *   **Distributed ID:** Integrated **Snowflake** algorithm for globally unique IDs in high-concurrency environments.
+>         *   **Strict Serialization Defense (Jackson):** Strict **Jackson** customization (no scientific notation, no null-to-zero coercion, RFC 3339 standard) to prevent JSON confusion attacks and ensure precision.
+>         *   **Multi-Layer Audit Defense (Audit & Validation):** Proprietary **OpenObjectDiff** for Delta JSON generation to empower audits; unified **OpenValidator** for multi-layer defense from API to DB.
+>         *   **Globally Unique ID (Snowflake):** Integrated **Snowflake** algorithm for globally unique IDs in high-concurrency environments.
 >     *   **Containerized Integration Testing:**
->         *   **Real-Environment Simulation:** Automatically spinning up containerized MySQL, Redis, and Kafka for local tests, eliminating Mock gaps and ensuring version compatibility.
+>         *   **High-Fidelity Simulation (TestContainers):** Automatically spinning up containerized MySQL, Redis, and Kafka for local tests, eliminating Mock gaps and ensuring version compatibility.
 > 2.  **Infrastructure Abstraction:**
 >     *   **MySQL Governance:**
 >         *   **Transparent Management:** Unifying MyBatis Plus and Dynamic Datasource via interceptors for seamless R/W splitting and datasource switching.
 >         *   **Performance & Security:** Built-in high-performance **BatchExecutor**; default **Block Attack** protection against full-table operations.
 >         *   **Distributed Transaction Patterns:** Standardized **Transactional Outbox** and **Retry Task** patterns, making complex distributed transactions simple and highly reliable.
 >     *   **Redis Dual-Engine:**
->         *   **Template-Based Development:** Deeply encapsulated Lettuce and Redisson, providing Cache-Aside read templates, asynchronous writes, and Cluster pipeline batch R/W, simplifying cache operations and performance.
+>         *   **Template-Based Development:** Deeply encapsulated Lettuce and Redisson, providing Cache-Aside read templates, asynchronous writes, and Cluster pipeline batch R/W, simplifying cache operations and enhancing performance.
 >         *   **Security & Protection:** Unified security protection and mandatory TTL jitter mechanism, eliminating cache penetration, breakdown, and avalanche at the architectural level.
 >     *   **Kafka Messaging:**
 >         *   **Contract-First Governance:** Enforced Topic and Event contracts via Client SDKs, providing clear integration specs for consumers and minimizing cross-service communication overhead.
