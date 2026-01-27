@@ -36,7 +36,7 @@
 >         *   **效能與配置優化:** 深度優化傳輸可靠性與壓縮配置，統一開發日誌；調整 Batch 參數、異步 Ack 與 CooperativeStickyAssignor 策略提升吞吐。
 > 3.  **金融級安全架構 (Auth):**
 >     *   **JWT + Redis 混合驗證:** 解決傳統方案撤銷機制複雜、維護成本高的痛點，以極低開銷兼具無狀態效能與秒級「踢下線」能力。
->     *   **多重策略註解:** 提供 **@Public/Private/Jwt** 註解，支援「單一接口、多種憑證適配」，徹底解決過往接口膨脹與冗餘問題。
+>     *   **簡化接口治理:** 透過 **@Public/Private/Jwt** 多重策略註解，支援「單一接口、多種憑證適配」，徹底解決過往接口膨脹與冗餘問題。
 >     *   **標準化認證中心:** 將複雜安全配置與標準的登入登出/refresh token等接口封裝於 SDK，確保全系統驗證邏輯高度統一，讓開發專注於業務與權限實現。
 > 4.  **微服務治理與韌性 (Governance & Resilience):**
 >     *   **Spring MVC & OpenFeign:** 標準化 Web 請求處理與全鏈路 TraceId/UserContext/Language 無感透傳。
@@ -76,7 +76,7 @@
 >         *   **Performance & Config Tuning:** Optimized transmission reliability and compression, with unified development logging; tuned Batch params, Async Ack, and CooperativeStickyAssignor.
 > 3.  **Financial-Grade Security (Auth):**
 >     *   **JWT + Redis Hybrid Validation:** Resolving the complexity and high maintenance cost of traditional revocation schemes; achieving stateless performance with sub-second "kick-out" capability at minimal overhead.
->     *   **Multi-Strategy Annotations:** **@Public/Private/Jwt** support for "single interface, multi-credential adaptation," eliminating interface bloat and redundancy.
+>     *   **Simplified Interface Governance:** Utilizing **@Public/Private/Jwt** annotations to support "single interface, multi-credential adaptation," effectively eliminating interface bloat and redundancy.
 >     *   **Standardized Auth Server:** Encapsulates complex security configs and standard interfaces within the SDK, ensuring unified validation logic and allowing focus on business implementation.
 > 4.  **Microservice Governance & Resilience:**
 >     *   **Spring MVC & OpenFeign:** Standardized request handling and seamless full-link propagation of TraceId/UserContext/Language.
