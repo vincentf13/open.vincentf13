@@ -40,7 +40,7 @@
 >     *   **標準化認證中心:** 將複雜安全配置與標準的登入登出/refresh token等接口封裝於 SDK，確保全系統驗證邏輯高度統一，讓開發專注於業務與權限實現。
 > 4.  **微服務治理與韌性 (Governance & Resilience):**
 >     *   **標準化即防禦 (Spring MVC):** 強制防禦性輸入與契約式輸出；整合多語系與 Gzip/Etag 頻寬優化；統一 Servlet/Cookie 安全治理並提供便捷 Http 處理工具。
->     *   **隱形上下文傳送 (OpenFeign):** 像基因遺傳般自動透傳業務上下文；透過 **OpenApiClientInvoker** 自動處理狀態校驗與異常轉換，讓遠程調用如本地方法般簡單可靠。
+>     *   **無感透傳與調用治理 (OpenFeign):** 像基因遺傳般自動透傳業務上下文；透過 **OpenApiClientInvoker** 自動處理狀態校驗與異常轉換，讓遠程調用如本地方法般簡單可靠。
 >     *   **預設即安全 (Resilience4j):** 內建黃金配置模板，僅需一行註解即可為系統穿上防彈衣，自動阻斷故障擴散。
 
 ## Option B: English Version (英文版)
@@ -81,7 +81,7 @@
 >     *   **Standardized Auth Server:** Encapsulates complex security configs and standard interfaces within the SDK, ensuring unified validation logic and allowing focus on business implementation.
 > 4.  **Microservice Governance & Resilience:**
 >     *   **Standardization as Defense (Spring MVC):** Enforcing defensive input and contractual output; integrated I18n and Gzip/Etag bandwidth optimization; unified Servlet/Cookie security and convenient Http processing tools.
->     *   **Invisible Context Teleportation (OpenFeign):** Auto-propagating business context; encapsulating state validation and exception conversion via **OpenApiClientInvoker**, making remote calls as simple and reliable as local methods.
+>     *   **Seamless Propagation & Call Governance (OpenFeign):** Auto-propagating business context; encapsulating state validation and exception conversion via **OpenApiClientInvoker**, making remote calls as simple and reliable as local methods.
 >     *   **Safety by Default (Resilience4j):** Built-in golden configuration templates; a single annotation instantly armors the system against cascading failures.
 
 ---
