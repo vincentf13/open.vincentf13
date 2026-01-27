@@ -1,3 +1,65 @@
+# 影片開場 PPT 設計 (Single Slide Strategy)
+
+此頁面用於影片開頭，依照影片敘事順序，條列式介紹本集將探討的核心主題。
+
+## Option A: Chinese Version (中文版)
+
+> **標題 (Title):** Open Exchange Core: SDK 設計與架構治理深度解析
+> **副標題 (Subtitle):** 透過模組化 SDK 實現「依賴即治理」
+>
+> **本集大綱 (Agenda):**
+> 1.  **SDK Core 基石 (Foundation):**
+>     *   **可觀測性與監控 (Observability):**
+>         *   **Log4j2 深度調優:** 啟用全異步日誌 (Async Logger)，極致優化吞吐量與低延遲寫入；簡化 Logger 宣告並統一格式。
+>         *   **上下文自動化:** 透過 MDC 自動注入 **TraceId** 與 **ReqId**，確保全鏈路追蹤資訊無斷點。
+>         *   **指標治理 (Metrics):** 設計標準化 Metrics SDK，提供高效能指標封裝與 Tag 管理；深度整合 **ThreadPool 埋點**，即時監控核心資源水位。
+>     *   **系統治理 (Governance):**
+>         *   **統一生命週期:** 標準化 **Bootstrap** 啟動流程與環境檢查，確保服務行為一致且可預測。
+>         *   **異常規範:** 建立 **Global Exception** 轉換機制，異常拋出時自動攜帶 MDC 上下文，提升排錯效率。
+>     *   **數據一致性與安全 (Data & Security):**
+>         *   **序列化防禦:** 嚴格訂製 **Jackson** 規則 (禁用科學記號、禁止 Null 隱式轉型、RFC 3339 時間標準)，防禦 JSON 混淆攻擊並確保金額精度。
+>         *   **審計與校驗:** 獨創 **OpenObjectDiff** 生成物件差異 (Delta JSON) 賦能操作審計；統一 **OpenValidator** 實現從 API 到 DB 的多層次防禦體系。
+>         *   **分佈式 ID:** 整合 **Snowflake** 算法，確保高併發下的 ID 全域唯一性。
+> 2.  **基礎設施封裝 (Infra):**
+>     *   **MySQL:** 統一管理 **MyBatis Plus** 與 **Dynamic Datasource**；透過 **TypeHandler 與 Interceptor** 實現對業務透明的讀寫分離；內建高效能 **BatchExecutor** (優於傳統 Batch) 與 **Block Attack** 安全攔截；標準化 **Transactional Outbox** 與 **Retry Task** 模式。
+>     *   **Redis:** **Lettuce/Redisson 雙引擎**封裝；提供 **Cache-Aside 模板**與 **Jitter (抖動)** 防護；內建 **Cluster Slot 路由優化**提升批次性能。
+>     *   **Kafka:** **Contract-First** (契約優先) SDK 設計；內建 **Bean Validation** 與 **Async Batch** 發送；實現 **Auto-Retry/DLQ** 容錯閉環與全鏈路 Trace 透傳。
+> 3.  **金融級安全架構 (Auth):**
+>     *   獨創 **JWT + Redis 混合驗證模式**，兼具無狀態效能與**即時撤銷 (Revocation)** 能力。
+>     *   提供 **@Public/Private/Jwt** 多重策略註解，實現無感接入。
+> 4.  **微服務治理矩陣:**
+>     *   **Spring MVC:** 標準化 Response 結構與 Gzip/Etag 優化；**RequestCorrelationFilter** 自動串接上下文。
+>     *   **OpenFeign:** 實現 **TraceId/UserContext/Language** 的全鏈路無感透傳。
+> 5.  **測試與韌性 (Quality):**
+>     *   **TestContainers:** 支援 **真實環境容器化** 測試，一鍵切換 Mock/Real 模式。
+>     *   **Resilience4j:** 註解式 **Circuit Breaker (熔斷)** 與 **Rate Limiter (限流)**，防止服務雪崩。
+
+## Option B: English Version (英文版)
+
+> **Title:** Open Exchange Core: SDK Design & Architecture Governance
+> **Subtitle:** Achieving "Governance by Dependency" via Modular SDKs
+>
+> **Agenda:**
+> 1.  **SDK Core Foundation:**
+>     *   Deeply tuned **Log4j2 Async** logging with **MDC Auto-injection of TraceId & ReqId**.
+>     *   Unified **Bootstrap Lifecycle** & **Global Exception** translation for predictable behavior.
+>     *   Strict **Jackson Serialization Rules** & **Snowflake Distributed ID** generation.
+> 2.  **Infrastructure Abstraction:**
+>     *   **MySQL:** Unifying **MyBatis Plus** & **Dynamic Datasource**; Transparent R/W splitting via **TypeHandlers & Interceptors**; High-perf **BatchExecutor** & **Block Attack** protection; Standardized **Transactional Outbox** & **Retry Task** patterns.
+>     *   **Redis:** **Lettuce/Redisson Dual-Engine** encapsulation; **Cache-Aside Templates** with **Jitter** protection; **Cluster Slot Optimization** for batch ops.
+>     *   **Kafka:** **Contract-First** SDK design; Built-in **Bean Validation** & **Async Batching**; **Auto-Retry/DLQ** loops & full-link Trace propagation.
+> 3.  **Financial-Grade Security:**
+>     *   Proprietary **JWT + Redis Hybrid Validation**, combining stateless speed with **Real-time Revocation**.
+>     *   Multi-strategy annotations (**@Public/Private/Jwt**) for seamless integration.
+> 4.  **Microservice Governance:**
+>     *   **Spring MVC:** Standardized Responses, Gzip/Etag, & **RequestCorrelationFilter** for context.
+>     *   **OpenFeign:** Transparent propagation of **TraceId/UserContext/Language**.
+> 5.  **Quality Assurance:**
+>     *   **TestContainers:** **Real-Environment Containerization** with one-click Mock/Real switching.
+>     *   **Resilience4j:** Annotation-based **Circuit Breaker** & **Rate Limiter** preventing cascading failures.
+
+---
+
 # Open Exchange Core - 技術展示系列 Ep.2：SDK 設計與架構治理深度解析
 
 **總時長預估：** 6 - 8 分鐘
