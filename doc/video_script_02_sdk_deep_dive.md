@@ -20,6 +20,8 @@
 >         *   **序列化防禦:** 嚴格訂製 **Jackson** 規則 (禁用科學記號、禁止 Null 隱式轉型、RFC 3339 時間標準)，防禦 JSON 混淆攻擊並確保金額精度。
 >         *   **審計與校驗:** 獨創 **OpenObjectDiff** 生成物件差異 (Delta JSON) 賦能操作審計；統一 **OpenValidator** 實現從 API 到 DB 的多層次防禦體系。
 >         *   **分佈式 ID:** 整合 **Snowflake** 算法，確保高併發下的 ID 全域唯一性。
+>     *   **容器化整合測試 (Containerized Testing):**
+>         *   **真實環境模擬:** 測試自動拉起容器化 MySQL、Redis 與 Kafka，消除 Mock 差異，確保單元測試涵蓋真實版本影響。
 > 2.  **基礎設施封裝 (Infra):**
 >     *   **MySQL:** 統一管理 **MyBatis Plus** 與 **Dynamic Datasource**；透過 **TypeHandler 與 Interceptor** 實現對業務透明的讀寫分離；內建高效能 **BatchExecutor** (優於傳統 Batch) 與 **Block Attack** 安全攔截；標準化 **Transactional Outbox** 與 **Retry Task** 模式。
 >     *   **Redis:** **Lettuce/Redisson 雙引擎**封裝；提供 **Cache-Aside 模板**與 **Jitter (抖動)** 防護；內建 **Cluster Slot 路由優化**提升批次性能。
@@ -27,12 +29,9 @@
 > 3.  **金融級安全架構 (Auth):**
 >     *   獨創 **JWT + Redis 混合驗證模式**，兼具無狀態效能與**即時撤銷 (Revocation)** 能力。
 >     *   提供 **@Public/Private/Jwt** 多重策略註解，實現無感接入。
-> 4.  **微服務治理矩陣:**
->     *   **Spring MVC:** 標準化 Response 結構與 Gzip/Etag 優化；**RequestCorrelationFilter** 自動串接上下文。
->     *   **OpenFeign:** 實現 **TraceId/UserContext/Language** 的全鏈路無感透傳。
-> 5.  **測試與韌性 (Quality):**
->     *   **TestContainers:** 支援 **真實環境容器化** 測試，一鍵切換 Mock/Real 模式。
->     *   **Resilience4j:** 註解式 **Circuit Breaker (熔斷)** 與 **Rate Limiter (限流)**，防止服務雪崩。
+> 4.  **微服務治理與韌性 (Governance & Resilience):**
+>     *   **Spring MVC & OpenFeign:** 標準化 Web 請求處理與全鏈路 TraceId/UserContext/Language 無感透傳。
+>     *   **Resilience4j:** 預設註解式 **Circuit Breaker** 與 **Rate Limiter**，強化系統自我保護能力。
 
 ## Option B: English Version (英文版)
 
@@ -41,9 +40,19 @@
 >
 > **Agenda:**
 > 1.  **SDK Core Foundation:**
->     *   Deeply tuned **Log4j2 Async** logging with **MDC Auto-injection of TraceId & ReqId**.
->     *   Unified **Bootstrap Lifecycle** & **Global Exception** translation for predictable behavior.
->     *   Strict **Jackson Serialization Rules** & **Snowflake Distributed ID** generation.
+>     *   **Observability & Monitoring:**
+>         *   **Log4j2 Deep Tuning:** Full Async Logger for maximized throughput and low-latency; simplified logger declaration with unified formatting.
+>         *   **Context Automation:** Auto-injection of **TraceId** & **ReqId** via MDC for seamless end-to-end tracing.
+>         *   **Metrics Governance:** Standardized Metrics SDK with high-perf encapsulation and tag management; deep **ThreadPool instrumentation** for real-time resource monitoring.
+>     *   **System Governance:**
+>         *   **Unified Lifecycle:** Standardized **Bootstrap** process and environment checks for predictable service behavior.
+>         *   **Exception Standardization:** **Global Exception** translation with auto-attached MDC context for faster troubleshooting.
+>     *   **Data Consistency & Security:**
+>         *   **Serialization Defense:** Strict **Jackson** customization (no scientific notation, no null-to-zero coercion, RFC 3339 standard) to prevent JSON confusion attacks and ensure precision.
+>         *   **Audit & Validation:** Proprietary **OpenObjectDiff** for Delta JSON generation to empower audits; unified **OpenValidator** for multi-layer defense from API to DB.
+>         *   **Distributed ID:** Integrated **Snowflake** algorithm for globally unique IDs in high-concurrency environments.
+>     *   **Containerized Integration Testing:**
+>         *   **Real-Environment Simulation:** Automatically spinning up containerized MySQL, Redis, and Kafka for local tests, eliminating Mock gaps and ensuring version compatibility.
 > 2.  **Infrastructure Abstraction:**
 >     *   **MySQL:** Unifying **MyBatis Plus** & **Dynamic Datasource**; Transparent R/W splitting via **TypeHandlers & Interceptors**; High-perf **BatchExecutor** & **Block Attack** protection; Standardized **Transactional Outbox** & **Retry Task** patterns.
 >     *   **Redis:** **Lettuce/Redisson Dual-Engine** encapsulation; **Cache-Aside Templates** with **Jitter** protection; **Cluster Slot Optimization** for batch ops.
@@ -51,12 +60,9 @@
 > 3.  **Financial-Grade Security:**
 >     *   Proprietary **JWT + Redis Hybrid Validation**, combining stateless speed with **Real-time Revocation**.
 >     *   Multi-strategy annotations (**@Public/Private/Jwt**) for seamless integration.
-> 4.  **Microservice Governance:**
->     *   **Spring MVC:** Standardized Responses, Gzip/Etag, & **RequestCorrelationFilter** for context.
->     *   **OpenFeign:** Transparent propagation of **TraceId/UserContext/Language**.
-> 5.  **Quality Assurance:**
->     *   **TestContainers:** **Real-Environment Containerization** with one-click Mock/Real switching.
->     *   **Resilience4j:** Annotation-based **Circuit Breaker** & **Rate Limiter** preventing cascading failures.
+> 4.  **Microservice Governance & Resilience:**
+>     *   **Spring MVC & OpenFeign:** Standardized request handling and seamless full-link propagation of TraceId/UserContext/Language.
+>     *   **Resilience4j:** Annotation-based **Circuit Breaker** and **Rate Limiter** defaults for robust self-protection.
 
 ---
 
