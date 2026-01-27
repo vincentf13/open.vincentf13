@@ -35,8 +35,9 @@
 >         *   **智慧生產者與消費者:** 內建 Bean Validation 攔截非法數據，自動注入 MDC 事件上下文；支援自動化**指數退避重試**與 **DLQ 路由**。
 >         *   **效能與配置優化:** 深度優化傳輸可靠性與壓縮配置，統一開發日誌；調整 Batch 參數、異步 Ack 與 CooperativeStickyAssignor 策略提升吞吐。
 > 3.  **金融級安全架構 (Auth):**
->     *   獨創 **JWT + Redis 混合驗證模式**，兼具無狀態效能與**即時撤銷 (Revocation)** 能力。
->     *   提供 **@Public/Private/Jwt** 多重策略註解，實現無感接入。
+>     *   **JWT + Redis 混合驗證:** 解決傳統方案撤銷機制複雜、維護成本高的痛點，以極低開銷兼具無狀態效能與秒級「踢下線」能力。
+>     *   **多重策略註解:** 提供 **@Public/Private/Jwt** 註解，支援「單一接口、多種憑證適配」，徹底解決過往接口膨脹與冗餘問題。
+>     *   **標準化認證中心:** 將複雜安全配置與標準的登入登出/refresh token等接口封裝於 SDK，確保全系統驗證邏輯高度統一，讓開發專注於業務與權限實現。
 > 4.  **微服務治理與韌性 (Governance & Resilience):**
 >     *   **Spring MVC & OpenFeign:** 標準化 Web 請求處理與全鏈路 TraceId/UserContext/Language 無感透傳。
 >     *   **Resilience4j:** 預設註解式 **Circuit Breaker** 與 **Rate Limiter**，強化系統自我保護能力。
@@ -73,9 +74,10 @@
 >         *   **Contract-First Governance:** Enforced Topic and Event contracts via Client SDKs, providing clear integration specs for consumers and minimizing cross-service communication overhead.
 >         *   **Smart Producer & Consumer:** Built-in Bean Validation to block invalid data; automatic MDC context injection; and automated **Exponential Backoff Retry** with **DLQ routing**.
 >         *   **Performance & Config Tuning:** Optimized transmission reliability and compression, with unified development logging; tuned Batch params, Async Ack, and CooperativeStickyAssignor.
-> 3.  **Financial-Grade Security:**
->     *   Proprietary **JWT + Redis Hybrid Validation**, combining stateless speed with **Real-time Revocation**.
->     *   Multi-strategy annotations (**@Public/Private/Jwt**) for seamless integration.
+> 3.  **Financial-Grade Security (Auth):**
+>     *   **JWT + Redis Hybrid Validation:** Resolving the complexity and high maintenance cost of traditional revocation schemes; achieving stateless performance with sub-second "kick-out" capability at minimal overhead.
+>     *   **Multi-Strategy Annotations:** **@Public/Private/Jwt** support for "single interface, multi-credential adaptation," eliminating interface bloat and redundancy.
+>     *   **Standardized Auth Server:** Encapsulates complex security configs and standard interfaces within the SDK, ensuring unified validation logic and allowing focus on business implementation.
 > 4.  **Microservice Governance & Resilience:**
 >     *   **Spring MVC & OpenFeign:** Standardized request handling and seamless full-link propagation of TraceId/UserContext/Language.
 >     *   **Resilience4j:** Annotation-based **Circuit Breaker** and **Rate Limiter** defaults for robust self-protection.
@@ -200,8 +202,8 @@
 **模組：** `sdk-auth-server`
 **職責定位：** 專為 Auth 服務設計，負責 Token 的簽發、生命週期管理與標準登入流程，實現認證邏輯的統一治理。
 
-| 時間   | 畫面 (Visual)                                                                                                                                | 旁白腳本 (Audio)                                                                                                                                                                                                                                                              | 執行建議 |
-| :--- | :----------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--- |
+| 時間   | 畫面 (Visual)                                                                                                                                | 旁白腳本 (Audio)                                                                                                                                                                                                                                                     | 執行建議 |
+| :--- | :----------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--- |
 | 4:55 | **[快速構建認證中心]**<br>顯示 Auth 服務引用 `sdk-auth-server` 的 pom.xml。<br>顯示 `UserDetailsService` 實作類別。<br>顯示 `/login`, `/logout`, `/refresh` 接口調用日誌。 | 位於架構頂層的是 `sdk-auth-server`，它是專為構建認證中心而生的核心模組。透過 Spring Boot 自動裝配，Auth 服務只需引入此模組，並實作 `UserDetailsService` 接口來對接帳戶資料，再加上自定義的註冊邏輯，就能快速搭建起一個完整的認證中心。它提供並管理了 `/login`、`/logout` 與 `/refresh` 等標準接口。這種設計不僅確保了全系統驗證邏輯的高度統一，更將複雜的安全配置封裝在 SDK 內部，讓開發者能專注於註冊、用戶權限與業務邏輯的實現。 |      |
 
 ---
