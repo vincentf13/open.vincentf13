@@ -8,21 +8,21 @@
 > **副標題 (Subtitle):** 打造微秒級高頻交易系統的核心技術
 >
 > **本集大綱 (Agenda):**
-> 1.  **核心架構演進:**
->     *   徹底解除傳統資料庫鎖 (Lock) 與隨機 I/O 的效能枷鎖。
->     *   全鏈路 **LMAX** 無鎖架構 + **WAL** 順序持久化，消除隨機 IO 抖動，確保**微秒級確定性延遲**。
-> 2.  **CQRS 讀寫分離:**
->     *   **Matching 服務:** 單執行緒批次處理 + 順序 I/O，將硬體性能發揮至極限。
->     *   **Market Data 服務:** 構建 L1/L2 **多級緩存矩陣**，從容應對百萬級行情風暴。
-> 3.  **風控與帳戶體系:**
->     *   **風控:** 嚴格**事前風控 (Pre-Trade Check)**，即時動態保證金計算，風險零容忍。
->     *   **帳戶:** 堅守**複式記帳**鐵律，支援即時**全域快照**，資金流向全鏈路可追溯。
-> 4.  **分佈式一致性:**
->     *   **Flip 協議:** 獨創分佈式機制，根除多節點**資源搶奪 (Anti-Stealing)** 與超賣風險。
->     *   **異常處理:** 內建**自動補償 (Compensation)** 流程，確保分佈式事務併發異常下的最終一致性。
-> 5.  **彈性擴展策略:**
->     *   **無狀態層:** 網關與查詢服務具備**無限水平擴容**能力，彈性應對流量洪峰。
->     *   **有狀態核心:** 透過交易對**精確分片 (Sharding)**，實現吞吐量與性能的**線性增長**。
+1.  核心架構演進:
+    徹底解除傳統資料庫鎖 (Lock) 與隨機 I/O 的效能枷鎖。
+    全鏈路 LMAX 無鎖架構 + WAL 順序持久化，消除隨機 IO 抖動，確保微秒級確定性延遲。
+2.  CQRS 讀寫分離:
+    Matching 服務: 單執行緒批次處理 + 順序 I/O，將硬體性能發揮至極限。
+    Market Data 服務: 構建 L1/L2 多級緩存矩陣，從容應對百萬級行情風暴。
+3.  風控與帳戶體系:
+    風控: 嚴格事前風控 (Pre-Trade Check)，即時動態保證金計算，風險零容忍。
+    帳戶: 堅守複式記帳鐵律，支援即時全域快照，資金流向全鏈路可追溯。
+4.  分佈式一致性:
+    Flip 協議: 獨創分佈式機制，根除多節點資源搶奪 (Anti-Stealing) 與超賣風險。
+    異常處理: 內建自動補償 (Compensation) 流程，確保分佈式事務併發異常下的最終一致性。
+5.  彈性擴展策略:
+    無狀態層: 網關與查詢服務具備無限水平擴容能力，彈性應對流量洪峰。
+    有狀態核心: 透過交易對精確分片 (Sharding)，實現吞吐量與性能的線性增長。
 
 ## Option B: English Version (英文版)
 
@@ -30,21 +30,21 @@
 > **Subtitle:** Building the Core of a Microsecond-Level HFT System
 >
 > **Agenda:**
-> 1.  **Core Evolution:**
->     *   Shattering the performance shackles of traditional DB locks and random I/O.
->     *   Full-link **LMAX** Lock-free Arch + **WAL** Sequential Persistence, eliminating random IO jitter for **Microsecond Deterministic Latency**.
-> 2.  **CQRS Pattern:**
->     *   **Matching Service:** Single-threaded batching & Sequential I/O to maximize hardware limits.
->     *   **Market Data Service:** Building a **Multi-Level Caching Matrix** to effortlessly handle million-scale traffic storms.
-> 3.  **Risk & Accounts:**
->     *   **Risk:** Strict **Pre-Trade Checks** with dynamic margin calculation for zero risk tolerance.
->     *   **Accounts:** Adhering to the **Double-Entry Iron Law**, enabling real-time **Global Snapshots** and full auditability.
-> 4.  **Distributed Consistency:**
->     *   **Flip Protocol:** Proprietary mechanism eradicating multi-node **Resource Contention (Anti-Stealing)**.
->     *   **Error Handling:** Built-in **Auto-Compensation** ensuring eventual consistency during distributed concurrency failures.
-> 5.  **Scalability Strategy:**
->     *   **Stateless Layer:** Unlimited **Horizontal Scaling** to elastically absorb traffic spikes.
->     *   **Stateful Core:** Linear performance growth via precise **Symbol Sharding** and resource isolation.
+1.  Core Evolution:
+    Shattering the performance shackles of traditional DB locks and random I/O.
+    Full-link LMAX Lock-free Arch + WAL Sequential Persistence, eliminating random IO jitter for Microsecond Deterministic Latency.
+2.  CQRS Pattern:
+    Matching Service: Single-threaded batching & Sequential I/O to maximize hardware limits.
+    Market Data Service: Building a Multi-Level Caching Matrix to effortlessly handle million-scale traffic storms.
+3.  Risk & Accounts:
+    Risk: Strict Pre-Trade Checks with dynamic margin calculation for zero risk tolerance.
+    Accounts: Adhering to the Double-Entry Iron Law, enabling real-time Global Snapshots and full auditability.
+4.  Distributed Consistency:
+    Flip Protocol: Proprietary mechanism eradicating multi-node Resource Contention (Anti-Stealing).
+    Error Handling: Built-in Auto-Compensation ensuring eventual consistency during distributed concurrency failures.
+5.  Scalability Strategy:
+    Stateless Layer: Unlimited Horizontal Scaling to elastically absorb traffic spikes.
+    Stateful Core: Linear performance growth via precise Symbol Sharding and resource isolation.
 
 ---
 

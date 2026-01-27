@@ -8,40 +8,40 @@
 > **副標題 (Subtitle):** 透過模組化 SDK 實現「依賴即治理」
 >
 > **本集大綱 (Agenda):**
-> 1.  **SDK Core 基石 (Foundation):**
->     *   **可觀測性與監控 (Observability):**
->         *   **異步高效日誌 (Log4j2):** 啟用全異步日誌 (Async Logger)，極致優化吞吐量與低延遲寫入；簡化 Logger 宣告並統一格式。
->         *   **自動化上下文 (Context):** 透過 MDC 自動注入 **TraceId** 與 **ReqId**，確保全鏈路追蹤資訊無斷點。
->         *   **標準化指標 (Metrics):** 設計標準化 Metrics SDK，提供高效能指標封裝與 Tag 管理；深度整合 **ThreadPool 埋點**，即時監控核心資源水位。
->     *   **系統治理 (Governance):**
->         *   **標準化啟動 (Bootstrap):** 標準化 **Bootstrap** 啟動流程與環境檢查，確保服務行為一致且可預測。
->         *   **全域異常治理 (Exception):** 建立 **Global Exception** 轉換機制，異常拋出時自動攜帶 MDC 上下文，提升排錯效率。
->     *   **數據一致性與安全 (Data & Security):**
->         *   **嚴格序列化防禦 (Jackson):** 嚴格訂製 **Jackson** 規則 (禁用科學記號、禁止 Null 隱式轉型、RFC 3339 時間標準)，防禦 JSON 混淆攻擊並確保金額精度。
->         *   **多層次審計防禦 (Audit & Validation):** 獨創 **OpenObjectDiff** 生成物件差異 (Delta JSON) 賦能操作審計；統一 **OpenValidator** 實現從 API 到 DB 的多層次防禦體系。
->         *   **全局唯一 ID (Snowflake):** 整合 **Snowflake** 算法，確保高併發下的 ID 全域唯一性。
->     *   **容器化整合測試 (Containerized Testing):**
->         *   **高保真容器測試 (TestContainers):** 測試自動拉起容器化 MySQL、Redis 與 Kafka，消除 Mock 差異，確保單元測試涵蓋真實版本影響。
-> 2.  **基礎設施封裝 (Infrastructure Abstraction):**
->     *   **MySQL 治理模式 (MySQL Governance):**
->         *   **透明化管理:** 整合 MyBatis Plus 與動態多資料源，透過攔截器實現對業務透明的讀寫分離與資料源切換。
->         *   **效能與安全:** 內建高效能 **BatchExecutor** 突破傳統批次寫入瓶頸；預設啟用 **Block Attack** 攔截全表危險操作。
->         *   **分佈式事務方案:** 標準化 **Transactional Outbox** 與 **Retry Task** 模式，使複雜的分佈式事務開發變得極其簡便且高可靠。
->     *   **Redis 雙引擎封裝 (Redis Dual-Engine):**
->         *   **開發模板化:** 深度封裝 Lettuce 與 Redisson，封裝 Cache-Aside 讀取模板、異步寫入、Cluster pipeline 批次讀寫，簡便緩存操作與優化性能。
->         *   **安全與防護:** 統一安全防護與強制 TTL 抖動機制，從架構層面杜絕緩存穿透、擊穿、雪崩。
->     *   **Kafka 契約式治理 (Kafka Messaging):**
->         *   **Contract-First 治理:** 強推以 Client SDK 定義 Topic 與 Event 契約，讓消費方明確對接規範，極大化降低跨服務溝通成本。
->         *   **智慧生產者與消費者:** 內建 Bean Validation 攔截非法數據，自動注入 MDC 事件上下文；支援自動化**指數退避重試**與 **DLQ 路由**。
->         *   **效能與配置優化:** 深度優化傳輸可靠性與壓縮配置，統一開發日誌；調整 Batch 參數、異步 Ack 與 CooperativeStickyAssignor 策略提升吞吐。
-> 3.  **金融級安全架構 (Auth):**
->     *   **JWT + Redis 混合驗證:** 解決傳統方案撤銷機制複雜、維護成本高的痛點，以極低開銷兼具無狀態效能與秒級「踢下線」能力。
->     *   **簡化接口治理:** 透過 **@Public/Private/Jwt** 多重策略註解，支援「單一接口、多種憑證適配」，徹底解決過往接口膨脹與冗餘問題。
->     *   **標準化認證中心:** 將複雜安全配置與標準的登入登出/refresh token等接口封裝於 SDK，確保全系統驗證邏輯高度統一，讓開發專注於業務與權限實現。
-> 4.  **微服務治理與韌性 (Governance & Resilience):**
->     *   **標準化即防禦 (Spring MVC):** 強制防禦性輸入與契約式輸出，從源頭杜絕髒數據；推行 **Shared API Interface** 實現 API 與校驗規則自動同步；整合多語系與 Gzip/Etag 頻寬優化；統一 Servlet/Cookie 安全治理並提供便捷 Http 處理工具。
->     *   **無感透傳與調用治理 (OpenFeign):** 像基因遺傳般自動透傳業務上下文；透過 **OpenApiClientInvoker** 自動處理狀態校驗與異常轉換，讓遠程調用如本地方法般簡單可靠。
->     *   **預設即安全 (Resilience4j):** 統一治理熔斷、限流、重試與艙壁隔離；透過 AOP 切面輕鬆保護 RPC、DB 與 Cache 調用，並提供基於開源反饋持續迭代的黃金配置模板，賦能系統建構與時俱進的容錯韌性。
+1.  SDK Core 基石:
+    可觀測性與監控:
+        異步高效日誌: 啟用全異步日誌 (Async Logger)，極致優化吞吐量與低延遲寫入；簡化 Logger 宣告並統一格式。
+        自動化上下文: 透過 MDC 自動注入 TraceId 與 ReqId，確保全鏈路追蹤資訊無斷點。
+        標準化指標: 設計標準化 Metrics SDK，提供高效能指標封裝與 Tag 管理；深度整合 ThreadPool 埋點，即時監控核心資源水位。
+    系統治理:
+        標準化啟動: 標準化 Bootstrap 啟動流程與環境檢查，確保服務行為一致且可預測。
+        全域異常治理: 建立 Global Exception 轉換機制，異常拋出時自動攜帶 MDC 上下文，提升排錯效率。
+    數據一致性與安全:
+        嚴格序列化防禦: 嚴格訂製 Jackson 規則 (禁用科學記號、禁止 Null 隱式轉型、RFC 3339 時間標準)，防禦 JSON 混淆攻擊並確保金額精度。
+        多層次審計防禦: 獨創 OpenObjectDiff 生成物件差異 (Delta JSON) 賦能操作審計；統一 OpenValidator 實現從 API 到 DB 的多層次防禦體系。
+        全局唯一 ID: 整合 Snowflake 算法，確保高併發下的 ID 全域唯一性。
+    容器化整合測試:
+        高保真容器測試: 測試自動拉起容器化 MySQL、Redis 與 Kafka，消除 Mock 差異，確保單元測試涵蓋真實版本影響。
+2.  基礎設施封裝:
+    MySQL 治理模式:
+        透明化管理: 整合 MyBatis Plus 與動態多資料源，透過攔截器實現對業務透明的讀寫分離與資料源切換。
+        效能與安全: 內建高效能 BatchExecutor 突破傳統批次寫入瓶頸；預設啟用 Block Attack 攔截全表危險操作。
+        分佈式事務方案: 標準化 Transactional Outbox 與 Retry Task 模式，使複雜的分佈式事務開發變得極其簡便且高可靠。
+    Redis 雙引擎封裝:
+        開發模板化: 深度封裝 Lettuce 與 Redisson，封裝 Cache-Aside 讀取模板、異步寫入、Cluster pipeline 批次讀寫，簡便緩存操作與優化性能。
+        安全與防護: 統一安全防護與強制 TTL 抖動機制，從架構層面杜絕緩存穿透、擊穿、雪崩。
+    Kafka 契約式治理:
+        Contract-First 治理: 強推以 Client SDK 定義 Topic 與 Event 契約，讓消費方明確對接規範，極大化降低跨服務溝通成本。
+        智慧生產者與消費者: 內建 Bean Validation 攔截非法數據，自動注入 MDC 事件上下文；支援自動化指數退避重試與 DLQ 路由。
+        效能與配置優化: 深度優化傳輸可靠性與壓縮配置，統一開發日誌；調整 Batch 參數、異步 Ack 與 CooperativeStickyAssignor 策略提升吞吐。
+3.  金融級安全架構:
+    JWT + Redis 混合驗證: 解決傳統方案撤銷機制複雜、維護成本高的痛點，以極低開銷兼具無狀態效能與秒級「踢下線」能力。
+    簡化接口治理: 透過 @Public/Private/Jwt 多重策略註解，支援「單一接口、多種憑證適配」，徹底解決過往接口膨脹與冗餘問題。
+    標準化認證中心: 將複雜安全配置與標準的登入登出/refresh token等接口封裝於 SDK，確保全系統驗證邏輯高度統一，讓開發專注於業務與權限實現。
+4.  微服務治理與韌性:
+    標準化即防禦: 強制防禦性輸入與契約式輸出，從源頭杜絕髒數據；推行 Shared API Interface 實現 API 與校驗規則自動同步；整合多語系與 Gzip/Etag 頻寬優化；統一 Servlet/Cookie 安全治理並提供便捷 Http 處理工具。
+    無感透傳與調用治理: 像基因遺傳般自動透傳業務上下文；透過 OpenApiClientInvoker 自動處理狀態校驗與異常轉換，讓遠程調用如本地方法般簡單可靠。
+    預設即安全: 統一治理熔斷、限流、重試與艙壁隔離；透過 AOP 切面輕鬆保護 RPC、DB 與 Cache 調用，並提供基於開源反饋持續迭代的黃金配置模板，賦能系統建構與時俱進的容錯韌性。
 
 ## Option B: English Version (英文版)
 
@@ -49,40 +49,40 @@
 > **Subtitle:** Achieving "Governance by Dependency" via Modular SDKs
 >
 > **Agenda:**
-> 1.  **SDK Core Foundation:**
->     *   **Observability & Monitoring:**
->         *   **High-Performance Async Logging (Log4j2):** Full Async Logger for maximized throughput and low-latency; simplified logger declaration with unified formatting.
->         *   **Automated Context Injection (Context):** Auto-injection of **TraceId** & **ReqId** via MDC for seamless end-to-end tracing.
->         *   **Standardized Metrics (Metrics):** Standardized Metrics SDK with high-perf encapsulation and tag management; deep **ThreadPool instrumentation** for real-time resource monitoring.
->     *   **System Governance:**
->         *   **Standardized Bootstrap (Lifecycle):** Standardized **Bootstrap** process and environment checks for predictable service behavior.
->         *   **Global Exception Governance (Exception):** **Global Exception** translation with auto-attached MDC context for faster troubleshooting.
->     *   **Data Consistency & Security:**
->         *   **Strict Serialization Defense (Jackson):** Strict **Jackson** customization (no scientific notation, no null-to-zero coercion, RFC 3339 standard) to prevent JSON confusion attacks and ensure precision.
->         *   **Multi-Layer Audit Defense (Audit & Validation):** Proprietary **OpenObjectDiff** for Delta JSON generation to empower audits; unified **OpenValidator** for multi-layer defense from API to DB.
->         *   **Globally Unique ID (Snowflake):** Integrated **Snowflake** algorithm for globally unique IDs in high-concurrency environments.
->     *   **Containerized Integration Testing:**
->         *   **High-Fidelity Simulation (TestContainers):** Automatically spinning up containerized MySQL, Redis, and Kafka for local tests, eliminating Mock gaps and ensuring version compatibility.
-> 2.  **Infrastructure Abstraction:**
->     *   **MySQL Governance:**
->         *   **Transparent Management:** Unifying MyBatis Plus and Dynamic Datasource via interceptors for seamless R/W splitting and datasource switching.
->         *   **Performance & Security:** Built-in high-performance **BatchExecutor**; default **Block Attack** protection against full-table operations.
->         *   **Distributed Transaction Patterns:** Standardized **Transactional Outbox** and **Retry Task** patterns, making complex distributed transactions simple and highly reliable.
->     *   **Redis Dual-Engine:**
->         *   **Template-Based Development:** Deeply encapsulated Lettuce and Redisson, providing Cache-Aside read templates, asynchronous writes, and Cluster pipeline batch R/W, simplifying cache operations and enhancing performance.
->         *   **Security & Protection:** Unified security protection and mandatory TTL jitter mechanism, eliminating cache penetration, breakdown, and avalanche at the architectural level.
->     *   **Kafka Messaging:**
->         *   **Contract-First Governance:** Enforced Topic and Event contracts via Client SDKs, providing clear integration specs for consumers and minimizing cross-service communication overhead.
->         *   **Smart Producer & Consumer:** Built-in Bean Validation to block invalid data; automatic MDC context injection; and automated **Exponential Backoff Retry** with **DLQ routing**.
->         *   **Performance & Config Tuning:** Optimized transmission reliability and compression, with unified development logging; tuned Batch params, Async Ack, and CooperativeStickyAssignor.
-> 3.  **Financial-Grade Security (Auth):**
->     *   **JWT + Redis Hybrid Validation:** Resolving the complexity and high maintenance cost of traditional revocation schemes; achieving stateless performance with sub-second "kick-out" capability at minimal overhead.
->     *   **Simplified Interface Governance:** Utilizing **@Public/Private/Jwt** annotations to support "single interface, multi-credential adaptation," effectively eliminating interface bloat and redundancy.
->     *   **Standardized Auth Server:** Encapsulates complex security configs and standard interfaces within the SDK, ensuring unified validation logic and allowing focus on business implementation.
-> 4.  **Microservice Governance & Resilience:**
->     *   **Standardization as Defense (Spring MVC):** Enforcing defensive input and contractual output to block bad data at the source; promoting **Shared API Interface** for auto-synced rules; integrating I18n and Gzip/Etag bandwidth optimization; unified Servlet/Cookie security and convenient Http processing tools.
->     *   **Seamless Propagation & Call Governance (OpenFeign):** Auto-propagating business context; encapsulating state validation and exception conversion via **OpenApiClientInvoker**, making remote calls as simple and reliable as local methods.
->     *   **Safety by Default (Resilience4j):** Unified governance of Circuit Breaker, Rate Limiter, Retry, and Bulkhead; protecting RPC, DB, and Cache calls via AOP aspects, and providing golden templates continuously iterated via open-source feedback for evolving system resilience.
+1.  SDK Core Foundation:
+    Observability & Monitoring:
+        High-Performance Async Logging (Log4j2): Full Async Logger for maximized throughput and low-latency; simplified logger declaration with unified formatting.
+        Automated Context Injection (Context): Auto-injection of TraceId & ReqId via MDC for seamless end-to-end tracing.
+        Standardized Metrics (Metrics): Standardized Metrics SDK with high-perf encapsulation and tag management; deep ThreadPool instrumentation for real-time resource monitoring.
+    System Governance:
+        Standardized Bootstrap (Lifecycle): Standardized Bootstrap process and environment checks for predictable service behavior.
+        Global Exception Governance (Exception): Global Exception translation with auto-attached MDC context for faster troubleshooting.
+    Data Consistency & Security:
+        Strict Serialization Defense (Jackson): Strict Jackson customization (no scientific notation, no null-to-zero coercion, RFC 3339 standard) to prevent JSON confusion attacks and ensure precision.
+        Multi-Layer Audit Defense (Audit & Validation): Proprietary OpenObjectDiff for Delta JSON generation to empower audits; unified OpenValidator for multi-layer defense from API to DB.
+        Globally Unique ID (Snowflake): Integrated Snowflake algorithm for globally unique IDs in high-concurrency environments.
+    Containerized Integration Testing:
+        High-Fidelity Simulation (TestContainers): Automatically spinning up containerized MySQL, Redis, and Kafka for local tests, eliminating Mock gaps and ensuring version compatibility.
+2.  Infrastructure Abstraction:
+    MySQL Governance:
+        Transparent Management: Unifying MyBatis Plus and Dynamic Datasource via interceptors for seamless R/W splitting and datasource switching.
+        Performance & Security: Built-in high-performance BatchExecutor; default Block Attack protection against full-table operations.
+        Distributed Transaction Patterns: Standardized Transactional Outbox and Retry Task patterns, making complex distributed transactions simple and highly reliable.
+    Redis Dual-Engine:
+        Template-Based Development: Deeply encapsulated Lettuce and Redisson, providing Cache-Aside read templates, asynchronous writes, and Cluster pipeline batch R/W, simplifying cache operations and enhancing performance.
+        Security & Protection: Unified security protection and mandatory TTL jitter mechanism, eliminating cache penetration, breakdown, and avalanche at the architectural level.
+    Kafka Messaging:
+        Contract-First Governance: Enforced Topic and Event contracts via Client SDKs, providing clear integration specs for consumers and minimizing cross-service communication overhead.
+        Smart Producer & Consumer: Built-in Bean Validation to block invalid data; automatic MDC context injection; and automated Exponential Backoff Retry with DLQ routing.
+        Performance & Config Tuning: Optimized transmission reliability and compression, with unified development logging; tuned Batch params, Async Ack, and CooperativeStickyAssignor.
+3.  Financial-Grade Security (Auth):
+    JWT + Redis Hybrid Validation: Resolving the complexity and high maintenance cost of traditional revocation schemes; achieving stateless performance with sub-second "kick-out" capability at minimal overhead.
+    Simplified Interface Governance: Utilizing @Public/Private/Jwt annotations to support "single interface, multi-credential adaptation," effectively eliminating interface bloat and redundancy.
+    Standardized Auth Server: Encapsulates complex security configs and standard interfaces within the SDK, ensuring unified validation logic and allowing focus on business implementation.
+4.  Microservice Governance & Resilience:
+    Standardization as Defense (Spring MVC): Enforcing defensive input and contractual output to block bad data at the source; promoting Shared API Interface for auto-synced rules; integrating I18n and Gzip/Etag bandwidth optimization; unified Servlet/Cookie security and convenient Http processing tools.
+    Seamless Propagation & Call Governance (OpenFeign): Auto-propagating business context; encapsulating state validation and exception conversion via OpenApiClientInvoker, making remote calls as simple and reliable as local methods.
+    Safety by Default (Resilience4j): Unified governance of Circuit Breaker, Rate Limiter, Retry, and Bulkhead; protecting RPC, DB, and Cache calls via AOP aspects, and providing golden templates continuously iterated via open-source feedback for evolving system resilience.
 
 ---
 
