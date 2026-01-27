@@ -8,21 +8,21 @@
 > **副標題 (Subtitle):** 打造微秒級高頻交易系統的核心技術
 >
 > **本集大綱 (Agenda):**
-1.  核心架構演進:
-    徹底解除傳統資料庫鎖 (Lock) 與隨機 I/O 的效能枷鎖。
-    全鏈路 LMAX 無鎖架構 + WAL 順序持久化，消除隨機 IO 抖動，確保微秒級確定性延遲。
-2.  CQRS 讀寫分離:
-    Matching 服務: 單執行緒批次處理 + 順序 I/O，將硬體性能發揮至極限。
-    Market Data 服務: 構建 L1/L2 多級緩存矩陣，從容應對百萬級行情風暴。
-3.  風控與帳戶體系:
-    風控: 嚴格事前風控 (Pre-Trade Check)，即時動態保證金計算，風險零容忍。
-    帳戶: 堅守複式記帳鐵律，支援即時全域快照，資金流向全鏈路可追溯。
-4.  分佈式一致性:
-    Flip 協議: 獨創分佈式機制，根除多節點資源搶奪 (Anti-Stealing) 與超賣風險。
-    異常處理: 內建自動補償 (Compensation) 流程，確保分佈式事務併發異常下的最終一致性。
-5.  彈性擴展策略:
-    無狀態層: 網關與查詢服務具備無限水平擴容能力，彈性應對流量洪峰。
-    有狀態核心: 透過交易對精確分片 (Sharding)，實現吞吐量與性能的線性增長。
+1.  核心架構：LMAX 無鎖架構與微秒級確定性延遲:
+		全鏈路 LMAX 無鎖架構 + 內存佇列定序 + WAL 順序持久化，消除隨機 IO 抖動，確保微秒級確定性延遲。
+		徹底解除傳統資料庫鎖 (Lock) 與隨機 I/O 的效能枷鎖。
+2.  CQRS 分離與分場景極致優化:
+		Matching 服務: 單執行緒批次處理 + 順序 I/O；採用預匹配 (Pre-match) 機制，將整批訂單 WAL 寫入精簡至單次 IO，將硬體性能發揮至極限。
+		Market Data 服務: 構建 L1/L2 多級緩存矩陣；基於撮合引擎輸出的深度訂單簿與即時 K 線統計，從容應對百萬級行情風暴。
+3.  帳戶與風控體系：嚴守會計準則與複式記帳鐵律:
+		帳戶: 堅守複式記帳鐵律；支援任意時刻的資產負債表快照重建，確保 100% 財務數據完整性，使體系內每一筆金流的會計操作皆精確可追溯。
+		風控: 嚴格事前風控 (Pre-Trade Check) 與即時動態保證金計算，保障平台與用戶權益，大幅減少異常補償的效能消耗。
+4.  分佈式一致性：根除資源搶奪與自動補償:
+		Flip 協議: 設計分佈式機制，根除多節點資源搶奪 (Anti-Stealing) 與超賣風險。
+		異常處理: 內建自動補償 (Compensation) 流程，確保分佈式事務併發異常下的最終一致性。
+5.  彈性擴展策略：無限水平擴容與線性增長:
+		無狀態層: 網關與查詢服務具備無限水平擴容能力，彈性應對流量洪峰。
+		有狀態核心: 透過交易對精確分片 (Sharding)，實現吞吐量與性能的線性增長。
 
 ## Option B: English Version (英文版)
 
@@ -30,21 +30,21 @@
 > **Subtitle:** Building the Core of a Microsecond-Level HFT System
 >
 > **Agenda:**
-1.  Core Evolution:
-    Shattering the performance shackles of traditional DB locks and random I/O.
-    Full-link LMAX Lock-free Arch + WAL Sequential Persistence, eliminating random IO jitter for Microsecond Deterministic Latency.
-2.  CQRS Pattern:
-    Matching Service: Single-threaded batching & Sequential I/O to maximize hardware limits.
-    Market Data Service: Building a Multi-Level Caching Matrix to effortlessly handle million-scale traffic storms.
-3.  Risk & Accounts:
-    Risk: Strict Pre-Trade Checks with dynamic margin calculation for zero risk tolerance.
-    Accounts: Adhering to the Double-Entry Iron Law, enabling real-time Global Snapshots and full auditability.
-4.  Distributed Consistency:
-    Flip Protocol: Proprietary mechanism eradicating multi-node Resource Contention (Anti-Stealing).
-    Error Handling: Built-in Auto-Compensation ensuring eventual consistency during distributed concurrency failures.
-5.  Scalability Strategy:
-    Stateless Layer: Unlimited Horizontal Scaling to elastically absorb traffic spikes.
-    Stateful Core: Linear performance growth via precise Symbol Sharding and resource isolation.
+1.  Core Architecture: LMAX Lock-free Architecture & Microsecond Deterministic Latency:
+		Full-link LMAX Lock-free Arch + Memory Queue Sequencing + WAL Sequential Persistence; eliminating random IO jitter for Microsecond Deterministic Latency.
+		Shattering the performance shackles of traditional DB locks and random I/O.
+2.  CQRS & Scenario-Based Extreme Optimization:
+		Matching Service: Single-threaded batching & Sequential I/O; utilizing Pre-match mechanism to consolidate WAL writes into a single IO per batch, maximizing hardware limits.
+		Market Data Service: Building a Multi-Level Caching Matrix; based on high-depth Orderbooks and real-time K-line statistics output from the matching engine to effortlessly handle million-scale traffic storms.
+3.  Accounts & Risk: Strict Accounting Compliance & Double-Entry Iron Law:
+		Accounts: Adhering to the Double-Entry Iron Law; enabling instant balance sheet reconstruction at any moment, ensuring 100% financial integrity and full traceability for every accounting operation within the financial flow.
+		Risk: Strict Pre-Trade Checks and dynamic margin calculation; safeguarding equity and minimizing performance overhead from anomaly compensation.
+4.  Distributed Consistency: Eradicating Contention & Auto-Compensation:
+		Flip Protocol: Proprietary mechanism eradicating multi-node Resource Contention (Anti-Stealing).
+		Error Handling: Built-in Auto-Compensation ensuring eventual consistency during distributed concurrency failures.
+5.  Scalability Strategy: Unlimited Horizontal Scaling & Linear Growth:
+		Stateless Layer: Unlimited Horizontal Scaling to elastically absorb traffic spikes.
+		Stateful Core: Linear performance growth via precise Symbol Sharding and resource isolation.
 
 ---
 
@@ -59,11 +59,11 @@
 
 **目標：** 深入剖析為何傳統架構無法支撐金融級高頻交易，並展示 Open Exchange Core 如何透過架構創新解決此問題。
 
-| 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
-| :--- | :--- | :--- | :--- |
-| 0:00 | **[對比動畫：傳統 vs 現代]**<br>左邊顯示「傳統架構」：大量請求擠向一個 Database 圖示，DB 出現紅色鎖頭 (Lock)。<br>右邊顯示「Open Exchange Core」：數據像流水一樣通過管道 (Kafka)。 | 傳統金融系統往往受限於資料庫的 ACID 鎖機制。當海量訂單湧入時，行級鎖會導致嚴重的資源競爭。Open Exchange Core 徹底摒棄了這種依賴，採用了**全異步的事件驅動架構**。 | |
-| 0:25 | **[架構特寫：LMAX 核心思想]**<br>畫面顯示一個類似 CPU 管道的圖示。<br>標註：**Disruptor Pattern / Ring Buffer**。<br>數據單向流動，無鎖競爭。 | 我們借鑒了 **LMAX Disruptor** 的架構思想。在最核心的撮合環節，我們完全移除了隨機磁碟 I/O 與鎖競爭，採用內存佇列進行定序。 | |
-| 0:40 | **[深度解析：WAL 與災難復原]**<br>畫面顯示一個 **File** 圖示，數據以 **Batch** 的形式快速寫入。<br>標註：**Sequential Write (順序寫)**。<br>然後演示系統崩潰 (Crash)，接著進度條快速跑動 (Replay)，內存狀態瞬間恢復。<br>右下角浮現未來規劃：**Raft Consensus / RingBuffer Optimization**。 | 為了確保數據絕對安全，我們實現了 **WAL (Write-Ahead Logging)** 機制。所有的撮合事件會先進行**批次順序寫入**——這也是整個撮合過程中**唯一的一次磁碟 I/O**。即使系統瞬間斷電，我們也能透過重放 WAL 日誌，在毫秒級內完全恢復內存狀態。<br>此外，我們規劃了基於 **Raft 協議** 的事件複製與 **RingBuffer** 優化，進一步提升事件層級的高可用性。 | |
+| 時間   | 畫面 (Visual)                                                                                                                                                                                                     | 旁白腳本 (Audio)                                                                                                                                                                                                  | 執行建議 |
+| :--- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--- |
+| 0:00 | **[對比動畫：傳統 vs 現代]**<br>左邊顯示「傳統架構」：大量請求擠向一個 Database 圖示，DB 出現紅色鎖頭 (Lock)。<br>右邊顯示「Open Exchange Core」：數據像流水一樣通過管道 (Kafka)。                                                                                       | 傳統金融系統往往受限於資料庫的 ACID 鎖機制。當海量訂單湧入時，行級鎖會導致嚴重的資源競爭。Open Exchange Core 徹底摒棄了這種依賴，採用了**全異步的事件驅動架構**。                                                                                                               |      |
+| 0:25 | **[架構特寫：LMAX 核心思想]**<br>畫面顯示一個類似 CPU 管道的圖示。<br>標註：**Disruptor Pattern / Ring Buffer**。<br>數據單向流動，無鎖競爭。                                                                                                          | 我們借鑒了 **LMAX Disruptor** 的架構思想。在最核心的撮合環節，我們完全移除了隨機磁碟 I/O 與鎖競爭，採用內存佇列進行定序。                                                                                                                                     |      |
+| 0:40 | **[深度解析：WAL 與災難復原]**<br>畫面顯示一個 **File** 圖示，數據以 **Batch** 的形式快速寫入。<br>標註：**Sequential Write (順序寫)**。<br>然後演示系統崩潰 (Crash)，接著進度條快速跑動 (Replay)，內存狀態瞬間恢復。<br>右下角浮現未來規劃：**Raft Consensus / RingBuffer Optimization**。 | 為了確保數據絕對安全，我們實現了 **WAL (Write-Ahead Logging)** 機制。所有的撮合事件會先進行**批次順序寫入**——這也是整個撮合過程中**唯一的一次磁碟 I/O**。即使系統瞬間斷電，我們也能透過重放 WAL 日誌，在毫秒級內完全恢復內存狀態。<br>此外，我們規劃了基於 **Raft 協議** 的事件複製與 **RingBuffer** 優化，進一步提升事件層級的高可用性。 |      |
 
 ---
 
