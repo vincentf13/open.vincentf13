@@ -9,7 +9,7 @@
 >
 > **本集大綱 (Agenda):**
 1.  核心架構：LMAX 無鎖架構與微秒級確定性延遲:
-		全鏈路 LMAX 無鎖架構 + 內存佇列定序 + WAL 順序持久化，消除隨機 IO 抖動，確保微秒級確定性延遲。
+		全鏈路異步事件驅動 / LMAX 無鎖架構 + 內存佇列定序 + WAL 順序持久化，消除隨機 IO 抖動，確保微秒級確定性延遲。
 		徹底解除傳統資料庫鎖 (Lock) 與隨機 I/O 的效能枷鎖。
 2.  CQRS 分離與分場景極致優化:
 		Matching 服務: 單執行緒批次處理 + 順序 I/O；採用預匹配 (Pre-match) 機制，將整批訂單 WAL 寫入精簡至單次 IO，將硬體性能發揮至極限。
@@ -31,7 +31,7 @@
 >
 > **Agenda:**
 1.  Core Architecture: LMAX Lock-free Architecture & Microsecond Deterministic Latency:
-		Full-link LMAX Lock-free Arch + Memory Queue Sequencing + WAL Sequential Persistence; eliminating random IO jitter for Microsecond Deterministic Latency.
+		Full-link Asynchronous Event-Driven / LMAX Lock-free Arch + Memory Queue Sequencing + WAL Sequential Persistence; eliminating random IO jitter for Microsecond Deterministic Latency.
 		Shattering the performance shackles of traditional DB locks and random I/O.
 2.  CQRS & Scenario-Based Extreme Optimization:
 		Matching Service: Single-threaded batching & Sequential I/O; utilizing Pre-match mechanism to consolidate WAL writes into a single IO per batch, maximizing hardware limits.
