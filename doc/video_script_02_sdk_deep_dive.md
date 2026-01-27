@@ -39,7 +39,7 @@
 >     *   **簡化接口治理:** 透過 **@Public/Private/Jwt** 多重策略註解，支援「單一接口、多種憑證適配」，徹底解決過往接口膨脹與冗餘問題。
 >     *   **標準化認證中心:** 將複雜安全配置與標準的登入登出/refresh token等接口封裝於 SDK，確保全系統驗證邏輯高度統一，讓開發專注於業務與權限實現。
 > 4.  **微服務治理與韌性 (Governance & Resilience):**
->     *   **標準化即防禦 (Spring MVC):** 強制防禦性輸入與契約式輸出；整合多語系與 Gzip/Etag 頻寬優化；統一 Servlet/Cookie 安全治理並提供便捷 Http 處理工具。
+>     *   **標準化即防禦 (Spring MVC):** 強制防禦性輸入與契約式輸出，從源頭杜絕髒數據；推行 **Shared API Interface** 實現 API 與校驗規則自動同步；整合多語系與 Gzip/Etag 頻寬優化；統一 Servlet/Cookie 安全治理並提供便捷 Http 處理工具。
 >     *   **無感透傳與調用治理 (OpenFeign):** 像基因遺傳般自動透傳業務上下文；透過 **OpenApiClientInvoker** 自動處理狀態校驗與異常轉換，讓遠程調用如本地方法般簡單可靠。
 >     *   **預設即安全 (Resilience4j):** 統一治理熔斷、限流、重試與艙壁隔離；透過 AOP 切面輕鬆保護 RPC、DB 與 Cache 調用，並提供基於開源反饋持續迭代的黃金配置模板，賦能系統建構與時俱進的容錯韌性。
 
@@ -80,7 +80,7 @@
 >     *   **Simplified Interface Governance:** Utilizing **@Public/Private/Jwt** annotations to support "single interface, multi-credential adaptation," effectively eliminating interface bloat and redundancy.
 >     *   **Standardized Auth Server:** Encapsulates complex security configs and standard interfaces within the SDK, ensuring unified validation logic and allowing focus on business implementation.
 > 4.  **Microservice Governance & Resilience:**
->     *   **Standardization as Defense (Spring MVC):** Enforcing defensive input and contractual output; integrated I18n and Gzip/Etag bandwidth optimization; unified Servlet/Cookie security and convenient Http processing tools.
+>     *   **Standardization as Defense (Spring MVC):** Enforcing defensive input and contractual output to block bad data at the source; promoting **Shared API Interface** for auto-synced rules; integrating I18n and Gzip/Etag bandwidth optimization; unified Servlet/Cookie security and convenient Http processing tools.
 >     *   **Seamless Propagation & Call Governance (OpenFeign):** Auto-propagating business context; encapsulating state validation and exception conversion via **OpenApiClientInvoker**, making remote calls as simple and reliable as local methods.
 >     *   **Safety by Default (Resilience4j):** Unified governance of Circuit Breaker, Rate Limiter, Retry, and Bulkhead; protecting RPC, DB, and Cache calls via AOP aspects, and providing golden templates continuously iterated via open-source feedback for evolving system resilience.
 
@@ -222,7 +222,7 @@
 
 | 時間   | 畫面 (Visual)                                                                                                                                                                    | 旁白腳本 (Audio)                                                                                                                                                                                                                                                                                                                                                                       | 執行建議 |
 | :--- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--- |
-| 5:30 | **[標準 Web 治理]**<br>顯示 `ObjectMapper` 與自動 Trim 代碼。<br>顯示 `OpenRestExceptionAdvice` 捕捉異常。<br>顯示 `OpenHttpUtils.resolveBearerToken`。<br>顯示 `RequestCorrelationFilter` 注入 TraceID。 | `sdk-spring-mvc` 是標準化的第一道防線。它強制執行了**防禦性輸入處理**，包括字串自動 Trim 與日期格式標準化，並統一了 **UTF-8 編碼**與標準 **`ObjectMapper`** 配置，從源頭杜絕髒數據。更關鍵的是實現了**契約式輸出**：透過 `GlobalExceptionHandler`，確保無論發生何種災難，前端收到的永遠是結構統一的 JSON 與 MDC上下文方便問題定位 。同時，內建的 **`OpenHttpUtils`** 與 Http 處理變得極其順手。在安全與可追蹤性上，它統一配置了 **Cookie 安全策略** (HttpOnly/Lax)，並透過 **`RequestCorrelationFilter`** 將 Trace ID 自動同步至 MDC，實現了全鏈路的精確追蹤。 |      |
+| 5:30 | **[標準 Web 治理]**<br>顯示 `ObjectMapper` 與自動 Trim 代碼。<br>顯示 `PositionApi` 介面定義。<br>顯示 `OpenRestExceptionAdvice` 捕捉異常。<br>顯示 `OpenHttpUtils` 與 `RequestCorrelationFilter`。 | `sdk-spring-mvc` 是標準化的第一道防線。它強制執行了**防禦性輸入處理**（如字串自動 Trim）與標準 **`ObjectMapper`** 配置，從源頭杜絕髒數據。我們推行 **Shared API Interface** 模式（如 `PositionApi`），確保客戶端與服務端自動同步 API 定義、校驗規則與 Enum，極大降低整合錯誤並便利測試生成。更關鍵的是**契約式輸出**：透過 `GlobalExceptionHandler` 實現異常的全域捕獲與 **多語系 (I18n)** 轉換，並在回應中自動帶入 **MDC (TraceID/ReqID) 上下文** 以方便問題定位。此外，它統一管理了 **Servlet Server 與 Cookie 安全**，預設啟用 **Gzip/Etag 頻寬優化**，並提供便捷的 **`OpenHttpUtils`** 處理工具，實現了效能、安全與開發效率的完美平衡。 |      |
 |      |                                                                                                                                                                                |                                                                                                                                                                                                                                                                                                                                                                                    |      |
 
 #### 5.2 OpenFeign: 服務間通訊 (Inter-service Communication)
