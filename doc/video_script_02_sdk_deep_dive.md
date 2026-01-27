@@ -39,8 +39,9 @@
 >     *   **簡化接口治理:** 透過 **@Public/Private/Jwt** 多重策略註解，支援「單一接口、多種憑證適配」，徹底解決過往接口膨脹與冗餘問題。
 >     *   **標準化認證中心:** 將複雜安全配置與標準的登入登出/refresh token等接口封裝於 SDK，確保全系統驗證邏輯高度統一，讓開發專注於業務與權限實現。
 > 4.  **微服務治理與韌性 (Governance & Resilience):**
->     *   **Spring MVC & OpenFeign:** 標準化 Web 請求處理與全鏈路 TraceId/UserContext/Language 無感透傳。
->     *   **Resilience4j:** 預設註解式 **Circuit Breaker** 與 **Rate Limiter**，強化系統自我保護能力。
+>     *   **標準化即防禦 (Spring MVC):** 強制防禦性輸入與契約式輸出；整合多語系與 Gzip/Etag 頻寬優化；統一 Servlet/Cookie 安全治理並提供便捷 Http 處理工具。
+>     *   **隱形上下文傳送 (OpenFeign):** 像基因遺傳般自動透傳 TraceId、UserContext 與 Language，確保深層調用鏈中業務上下文零丟失。
+>     *   **預設即安全 (Resilience4j):** 內建黃金配置模板，僅需一行註解即可為系統穿上防彈衣，自動阻斷故障擴散。
 
 ## Option B: English Version (英文版)
 
@@ -79,8 +80,9 @@
 >     *   **Simplified Interface Governance:** Utilizing **@Public/Private/Jwt** annotations to support "single interface, multi-credential adaptation," effectively eliminating interface bloat and redundancy.
 >     *   **Standardized Auth Server:** Encapsulates complex security configs and standard interfaces within the SDK, ensuring unified validation logic and allowing focus on business implementation.
 > 4.  **Microservice Governance & Resilience:**
->     *   **Spring MVC & OpenFeign:** Standardized request handling and seamless full-link propagation of TraceId/UserContext/Language.
->     *   **Resilience4j:** Annotation-based **Circuit Breaker** and **Rate Limiter** defaults for robust self-protection.
+>     *   **Standardization as Defense (Spring MVC):** Enforcing defensive input and contractual output; integrated I18n and Gzip/Etag bandwidth optimization; unified Servlet/Cookie security and convenient Http processing tools.
+>     *   **Invisible Context Teleportation (OpenFeign):** Automatically propagating TraceId, UserContext, and Language like genetics, ensuring zero context loss in deep call chains.
+>     *   **Safety by Default (Resilience4j):** Built-in golden configuration templates; a single annotation instantly armors the system against cascading failures.
 
 ---
 
