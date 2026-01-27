@@ -31,8 +31,9 @@
 >         *   **開發模板化:** 深度封裝 Lettuce 與 Redisson，封裝 Cache-Aside 讀取模板、異步寫入、Cluster pipeline 批次讀寫，簡便緩存操作與優化性能。
 >         *   **安全與防護:** 統一安全防護與強制 TTL 抖動機制，從架構層面杜絕緩存穿透、擊穿、雪崩。
 >     *   **Kafka 契約式治理 (Kafka Messaging):**
->         *   **Contract-First:** 強推以 Client SDK 定義 Topic 與 Event 契約，內建 Bean Validation 確保非法數據絕不進入隊列。
->         *   **容錯閉環:** 實現自動化 **指數退避重試 (Retry)** 與 **DLQ 路由**，結合全鏈路 Trace 透傳，實現訊息流的全生命週期治理。
+>         *   **Contract-First 治理:** 強推以 Client SDK 定義 Topic 與 Event 契約，讓消費方明確對接規範，極大化降低跨服務溝通成本。
+>         *   **智慧生產者與消費者:** 內建 Bean Validation 攔截非法數據，自動注入 MDC 事件上下文；支援自動化**指數退避重試**與 **DLQ 路由**。
+>         *   **效能與配置優化:** 深度優化傳輸可靠性與壓縮配置，統一開發日誌；調整 Batch 參數、異步 Ack 與 CooperativeStickyAssignor 策略提升吞吐。
 > 3.  **金融級安全架構 (Auth):**
 >     *   獨創 **JWT + Redis 混合驗證模式**，兼具無狀態效能與**即時撤銷 (Revocation)** 能力。
 >     *   提供 **@Public/Private/Jwt** 多重策略註解，實現無感接入。
@@ -69,8 +70,9 @@
 >         *   **Template-Based Development:** Deeply encapsulated Lettuce and Redisson, providing Cache-Aside read templates, asynchronous writes, and Cluster pipeline batch R/W, simplifying cache operations and performance.
 >         *   **Security & Protection:** Unified security protection and mandatory TTL jitter mechanism, eliminating cache penetration, breakdown, and avalanche at the architectural level.
 >     *   **Kafka Messaging:**
->         *   **Contract-First:** Enforced Topic and Event contracts via Client SDKs with built-in Bean Validation to block invalid data.
->         *   **Fault-Tolerant Loop:** Automated **Exponential Backoff Retry** and **DLQ routing** with full-link Trace propagation for end-to-end message lifecycle governance.
+>         *   **Contract-First Governance:** Enforced Topic and Event contracts via Client SDKs, providing clear integration specs for consumers and minimizing cross-service communication overhead.
+>         *   **Smart Producer & Consumer:** Built-in Bean Validation to block invalid data; automatic MDC context injection; and automated **Exponential Backoff Retry** with **DLQ routing**.
+>         *   **Performance & Config Tuning:** Optimized transmission reliability and compression, with unified development logging; tuned Batch params, Async Ack, and CooperativeStickyAssignor.
 > 3.  **Financial-Grade Security:**
 >     *   Proprietary **JWT + Redis Hybrid Validation**, combining stateless speed with **Real-time Revocation**.
 >     *   Multi-strategy annotations (**@Public/Private/Jwt**) for seamless integration.
@@ -164,8 +166,8 @@
 
 | 時間   | 畫面 (Visual)                                                                                                                                        | 旁白腳本 (Audio)                                                                                                                                                                                                                                                                                                            | 執行建議 |
 | :--- | :------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--- |
-| 3:55 | **[統一配置與生產者]**<br>顯示 Kafka 自動配置類別 (ObjectMapper 注入)。<br>顯示 `OpenKafkaProducer` 發送代碼。<br>顯示 `exchange-sdk` 中的 Topic 定義與 Event DTO。                  | 對於 Kafka，我們接管了生產與消費兩端的配置，並針對高吞吐場景進行了深度優化——調整了 **Batch Size** 與 **Linger.ms** 以實現微批次發送，啟用異步Ack，使用CooperativeStickyAssignor策略，縮短rebalance時對服務中斷的影響，平衡了延遲與吞吐。<br>我們特別推行了 **Contract-First** 的模式：每個服務都會提供專屬的 Client SDK 包，裡面定義了該服務所有的 Topic 與強型別 Event 物件，並內建了校驗規則。下游服務只需引用 SDK 即可完成對接，這不僅消除了拼寫錯誤，更透過共享契約極大地提升了事件交互的效率與穩定性。 |      |
-| 4:10 | **[智慧生產者與消費者]**<br>顯示 Producer 自動進行 Bean Validation 校驗。<br>動畫：重試 (1s -> 2s -> 4s) -> DLQ。<br>Log: `Kafka Send Automation` -> `Consume Automation`。 | 在 Open Exchange Core 中，Kafka 的自動化是全方位的。生產端透過 `OpenKafkaProducer` 在發送前自動執行 **Bean Validation** 與 Trace 資訊注入，確保非法數據絕不進入隊列。並提供異步Batch發送能力縮短這一段整體響應的時間。消費端則能將 JSON 自動轉換為 Event 物件，並內建了**指數退避 (Exponential Backoff) 重試機制**。當重試超過三次仍失敗時，消息會被自動路由到 DLQ，實現了從發送端到消費端的完整容錯與監控閉環。                                                  |      |
+| 3:55 | **[Contract-First 與配置優化]**<br>顯示 Kafka 自動配置類別。<br>顯示 `OpenKafkaProducer` 發送代碼。<br>顯示 `exchange-sdk` 中的 Topic 定義與 Event DTO。                  | 對於 Kafka，我們在 `sdk-infra-kafka` 中預設啟用了高效能 **Snappy 壓縮** 與 **Acks=All** 的可靠性配置，並統一了生產與消費日誌以便於開發除錯。同時，針對高吞吐場景深度優化了 **Batch Size**、**Linger.ms** 與異步 Ack，並採用 `CooperativeStickyAssignor` 策略大幅縮短 Rebalance 時間，完美平衡了數據可靠性、延遲與吞吐量。<br>更重要的是，我們推行 **Contract-First** 模式：每個服務透過 Client SDK 提供 Topic 與強型別 Event 契約。這讓消費方能第一時間明確對接規範與數據結構，極大化地降低了跨團隊的溝通成本。 |      |
+| 4:10 | **[智慧生產者與消費者]**<br>顯示 Producer 的 Bean Validation 校驗邏輯。<br>動畫：MDC 上下文注入 -> 指數退避重試 -> DLQ。<br>Log: `Kafka Send Automation` -> `Consume Automation`。 | 在 Open Exchange Core 中，Kafka 的自動化是端到端的。生產端在發送前自動執行 **Bean Validation** 攔截非法數據，並注入 MDC 事件上下文確保全鏈路可追蹤。消費端則實現了自動反序列化，並內建了**指數退避 (Exponential Backoff) 重試機制**。當重試超過上限時，消息會自動路由到 DLQ，實現了從發送端到消費端的完整容錯閉環。                                                  |      |
 
 ---
 
