@@ -41,7 +41,7 @@
 > 4.  **微服務治理與韌性 (Governance & Resilience):**
 >     *   **標準化即防禦 (Spring MVC):** 強制防禦性輸入與契約式輸出；整合多語系與 Gzip/Etag 頻寬優化；統一 Servlet/Cookie 安全治理並提供便捷 Http 處理工具。
 >     *   **無感透傳與調用治理 (OpenFeign):** 像基因遺傳般自動透傳業務上下文；透過 **OpenApiClientInvoker** 自動處理狀態校驗與異常轉換，讓遠程調用如本地方法般簡單可靠。
->     *   **預設即安全 (Resilience4j):** 統一治理熔斷、限流、重試與艙壁隔離；無縫整合 RPC、DB 與 Cache，並提供基於開源反饋持續迭代的黃金配置模板，賦能系統建構與時俱進的容錯韌性。
+>     *   **預設即安全 (Resilience4j):** 統一治理熔斷、限流、重試與艙壁隔離；透過 AOP 切面輕鬆保護 RPC、DB 與 Cache 調用，並提供基於開源反饋持續迭代的黃金配置模板，賦能系統建構與時俱進的容錯韌性。
 
 ## Option B: English Version (英文版)
 
@@ -82,7 +82,7 @@
 > 4.  **Microservice Governance & Resilience:**
 >     *   **Standardization as Defense (Spring MVC):** Enforcing defensive input and contractual output; integrated I18n and Gzip/Etag bandwidth optimization; unified Servlet/Cookie security and convenient Http processing tools.
 >     *   **Seamless Propagation & Call Governance (OpenFeign):** Auto-propagating business context; encapsulating state validation and exception conversion via **OpenApiClientInvoker**, making remote calls as simple and reliable as local methods.
->     *   **Safety by Default (Resilience4j):** Unified governance of Circuit Breaker, Rate Limiter, Retry, and Bulkhead; seamlessly integrated with RPC, DB, and Cache, providing golden templates continuously iterated via open-source feedback for evolving system resilience.
+>     *   **Safety by Default (Resilience4j):** Unified governance of Circuit Breaker, Rate Limiter, Retry, and Bulkhead; protecting RPC, DB, and Cache calls via AOP aspects, and providing golden templates continuously iterated via open-source feedback for evolving system resilience.
 
 ---
 
