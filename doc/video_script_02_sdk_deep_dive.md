@@ -28,8 +28,8 @@
 >         *   **效能與安全:** 內建高效能 **BatchExecutor** 突破傳統批次寫入瓶頸；預設啟用 **Block Attack** 攔截全表危險操作。
 >         *   **分佈式事務方案:** 標準化 **Transactional Outbox** 與 **Retry Task** 模式，使複雜的分佈式事務開發變得極其簡便且高可靠。
 >     *   **Redis 雙引擎封裝 (Redis Dual-Engine):**
->         *   **開發模板化:** 深度封裝 Lettuce 與 Redisson，提供開箱即用的 **Cache-Aside** 模板與分佈式鎖解決方案。
->         *   **集群與防護:** 內建 **Cluster Slot 路由優化**提升批次吞吐；強制 **TTL 抖動 (Jitter)** 機制，從架構層面杜絕緩存雪崩。
+>         *   **開發模板化:** 深度封裝 Lettuce 與 Redisson，封裝 Cache-Aside 讀取模板、異步寫入、Cluster pipeline 批次讀寫，簡便緩存操作與優化性能。
+>         *   **安全與防護:** 統一安全防護與強制 TTL 抖動機制，從架構層面杜絕緩存穿透、擊穿、雪崩。
 >     *   **Kafka 契約式治理 (Kafka Messaging):**
 >         *   **Contract-First:** 強推以 Client SDK 定義 Topic 與 Event 契約，內建 Bean Validation 確保非法數據絕不進入隊列。
 >         *   **容錯閉環:** 實現自動化 **指數退避重試 (Retry)** 與 **DLQ 路由**，結合全鏈路 Trace 透傳，實現訊息流的全生命週期治理。
@@ -66,8 +66,8 @@
 >         *   **Performance & Security:** Built-in high-performance **BatchExecutor**; default **Block Attack** protection against full-table operations.
 >         *   **Distributed Transaction Patterns:** Standardized **Transactional Outbox** and **Retry Task** patterns, making complex distributed transactions simple and highly reliable.
 >     *   **Redis Dual-Engine:**
->         *   **Template-Based Development:** Deeply encapsulated Lettuce and Redisson with ready-to-use **Cache-Aside** templates and distributed lock solutions.
->         *   **Cluster & Protection:** Built-in **Cluster Slot routing optimization** for batch throughput; mandatory **TTL Jitter** mechanism to eliminate cache stampede.
+>         *   **Template-Based Development:** Deeply encapsulated Lettuce and Redisson, providing Cache-Aside read templates, asynchronous writes, and Cluster pipeline batch R/W, simplifying cache operations and performance.
+>         *   **Security & Protection:** Unified security protection and mandatory TTL jitter mechanism, eliminating cache penetration, breakdown, and avalanche at the architectural level.
 >     *   **Kafka Messaging:**
 >         *   **Contract-First:** Enforced Topic and Event contracts via Client SDKs with built-in Bean Validation to block invalid data.
 >         *   **Fault-Tolerant Loop:** Automated **Exponential Backoff Retry** and **DLQ routing** with full-link Trace propagation for end-to-end message lifecycle governance.
@@ -155,7 +155,7 @@
 | 時間 | 畫面 (Visual) | 旁白腳本 (Audio) | 執行建議 |
 | :--- | :--- | :--- | :--- |
 | 3:10 | **[Lettuce 與 Redisson 統一管理]**<br>顯示 Redis 自動配置類別。<br>顯示 `OpenRedisString` 的各個模板方法。 | 在 Redis 層面，SDK 實現了 **Lettuce 與 Redisson 的統一管理與優化配置**。我們封裝了強大的 `OpenRedisString` 模板，提供了諸如 `getOrLoad` 模式化 Cache-Aside、`setAsync` 異步寫入、以及針對 Cluster 模式深度優化的 `setBatchCluster` 批次處理。 | |
-| 3:25 | **[Cluster 優化與 TTL 抖動]**<br>顯示 `setBatchCluster` 的 Slot 分組邏輯。<br>顯示 `RedisUtil.withJitter`。 | 針對 Redis Cluster 的效能瓶頸，我們特別實現了**自動槽位 (Slot) 路由的批次查詢與寫入**，大幅提升了集群模式下的吞吐量。同時，我們在所有緩存寫入中強制引入了 **TTL 抖動 (Jitter)** 機制，從架構層面杜絕了緩存雪崩的風險。 | |
+| 3:25 | **[安全防護與 TTL 抖動]**<br>顯示 `RedisUtil.withJitter`。<br>顯示 `getOrLoad` 中的防穿透與防擊穿邏輯。 | 除了效能優化，我們更重視緩存的穩定性。系統強制引入了 **TTL 抖動 (Jitter)** 機制，並透過統一的模板邏輯，從架構層面杜絕了**緩存穿透、擊穿與雪崩**的風險，確保基礎設施在極端流量下依然穩健。 | |
 | 3:40 | **[Redisson 分佈式鎖模板]**<br>顯示 `OpenRedissonLock.withLock` 調用。 | 對於複雜的分佈式鎖場景，我們透過 `OpenRedissonLock` 提供了簡潔的 `withLock` 模板。它自動處理了鎖的獲取、續約與釋放，並透過 Watchdog 機制確保業務執行的安全性，將分佈式競爭的處理難度降到了最低。 | |
 
 #### 3.3 Kafka: 端到端的訊息治理 (End-to-End Message Governance)
