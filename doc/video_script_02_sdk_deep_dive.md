@@ -22,10 +22,17 @@
 >         *   **分佈式 ID:** 整合 **Snowflake** 算法，確保高併發下的 ID 全域唯一性。
 >     *   **容器化整合測試 (Containerized Testing):**
 >         *   **真實環境模擬:** 測試自動拉起容器化 MySQL、Redis 與 Kafka，消除 Mock 差異，確保單元測試涵蓋真實版本影響。
-> 2.  **基礎設施封裝 (Infra):**
->     *   **MySQL:** 統一管理 **MyBatis Plus** 與 **Dynamic Datasource**；透過 **TypeHandler 與 Interceptor** 實現對業務透明的讀寫分離；內建高效能 **BatchExecutor** (優於傳統 Batch) 與 **Block Attack** 安全攔截；標準化 **Transactional Outbox** 與 **Retry Task** 模式。
->     *   **Redis:** **Lettuce/Redisson 雙引擎**封裝；提供 **Cache-Aside 模板**與 **Jitter (抖動)** 防護；內建 **Cluster Slot 路由優化**提升批次性能。
->     *   **Kafka:** **Contract-First** (契約優先) SDK 設計；內建 **Bean Validation** 與 **Async Batch** 發送；實現 **Auto-Retry/DLQ** 容錯閉環與全鏈路 Trace 透傳。
+> 2.  **基礎設施封裝 (Infrastructure Abstraction):**
+>     *   **MySQL 治理模式 (MySQL Governance):**
+>         *   **透明化管理:** 整合 MyBatis Plus 與動態多資料源，透過攔截器實現對業務透明的讀寫分離與資料源切換。
+>         *   **效能與安全:** 內建高效能 **BatchExecutor** 突破傳統批次寫入瓶頸；預設啟用 **Block Attack** 攔截全表危險操作。
+>         *   **分佈式事務方案:** 標準化 **Transactional Outbox** 與 **Retry Task** 模式，使複雜的分佈式事務開發變得極其簡便且高可靠。
+>     *   **Redis 雙引擎封裝 (Redis Dual-Engine):**
+>         *   **開發模板化:** 深度封裝 Lettuce 與 Redisson，提供開箱即用的 **Cache-Aside** 模板與分佈式鎖解決方案。
+>         *   **集群與防護:** 內建 **Cluster Slot 路由優化**提升批次吞吐；強制 **TTL 抖動 (Jitter)** 機制，從架構層面杜絕緩存雪崩。
+>     *   **Kafka 契約式治理 (Kafka Messaging):**
+>         *   **Contract-First:** 強推以 Client SDK 定義 Topic 與 Event 契約，內建 Bean Validation 確保非法數據絕不進入隊列。
+>         *   **容錯閉環:** 實現自動化 **指數退避重試 (Retry)** 與 **DLQ 路由**，結合全鏈路 Trace 透傳，實現訊息流的全生命週期治理。
 > 3.  **金融級安全架構 (Auth):**
 >     *   獨創 **JWT + Redis 混合驗證模式**，兼具無狀態效能與**即時撤銷 (Revocation)** 能力。
 >     *   提供 **@Public/Private/Jwt** 多重策略註解，實現無感接入。
@@ -54,9 +61,16 @@
 >     *   **Containerized Integration Testing:**
 >         *   **Real-Environment Simulation:** Automatically spinning up containerized MySQL, Redis, and Kafka for local tests, eliminating Mock gaps and ensuring version compatibility.
 > 2.  **Infrastructure Abstraction:**
->     *   **MySQL:** Unifying **MyBatis Plus** & **Dynamic Datasource**; Transparent R/W splitting via **TypeHandlers & Interceptors**; High-perf **BatchExecutor** & **Block Attack** protection; Standardized **Transactional Outbox** & **Retry Task** patterns.
->     *   **Redis:** **Lettuce/Redisson Dual-Engine** encapsulation; **Cache-Aside Templates** with **Jitter** protection; **Cluster Slot Optimization** for batch ops.
->     *   **Kafka:** **Contract-First** SDK design; Built-in **Bean Validation** & **Async Batching**; **Auto-Retry/DLQ** loops & full-link Trace propagation.
+>     *   **MySQL Governance:**
+>         *   **Transparent Management:** Unifying MyBatis Plus and Dynamic Datasource via interceptors for seamless R/W splitting and datasource switching.
+>         *   **Performance & Security:** Built-in high-performance **BatchExecutor**; default **Block Attack** protection against full-table operations.
+>         *   **Distributed Transaction Patterns:** Standardized **Transactional Outbox** and **Retry Task** patterns, making complex distributed transactions simple and highly reliable.
+>     *   **Redis Dual-Engine:**
+>         *   **Template-Based Development:** Deeply encapsulated Lettuce and Redisson with ready-to-use **Cache-Aside** templates and distributed lock solutions.
+>         *   **Cluster & Protection:** Built-in **Cluster Slot routing optimization** for batch throughput; mandatory **TTL Jitter** mechanism to eliminate cache stampede.
+>     *   **Kafka Messaging:**
+>         *   **Contract-First:** Enforced Topic and Event contracts via Client SDKs with built-in Bean Validation to block invalid data.
+>         *   **Fault-Tolerant Loop:** Automated **Exponential Backoff Retry** and **DLQ routing** with full-link Trace propagation for end-to-end message lifecycle governance.
 > 3.  **Financial-Grade Security:**
 >     *   Proprietary **JWT + Redis Hybrid Validation**, combining stateless speed with **Real-time Revocation**.
 >     *   Multi-strategy annotations (**@Public/Private/Jwt**) for seamless integration.
