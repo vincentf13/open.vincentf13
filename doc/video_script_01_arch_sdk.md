@@ -13,13 +13,13 @@
 		徹底解除傳統資料庫鎖 (Lock) 與隨機 I/O 的效能枷鎖。
 2.  CQRS 分離與分場景極致優化:
 		Matching 服務: 單執行緒批次處理 + 順序 I/O；採用預匹配 (Pre-match) 機制，將整批訂單 WAL 寫入精簡至單次 IO，將硬體性能發揮至極限。
-		Market Data 服務: 構建 L1/L2 多級緩存矩陣；基於撮合引擎輸出的深度訂單簿與即時 K 線統計，從容應對百萬級行情風暴。
+		Market Data 服務: 基於撮合引擎輸出的深度訂單簿與即時 K 線統計，構建 L1/L2 多級緩存矩陣，從容應對百萬級行情風暴。
 3.  帳戶與風控體系：嚴守會計準則與複式記帳鐵律:
-		帳戶: 堅守複式記帳鐵律；支援任意時刻的資產負債表快照重建，確保 100% 財務數據完整性，使體系內每一筆金流的會計操作皆精確可追溯。
-		風控: 嚴格事前風控 (Pre-Trade Check) 與即時動態保證金計算，保障平台與用戶權益，大幅減少異常補償的效能消耗。
+		帳戶: 堅守複式記帳法鐵律；支援任意時刻的資產負債表快照重建，確保 100% 財務數據完整性，使體系內每一筆金流的會計操作皆精確可追溯。
+		風控: 嚴格事前風控 (Pre-Trade Check) 與即時動態保證金計算，預防平台與用戶權益損失，大幅減少異常補償的操作耗損。
 4.  分佈式一致性：根除資源搶奪與自動補償:
-		Flip 協議: 設計分佈式機制，根除多節點資源搶奪 (Anti-Stealing) 與超賣風險。
-		異常處理: 內建自動補償 (Compensation) 流程，確保分佈式事務併發異常下的最終一致性。
+		Flip 協議: 擴展分佈式事務機制，根除多節點資源搶奪 (Anti-Stealing) 與超賣風險。
+		異常處理: 內建自動補償 (Compensation) 流程，處理分佈式事務併發異常下的最終一致性。
 5.  彈性擴展策略：無限水平擴容與線性增長:
 		無狀態層: 網關與查詢服務具備無限水平擴容能力，彈性應對流量洪峰。
 		有狀態核心: 透過交易對精確分片 (Sharding)，實現吞吐量與性能的線性增長。
@@ -35,13 +35,13 @@
 		Shattering the performance shackles of traditional DB locks and random I/O.
 2.  CQRS & Scenario-Based Extreme Optimization:
 		Matching Service: Single-threaded batching & Sequential I/O; utilizing Pre-match mechanism to consolidate WAL writes into a single IO per batch, maximizing hardware limits.
-		Market Data Service: Building a Multi-Level Caching Matrix; based on high-depth Orderbooks and real-time K-line statistics output from the matching engine to effortlessly handle million-scale traffic storms.
+		Market Data Service: Based on high-depth Orderbooks and real-time K-line statistics output from the matching engine, constructing a L1/L2 Multi-Level Caching Matrix to effortlessly handle million-scale traffic storms.
 3.  Accounts & Risk: Strict Accounting Compliance & Double-Entry Iron Law:
 		Accounts: Adhering to the Double-Entry Iron Law; enabling instant balance sheet reconstruction at any moment, ensuring 100% financial integrity and full traceability for every accounting operation within the financial flow.
-		Risk: Strict Pre-Trade Checks and dynamic margin calculation; safeguarding equity and minimizing performance overhead from anomaly compensation.
+		Risk: Strict Pre-Trade Checks and dynamic margin calculation; preventing loss of platform and user equity, substantially reducing operational overhead from anomaly compensation.
 4.  Distributed Consistency: Eradicating Contention & Auto-Compensation:
-		Flip Protocol: Proprietary mechanism eradicating multi-node Resource Contention (Anti-Stealing).
-		Error Handling: Built-in Auto-Compensation ensuring eventual consistency during distributed concurrency failures.
+		Flip Protocol: Extending distributed transaction mechanism; eradicating multi-node Resource Contention (Anti-Stealing) and overselling risks.
+		Error Handling: Built-in Auto-Compensation flow; handling eventual consistency under concurrent distributed transaction anomalies.
 5.  Scalability Strategy: Unlimited Horizontal Scaling & Linear Growth:
 		Stateless Layer: Unlimited Horizontal Scaling to elastically absorb traffic spikes.
 		Stateful Core: Linear performance growth via precise Symbol Sharding and resource isolation.
@@ -59,11 +59,11 @@
 
 **目標：** 深入剖析為何傳統架構無法支撐金融級高頻交易，並展示 Open Exchange Core 如何透過架構創新解決此問題。
 
-| 時間   | 畫面 (Visual)                                                                                                                                                                                                     | 旁白腳本 (Audio)                                                                                                                                                                                                  | 執行建議 |
-| :--- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--- |
-| 0:00 | **[對比動畫：傳統 vs 現代]**<br>左邊顯示「傳統架構」：大量請求擠向一個 Database 圖示，DB 出現紅色鎖頭 (Lock)。<br>右邊顯示「Open Exchange Core」：數據像流水一樣通過管道 (Kafka)。                                                                                       | 傳統金融系統往往受限於資料庫的 ACID 鎖機制。當海量訂單湧入時，行級鎖會導致嚴重的資源競爭。Open Exchange Core 徹底摒棄了這種依賴，採用了**全異步的事件驅動架構**。                                                                                                               |      |
-| 0:25 | **[架構特寫：LMAX 核心思想]**<br>畫面顯示一個類似 CPU 管道的圖示。<br>標註：**Disruptor Pattern / Memory Queue Sequencing**。<br>數據單向流動，無鎖競爭。 | 我們借鑒了 **LMAX Disruptor** 的架構思想，並結合了**內存佇列定序**機制。在最核心的撮合環節，我們完全移除了隨機磁碟 I/O 與鎖競爭，確保了微秒級的確定性延遲。 | |
-| 0:40 | **[深度解析：WAL 與預匹配機制]**<br>畫面顯示一個 **File** 圖示，數據以 **Batch** 的形式快速寫入。<br>標註：**Sequential Write / Pre-match Optimization**。<br>動畫：整批訂單在內存預匹配後，合併為單次 WAL 寫入。<br>然後演示系統崩潰 (Crash) 與快速恢復 (Replay)。 | 為了確保數據絕對安全，我們實現了 **WAL (Write-Ahead Logging)**。更進一步地，我們採用了**預匹配 (Pre-match)** 機制，將整批訂單的處理與寫入精簡至**單次順序 I/O**——這徹底解除了傳統資料庫隨機 I/O 的效能枷鎖。即便系統瞬間斷電，也能透過重放 WAL 日誌，在毫秒內精確恢復內存狀態。 | |
+| 時間   | 畫面 (Visual)                                                                                                                                                                                 | 旁白腳本 (Audio)                                                                                                                                                              | 執行建議 |
+| :--- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--- |
+| 0:00 | **[對比動畫：傳統 vs 現代]**<br>左邊顯示「傳統架構」：大量請求擠向一個 Database 圖示，DB 出現紅色鎖頭 (Lock)。<br>右邊顯示「Open Exchange Core」：數據像流水一樣通過管道 (Kafka)。                                                                   | 傳統金融系統往往受限於資料庫的 ACID 鎖機制。當海量訂單湧入時，行級鎖會導致嚴重的資源競爭。Open Exchange Core 徹底摒棄了這種依賴，採用了**全異步的事件驅動架構**。                                                                           |      |
+| 0:25 | **[架構特寫：LMAX 核心思想]**<br>畫面顯示一個類似 CPU 管道的圖示。<br>標註：**Disruptor Pattern / Memory Queue Sequencing**。<br>數據單向流動，無鎖競爭。                                                                          | 我們借鑒了 **LMAX Disruptor** 的架構思想，並結合了**內存佇列定序**機制。在最核心的撮合環節，我們完全移除了隨機磁碟 I/O 與鎖競爭，確保了微秒級的確定性延遲。                                                                              |      |
+| 0:40 | **[深度解析：WAL 與預匹配機制]**<br>畫面顯示一個 **File** 圖示，數據以 **Batch** 的形式快速寫入。<br>標註：**Sequential Write / Pre-match Optimization**。<br>動畫：整批訂單在內存預匹配後，合併為單次 WAL 寫入。<br>然後演示系統崩潰 (Crash) 與快速恢復 (Replay)。 | 為了確保數據絕對安全，我們實現了 **WAL (Write-Ahead Logging)**。更進一步地，我們採用了**預匹配 (Pre-match)** 機制，將整批訂單的處理與寫入精簡至**單次順序 I/O**——這徹底解除了傳統資料庫隨機 I/O 的效能枷鎖。即便系統瞬間斷電，也能透過重放 WAL 日誌，在毫秒內精確恢復內存狀態。 |      |
 
 ---
 
@@ -71,14 +71,14 @@
 
 **目標：** 針對不同服務屬性 (寫入密集、查詢密集、計算密集) 展示差異化的架構設計。
 
-| 時間   | 畫面 (Visual)                                                                                                                                                                                | 旁白腳本 (Audio)                                                                                                                                                                             | 執行建議                     |
-| :--- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------- |
-| 1:15 | **[CQRS 宏觀視角]**<br>畫面將服務分為兩群：<br>⬅️ **Command Side (寫):** Order, Matching (紅色)<br>➡️ **Query Side (讀):** Market, History (藍色)                                                              | 整個系統遵循 **CQRS (命令查詢職責分離)** 原則。針對不同的業務型態，我們採用了截然不同的優化策略。                                                                                                                                  | 引入 CQRS 概念。              |
-| 1:25 | **[Matching & Order (寫入極致)]**<br>特寫撮合引擎。<br>關鍵字：**Pre-match**, **Batching**, **Single-Thread**。                                                                                            | 對於寫入密集的 **Matching Service**，我們追求極致的低延遲。透過單執行緒無鎖設計與**預匹配 (Pre-match)** 技術，我們將硬體性能發揮至極限，確保每一筆訂單都能在微秒級完成定序、撮合與 WAL 寫入。                                                                     | 總結寫入端特點。                 |
-| 1:40 | **[Market Data (查詢與緩存)]**<br>特寫行情服務。<br>畫面顯示：Request -> **L1 Cache (Local)** -> **L2 Cache (Redis)**。<br>內容：深度訂單簿 (Orderbook) 與即時 K 線統計。                                                   | 對於查詢密集的 **Market Data Service**，挑戰在於海量數據的頻繁讀取。我們構建了 **L1/L2 多級緩存矩陣**，基於撮合引擎輸出的**深度訂單簿**與**即時 K 線統計**，讓系統能從容應對百萬級的行情風暴。                                                                   |                          |
-| 2:00 | **[Asset & Risk (帳戶與風控)]**<br>特寫資產與風控模組。<br>Asset 顯示：**Double-Entry (複式記帳)** 與 **Accounting Compliance**。<br>Risk 顯示：**Pre-Trade Check (事前風控)**。                                           | 對於最核心的 **Asset (帳戶)** 與 **Risk (風控)**，我們嚴守**會計準則與複式記帳鐵律**。資產層能隨時重建任意時刻的資產負債表快照，確保 100% 財務數據完整性，使體系內每一筆金流的操作皆精確可追溯。而風控則採用**事前檢查模型 (Pre-Trade Check)**，在即時保障用戶與平台權益的同時，極大化減少了因異常補償帶來的效能損耗。 |                          |
-| 2:20 | **[分佈式事務：Flip 協議]**<br>畫面顯示兩個節點同時嘗試扣款。<br>出現 **Flip Protocol** 的動畫：<br>1. **Try Flip**: 嘗試翻轉狀態。<br>2. **Confirm/Cancel**: 成功則提交，失敗則回滾。<br>關鍵字：**Anti-Stealing**, **Eventual Consistency**。 | 在分佈式環境下，我們設計了 **Flip 分佈式事務協議**，專門解決多節點間的**資源搶奪 (Stealing)** 與超賣風險。當發生異常時，系統會自動觸發**補償機制 (Compensation)**，回滾已執行的操作，確保最終一致性。                                                                | **(新增重點)** Flip 協議與補償機制。 |
-| 2:50 | **[彈性擴展總結]**<br>畫面縮小回全景。<br>Gateway, Market, Asset 像細胞分裂一樣快速複製 (Stateless/DB-Backed)。<br>Matching 則依據幣種分片 (Stateful In-Memory)。                                                            | 正因如此，我們的擴展策略也是分層的：Gateway、Market 甚至 Asset Service 等服務，因為不持有內存狀態，可以無限水平擴展以應對流量；而唯獨擁有核心內存狀態的 Matching Engine，透過**交易對分片 (Sharding)** 來實現資源隔離與線性擴容。                                          |                          |
+| 時間   | 畫面 (Visual)                                                                                                                                                                                | 旁白腳本 (Audio)                                                                                                                                                                                                                                                                                                                                                                | 執行建議                     |
+| :--- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------- |
+| 1:15 | **[CQRS 宏觀視角]**<br>畫面將服務分為兩群：<br>⬅️ **Command Side (寫):** Order, Matching (紅色)<br>➡️ **Query Side (讀):** Market, History (藍色)                                                              | 整個系統遵循 **CQRS (命令查詢職責分離)** 原則。針對不同的業務型態，我們採用了截然不同的優化策略。                                                                                                                                                                                                                                                                                                                     | 引入 CQRS 概念。              |
+| 1:25 | **[Matching & Order (寫入極致)]**<br>特寫撮合引擎。<br>關鍵字：**Pre-match**, **Batching**, **Single-Thread**。                                                                                            | 對於寫入密集的 **Matching Service**，我們追求極致的低延遲。透過單執行緒無鎖設計與**預匹配 (Pre-match)** 技術，我們將硬體性能發揮至極限，確保每一筆訂單都能在微秒級完成定序、撮合與 WAL 寫入。                                                                                                                                                                                                                                                        | 總結寫入端特點。                 |
+| 1:40 | **[Market Data (查詢與緩存)]**<br>特寫行情服務。<br>畫面顯示：Request -> **L1 Cache (Local)** -> **L2 Cache (Redis)**。<br>內容：深度訂單簿 (Orderbook) 與即時 K 線統計。                                                   | 對於查詢密集的 **Market Data Service**，挑戰在於海量數據的頻繁讀取。我們構建了 **L1/L2 多級緩存矩陣**，基於撮合引擎輸出的**深度訂單簿**與**即時 K 線統計**，讓系統能從容應對百萬級的行情風暴。                                                                                                                                                                                                                                                      |                          |
+| 2:00 | **[Asset & Risk (帳戶與風控)]**<br>特寫資產與風控模組。<br>Asset 顯示：**Double-Entry (複式記帳)** 與 **Accounting Compliance**。<br>Risk 顯示：**Pre-Trade Check (事前風控)**。                                           | 對於最核心的 **Asset (帳戶)** 與 **Risk (風控)**，我們嚴守**會計準則與複式記帳鐵律**。資產層能隨時重建任意時刻的資產負債表快照，確保 100% 財務數據完整性，使體系內每一筆金流的操作皆精確可追溯。而風控則採用**事前檢查模型 (Pre-Trade Check)**，在即時保障用戶與平台權益的同時，極大化減少了因異常補償帶來的效能損耗。                                                                                                                                                                                    |                          |
+| 2:20 | **[分佈式事務：Flip 協議]**<br>畫面顯示兩個節點同時嘗試扣款。<br>出現 **Flip Protocol** 的動畫：<br>1. **Try Flip**: 嘗試翻轉狀態。<br>2. **Confirm/Cancel**: 成功則提交，失敗則回滾。<br>關鍵字：**Anti-Stealing**, **Eventual Consistency**。 | 在單向持倉的業務場景中，在分佈式環境下，由於撮合訂單成交時間的不確定性，假設用戶是多倉，下單時 BUY 單 根據當下倉位判斷為多倉的訂單，可能很久的時間後才成交，用戶的其他訂單成交改變了他的倉位，倉位的情況卻已經轉成空倉，BUY 訂單反而變成了平倉，此時交易不可取消，開倉必須轉為平倉結算，而如果平倉數量會造成倉位反轉，必須平倉單超額部分再轉開倉。我們設計了 **Flip 分佈式事務協議**。另外，若平倉轉開倉前，正好又有其他未成交訂單預凍結了倉位，此時必須搶奪凍結資源，並設計當預凍結的那筆訂單成交時，也要平倉轉開倉。以此專門解決多節點間的**資源搶奪 (Stealing)** 與超賣風險。<br><br>另外當發生異常時，系統會自動觸發**補償機制 (Compensation)**，回滾已執行的操作，確保最終一致性。 | **(新增重點)** Flip 協議與補償機制。 |
+| 2:50 | **[彈性擴展總結]**<br>畫面縮小回全景。<br>Gateway, Market, Asset 像細胞分裂一樣快速複製 (Stateless/DB-Backed)。<br>Matching 則依據幣種分片 (Stateful In-Memory)。                                                            | 正因如此，我們的擴展策略也是分層的：Gateway、Market 甚至 Asset Service 等服務，因為不持有內存狀態，可以無限水平擴展以應對流量；而唯獨擁有核心內存狀態的 Matching Engine，透過**交易對分片 (Sharding)** 來實現資源隔離與線性擴容。                                                                                                                                                                                                                             |                          |
 
 ---
 
