@@ -132,14 +132,7 @@ class WalRecoveryTest {
         // 數量驗證 (1000 Snapshot + 2 WAL = 1002)
         assertThat(recoveredOrders).hasSize(1002);
 
-        expectedOrders.sort(Comparator.comparing(Order::getOrderId));
-        recoveredOrders.sort(Comparator.comparing(Order::getOrderId));
-
-        assertThat(recoveredOrders)
-            .usingRecursiveComparison()
-            .ignoringFields("submittedAt")
-            .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
-            .isEqualTo(expectedOrders);
+        assertOrderListsMatch(recoveredOrders, expectedOrders);
 
         System.out.println("數據驗證通過：1002 筆訂單 (含快照後買賣雙方 WAL) 已完全還原。");
         
@@ -150,7 +143,10 @@ class WalRecoveryTest {
         
         // 驗證冪等性 (重複發送 WAL 中的買單與賣單)
         processor2.processBatch(walBatch);
-        assertThat(recoveredBook.dumpOpenOrders()).hasSize(1002); 
+        // 再次全量驗證：確保狀態完全未變
+        List<Order> idempotentOrders = recoveredBook.dumpOpenOrders();
+        assertThat(idempotentOrders).hasSize(1002); 
+        assertOrderListsMatch(idempotentOrders, expectedOrders);
 
         // 為了確保能成交到特定訂單，我們找出目前的 Best Bid (價格最高買單)
         // 根據生成邏輯，買單價格最高的是 i=999, 價格 10000.123 + 999 = 10999.123, Qty = 999
@@ -175,11 +171,29 @@ class WalRecoveryTest {
         List<Order> finalOrders = recoveredBook.dumpOpenOrders();
         assertThat(finalOrders.stream().anyMatch(o -> o.getOrderId() == 999L)).isFalse();
         assertThat(finalOrders).hasSize(1001);
+        
+        // 建構預期的最終狀態：移除 ID 999
+        List<Order> expectedFinalOrders = new ArrayList<>(expectedOrders);
+        expectedFinalOrders.removeIf(o -> o.getOrderId().equals(999L));
+        
+        // 全量驗證剩餘的 1001 筆訂單是否保持原樣
+        assertOrderListsMatch(finalOrders, expectedFinalOrders);
 
         System.out.println("所有高覆蓋率測試場景驗證通過。");
 
     } finally {
         cleanup();
     }
+  }
+
+  private void assertOrderListsMatch(List<Order> actual, List<Order> expected) {
+      actual.sort(Comparator.comparing(Order::getOrderId));
+      expected.sort(Comparator.comparing(Order::getOrderId));
+
+      assertThat(actual)
+          .usingRecursiveComparison()
+          .ignoringFields("submittedAt")
+          .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+          .isEqualTo(expected);
   }
 }
