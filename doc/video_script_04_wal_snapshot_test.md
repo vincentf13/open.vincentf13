@@ -15,7 +15,7 @@
 - 中央圖示：天平兩端。
     - 左端：**複雜場景下的正確性與不變性設計** (Engineering for Determinism & Immutability)
     - 右端：**高品質的測試設計能力** (Test Design & Verification Capability)
-- 底部文字：「AI 負責生成實現，工程師負責定義正確。」
+- 底部文字：「AI 加速代碼實現，工程師駕馭複雜場景的設計與整合。」
 - 側邊：測試光譜 (Integration, Concurrency, Security, Load Testing)。
 
 **[講者口白]**
