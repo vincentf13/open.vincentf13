@@ -38,29 +38,41 @@ AI 寫代碼很快，但它難以預判在**分散式高流量場景**下，微�
 
 ---
 
-### Slide 2: 撮合引擎架構：從 Processor 到 Order Book
+### Slide 2: 測試目標與核心架構
 **[視覺呈現]**
-- 架構圖：由外而內，層層放大。
-    1.  **Matching Engine (Service)**：整個撮合服務。
-    2.  **InstrumentProcessor (Component)**：圖中核心，連接著 `Wal`, `Snapshot`, `OrderBook`。
-    3.  **OrderBook (Data Structure)**：
-        - `bids`: `TreeMap` (降序) -> 買方：價高優先
-        - `asks`: `TreeMap` (升序) -> 賣方：價低優先
-        - `Deque`: 時間優先 (FIFO)
+- 標題：為什麼要測試 WAL 與 Snapshot？從架構看數據流
+- 左側：**測試目標 (The Goal)**
+    - **RPO = 0 (Recovery Point Objective)**：數據零遺失。
+    - **RTO < 秒級 (Recovery Time Objective)**：快速重啟恢復。
+- 右側：**核心架構 (The Core)**
+    - **InstrumentProcessor** (中央樞紐)
+        - ↙️ **OrderBook** (記憶體撮合)
+        - ⬆️ **InstrumentWal** (Append-only Log)
+        - ↘️ **InstrumentSnapshot** (Checkpoint)
 
 **[講者口白]**
-讓我們來看看這次的測試對象。
-整個撮合引擎的核心，是由 **`InstrumentProcessor`** 來驅動的。它就像是一個指揮官，負責協調三個關鍵組件：
-1.  **InstrumentWal**：負責將每一筆操作寫入日誌 (Log)，確保數據不丟失。
-2.  **InstrumentSnapshot**：負責定期將記憶體狀態存檔 (Checkpoint)。
-3.  **OrderBook**：負責實際的訂單撮合邏輯。
+在揭曉詳細的測試計畫前，我們先來談談這次測試的**戰略目標**。
+我們為什麼要花這麼大力氣測試 WAL (預寫日誌) 和 Snapshot (快照)？
+因為在金融交易中，我們的目標是 **RPO 等於零**。也就是說，即便系統在任何一毫秒斷電，我們也不能遺失使用者的任何一筆掛單或成交紀錄。
 
-我們選擇 **`InstrumentProcessor`** 作為測試切入點，而不是直接測 `OrderBook`，因為這樣才能完整驗證「記憶體撮合」與「持久化機制」之間的協作是否正確。
+為了達成這個目標，我們必須從整體架構了解數據是如何流動的。
+首先，在最外層是我們的 **`MatchEngine` (撮合引擎服務)**，它負責接收來自網關的交易指令。
+往下深入，針對每一個交易對 (如 BTC/USDT)，我們都有一個獨立的 **`InstrumentProcessor`**。
+它是整個引擎的心臟，負責協調三個關鍵動作的原子性：
+1.  **日誌 (Write)**：將原始指令寫入 `Wal`，這是我們還原真相的最後手段。
+2.  **撮合 (Process)**：在記憶體的 **`OrderBook`** 中進行高速運算。
+3.  **存檔 (Checkpoint)**：定期將狀態寫入 `Snapshot`，加速重啟時間。
 
-至於最底層的 **Order Book (訂單簿)**，我們使用了 Java 的 `TreeMap` 來儲存價格檔位。
-- 對於**買單**，我們用降序排列，出價最高者優先。
-- 對於**賣單**，我們用升序排列，賣最便宜者優先。
-- 同價格下，則用 `Deque` 保證先進先出。
+**這裡的執行流程至關重要**：
+當一筆訂單進來時，我們採用 **「WAL First」** 策略。
+1.  首先，訂單先要預匹配撮合結果，但是先不執行
+2.  接著**同步寫入 (fsync)** 到 WAL 檔案。
+3.  確認落地後，才更新記憶體中的 `OrderBook` 狀態。在 `OrderBook` 的內部，我們使用了紅黑樹 (TreeMap) 來管理訂單的價格優先級。
+4.  最後，當累積了一定數量的操作後（例如每 1000 筆），Processor 才會觸發一次異步的 **Snapshot**，將當前的記憶體全貌傾印到磁碟。
+
+這種設計確保了：即使在 Snapshot 生成的間隙當機，我們也能透過重放 WAL 來補足最後一段的數據。
+
+我們今天的測試切入點，就是針對這個 **Processor** 進行全流程整合測試，驗證這三者在極端崩潰場景下，是否還能完美協作。
 
 ---
 
