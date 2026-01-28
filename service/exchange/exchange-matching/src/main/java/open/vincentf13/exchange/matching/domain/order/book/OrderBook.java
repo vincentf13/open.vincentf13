@@ -15,7 +15,8 @@ public class OrderBook {
 
   private static final int PROCESSED_CACHE_SIZE = 1_000_000;
   private final TreeMap<BigDecimal, Deque<Order>> asks = new TreeMap<>(BigDecimal::compareTo);
-  private final TreeMap<BigDecimal, Deque<Order>> bids = new TreeMap<>(Comparator.reverseOrder());
+  // 使用明確的 Comparator 避免潛在的類型推斷問題
+  private final TreeMap<BigDecimal, Deque<Order>> bids = new TreeMap<>((a, b) -> b.compareTo(a));
   private final Map<Long, Order> orderIndex = new HashMap<>();
   private final Map<Long, Boolean> processedOrderIds =
       new LinkedHashMap<>(1024, 0.75f, true) {
