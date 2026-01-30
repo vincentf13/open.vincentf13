@@ -142,8 +142,8 @@ class WalRecoveryTest {
         // ==========================================
         System.out.println("--- 階段三：冪等性與撮合測試 ---");
         
-        // 驗證冪等性 (重複發送 WAL 中的買單與賣單)
-        processor2.processBatch(walBatch);
+        // 驗證冪等性 (重複發送所有已處理的 1002 筆訂單)
+        processor2.processBatch(expectedOrders);
         // 再次全量驗證：確保狀態完全未變
         List<Order> idempotentOrders = recoveredBook.dumpOpenOrders();
         assertThat(idempotentOrders).hasSize(1002); 
