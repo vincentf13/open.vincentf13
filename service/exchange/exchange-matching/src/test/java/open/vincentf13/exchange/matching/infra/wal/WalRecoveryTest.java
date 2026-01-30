@@ -150,15 +150,18 @@ class WalRecoveryTest {
         assertOrderListsMatch(idempotentOrders, expectedOrders);
 
         // 為了確保能成交到特定訂單，我們找出目前的 Best Bid (價格最高買單)
-        // 根據生成邏輯，買單價格最高的是 i=999, 價格 10000.123 + 999 = 10999.123, Qty = 999
+        // 根據新的生成邏輯 (i/10)，會有這幾個訂單價格同為最高 (10000.123 + 99): 991, 993, 995, 997, 999
+        // 根據 FIFO 原則，ID=991 最早進入，應該是 Best Bid
         Order bestBid = recoveredOrders.stream()
             .filter(Order::isBuy)
-            .max(Comparator.comparing(Order::getPrice))
+            // 找出價格最高，若價格相同則 ID 最小 (FIFO)
+            .min(Comparator.<Order, BigDecimal>comparing(Order::getPrice).reversed()
+                .thenComparing(Order::getOrderId))
             .orElseThrow();
         
-        assertThat(bestBid.getOrderId()).isEqualTo(999L);
+        assertThat(bestBid.getOrderId()).isEqualTo(991L);
 
-        // 發送一個賣單成交掉 Best Bid (ID=999)
+        // 發送一個賣單成交掉 Best Bid
         Order takerSell = Order.builder()
             .orderId(3001L).userId(88L).instrumentId(INSTRUMENT_ID).side(OrderSide.SELL).type(OrderType.LIMIT)
             .price(bestBid.getPrice()) // 匹配最優買價
@@ -168,14 +171,14 @@ class WalRecoveryTest {
         
         processor2.processBatch(List.of(takerSell));
 
-        // ID=999 應該被完全成交並移除，剩下 1001 筆
+        // Best Bid (ID=991) 應該被完全成交並移除，剩下 1001 筆
         List<Order> finalOrders = recoveredBook.dumpOpenOrders();
-        assertThat(finalOrders.stream().anyMatch(o -> o.getOrderId() == 999L)).isFalse();
+        assertThat(finalOrders.stream().anyMatch(o -> o.getOrderId().equals(bestBid.getOrderId()))).isFalse();
         assertThat(finalOrders).hasSize(1001);
         
-        // 建構預期的最終狀態：移除 ID 999
+        // 建構預期的最終狀態：移除該 Best Bid
         List<Order> expectedFinalOrders = new ArrayList<>(expectedOrders);
-        expectedFinalOrders.removeIf(o -> o.getOrderId().equals(999L));
+        expectedFinalOrders.removeIf(o -> o.getOrderId().equals(bestBid.getOrderId()));
         
         // 全量驗證剩餘的 1001 筆訂單是否保持原樣
         assertOrderListsMatch(finalOrders, expectedFinalOrders);
