@@ -79,7 +79,7 @@ class WalRecoveryTest {
         for (long i = 1; i <= 1000; i++) {
             boolean isSell = i % 2 == 0;
             // 讓每 10 筆訂單共用一個價格 (i/10)，製造同價格多訂單場景，驗證 FIFO 順序
-            BigDecimal price = (isSell ? new BigDecimal("20000.123") : new BigDecimal("10000.123"))
+            BigDecimal price = (isSell ? new BigDecimal("20000.12356789123456789") : new BigDecimal("10000.12356789123456789"))
                 .add(BigDecimal.valueOf(i / 10));
             
             BigDecimal qty = BigDecimal.valueOf(i); 
@@ -103,13 +103,13 @@ class WalRecoveryTest {
         // WAL 買單 (大額邊界)
         Order walBuy = Order.builder()
             .orderId(1001L).userId(99L).instrumentId(INSTRUMENT_ID).side(OrderSide.BUY).type(OrderType.LIMIT)
-            .price(new BigDecimal("5000.999")).quantity(new BigDecimal("1000000")).originalQuantity(new BigDecimal("2000000"))
+            .price(new BigDecimal("5000.999999999999999999")).quantity(new BigDecimal("1000000")).originalQuantity(new BigDecimal("2000000"))
             .submittedAt(Instant.now()).build();
         
         // WAL 賣單 (小額邊界)
         Order walSell = Order.builder()
             .orderId(1002L).userId(100L).instrumentId(INSTRUMENT_ID).side(OrderSide.SELL).type(OrderType.LIMIT)
-            .price(new BigDecimal("30000.888")).quantity(new BigDecimal("1")).originalQuantity(new BigDecimal("5"))
+            .price(new BigDecimal("30000.888888888888888888")).quantity(new BigDecimal("1")).originalQuantity(new BigDecimal("5"))
             .submittedAt(Instant.now()).build();
             
         walBatch.add(walBuy);
