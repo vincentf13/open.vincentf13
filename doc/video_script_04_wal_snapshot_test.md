@@ -28,11 +28,14 @@
 AI 寫代碼很快，但它難以預判在**分散式高流量場景**下，微妙的時序差異會如何引發**競態條件 (Race Conditions)**，也無法預知**節點故障**時的狀態一致性挑戰。唯有具備嚴謹測試設計能力的人，才能在這些複雜維度中定義什麼是「正確」。
 
 因此，我們需要建立完整的**測試光譜**來確保系統的韌性與完整性。這包含：
-1. **壓力測試 (Load Test)**：驗證在高併發流量下的吞吐量與延遲。
+1. **整合測試 (Integration Test)**：驗證各組件在真實持久化流程中的協作正確性。
 2. **並行測試 (Concurrency Test)**：捕捉極限狀態下的執行緒安全問題。
 3. **安全測試 (Security Test)**：建立防禦縱深，例如防範時序旁路攻擊 (Timing Side-Channels) 與交易重放 (Replay Attacks)。
+4. **壓力測試 (Load Test)**：驗證在高併發流量下的吞吐量與延遲。
+5. Resilience Testing
 以及我們今天的主角：
-4. **整合測試 (Integration Test)**：驗證各組件在真實持久化流程中的協作正確性。
+6. Disaster Recovery (DR) Testing
+
 
 今天我們要實作的 `WalRecoveryTest`，正是屬於這光譜中的**「高可靠性整合測試」**。目標是確保撮合引擎在任何災難重啟後，都能保持資產狀態的絕對不變與正確。這也是我們今天影片的核心重點。
 
@@ -44,7 +47,7 @@ AI 寫代碼很快，但它難以預判在**分散式高流量場景**下，微�
 - 左側：**測試目標 (The Goal)**
     - **RPO = 0 (Recovery Point Objective)**：數據零遺失。
     - **RTO < 秒級 (Recovery Time Objective)**：快速重啟恢復。
-- 右側：**核心架構 (The Core)**
+- 右側：**核心切入點 **
     - **InstrumentProcessor** (中央樞紐)
         - ↙️ **OrderBook** (記憶體撮合)
         - ⬆️ **InstrumentWal** (Append-only Log)
