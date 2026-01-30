@@ -78,8 +78,9 @@ class WalRecoveryTest {
 
         for (long i = 1; i <= 1000; i++) {
             boolean isSell = i % 2 == 0;
+            // 讓每 10 筆訂單共用一個價格 (i/10)，製造同價格多訂單場景，驗證 FIFO 順序
             BigDecimal price = (isSell ? new BigDecimal("20000.123") : new BigDecimal("10000.123"))
-                .add(BigDecimal.valueOf(i));
+                .add(BigDecimal.valueOf(i / 10));
             
             BigDecimal qty = BigDecimal.valueOf(i); 
             BigDecimal origQty = qty.add(BigDecimal.valueOf(10)); 
@@ -187,13 +188,35 @@ class WalRecoveryTest {
   }
 
   private void assertOrderListsMatch(List<Order> actual, List<Order> expected) {
-      actual.sort(Comparator.comparing(Order::getOrderId));
-      expected.sort(Comparator.comparing(Order::getOrderId));
-
+      // 1. 驗證順序 (Sequence Verification)
+      // 模擬 OrderBook dump 邏輯：先 Bids (Price DESC, ID ASC)，後 Asks (Price ASC, ID ASC)
+      List<Order> expectedSorted = new ArrayList<>(expected);
+      
+      Comparator<Order> orderBookComparator = (o1, o2) -> {
+          // 買單 (Bid) 排在 賣單 (Ask) 之前
+          if (o1.getSide() != o2.getSide()) {
+               return o1.isBuy() ? -1 : 1;
+          }
+          // 同方向比較價格
+          int priceCmp = o1.getPrice().compareTo(o2.getPrice());
+          if (o1.isBuy()) {
+              priceCmp = -priceCmp; // Bids: Price Descending
+          }
+          
+          if (priceCmp != 0) return priceCmp;
+          
+          // 價格相同比較 ID (模擬 FIFO/Insertion Order)
+          return o1.getOrderId().compareTo(o2.getOrderId());
+      };
+      
+      expectedSorted.sort(orderBookComparator);
+      
+      // 驗證 actual 的順序是否嚴格符合預期的 OrderBook 排序
       assertThat(actual)
+          .as("Verify OrderBook sequence (Price priority + Time priority)")
           .usingRecursiveComparison()
           .ignoringFields("submittedAt")
           .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
-          .isEqualTo(expected);
+          .isEqualTo(expectedSorted);
   }
 }
