@@ -37,3 +37,4 @@ script/ai-tools/
 /tmp/
 /log/
 *.bkp
+*.dtmp
