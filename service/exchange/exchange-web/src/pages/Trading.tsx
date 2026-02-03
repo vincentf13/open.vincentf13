@@ -289,7 +289,7 @@ export default function Trading() {
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return '';
         const pad = (n: number) => String(n).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     };
 
     const handleApplyBalanceSheetSnapshot = () => {
@@ -1335,6 +1335,7 @@ export default function Trading() {
                                                 setBalanceSheetPendingTimestamp(clampSnapshotValue(nextValue, balanceSheetRange));
                                             }}
                                             className="w-[220px] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-mono text-slate-600"
+                                            step="1"
                                         />
                                         <button
                                             onClick={handleApplyBalanceSheetSnapshot}
@@ -1356,7 +1357,7 @@ export default function Trading() {
                                     type="range"
                                     min={balanceSheetRange.earliest}
                                     max={balanceSheetRange.latest}
-                                    step={60000}
+                                    step={1000}
                                     value={balanceSheetPendingTimestamp ?? balanceSheetRange.latest}
                                     onChange={(e) => handleBalanceSheetSliderChange(Number(e.target.value))}
                                     className="w-full accent-sky-500"
