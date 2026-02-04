@@ -30,7 +30,6 @@ public final class OpenConstant {
   @RequiredArgsConstructor
   public enum HttpHeader {
     TRACE_ID("X-Trace-Id"),
-    REQUEST_ID("X-Request-Id"),
     API_KEY("X-API-KEY"),
     AUTHORIZATION("Authorization");
 

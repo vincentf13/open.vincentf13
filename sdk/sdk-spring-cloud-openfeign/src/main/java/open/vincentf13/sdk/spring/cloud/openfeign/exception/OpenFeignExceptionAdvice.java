@@ -168,9 +168,6 @@ public class OpenFeignExceptionAdvice implements MessageSourceAware {
       meta.put(
           OpenConstant.HttpHeader.TRACE_ID.value(),
           request.getAttribute(OpenConstant.HttpHeader.TRACE_ID.value()));
-      meta.put(
-          OpenConstant.HttpHeader.REQUEST_ID.value(),
-          request.getAttribute(OpenConstant.HttpHeader.REQUEST_ID.value()));
     }
     return meta;
   }

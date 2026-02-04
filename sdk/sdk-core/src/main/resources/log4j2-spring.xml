@@ -6,9 +6,9 @@
         <Property name="LOG_PATH">${spring:logging.file.path:-./logs}</Property>
         <Property name="LOG_LEVEL_ROOT">${spring:logging.level.root:-INFO}</Property>
 
-        <!-- 開發環境模式：縮短 Logger 類名，標註並上色 T:TraceID 與 R:ReqID -->
-        <Property name="LOG_PATTERN_CONSOLE">%style{%d{HH:mm:ss.SSS}}{cyan} %highlight{%-5level} [%style{%thread}{magenta}] %style{%logger{1.}}{green} [%style{T:%X{X-Trace-Id}}{yellow} %style{R:%X{X-Request-Id}}{blue}] - %msg%n</Property>
-        <Property name="LOG_PATTERN_FILE">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{1.} [T:%X{X-Trace-Id} R:%X{X-Request-Id}] - %msg%n</Property>
+        <!-- 開發環境模式：縮短 Logger 類名，標註並上色 T:TraceID -->
+        <Property name="LOG_PATTERN_CONSOLE">%style{%d{HH:mm:ss.SSS}}{cyan} %highlight{%-5level} [%style{%thread}{magenta}] %style{%logger{1.}}{green} [%style{T:%X{X-Trace-Id}}{yellow}] - %msg%n</Property>
+        <Property name="LOG_PATTERN_FILE">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{1.} [T:%X{X-Trace-Id}] - %msg%n</Property>
     </Properties>
 
     <!-- ========== dev ========== -->

@@ -30,7 +30,6 @@ public class CorsConfig {
         Collections.singletonList("*")); // 允許前端在跨域請求中攜帶的自訂請求標頭。若要全開可用 *（與 allow-credentials 不衝突）。
     config.setExposedHeaders(
         Arrays.asList(
-            OpenConstant.HttpHeader.REQUEST_ID.value(),
             OpenConstant.HttpHeader.TRACE_ID.value(),
             "Content-Disposition")); // 回傳 Access-Control-Expose-Headers。允許前端 JS
     // 讀取這些回應標頭，例如取得檔名（Content-Disposition）或追蹤 ID。 "*"

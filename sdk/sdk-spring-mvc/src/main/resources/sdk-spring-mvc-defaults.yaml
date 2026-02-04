@@ -64,7 +64,6 @@ open:
     mvc:
       request:
         trace-id-header: X-Trace-Id
-        request-id-header: X-Request-Id
         generate-correlation-ids: true
         write-response-header: true
         filter-order: -200

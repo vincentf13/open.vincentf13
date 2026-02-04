@@ -60,11 +60,6 @@ public class DefaultFeignRequestInterceptor implements RequestInterceptor {
         && StringUtils.hasText(traceId)) {
       template.header(OpenConstant.HttpHeader.TRACE_ID.value(), traceId);
     }
-    String requestId = resolveAttribute(OpenConstant.HttpHeader.REQUEST_ID.value());
-    if (!template.headers().containsKey(OpenConstant.HttpHeader.REQUEST_ID.value())
-        && StringUtils.hasText(requestId)) {
-      template.header(OpenConstant.HttpHeader.REQUEST_ID.value(), requestId);
-    }
   }
 
   private void attachLocale(RequestTemplate template) {

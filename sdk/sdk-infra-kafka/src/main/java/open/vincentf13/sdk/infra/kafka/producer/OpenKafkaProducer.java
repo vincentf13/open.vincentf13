@@ -147,10 +147,6 @@ public final class OpenKafkaProducer {
     if (StringUtils.hasText(traceId)) {
       record.headers().add(OpenConstant.HttpHeader.TRACE_ID.value(), traceId.getBytes(StandardCharsets.UTF_8));
     }
-    String requestId = MDC.get(OpenConstant.HttpHeader.REQUEST_ID.value());
-    if (StringUtils.hasText(requestId)) {
-      record.headers().add(OpenConstant.HttpHeader.REQUEST_ID.value(), requestId.getBytes(StandardCharsets.UTF_8));
-    }
 
     // 2. 添加用戶自定義 Header
     if (headers == null || headers.isEmpty()) {

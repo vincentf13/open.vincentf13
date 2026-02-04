@@ -24,27 +24,21 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     String traceHeader = OpenConstant.HttpHeader.TRACE_ID.value();
-    String requestHeader = OpenConstant.HttpHeader.REQUEST_ID.value();
 
     String traceId = resolveOrGenerate(request, traceHeader);
-    String requestId = resolveOrGenerate(request, requestHeader);
 
     putIntoContext(traceHeader, traceId);
-    putIntoContext(requestHeader, requestId);
 
     request.setAttribute(traceHeader, traceId);
-    request.setAttribute(requestHeader, requestId);
 
     if (properties.isWriteResponseHeader()) {
       response.setHeader(traceHeader, traceId);
-      response.setHeader(requestHeader, requestId);
     }
 
     try {
       filterChain.doFilter(request, response);
     } finally {
       MDC.remove(traceHeader);
-      MDC.remove(requestHeader);
     }
   }
 
