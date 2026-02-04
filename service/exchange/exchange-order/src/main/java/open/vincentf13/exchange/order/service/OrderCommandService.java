@@ -38,7 +38,6 @@ import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckResponse;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
 import open.vincentf13.sdk.core.exception.OpenException;
-import open.vincentf13.sdk.core.log.CoreEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.metrics.MCounter;
@@ -207,7 +206,7 @@ public class OrderCommandService {
                   .findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
                   .orElse(null);
           if (order == null) {
-            OpenLog.warn(log, OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", orderId));
+            OpenLog.warn(log, OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, "orderId", orderId);
             return;
           }
 
@@ -233,7 +232,7 @@ public class OrderCommandService {
                       .eq(OrderPO::getVersion, expectedVersion));
 
           if (!updated) {
-            OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", orderId));
+            OpenLog.warn(log, OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, "orderId", orderId);
             status.setRollbackOnly();
             return;
           }
@@ -273,7 +272,7 @@ public class OrderCommandService {
                   .findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
                   .orElse(null);
           if (order == null) {
-            OpenLog.warn(log, OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", orderId));
+            OpenLog.warn(log, OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, "orderId", orderId);
             return;
           }
 
@@ -299,7 +298,7 @@ public class OrderCommandService {
                       .eq(OrderPO::getVersion, expectedVersion));
 
           if (!updated) {
-            OpenLog.warn(log, OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", orderId));
+            OpenLog.warn(log, OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, "orderId", orderId);
             status.setRollbackOnly();
             return;
           }
@@ -340,7 +339,10 @@ public class OrderCommandService {
             OpenLog.warn(
                 log,
                 OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE,
-                Map.of("orderId", orderId, "tradeId", tradeId));
+                "orderId",
+                orderId,
+                "tradeId",
+                tradeId);
             return;
           }
 
@@ -367,7 +369,10 @@ public class OrderCommandService {
             OpenLog.warn(
                 log,
                 OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK,
-                Map.of("orderId", orderId, "tradeId", tradeId));
+                "orderId",
+                orderId,
+                "tradeId",
+                tradeId);
             status.setRollbackOnly();
             return;
           }
