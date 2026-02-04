@@ -6,9 +6,9 @@
         <Property name="LOG_PATH">${spring:logging.file.path:-./logs}</Property>
         <Property name="LOG_LEVEL_ROOT">${spring:logging.level.root:-INFO}</Property>
 
-        <!-- 模式：含 X-Trace-Id / X-Request-Id（MDC） -->
-        <Property name="LOG_PATTERN_CONSOLE">%style{%d{HH:mm:ss.SSS}}{cyan} %highlight{%-5level} [%style{%thread}{magenta}] %style{%logger{36}}{green} [%X{X-Trace-Id} %X{X-Request-Id}] - %msg%n</Property>
-        <Property name="LOG_PATTERN_FILE">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{X-Trace-Id} %X{X-Request-Id}] - %msg%n</Property>
+        <!-- 開發環境模式：縮短 Logger 類名，標註並上色 T:TraceID 與 R:ReqID -->
+        <Property name="LOG_PATTERN_CONSOLE">%style{%d{HH:mm:ss.SSS}}{cyan} %highlight{%-5level} [%style{%thread}{magenta}] %style{%logger{1.}}{green} [%style{T:%X{X-Trace-Id}}{yellow} %style{R:%X{X-Request-Id}}{blue}] - %msg%n</Property>
+        <Property name="LOG_PATTERN_FILE">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{1.} [T:%X{X-Trace-Id} R:%X{X-Request-Id}] - %msg%n</Property>
     </Properties>
 
     <!-- ========== dev ========== -->
@@ -19,29 +19,10 @@
             </Console>
         </Appenders>
 
-        <!-- 可選：開發也要落地檔案時開啟 -->
-        <!--        <RollingFile name="FILE"-->
-        <!--                     fileName="${LOG_PATH}/app.log"-->
-        <!--                     filePattern="${LOG_PATH}/app-%d{yyyy-MM-dd}-%i.log.gz">-->
-        <!--            <PatternLayout pattern="${LOG_PATTERN_FILE}"/>-->
-        <!--            <Policies>-->
-        <!--                <TimeBasedTriggeringPolicy interval="1"/>-->
-        <!--                <SizeBasedTriggeringPolicy size="100 MB"/>-->
-        <!--            </Policies>-->
-        <!--            <DefaultRolloverStrategy>-->
-        <!--                <Delete basePath="${LOG_PATH}">-->
-        <!--                    <IfFileName glob="app-*.log.gz"/>-->
-        <!--                    <IfLastModified age="7d"/>-->
-        <!--                </Delete>-->
-        <!--            </DefaultRolloverStrategy>-->
-        <!--        </RollingFile>-->
-
         <Loggers>
             <!-- 使用 AsyncRoot 提升吞吐量，includeLocation=false 避免昂貴的 StackWalker 操作 -->
             <AsyncRoot level="${LOG_LEVEL_ROOT}" includeLocation="false">
                 <AppenderRef ref="CONSOLE"/>
-                <!-- 可選：開發也要落地檔案時開啟 -->
-                <!--                <AppenderRef ref="FILE"/>-->
             </AsyncRoot>
         </Loggers>
     </SpringProfile>
@@ -49,9 +30,10 @@
     <!-- ========== prod ========== -->
     <SpringProfile name="prod">
         <Appenders>
-            <!-- K8s 最佳實踐：只輸出到 Console (Stdout)，由 Fluentd/Filebeat 收集 -->
+            <!-- K8s 最佳實踐：JSON 格式輸出到 Console (Stdout) -->
             <Console name="CONSOLE">
-                <PatternLayout pattern="${LOG_PATTERN_CONSOLE}" disableAnsi="false"/>
+                <!-- 使用高效能的 JSON 模板佈局 -->
+                <JsonTemplateLayout eventTemplateUri="classpath:EcsLayout.json"/>
             </Console>
         </Appenders>
 
@@ -62,5 +44,4 @@
             </AsyncRoot>
         </Loggers>
     </SpringProfile>
-
 </Configuration>

@@ -2,8 +2,6 @@ package open.vincentf13.sdk.core.exception;
 
 import java.util.HashMap;
 import java.util.Map;
-import open.vincentf13.sdk.core.OpenConstant;
-import org.slf4j.MDC;
 
 /*
 
@@ -59,16 +57,7 @@ public class OpenException extends RuntimeException {
   }
 
   private Map<String, Object> initMeta() {
-    Map<String, Object> meta = new HashMap<>();
-    String traceId = MDC.get(OpenConstant.HttpHeader.TRACE_ID.value());
-    if (traceId != null) {
-      meta.put("mdcTraceId", traceId);
-    }
-    String requestId = MDC.get(OpenConstant.HttpHeader.REQUEST_ID.value());
-    if (requestId != null) {
-      meta.put("mdcRequestId", requestId);
-    }
-    return meta;
+    return new HashMap<>();
   }
 
   private Map<String, Object> mergeMeta(Map<String, Object> additionalMeta) {
