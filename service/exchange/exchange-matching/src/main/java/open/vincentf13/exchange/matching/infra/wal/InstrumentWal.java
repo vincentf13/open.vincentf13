@@ -11,11 +11,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 
+@Slf4j
 public class InstrumentWal {
 
   private final Path walPath;
@@ -42,7 +44,7 @@ public class InstrumentWal {
                 lastSeq.set(Math.max(lastSeq.get(), entry.getSeq()));
               });
     } catch (IOException ex) {
-      OpenLog.error(MatchingEvent.WAL_LOAD_FAILED, ex, "instrumentId", instrumentId);
+      OpenLog.error(log, MatchingEvent.WAL_LOAD_FAILED, ex, "instrumentId", instrumentId);
     }
   }
 

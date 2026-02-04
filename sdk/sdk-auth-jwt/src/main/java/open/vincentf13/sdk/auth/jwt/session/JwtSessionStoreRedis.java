@@ -3,6 +3,7 @@ package open.vincentf13.sdk.auth.jwt.session;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.auth.jwt.JwtEvent;
 import open.vincentf13.sdk.auth.jwt.token.config.JwtProperties;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -10,6 +11,7 @@ import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 
 /** Redis-backed session store supporting read and write operations. */
+@Slf4j
 public class JwtSessionStoreRedis implements JwtSessionStore {
 
   private final RedisTemplate<String, Object> redisTemplate;
@@ -62,7 +64,7 @@ public class JwtSessionStoreRedis implements JwtSessionStore {
               session.markRevoked(revokedAt, reason);
               save(session);
               OpenLog.info(
-                  JwtEvent.REDIS_SESSION_REVOKED, "sessionId", sessionId, "reason", reason);
+                  log, JwtEvent.REDIS_SESSION_REVOKED, "sessionId", sessionId, "reason", reason);
             });
   }
 

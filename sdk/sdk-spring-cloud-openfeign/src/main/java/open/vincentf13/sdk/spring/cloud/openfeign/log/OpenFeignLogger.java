@@ -7,9 +7,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.openfeign.FeignEvent;
 
+@Slf4j
 public class OpenFeignLogger extends feign.Logger {
 
   @Override
@@ -35,6 +37,7 @@ public class OpenFeignLogger extends feign.Logger {
     }
 
     OpenLog.debug(
+        log,
         FeignEvent.FEIGN_REQUEST,
         "method",
         request.httpMethod(),
@@ -64,6 +67,7 @@ public class OpenFeignLogger extends feign.Logger {
     }
 
     OpenLog.debug(
+        log,
         FeignEvent.FEIGN_RESPONSE,
         "status",
         response.status(),

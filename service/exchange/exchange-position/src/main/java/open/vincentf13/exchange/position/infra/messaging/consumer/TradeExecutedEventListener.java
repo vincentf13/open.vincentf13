@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.position.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.matching.sdk.mq.event.TradeExecutedEvent;
 import open.vincentf13.exchange.matching.sdk.mq.topic.MatchingTopics;
 import open.vincentf13.exchange.position.infra.PositionErrorCode;
@@ -13,6 +14,7 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TradeExecutedEventListener {
@@ -29,7 +31,7 @@ public class TradeExecutedEventListener {
       acknowledgment.acknowledge();
     } catch (OpenException e) {
       if (e.getCode() == PositionErrorCode.DUPLICATE_REQUEST) {
-        OpenLog.warn(PositionEvent.POSITION_TRADE_DUPLICATE, e, "event", event);
+        OpenLog.warn(log, PositionEvent.POSITION_TRADE_DUPLICATE, e, "event", event);
         acknowledgment.acknowledge();
         return;
       }

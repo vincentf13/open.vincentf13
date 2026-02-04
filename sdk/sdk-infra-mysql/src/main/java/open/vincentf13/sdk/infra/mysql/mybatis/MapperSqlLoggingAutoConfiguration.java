@@ -2,6 +2,7 @@ package open.vincentf13.sdk.infra.mysql.mybatis;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.mysql.MysqlEvent;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -18,6 +19,7 @@ import org.springframework.util.StringUtils;
  * 啟動時將所有 Mapper 所在套件的 log level 設為 DEBUG，方便追蹤 SQL。 可透過
  * open.vincentf13.mybatis.mapper-sql-logging.enabled 控制是否啟用。
  */
+@Slf4j
 @AutoConfiguration(after = MysqlMapperScanAutoConfiguration.class)
 @ConditionalOnProperty(
     name = "open.vincentf13.mybatis.mapper-sql-logging.enabled",
@@ -49,7 +51,7 @@ public class MapperSqlLoggingAutoConfiguration {
 
       for (String packageName : mapperPackages) {
         loggingSystem.setLogLevel(packageName, LogLevel.DEBUG);
-        OpenLog.debug(MysqlEvent.MAPPER_SQL_DEBUG_ENABLED, "package", packageName);
+        OpenLog.debug(log, MysqlEvent.MAPPER_SQL_DEBUG_ENABLED, "package", packageName);
       }
     };
   }

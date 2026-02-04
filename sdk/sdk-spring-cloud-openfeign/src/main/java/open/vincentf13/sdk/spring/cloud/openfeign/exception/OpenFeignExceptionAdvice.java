@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.exception.OpenErrorCodes;
 import open.vincentf13.sdk.core.log.OpenLog;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /** 全域 Feign 例外處理器，統一封裝遠端呼叫異常的 API 回應格式。 */
+@Slf4j
 @RestControllerAdvice
 @ConditionalOnClass(FeignException.class)
 public class OpenFeignExceptionAdvice implements MessageSourceAware {
@@ -47,6 +49,7 @@ public class OpenFeignExceptionAdvice implements MessageSourceAware {
   public ResponseEntity<OpenApiResponse<Object>> handleRetryable(
       RetryableException ex, HttpServletRequest request) {
     OpenLog.warn(
+        log,
         FeignEvent.FEIGN_RETRYABLE_EXCEPTION,
         ex,
         "target",
@@ -73,6 +76,7 @@ public class OpenFeignExceptionAdvice implements MessageSourceAware {
       status = HttpStatus.BAD_GATEWAY;
     }
     OpenLog.warn(
+        log,
         FeignEvent.FEIGN_EXCEPTION,
         ex,
         "status",
@@ -101,7 +105,7 @@ public class OpenFeignExceptionAdvice implements MessageSourceAware {
   @ExceptionHandler(DecodeException.class)
   public ResponseEntity<OpenApiResponse<Object>> handleDecode(
       DecodeException ex, HttpServletRequest request) {
-    OpenLog.warn(FeignEvent.FEIGN_DECODE_EXCEPTION, ex);
+    OpenLog.warn(log, FeignEvent.FEIGN_DECODE_EXCEPTION, ex);
     return buildErrorResponse(
         request,
         HttpStatus.BAD_GATEWAY,
@@ -118,7 +122,7 @@ public class OpenFeignExceptionAdvice implements MessageSourceAware {
   @ExceptionHandler(EncodeException.class)
   public ResponseEntity<OpenApiResponse<Object>> handleEncode(
       EncodeException ex, HttpServletRequest request) {
-    OpenLog.warn(FeignEvent.FEIGN_ENCODE_EXCEPTION, ex);
+    OpenLog.warn(log, FeignEvent.FEIGN_ENCODE_EXCEPTION, ex);
     return buildErrorResponse(
         request,
         HttpStatus.BAD_REQUEST,

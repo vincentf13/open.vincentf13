@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.exception.OpenErrorCode;
 import open.vincentf13.sdk.core.exception.OpenErrorCodes;
@@ -39,6 +40,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** Spring MVC 統一例外處理，轉換成統一的 {@link OpenApiResponse} 物件。 */
+@Slf4j
 @RestControllerAdvice
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class OpenRestExceptionAdvice implements MessageSourceAware {
@@ -117,6 +119,7 @@ public class OpenRestExceptionAdvice implements MessageSourceAware {
             ? ex.getMostSpecificCause().getMessage()
             : ex.getMessage();
     OpenLog.debug(
+        log,
         MvcEvent.HTTP_MESSAGE_UNREADABLE,
         "path",
         servletRequest != null ? servletRequest.getRequestURI() : "unknown",
@@ -214,7 +217,7 @@ public class OpenRestExceptionAdvice implements MessageSourceAware {
   public ResponseEntity<Object> handleCallNotPermitted(
       CallNotPermittedException ex, HttpServletRequest request) {
     String breakerName = resolveCircuitBreakerName(ex);
-    OpenLog.warn(MvcEvent.CIRCUIT_BREAKER_OPEN, ex, "circuitBreaker", breakerName);
+    OpenLog.warn(log, MvcEvent.CIRCUIT_BREAKER_OPEN, ex, "circuitBreaker", breakerName);
     Map<String, Object> additionalMeta = new LinkedHashMap<>();
     if (StringUtils.hasText(breakerName)) {
       additionalMeta.put("circuitBreaker", breakerName);
@@ -239,6 +242,7 @@ public class OpenRestExceptionAdvice implements MessageSourceAware {
       OpenException ex, HttpServletRequest request) {
     HttpStatus status = mapStatus(ex.getCode());
     OpenLog.warn(
+        log,
         MvcEvent.OPEN_EXCEPTION,
         ex,
         "code",
@@ -265,6 +269,7 @@ public class OpenRestExceptionAdvice implements MessageSourceAware {
   public ResponseEntity<OpenApiResponse<Object>> handleUnexpectedException(
       Exception ex, HttpServletRequest request) {
     OpenLog.error(
+        log,
         MvcEvent.UNHANDLED_EXCEPTION,
         ex,
         "path",

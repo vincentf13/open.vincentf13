@@ -3,6 +3,7 @@ package open.vincentf13.sdk.core.config;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.CoreEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.boot.SpringApplication;
@@ -21,6 +22,7 @@ import org.springframework.util.StringUtils;
  * Base post-processor that loads YAML defaults from the classpath and applies them with the lowest
  * precedence so user overrides win.
  */
+@Slf4j
 public abstract class AbstractYamlDefaultsEnvironmentPostProcessor
     implements EnvironmentPostProcessor, Ordered {
 
@@ -31,7 +33,8 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor
       ConfigurableEnvironment environment, SpringApplication application) {
     Resource resource = resolveResource();
     if (resource == null || !resource.exists()) {
-      OpenLog.debug(CoreEvent.DEFAULTS_RESOURCE_MISSING, "resource", getResourceLocation());
+      OpenLog.debug(
+          log, CoreEvent.DEFAULTS_RESOURCE_MISSING, "resource", getResourceLocation());
       return;
     }
 
@@ -51,6 +54,7 @@ public abstract class AbstractYamlDefaultsEnvironmentPostProcessor
 
       if (!defaults.isEmpty()) {
         OpenLog.debug(
+            log,
             CoreEvent.DEFAULTS_APPLIED,
             "resource",
             getResourceLocation(),

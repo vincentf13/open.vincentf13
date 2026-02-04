@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.common.sdk.ExchangeMetric;
 import open.vincentf13.exchange.common.sdk.enums.*;
 import open.vincentf13.exchange.order.domain.model.Order;
@@ -37,6 +38,7 @@ import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckResponse;
 import open.vincentf13.exchange.risk.sdk.rest.client.ExchangeRiskClient;
 import open.vincentf13.sdk.core.exception.OpenException;
+import open.vincentf13.sdk.core.log.CoreEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.core.metrics.MCounter;
@@ -54,9 +56,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
+@Slf4j
 @Service
-@RequiredArgsConstructor
 @Validated
+@RequiredArgsConstructor
 public class OrderCommandService {
 
   private static final String ACTOR_ACCOUNT = "ACCOUNT_SERVICE";
@@ -127,6 +130,7 @@ public class OrderCommandService {
           "side", request.getSide().name(), 
           "status", "duplicate");
       OpenLog.info(
+          log,
           OrderEvent.ORDER_DUPLICATE_INSERT,
           "userId",
           userId,
@@ -203,7 +207,7 @@ public class OrderCommandService {
                   .findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
                   .orElse(null);
           if (order == null) {
-            OpenLog.warn(OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", orderId));
+            OpenLog.warn(log, OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", orderId));
             return;
           }
 
@@ -269,7 +273,7 @@ public class OrderCommandService {
                   .findOne(Wrappers.<OrderPO>lambdaQuery().eq(OrderPO::getOrderId, orderId))
                   .orElse(null);
           if (order == null) {
-            OpenLog.warn(OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", orderId));
+            OpenLog.warn(log, OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE, Map.of("orderId", orderId));
             return;
           }
 
@@ -295,7 +299,7 @@ public class OrderCommandService {
                       .eq(OrderPO::getVersion, expectedVersion));
 
           if (!updated) {
-            OpenLog.warn(OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", orderId));
+            OpenLog.warn(log, OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK, Map.of("orderId", orderId));
             status.setRollbackOnly();
             return;
           }
@@ -334,6 +338,7 @@ public class OrderCommandService {
 
           if (order == null) {
             OpenLog.warn(
+                log,
                 OrderEvent.ORDER_NOT_FOUND_AFTER_RESERVE,
                 Map.of("orderId", orderId, "tradeId", tradeId));
             return;
@@ -360,6 +365,7 @@ public class OrderCommandService {
 
           if (!updated) {
             OpenLog.warn(
+                log,
                 OrderEvent.ORDER_FAILURE_OPTIMISTIC_LOCK,
                 Map.of("orderId", orderId, "tradeId", tradeId));
             status.setRollbackOnly();

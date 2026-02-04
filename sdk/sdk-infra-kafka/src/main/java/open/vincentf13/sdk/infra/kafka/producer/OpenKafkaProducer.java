@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.OpenConstant;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.validator.OpenValidator;
@@ -18,6 +19,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.util.concurrent.ListenableFuture;
 
 /** Kafka Producer 靜態工具：將 payload 序列化為 bytes，並提供批次送出與自訂 key/header 的彈性。 */
+@Slf4j
 public final class OpenKafkaProducer {
 
   private static volatile KafkaTemplate<String, Object> kafkaTemplate;
@@ -46,6 +48,7 @@ public final class OpenKafkaProducer {
       addHeaders(record, headers);
       
       OpenLog.debug(
+          log,
           KafkaEvent.KAFKA_SEND,
           "topic",
           topic,
@@ -59,7 +62,7 @@ public final class OpenKafkaProducer {
     } catch (Exception ex) {
       CompletableFuture<SendResult<String, Object>> future = new CompletableFuture<>();
       future.completeExceptionally(ex);
-      OpenLog.error(KafkaEvent.KAFKA_SEND_FAILED, ex, "topic", topic, "key", key);
+      OpenLog.error(log, KafkaEvent.KAFKA_SEND_FAILED, ex, "topic", topic, "key", key);
       return future;
     }
   }
@@ -164,7 +167,7 @@ public final class OpenKafkaProducer {
                     : requireMapper().writeValueAsBytes(headerValue);
             record.headers().add(headerKey, bytes);
           } catch (Exception ex) {
-            OpenLog.warn(KafkaEvent.KAFKA_HEADER_ENCODE_FAILED, ex, "headerKey", headerKey);
+            OpenLog.warn(log, KafkaEvent.KAFKA_HEADER_ENCODE_FAILED, ex, "headerKey", headerKey);
           }
         });
   }
@@ -172,12 +175,13 @@ public final class OpenKafkaProducer {
   private static void logResult(
       SendResult<String, Object> result, Throwable throwable, String topic, String key) {
     if (throwable != null) {
-      OpenLog.error(KafkaEvent.KAFKA_SEND_ERROR, throwable, "topic", topic, "key", key);
+      OpenLog.error(log, KafkaEvent.KAFKA_SEND_ERROR, throwable, "topic", topic, "key", key);
       return;
     }
     RecordMetadata metadata = result != null ? result.getRecordMetadata() : null;
     if (metadata != null) {
       OpenLog.debug(
+          log,
           KafkaEvent.KAFKA_SEND_SUCCESS,
           "topic",
           metadata.topic(),
@@ -190,7 +194,7 @@ public final class OpenKafkaProducer {
           "key",
           key);
     } else {
-      OpenLog.debug(KafkaEvent.KAFKA_SEND_SUCCESS, "topic", topic, "key", key);
+      OpenLog.debug(log, KafkaEvent.KAFKA_SEND_SUCCESS, "topic", topic, "key", key);
     }
   }
 

@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.market.domain.model.MarkPriceSnapshot;
 import open.vincentf13.exchange.market.infra.MarketEvent;
 import open.vincentf13.exchange.market.infra.messaging.publisher.MarkPriceEventPublisher;
@@ -16,6 +17,7 @@ import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class MarkPriceCacheService {
 
@@ -124,6 +126,11 @@ public class MarkPriceCacheService {
     cache.put(instrumentId, persisted);
     eventPublisher.publishMarkPriceUpdated(persisted);
     OpenLog.debug(
-        MarketEvent.MARK_PRICE_CACHE_UPDATED, "instrumentId", instrumentId, "tradeId", tradeId);
+        log,
+        MarketEvent.MARK_PRICE_CACHE_UPDATED,
+        "instrumentId",
+        instrumentId,
+        "tradeId",
+        tradeId);
   }
 }

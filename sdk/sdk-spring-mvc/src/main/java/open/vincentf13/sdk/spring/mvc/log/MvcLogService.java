@@ -6,6 +6,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.mvc.MvcEvent;
 import org.springframework.util.StringUtils;
@@ -15,6 +16,7 @@ import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 import org.springframework.web.util.WebUtils;
 
+@Slf4j
 public class MvcLogService {
 
   private static final int MAX_BODY_PREVIEW_LENGTH = 4096;
@@ -49,6 +51,7 @@ public class MvcLogService {
 
     if (ex != null) {
       OpenLog.error(
+          log,
           MvcEvent.MVC_REQUEST_FAILED,
           ex,
           "method",
@@ -75,6 +78,7 @@ public class MvcLogService {
           responseBody.preview());
     } else {
       OpenLog.info(
+          log,
           MvcEvent.MVC_REQUEST_COMPLETED,
           "method",
           method,
@@ -101,6 +105,7 @@ public class MvcLogService {
     }
 
     OpenLog.debug(
+        log,
         MvcEvent.MVC_REQUEST_DETAIL,
         "status",
         status,

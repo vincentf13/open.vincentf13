@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialCreateRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareRequest;
 import open.vincentf13.exchange.auth.sdk.rest.api.dto.AuthCredentialPrepareResponse;
@@ -33,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Validated
@@ -118,6 +120,7 @@ public class UserCommandService {
       return new RetryTaskResult<>(RetryTaskStatus.SUCCESS, "OK", null);
     } catch (Exception ex) {
       OpenLog.warn(
+          log,
           UserEvent.AUTH_CREDENTIAL_PERSIST_FAILED,
           "userId",
           payload.getUserId(),

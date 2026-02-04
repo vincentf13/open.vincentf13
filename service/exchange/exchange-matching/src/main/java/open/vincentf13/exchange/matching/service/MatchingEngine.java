@@ -10,11 +10,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MatchingEngine {
@@ -55,7 +57,7 @@ public class MatchingEngine {
                       processor.processBatch(orders);
                     } catch (Exception e) {
                       OpenLog.error(
-                          MatchingEvent.ORDER_ROUTING_ERROR, e, "instrumentId", instrumentId);
+                          log, MatchingEvent.ORDER_ROUTING_ERROR, e, "instrumentId", instrumentId);
                       throw e;
                     }
                   });
@@ -88,7 +90,7 @@ public class MatchingEngine {
           .distinct()
           .forEach(instrumentId -> processors.computeIfAbsent(instrumentId, this::createProcessor));
     } catch (Exception e) {
-      OpenLog.error(MatchingEvent.WAL_LOAD_FAILED, e, "action", "scan_instruments");
+      OpenLog.error(log, MatchingEvent.WAL_LOAD_FAILED, e, "action", "scan_instruments");
     }
   }
 }

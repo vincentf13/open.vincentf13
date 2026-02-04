@@ -3,11 +3,13 @@ package open.vincentf13.exchange.matching.infra.wal;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class WalProgressStore {
 
@@ -21,7 +23,7 @@ public class WalProgressStore {
       WalProgress progress = OpenObjectMapper.fromJson(json, WalProgress.class);
       return progress != null ? progress.lastProcessedSeq() : 0L;
     } catch (IOException ex) {
-      OpenLog.error(MatchingEvent.WAL_PROGRESS_LOAD_FAILED, ex, "instrumentId", instrumentId);
+      OpenLog.error(log, MatchingEvent.WAL_PROGRESS_LOAD_FAILED, ex, "instrumentId", instrumentId);
       return 0L;
     }
   }
@@ -34,7 +36,7 @@ public class WalProgressStore {
       }
       Files.writeString(path, OpenObjectMapper.toJson(new WalProgress(seq)));
     } catch (IOException ex) {
-      OpenLog.error(MatchingEvent.WAL_PROGRESS_SAVE_FAILED, ex, "instrumentId", instrumentId);
+      OpenLog.error(log, MatchingEvent.WAL_PROGRESS_SAVE_FAILED, ex, "instrumentId", instrumentId);
     }
   }
 

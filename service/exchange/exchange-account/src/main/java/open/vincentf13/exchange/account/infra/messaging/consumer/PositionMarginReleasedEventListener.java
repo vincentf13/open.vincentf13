@@ -1,6 +1,7 @@
 package open.vincentf13.exchange.account.infra.messaging.consumer;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
 import open.vincentf13.exchange.account.infra.AccountEvent;
 import open.vincentf13.exchange.account.service.AccountCommandService;
@@ -14,6 +15,7 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PositionMarginReleasedEventListener {
@@ -31,7 +33,7 @@ public class PositionMarginReleasedEventListener {
       acknowledgment.acknowledge();
     } catch (OpenException e) {
       if (e.getCode() == AccountErrorCode.DUPLICATE_REQUEST) {
-        OpenLog.warn(AccountEvent.MATCHING_TRADE_PAYLOAD_MISSING, e, "event", event);
+        OpenLog.warn(log, AccountEvent.MATCHING_TRADE_PAYLOAD_MISSING, e, "event", event);
         acknowledgment.acknowledge();
         return;
       }

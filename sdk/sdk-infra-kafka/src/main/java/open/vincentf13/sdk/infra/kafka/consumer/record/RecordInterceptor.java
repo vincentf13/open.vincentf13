@@ -1,11 +1,13 @@
 package open.vincentf13.sdk.infra.kafka.consumer.record;
 
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.sdk.infra.kafka.KafkaEvent;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
+@Slf4j
 public class RecordInterceptor
     implements org.springframework.kafka.listener.RecordInterceptor<Object, Object> {
 
@@ -19,7 +21,10 @@ public class RecordInterceptor
             record.topic(), record.partition(), record.offset(), Thread.currentThread().getName());
     String eventJson = decodeEventJson(record.value());
     OpenLog.debug(
-        KafkaEvent.KAFKA_CONSUME_DEBUG, "detail", "\n" + summary + "\n" + "event=" + eventJson);
+        log,
+        KafkaEvent.KAFKA_CONSUME_DEBUG,
+        "detail",
+        "\n" + summary + "\n" + "event=" + eventJson);
     return record;
   }
 
@@ -49,6 +54,7 @@ public class RecordInterceptor
   @Override
   public void success(ConsumerRecord<Object, Object> record, Consumer<Object, Object> consumer) {
     OpenLog.debug(
+        log,
         KafkaEvent.KAFKA_CONSUME_DEBUG,
         "topic",
         record.topic(),
@@ -66,6 +72,7 @@ public class RecordInterceptor
       Exception exception,
       Consumer<Object, Object> consumer) {
     OpenLog.warn(
+        log,
         KafkaEvent.KAFKA_CONSUME_ERROR,
         exception,
         "topic",

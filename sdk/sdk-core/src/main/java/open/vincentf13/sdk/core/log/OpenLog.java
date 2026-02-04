@@ -1,9 +1,6 @@
 package open.vincentf13.sdk.core.log;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /*
  * 統一日誌輸出，事件需實作 OpenEvent。
@@ -14,60 +11,51 @@ import org.slf4j.LoggerFactory;
  */
 public final class OpenLog {
 
-  private static final Map<String, Logger> LOGGER_CACHE = new ConcurrentHashMap<>();
-
   private OpenLog() {}
 
-  public static String info(OpenEvent event, Object... kv) {
-    Logger log = resolveLogger();
+  public static String info(Logger log, OpenEvent event, Object... kv) {
     if (!log.isInfoEnabled()) return "Info Not Enabled";
     String finalLog = format(event, kv);
     log.info(finalLog);
     return finalLog;
   }
 
-  public static String warn(OpenEvent event, Object... kv) {
-    Logger log = resolveLogger();
+  public static String warn(Logger log, OpenEvent event, Object... kv) {
     if (!log.isWarnEnabled()) return "Warn Not Enabled";
     String finalLog = format(event, kv);
     log.warn(finalLog);
     return finalLog;
   }
 
-  public static String warn(OpenEvent event, Throwable t, Object... kv) {
-    Logger log = resolveLogger();
+  public static String warn(Logger log, OpenEvent event, Throwable t, Object... kv) {
     if (!log.isWarnEnabled()) return "Warn Not Enabled";
     String finalLog = format(event, kv);
     log.warn(finalLog, t);
     return finalLog;
   }
 
-  public static String error(OpenEvent event, Throwable t, Object... kv) {
-    Logger log = resolveLogger();
+  public static String error(Logger log, OpenEvent event, Throwable t, Object... kv) {
     if (!log.isErrorEnabled()) return "Error Not Enabled";
     String finalLog = format(event, kv);
     log.error(finalLog, t);
     return finalLog;
   }
 
-  public static String debug(OpenEvent event, Object... kv) {
-    Logger log = resolveLogger();
+  public static String debug(Logger log, OpenEvent event, Object... kv) {
     if (!log.isDebugEnabled()) return "Debug Not Enabled";
     String finalLog = format(event, kv);
     log.debug(finalLog);
     return finalLog;
   }
 
-  public static String debug(OpenEvent event, Throwable t, Object... kv) {
-    Logger log = resolveLogger();
+  public static String debug(Logger log, OpenEvent event, Throwable t, Object... kv) {
     if (!log.isDebugEnabled()) return "Debug Not Enabled";
     String finalLog = format(event, kv);
     log.debug(finalLog, t);
     return finalLog;
   }
 
-  public static String trace(OpenEvent event, Object... kv) {
-    Logger log = resolveLogger();
+  public static String trace(Logger log, OpenEvent event, Object... kv) {
     if (!log.isTraceEnabled()) return "Trace Not Enabled";
     String finalLog = format(event, kv);
     log.trace(finalLog);
@@ -93,23 +81,6 @@ public final class OpenLog {
       }
     }
     return sb.toString();
-  }
-
-  private static Logger resolveLogger() {
-    Class<?> callerClass = resolveCallerClass();
-    String loggerName = callerClass != null ? callerClass.getName() : OpenLog.class.getName();
-    return LOGGER_CACHE.computeIfAbsent(loggerName, LoggerFactory::getLogger);
-  }
-
-  private static Class<?> resolveCallerClass() {
-    return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
-        .walk(
-            frames ->
-                frames
-                    .skip(3)
-                    .findFirst()
-                    .map(StackWalker.StackFrame::getDeclaringClass)
-                    .orElse(null));
   }
 
   public static OpenEvent event(String event) {

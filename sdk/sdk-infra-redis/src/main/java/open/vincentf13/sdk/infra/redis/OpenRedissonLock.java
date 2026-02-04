@@ -4,11 +4,13 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 
 /** Distributed lock helper backed by Redisson's {@link RLock} implementation. */
+@Slf4j
 public final class OpenRedissonLock {
 
   private static final OpenRedissonLock INSTANCE = new OpenRedissonLock();
@@ -96,6 +98,7 @@ public final class OpenRedissonLock {
     } catch (IllegalMonitorStateException ignore) {
       // 鎖已過期或非本執行緒持有
       OpenLog.warn(
+          log,
           OpenRedisEvent.LOCK_UNLOCK_FAILED,
           "lockKey",
           lock.getName(),

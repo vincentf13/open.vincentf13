@@ -4,10 +4,9 @@ import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.spring.cloud.gateway.GatewayEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.loadbalancer.Response;
 import org.springframework.cloud.gateway.route.Route;
@@ -17,13 +16,13 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
+@Slf4j
 @Component
 public class LogService {
 
   static final String ATTR_RESPONSE_BODY = LogService.class.getName() + ".responseBody";
   static final String ATTR_RESPONSE_BODY_TRUNCATED =
       LogService.class.getName() + ".responseBodyTruncated";
-  private static final Logger LOG = LoggerFactory.getLogger(LogService.class);
   private static final String ATTR_INITIAL_FORWARD_URL =
       LogService.class.getName() + ".initialForwardUrl";
   private static final String ATTR_INITIAL_SERVICE_INSTANCE =
@@ -49,6 +48,7 @@ public class LogService {
     String method = request.getMethod() != null ? request.getMethod().name() : "UNKNOWN";
 
     OpenLog.info(
+        log,
         GatewayEvent.REQUEST,
         "method",
         method,
@@ -67,6 +67,7 @@ public class LogService {
             (name, values) -> logHeader("GatewayRequestHeader", "Request header", name, values));
     if (route != null) {
       OpenLog.debug(
+          log,
           GatewayEvent.ROUTE,
           "id",
           route.getId(),
@@ -76,10 +77,11 @@ public class LogService {
           route.getMetadata());
     }
     if (forwardUrl != null) {
-      OpenLog.debug(GatewayEvent.FORWARD_URL, "url", forwardUrl);
+      OpenLog.debug(log, GatewayEvent.FORWARD_URL, "url", forwardUrl);
     }
     if (serviceInstance != null) {
       OpenLog.debug(
+          log,
           GatewayEvent.SERVICE_INSTANCE,
           "serviceId",
           serviceInstance.getServiceId(),
@@ -88,7 +90,7 @@ public class LogService {
           "port",
           serviceInstance.getPort());
     } else {
-      OpenLog.debug(GatewayEvent.SERVICE_INSTANCE_PENDING, "routeId", routeId);
+      OpenLog.debug(log, GatewayEvent.SERVICE_INSTANCE_PENDING, "routeId", routeId);
     }
   }
 
@@ -106,6 +108,7 @@ public class LogService {
     ServerHttpResponse response = exchange.getResponse();
 
     OpenLog.debug(
+        log,
         GatewayEvent.RESPONSE,
         "status",
         response.getStatusCode(),
@@ -119,10 +122,11 @@ public class LogService {
         finalInstanceDesc);
 
     if (finalForwardUrl != null && initialForwardUrl == null) {
-      OpenLog.debug(GatewayEvent.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
+      OpenLog.debug(log, GatewayEvent.FORWARD_URL_RESOLVED, "url", finalForwardUrl);
     }
     if (finalInstance != null && initialInstance == null) {
       OpenLog.debug(
+          log,
           GatewayEvent.SERVICE_INSTANCE_RESOLVED,
           "serviceId",
           finalInstance.getServiceId(),
@@ -143,7 +147,7 @@ public class LogService {
         String body = ((ByteArrayOutputStream) bodyAttr).toString(StandardCharsets.UTF_8);
         boolean truncated =
             Boolean.TRUE.equals(exchange.getAttribute(ATTR_RESPONSE_BODY_TRUNCATED));
-        OpenLog.debug(GatewayEvent.RESPONSE_BODY, "body", body, "truncated", truncated);
+        OpenLog.debug(log, GatewayEvent.RESPONSE_BODY, "body", body, "truncated", truncated);
       }
     }
   }
@@ -155,7 +159,7 @@ public class LogService {
     String routeId = resolveRouteId(route);
     String targetUri = resolveTargetUri(route, forwardUrl);
 
-    OpenLog.error(GatewayEvent.FORWARD_FAILED, ex, "routeId", routeId, "target", targetUri);
+    OpenLog.error(log, GatewayEvent.FORWARD_FAILED, ex, "routeId", routeId, "target", targetUri);
   }
 
   private void logHeader(String event, String message, String name, List<String> values) {
@@ -163,7 +167,7 @@ public class LogService {
         "GatewayResponseHeader".equals(event)
             ? GatewayEvent.RESPONSE_HEADER
             : GatewayEvent.REQUEST_HEADER;
-    OpenLog.debug(evt, "name", name, "values", values);
+    OpenLog.debug(log, evt, "name", name, "values", values);
   }
 
   private String resolveRouteId(Route route) {
@@ -215,7 +219,7 @@ public class LogService {
   }
 
   public boolean isDebugEnabled() {
-    return LOG.isDebugEnabled();
+    return log.isDebugEnabled();
   }
 
   public void appendResponseBody(ServerWebExchange exchange, byte[] bytes) {

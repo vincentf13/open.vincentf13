@@ -4,10 +4,12 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.auth.jwt.JwtEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 
 /** Fallback in-memory store mainly intended for tests; data is not persisted across nodes. */
+@Slf4j
 public class JwtSessionStoreInMemory implements JwtSessionStore {
 
   private final Map<String, JwtSession> sessions = new ConcurrentHashMap<>();
@@ -35,7 +37,12 @@ public class JwtSessionStoreInMemory implements JwtSessionStore {
               session.markRevoked(revokedAt, reason);
               sessions.put(sessionId, session);
               OpenLog.info(
-                  JwtEvent.IN_MEMORY_SESSION_REVOKED, "sessionId", sessionId, "reason", reason);
+                  log,
+                  JwtEvent.IN_MEMORY_SESSION_REVOKED,
+                  "sessionId",
+                  sessionId,
+                  "reason",
+                  reason);
             });
   }
 }

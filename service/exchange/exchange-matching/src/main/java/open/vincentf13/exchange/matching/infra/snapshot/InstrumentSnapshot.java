@@ -7,12 +7,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
 import open.vincentf13.exchange.matching.domain.order.book.OrderBook;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 
+@Slf4j
 public class InstrumentSnapshot {
 
   private static final long SNAPSHOT_INTERVAL = 1_000L;
@@ -37,7 +39,7 @@ public class InstrumentSnapshot {
       }
       return state;
     } catch (IOException ex) {
-      OpenLog.error(MatchingEvent.SNAPSHOT_LOAD_FAILED, ex, "instrumentId", instrumentId);
+      OpenLog.error(log, MatchingEvent.SNAPSHOT_LOAD_FAILED, ex, "instrumentId", instrumentId);
       return null;
     }
   }
@@ -65,7 +67,7 @@ public class InstrumentSnapshot {
       Files.writeString(snapshotPath, OpenObjectMapper.toPrettyJson(state));
       lastSnapshotSeq.set(currentSeq);
     } catch (IOException ex) {
-      OpenLog.error(MatchingEvent.SNAPSHOT_WRITE_FAILED, ex, "instrumentId", instrumentId);
+      OpenLog.error(log, MatchingEvent.SNAPSHOT_WRITE_FAILED, ex, "instrumentId", instrumentId);
     }
   }
 }

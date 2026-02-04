@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.infra.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.infra.kafka.consumer.error.ErrorHandlerFactory;
 import open.vincentf13.sdk.infra.kafka.consumer.record.RecordInterceptor;
@@ -16,6 +17,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.converter.BatchMessagingMessageConverter;
 
 /** Kafka Consumer 配置類 */
+@Slf4j
 @Configuration
 @EnableKafka
 public class ConfigKafkaConsumer {
@@ -86,6 +88,7 @@ public class ConfigKafkaConsumer {
     factory.setCommonErrorHandler(ErrorHandlerFactory.build(kafkaTemplate, kafkaProperties));
 
     OpenLog.info(
+        log,
         KafkaEvent.KAFKA_CONSUMER_CONFIGURED,
         "ackMode",
         factory.getContainerProperties().getAckMode(),

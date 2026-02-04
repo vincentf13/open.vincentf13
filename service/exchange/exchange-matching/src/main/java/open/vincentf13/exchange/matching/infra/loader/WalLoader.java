@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.match.result.Trade;
 import open.vincentf13.exchange.matching.infra.MatchingEvent;
@@ -26,6 +27,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class WalLoader {
@@ -69,6 +71,7 @@ public class WalLoader {
         lastSeq = entry.getSeq();
       } catch (Exception ex) {
         OpenLog.error(
+            log,
             MatchingEvent.WAL_LOADER_FAILED,
             ex,
             "seq",
@@ -94,7 +97,7 @@ public class WalLoader {
             try {
               tradeRepository.batchInsert(trades);
             } catch (DuplicateKeyException ex) {
-              OpenLog.warn(MatchingEvent.TRADE_DUPLICATE, ex);
+              OpenLog.warn(log, MatchingEvent.TRADE_DUPLICATE, ex);
             }
             persisted.addAll(trades);
             nextIndex[0] = publishTrades(baseOffset, trades, nextIndex[0]);
@@ -103,7 +106,12 @@ public class WalLoader {
           publishOrderBook(baseOffset, entry.getMatchResult());
         });
     OpenLog.info(
-        MatchingEvent.WAL_ENTRY_APPLIED, "seq", entry.getSeq(), "tradeCount", persisted.size());
+        log,
+        MatchingEvent.WAL_ENTRY_APPLIED,
+        "seq",
+        entry.getSeq(),
+        "tradeCount",
+        persisted.size());
   }
 
   private long publishTrades(long baseOffset, List<Trade> trades, long startIndex) {
@@ -118,7 +126,7 @@ public class WalLoader {
             null,
             eventSeq);
       } catch (DuplicateKeyException ex) {
-        OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_TRADE, ex);
+        OpenLog.warn(log, MatchingEvent.OUTBOX_DUPLICATE_TRADE, ex);
       }
     }
     return index;
@@ -133,7 +141,7 @@ public class WalLoader {
       outboxRepository.appendWithSeq(
           MatchingTopics.ORDERBOOK_UPDATED.getTopic(), event.instrumentId(), event, null, seq);
     } catch (DuplicateKeyException ex) {
-      OpenLog.warn(MatchingEvent.OUTBOX_DUPLICATE_ORDERBOOK, ex);
+      OpenLog.warn(log, MatchingEvent.OUTBOX_DUPLICATE_ORDERBOOK, ex);
     }
   }
 }

@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.account.domain.model.PlatformAccount;
 import open.vincentf13.exchange.account.domain.model.PlatformJournal;
 import open.vincentf13.exchange.account.domain.model.UserAccount;
@@ -46,6 +47,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+@Slf4j
 @Service
 @Validated
 @RequiredArgsConstructor
@@ -912,6 +914,7 @@ public class AccountTransactionDomainService {
 
     if (updatedSpot.getBalance().signum() < 0 || updatedSpot.getAvailable().signum() < 0) {
       OpenLog.warn(
+          log,
           AccountEvent.INVALID_FILL_NEGATIVE_BALANCE,
           "userId",
           updatedSpot.getUserId(),

@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.account.sdk.rest.client.ExchangeAccountMaintenanceClient;
 import open.vincentf13.exchange.admin.infra.AdminEvent;
 import open.vincentf13.exchange.market.sdk.rest.client.ExchangeMarketMaintenanceClient;
@@ -28,6 +29,7 @@ import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SystemMaintenanceCommandService {
@@ -153,7 +155,8 @@ public class SystemMaintenanceCommandService {
         // Wait for deletion to propagate
         TimeUnit.SECONDS.sleep(5);
       } catch (Exception e) {
-        OpenLog.warn(AdminEvent.KAFKA_CONNECTOR_DELETE_FAILED, e, "connector", CONNECTOR_NAME);
+        OpenLog.warn(
+            log, AdminEvent.KAFKA_CONNECTOR_DELETE_FAILED, e, "connector", CONNECTOR_NAME);
       }
 
       // 2. Create new connector

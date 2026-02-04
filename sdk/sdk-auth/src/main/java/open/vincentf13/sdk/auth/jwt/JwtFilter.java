@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.auth.JwtAuthEvent;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.token.JwtToken;
@@ -20,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * Bearer JWT filter that restores authentication from the Authorization header and (optionally)
  * validates session state through the shared session service.
  */
+@Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
   private final OpenJwtService openJwtService;
@@ -61,6 +63,7 @@ public class JwtFilter extends OncePerRequestFilter {
     boolean active = sessionService.isActive(authentication.getSessionId());
     if (!active) {
       OpenLog.info(
+          log,
           JwtAuthEvent.JWT_SESSION_INACTIVE,
           "sessionId",
           authentication.getSessionId(),

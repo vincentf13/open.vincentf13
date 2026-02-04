@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.common.sdk.ExchangeMetric;
 import open.vincentf13.exchange.matching.domain.match.result.MatchResult;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
@@ -21,6 +22,7 @@ import open.vincentf13.sdk.core.metrics.MTimer;
 import open.vincentf13.sdk.core.metrics.enums.SysMetric;
 import open.vincentf13.sdk.core.validator.OpenValidator;
 
+@Slf4j
 public class InstrumentProcessor {
 
   @Getter private final Long instrumentId;
@@ -66,6 +68,7 @@ public class InstrumentProcessor {
           for (Order order : batch) {
             if (!Objects.equals(order.getInstrumentId(), instrumentId)) {
               OpenLog.warn(
+                  log,
                   MatchingEvent.ORDER_ROUTING_ERROR,
                   "expected",
                   instrumentId,
@@ -131,6 +134,7 @@ public class InstrumentProcessor {
         orderBook.markProcessed(entry.getMatchResult().getTakerOrder().getOrderId());
       } catch (Exception ex) {
         OpenLog.error(
+            log,
             MatchingEvent.WAL_REPLAY_FAILED,
             ex,
             "seq",

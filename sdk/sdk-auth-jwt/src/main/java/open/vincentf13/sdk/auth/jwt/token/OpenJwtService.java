@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.auth.jwt.JwtEvent;
 import open.vincentf13.sdk.auth.jwt.OpenJwtLoginUserDetails;
 import open.vincentf13.sdk.auth.jwt.token.config.JwtProperties;
@@ -17,6 +18,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 
+@Slf4j
 public class OpenJwtService {
 
   public static final String AUTHORITIES_CLAIM = "authorities";
@@ -77,6 +79,7 @@ public class OpenJwtService {
     String tokenValue =
         encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
     OpenLog.debug(
+        log,
         JwtEvent.JWT_ACCESS_ISSUED,
         "subject",
         authentication.getName(),
@@ -109,6 +112,7 @@ public class OpenJwtService {
     String tokenValue =
         encoder.encode(JwtEncoderParameters.from(headers, builder.build())).getTokenValue();
     OpenLog.debug(
+        log,
         JwtEvent.JWT_REFRESH_ISSUED,
         "subject",
         subject,
@@ -122,7 +126,8 @@ public class OpenJwtService {
       Jwt jwt = jwtDecoder.decode(tokenValue);
       TokenType tokenType = resolveTokenType(jwt);
       if (tokenType != TokenType.ACCESS) {
-        OpenLog.warn(JwtEvent.JWT_INVALID_TYPE, "expected", TokenType.ACCESS, "actual", tokenType);
+        OpenLog.warn(
+            log, JwtEvent.JWT_INVALID_TYPE, "expected", TokenType.ACCESS, "actual", tokenType);
         return Optional.empty();
       }
 
@@ -142,7 +147,7 @@ public class OpenJwtService {
           new JwtToken(user, tokenValue, granted, sessionId, jwt.getIssuedAt(), jwt.getExpiresAt());
       return Optional.of(authentication);
     } catch (JwtException ex) {
-      OpenLog.warn(JwtEvent.JWT_INVALID, ex, "reason", ex.getMessage());
+      OpenLog.warn(log, JwtEvent.JWT_INVALID, ex, "reason", ex.getMessage());
       return Optional.empty();
     }
   }
@@ -152,7 +157,8 @@ public class OpenJwtService {
       Jwt jwt = jwtDecoder.decode(tokenValue);
       TokenType tokenType = resolveTokenType(jwt);
       if (tokenType != TokenType.REFRESH) {
-        OpenLog.warn(JwtEvent.JWT_INVALID_TYPE, "expected", TokenType.REFRESH, "actual", tokenType);
+        OpenLog.warn(
+            log, JwtEvent.JWT_INVALID_TYPE, "expected", TokenType.REFRESH, "actual", tokenType);
         return Optional.empty();
       }
       String sessionId = jwt.getClaimAsString(SESSION_ID_CLAIM);
@@ -164,7 +170,7 @@ public class OpenJwtService {
               jwt.getIssuedAt(),
               jwt.getExpiresAt()));
     } catch (JwtException ex) {
-      OpenLog.warn(JwtEvent.JWT_INVALID, ex, "reason", ex.getMessage());
+      OpenLog.warn(log, JwtEvent.JWT_INVALID, ex, "reason", ex.getMessage());
       return Optional.empty();
     }
   }
@@ -178,6 +184,7 @@ public class OpenJwtService {
       return TokenType.valueOf(raw);
     } catch (IllegalArgumentException ex) {
       OpenLog.warn(
+          log,
           JwtEvent.JWT_UNKNOWN_TYPE,
           ex,
           "value",

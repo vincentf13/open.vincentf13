@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.account.domain.service.AccountTransactionDomainService;
 import open.vincentf13.exchange.account.infra.AccountErrorCode;
 import open.vincentf13.exchange.account.infra.AccountEvent;
@@ -23,6 +24,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class FundsFreezeRequestedEventListener {
@@ -72,7 +74,7 @@ public class FundsFreezeRequestedEventListener {
               amount,
               e.getMessage(),
               Instant.now()));
-      OpenLog.warn(AccountEvent.FUNDS_FREEZE_REQUEST_PAYLOAD_INVALID, e, "event", event);
+      OpenLog.warn(log, AccountEvent.FUNDS_FREEZE_REQUEST_PAYLOAD_INVALID, e, "event", event);
       acknowledgment.acknowledge();
     }
   }

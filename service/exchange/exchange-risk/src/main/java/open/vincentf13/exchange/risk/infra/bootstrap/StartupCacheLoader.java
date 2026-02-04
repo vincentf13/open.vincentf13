@@ -2,6 +2,7 @@ package open.vincentf13.exchange.risk.infra.bootstrap;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.admin.contract.client.ExchangeAdminClient;
 import open.vincentf13.exchange.admin.contract.dto.InstrumentSummaryResponse;
 import open.vincentf13.exchange.market.sdk.rest.client.ExchangeMarketClient;
@@ -12,6 +13,7 @@ import open.vincentf13.sdk.core.bootstrap.OpenStartupCacheLoader;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StartupCacheLoader extends OpenStartupCacheLoader {
@@ -28,17 +30,17 @@ public class StartupCacheLoader extends OpenStartupCacheLoader {
   }
 
   private void loadInstruments() {
-    OpenLog.info(RiskEvent.STARTUP_LOADING_INSTRUMENTS);
+    OpenLog.info(log, RiskEvent.STARTUP_LOADING_INSTRUMENTS);
 
     List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
 
     instrumentCache.putAll(instruments);
 
-    OpenLog.info(RiskEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
+    OpenLog.info(log, RiskEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
   }
 
   private void loadMarkPrices() {
-    OpenLog.info(RiskEvent.STARTUP_MARK_PRICE_LOAD_START);
+    OpenLog.info(log, RiskEvent.STARTUP_MARK_PRICE_LOAD_START);
     var response = marketClient.getAllMarkPrices();
     if (response != null && response.data() != null) {
       response.data().forEach(
@@ -47,7 +49,7 @@ public class StartupCacheLoader extends OpenStartupCacheLoader {
               markPriceCache.put(markPrice.getInstrumentId(), markPrice.getMarkPrice());
             }
           });
-      OpenLog.info(RiskEvent.STARTUP_MARK_PRICE_LOADED, "count", response.data().size());
+      OpenLog.info(log, RiskEvent.STARTUP_MARK_PRICE_LOADED, "count", response.data().size());
     }
   }
 }
