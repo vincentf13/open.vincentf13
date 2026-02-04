@@ -10,7 +10,7 @@ open:
   vincentf13:
     mybatis:
       mapper-sql-logging:
-        enabled: true
+        enabled: false
 
 spring:
   datasource:

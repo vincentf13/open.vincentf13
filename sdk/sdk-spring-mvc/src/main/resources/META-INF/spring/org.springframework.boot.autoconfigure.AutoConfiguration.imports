@@ -1,7 +1,7 @@
-open.vincentf13.sdk.spring.mvc.exception.GlobalExceptionHandlerConfig
-open.vincentf13.sdk.spring.mvc.response.ResponseBodyAdviceConfig
-open.vincentf13.sdk.spring.mvc.cookie.CookieConfig
-open.vincentf13.sdk.spring.mvc.log.RequestLoggingFilterConfig
-open.vincentf13.sdk.spring.mvc.log.MvcLogServiceConfig
 open.vincentf13.sdk.spring.mvc.correlation.CorrelationFilterConfig
+open.vincentf13.sdk.spring.mvc.cookie.CookieConfig
+open.vincentf13.sdk.spring.mvc.exception.GlobalExceptionHandlerConfig
+open.vincentf13.sdk.spring.mvc.log.MvcLogServiceConfig
+open.vincentf13.sdk.spring.mvc.log.RequestLoggingFilterConfig
+open.vincentf13.sdk.spring.mvc.response.ResponseBodyAdviceConfig
 open.vincentf13.sdk.spring.mvc.web.WebMvcConfig
