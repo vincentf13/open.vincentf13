@@ -39,5 +39,60 @@
 
 ---
 
+## 🛠️ 如何開始與建置環境
+
+本專案提供高度自動化的建置腳本，僅需少許步驟即可在本地端拉起完整的交易所基礎設施。
+
+### 1. 準備環境
+* **操作系統**：建議使用 Linux 或 macOS (Windows 用戶請使用 WSL2)。
+* **必要工具**：
+    * **JDK 21+** (建議使用 Temurin)。
+    * **Docker** 與 **kind** (用於建立本地 K8s 集群)。
+    * **kubectl**
+
+### 2. 快速啟動集群
+```bash
+# 1. 建立 K8s 集群
+kind create cluster --name exchange
+
+# 2. 執行一鍵啟動腳本
+bash ./script/cluster-up.sh
+```
+腳本執行時提供以下選項（可組合輸入，如 `123`）：
+* **選項 1：基礎設施 (Default Infra)** - 自動建置 Ingress, Nacos, MySQL, Redis, Kafka 等。
+    * *依賴工具*：`kubectl`, `docker`
+* **選項 2：持續部署 (ArgoCD)** - 自動安裝與配置 GitOps 環境。
+    * *依賴工具*：`kubectl`, `argocd` CLI, `nc` (netcat)
+* **選項 3：全棧監控 (Monitoring)** - 部署 Prometheus、Grafana 與 Alertmanager。
+    * *依賴工具*：`kubectl`
+
+> 💡 **提示**：詳細步驟可參閱 [手動建置文件](doc/手動建置.md)。
+### 3. 本地直連 K8S 調試 (Telepresence)
+為了讓開發機直接訪問 K8S 內網服務（如 `*.cluster.local`）並從 IDE 直接調試，建議安裝 Telepresence：
+* **安裝 (Linux)**：
+  ```bash
+  sudo curl -fL https://app.getambassador.io/download/tel2/linux/amd64/latest/telepresence -o /usr/local/bin/telepresence
+  sudo chmod a+x /usr/local/bin/telepresence
+  ```
+* **連接集群**：
+  ```bash
+  telepresence connect
+  ```
+* **效果**：連接後，您可直接訪問 `http://infra-nacos.default.svc.cluster.local:8848` 或在本地 IDE 執行服務並直連 K8S 內的資料庫與中間件。
+
+### 4. 啟動 WEB 服務與訪問
+1. **進入前端目錄**：`cd service/exchange/exchange-web`。
+2. **快速啟動**：執行 `bash quick-start.sh`。該腳本會自動安裝依賴並引導您設定後端 API 地址（預設為 `http://localhost:12345`）。
+3. **瀏覽訪問**：開啟 `http://localhost:5173` 即可進入交易所操作介面。
+
+### 5. 訪問監控儀表板
+啟動 Telepresence 後，可直接透過以下網址訪問（無需額外配置 Hosts）：
+* **Grafana**: `http://grafana.monitoring.svc.cluster.local:3000` (帳密: `admin/admin123`)
+* **Prometheus**: `http://prometheus.monitoring.svc.cluster.local:9090`
+* **Nacos**: `http://infra-nacos.default.svc.cluster.local:8848`
+* **Redpanda (Kafka UI)**: `http://redpanda-console.default.svc.cluster.local:8080`
+
+---
+
 ## 📄 開源協議
 本專案採用 [Apache-2.0 License](LICENSE.md) 授權。
