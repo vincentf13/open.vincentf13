@@ -145,6 +145,10 @@ bash ./script/cluster-up.sh
   sudo curl -fL https://app.getambassador.io/download/tel2/linux/amd64/latest/telepresence -o /usr/local/bin/telepresence
   sudo chmod a+x /usr/local/bin/telepresence
   ```
+* **部署 Traffic Manager 到叢集**：
+  ```bash
+  telepresence helm install
+  ```
 * **連接集群**：
   ```bash
   telepresence connect
