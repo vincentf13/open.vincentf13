@@ -25,6 +25,6 @@
     
 
 ### ☸️ 雲原生自動化運維
-- **高效開發環境**：支援 K8s 集群快速建置、DevOps 效能提升與智能 CI/CD 流程。
+- **高效開發環境**：極致的開發體驗，[一鍵 K8s 集群快速建置、IDEA直連K8S、全環境統一配置、智能 CI/CD 流程](https://www.youtube.com/watch?v=kvOtuF93q2s&t=1896s)
 - **極致資源控制**：經過深層優化，整個集群僅需[ **8.3 GB 內存**](https://onedrive.live.com/?photosData=%2Fshare%2F095E0F59106ABB25%21sca5579b81933414b846320a6b1f53462%3Fithint%3Dphoto%26e%3D2ccROi%26migratedtospo%3Dtrue&redeem=aHR0cHM6Ly8xZHJ2Lm1zL2kvYy8wOTVlMGY1OTEwNmFiYjI1L0lRQzRlVlhLTXhsTFFZUmpJS2F4OVRSaUFlbTZHbGRaQ3BOTC01SWdYbThHejJBP2U9MmNjUk9p&view=8) 即可穩定運行。
-- **全面觀測能力**：內置自動化整合測試，並集成監控、告警與自動擴容機制，覆蓋複雜撮合情境與資產帳戶核對。
+- **全面觀測能力**：內置自動化整合測試，並集成[監控](https://www.youtube.com/watch?v=t4foO-PD3eI)、告警與自動擴容機制，覆蓋複雜撮合情境與資產帳戶核對。
