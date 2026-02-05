@@ -28,7 +28,7 @@
 ### 🛡️ 分散式一致性：自研 Flip Protocol
 * **終結資源爭搶的「隱形調度」**：實作基於 **Flip 邏輯** 的分散式事務協議，專門對付分散式環境中最棘手的 **Resource Stealing (資源衝突/竊取)** 困境。它能像智慧大腦一樣，在毫秒間化解多節點對同一資源的爭奪。
     * 🎥 [Flip Protocol 邏輯解析與實作](https://youtu.be/R9S6q3e9xgw)
-* **打破效能瓶頸的強一致性**：不同於傳統共識協議的沉重負擔，Flip Protocol 在維持金融級 **強一致性** 與 **交易原子性** 的同時，仍能保持驚人的吞吐量。
+* **打破效能瓶頸的最終一致性**：不同於傳統共識協議的沉重負擔，Flip Protocol 在維持金融級 **最終一致性** 與 **交易原子性** 的同時，仍能保持驚人的吞吐量。
 
 ### ☸️ 雲原生自動化運維 (DevOps)
 * **極致開發體驗**：提供一鍵 K8s 集群建置、IDEA 直連遠端 K8s 調試、全環境統一配置與智能 CI/CD 流程。
@@ -36,6 +36,77 @@
 * **極致資源控制**：經過深層優化，整個集群僅需 [**8.3 GB 內存**](https://1drv.ms/i/c/095e0f59106abb25/IQC4eVXKMxlLQYRJIKax9TRiAem6GldZCpNL-5IgXm8Gz2A?e=2ccROi) 即可穩定運行。
 * **全面觀測能力**：集成高效能監控 SDK、自動化告警與擴容機制，全面覆蓋撮合情境與資產帳戶核對。
     * 🎥 [高效能全棧監控與指標治理](https://www.youtube.com/watch?v=t4foO-PD3eI)
+
+---
+
+## 🏗️ 系統架構圖 (System Architecture)
+
+本系統採用異步事件驅動與強一致性協議（Flip Protocol）建構，確保交易鏈路的高吞吐與資產安全。
+
+```mermaid
+flowchart TB
+    Client(["Client / Frontend"])
+
+    subgraph "Exchange Microservices"
+        Gateway[Gateway Service]
+        Auth[Auth Service]
+        User[User Service]
+        Order[Order Service]
+        Risk[Risk Service]
+        Account["Account/Ledger Service"]
+        Position[Position Service]
+        Market[Market Service]
+        Matching[Matching Service]
+    end
+
+    %% Client Access
+    Client -->|HTTP/WebSocket| Gateway
+    Gateway -->|Auth Check| Auth
+    Gateway -->|REST| User
+    Gateway -->|REST| Order
+    Gateway -->|REST| Account
+    Gateway -->|REST| Position
+    Gateway -->|REST| Market
+
+    %% Core Trading Flow (Sync/REST)
+    Order -->|Step 1 Check Intent & Lock| Position
+    Order -->|Step 2 Pre-check & Calc Margin| Risk
+
+    %% Core Trading Flow (Async/Event)
+    Order -.->|Step 3 Freeze Funds Event| Account
+    Account -.->|Step 4 Funds Frozen Event| Order
+    Order -.->|Step 5 Submit Order Event| Matching
+
+    %% Post-Matching Flow (Async/Event)
+    Matching -.->|Trade Executed| Account
+    Matching -.->|Trade Executed| Position
+    Matching -.->|Trade Executed| Market
+    Matching -.->|Trade Executed| Order
+    Matching -.->|OrderBook Updated| Market
+
+    %% Settlement & Margin Flow (Async/Event)
+    Account -.->|Trade Margin Settled| Position
+    Position -.->|Position Margin Released| Account
+
+    %% Feedback Loops & Risk Control
+    Market -.->|Mark Price Update| Position
+    Market -.->|Mark Price Update| Risk
+    Position -.->|Position Update| Risk
+    Risk -.->|Liquidation Trigger| Order
+```
+
+## 📦 核心微服務清單 (Core Services)
+
+| 服務名稱 | 職責描述 |
+| :--- | :--- |
+| **`Matching`** | **核心撮合引擎**：基於 LMAX Disruptor 的高性能內存撮合系統。 |
+| **`Order`** | **訂單管理**：處理訂單生命週期、委託檢核與狀態流轉。 |
+| **`User / Auth`** | **用戶與認證**：使用者資料管理與基於 JWT 的安全認證中心。 |
+| **`Account`** | **資產帳務**：負責清算、結算與金融級複式簿記帳務處理。 |
+| **`Position`** | **倉位管理**：維護使用者持倉、強平價格計算與保證金校驗。 |
+| **`Risk`** | **風險控制**：動態計算帳戶風險指標，執行強平指令與風控預警。 |
+| **`Market`** | **行情服務**：聚合成交數據，提供 K 線、訂單簿與標記價格推送。 |
+| **`Gateway`** | **統一網關**：請求路由、負載均衡、CORS 處理與限流。 |
 
 ---
 
@@ -91,6 +162,7 @@ bash ./script/cluster-up.sh
 * **Prometheus**: `http://prometheus.monitoring.svc.cluster.local:9090`
 * **Nacos**: `http://infra-nacos.default.svc.cluster.local:8848`
 * **Redpanda (Kafka UI)**: `http://redpanda-console.default.svc.cluster.local:8080`
+
 
 ---
 
