@@ -30,6 +30,11 @@
     * 🎥 [Flip Protocol 邏輯解析與實作](https://youtu.be/R9S6q3e9xgw)
 * **打破效能瓶頸的最終一致性**：不同於傳統共識協議的沉重負擔，Flip Protocol 在維持金融級 **最終一致性** 與 **交易原子性** 的同時，仍能保持驚人的吞吐量。
 
+### 🌐 響應式 Web 交易終端 (Web Trading Terminal)
+* **現代化交易體驗**：基於 **React 19**、**Ant Design 5** 與 **Tailwind CSS** 打造的高性能交易介面，支援響應式佈局與深色模式。
+* **簡潔高效的交互**：透過優化後的 REST 輪詢機制實現數據同步，確保在最小化系統負擔的同時維持良好的數據即時性。
+    * 🎥 [Web 交易終端演示 (React / Ant Design)](https://www.youtube.com/watch?v=MYQobecR8DA&t=67s)
+
 ### ☸️ 雲原生自動化運維 (DevOps)
 * **極致開發體驗**：提供一鍵 K8s 集群建置、IDEA 直連遠端 K8s 調試、全環境統一配置與智能 CI/CD 流程。
     * 🎥 [K8s 集群快速建置實戰](https://www.youtube.com/watch?v=kvOtuF93q2s&t=1896s)
@@ -159,6 +164,7 @@ bash ./script/cluster-up.sh
 1. **進入前端目錄**：`cd service/exchange/exchange-web`。
 2. **快速啟動**：執行 `bash quick-start.sh`。該腳本會自動安裝依賴並引導您設定後端 API 地址（預設為 `http://localhost:12345`）。
 3. **瀏覽訪問**：開啟 `http://localhost:5173` 即可進入交易所操作介面。
+4. **演示連結**：🎥 [Web 交易終端交互演示 (React)](https://www.youtube.com/watch?v=MYQobecR8DA&t=67s)
 
 ### 5. 訪問監控儀表板
 啟動 Telepresence 後，可直接透過以下網址訪問（無需額外配置 Hosts）：
