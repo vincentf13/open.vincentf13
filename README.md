@@ -11,7 +11,7 @@ This project is a financial trading core system designed for high-concurrency, l
 ### ⚡ Extreme Performance & Deterministic Link
 * **LMAX Deterministic Matching Engine**: Adopts the **LMAX Disruptor** architectural pattern, maximizing single-core throughput through lock-free buffers to achieve microsecond-level deterministic matching latency.
 * **Single WAL Write & Snapshot Recovery**: Optimized IO link implements **single WAL (Write-Ahead Logging) sequential writes**, minimizing disk IO impact while ensuring strong persistence. Combined with a snapshot mechanism, it achieves second-level disaster recovery.
-    * 🎥 [WAL Disaster Recovery Test Demo]([https://www.youtube.com/watch?v=ZWwiQsdZz84](https://youtu.be/2DiLnHr8UyU))
+    * 🎥 [WAL Disaster Recovery Test Demo](https://www.youtube.com/watch?v=ZWwiQsdZz84](https://youtu.be/2DiLnHr8UyU)
 * **High Concurrency & Architectural Decoupling**: Core links (matching, settlement, risk control, consistency) are fully decoupled, supporting horizontal expansion of trading clusters for market data and asset services.
     * 🎥 [Automated Integration Test Trading Link Demo](https://youtu.be/vrGdCa37e58)
 
@@ -20,11 +20,11 @@ This project is a financial trading core system designed for high-concurrency, l
 * **Structured Data Correlation**: Fully adopts standardized Event encapsulation and automatic Trace ID injection. By establishing correlations between data, it assists AI in more accurately understanding business processes and performing automated fault localization.
 * **Single Source of Truth (SSOT)**: Through interface sharing technology, 100% synchronization of validation rules between client and server is achieved, reducing AI's redundant understanding and communication costs during cross-service development.
 * **High-Level Logic Abstraction (Task Wrapper)**: Provides a dedicated `task-service` to encapsulate distributed transaction state management, allowing AI to focus on developing core business logic without being distracted by complex state transitions.
-    * 🎥 [Architectural Design in the AI Era: How SDKs Become the Core]([https://www.youtube.com/watch?v=yHxeaZEK_t0](https://youtu.be/-ydshcOc_1w))
+    * 🎥 [Architectural Design in the AI Era: How SDKs Become the Core](https://www.youtube.com/watch?v=yHxeaZEK_t0](https://youtu.be/-ydshcOc_1w)
 
 ### 💰 Financial Grade Accounting & Dynamic Balance Sheet
 * **Dynamic Balance Sheet Modeling**: Built-in exchange-grade financial accounting module supporting dynamic modeling of various digital assets. This architecture can actively locate anomalies through data correlation, transforming "post-audit" into "real-time risk control."
-    * 🎥 [Real-time Balance Sheet Operation Demo]([https://www.youtube.com/watch?v=MYQobecR8DA](https://youtu.be/21zo-qki7sw))
+    * 🎥 [Real-time Balance Sheet Operation Demo](https://www.youtube.com/watch?v=MYQobecR8DA](https://youtu.be/21zo-qki7sw)
 * **Multi-dimensional Automated Reconciliation (Future-Ready)**: Deep data correlation foundations have been built, supporting future expansion to multi-level verification including matching logs, wallet balances, accounting entries, and third-party settlements, achieving data consistency self-healing.
 * **Professional Audit & Tracking Empowerment**: Provides audit tools required by professional accountants, supporting deep tracking using double-entry bookkeeping techniques, capable of reconstructing financial snapshots at any moment to ensure 100% data integrity and traceability.
 * **Full-Scenario Account View**: Provides a highly structured panoramic display for multi-currency and multi-position assets, assisting financial teams in achieving second-level reconciliation and reducing manual audit costs to near zero.
@@ -41,10 +41,10 @@ This project is a financial trading core system designed for high-concurrency, l
 
 ### ☸️ Cloud-Native DevOps
 * **Extreme Development Experience**: Provides one-click K8s cluster setup, direct remote K8s debugging from IDEA, unified configuration across all environments, and intelligent CI/CD processes.
-    * 🎥 [K8s Cluster Rapid Deployment in Action]([https://www.youtube.com/watch?v=kvOtuF93q2s&t=1896s](https://youtu.be/93OI84tf7xY))
+    * 🎥 [K8s Cluster Rapid Deployment in Action](https://www.youtube.com/watch?v=kvOtuF93q2s&t=1896s](https://youtu.be/93OI84tf7xY)
 * **Precise Resource Control**: Through deep optimization, the entire cluster can run stably on just [**8.3 GB of memory**](https://1drv.ms/i/c/095e0f59106abb25/IQC4eVXKMxlLQYRJIKax9TRiAem6GldZCpNL-5IgXm8Gz2A?e=2ccROi).
 * **Comprehensive Observability**: Integrated high-performance monitoring SDK, automated alerting, and scaling mechanisms, fully covering matching scenarios and asset account reconciliation.
-    * 🎥 [High-Performance Full-Stack Monitoring and Metric Governance]([https://www.youtube.com/watch?v=t4foO-PD3eI](https://youtu.be/VfIl151yjds))
+    * 🎥 [High-Performance Full-Stack Monitoring and Metric Governance](https://www.youtube.com/watch?v=t4foO-PD3eI](https://youtu.be/VfIl151yjds)
 
 ---
 
@@ -169,7 +169,7 @@ To allow the development machine to directly access K8S internal services (e.g.,
 1. **Enter Frontend Directory**: `cd service/exchange/exchange-web`.
 2. **Quick Start**: Run `bash quick-start.sh`. This script will automatically install dependencies and guide you to set the backend API address (default is `http://localhost:12345`).
 3. **Browse**: Open `http://localhost:5173` to enter the exchange interface.
-4. **Demo Link**: 🎥 [Web Trading Terminal Interaction Demo (React)]([https://www.youtube.com/watch?v=MYQobecR8DA&t=67s](https://youtu.be/480WEYdAXf4))
+4. **Demo Link**: 🎥 [Web Trading Terminal Interaction Demo (React)](https://www.youtube.com/watch?v=MYQobecR8DA&t=67s](https://youtu.be/480WEYdAXf4)
 
 ### 5. Access Monitoring Dashboards
 After starting Telepresence, you can access directly via the following URLs (no extra Hosts configuration needed):
