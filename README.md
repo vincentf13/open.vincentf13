@@ -1,5 +1,7 @@
 # Open Exchange Core - Crypto Perpetual Exchange Core System
 
+[简体中文](./README.zh-CN.md) | English
+
 > 🌟 **If you find this project helpful, please give it a Star ⭐ in the top right corner! Your support is our greatest motivation for continuously optimizing the high-performance trading core and AI-driven architecture.**
 
 ---
