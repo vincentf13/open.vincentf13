@@ -3,11 +3,11 @@ package open.vincentf13.sdk.algo.string;
 import lombok.experimental.UtilityClass;
 
 /**
- * LeetCode 1768: Merge Strings Alternately https://leetcode.com/problems/merge-strings-alternately/
- *
- * <p>You are given two strings word1 and word2. Merge the strings by adding letters in alternating
- * order, starting with word1. If a string is longer than the other, append the additional letters
- * onto the end of the merged string.
+  LeetCode 1768: Merge Strings Alternately https://leetcode.com/problems/merge-strings-alternately/
+
+  You are given two strings word1 and word2. Merge the strings by adding letters in alternating
+  order, starting with word1. If a string is longer than the other, append the additional letters
+  onto the end of the merged string.
  */
 @UtilityClass
 public class MergeStringsAlternately {
