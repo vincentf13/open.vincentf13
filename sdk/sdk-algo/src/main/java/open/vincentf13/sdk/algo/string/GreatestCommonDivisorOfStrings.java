@@ -1,6 +1,7 @@
 package open.vincentf13.sdk.algo.string;
 
 import lombok.experimental.UtilityClass;
+import open.vincentf13.sdk.algo.math.number.GreatestCommonDivisor;
 
 /**
   LeetCode 1071: Greatest Common Divisor of Strings
@@ -21,13 +22,9 @@ public class GreatestCommonDivisorOfStrings {
         }
         
         // 取得兩字串長度的最大公因數
-        int gcdLength = gcd(str1.length(), str2.length());
+        int gcdLength = GreatestCommonDivisor.gcd(str1.length(), str2.length());
         
         // 擷取最大公因數長度的子字串
         return str1.substring(0, gcdLength);
-    }
-
-    private static int gcd(int a, int b) {
-        return b == 0 ? a : gcd(b, a % b);
     }
 }
