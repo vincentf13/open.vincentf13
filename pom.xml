@@ -340,6 +340,7 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.13.0</version>
                     <configuration>
+                        <parameters>true</parameters>
                         <release>${java.version}</release>
                         <annotationProcessorPaths>
                             <!-- Lombok 先 -->
