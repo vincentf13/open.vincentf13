@@ -18,51 +18,30 @@ public class CanPlaceFlowers {
    * @return 是否可行
    */
   public static boolean canPlaceFlowers(int[] flowerbed, int n) {
-    int count = 0;
-    for (int i = 0; i < flowerbed.length; i++) {
+     int count = 0;
+     int length = flowerbed.length;
 
-      if (i == 0 && flowerbed[i] == 0) {
-        count++;
-        i = i + 2;
-        continue;
-      }
+     for (int i = 0; i < length; i++) {
+        // 只有當前位置是空的 (0) 才能考慮種花
+        if (flowerbed[i] == 0) {
+            // 檢查左側：如果是開頭或是左側為空
+            boolean leftEmpty = (i == 0) || (flowerbed[i - 1] == 0);
+            // 檢查右側：如果是末尾或是右側為空
+            boolean rightEmpty = (i == length - 1) || (flowerbed[i + 1] == 0);
 
-      boolean leftCheck = i > 0 &&  flowerbed[i - 1] == 0;
-      boolean rightCheck = i + 1 >= flowerbed.length || flowerbed[i + 1] == 0;
+            if (leftEmpty && rightEmpty) {
+                // 種下一朵花
+                flowerbed[i] = 1;
+                count++;
 
-      if (leftCheck && rightCheck) {
-        count++;
-        i = i + 2;
-      }
-      if (count >= n) break;
-    }
+                // 如果已經種夠了，提早結束
+                if (count >= n) {
+                    return true;
+                }
+            }
+        }
+     }
 
-    return count >= n;
-
-    // int count = 0;
-    // int length = flowerbed.length;
-    //
-    // for (int i = 0; i < length; i++) {
-    //    // 只有當前位置是空的 (0) 才能考慮種花
-    //    if (flowerbed[i] == 0) {
-    //        // 檢查左側：如果是開頭或是左側為空
-    //        boolean leftEmpty = (i == 0) || (flowerbed[i - 1] == 0);
-    //        // 檢查右側：如果是末尾或是右側為空
-    //        boolean rightEmpty = (i == length - 1) || (flowerbed[i + 1] == 0);
-    //
-    //        if (leftEmpty && rightEmpty) {
-    //            // 種下一朵花
-    //            flowerbed[i] = 1;
-    //            count++;
-    //
-    //            // 如果已經種夠了，提早結束
-    //            if (count >= n) {
-    //                return true;
-    //            }
-    //        }
-    //    }
-    // }
-    //
-    // return count >= n;
+     return count >= n;
   }
 }
