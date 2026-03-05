@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.algo.greedy;
+package open.vincentf13.sdk.algo.array;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

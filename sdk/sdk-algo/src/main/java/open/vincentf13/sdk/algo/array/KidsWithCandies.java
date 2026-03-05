@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.algo.greedy;
+package open.vincentf13.sdk.algo.array;
 
 import java.util.ArrayList;
 import java.util.List;
