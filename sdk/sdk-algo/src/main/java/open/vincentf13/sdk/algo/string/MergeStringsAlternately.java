@@ -17,7 +17,7 @@ public class MergeStringsAlternately {
     if (word1 == null) word1 = "";
     if (word2 == null) word2 = "";
     if (word1.equals(""))return word2;
-    if (word2.equals(""))return word2;
+    if (word2.equals(""))return word1;
 
     int maxLength = Math.max(word1.length(), word2.length());
     for (int i = 0; i < maxLength; i++) {
