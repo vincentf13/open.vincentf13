@@ -12,5 +12,13 @@ class GreatestCommonDivisorOfStringsTest {
         assertEquals("ABC", GreatestCommonDivisorOfStrings.gcdOfStrings("ABCABC", "ABC"));
         assertEquals("AB", GreatestCommonDivisorOfStrings.gcdOfStrings("ABABAB", "ABAB"));
         assertEquals("", GreatestCommonDivisorOfStrings.gcdOfStrings("LEET", "CODE"));
+        
+        assertEquals("", GreatestCommonDivisorOfStrings.gcdOfStrings("", ""));
+        assertEquals("AB", GreatestCommonDivisorOfStrings.gcdOfStrings("AB", ""));
+        assertEquals("AB", GreatestCommonDivisorOfStrings.gcdOfStrings("", "AB"));
+        assertEquals("AB", GreatestCommonDivisorOfStrings.gcdOfStrings("AB", "AB"));
+        assertEquals("AB", GreatestCommonDivisorOfStrings.gcdOfStrings("ABAB", "AB"));
+        assertEquals("AB", GreatestCommonDivisorOfStrings.gcdOfStrings("AB", "ABAB"));
+        assertEquals("ABAB", GreatestCommonDivisorOfStrings.gcdOfStrings("ABAB", "ABAB"));
     }
 }

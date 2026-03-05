@@ -25,6 +25,6 @@ public class GreatestCommonDivisorOfStrings {
         int gcdLength = GreatestCommonDivisor.gcd(str1.length(), str2.length());
         
         // 擷取最大公因數長度的子字串
-        return str1.substring(0, gcdLength);
+        return str1.length() > str2.length() ?  str1.substring(0, gcdLength) : str2.substring(0, gcdLength);
     }
 }
