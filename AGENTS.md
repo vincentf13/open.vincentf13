@@ -1,52 +1,41 @@
 # Project Handbook
 
 ## Repo Layout
-
-- Root `pom.xml` 聚合 `sdk`、`sdk-contract`、`service`，指令從倉庫根目錄執行。
-- 共用元件在 `sdk/`（core、spring-mvc、exchange、spring-security、mysql、redis、kafka、test、observability 等子模組），契約/DTO 在
-  `sdk-contract/`。
-- 業務服務位於 `service/<module>/`，各自有 `pom.xml`、`Dockerfile` 與 resources。
-- Kubernetes 清單在 `k8s/`，服務配置於 `k8s/<service>/`，共用路由在 `k8s/ingress.yaml`。
-- exchange 設計文件統一放在 `service/exchange/design/`（整體設計、Domain/Controller/Service/DB/Kafka 設計、0.web 等）。
+- Root `pom.xml` 聚合 `sdk`、`service`；指令從根目錄執行。
+- `sdk/`: 橫切關注點 (Log, MySQL, Redis, Kafka, Auth等)；`sdk-contract/`: 契約與 DTO。
+- `service/<module>/`: 業務微服務，含專屬 `pom.xml` 與 `Dockerfile`。
+- `k8s/`: 集群部署清單；`doc/exchange/`: 核心設計文件（優先權最高）。
 
 ## Build & Run
-
-- 政策：本專案 Agent 作業**不執行 Maven 指令與測試**；若必要僅對特定模組執行 `mvn clean compile`。
-- 本地啟動服務：`mvn -pl service/<service> spring-boot:run`（預設 8080，可自行覆寫）。
+- 政策：Agent 預設**不執行 Maven 指令與測試**；必要時僅執行 `mvn clean compile`。
+- 本地啟動：`mvn -pl service/<service> spring-boot:run`。
 
 ## General Coding
+- **基礎規範**: Java UTF-8, 4-space; PascalCase 類名, camelCase 成員, UPPER_SNAKE 常數; 偏好建構子注入。
+- **簡約原則**: Intent-Centric 風格，直接使用入參或欄位，避免多餘的 `null` 判斷、包裝或暫存變數；移除所有 `System.out`。
+- **資料轉換**: 一律使用 `open.vincentf13.sdk.core.object.mapper.OpenObjectMapper`。
+- **註解格式**: 
+  /** 
+    多行內容使用兩空格縮排
+    結尾對齊，不使用星號前綴
+   */
+- **持久化**: 批次操作統一用 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor` (1,000 筆 flush)。
 
-- Java UTF-8、4-space；PascalCase 類名、camelCase 成員、UPPER_SNAKE 常數；偏好建構子注入，移除暫時性 `System.out`。
-- API 路徑統一 `/api/...`；Endpoint 表授權欄內部介面填 `private`，服務調用只寫呼叫目標，補償欄標註重試/補償位置。
-- Domain/DTO/PO 轉換一律用 `open.vincentf13.sdk.core.object.mapper.OpenObjectMapper`，Domain 層不引入 infra 依賴或框架註解。
-- Enum/常數：REST DTO 枚舉放 `sdk-contract/.../enums` 並直接引用；PO 用 enum 型別；領域常數封裝於 Domain/Value Object；Kafka
-  Topic 定義用 Enum 並提供可在註解引用的 `Names`/常數。
-- 測試編寫規範：每個測試類別（Test Class）僅包含一個測試方法（Test Method），並在該方法內整合所有測試場景（Cases），實現 1 測試類別 : 1 測試方法 : 1:1 的結構；測試代碼內不添加任何註解。設計場景時應採用**數學歸納法 (Mathematical Induction)** 思維，從基礎情況 ($n=0, 1$) 開始，逐步遞進至複雜場景 ($n \to n+1$)，確保邏輯遞進與覆蓋完備性。
-- 多行註解格式：開頭 `/**` 換行後每行兩空格縮排，結尾 ` */` 對齊；避免使用星號前綴。
-- 批次 insert/update 統一使用 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor`（保留每 1,000 筆 flush/clear）；採
-  Intent-Centric 風格，入參直接用、避免多餘 null 判斷或包裝。
-- 可直接使用入參或來源欄位時就直接使用，避免宣告多餘的暫存變數。
+## 驗證與測試 (受命執行時)
+### 1. 結構與風格
+- **1:1 結構**: 每個測試類別僅含一個測試方法，整合所有場景；
 
-## Exchange Rules
+### 2. 路徑設計技術
+- **等價類劃分 (EP)**: 針對數值範圍、字串長度/內容、集合列舉、容量與檔案屬性，各劃分一組「有效」與「無效」代表值，以最少案例覆蓋最大邏輯。
+- **邊界值分析 (BVA)**: 鎖定範圍邊緣點及其鄰近值（如 $1 \leq x \leq 100 \to 0, 1, 2, 99, 100, 101$）。
+- **負向測試**: 必須包含 `null`/空值、格式錯誤、超載或模擬外部服務異常的「預期失敗」案例。
 
-- 任何新功能/重構先對照 `service/exchange/design/`；衝突時以設計文件為準。
-- Controller 直接實作對應 `sdk-contract` OpenAPI 介面；驗證/權限註解放介面上，Controller 不重複綁定或 Bean Validation。
-- Application 入口應先 `OpenValidator.validateOrThrow(...)` 等 Bean Validation；如無特殊需求直接使用 REST DTO，避免新增
-  Command 類。
-- 嚴格 CQRS：查詢在 `*QueryService`，寫入/更新在 `*CommandService`，Controller 分別注入；DDD 下 Domain 維護工廠與領域常數，Application
-  只協調用例。
-- Kafka 消費：僅成功後手動 ack；異常交由重送或 DLQ，禁止 finally 強制 ack。
-- 呼叫端取得實體後以版本欄位做樂觀鎖更新，確保冪等與競態保護。
-
-## Deployment
-
-- 套用順序：deployment → service → HPA → ingress（例：`k8s/service-template/deployment.yaml` → service → HPA →
-  `k8s/ingress.yaml`）。
-- 確保 `k8s/<service>/deployment.yaml` 的 image tag 與發佈一致；名稱/port 變更時同步更新 HPA/ingress。
-- 線上滾動更新：`kubectl set image deploy/<service> <container>=<image>:<tag>`，並以 `kubectl rollout status` 監看。
+## Exchange Rules (CQRS & Event)
+- **嚴格 CQRS**: `*QueryService` (讀) 與 `*CommandService` (寫) 分離；Controller 實作 `sdk-contract` OpenAPI 介面。
+- **Kafka**: 僅在處理成功後手動 Ack；禁止在 `finally` 中強制 Ack。
+- **併發控制**: 取得實體後以版本號 (Version) 執行樂觀鎖更新，確保冪等。
 
 ## Agent Notes
-
-- 除非有要求，否則不撰寫任何測試碼；不跑 Maven；回覆最終總結使用中文。
-- 為了任務執行而建立的臨時性或輔助性腳本，應統一存放在 `script/ai-tools/` 目錄下，避免汙染專案正式腳本目錄。
-- exchange 需求以 `service/exchange/design/` 為最高優先指引。
+- 回覆最終總結一律使用中文。
+- 臨時輔助腳本統一存放於 `script/ai-tools/`。
+- 除非使用者明確要求，否則不撰寫測試碼；不主動提交 (Commit) 除非獲得指令。
