@@ -21,6 +21,7 @@
 - Domain/DTO/PO 轉換一律用 `open.vincentf13.sdk.core.object.mapper.OpenObjectMapper`，Domain 層不引入 infra 依賴或框架註解。
 - Enum/常數：REST DTO 枚舉放 `sdk-contract/.../enums` 並直接引用；PO 用 enum 型別；領域常數封裝於 Domain/Value Object；Kafka
   Topic 定義用 Enum 並提供可在註解引用的 `Names`/常數。
+- 測試編寫規範：每個測試類別（Test Class）僅包含一個測試方法（Test Method），並在該方法內整合所有測試場景（Cases），實現 1 測試類別 : 1 測試方法 : 1:1 的結構。
 - 多行註解格式：開頭 `/**` 換行後每行兩空格縮排，結尾 ` */` 對齊；避免使用星號前綴。
 - 批次 insert/update 統一使用 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor`（保留每 1,000 筆 flush/clear）；採
   Intent-Centric 風格，入參直接用、避免多餘 null 判斷或包裝。

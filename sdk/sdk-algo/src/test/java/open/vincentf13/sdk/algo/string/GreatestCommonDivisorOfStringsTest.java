@@ -1,40 +1,24 @@
 package open.vincentf13.sdk.algo.string;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+/**
+  GreatestCommonDivisorOfStrings 演算法單元測試
+ */
 class GreatestCommonDivisorOfStringsTest {
 
     @Test
-    void testExample1() {
-        // Input: str1 = "ABCABC", str2 = "ABC"
-        // Output: "ABC"
-        String str1 = "ABCABC";
-        String str2 = "ABC";
-        String expected = "ABC";
-
-        assertEquals(expected, GreatestCommonDivisorOfStrings.gcdOfStrings(str1, str2));
-    }
-
-    @Test
-    void testExample2() {
-        // Input: str1 = "ABABAB", str2 = "ABAB"
-        // Output: "AB"
-        String str1 = "ABABAB";
-        String str2 = "ABAB";
-        String expected = "AB";
-
-        assertEquals(expected, GreatestCommonDivisorOfStrings.gcdOfStrings(str1, str2));
-    }
-
-    @Test
-    void testExample3() {
-        // Input: str1 = "LEET", str2 = "CODE"
-        // Output: ""
-        String str1 = "LEET";
-        String str2 = "CODE";
-        String expected = "";
-
-        assertEquals(expected, GreatestCommonDivisorOfStrings.gcdOfStrings(str1, str2));
+    @DisplayName("測試所有字串最大公因數案例")
+    void testGcdOfStrings() {
+        // 案例 1: "ABCABC", "ABC" -> "ABC"
+        assertEquals("ABC", GreatestCommonDivisorOfStrings.gcdOfStrings("ABCABC", "ABC"));
+        
+        // 案例 2: "ABABAB", "ABAB" -> "AB"
+        assertEquals("AB", GreatestCommonDivisorOfStrings.gcdOfStrings("ABABAB", "ABAB"));
+        
+        // 案例 3: "LEET", "CODE" -> ""
+        assertEquals("", GreatestCommonDivisorOfStrings.gcdOfStrings("LEET", "CODE"));
     }
 }
