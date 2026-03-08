@@ -24,8 +24,8 @@ class ReverseVowelsTest {
         assertEquals("uoa", ReverseVowels.reverseVowels("aou"));
         assertEquals("e1a", ReverseVowels.reverseVowels("a1e"));
 
-        assertEquals("uoae", ReverseVowels.reverseVowels("eauo"));
-        assertEquals("u oae", ReverseVowels.reverseVowels("e oau"));
+        assertEquals("ouae", ReverseVowels.reverseVowels("eauo"));
+        assertEquals("u aoe", ReverseVowels.reverseVowels("e oau"));
         assertEquals("1a2e3", ReverseVowels.reverseVowels("1e2a3"));
 
         assertEquals("leotcede", ReverseVowels.reverseVowels("leetcode"));
