@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.algo.string;
+package open.vincentf13.sdk.algo.array_string;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

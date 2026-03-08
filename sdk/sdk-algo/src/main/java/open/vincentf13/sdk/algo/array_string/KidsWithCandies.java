@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.algo.array;
+package open.vincentf13.sdk.algo.array_string;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.algo.array;
+package open.vincentf13.sdk.algo.two_pointers;
 
 import lombok.experimental.UtilityClass;
 

@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.algo.string;
+package open.vincentf13.sdk.algo.array_string;
 
 import lombok.experimental.UtilityClass;
 
