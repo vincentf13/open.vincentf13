@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.array_string;
+package open.vincentf13.sdk.leetcode.easy.array_string;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

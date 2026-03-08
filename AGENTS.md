@@ -31,6 +31,7 @@
 - **負向測試**: 必須包含 `null`/空值、格式錯誤、超載或模擬外部服務異常的「預期失敗」案例。
 
 ### 3. LeetCode 題目規範
+- **套件結構**: 實作時應根據題目困難度 (Easy, Medium, Hard) 區分套件，路徑格式為 `open.vincentf13.sdk.leetcode.<difficulty>.<category>`。
 - **用例優先級**: 撰寫單元測試時，優先完整實作 LeetCode 題目提供的官方範例 (Example Cases)；確保官方用例全數通過後，再依據邊界條件與等價類分析補充自訂測試用例。
 
 ## Exchange Rules (CQRS & Event)

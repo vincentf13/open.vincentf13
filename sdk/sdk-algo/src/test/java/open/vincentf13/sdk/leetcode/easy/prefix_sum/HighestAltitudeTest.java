@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.prefix_sum;
+package open.vincentf13.sdk.leetcode.easy.prefix_sum;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

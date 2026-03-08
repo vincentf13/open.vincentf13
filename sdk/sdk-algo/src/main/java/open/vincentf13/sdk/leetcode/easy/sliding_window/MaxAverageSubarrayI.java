@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.sliding_window;
+package open.vincentf13.sdk.leetcode.easy.sliding_window;
 
 import lombok.experimental.UtilityClass;
 

@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.sliding_window;
+package open.vincentf13.sdk.leetcode.easy.sliding_window;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

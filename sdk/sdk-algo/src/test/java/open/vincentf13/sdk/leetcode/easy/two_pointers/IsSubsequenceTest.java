@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.two_pointers;
+package open.vincentf13.sdk.leetcode.easy.two_pointers;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
