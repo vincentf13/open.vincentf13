@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.math.number;
+package open.vincentf13.sdk.algo.math.number;
 
 import lombok.experimental.UtilityClass;
 

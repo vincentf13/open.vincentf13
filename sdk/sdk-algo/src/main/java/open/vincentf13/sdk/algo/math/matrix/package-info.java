@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.math.matrix;
+package open.vincentf13.sdk.algo.math.matrix;
 
 /**
   矩陣運算 (Matrix Operations)

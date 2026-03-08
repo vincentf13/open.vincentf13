@@ -1,7 +1,7 @@
 package open.vincentf13.sdk.leetcode.array_string;
 
 import lombok.experimental.UtilityClass;
-import open.vincentf13.sdk.leetcode.math.number.GreatestCommonDivisor;
+import open.vincentf13.sdk.algo.math.number.GreatestCommonDivisor;
 
 /**
   LeetCode 1071: Greatest Common Divisor of Strings

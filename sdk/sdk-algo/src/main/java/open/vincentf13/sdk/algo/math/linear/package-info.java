@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.math.linear;
+package open.vincentf13.sdk.algo.math.linear;
 
 /**
   線性規劃 (Linear Programming)

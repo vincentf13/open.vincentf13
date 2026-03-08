@@ -1,4 +1,4 @@
-package open.vincentf13.sdk.leetcode.math.fft;
+package open.vincentf13.sdk.algo.math.fft;
 
 /**
   多項式與快速傅立葉變換 (Polynomials and the FFT)
