@@ -13,65 +13,89 @@
 
 ---
 
-## 2. 系統架構圖 (Architecture Overview)
+## 2. 系統架構圖 (Simplified Low-Latency Architecture)
 
 ```mermaid
 flowchart TD
-    subgraph Inbound_Path[輸入路徑 - Command]
-        API[Gateway / WS] -->|Aeron IPC| Sequencer[(Chronicle Queue: Inbound WAL)]
+    subgraph ClientZone ["User Zone"]
+        User((User))
     end
 
-    subgraph Core_Engine[高性能撮合核心]
-        Sequencer -->|Busy Spin| LogicUnit[Logic Unit / State Machine]
+    subgraph GatewayService ["Gateway Service"]
+        WS["WebSocket / REST"]
+        GW_Q["Chronicle Queue: GW WAL"]
+        Aeron_Pub_In["Aeron Publisher: Inbound"]
+    end
+
+    subgraph CoreEngineService ["Matching Core Service"]
+        Aeron_Sub_In["Aeron Subscriber"]
+        Core_Q["Chronicle Queue: Core WAL"]
         
-        subgraph Internal_State[核心內存狀態]
-            Risk[Risk / Ledger]
-            Book[Order Book]
+        subgraph LogicUnit ["Single-threaded Logic Unit"]
+            RiskLogic["Risk Check & Ledger"]
+            MatchLogic["Matching Engine"]
         end
         
-        LogicUnit --> Risk
-        Risk --> Book
-        
-        %% 狀態同步
-        Risk -.-> SharedMap[(Chronicle Map: Real-time State)]
-        Book -.-> SharedMap
+        StateMap["Chronicle Map: Balances & Orders"]
+        Aeron_Pub_Out["Aeron Publisher: Result"]
     end
 
-    subgraph Outbound_Path[輸出路徑 - Events]
-        LogicUnit -->|Result| PubSequencer[(Chronicle Queue: Outbound Events)]
-        PubSequencer --> AeronPub[Aeron Publisher]
+    subgraph QueryService ["Query Service"]
+        QueryAPI["Query API"]
+        StateMap_Read["Chronicle Map: Shared Read"]
     end
 
-    subgraph Query_Path[查詢路徑 - Query]
-        QueryAPI[Query API Service] -->|Memory-mapped Read| SharedMap
-    end
+    %% Data Flow
+    User --> WS
+    WS --> GW_Q
+    WS --> Aeron_Pub_In
 
-    %% 用戶交互
-    User((User)) -->|Command| API
-    User -->|Query| QueryAPI
-    AeronPub -->|Push Notifications| User
+    Aeron_Pub_In --> Aeron_Sub_In
+    Aeron_Sub_In --> Core_Q
+    Core_Q --> LogicUnit
+    LogicUnit -.-> StateMap
+    LogicUnit --> Aeron_Pub_Out
+
+    Aeron_Pub_Out --> WS
+    WS --> User
+
+    %% Query Path
+    User --> QueryAPI
+    QueryAPI -.-> StateMap_Read
 ```
 
 ---
 
-## 3. 關鍵組件說明 (Component Definitions)
+## 3. 組件說明 (Component Definitions)
 
-### 3.1 Sequencer (定序器)
-- **技術**: **Chronicle Queue**。
-- **職責**: 接收指令，分配全域 Sequence ID 並持久化為 WAL (Write-Ahead Log)。
+### 3.1 核心邏輯單元 (The Core Logic Unit)
+- **職責**: 在單個隔離執行緒中，**先**進行資產風控與凍結，**後**立即進行訂單撮合。
+- **優勢**: 
+    - **零跨服務延遲**: 風控與撮合之間無 Aeron/網路開銷。
+    - **原子性保證**: 訂單處理要麼完全成功（成交/掛單），要麼完全失敗（拒絕），無需分散式交易。
 
-### 3.2 Logic Unit (撮合與風控核心)
-- **職責**: 消耗 Sequencer 事件，執行風控檢查與撮合算法。
-- **特點**: 單執行緒、Busy Spin。
+### 3.2 Aeron 通訊管道 (Aeron Streams)
+- **Stream 10 (Inbound)**: Gateway 發布原始下單指令。
+- **Stream 30 (Result)**: Core Engine 發布成交回報與行情更新。
 
-### 3.3 Shared State Store (共享狀態存儲)
-- **技術**: **Chronicle Map (Shared Memory)**。
-- **職責**: 存儲當前所有活躍訂單與用戶資產餘額。
-- **特點**: 基於 **Memory-mapped Files**，支援零拷貝跨進程讀取。
+### 3.3 確定性與持久化 (WAL - Write-Ahead Log)
 
-### 3.4 Messaging Transport
-- **技術**: **Aeron (UDP/IPC)**。
-- **職責**: 高速信令傳輸與廣播。
+#### A. Gateway WAL (GW_Q)
+- **職責**: 在將訊息發送至 Aeron 之前，Gateway **優先**將接收到的原始 JSON 指令寫入本地 Chronicle Queue。
+- **作用**: 
+    1. **原始審計 (Raw Audit)**: 記錄用戶最原始的下單意圖，作為交易糾紛（如：用戶聲稱下單價格與實際不符）的最終證據。
+    2. **故障補齊 (Gap Fill)**: 若 Aeron 傳輸過程中發生極端異常或 Gateway 崩潰，重啟後可從 GW WAL 恢復並重發未送達的指令。
+    3. **異步背壓 (Backpressure)**: 當核心引擎處理速度受限時，GW WAL 充當緩衝區，確保用戶請求先「落地」持久化。
+
+#### B. Core WAL (Core_Q)
+- **職責**: 核心引擎從 Aeron 接收指令後，立即持久化為 WAL。
+- **作用**: 系統的 **「唯一真實來源 (Single Source of Truth)」**。重播此隊列即可在空機上完整重建所有資產餘額與訂單簿狀態。
+
+### 3.4 效能診斷與指標 (Observability)
+透過對比 GW WAL 與 Core WAL 的訊息時間戳，系統可精確度量：
+- **Gateway 處理延遲**: (SBE 編碼 + 本地寫入耗時)。
+- **傳輸與排隊延遲**: (Aeron 傳輸 + 在 Core Queue 中等待處理的耗時)。
+- **核心處理延遲**: (風控檢查 + 撮合計算耗時)。
 
 ---
 
@@ -157,10 +181,9 @@ flowchart TD
 { "op": "trade.query", "params": { "userId": "user_001", "limit": 20 } }
 ```
 
-### 6.3 執行回報與事件推送 (Server -> Client)
+### 6.3 系統推播與響應 (Server -> Client)
 
 #### A. 執行報告 (Execution Report)
-當訂單狀態變更（接受、成交、撤銷、拒絕）時主動推送。
 ```json
 {
   "topic": "execution",
@@ -177,77 +200,49 @@ flowchart TD
 }
 ```
 
-#### B. 資產狀態響應 (Asset Snapshot)
-```json
-{
-  "topic": "asset.snapshot",
-  "data": [
-    { "asset": "BTC", "available": "0.1", "frozen": "0" },
-    { "asset": "USDT", "available": "5000", "frozen": "6500.5" }
-  ]
-}
-```
+### 6.4 內存數據結構定義 (In-memory Data Structures)
 
-#### C. 活躍訂單查詢響應 (Active Orders)
-```json
-{
-  "topic": "order.snapshot",
-  "data": [
-    { "orderId": "123456", "symbol": "BTC_USDT", "side": "BUY", "price": "65000", "qty": "0.1", "filled": "0.05" }
-  ]
-}
-```
+#### A. 資產餘額表 (BalanceMap)
+- **Key**: `userId` (long) + `assetId` (int)
+- **Value**: `available` (long), `frozen` (long)
 
-#### D. 成交歷史響應 (Trade History)
-```json
-{
-  "topic": "trade.history",
-  "data": [
-    { "tradeId": "t_999", "orderId": "123456", "price": "65000.5", "qty": "0.05", "side": "BUY", "time": 1710000005 }
-  ]
-}
-```
+#### B. 活躍訂單表 (OrderMap)
+- **Key**: `orderId` (long)
+- **Value**: `userId`, `symbolId`, `side`, `price`, `qty`, `status`
 
 ---
 
-## 7. 內存數據結構定義 (In-memory Data Structures)
+## 7. 異常恢復與分布式一致性 (Consistency & Recovery)
 
-系統狀態存儲於多個 **Chronicle Map** 實例中，這些實例映射到磁碟文件並支持跨進程存取。所有數值類欄位均使用 `long`（定點數，放大 10^8 倍）以避免浮點數精度問題。
+系統採用「異步持久化 (Asynchronous Flush)」以追求極致延遲。針對極端斷電可能導致的 GW WAL 數據遺失與核心不一致，系統實施以下恢復策略：
 
-### 7.1 資產餘額表 (BalanceMap)
-- **Key**: `userId` (long) + `assetId` (int) - 複合鍵，共 12 Bytes。
-- **Value**:
-    - `available` (long): 可用餘額。
-    - `frozen` (long): 凍結餘額（掛單中）。
-    - `version` (long): 樂觀鎖版本號或最後更新 Sequence ID。
+### 7.1 下游追蹤上游 (Downstream tracking Upstream) 策略
+為了確保 Gateway 與 Core Engine 的執行狀態完全對齊，系統建立了 **Aeron Sequence ID 鏈條**:
 
-### 7.2 活躍訂單表 (OrderMap)
-- **Key**: `orderId` (long) - 8 Bytes。
-- **Value**:
-    - `userId` (long): 所屬用戶。
-    - `symbolId` (int): 交易對。
-    - `side` (byte): 0=BUY, 1=SELL。
-    - `price` (long): 掛單價格。
-    - `qty` (long): 掛單原始數量。
-    - `filled` (long): 已成交數量。
-    - `status` (byte): 訂單狀態 (NEW, PARTIAL, FILLED, CANCELED)。
-    - `timestamp` (long): 建立時間。
+1. **ID 綁定 (Binding)**: 
+   - Core Engine 在處理每條訊息時，會將該訊息對應的 `Aeron Stream Sequence ID` 記錄在 `Core WAL`。
+   - 所有輸出的執行回報 (Execution Report) 必須攜帶該原指令的 `Sequence ID`。
+2. **Gateway 重啟對齊 (Alignment)**: 
+   - Gateway 在重啟後，首先讀取本地 `GW WAL` 的最後一條記錄 ID。
+   - Gateway 向核心引擎查詢「當前已處理的最大 Sequence ID」。
+3. **數據補齊 (Gap Fill)**:
+   - **不一致場景**: 若核心引擎已處理到 ID 100，但 Gateway 本地磁碟只記錄到 ID 95（發生磁碟數據遺失）。
+   - **自動修正**: Gateway 辨識出 ID 96-100 的指令已在核心執行但本地遺失審計。此時 Gateway 會向核心引擎拉取對應的回報，補足本地審計日誌，並記錄一條系統級 `Disk-Data-Loss` 告警。
 
-### 7.3 用戶活躍訂單索引 (UserOrdersMap)
-- **Key**: `userId` (long) - 8 Bytes。
-- **Value**: `long[]` (固定長度數組，如 100) - 存儲該用戶當前活躍的 `orderId` 列表，用於快速響應 `order.query`。
-
-### 7.4 最近成交記錄 (TradeHistoryMap)
-- **Key**: `symbolId` (int) - 4 Bytes。
-- **Value**: `TradeRecord[]` (固定長度循環緩存，如 1000) - 存儲該交易對最近的成交記錄。
-    - **TradeRecord**: `tradeId`, `price`, `qty`, `side`, `time`。
+### 7.2 核心啟動恢復
+1. **快照加載**: 加載 `Shared State Map` (磁碟映射文件)。
+2. **重播隊列**: 從快照中記錄的最後一個 Sequence ID 開始，重播 `Core WAL` (Chronicle Queue)，補齊所有未寫入磁碟的內存變更。
 
 ---
 
-## 8. 異常恢復與數據完整性
+## 8. 為什麼選擇這套架構？ (The "Why")
 
-- **啟動恢復**: 加載 `Shared State Map` 快照，並從記錄的 Sequence ID 開始重播 `Inbound Chronicle Queue`。
-- **數據完整性**: 所有變更均有 WAL 保障。
+| 特性 | 傳統微服務 (Kafka + DB) | 低延遲架構 (Chronicle + Aeron) |
+| :--- | :--- | :--- |
+| **延遲** | 毫秒級 (1ms - 50ms) | **微秒級 (1μs - 50μs)** |
+| **持久化** | 資料庫交易 (Blocking) | Memory-mapped File (Async non-blocking) |
+| **一致性** | 最終一致性 | **強一致性 (Single Source of Truth)** |
+| **垃圾回收** | 頻繁 GC 停頓 | **Zero-GC** (無 GC 負擔) |
 
 ---
 
