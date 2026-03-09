@@ -2,27 +2,16 @@ package open.vincentf13.service.spot_exchange.gateway;
 
 import io.aeron.Aeron;
 import io.aeron.Publication;
+import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import org.agrona.concurrent.UnsafeBuffer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-/** 
-  Gateway 訊息轉發器
-  負責輪詢 GW_Q 並透過 Aeron (Stream 10) 傳送到 Core
- */
 import open.vincentf13.service.spot_exchange.infra.AeronPublisher;
 import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
+
+import java.nio.ByteBuffer;
 
 @Component
 public class GatewayAeronSender extends BusySpinWorker {
@@ -53,7 +42,16 @@ public class GatewayAeronSender extends BusySpinWorker {
         boolean handled = tailer.readDocument(wire -> {
             byte[] data = wire.bytes().toByteArray();
             buffer.putBytes(0, data);
-            publisher.publish(buffer, 0, data.length);
+            
+            // --- 深度加固：阻塞重試直至發送成功 ---
+            long result;
+            while ((result = publisher.tryPublish(buffer, 0, data.length)) < 0) {
+                if (result == Publication.NOT_CONNECTED) {
+                    log.warn("Aeron Publisher 未連接，重試中...");
+                }
+                idleStrategy.idle(); // 忙等或微休眠
+                if (!running.get()) return;
+            }
         });
         return handled ? 1 : 0;
     }

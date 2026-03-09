@@ -1,6 +1,6 @@
 package open.vincentf13.service.spot_exchange.core;
 
-import net.openhft.chronicle.map.ChronicleMap;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.model.Balance;
 import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.slf4j.Logger;
@@ -20,32 +20,30 @@ public class LedgerProcessor {
         this.stateStore = stateStore;
     }
 
-    /** 
-      初始化或獲取用戶資產
-     */
     public Balance getOrCreateBalance(long userId, int assetId) {
         BalanceKey key = new BalanceKey(userId, assetId);
-        ChronicleMap<BalanceKey, Balance> map = stateStore.getBalanceMap();
-        
-        Balance balance = map.get(key);
+        Balance balance = stateStore.getBalanceMap().get(key);
         if (balance == null) {
             balance = new Balance();
             balance.setAvailable(0);
             balance.setFrozen(0);
             balance.setVersion(0);
-            map.put(key, balance);
-            log.info("為用戶 {} 初始化資產 {}", userId, assetId);
+            stateStore.getBalanceMap().put(key, balance);
         }
         return balance;
     }
 
     /** 
-      增加可用餘額 (充值/成交獲得)
+      增加可用餘額
      */
     public void addAvailable(long userId, int assetId, long amount) {
+        if (amount <= 0) return;
         BalanceKey key = new BalanceKey(userId, assetId);
         Balance balance = getOrCreateBalance(userId, assetId);
+        
         balance.setAvailable(balance.getAvailable() + amount);
+        balance.setVersion(balance.getVersion() + 1); // 增加版本號，支援讀取端校驗
+        
         stateStore.getBalanceMap().put(key, balance);
     }
 
@@ -53,6 +51,7 @@ public class LedgerProcessor {
       凍結可用餘額 (下單)
      */
     public boolean tryFreeze(long userId, int assetId, long amount) {
+        if (amount <= 0) return true;
         BalanceKey key = new BalanceKey(userId, assetId);
         Balance balance = getOrCreateBalance(userId, assetId);
         
@@ -62,7 +61,23 @@ public class LedgerProcessor {
         
         balance.setAvailable(balance.getAvailable() - amount);
         balance.setFrozen(balance.getFrozen() + amount);
+        balance.setVersion(balance.getVersion() + 1);
+        
         stateStore.getBalanceMap().put(key, balance);
         return true;
+    }
+
+    /** 
+      扣除凍結金額 (成交)
+     */
+    public void deductFrozen(long userId, int assetId, long amount) {
+        if (amount <= 0) return;
+        BalanceKey key = new BalanceKey(userId, assetId);
+        Balance balance = getOrCreateBalance(userId, assetId);
+        
+        balance.setFrozen(Math.max(0, balance.getFrozen() - amount));
+        balance.setVersion(balance.getVersion() + 1);
+        
+        stateStore.getBalanceMap().put(key, balance);
     }
 }

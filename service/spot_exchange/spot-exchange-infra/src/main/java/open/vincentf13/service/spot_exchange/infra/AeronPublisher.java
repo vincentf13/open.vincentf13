@@ -17,16 +17,12 @@ public class AeronPublisher {
         this.publication = aeron.addPublication(channel, streamId);
     }
 
-    public boolean publish(DirectBuffer buffer, int offset, int length) {
-        long result = publication.offer(buffer, offset, length);
-        if (result > 0) return true;
-        
-        if (result == Publication.BACK_PRESSURED) {
-            // 可以在此實作重試或丟棄策略
-        } else if (result == Publication.NOT_CONNECTED) {
-            log.warn("Aeron Publisher not connected: channel={}", publication.channel());
-        }
-        return false;
+    /** 
+      嘗試發送訊息
+      @return Aeron 原始結果代碼 (可判斷 BACK_PRESSURED, NOT_CONNECTED 等)
+     */
+    public long tryPublish(DirectBuffer buffer, int offset, int length) {
+        return publication.offer(buffer, offset, length);
     }
 
     public void close() {
