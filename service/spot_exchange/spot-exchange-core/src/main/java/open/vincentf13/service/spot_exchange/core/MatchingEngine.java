@@ -4,11 +4,12 @@ import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
 import open.vincentf13.service.spot_exchange.infra.DecimalUtil;
 import open.vincentf13.service.spot_exchange.infra.SbeCodec;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.model.ActiveOrder;
+import open.vincentf13.service.spot_exchange.model.CidKey;
 import open.vincentf13.service.spot_exchange.sbe.*;
 
 import java.nio.ByteBuffer;
@@ -38,21 +39,47 @@ public class MatchingEngine extends BusySpinWorker {
     public void init() { start("matching-engine"); }
 
     @Override
-    protected void onStart() { this.tailer = stateStore.getCoreQueue().createTailer(); }
+    protected void onStart() {
+        this.tailer = stateStore.getCoreQueue().createTailer();
+        
+        // --- 方案 C：兩階段恢復 ---
+        Long lastSeq = stateStore.getSystemStateMap().get("lastProcessedSeq");
+        if (lastSeq != null && lastSeq > 0) {
+            log.info("系統重啟，從上次處理位置恢復: {}", lastSeq);
+            tailer.moveToIndex(lastSeq); // 移動到最後一條成功處理的索引
+        }
+    }
 
     @Override
     protected int doWork() {
         return tailer.readDocument(wire -> {
+            long currentIndex = tailer.index();
             int msgType = wire.read("msgType").int32();
+            
             switch (msgType) {
                 case 103: handleAuth(wire); break;
                 case 100: 
                     byte[] bytes = wire.read("payload").bytes();
                     payloadBuffer.putBytes(0, bytes);
                     SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
-                    handleOrderCreate(orderCreateDecoder);
+                    
+                    // --- 冪等檢查 ---
+                    CidKey key = new CidKey(orderCreateDecoder.userId(), orderCreateDecoder.clientOrderId());
+                    Long existingOrderId = stateStore.getCidMap().get(key);
+                    
+                    if (existingOrderId != null) {
+                        log.warn("檢測到重複指令，跳過處理: userId={}, cid={}", key.getUserId(), key.getCid());
+                        // 可選擇性補發回報
+                        sendExecutionReport(key.getUserId(), existingOrderId, key.getCid(), OrderStatus.FILLED, 0, 0, 0, 0);
+                    } else {
+                        handleOrderCreate(orderCreateDecoder);
+                        // 標記已處理 (與業務邏輯在同一個執行緒中順序執行)
+                        stateStore.getCidMap().put(key, orderIdCounter - 1);
+                    }
                     break;
             }
+            // 更新最後處理進度
+            stateStore.getSystemStateMap().put("lastProcessedSeq", currentIndex);
         }) ? 1 : 0;
     }
 
@@ -67,6 +94,7 @@ public class MatchingEngine extends BusySpinWorker {
 
         ActiveOrder order = new ActiveOrder();
         order.setOrderId(orderIdCounter++);
+        order.setClientOrderId(sbe.clientOrderId());
         order.setUserId(sbe.userId());
         order.setPrice(sbe.price());
         order.setQty(sbe.qty());

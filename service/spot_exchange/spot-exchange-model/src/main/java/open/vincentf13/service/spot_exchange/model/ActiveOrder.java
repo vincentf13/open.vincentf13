@@ -9,6 +9,7 @@ import net.openhft.chronicle.bytes.BytesMarshallable;
 @Data
 public class ActiveOrder implements BytesMarshallable {
     private long orderId;
+    private String clientOrderId;
     private long userId;
     private int symbolId;
     private byte side; // 0=BUY, 1=SELL
