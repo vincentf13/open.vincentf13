@@ -47,7 +47,6 @@ public class MatchingEngine extends BusySpinWorker {
         Long savedId = stateStore.getSystemStateMap().get("orderIdCounter");
         if (savedId != null) this.orderIdCounter = savedId;
 
-        // --- 優化：基於 activeOrderIdMap 的快速恢復 ($O(Active)$) ---
         log.info("正在快速重建活躍訂單簿...");
         List<ActiveOrder> activeOrders = new ArrayList<>();
         stateStore.getActiveOrderIdMap().keySet().forEach(orderId -> {
@@ -90,10 +89,7 @@ public class MatchingEngine extends BusySpinWorker {
     private void processCommand(OrderCreateDecoder sbe, long currentSeq) {
         CidKey key = new CidKey(sbe.userId(), sbe.clientOrderId());
         Long existingOrderId = stateStore.getCidMap().get(key);
-        
         if (existingOrderId != null) {
-            // --- 深度加固：重發回報防止遺失 ---
-            log.warn("重複指令，執行冪等重發: cid={}", key.getCid());
             ActiveOrder order = stateStore.getOrderMap().get(existingOrderId);
             if (order != null) {
                 OrderStatus status = (order.getStatus() == 2) ? OrderStatus.FILLED : 
@@ -103,14 +99,14 @@ public class MatchingEngine extends BusySpinWorker {
             }
             return;
         }
-        
         handleOrderCreate(sbe, currentSeq);
         stateStore.getCidMap().put(key, orderIdCounter - 1);
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe, long currentSeq) {
         long timestamp = sbe.timestamp();
-        long cost = (sbe.side() == Side.BUY) ? DecimalUtil.multiply(sbe.price(), sbe.qty()) : sbe.qty();
+        // 凍結採用 Ceil (買家凍結 USDT, 賣家凍結 BTC)
+        long cost = (sbe.side() == Side.BUY) ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
         int assetId = (sbe.side() == Side.BUY) ? 2 : 1;
 
         if (!ledger.tryFreeze(sbe.userId(), assetId, currentSeq, cost)) {
@@ -130,7 +126,6 @@ public class MatchingEngine extends BusySpinWorker {
         order.setVersion(1);
         order.setLastSeq(currentSeq);
 
-        // 更新持久化 Map 與 活躍索引
         activeOrderIndex.put(order.getOrderId(), order);
         stateStore.getOrderMap().put(order.getOrderId(), order);
         stateStore.getActiveOrderIdMap().put(order.getOrderId(), true);
@@ -139,7 +134,7 @@ public class MatchingEngine extends BusySpinWorker {
         List<OrderBook.TradeEvent> trades = book.match(order);
 
         for (OrderBook.TradeEvent t : trades) {
-            processTradeLedger(t, currentSeq);
+            processTradeLedger(t, currentSeq, order);
             syncOrderState(t.makerOrderId, currentSeq);
             sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, timestamp);
         }
@@ -155,7 +150,7 @@ public class MatchingEngine extends BusySpinWorker {
             if (order.getFilled() == order.getQty()) {
                 order.setStatus((byte)2);
                 activeOrderIndex.remove(orderId);
-                stateStore.getActiveOrderIdMap().remove(orderId); // 從活躍索引移除
+                stateStore.getActiveOrderIdMap().remove(orderId);
             }
             order.setVersion(order.getVersion() + 1);
             order.setLastSeq(currentSeq);
@@ -163,11 +158,32 @@ public class MatchingEngine extends BusySpinWorker {
         }
     }
 
-    private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq) {
-        ledger.deductFrozen(t.takerUserId, 2, currentSeq, DecimalUtil.multiply(t.price, t.qty));
-        ledger.addAvailable(t.takerUserId, 1, currentSeq, t.qty);
-        ledger.deductFrozen(t.makerUserId, 1, currentSeq, t.qty);
-        ledger.addAvailable(t.makerUserId, 2, currentSeq, DecimalUtil.multiply(t.price, t.qty));
+    private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq, ActiveOrder takerOrder) {
+        // 金融對沖邏輯：處理價格改進與進位保護
+        long matchValueFloor = DecimalUtil.mulFloor(t.price, t.qty); // 用戶入帳用 Floor
+        long matchValueCeil = DecimalUtil.mulCeil(t.price, t.qty);   // 用戶扣款用 Ceil
+
+        // 判斷 Taker 是買方還是賣方
+        if (takerOrder.getSide() == 0) { // Taker is BUYER
+            // Taker 扣除 USDT 凍結 (按其下單價格計算的比例)，退還差額
+            long takerFrozenForThisQty = DecimalUtil.mulCeil(takerOrder.getPrice(), t.qty);
+            ledger.settlement(t.takerUserId, 2, currentSeq, matchValueCeil, takerFrozenForThisQty);
+            ledger.addAvailable(t.takerUserId, 1, currentSeq, t.qty); // 得 BTC
+
+            // Maker 扣除 BTC 凍結，得 USDT
+            ledger.settlement(t.makerUserId, 1, currentSeq, t.qty, t.qty);
+            ledger.addAvailable(t.makerUserId, 2, currentSeq, matchValueFloor);
+        } else { // Taker is SELLER
+            // Taker 扣除 BTC 凍結
+            ledger.settlement(t.takerUserId, 1, currentSeq, t.qty, t.qty);
+            ledger.addAvailable(t.takerUserId, 2, currentSeq, matchValueFloor); // 得 USDT
+
+            // Maker (Buyer) 扣除 USDT 凍結 (Maker 當初掛單的價格)，退還差額
+            ActiveOrder makerOrder = stateStore.getOrderMap().get(t.makerOrderId);
+            long makerFrozenForThisQty = (makerOrder != null) ? DecimalUtil.mulCeil(makerOrder.getPrice(), t.qty) : matchValueCeil;
+            ledger.settlement(t.makerUserId, 2, currentSeq, matchValueCeil, makerFrozenForThisQty);
+            ledger.addAvailable(t.makerUserId, 1, currentSeq, t.qty); // 得 BTC
+        }
     }
 
     private void sendExecutionReport(long userId, long orderId, String cid, OrderStatus status, long lp, long lq, long cq, long ap, long ts) {

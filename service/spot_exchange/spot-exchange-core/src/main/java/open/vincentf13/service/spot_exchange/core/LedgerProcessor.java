@@ -6,10 +6,9 @@ import open.vincentf13.service.spot_exchange.model.Balance;
 import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.springframework.stereotype.Service;
 
-/** 
-  內存帳務處理器
-  實作序列標籤 (Sequence Tagging) 以確保金融級一致性
- */
+import java.util.HashSet;
+import java.util.Set;
+
 @Service
 public class LedgerProcessor {
     private final StateStore stateStore;
@@ -18,44 +17,32 @@ public class LedgerProcessor {
         this.stateStore = stateStore;
     }
 
-    /** 
-      更新資產餘額
-      @param currentSeq 當前處理的 WAL 指令序號
-     */
     public void updateBalance(long userId, int assetId, long currentSeq, java.util.function.Consumer<Balance> action) {
         BalanceKey key = new BalanceKey(userId, assetId);
-        
         try (ExternalMapQueryContext<BalanceKey, Balance, ?> context = stateStore.getBalanceMap().queryContext(key)) {
             context.writeLock().lock();
             net.openhft.chronicle.map.MapEntry<BalanceKey, Balance> entry = context.entry();
+            Balance balance = (entry == null) ? new Balance() : entry.value().get();
             
-            Balance balance;
-            if (entry == null) {
-                balance = new Balance();
-                balance.setAvailable(0);
-                balance.setFrozen(0);
-                balance.setVersion(0);
-                balance.setLastSeq(-1);
-            } else {
-                balance = entry.value().get();
-            }
-            
-            // --- 金融級一致性：序列檢查 ---
-            // 如果此資產已由該序號（或更高序號）處理過，直接跳過物理寫入
-            if (balance.getLastSeq() >= currentSeq) {
-                return;
-            }
+            if (balance.getLastSeq() >= currentSeq) return;
             
             action.accept(balance);
             balance.setVersion(balance.getVersion() + 1);
-            balance.setLastSeq(currentSeq); // 打上當前處理序號
+            balance.setLastSeq(currentSeq);
             
             if (entry == null) {
                 context.insert(context.absentEntry(), context.wrapValueAsData(balance));
+                // --- 維護資產索引 ---
+                updateUserAssetIndex(userId, assetId);
             } else {
                 entry.replaceValue(context.wrapValueAsData(balance));
             }
         }
+    }
+
+    private void updateUserAssetIndex(long userId, int assetId) {
+        // 在實際環境中，這應是一個 Chronicle Map<Long, int[]>
+        // 目前 MVP 簡化邏輯或暫留，但設計上必須存在
     }
 
     public void initBalance(long userId, int assetId, long currentSeq) {
@@ -63,13 +50,10 @@ public class LedgerProcessor {
     }
 
     public void addAvailable(long userId, int assetId, long currentSeq, long amount) {
-        if (amount <= 0) return;
         updateBalance(userId, assetId, currentSeq, b -> b.setAvailable(b.getAvailable() + amount));
     }
 
     public boolean tryFreeze(long userId, int assetId, long currentSeq, long amount) {
-        if (amount <= 0) return true;
-        
         boolean[] success = {false};
         updateBalance(userId, assetId, currentSeq, b -> {
             if (b.getAvailable() >= amount) {
@@ -81,8 +65,20 @@ public class LedgerProcessor {
         return success[0];
     }
 
-    public void deductFrozen(long userId, int assetId, long currentSeq, long amount) {
-        if (amount <= 0) return;
-        updateBalance(userId, assetId, currentSeq, b -> b.setFrozen(Math.max(0, b.getFrozen() - amount)));
+    /** 
+      扣除凍結資產並解凍剩餘部分 (金融級對沖邏輯)
+      @param actualDeduct 實際成交應扣除金額
+      @param totalFrozen 該次成交對應的原始凍結總額 (針對此 Qty 部分)
+     */
+    public void settlement(long userId, int assetId, long currentSeq, long actualDeduct, long totalFrozen) {
+        updateBalance(userId, assetId, currentSeq, b -> {
+            // 1. 扣除總凍結
+            b.setFrozen(Math.max(0, b.getFrozen() - totalFrozen));
+            // 2. 返還價格改進導致的差額 (totalFrozen - actualDeduct)
+            long remainder = totalFrozen - actualDeduct;
+            if (remainder > 0) {
+                b.setAvailable(b.getAvailable() + remainder);
+            }
+        });
     }
 }
