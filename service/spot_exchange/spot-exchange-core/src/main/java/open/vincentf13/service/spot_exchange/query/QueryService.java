@@ -3,7 +3,6 @@ package open.vincentf13.service.spot_exchange.query;
 import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.model.ActiveOrder;
 import open.vincentf13.service.spot_exchange.model.Balance;
-import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -25,7 +24,6 @@ public class QueryService {
         List<Balance> results = new ArrayList<>();
         stateStore.getBalanceMap().forEach((key, balance) -> {
             if (key.getUserId() == userId) {
-                // --- 樂觀鎖讀取：確保數據在讀取期間未被 MatchingEngine 修改 ---
                 Balance snapshot;
                 long v1, v2;
                 do {
@@ -34,9 +32,9 @@ public class QueryService {
                     snapshot.setAvailable(balance.getAvailable());
                     snapshot.setFrozen(balance.getFrozen());
                     snapshot.setVersion(v1);
+                    snapshot.setLastSeq(balance.getLastSeq());
                     v2 = balance.getVersion();
-                } while (v1 != v2); // 如果版本號變更，說明讀取期間發生了寫入，重試
-                
+                } while (v1 != v2);
                 results.add(snapshot);
             }
         });
@@ -45,9 +43,24 @@ public class QueryService {
 
     public List<ActiveOrder> getActiveOrders(long userId) {
         List<ActiveOrder> results = new ArrayList<>();
-        stateStore.getOrderMap().forEach((orderId, order) -> {
-            if (order.getUserId() == userId && order.getStatus() < 2) {
-                results.add(order);
+        stateStore.getActiveOrderIdMap().keySet().forEach(orderId -> {
+            ActiveOrder order = stateStore.getOrderMap().get(orderId);
+            if (order != null && order.getUserId() == userId) {
+                // --- 樂觀鎖讀取：確保訂單狀態一致性 ---
+                ActiveOrder snapshot;
+                long v1, v2;
+                do {
+                    v1 = order.getVersion();
+                    snapshot = new ActiveOrder();
+                    snapshot.setOrderId(order.getOrderId());
+                    snapshot.setPrice(order.getPrice());
+                    snapshot.setQty(order.getQty());
+                    snapshot.setFilled(order.getFilled());
+                    snapshot.setStatus(order.getStatus());
+                    snapshot.setVersion(v1);
+                    v2 = order.getVersion();
+                } while (v1 != v2);
+                results.add(snapshot);
             }
         });
         return results;

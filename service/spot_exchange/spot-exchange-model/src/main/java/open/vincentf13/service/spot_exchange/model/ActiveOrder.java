@@ -17,6 +17,7 @@ public class ActiveOrder implements BytesMarshallable {
     private long qty;
     private long filled;
     private byte status; // 0=NEW, 1=PARTIAL, 2=FILLED, 3=CANCELED
+    private long version; // 樂觀鎖版本
     private long timestamp;
     private long lastSeq; // 建立/更新此訂單的 WAL Sequence ID
 }

@@ -20,7 +20,6 @@ import java.util.*;
 public class MatchingEngine extends BusySpinWorker {
     private final StateStore stateStore;
     private final LedgerProcessor ledger;
-    
     private final Map<Integer, OrderBook> books = new HashMap<>();
     private final Map<Long, ActiveOrder> activeOrderIndex = new HashMap<>();
     
@@ -30,7 +29,6 @@ public class MatchingEngine extends BusySpinWorker {
     private final OrderCreateDecoder orderCreateDecoder = new OrderCreateDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(256);
-    
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private final UnsafeBuffer outboundBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
@@ -49,9 +47,13 @@ public class MatchingEngine extends BusySpinWorker {
         Long savedId = stateStore.getSystemStateMap().get("orderIdCounter");
         if (savedId != null) this.orderIdCounter = savedId;
 
-        log.info("正在重建內存狀態 (有序)...");
+        // --- 優化：基於 activeOrderIdMap 的快速恢復 ($O(Active)$) ---
+        log.info("正在快速重建活躍訂單簿...");
         List<ActiveOrder> activeOrders = new ArrayList<>();
-        stateStore.getOrderMap().forEach((id, order) -> { if (order.getStatus() < 2) activeOrders.add(order); });
+        stateStore.getActiveOrderIdMap().keySet().forEach(orderId -> {
+            ActiveOrder order = stateStore.getOrderMap().get(orderId);
+            if (order != null) activeOrders.add(order);
+        });
 
         activeOrders.stream()
             .sorted(Comparator.comparingLong(ActiveOrder::getOrderId))
@@ -87,9 +89,23 @@ public class MatchingEngine extends BusySpinWorker {
 
     private void processCommand(OrderCreateDecoder sbe, long currentSeq) {
         CidKey key = new CidKey(sbe.userId(), sbe.clientOrderId());
-        if (stateStore.getCidMap().containsKey(key)) return;
+        Long existingOrderId = stateStore.getCidMap().get(key);
+        
+        if (existingOrderId != null) {
+            // --- 深度加固：重發回報防止遺失 ---
+            log.warn("重複指令，執行冪等重發: cid={}", key.getCid());
+            ActiveOrder order = stateStore.getOrderMap().get(existingOrderId);
+            if (order != null) {
+                OrderStatus status = (order.getStatus() == 2) ? OrderStatus.FILLED : 
+                                    (order.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
+                sendExecutionReport(order.getUserId(), order.getOrderId(), order.getClientOrderId(), 
+                                    status, 0, 0, order.getFilled(), 0, sbe.timestamp());
+            }
+            return;
+        }
+        
         handleOrderCreate(sbe, currentSeq);
-        stateStore.getCidMap().put(key, 0L);
+        stateStore.getCidMap().put(key, orderIdCounter - 1);
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe, long currentSeq) {
@@ -97,7 +113,6 @@ public class MatchingEngine extends BusySpinWorker {
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.multiply(sbe.price(), sbe.qty()) : sbe.qty();
         int assetId = (sbe.side() == Side.BUY) ? 2 : 1;
 
-        // 1. 風控凍結 (帶入當前序號)
         if (!ledger.tryFreeze(sbe.userId(), assetId, currentSeq, cost)) {
             sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, timestamp);
             return;
@@ -112,10 +127,13 @@ public class MatchingEngine extends BusySpinWorker {
         order.setQty(sbe.qty());
         order.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1));
         order.setStatus((byte)0);
-        order.setLastSeq(currentSeq); // 打上標籤
+        order.setVersion(1);
+        order.setLastSeq(currentSeq);
 
+        // 更新持久化 Map 與 活躍索引
         activeOrderIndex.put(order.getOrderId(), order);
         stateStore.getOrderMap().put(order.getOrderId(), order);
+        stateStore.getActiveOrderIdMap().put(order.getOrderId(), true);
 
         OrderBook book = books.computeIfAbsent((int)sbe.symbolId(), OrderBook::new);
         List<OrderBook.TradeEvent> trades = book.match(order);
@@ -137,8 +155,10 @@ public class MatchingEngine extends BusySpinWorker {
             if (order.getFilled() == order.getQty()) {
                 order.setStatus((byte)2);
                 activeOrderIndex.remove(orderId);
+                stateStore.getActiveOrderIdMap().remove(orderId); // 從活躍索引移除
             }
-            order.setLastSeq(currentSeq); // 更新序號標籤
+            order.setVersion(order.getVersion() + 1);
+            order.setLastSeq(currentSeq);
             stateStore.getOrderMap().put(orderId, order);
         }
     }

@@ -21,6 +21,7 @@ import java.io.IOException;
 public class StateStore {
     private ChronicleMap<BalanceKey, Balance> balanceMap;
     private ChronicleMap<Long, ActiveOrder> orderMap;
+    private ChronicleMap<Long, Boolean> activeOrderIdMap; // 僅存放活躍 OrderId
     private ChronicleMap<CidKey, Long> cidMap; // userId + cid -> orderId
     private ChronicleMap<String, Long> systemStateMap; // "lastSeq" -> val
     
@@ -43,6 +44,11 @@ public class StateStore {
             .averageKey(0L).averageValue(new ActiveOrder())
             .createPersistedTo(new File(baseDir + "orders.dat"));
 
+        activeOrderIdMap = ChronicleMap.of(Long.class, Boolean.class)
+            .name("active-orders-map").entries(100_000)
+            .averageKey(0L).averageValue(true)
+            .createPersistedTo(new File(baseDir + "active_orders.dat"));
+
         cidMap = ChronicleMap.of(CidKey.class, Long.class)
             .name("cid-map").entries(1_000_000)
             .averageKey(new CidKey(0, "client_order_id_placeholder_001"))
@@ -62,6 +68,7 @@ public class StateStore {
 
     public ChronicleMap<BalanceKey, Balance> getBalanceMap() { return balanceMap; }
     public ChronicleMap<Long, ActiveOrder> getOrderMap() { return orderMap; }
+    public ChronicleMap<Long, Boolean> getActiveOrderIdMap() { return activeOrderIdMap; }
     public ChronicleMap<CidKey, Long> getCidMap() { return cidMap; }
     public ChronicleMap<String, Long> getSystemStateMap() { return systemStateMap; }
     public ChronicleQueue getGwQueue() { return gwQueue; }
@@ -72,6 +79,7 @@ public class StateStore {
     public void close() {
         if (balanceMap != null) balanceMap.close();
         if (orderMap != null) orderMap.close();
+        if (activeOrderIdMap != null) activeOrderIdMap.close();
         if (cidMap != null) cidMap.close();
         if (systemStateMap != null) systemStateMap.close();
         if (gwQueue != null) gwQueue.close();
