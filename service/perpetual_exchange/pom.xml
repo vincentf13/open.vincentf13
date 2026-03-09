@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>open.vincentf13</groupId>
+        <artifactId>service</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>open.vincentf13.exchange</groupId>
+    <artifactId>perpetual-exchange</artifactId>
+    <packaging>pom</packaging>
+
+    <name>perpetual-exchange</name>
+    <description>Perpetual Exchange service aggregation</description>
+
+    <modules>
+        <module>exchange-sdk</module>
+        <module>exchange-gateway</module>
+        <module>exchange-auth</module>
+        <module>exchange-user</module>
+        <module>exchange-order</module>
+        <module>exchange-position</module>
+        <module>exchange-risk</module>
+        <module>exchange-account</module>
+        <module>exchange-market</module>
+        <module>exchange-admin</module>
+        <module>exchange-matching</module>
+        <module>exchange-test</module>
+    </modules>
+</project>
