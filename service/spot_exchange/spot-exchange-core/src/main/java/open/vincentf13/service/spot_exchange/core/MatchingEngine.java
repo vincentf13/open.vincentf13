@@ -11,6 +11,7 @@ import open.vincentf13.service.spot_exchange.infra.SbeCodec;
 import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.model.ActiveOrder;
 import open.vincentf13.service.spot_exchange.model.CidKey;
+import open.vincentf13.service.spot_exchange.model.TradeRecord;
 import open.vincentf13.service.spot_exchange.sbe.*;
 
 import java.nio.ByteBuffer;
@@ -24,14 +25,16 @@ public class MatchingEngine extends BusySpinWorker {
     private final Map<Long, ActiveOrder> activeOrderIndex = new HashMap<>();
     
     private long orderIdCounter = 1;
+    private long tradeIdCounter = 1;
     private ExcerptTailer tailer;
 
     private final OrderCreateDecoder orderCreateDecoder = new OrderCreateDecoder();
-    private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
-    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(256);
+    private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0); // 延後 wrap
+    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
+    
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
-    private final UnsafeBuffer outboundBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
+    private final UnsafeBuffer outboundBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1024));
 
     public MatchingEngine(StateStore stateStore, LedgerProcessor ledger) {
         this.stateStore = stateStore;
@@ -44,22 +47,20 @@ public class MatchingEngine extends BusySpinWorker {
     @Override
     protected void onStart() {
         this.tailer = stateStore.getCoreQueue().createTailer();
-        Long savedId = stateStore.getSystemStateMap().get("orderIdCounter");
-        if (savedId != null) this.orderIdCounter = savedId;
+        this.orderIdCounter = stateStore.getSystemStateMap().getOrDefault("orderIdCounter", 1L);
+        this.tradeIdCounter = stateStore.getSystemStateMap().getOrDefault("tradeIdCounter", 1L);
 
         log.info("正在快速重建活躍訂單簿...");
         List<ActiveOrder> activeOrders = new ArrayList<>();
-        stateStore.getActiveOrderIdMap().keySet().forEach(orderId -> {
-            ActiveOrder order = stateStore.getOrderMap().get(orderId);
-            if (order != null) activeOrders.add(order);
+        stateStore.getActiveOrderIdMap().keySet().forEach(id -> {
+            ActiveOrder o = stateStore.getOrderMap().get(id);
+            if (o != null) activeOrders.add(o);
         });
 
-        activeOrders.stream()
-            .sorted(Comparator.comparingLong(ActiveOrder::getOrderId))
-            .forEach(order -> {
-                books.computeIfAbsent(order.getSymbolId(), OrderBook::new).add(order);
-                activeOrderIndex.put(order.getOrderId(), order);
-            });
+        activeOrders.stream().sorted(Comparator.comparingLong(ActiveOrder::getOrderId)).forEach(order -> {
+            books.computeIfAbsent(order.getSymbolId(), OrderBook::new).add(order);
+            activeOrderIndex.put(order.getOrderId(), order);
+        });
 
         Long lastSeq = stateStore.getSystemStateMap().get("lastProcessedSeq");
         if (lastSeq != null && lastSeq > 0) tailer.moveToIndex(lastSeq);
@@ -74,15 +75,19 @@ public class MatchingEngine extends BusySpinWorker {
             switch (msgType) {
                 case 103: handleAuth(wire, currentIndex); break;
                 case 100: 
+                    // --- 真正的 Zero-GC 讀取：消除 toByteArray() ---
                     reusableBytes.clear();
                     wire.read("payload").bytes(reusableBytes);
-                    payloadBuffer.wrap(reusableBytes.address(), (int)reusableBytes.readLimit());
+                    // 直接 wrap reusableBytes 的底層地址，實現真正的零物件分配
+                    payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
+                    
                     SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
                     processCommand(orderCreateDecoder, currentIndex);
                     break;
             }
             stateStore.getSystemStateMap().put("lastProcessedSeq", currentIndex);
             stateStore.getSystemStateMap().put("orderIdCounter", orderIdCounter);
+            stateStore.getSystemStateMap().put("tradeIdCounter", tradeIdCounter);
         }) ? 1 : 0;
     }
 
@@ -90,12 +95,11 @@ public class MatchingEngine extends BusySpinWorker {
         CidKey key = new CidKey(sbe.userId(), sbe.clientOrderId());
         Long existingOrderId = stateStore.getCidMap().get(key);
         if (existingOrderId != null) {
+            log.warn("檢測到重複指令，執行回報重發: cid={}", key.getCid());
             ActiveOrder order = stateStore.getOrderMap().get(existingOrderId);
             if (order != null) {
-                OrderStatus status = (order.getStatus() == 2) ? OrderStatus.FILLED : 
-                                    (order.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
-                sendExecutionReport(order.getUserId(), order.getOrderId(), order.getClientOrderId(), 
-                                    status, 0, 0, order.getFilled(), 0, sbe.timestamp());
+                OrderStatus s = (order.getStatus() == 2) ? OrderStatus.FILLED : (order.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
+                sendExecutionReport(order.getUserId(), order.getOrderId(), order.getClientOrderId(), s, 0, 0, order.getFilled(), 0, sbe.timestamp());
             }
             return;
         }
@@ -104,13 +108,12 @@ public class MatchingEngine extends BusySpinWorker {
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe, long currentSeq) {
-        long timestamp = sbe.timestamp();
-        // 凍結採用 Ceil (買家凍結 USDT, 賣家凍結 BTC)
+        long ts = sbe.timestamp();
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
         int assetId = (sbe.side() == Side.BUY) ? 2 : 1;
 
         if (!ledger.tryFreeze(sbe.userId(), assetId, currentSeq, cost)) {
-            sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, timestamp);
+            sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, ts);
             return;
         }
 
@@ -127,21 +130,40 @@ public class MatchingEngine extends BusySpinWorker {
         order.setLastSeq(currentSeq);
 
         activeOrderIndex.put(order.getOrderId(), order);
-        stateStore.getOrderMap().put(order.getOrderId(), order);
+        saveOrder(order);
         stateStore.getActiveOrderIdMap().put(order.getOrderId(), true);
 
         OrderBook book = books.computeIfAbsent((int)sbe.symbolId(), OrderBook::new);
         List<OrderBook.TradeEvent> trades = book.match(order);
 
         for (OrderBook.TradeEvent t : trades) {
+            long tid = tradeIdCounter++;
+            persistTrade(t, tid, ts);
             processTradeLedger(t, currentSeq, order);
             syncOrderState(t.makerOrderId, currentSeq);
-            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, timestamp);
+            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, ts);
         }
 
         syncOrderState(order.getOrderId(), currentSeq);
         OrderStatus finalStatus = (order.getStatus() == 2) ? OrderStatus.FILLED : OrderStatus.NEW;
-        sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, timestamp);
+        sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, ts);
+    }
+
+    private void saveOrder(ActiveOrder order) {
+        ActiveOrder existing = stateStore.getOrderMap().get(order.getOrderId());
+        if (existing == null || existing.getLastSeq() < order.getLastSeq()) {
+            stateStore.getOrderMap().put(order.getOrderId(), order);
+        }
+    }
+
+    private void persistTrade(OrderBook.TradeEvent t, long tid, long ts) {
+        TradeRecord r = new TradeRecord();
+        r.setTradeId(tid);
+        r.setOrderId(t.makerOrderId);
+        r.setPrice(t.price);
+        r.setQty(t.qty);
+        r.setTime(ts);
+        stateStore.getTradeHistoryMap().put(tid, r);
     }
 
     private void syncOrderState(long orderId, long currentSeq) {
@@ -154,35 +176,32 @@ public class MatchingEngine extends BusySpinWorker {
             }
             order.setVersion(order.getVersion() + 1);
             order.setLastSeq(currentSeq);
-            stateStore.getOrderMap().put(orderId, order);
+            saveOrder(order);
         }
     }
 
-    private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq, ActiveOrder takerOrder) {
-        // 金融對沖邏輯：處理價格改進與進位保護
-        long matchValueFloor = DecimalUtil.mulFloor(t.price, t.qty); // 用戶入帳用 Floor
-        long matchValueCeil = DecimalUtil.mulCeil(t.price, t.qty);   // 用戶扣款用 Ceil
-
-        // 判斷 Taker 是買方還是賣方
-        if (takerOrder.getSide() == 0) { // Taker is BUYER
-            // Taker 扣除 USDT 凍結 (按其下單價格計算的比例)，退還差額
-            long takerFrozenForThisQty = DecimalUtil.mulCeil(takerOrder.getPrice(), t.qty);
-            ledger.settlement(t.takerUserId, 2, currentSeq, matchValueCeil, takerFrozenForThisQty);
-            ledger.addAvailable(t.takerUserId, 1, currentSeq, t.qty); // 得 BTC
-
-            // Maker 扣除 BTC 凍結，得 USDT
+    private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq, ActiveOrder taker) {
+        long floor = DecimalUtil.mulFloor(t.price, t.qty);
+        long ceil = DecimalUtil.mulCeil(t.price, t.qty);
+        
+        if (taker.getSide() == 0) { // Taker BUY
+            long takerFrozenForThisQty = DecimalUtil.mulCeil(taker.getPrice(), t.qty);
+            ledger.settlement(t.takerUserId, 2, currentSeq, ceil, takerFrozenForThisQty);
+            ledger.addAvailable(t.takerUserId, 1, currentSeq, t.qty);
+            
             ledger.settlement(t.makerUserId, 1, currentSeq, t.qty, t.qty);
-            ledger.addAvailable(t.makerUserId, 2, currentSeq, matchValueFloor);
-        } else { // Taker is SELLER
-            // Taker 扣除 BTC 凍結
+            ledger.addAvailable(t.makerUserId, 2, currentSeq, floor);
+        } else { // Taker SELL
             ledger.settlement(t.takerUserId, 1, currentSeq, t.qty, t.qty);
-            ledger.addAvailable(t.takerUserId, 2, currentSeq, matchValueFloor); // 得 USDT
-
-            // Maker (Buyer) 扣除 USDT 凍結 (Maker 當初掛單的價格)，退還差額
-            ActiveOrder makerOrder = stateStore.getOrderMap().get(t.makerOrderId);
-            long makerFrozenForThisQty = (makerOrder != null) ? DecimalUtil.mulCeil(makerOrder.getPrice(), t.qty) : matchValueCeil;
-            ledger.settlement(t.makerUserId, 2, currentSeq, matchValueCeil, makerFrozenForThisQty);
-            ledger.addAvailable(t.makerUserId, 1, currentSeq, t.qty); // 得 BTC
+            ledger.addAvailable(t.takerUserId, 2, currentSeq, floor);
+            
+            // --- 修正：使用 activeOrderIndex $O(1)$ 獲取 Maker 掛單價 ---
+            ActiveOrder makerOrder = activeOrderIndex.get(t.makerOrderId);
+            long mPrice = (makerOrder != null) ? makerOrder.getPrice() : t.price; 
+            long makerFrozenForThisQty = DecimalUtil.mulCeil(mPrice, t.qty);
+            
+            ledger.settlement(t.makerUserId, 2, currentSeq, ceil, makerFrozenForThisQty);
+            ledger.addAvailable(t.makerUserId, 1, currentSeq, t.qty);
         }
     }
 
@@ -190,10 +209,9 @@ public class MatchingEngine extends BusySpinWorker {
         int len = SbeCodec.encode(outboundBuffer, 0, executionEncoder
             .timestamp(ts).userId(userId).orderId(orderId).status(status)
             .lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid));
-
         stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(executionEncoder.sbeTemplateId());
-            wire.write("payload").bytes(outboundBuffer.byteArray(), 0, len);
+            wire.write("payload").bytes(outboundBuffer, 0, len);
         });
     }
 

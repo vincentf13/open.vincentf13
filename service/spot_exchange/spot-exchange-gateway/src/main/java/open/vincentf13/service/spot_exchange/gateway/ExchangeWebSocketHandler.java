@@ -25,7 +25,6 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     private final StateStore stateStore;
     private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
 
-    // --- 深度優化：使用 ThreadLocal 複用 Buffer 與 Encoder，避免 allocateDirect 抖動 ---
     private static final ThreadLocal<UnsafeBuffer> BUFFER_CACHE = 
         ThreadLocal.withInitial(() -> new UnsafeBuffer(ByteBuffer.allocateDirect(512)));
     private static final ThreadLocal<OrderCreateEncoder> ENCODER_CACHE = 
@@ -53,9 +52,11 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
                 .side(Side.get(node.get("params").get("side").asInt()))
                 .clientOrderId(node.get("cid").asText()));
 
+            // --- 修正：使用正確的方式寫入 DirectBuffer 內容 ---
             stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
                 wire.write("msgType").int32(encoder.sbeTemplateId());
-                wire.write("payload").bytes(buffer.byteArray(), 0, len);
+                // 透過 bytes(buffer, offset, length) 直接處理 DirectBuffer
+                wire.write("payload").bytes(buffer, 0, len);
             });
         } else if ("auth".equals(op)) {
             String userId = node.get("args").get("userId").asText();
