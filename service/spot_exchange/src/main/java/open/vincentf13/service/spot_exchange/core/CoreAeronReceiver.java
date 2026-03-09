@@ -20,53 +20,49 @@ import java.util.concurrent.atomic.AtomicBoolean;
   Core Aeron 接收器
   負責從 Aeron 訂閱訊息並寫入 Core WAL (core-queue)
  */
+import open.vincentf13.service.spot_exchange.infra.AeronSubscriber;
+import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
+import io.aeron.logbuffer.FragmentHandler;
+
 @Component
-public class CoreAeronReceiver implements Runnable {
+public class CoreAeronReceiver extends BusySpinWorker {
     private final Aeron aeron;
-    private final AtomicBoolean running = new AtomicBoolean(false);
     private ChronicleQueue coreQueue;
-    private Subscription subscription;
-    private ExecutorService executor;
+    private AeronSubscriber subscriber;
+    private FragmentHandler fragmentHandler;
 
     public CoreAeronReceiver(Aeron aeron) {
         this.aeron = aeron;
     }
 
     @PostConstruct
-    public void start() {
-        coreQueue = SingleChronicleQueueBuilder.binary("data/spot_exchange/core-queue").build();
-        subscription = aeron.addSubscription("aeron:udp?endpoint=localhost:40444", 10);
-        
-        running.set(true);
-        executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "core-aeron-receiver"));
-        executor.submit(this);
+    public void init() {
+        start("core-aeron-receiver");
     }
 
     @Override
-    public void run() {
-        FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
+    protected void onStart() {
+        coreQueue = SingleChronicleQueueBuilder.binary("data/spot_exchange/core-queue").build();
+        subscriber = new AeronSubscriber(aeron, "aeron:udp?endpoint=localhost:40444", 10);
+        
+        fragmentHandler = (buffer, offset, length, header) -> {
             byte[] data = new byte[length];
             buffer.getBytes(offset, data);
-            
-            // 寫入 Core WAL
             coreQueue.acquireAppender().writeDocument(wire -> {
                 wire.bytes().write(data);
-                // 這裡應綁定 Aeron Sequence ID 以實現下游追蹤上游
-                wire.write("aeronSeq").int64(header.sessionId()); 
+                wire.write("aeronSeq").int64(header.position()); 
             });
         };
-
-        IdleStrategy idleStrategy = new BackoffIdleStrategy();
-        while (running.get()) {
-            int fragments = subscription.poll(fragmentHandler, 10);
-            idleStrategy.idle(fragments);
-        }
     }
 
-    @PreDestroy
-    public void stop() {
-        running.set(false);
-        if (executor != null) executor.shutdown();
+    @Override
+    protected int doWork() {
+        return subscriber.poll(fragmentHandler, 10);
+    }
+
+    @Override
+    protected void onStop() {
+        if (subscriber != null) subscriber.close();
         if (coreQueue != null) coreQueue.close();
     }
 }
