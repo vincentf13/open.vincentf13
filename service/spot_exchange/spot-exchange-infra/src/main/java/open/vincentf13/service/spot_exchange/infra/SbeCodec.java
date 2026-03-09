@@ -8,26 +8,25 @@ import uk.co.real_logic.sbe.codec.java.DecoderFlyweight;
 import uk.co.real_logic.sbe.codec.java.EncoderFlyweight;
 
 /** 
-  SBE 編解碼輔助工具
+  SBE 編解碼輔助工具 (線程安全且 Zero-GC 版本)
  */
 public class SbeCodec {
-    private static final MessageHeaderEncoder HEADER_ENCODER = new MessageHeaderEncoder();
-    private static final MessageHeaderDecoder HEADER_DECODER = new MessageHeaderDecoder();
+    // --- 深度優化：使用 ThreadLocal 避免多線程競爭與對象建立 ---
+    private static final ThreadLocal<MessageHeaderEncoder> HEADER_ENCODER = 
+        ThreadLocal.withInitial(MessageHeaderEncoder::new);
+    private static final ThreadLocal<MessageHeaderDecoder> HEADER_DECODER = 
+        ThreadLocal.withInitial(MessageHeaderDecoder::new);
 
-    /** 
-      編碼並套用 Header
-     */
     public static int encode(MutableDirectBuffer buffer, int offset, EncoderFlyweight encoder) {
-        encoder.wrapAndApplyHeader(buffer, offset, HEADER_ENCODER);
+        MessageHeaderEncoder header = HEADER_ENCODER.get();
+        encoder.wrapAndApplyHeader(buffer, offset, header);
         return MessageHeaderEncoder.ENCODED_LENGTH + encoder.encodedLength();
     }
 
-    /** 
-      解碼 Body
-     */
     public static void decode(DirectBuffer buffer, int offset, DecoderFlyweight decoder) {
-        HEADER_DECODER.wrap(buffer, offset);
+        MessageHeaderDecoder header = HEADER_DECODER.get();
+        header.wrap(buffer, offset);
         decoder.wrap(buffer, offset + MessageHeaderDecoder.ENCODED_LENGTH, 
-                     HEADER_DECODER.blockLength(), HEADER_DECODER.version());
+                     header.blockLength(), header.version());
     }
 }

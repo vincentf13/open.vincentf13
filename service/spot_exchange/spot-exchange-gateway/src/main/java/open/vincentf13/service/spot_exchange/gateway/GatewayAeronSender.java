@@ -3,6 +3,7 @@ package open.vincentf13.service.spot_exchange.gateway;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import jakarta.annotation.PostConstruct;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
@@ -10,47 +11,49 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot_exchange.infra.AeronPublisher;
 import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 
 import java.nio.ByteBuffer;
 
 @Component
 public class GatewayAeronSender extends BusySpinWorker {
     private final Aeron aeron;
-    private ChronicleQueue gwQueue;
+    private final StateStore stateStore;
     private AeronPublisher publisher;
     private ExcerptTailer tailer;
-    private final UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1024));
+    
+    // --- 深度優化：使用預分配 Bytes 與 UnsafeBuffer 實現 Zero-GC 轉發 ---
+    private final UnsafeBuffer aeronBuffer = new UnsafeBuffer(0, 0);
+    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public GatewayAeronSender(Aeron aeron) {
+    public GatewayAeronSender(Aeron aeron, StateStore stateStore) {
         this.aeron = aeron;
+        this.stateStore = stateStore;
     }
 
     @PostConstruct
-    public void init() {
-        start("gw-aeron-sender");
-    }
+    public void init() { start("gw-aeron-sender"); }
 
     @Override
     protected void onStart() {
-        gwQueue = SingleChronicleQueueBuilder.binary("data/spot_exchange/gw-queue").build();
         publisher = new AeronPublisher(aeron, "aeron:udp?endpoint=localhost:40444", 10);
-        tailer = gwQueue.createTailer();
+        tailer = stateStore.getGwQueue().createTailer();
     }
 
     @Override
     protected int doWork() {
         boolean handled = tailer.readDocument(wire -> {
-            byte[] data = wire.bytes().toByteArray();
-            buffer.putBytes(0, data);
+            // --- Zero-GC 讀取與發送 ---
+            reusableBytes.clear();
+            wire.read("payload").bytes(reusableBytes);
             
-            // --- 深度加固：阻塞重試直至發送成功 ---
+            aeronBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), 
+                             (int)reusableBytes.readRemaining());
+            
             long result;
-            while ((result = publisher.tryPublish(buffer, 0, data.length)) < 0) {
-                if (result == Publication.NOT_CONNECTED) {
-                    log.warn("Aeron Publisher 未連接，重試中...");
-                }
-                idleStrategy.idle(); // 忙等或微休眠
+            while ((result = publisher.tryPublish(aeronBuffer, 0, aeronBuffer.capacity())) < 0) {
                 if (!running.get()) return;
+                idleStrategy.idle();
             }
         });
         return handled ? 1 : 0;
@@ -59,6 +62,6 @@ public class GatewayAeronSender extends BusySpinWorker {
     @Override
     protected void onStop() {
         if (publisher != null) publisher.close();
-        if (gwQueue != null) gwQueue.close();
+        if (reusableBytes != null) reusableBytes.release();
     }
 }
