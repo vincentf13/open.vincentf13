@@ -11,7 +11,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>open.vincentf13.exchange</groupId>
+    <groupId>open.vincentf13.perpetual_exchange</groupId>
     <artifactId>perpetual-exchange</artifactId>
     <packaging>pom</packaging>
 
@@ -19,17 +19,17 @@
     <description>Perpetual Exchange service aggregation</description>
 
     <modules>
-        <module>exchange-sdk</module>
-        <module>exchange-gateway</module>
-        <module>exchange-auth</module>
-        <module>exchange-user</module>
-        <module>exchange-order</module>
-        <module>exchange-position</module>
-        <module>exchange-risk</module>
-        <module>exchange-account</module>
-        <module>exchange-market</module>
-        <module>exchange-admin</module>
-        <module>exchange-matching</module>
-        <module>exchange-test</module>
+        <module>perpetual-exchange-sdk</module>
+        <module>perpetual-exchange-gateway</module>
+        <module>perpetual-exchange-auth</module>
+        <module>perpetual-exchange-user</module>
+        <module>perpetual-exchange-order</module>
+        <module>perpetual-exchange-position</module>
+        <module>perpetual-exchange-risk</module>
+        <module>perpetual-exchange-account</module>
+        <module>perpetual-exchange-market</module>
+        <module>perpetual-exchange-admin</module>
+        <module>perpetual-exchange-matching</module>
+        <module>perpetual-exchange-test</module>
     </modules>
 </project>

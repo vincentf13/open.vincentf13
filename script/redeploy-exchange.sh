@@ -2,15 +2,7 @@
 set -e
 
 # 用途：
-# 自動化重新建置並部署所有 Exchange 微服務 (平行化優化版)。
-#
-# 功能：
-# 1. 平行執行所有服務的 Docker Build。
-# 2. 平行載入映像檔到 Kind 叢集。
-# 3. 批次更新 Kubernetes Deployment。
-#
-# 使用方式：
-# ./script/redeploy-exchange.sh
+# 自動化重新建置並部署所有 Perpetual Exchange 微服務 (平行化優化版)。
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -19,19 +11,19 @@ mkdir -p "$LOG_DIR"
 
 # List of services to process
 SERVICES=(
-  "exchange-account"
-  "exchange-admin"
-  "exchange-auth"
-  "exchange-gateway"
-  "exchange-market"
-  "exchange-matching"
-  "exchange-order"
-  "exchange-position"
-  "exchange-risk"
-  "exchange-user"
+  "perpetual-exchange-account"
+  "perpetual-exchange-admin"
+  "perpetual-exchange-auth"
+  "perpetual-exchange-gateway"
+  "perpetual-exchange-market"
+  "perpetual-exchange-matching"
+  "perpetual-exchange-order"
+  "perpetual-exchange-position"
+  "perpetual-exchange-risk"
+  "perpetual-exchange-user"
 )
 
-# 取得 Kind 節點列表 (一次性取得)
+# 取得 Kind 節點列表
 NODES=$(docker ps --format "{{.Names}}" | grep "^desktop-" || true)
 
 # 顏色定義
@@ -39,12 +31,12 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo "Starting PARALLEL build and manual redeploy process for Exchange services..."
+echo "Starting PARALLEL build and manual redeploy process for Perpetual Exchange services..."
 
 # 函數：處理單一服務 (Build + Load + Update)
 process_service() {
   local SVC=$1
-  local SERVICE_DIR="$PROJECT_ROOT/service/exchange/$SVC"
+  local SERVICE_DIR="$PROJECT_ROOT/service/perpetual_exchange/$SVC"
   local DOCKERFILE="$SERVICE_DIR/Dockerfile"
   local LOG_FILE="$LOG_DIR/${SVC}.log"
 
@@ -62,7 +54,7 @@ process_service() {
     return 1
   fi
 
-  # 2. Load into Kind (Manual Method - Fast Parallel)
+  # 2. Load into Kind
   echo "[$SVC] Loading into Kind nodes..." >> "$LOG_FILE"
   local TMP_DIR="$PROJECT_ROOT/tmp"
   mkdir -p "$TMP_DIR"
@@ -92,7 +84,6 @@ process_service() {
   echo -e "${GREEN}[$SVC] Completed successfully.${NC}"
 }
 
-# 匯出變數供子 shell 使用
 export -f process_service
 export PROJECT_ROOT
 export LOG_DIR
@@ -115,8 +106,8 @@ done
 echo "--------------------------------------------------"
 if [ $FAILURES -eq 0 ]; then
   echo -e "${GREEN}All services images built and loaded successfully!${NC}"
-  echo "Triggering rollout restart for all Exchange services..."
-  kubectl rollout restart deployment -l 'app in (exchange-account, exchange-admin, exchange-auth, exchange-gateway, exchange-market, exchange-matching, exchange-order, exchange-position, exchange-risk, exchange-user)'
+  echo "Triggering rollout restart for all Perpetual Exchange services..."
+  kubectl rollout restart deployment -l 'app in (perpetual-exchange-account, perpetual-exchange-admin, perpetual-exchange-auth, perpetual-exchange-gateway, perpetual-exchange-market, perpetual-exchange-matching, perpetual-exchange-order, perpetual-exchange-position, perpetual-exchange-risk, perpetual-exchange-user)'
   echo "Check Kubernetes status with: kubectl get pods"
 else
   echo -e "${RED}$FAILURES services failed to redeploy. Check logs in $LOG_DIR${NC}"

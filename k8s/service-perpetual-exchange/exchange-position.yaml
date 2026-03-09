@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perpetual-exchange-position
+  labels:
+    app: perpetual-exchange-position
+spec:
+  replicas: 1  # 最小化初始資源佔用，HPA 會根據負載自動擴展
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: perpetual-exchange-position
+  template:
+    metadata:
+      labels:
+        app: perpetual-exchange-position
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: perpetual-exchange-position
+          image: perpetual-exchange-position:local #  victorf13/perpetual-exchange-position:latest
+          imagePullPolicy: Never  # Always | Never
+          env:
+            - name: SERVER_PORT
+              value: "8080"
+            - name: MALLOC_ARENA_MAX
+              value: "2"
+            - name: JAVA_TOOL_OPTIONS
+              # 解說：
+              # 1. SerialGC: 單線程GC，最省資源
+              # 2. Xms128m: 起步給 128m 避免頻繁擴容
+              # 3. Xmx384m: 上限 384m (配合 Limit: 512Mi)
+              # 4. Xss512k: 執行緒堆疊減半
+              # 5. ReservedCodeCacheSize=64m: 限制 JIT 緩存
+              # 6. TieredStopAtLevel=1: [大招] 只用 C1 編譯器，啟動快、超省 RAM
+              # 7. MaxDirectMemorySize=64m: 限制堆外記憶體
+              # 8. MaxMetaspaceSize=128m: 限制類別區
+              value: >-
+                -XX:+UseSerialGC
+                -Xms128m -Xmx384m
+                -Xss512k
+                -XX:ReservedCodeCacheSize=64m
+                -XX:TieredStopAtLevel=1
+                -XX:MaxDirectMemorySize=64m
+                -XX:MaxMetaspaceSize=128m
+                -XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=40
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              memory: "64Mi"
+            limits:
+              memory: "512Mi"  # 硬上限，超過就殺掉
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: perpetual-exchange-position
+  labels:
+    app: perpetual-exchange-position
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/actuator/prometheus"
+    prometheus.io/port: "8080"
+spec:
+  type: ClusterIP
+  selector:
+    app: perpetual-exchange-position
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

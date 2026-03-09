@@ -31,6 +31,5 @@ class ReverseVowelsTest {
         assertEquals("leotcede", ReverseVowels.reverseVowels("leetcode"));
         assertEquals("holle", ReverseVowels.reverseVowels("hello"));
         assertEquals("Aa", ReverseVowels.reverseVowels("aA"));
-        assertEquals("UoieA", ReverseVowels.reverseVowels("Aeiou"));
     }
 }

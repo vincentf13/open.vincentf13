@@ -1,15 +1,15 @@
 package open.vincentf13.service.spot_exchange.core;
 
+import jakarta.annotation.PreDestroy;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import open.vincentf13.service.spot_exchange.model.ActiveOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** 
   撮合引擎核心邏輯單元 (Logic Unit)
