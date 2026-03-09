@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /** 
   高性能查詢服務
@@ -24,10 +23,21 @@ public class QueryService {
 
     public List<Balance> getUserBalances(long userId) {
         List<Balance> results = new ArrayList<>();
-        // 遍歷 BalanceMap (資產種類少，遍歷開銷可控)
         stateStore.getBalanceMap().forEach((key, balance) -> {
             if (key.getUserId() == userId) {
-                results.add(balance);
+                // --- 樂觀鎖讀取：確保數據在讀取期間未被 MatchingEngine 修改 ---
+                Balance snapshot;
+                long v1, v2;
+                do {
+                    v1 = balance.getVersion();
+                    snapshot = new Balance();
+                    snapshot.setAvailable(balance.getAvailable());
+                    snapshot.setFrozen(balance.getFrozen());
+                    snapshot.setVersion(v1);
+                    v2 = balance.getVersion();
+                } while (v1 != v2); // 如果版本號變更，說明讀取期間發生了寫入，重試
+                
+                results.add(snapshot);
             }
         });
         return results;
@@ -35,7 +45,6 @@ public class QueryService {
 
     public List<ActiveOrder> getActiveOrders(long userId) {
         List<ActiveOrder> results = new ArrayList<>();
-        // 遍歷 OrderMap (MVP 階段，生產環境建議使用 UserOrderIndex)
         stateStore.getOrderMap().forEach((orderId, order) -> {
             if (order.getUserId() == userId && order.getStatus() < 2) {
                 results.add(order);

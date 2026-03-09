@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot_exchange.core;
 
 import jakarta.annotation.PostConstruct;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,9 @@ public class MatchingEngine extends BusySpinWorker {
 
     private final OrderCreateDecoder orderCreateDecoder = new OrderCreateDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
+    // 預分配 Bytes 對象，避免 doWork 中 new
+    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(256);
+    
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private final UnsafeBuffer outboundBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
@@ -43,20 +47,25 @@ public class MatchingEngine extends BusySpinWorker {
     protected void onStart() {
         this.tailer = stateStore.getCoreQueue().createTailer();
         
-        // 1. 從持久化 Map 重建 OrderBook (快照恢復)
-        log.info("正在從持久化狀態重建訂單簿...");
+        // 1. 恢復 ID 計數器
+        Long savedId = stateStore.getSystemStateMap().get("orderIdCounter");
+        if (savedId != null) {
+            this.orderIdCounter = savedId;
+        } else {
+            // 若無記錄，掃描重建
+            stateStore.getOrderMap().forEach((id, o) -> { if (id >= orderIdCounter) orderIdCounter = id + 1; });
+        }
+
+        // 2. 從持久化 Map 重建 OrderBook
         stateStore.getOrderMap().forEach((orderId, order) -> {
-            if (order.getStatus() < 2) { // 僅加載 NEW 或 PARTIAL
-                OrderBook book = books.computeIfAbsent(order.getSymbolId(), OrderBook::new);
-                book.add(order);
-                if (orderId >= orderIdCounter) orderIdCounter = orderId + 1;
+            if (order.getStatus() < 2) {
+                books.computeIfAbsent(order.getSymbolId(), OrderBook::new).add(order);
             }
         });
 
-        // 2. 移動隊列指針
+        // 3. 移動隊列指針
         Long lastSeq = stateStore.getSystemStateMap().get("lastProcessedSeq");
         if (lastSeq != null && lastSeq > 0) {
-            log.info("核心引擎從上次處理位置恢復: {}", lastSeq);
             tailer.moveToIndex(lastSeq);
         }
     }
@@ -70,29 +79,37 @@ public class MatchingEngine extends BusySpinWorker {
             switch (msgType) {
                 case 103: handleAuth(wire); break;
                 case 100: 
-                    byte[] bytes = wire.read("payload").bytes();
-                    payloadBuffer.putBytes(0, bytes);
-                    SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
+                    // --- Zero-GC 讀取：直接讀入預分配的 bytes ---
+                    reusableBytes.clear();
+                    wire.read("payload").bytes(reusableBytes);
+                    payloadBuffer.putBytes(0, reusableBytes.toByteArray()); // 註：toByteArray 仍有拷貝，生產環境應直接用地址映射
                     
-                    CidKey key = new CidKey(orderCreateDecoder.userId(), orderCreateDecoder.clientOrderId());
-                    if (stateStore.getCidMap().containsKey(key)) {
-                        log.warn("重複指令，跳過處理: cid={}", key.getCid());
-                    } else {
-                        handleOrderCreate(orderCreateDecoder);
-                        stateStore.getCidMap().put(key, 0L); // 標記已處理
-                    }
+                    SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
+                    processCommand(orderCreateDecoder);
                     break;
             }
             stateStore.getSystemStateMap().put("lastProcessedSeq", currentIndex);
+            stateStore.getSystemStateMap().put("orderIdCounter", orderIdCounter);
         }) ? 1 : 0;
     }
 
+    private void processCommand(OrderCreateDecoder sbe) {
+        CidKey key = new CidKey(sbe.userId(), sbe.clientOrderId());
+        if (stateStore.getCidMap().containsKey(key)) {
+            log.warn("重複指令，跳過處理: cid={}", key.getCid());
+            return;
+        }
+        handleOrderCreate(sbe);
+        stateStore.getCidMap().put(key, 0L);
+    }
+
     private void handleOrderCreate(OrderCreateDecoder sbe) {
+        long timestamp = sbe.timestamp();
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.multiply(sbe.price(), sbe.qty()) : sbe.qty();
         int assetId = (sbe.side() == Side.BUY) ? 2 : 1;
 
         if (!ledger.tryFreeze(sbe.userId(), assetId, cost)) {
-            sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
+            sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, timestamp);
             return;
         }
 
@@ -104,9 +121,8 @@ public class MatchingEngine extends BusySpinWorker {
         order.setPrice(sbe.price());
         order.setQty(sbe.qty());
         order.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1));
-        order.setStatus((byte)0); // NEW
+        order.setStatus((byte)0);
 
-        // 持久化初始狀態
         stateStore.getOrderMap().put(order.getOrderId(), order);
 
         OrderBook book = books.computeIfAbsent((int)sbe.symbolId(), OrderBook::new);
@@ -114,32 +130,22 @@ public class MatchingEngine extends BusySpinWorker {
 
         for (OrderBook.TradeEvent t : trades) {
             processTradeLedger(t);
-            // 同步 Maker 狀態到持久化 Map
             updatePersistentOrder(t.makerOrderId);
-            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, sbe.timestamp());
+            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, timestamp);
         }
 
-        // 同步 Taker 狀態到持久化 Map
         updatePersistentOrder(order.getOrderId());
-        
         OrderStatus finalStatus = (order.getFilled() == order.getQty()) ? OrderStatus.FILLED : OrderStatus.NEW;
-        sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, sbe.timestamp());
+        sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, timestamp);
     }
 
-    /** 
-      將內存 OrderBook 中的最新狀態同步到持久化 Map
-     */
     private void updatePersistentOrder(long orderId) {
-        // 在實際高頻場景中，這裡應優化為僅當訂單狀態或成交量變更時寫入
-        // 目前 MVP 直接從內存檢索並寫入 Map 以保證一致性
         books.values().forEach(book -> {
             book.findOrder(orderId).ifPresent(o -> stateStore.getOrderMap().put(orderId, o));
         });
-        
-        // 若訂單已完全成交，雖然從 OrderBook 移除了，但 Map 需標記為 FILLED
         ActiveOrder o = stateStore.getOrderMap().get(orderId);
         if (o != null && o.getFilled() == o.getQty()) {
-            o.setStatus((byte)2); // FILLED
+            o.setStatus((byte)2);
             stateStore.getOrderMap().put(orderId, o);
         }
     }
@@ -172,5 +178,7 @@ public class MatchingEngine extends BusySpinWorker {
         });
     }
 
-    @Override protected void onStop() {}
+    @Override protected void onStop() {
+        if (reusableBytes != null) reusableBytes.release();
+    }
 }
