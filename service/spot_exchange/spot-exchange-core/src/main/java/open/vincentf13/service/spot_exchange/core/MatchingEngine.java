@@ -42,9 +42,21 @@ public class MatchingEngine extends BusySpinWorker {
     @Override
     protected void onStart() {
         this.tailer = stateStore.getCoreQueue().createTailer();
+        
+        // 1. 從持久化 Map 重建 OrderBook (快照恢復)
+        log.info("正在從持久化狀態重建訂單簿...");
+        stateStore.getOrderMap().forEach((orderId, order) -> {
+            if (order.getStatus() < 2) { // 僅加載 NEW 或 PARTIAL
+                OrderBook book = books.computeIfAbsent(order.getSymbolId(), OrderBook::new);
+                book.add(order);
+                if (orderId >= orderIdCounter) orderIdCounter = orderId + 1;
+            }
+        });
+
+        // 2. 移動隊列指針
         Long lastSeq = stateStore.getSystemStateMap().get("lastProcessedSeq");
         if (lastSeq != null && lastSeq > 0) {
-            log.info("系統重啟，從上次處理位置恢復: {}", lastSeq);
+            log.info("核心引擎從上次處理位置恢復: {}", lastSeq);
             tailer.moveToIndex(lastSeq);
         }
     }
@@ -63,15 +75,11 @@ public class MatchingEngine extends BusySpinWorker {
                     SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
                     
                     CidKey key = new CidKey(orderCreateDecoder.userId(), orderCreateDecoder.clientOrderId());
-                    Long existingOrderId = stateStore.getCidMap().get(key);
-                    
-                    if (existingOrderId != null) {
-                        log.warn("檢測到重複指令，跳過處理: userId={}, cid={}", key.getUserId(), key.getCid());
-                        // 補發回報時同樣使用指令中的原始時間戳
-                        sendExecutionReport(key.getUserId(), existingOrderId, key.getCid(), OrderStatus.FILLED, 0, 0, 0, 0, orderCreateDecoder.timestamp());
+                    if (stateStore.getCidMap().containsKey(key)) {
+                        log.warn("重複指令，跳過處理: cid={}", key.getCid());
                     } else {
                         handleOrderCreate(orderCreateDecoder);
-                        stateStore.getCidMap().put(key, orderIdCounter - 1);
+                        stateStore.getCidMap().put(key, 0L); // 標記已處理
                     }
                     break;
             }
@@ -80,13 +88,11 @@ public class MatchingEngine extends BusySpinWorker {
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe) {
-        long timestamp = sbe.timestamp();
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.multiply(sbe.price(), sbe.qty()) : sbe.qty();
         int assetId = (sbe.side() == Side.BUY) ? 2 : 1;
 
-        // 1. 風控凍結
         if (!ledger.tryFreeze(sbe.userId(), assetId, cost)) {
-            sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, timestamp);
+            sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             return;
         }
 
@@ -94,44 +100,62 @@ public class MatchingEngine extends BusySpinWorker {
         order.setOrderId(orderIdCounter++);
         order.setClientOrderId(sbe.clientOrderId());
         order.setUserId(sbe.userId());
+        order.setSymbolId((int)sbe.symbolId());
         order.setPrice(sbe.price());
         order.setQty(sbe.qty());
         order.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1));
+        order.setStatus((byte)0); // NEW
 
-        // 2. 執行撮合
+        // 持久化初始狀態
+        stateStore.getOrderMap().put(order.getOrderId(), order);
+
         OrderBook book = books.computeIfAbsent((int)sbe.symbolId(), OrderBook::new);
         List<OrderBook.TradeEvent> trades = book.match(order);
 
-        // 3. 處理成交帳務與回報
         for (OrderBook.TradeEvent t : trades) {
             processTradeLedger(t);
-            // Maker 回報 (此處 maker 的時間戳在 MVP 中暫用當前處理時間，或記錄其掛單時間)
-            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, timestamp);
+            // 同步 Maker 狀態到持久化 Map
+            updatePersistentOrder(t.makerOrderId);
+            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, sbe.timestamp());
         }
 
-        // 4. 推送 Taker 的最終回報
+        // 同步 Taker 狀態到持久化 Map
+        updatePersistentOrder(order.getOrderId());
+        
         OrderStatus finalStatus = (order.getFilled() == order.getQty()) ? OrderStatus.FILLED : OrderStatus.NEW;
-        sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, timestamp);
+        sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, sbe.timestamp());
+    }
+
+    /** 
+      將內存 OrderBook 中的最新狀態同步到持久化 Map
+     */
+    private void updatePersistentOrder(long orderId) {
+        // 在實際高頻場景中，這裡應優化為僅當訂單狀態或成交量變更時寫入
+        // 目前 MVP 直接從內存檢索並寫入 Map 以保證一致性
+        books.values().forEach(book -> {
+            book.findOrder(orderId).ifPresent(o -> stateStore.getOrderMap().put(orderId, o));
+        });
+        
+        // 若訂單已完全成交，雖然從 OrderBook 移除了，但 Map 需標記為 FILLED
+        ActiveOrder o = stateStore.getOrderMap().get(orderId);
+        if (o != null && o.getFilled() == o.getQty()) {
+            o.setStatus((byte)2); // FILLED
+            stateStore.getOrderMap().put(orderId, o);
+        }
     }
 
     private void processTradeLedger(OrderBook.TradeEvent t) {
-        // Taker (Buyer) 扣除 USDT 凍結, 得到 BTC
-        // Maker (Seller) 扣除 BTC 凍結, 得到 USDT
         ledger.deductFrozen(t.takerUserId, 2, DecimalUtil.multiply(t.price, t.qty));
         ledger.addAvailable(t.takerUserId, 1, t.qty);
-        
         ledger.deductFrozen(t.makerUserId, 1, t.qty);
         ledger.addAvailable(t.makerUserId, 2, DecimalUtil.multiply(t.price, t.qty));
     }
 
-    private void sendExecutionReport(long userId, long orderId, String cid, OrderStatus status, 
-                                    long lp, long lq, long cq, long ap, long timestamp) {
-        SbeCodec.encode(outboundBuffer, 0, executionEncoder
-            .timestamp(timestamp) // --- 深度加固：使用確定性的業務時間戳 ---
-            .userId(userId).orderId(orderId).status(status)
+    private void sendExecutionReport(long userId, long orderId, String cid, OrderStatus status, long lp, long lq, long cq, long ap, long ts) {
+        int len = SbeCodec.encode(outboundBuffer, 0, executionEncoder
+            .timestamp(ts).userId(userId).orderId(orderId).status(status)
             .lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid));
 
-        int len = MessageHeaderEncoder.ENCODED_LENGTH + executionEncoder.encodedLength();
         stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(executionEncoder.sbeTemplateId());
             wire.write("payload").bytes(outboundBuffer.byteArray(), 0, len);

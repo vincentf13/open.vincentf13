@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot_exchange.query;
 
 import open.vincentf13.service.spot_exchange.infra.StateStore;
+import open.vincentf13.service.spot_exchange.model.ActiveOrder;
 import open.vincentf13.service.spot_exchange.model.Balance;
 import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.springframework.stereotype.Service;
@@ -23,12 +24,23 @@ public class QueryService {
 
     public List<Balance> getUserBalances(long userId) {
         List<Balance> results = new ArrayList<>();
-        // 遍歷 BalanceMap 獲取用戶資產 (MVP 可暫時遍歷，高性能建議維護 UserAssetIndex)
-        for (Map.Entry<BalanceKey, Balance> entry : stateStore.getBalanceMap().entrySet()) {
-            if (entry.getKey().getUserId() == userId) {
-                results.add(entry.getValue());
+        // 遍歷 BalanceMap (資產種類少，遍歷開銷可控)
+        stateStore.getBalanceMap().forEach((key, balance) -> {
+            if (key.getUserId() == userId) {
+                results.add(balance);
             }
-        }
+        });
+        return results;
+    }
+
+    public List<ActiveOrder> getActiveOrders(long userId) {
+        List<ActiveOrder> results = new ArrayList<>();
+        // 遍歷 OrderMap (MVP 階段，生產環境建議使用 UserOrderIndex)
+        stateStore.getOrderMap().forEach((orderId, order) -> {
+            if (order.getUserId() == userId && order.getStatus() < 2) {
+                results.add(order);
+            }
+        });
         return results;
     }
 }

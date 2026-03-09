@@ -73,6 +73,16 @@ public class OrderBook {
         sideMap.computeIfAbsent(order.getPrice(), k -> new LinkedList<>()).add(order);
     }
 
+    public Optional<ActiveOrder> findOrder(long orderId) {
+        for (LinkedList<ActiveOrder> orders : bids.values()) {
+            for (ActiveOrder o : orders) if (o.getOrderId() == orderId) return Optional.of(o);
+        }
+        for (LinkedList<ActiveOrder> orders : asks.values()) {
+            for (ActiveOrder o : orders) if (o.getOrderId() == orderId) return Optional.of(o);
+        }
+        return Optional.empty();
+    }
+
     public static class TradeEvent {
         public long makerUserId, takerUserId, price, qty, makerOrderId;
         public TradeEvent(long mU, long tU, long p, long q, long mO) {
