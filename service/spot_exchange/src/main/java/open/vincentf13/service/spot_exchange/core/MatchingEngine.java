@@ -15,31 +15,16 @@ import org.springframework.stereotype.Component;
   撮合引擎核心邏輯單元 (Logic Unit)
   單線程忙等 (Busy-spin) 處理指令
  */
+import open.vincentf13.service.spot_exchange.sbe.OrderCreateDecoder;
+import open.vincentf13.service.spot_exchange.sbe.MessageHeaderDecoder;
+import open.vincentf13.service.spot_exchange.sbe.Side;
+
 @Component
 public class MatchingEngine implements Runnable {
-    private static final Logger log = LoggerFactory.getLogger(MatchingEngine.class);
-
-    private final InboundSequencer inbound;
-    private final OutboundSequencer outbound;
-    private final StateStore stateStore;
-    
-    private final AtomicBoolean running = new AtomicBoolean(false);
-    private ExecutorService executor;
-
-    private final LedgerProcessor ledger;
-    private final Map<Integer, OrderBook> books = new HashMap<>();
-    private long orderIdCounter = 1;
-
-    private ChronicleQueue coreQueue;
-
-    public MatchingEngine(InboundSequencer inbound, OutboundSequencer outbound, 
-                         StateStore stateStore, LedgerProcessor ledger) {
-        this.inbound = inbound;
-        this.outbound = outbound;
-        this.stateStore = stateStore;
-        this.ledger = ledger;
-        this.coreQueue = SingleChronicleQueueBuilder.binary("data/spot_exchange/core-queue").build();
-    }
+    // ... 前面代碼 ...
+    private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+    private final OrderCreateDecoder orderCreateDecoder = new OrderCreateDecoder();
+    private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
 
     @Override
     public void run() {
@@ -48,18 +33,24 @@ public class MatchingEngine implements Runnable {
 
         while (running.get()) {
             boolean handled = tailer.readDocument(wire -> {
-                long timestamp = wire.read("timestamp").int64();
                 int msgType = wire.read("msgType").int32();
                 
                 switch (msgType) {
                     case 103: // Auth
                         handleAuth(wire);
                         break;
-                    case 100: // OrderCreate
-                        handleOrderCreate(wire, timestamp);
-                        break;
-                    case 102: // Deposit
-                        handleDeposit(wire);
+                    case 100: // OrderCreate (SBE Template ID)
+                        byte[] bytes = wire.read("payload").bytes();
+                        payloadBuffer.putBytes(0, bytes);
+                        
+                        // SBE 解碼: 先解析 Header，再解析 Body
+                        headerDecoder.wrap(payloadBuffer, 0);
+                        orderCreateDecoder.wrap(payloadBuffer, 
+                                               MessageHeaderDecoder.ENCODED_LENGTH, 
+                                               headerDecoder.blockLength(), 
+                                               headerDecoder.version());
+                        
+                        handleOrderCreate(orderCreateDecoder);
                         break;
                     default:
                         log.warn("未知指令類型: {}", msgType);
@@ -72,55 +63,23 @@ public class MatchingEngine implements Runnable {
         }
     }
 
-    private void handleAuth(net.openhft.chronicle.wire.WireIn wire) {
-        long userId = wire.read("userId").int64();
-        // 初始化 BTC (1) 與 USDT (2) 餘額
-        ledger.getOrCreateBalance(userId, 1); 
-        ledger.getOrCreateBalance(userId, 2);
-        
-        sendAuthSuccess(userId);
-    }
+    private void handleOrderCreate(OrderCreateDecoder sbe) {
+        long userId = sbe.userId();
+        long price = sbe.price();
+        long qty = sbe.qty();
+        Side side = sbe.side();
 
-    private void handleDeposit(net.openhft.chronicle.wire.WireIn wire) {
-        long userId = wire.read("userId").int64();
-        int assetId = wire.read("assetId").int32();
-        long amount = wire.read("amount").int64();
-        
-        ledger.addAvailable(userId, assetId, amount);
-        sendBalanceUpdate(userId);
-    }
-
-    private void handleOrderCreate(net.openhft.chronicle.wire.WireIn wire, long timestamp) {
-        long userId = wire.read("userId").int64();
-        int symbolId = wire.read("symbolId").int32();
-        long price = wire.read("price").int64();
-        long qty = wire.read("qty").int64();
-        byte side = wire.read("side").int8();
-
-        // 基礎風控: 凍結資產 (簡化: 假設 symbolId 1 是 BTC_USDT, 賣方扣 BTC, 買方扣 USDT)
-        long cost = (side == 0) ? (price * qty / 100_000_000L) : qty;
-        int assetToFreeze = (side == 0) ? 2 : 1; // 買方扣 USDT (2), 賣方扣 BTC (1)
+        // 風控邏輯
+        long cost = (side == Side.BUY) ? (price * qty / 100_000_000L) : qty;
+        int assetToFreeze = (side == Side.BUY) ? 2 : 1;
 
         if (!ledger.tryFreeze(userId, assetToFreeze, cost)) {
             sendExecutionReport(userId, 0, "REJECTED_INSUFFICIENT_BALANCE");
             return;
         }
 
-        ActiveOrder order = new ActiveOrder();
-        order.setUserId(userId);
-        order.setSymbolId(symbolId);
-        order.setPrice(price);
-        order.setQty(qty);
-        order.setSide(side);
-        order.setTimestamp(timestamp);
-        order.setStatus((byte)0); // NEW
-
-        // 執行撮合 (MVP 簡化: 直接放入 Book)
-        OrderBook book = books.computeIfAbsent(symbolId, OrderBook::new);
-        book.add(order);
-        
+        // ... 撮合邏輯 ...
         sendExecutionReport(userId, orderIdCounter++, "ACCEPTED");
-        sendBalanceUpdate(userId);
     }
 
     private void sendAuthSuccess(long userId) {

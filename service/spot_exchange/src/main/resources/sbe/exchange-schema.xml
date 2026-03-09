@@ -8,9 +8,15 @@
                    byteOrder="littleEndian">
 
     <types>
+        <!-- SBE 必需的訊息標頭 -->
+        <composite name="messageHeader" description="Message identifiers and length of message root">
+            <type name="blockLength" primitiveType="uint16"/>
+            <type name="templateId" primitiveType="uint16"/>
+            <type name="schemaId" primitiveType="uint16"/>
+            <type name="version" primitiveType="uint16"/>
+        </composite>
+
         <!-- 固定長度型別 -->
-        <type name="int64" primitiveType="int64"/>
-        <type name="uint8" primitiveType="uint8"/>
         <type name="char32" primitiveType="char" length="32" characterEncoding="UTF-8"/>
 
         <!-- 列舉 -->
