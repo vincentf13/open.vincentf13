@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
 import open.vincentf13.service.spot_exchange.infra.DecimalUtil;
 import open.vincentf13.service.spot_exchange.infra.SbeCodec;

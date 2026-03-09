@@ -1,6 +1,6 @@
 package open.vincentf13.service.spot_exchange.query;
 
-import open.vincentf13.service.spot_exchange.core.StateStore;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.model.Balance;
 import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.springframework.stereotype.Service;

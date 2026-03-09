@@ -2,7 +2,7 @@ package open.vincentf13.service.spot_exchange.gateway;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.service.spot_exchange.core.StateStore;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.infra.SbeCodec;
 import open.vincentf13.service.spot_exchange.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot_exchange.sbe.Side;
