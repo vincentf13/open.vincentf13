@@ -3,67 +3,63 @@ package open.vincentf13.service.spot_exchange.gateway;
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
+import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 import org.springframework.stereotype.Component;
+import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-/** 
-  Gateway 結果接收器 (Stream 30)
-  負責訂閱來自 Core 的執行報告並寫入本地 outbound-queue
- */
 @Component
-public class GatewayResultReceiver implements Runnable {
+public class GatewayResultReceiver extends BusySpinWorker {
     private final Aeron aeron;
-    private final AtomicBoolean running = new AtomicBoolean(false);
-    private ChronicleQueue outboundQueue;
+    private final StateStore stateStore;
     private Subscription subscription;
-    private ExecutorService executor;
+    private FragmentHandler fragmentHandler;
+    private long lastReceivedSeq = -1;
 
-    public GatewayResultReceiver(Aeron aeron) {
+    public GatewayResultReceiver(Aeron aeron, StateStore stateStore) {
         this.aeron = aeron;
+        this.stateStore = stateStore;
     }
 
     @PostConstruct
-    public void start() {
-        outboundQueue = SingleChronicleQueueBuilder.binary("data/spot_exchange/outbound-queue").build();
-        subscription = aeron.addSubscription("aeron:udp?endpoint=localhost:40445", 30);
-        
-        running.set(true);
-        executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "gw-result-receiver"));
-        executor.submit(this);
-    }
+    public void init() { start("gw-result-receiver"); }
 
     @Override
-    public void run() {
-        FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
+    protected void onStart() {
+        subscription = aeron.addSubscription("aeron:udp?endpoint=localhost:40445", 30);
+        
+        // 恢復上次處理進度 (從系統狀態讀取)
+        this.lastReceivedSeq = stateStore.getSystemStateMap().getOrDefault("lastGwResultSeq", -1L);
+
+        fragmentHandler = (buffer, offset, length, header) -> {
+            long currentSeq = header.position();
+            // --- 深度優化：網關回報冪等落地 ---
+            if (currentSeq <= lastReceivedSeq) return;
+
             byte[] data = new byte[length];
             buffer.getBytes(offset, data);
             
-            // 寫入本地隊列以便推送
-            outboundQueue.acquireAppender().writeDocument(wire -> {
+            stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
                 wire.bytes().write(data);
+                wire.write("aeronSeq").int64(currentSeq);
             });
+            
+            lastReceivedSeq = currentSeq;
+            stateStore.getSystemStateMap().put("lastGwResultSeq", currentSeq);
         };
-
-        IdleStrategy idleStrategy = new BackoffIdleStrategy();
-        while (running.get()) {
-            int fragments = subscription.poll(fragmentHandler, 10);
-            idleStrategy.idle(fragments);
-        }
     }
 
-    @PreDestroy
-    public void stop() {
-        running.set(false);
-        if (executor != null) executor.shutdown();
-        if (outboundQueue != null) outboundQueue.close();
+    @Override
+    protected int doWork() {
+        return subscription.poll(fragmentHandler, 10);
+    }
+
+    @Override
+    protected void onStop() {
+        if (subscription != null) subscription.close();
     }
 }

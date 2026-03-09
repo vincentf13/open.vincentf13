@@ -31,6 +31,8 @@ public class MatchingEngine extends BusySpinWorker {
 
     private final OrderCreateDecoder orderCreateDecoder = new OrderCreateDecoder();
     private final OrderCancelDecoder orderCancelDecoder = new OrderCancelDecoder();
+    
+    // --- 深度優化：使用預分配的 UnsafeBuffer，不進行數據拷貝 ---
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
     
@@ -53,22 +55,18 @@ public class MatchingEngine extends BusySpinWorker {
         this.tradeIdCounter = stateStore.getSystemStateMap().getOrDefault("tradeIdCounter", 1L);
 
         log.info("正在執行系統啟動校驗與重建...");
-        
-        // --- 深度優化：雙重掃描確保索引完整性 ---
         stateStore.getActiveOrderIdMap().keySet().forEach(id -> {
             ActiveOrder o = stateStore.getOrderMap().get(id);
             if (o != null && o.getStatus() < 2) {
                 books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
                 activeOrderIndex.put(id, o);
             } else {
-                // 自動清理過時索引
                 stateStore.getActiveOrderIdMap().remove(id);
             }
         });
 
         Long lastSeq = stateStore.getSystemStateMap().get("lastProcessedSeq");
         if (lastSeq != null && lastSeq > 0) {
-            log.info("進入重播模式: {}", lastSeq);
             isReplaying = true;
             tailer.moveToIndex(lastSeq);
         }
@@ -81,33 +79,32 @@ public class MatchingEngine extends BusySpinWorker {
             int msgType = wire.read("msgType").int32();
             
             if (isReplaying && currentIndex >= tailer.queue().lastIndex()) {
-                log.info("已追上實時進度，重播模式結束");
                 isReplaying = false;
             }
 
+            // --- 深度優化：真正實現零拷貝 ---
+            reusableBytes.clear();
+            wire.read("payload").bytes(reusableBytes);
+            // 直接 wrap 地址與長度，消除 toByteArray()
+            payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), 
+                             (int)reusableBytes.readRemaining());
+
             switch (msgType) {
                 case 103: handleAuth(wire, currentIndex); break;
-                case 100: handleBinaryMsg(wire, currentIndex, orderCreateDecoder); break;
-                case 101: handleBinaryMsg(wire, currentIndex, orderCancelDecoder); break;
+                case 100: // OrderCreate
+                    SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
+                    handleOrderCreateWithIdempotency(orderCreateDecoder, currentIndex);
+                    break;
+                case 101: // OrderCancel
+                    SbeCodec.decode(payloadBuffer, 0, orderCancelDecoder);
+                    handleOrderCancelWithIdempotency(orderCancelDecoder, currentIndex);
+                    break;
             }
             
             stateStore.getSystemStateMap().put("lastProcessedSeq", currentIndex);
             stateStore.getSystemStateMap().put("orderIdCounter", orderIdCounter);
             stateStore.getSystemStateMap().put("tradeIdCounter", tradeIdCounter);
         }) ? 1 : 0;
-    }
-
-    private void handleBinaryMsg(net.openhft.chronicle.wire.WireIn wire, long seq, uk.co.real_logic.sbe.codec.java.DecoderFlyweight decoder) {
-        reusableBytes.clear();
-        wire.read("payload").bytes(reusableBytes);
-        payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
-        SbeCodec.decode(payloadBuffer, 0, decoder);
-
-        if (decoder instanceof OrderCreateDecoder) {
-            handleOrderCreateWithIdempotency((OrderCreateDecoder)decoder, seq);
-        } else if (decoder instanceof OrderCancelDecoder) {
-            handleOrderCancelWithIdempotency((OrderCancelDecoder)decoder, seq);
-        }
     }
 
     private void handleOrderCreateWithIdempotency(OrderCreateDecoder sbe, long seq) {
@@ -151,7 +148,7 @@ public class MatchingEngine extends BusySpinWorker {
         order.setLastSeq(currentSeq);
 
         activeOrderIndex.put(order.getOrderId(), order);
-        saveOrderAndIndex(order); // --- 修正：合併寫入 ---
+        saveOrderAndIndex(order);
 
         OrderBook book = books.computeIfAbsent((int)sbe.symbolId(), OrderBook::new);
         List<OrderBook.TradeEvent> trades = book.match(order);
@@ -180,7 +177,7 @@ public class MatchingEngine extends BusySpinWorker {
         long unfreezeAmount = (order.getSide() == 0) ? DecimalUtil.mulCeil(order.getPrice(), remainingQty) : remainingQty;
         ledger.unfreeze(order.getUserId(), (order.getSide() == 0) ? 2 : 1, seq, unfreezeAmount);
 
-        order.setStatus((byte)3); // CANCELED
+        order.setStatus((byte)3);
         order.setLastSeq(seq);
         activeOrderIndex.remove(order.getOrderId());
         saveOrderAndIndex(order);
@@ -192,12 +189,8 @@ public class MatchingEngine extends BusySpinWorker {
         ActiveOrder existing = stateStore.getOrderMap().get(order.getOrderId());
         if (existing == null || existing.getLastSeq() < order.getLastSeq()) {
             stateStore.getOrderMap().put(order.getOrderId(), order);
-            // 根據狀態同步活躍索引，確保兩者一致
-            if (order.getStatus() < 2) {
-                stateStore.getActiveOrderIdMap().put(order.getOrderId(), true);
-            } else {
-                stateStore.getActiveOrderIdMap().remove(order.getOrderId());
-            }
+            if (order.getStatus() < 2) stateStore.getActiveOrderIdMap().put(order.getOrderId(), true);
+            else stateStore.getActiveOrderIdMap().remove(order.getOrderId());
         }
     }
 

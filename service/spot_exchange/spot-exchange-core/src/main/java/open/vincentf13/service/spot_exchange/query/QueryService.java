@@ -1,16 +1,17 @@
 package open.vincentf13.service.spot_exchange.query;
 
+import net.openhft.chronicle.map.ExternalMapQueryContext;
 import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.model.ActiveOrder;
 import open.vincentf13.service.spot_exchange.model.Balance;
+import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** 
-  高性能查詢服務
-  直接讀取堆外內存 (Shared Chronicle Map)
+  高性能查詢服務 (金融級一致性讀取版)
  */
 @Service
 public class QueryService {
@@ -22,20 +23,17 @@ public class QueryService {
 
     public List<Balance> getUserBalances(long userId) {
         List<Balance> results = new ArrayList<>();
-        stateStore.getBalanceMap().forEach((key, balance) -> {
+        // 遍歷 KeySet 以定位屬於該用戶的資產
+        stateStore.getBalanceMap().keySet().forEach(key -> {
             if (key.getUserId() == userId) {
-                Balance snapshot;
-                long v1, v2;
-                do {
-                    v1 = balance.getVersion();
-                    snapshot = new Balance();
-                    snapshot.setAvailable(balance.getAvailable());
-                    snapshot.setFrozen(balance.getFrozen());
-                    snapshot.setVersion(v1);
-                    snapshot.setLastSeq(balance.getLastSeq());
-                    v2 = balance.getVersion();
-                } while (v1 != v2);
-                results.add(snapshot);
+                // --- 深度優化：使用 Map Context 鎖定 Entry 讀取，確保跨進程原子性 ---
+                try (ExternalMapQueryContext<BalanceKey, Balance, ?> context = 
+                         stateStore.getBalanceMap().queryContext(key)) {
+                    context.readLock().lock();
+                    if (context.entry() != null) {
+                        results.add(context.entry().value().get());
+                    }
+                }
             }
         });
         return results;
@@ -44,23 +42,16 @@ public class QueryService {
     public List<ActiveOrder> getActiveOrders(long userId) {
         List<ActiveOrder> results = new ArrayList<>();
         stateStore.getActiveOrderIdMap().keySet().forEach(orderId -> {
-            ActiveOrder order = stateStore.getOrderMap().get(orderId);
-            if (order != null && order.getUserId() == userId) {
-                // --- 樂觀鎖讀取：確保訂單狀態一致性 ---
-                ActiveOrder snapshot;
-                long v1, v2;
-                do {
-                    v1 = order.getVersion();
-                    snapshot = new ActiveOrder();
-                    snapshot.setOrderId(order.getOrderId());
-                    snapshot.setPrice(order.getPrice());
-                    snapshot.setQty(order.getQty());
-                    snapshot.setFilled(order.getFilled());
-                    snapshot.setStatus(order.getStatus());
-                    snapshot.setVersion(v1);
-                    v2 = order.getVersion();
-                } while (v1 != v2);
-                results.add(snapshot);
+            // --- 深度優化：確保讀取的訂單狀態不是 MatchingEngine 寫入到一半的數據 ---
+            try (ExternalMapQueryContext<Long, ActiveOrder, ?> context = 
+                     stateStore.getOrderMap().queryContext(orderId)) {
+                context.readLock().lock();
+                if (context.entry() != null) {
+                    ActiveOrder order = context.entry().value().get();
+                    if (order.getUserId() == userId) {
+                        results.add(order);
+                    }
+                }
             }
         });
         return results;
