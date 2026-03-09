@@ -157,7 +157,7 @@ flowchart TD
 { "op": "trade.query", "params": { "userId": "user_001", "limit": 20 } }
 ```
 
-### 6.3 系統推播與響應 (Server -> Client)
+### 6.3 執行回報與事件推送 (Server -> Client)
 
 #### A. 執行報告 (Execution Report)
 當訂單狀態變更（接受、成交、撤銷、拒絕）時主動推送。
@@ -210,7 +210,41 @@ flowchart TD
 
 ---
 
-## 7. 異常恢復與數據完整性
+## 7. 內存數據結構定義 (In-memory Data Structures)
+
+系統狀態存儲於多個 **Chronicle Map** 實例中，這些實例映射到磁碟文件並支持跨進程存取。所有數值類欄位均使用 `long`（定點數，放大 10^8 倍）以避免浮點數精度問題。
+
+### 7.1 資產餘額表 (BalanceMap)
+- **Key**: `userId` (long) + `assetId` (int) - 複合鍵，共 12 Bytes。
+- **Value**:
+    - `available` (long): 可用餘額。
+    - `frozen` (long): 凍結餘額（掛單中）。
+    - `version` (long): 樂觀鎖版本號或最後更新 Sequence ID。
+
+### 7.2 活躍訂單表 (OrderMap)
+- **Key**: `orderId` (long) - 8 Bytes。
+- **Value**:
+    - `userId` (long): 所屬用戶。
+    - `symbolId` (int): 交易對。
+    - `side` (byte): 0=BUY, 1=SELL。
+    - `price` (long): 掛單價格。
+    - `qty` (long): 掛單原始數量。
+    - `filled` (long): 已成交數量。
+    - `status` (byte): 訂單狀態 (NEW, PARTIAL, FILLED, CANCELED)。
+    - `timestamp` (long): 建立時間。
+
+### 7.3 用戶活躍訂單索引 (UserOrdersMap)
+- **Key**: `userId` (long) - 8 Bytes。
+- **Value**: `long[]` (固定長度數組，如 100) - 存儲該用戶當前活躍的 `orderId` 列表，用於快速響應 `order.query`。
+
+### 7.4 最近成交記錄 (TradeHistoryMap)
+- **Key**: `symbolId` (int) - 4 Bytes。
+- **Value**: `TradeRecord[]` (固定長度循環緩存，如 1000) - 存儲該交易對最近的成交記錄。
+    - **TradeRecord**: `tradeId`, `price`, `qty`, `side`, `time`。
+
+---
+
+## 8. 異常恢復與數據完整性
 
 - **啟動恢復**: 加載 `Shared State Map` 快照，並從記錄的 Sequence ID 開始重播 `Inbound Chronicle Queue`。
 - **數據完整性**: 所有變更均有 WAL 保障。
