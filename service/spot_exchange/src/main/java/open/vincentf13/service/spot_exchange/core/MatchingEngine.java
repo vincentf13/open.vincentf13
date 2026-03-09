@@ -63,45 +63,80 @@ public class MatchingEngine implements Runnable {
         }
     }
 
+import open.vincentf13.service.spot_exchange.sbe.*;
+
+@Component
+public class MatchingEngine implements Runnable {
+    // ... 前面已有的欄位 ...
+    private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
+    private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
+    private final UnsafeBuffer outboundBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(512));
+
     private void handleOrderCreate(OrderCreateDecoder sbe) {
         long userId = sbe.userId();
         long price = sbe.price();
         long qty = sbe.qty();
         Side side = sbe.side();
+        long symbolId = sbe.symbolId();
 
-        // 風控邏輯
+        // 1. 風控凍結
         long cost = (side == Side.BUY) ? (price * qty / 100_000_000L) : qty;
-        int assetToFreeze = (side == Side.BUY) ? 2 : 1;
+        int assetToFreeze = (side == Side.BUY) ? 2 : 1; // 簡化: 1=BTC, 2=USDT
 
         if (!ledger.tryFreeze(userId, assetToFreeze, cost)) {
-            sendExecutionReport(userId, 0, "REJECTED_INSUFFICIENT_BALANCE");
+            sendExecutionReport(userId, 0, sbe.getClientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0);
             return;
         }
 
-        // ... 撮合邏輯 ...
-        sendExecutionReport(userId, orderIdCounter++, "ACCEPTED");
+        // 2. 建立訂單對象
+        long orderId = orderIdCounter++;
+        ActiveOrder order = new ActiveOrder();
+        order.setOrderId(orderId);
+        order.setUserId(userId);
+        order.setPrice(price);
+        order.setQty(qty);
+        order.setSide((byte)(side == Side.BUY ? 0 : 1));
+
+        // 3. 執行撮合
+        OrderBook book = books.computeIfAbsent((int)symbolId, OrderBook::new);
+        List<OrderBook.TradeEvent> trades = book.match(order);
+
+        // 4. 處理成交帳務
+        for (OrderBook.TradeEvent t : trades) {
+            processTradeLedger(t, (int)symbolId);
+            // 推送 Maker 的成交回報 (簡化版)
+            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0);
+        }
+
+        // 5. 推送 Taker 的最終回報
+        OrderStatus finalStatus = (order.getFilled() == order.getQty()) ? OrderStatus.FILLED : OrderStatus.NEW;
+        sendExecutionReport(userId, orderId, sbe.getClientOrderId(), finalStatus, 0, 0, order.getFilled(), 0);
     }
 
-    private void sendAuthSuccess(long userId) {
-        outbound.getQueue().acquireAppender().writeDocument(wire -> {
-            wire.write("topic").text("auth.success");
-            wire.write("userId").int64(userId);
-        });
+    private void processTradeLedger(OrderBook.TradeEvent t, int symbolId) {
+        // 簡化: 買家得 BTC, 賣家得 USDT
+        ledger.addAvailable(t.takerUserId, 1, t.qty); // Taker (Buyer) 得到 BTC
+        ledger.addAvailable(t.makerUserId, 2, t.price * t.qty / 100_000_000L); // Maker (Seller) 得到 USDT
+        // 此處應有更嚴謹的凍結返還邏輯...
     }
 
-    private void sendBalanceUpdate(long userId) {
-        outbound.getQueue().acquireAppender().writeDocument(wire -> {
-            wire.write("topic").text("balance");
-            wire.write("userId").int64(userId);
-        });
-    }
+    private void sendExecutionReport(long userId, long orderId, String cid, OrderStatus status, 
+                                    long lastPrice, long lastQty, long cumQty, long avgPrice) {
+        executionEncoder.wrapAndApplyHeader(outboundBuffer, 0, headerEncoder);
+        executionEncoder.timestamp(System.currentTimeMillis())
+                        .userId(userId)
+                        .orderId(orderId)
+                        .status(status)
+                        .lastPrice(lastPrice)
+                        .lastQty(lastQty)
+                        .cumQty(cumQty)
+                        .avgPrice(avgPrice)
+                        .clientOrderId(cid);
 
-    private void sendExecutionReport(long userId, long orderId, String status) {
+        int len = MessageHeaderEncoder.ENCODED_LENGTH + executionEncoder.encodedLength();
         outbound.getQueue().acquireAppender().writeDocument(wire -> {
-            wire.write("topic").text("execution");
-            wire.write("userId").int64(userId);
-            wire.write("orderId").int64(orderId);
-            wire.write("status").text(status);
+            wire.write("msgType").int32(executionEncoder.sbeTemplateId());
+            wire.write("payload").bytes(outboundBuffer.byteArray(), 0, len);
         });
     }
 
