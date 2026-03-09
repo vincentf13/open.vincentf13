@@ -2,8 +2,8 @@ package open.vincentf13.service.spot_exchange.gateway;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.infra.SbeCodec;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot_exchange.sbe.Side;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -25,9 +25,6 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     private final StateStore stateStore;
     private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
 
-    private final OrderCreateEncoder orderCreateEncoder = new OrderCreateEncoder();
-    private final UnsafeBuffer tempBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
-
     public ExchangeWebSocketHandler(StateStore stateStore) {
         this.stateStore = stateStore;
     }
@@ -38,7 +35,11 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
         String op = node.get("op").asText();
 
         if ("order.create".equals(op)) {
-            int len = SbeCodec.encode(tempBuffer, 0, orderCreateEncoder
+            // --- 深度加固：局部變數確保執行緒安全 ---
+            OrderCreateEncoder encoder = new OrderCreateEncoder();
+            UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
+
+            int len = SbeCodec.encode(buffer, 0, encoder
                 .timestamp(System.currentTimeMillis())
                 .userId(node.get("params").get("userId").asLong())
                 .symbolId(node.get("params").get("symbolId").asLong())
@@ -48,8 +49,8 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
                 .clientOrderId(node.get("cid").asText()));
 
             stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
-                wire.write("msgType").int32(orderCreateEncoder.sbeTemplateId());
-                wire.write("payload").bytes(tempBuffer.byteArray(), 0, len);
+                wire.write("msgType").int32(encoder.sbeTemplateId());
+                wire.write("payload").bytes(buffer.byteArray(), 0, len);
             });
         } else if ("auth".equals(op)) {
             String userId = node.get("args").get("userId").asText();

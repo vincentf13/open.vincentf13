@@ -14,18 +14,16 @@ import open.vincentf13.service.spot_exchange.model.CidKey;
 import open.vincentf13.service.spot_exchange.sbe.*;
 
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class MatchingEngine extends BusySpinWorker {
     private final StateStore stateStore;
     private final LedgerProcessor ledger;
     
-    // 核心緩存
     private final Map<Integer, OrderBook> books = new HashMap<>();
-    private final Map<Long, ActiveOrder> activeOrderIndex = new HashMap<>(); // $O(1)$ 訂單索引
+    private final Map<Long, ActiveOrder> activeOrderIndex = new HashMap<>();
     
     private long orderIdCounter = 1;
     private ExcerptTailer tailer;
@@ -50,18 +48,23 @@ public class MatchingEngine extends BusySpinWorker {
     protected void onStart() {
         this.tailer = stateStore.getCoreQueue().createTailer();
         
-        // 1. 恢復 ID 與索引
         Long savedId = stateStore.getSystemStateMap().get("orderIdCounter");
         if (savedId != null) this.orderIdCounter = savedId;
 
-        // 2. 重建 OrderBook 與 $O(1)$ 索引
-        log.info("正在重建內存索引...");
+        // --- 深度加固：排序重建 OrderBook 以維持時間優先級 ---
+        log.info("正在重建內存狀態 (有序)...");
+        List<ActiveOrder> activeOrders = new ArrayList<>();
         stateStore.getOrderMap().forEach((id, order) -> {
-            if (order.getStatus() < 2) {
-                books.computeIfAbsent(order.getSymbolId(), OrderBook::new).add(order);
-                activeOrderIndex.put(id, order); // 放入快速索引
-            }
+            if (order.getStatus() < 2) activeOrders.add(order);
         });
+
+        // 按 ID 排序，確保時間優先級一致
+        activeOrders.stream()
+            .sorted(Comparator.comparingLong(ActiveOrder::getOrderId))
+            .forEach(order -> {
+                books.computeIfAbsent(order.getSymbolId(), OrderBook::new).add(order);
+                activeOrderIndex.put(order.getOrderId(), order);
+            });
 
         Long lastSeq = stateStore.getSystemStateMap().get("lastProcessedSeq");
         if (lastSeq != null && lastSeq > 0) tailer.moveToIndex(lastSeq);
@@ -76,12 +79,9 @@ public class MatchingEngine extends BusySpinWorker {
             switch (msgType) {
                 case 103: handleAuth(wire); break;
                 case 100: 
-                    // --- 真正的 Zero-GC 讀取 ---
                     reusableBytes.clear();
                     wire.read("payload").bytes(reusableBytes);
-                    // 直接將 Bytes 對象映射到 UnsafeBuffer，避免 toByteArray()
                     payloadBuffer.wrap(reusableBytes.address(), (int)reusableBytes.readLimit());
-                    
                     SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
                     processCommand(orderCreateDecoder);
                     break;
@@ -99,11 +99,12 @@ public class MatchingEngine extends BusySpinWorker {
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe) {
+        long timestamp = sbe.timestamp();
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.multiply(sbe.price(), sbe.qty()) : sbe.qty();
         int assetId = (sbe.side() == Side.BUY) ? 2 : 1;
 
         if (!ledger.tryFreeze(sbe.userId(), assetId, cost)) {
-            sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
+            sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, timestamp);
             return;
         }
 
@@ -117,7 +118,6 @@ public class MatchingEngine extends BusySpinWorker {
         order.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1));
         order.setStatus((byte)0);
 
-        // 更新索引與 Map
         activeOrderIndex.put(order.getOrderId(), order);
         stateStore.getOrderMap().put(order.getOrderId(), order);
 
@@ -127,23 +127,20 @@ public class MatchingEngine extends BusySpinWorker {
         for (OrderBook.TradeEvent t : trades) {
             processTradeLedger(t);
             syncOrderState(t.makerOrderId);
-            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, sbe.timestamp());
+            sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, timestamp);
         }
 
         syncOrderState(order.getOrderId());
         OrderStatus finalStatus = (order.getStatus() == 2) ? OrderStatus.FILLED : OrderStatus.NEW;
-        sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, sbe.timestamp());
+        sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, timestamp);
     }
 
-    /** 
-      透過 $O(1)$ 索引快速同步訂單狀態
-     */
     private void syncOrderState(long orderId) {
         ActiveOrder order = activeOrderIndex.get(orderId);
         if (order != null) {
             if (order.getFilled() == order.getQty()) {
-                order.setStatus((byte)2); // FILLED
-                activeOrderIndex.remove(orderId); // 從活躍索引移除
+                order.setStatus((byte)2);
+                activeOrderIndex.remove(orderId);
             }
             stateStore.getOrderMap().put(orderId, order);
         }
