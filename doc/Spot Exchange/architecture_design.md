@@ -12,8 +12,7 @@
 - **Zero-GC & Off-heap**: 利用 Chronicle Queue/Map 將數據存在堆外內存映射文件，避免 JVM GC 停頓。
 
 ---
-
-## 2. 系統架構圖 (Simplified Low-Latency Architecture)
+## 2. 系統架構圖 (Current Implementation Architecture)
 
 ```mermaid
 flowchart TD
@@ -22,47 +21,52 @@ flowchart TD
     end
 
     subgraph GatewayService ["Gateway Service"]
-        WS["WebSocket / REST"]
-        GW_Q["Chronicle Queue: GW WAL"]
-        Aeron_Pub_In["Aeron Publisher: Inbound"]
+        WS["WebSocket Handler"]
+        GW_Q["GW WAL: Chronicle Queue"]
+        Aeron_Sender["GatewayAeronSender (Stream 10)"]
     end
 
     subgraph CoreEngineService ["Matching Core Service"]
-        Aeron_Sub_In["Aeron Subscriber"]
-        Core_Q["Chronicle Queue: Core WAL"]
-        
-        subgraph LogicUnit ["Single-threaded Logic Unit"]
-            RiskLogic["Risk Check & Ledger"]
-            MatchLogic["Matching Engine"]
+        Aeron_Receiver["CoreAeronReceiver (Stream 10)"]
+        Core_Q["Core WAL: Chronicle Queue"]
+
+        subgraph LogicUnit ["Single-threaded Matching Engine"]
+            Ledger["LedgerProcessor (Risk)"]
+            Match["Matching Logic (OrderBook)"]
         end
-        
+
         StateMap["Chronicle Map: Balances & Orders"]
-        Aeron_Pub_Out["Aeron Publisher: Result"]
+        Outbound_Q["Outbound Queue"]
+        Aeron_Publisher_Out["Result Aeron Publisher (Stream 30)"]
     end
 
     subgraph QueryService ["Query Service"]
-        QueryAPI["Query API"]
-        StateMap_Read["Chronicle Map: Shared Read"]
+        QueryAPI["QueryService"]
+        StateMap_Read["Shared Map (Read-only)"]
     end
 
-    %% Data Flow
-    User --> WS
-    WS --> GW_Q
-    WS --> Aeron_Pub_In
+    %% Inbound Path
+    User -->|JSON| WS
+    WS -->|Write| GW_Q
+    GW_Q -->|Poll| Aeron_Sender
+    Aeron_Sender -->|UDP/IPC| Aeron_Receiver
+    Aeron_Receiver -->|Write| Core_Q
+    Core_Q -->|Busy Spin| LogicUnit
 
-    Aeron_Pub_In --> Aeron_Sub_In
-    Aeron_Sub_In --> Core_Q
-    Core_Q --> LogicUnit
-    LogicUnit -.-> StateMap
-    LogicUnit --> Aeron_Pub_Out
+    %% Execution & State
+    LogicUnit -.->|Update| StateMap
+    LogicUnit -->|Result| Outbound_Q
+    Outbound_Q -->|Poll| Aeron_Publisher_Out
 
-    Aeron_Pub_Out --> WS
-    WS --> User
+    %% Outbound Path
+    Aeron_Publisher_Out -->|Stream 30| WS
+    WS -->|JSON| User
 
     %% Query Path
     User --> QueryAPI
     QueryAPI -.-> StateMap_Read
 ```
+
 
 ---
 

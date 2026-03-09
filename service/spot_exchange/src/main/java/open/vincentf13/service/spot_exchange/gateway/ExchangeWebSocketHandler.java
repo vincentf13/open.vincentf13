@@ -21,13 +21,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(ExchangeWebSocketHandler.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final InboundSequencer sequencer;
-    
-    // 用戶 ID 與 WS 會話的映射
-    private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
+    private final ChronicleQueue gwQueue;
 
-    public ExchangeWebSocketHandler(InboundSequencer sequencer) {
-        this.sequencer = sequencer;
+    public ExchangeWebSocketHandler() {
+        this.gwQueue = SingleChronicleQueueBuilder.binary("data/spot_exchange/gw-queue").build();
     }
 
     @Override
@@ -35,8 +32,8 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
         JsonNode node = objectMapper.readTree(message.getPayload());
         String op = node.get("op").asText();
 
-        // 將所有指令持久化到 Inbound Queue (WAL)
-        sequencer.getQueue().acquireAppender().writeDocument(wire -> {
+        // 寫入 Gateway WAL
+        gwQueue.acquireAppender().writeDocument(wire -> {
             wire.write("timestamp").int64(System.currentTimeMillis());
             
             if ("auth".equals(op)) {
@@ -46,8 +43,11 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
                 wire.write("userId").int64(Long.parseLong(userId));
             } else if ("order.create".equals(op)) {
                 wire.write("msgType").int32(100);
-                // 這裡繼續填入下單參數 (SBE/Wire 轉換)
                 wire.write("userId").int64(Long.parseLong(node.get("params").get("userId").asText()));
+                wire.write("symbolId").int32(node.get("params").get("symbolId").asInt());
+                wire.write("price").int64(node.get("params").get("price").asLong());
+                wire.write("qty").int64(node.get("params").get("qty").asLong());
+                wire.write("side").int8((byte)node.get("params").get("side").asInt());
             }
         });
     }

@@ -30,18 +30,21 @@ public class MatchingEngine implements Runnable {
     private final Map<Integer, OrderBook> books = new HashMap<>();
     private long orderIdCounter = 1;
 
+    private ChronicleQueue coreQueue;
+
     public MatchingEngine(InboundSequencer inbound, OutboundSequencer outbound, 
                          StateStore stateStore, LedgerProcessor ledger) {
         this.inbound = inbound;
         this.outbound = outbound;
         this.stateStore = stateStore;
         this.ledger = ledger;
+        this.coreQueue = SingleChronicleQueueBuilder.binary("data/spot_exchange/core-queue").build();
     }
 
     @Override
     public void run() {
-        ExcerptTailer tailer = inbound.getQueue().createTailer();
-        log.info("撮合引擎啟動，開始輪詢指令...");
+        ExcerptTailer tailer = coreQueue.createTailer();
+        log.info("撮合引擎啟動，開始輪詢 Core WAL...");
 
         while (running.get()) {
             boolean handled = tailer.readDocument(wire -> {
