@@ -15,7 +15,6 @@ import open.vincentf13.service.spot_exchange.sbe.*;
 
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 public class MatchingEngine extends BusySpinWorker {
@@ -47,18 +46,13 @@ public class MatchingEngine extends BusySpinWorker {
     @Override
     protected void onStart() {
         this.tailer = stateStore.getCoreQueue().createTailer();
-        
         Long savedId = stateStore.getSystemStateMap().get("orderIdCounter");
         if (savedId != null) this.orderIdCounter = savedId;
 
-        // --- 深度加固：排序重建 OrderBook 以維持時間優先級 ---
         log.info("正在重建內存狀態 (有序)...");
         List<ActiveOrder> activeOrders = new ArrayList<>();
-        stateStore.getOrderMap().forEach((id, order) -> {
-            if (order.getStatus() < 2) activeOrders.add(order);
-        });
+        stateStore.getOrderMap().forEach((id, order) -> { if (order.getStatus() < 2) activeOrders.add(order); });
 
-        // 按 ID 排序，確保時間優先級一致
         activeOrders.stream()
             .sorted(Comparator.comparingLong(ActiveOrder::getOrderId))
             .forEach(order -> {
@@ -77,13 +71,13 @@ public class MatchingEngine extends BusySpinWorker {
             int msgType = wire.read("msgType").int32();
             
             switch (msgType) {
-                case 103: handleAuth(wire); break;
+                case 103: handleAuth(wire, currentIndex); break;
                 case 100: 
                     reusableBytes.clear();
                     wire.read("payload").bytes(reusableBytes);
                     payloadBuffer.wrap(reusableBytes.address(), (int)reusableBytes.readLimit());
                     SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
-                    processCommand(orderCreateDecoder);
+                    processCommand(orderCreateDecoder, currentIndex);
                     break;
             }
             stateStore.getSystemStateMap().put("lastProcessedSeq", currentIndex);
@@ -91,19 +85,20 @@ public class MatchingEngine extends BusySpinWorker {
         }) ? 1 : 0;
     }
 
-    private void processCommand(OrderCreateDecoder sbe) {
+    private void processCommand(OrderCreateDecoder sbe, long currentSeq) {
         CidKey key = new CidKey(sbe.userId(), sbe.clientOrderId());
         if (stateStore.getCidMap().containsKey(key)) return;
-        handleOrderCreate(sbe);
+        handleOrderCreate(sbe, currentSeq);
         stateStore.getCidMap().put(key, 0L);
     }
 
-    private void handleOrderCreate(OrderCreateDecoder sbe) {
+    private void handleOrderCreate(OrderCreateDecoder sbe, long currentSeq) {
         long timestamp = sbe.timestamp();
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.multiply(sbe.price(), sbe.qty()) : sbe.qty();
         int assetId = (sbe.side() == Side.BUY) ? 2 : 1;
 
-        if (!ledger.tryFreeze(sbe.userId(), assetId, cost)) {
+        // 1. 風控凍結 (帶入當前序號)
+        if (!ledger.tryFreeze(sbe.userId(), assetId, currentSeq, cost)) {
             sendExecutionReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, timestamp);
             return;
         }
@@ -117,6 +112,7 @@ public class MatchingEngine extends BusySpinWorker {
         order.setQty(sbe.qty());
         order.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1));
         order.setStatus((byte)0);
+        order.setLastSeq(currentSeq); // 打上標籤
 
         activeOrderIndex.put(order.getOrderId(), order);
         stateStore.getOrderMap().put(order.getOrderId(), order);
@@ -125,32 +121,33 @@ public class MatchingEngine extends BusySpinWorker {
         List<OrderBook.TradeEvent> trades = book.match(order);
 
         for (OrderBook.TradeEvent t : trades) {
-            processTradeLedger(t);
-            syncOrderState(t.makerOrderId);
+            processTradeLedger(t, currentSeq);
+            syncOrderState(t.makerOrderId, currentSeq);
             sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, timestamp);
         }
 
-        syncOrderState(order.getOrderId());
+        syncOrderState(order.getOrderId(), currentSeq);
         OrderStatus finalStatus = (order.getStatus() == 2) ? OrderStatus.FILLED : OrderStatus.NEW;
         sendExecutionReport(sbe.userId(), order.getOrderId(), sbe.clientOrderId(), finalStatus, 0, 0, order.getFilled(), 0, timestamp);
     }
 
-    private void syncOrderState(long orderId) {
+    private void syncOrderState(long orderId, long currentSeq) {
         ActiveOrder order = activeOrderIndex.get(orderId);
         if (order != null) {
             if (order.getFilled() == order.getQty()) {
                 order.setStatus((byte)2);
                 activeOrderIndex.remove(orderId);
             }
+            order.setLastSeq(currentSeq); // 更新序號標籤
             stateStore.getOrderMap().put(orderId, order);
         }
     }
 
-    private void processTradeLedger(OrderBook.TradeEvent t) {
-        ledger.deductFrozen(t.takerUserId, 2, DecimalUtil.multiply(t.price, t.qty));
-        ledger.addAvailable(t.takerUserId, 1, t.qty);
-        ledger.deductFrozen(t.makerUserId, 1, t.qty);
-        ledger.addAvailable(t.makerUserId, 2, DecimalUtil.multiply(t.price, t.qty));
+    private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq) {
+        ledger.deductFrozen(t.takerUserId, 2, currentSeq, DecimalUtil.multiply(t.price, t.qty));
+        ledger.addAvailable(t.takerUserId, 1, currentSeq, t.qty);
+        ledger.deductFrozen(t.makerUserId, 1, currentSeq, t.qty);
+        ledger.addAvailable(t.makerUserId, 2, currentSeq, DecimalUtil.multiply(t.price, t.qty));
     }
 
     private void sendExecutionReport(long userId, long orderId, String cid, OrderStatus status, long lp, long lq, long cq, long ap, long ts) {
@@ -164,10 +161,10 @@ public class MatchingEngine extends BusySpinWorker {
         });
     }
 
-    private void handleAuth(net.openhft.chronicle.wire.WireIn wire) {
+    private void handleAuth(net.openhft.chronicle.wire.WireIn wire, long currentSeq) {
         long userId = wire.read("userId").int64();
-        ledger.initBalance(userId, 1);
-        ledger.initBalance(userId, 2);
+        ledger.initBalance(userId, 1, currentSeq);
+        ledger.initBalance(userId, 2, currentSeq);
         stateStore.getOutboundQueue().acquireAppender().writeDocument(w -> {
             w.write("topic").text("auth.success");
             w.write("userId").int64(userId);

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 
 /** 
   內存帳務處理器
-  利用 Chronicle Map 的 Context 鎖機制保證原子性
+  實作序列標籤 (Sequence Tagging) 以確保金融級一致性
  */
 @Service
 public class LedgerProcessor {
@@ -18,10 +18,13 @@ public class LedgerProcessor {
         this.stateStore = stateStore;
     }
 
-    public void updateBalance(long userId, int assetId, java.util.function.Consumer<Balance> action) {
+    /** 
+      更新資產餘額
+      @param currentSeq 當前處理的 WAL 指令序號
+     */
+    public void updateBalance(long userId, int assetId, long currentSeq, java.util.function.Consumer<Balance> action) {
         BalanceKey key = new BalanceKey(userId, assetId);
         
-        // --- 深度加固：使用寫鎖 (Map Context) 確保多欄位更新的原子性 ---
         try (ExternalMapQueryContext<BalanceKey, Balance, ?> context = stateStore.getBalanceMap().queryContext(key)) {
             context.writeLock().lock();
             net.openhft.chronicle.map.MapEntry<BalanceKey, Balance> entry = context.entry();
@@ -32,12 +35,20 @@ public class LedgerProcessor {
                 balance.setAvailable(0);
                 balance.setFrozen(0);
                 balance.setVersion(0);
+                balance.setLastSeq(-1);
             } else {
                 balance = entry.value().get();
             }
             
+            // --- 金融級一致性：序列檢查 ---
+            // 如果此資產已由該序號（或更高序號）處理過，直接跳過物理寫入
+            if (balance.getLastSeq() >= currentSeq) {
+                return;
+            }
+            
             action.accept(balance);
             balance.setVersion(balance.getVersion() + 1);
+            balance.setLastSeq(currentSeq); // 打上當前處理序號
             
             if (entry == null) {
                 context.insert(context.absentEntry(), context.wrapValueAsData(balance));
@@ -47,30 +58,20 @@ public class LedgerProcessor {
         }
     }
 
-    /** 
-      初始化資產 (JIT)
-     */
-    public void initBalance(long userId, int assetId) {
-        updateBalance(userId, assetId, b -> {});
+    public void initBalance(long userId, int assetId, long currentSeq) {
+        updateBalance(userId, assetId, currentSeq, b -> {});
     }
 
-    /** 
-      增加可用餘額
-     */
-    public void addAvailable(long userId, int assetId, long amount) {
+    public void addAvailable(long userId, int assetId, long currentSeq, long amount) {
         if (amount <= 0) return;
-        updateBalance(userId, assetId, b -> b.setAvailable(b.getAvailable() + amount));
+        updateBalance(userId, assetId, currentSeq, b -> b.setAvailable(b.getAvailable() + amount));
     }
 
-    /** 
-      嘗試凍結 (下單)
-     */
-    public boolean tryFreeze(long userId, int assetId, long amount) {
+    public boolean tryFreeze(long userId, int assetId, long currentSeq, long amount) {
         if (amount <= 0) return true;
         
-        // 這裡需要先讀取判斷，因此我們直接在 updateBalance 的邏輯中擴展
         boolean[] success = {false};
-        updateBalance(userId, assetId, b -> {
+        updateBalance(userId, assetId, currentSeq, b -> {
             if (b.getAvailable() >= amount) {
                 b.setAvailable(b.getAvailable() - amount);
                 b.setFrozen(b.getFrozen() + amount);
@@ -80,11 +81,8 @@ public class LedgerProcessor {
         return success[0];
     }
 
-    /** 
-      扣除凍結金額 (成交)
-     */
-    public void deductFrozen(long userId, int assetId, long amount) {
+    public void deductFrozen(long userId, int assetId, long currentSeq, long amount) {
         if (amount <= 0) return;
-        updateBalance(userId, assetId, b -> b.setFrozen(Math.max(0, b.getFrozen() - amount)));
+        updateBalance(userId, assetId, currentSeq, b -> b.setFrozen(Math.max(0, b.getFrozen() - amount)));
     }
 }

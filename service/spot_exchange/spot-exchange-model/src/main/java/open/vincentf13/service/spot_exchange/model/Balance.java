@@ -11,4 +11,5 @@ public class Balance implements BytesMarshallable {
     private long available;
     private long frozen;
     private long version;
+    private long lastSeq; // 最後更新此餘額的 WAL Sequence ID
 }
