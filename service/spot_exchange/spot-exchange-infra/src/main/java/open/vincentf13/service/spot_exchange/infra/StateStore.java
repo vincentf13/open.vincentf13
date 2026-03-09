@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot_exchange.core;
+package open.vincentf13.service.spot_exchange.infra;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;

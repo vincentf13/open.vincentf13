@@ -11,86 +11,65 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <groupId>open.vincentf13.spot_exchange</groupId>
     <artifactId>spot-exchange</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
 
-    <dependencies>
-        <!-- SDK Dependencies -->
-        <dependency>
-            <groupId>open.vincentf13</groupId>
-            <artifactId>sdk-core</artifactId>
-        </dependency>
+    <name>spot-exchange</name>
+    <description>Spot Exchange service aggregation</description>
 
-        <!-- Low Latency Core -->
-        <dependency>
-            <groupId>net.openhft</groupId>
-            <artifactId>chronicle-queue</artifactId>
-            <version>5.24ea10</version>
-        </dependency>
-        <dependency>
-            <groupId>net.openhft</groupId>
-            <artifactId>chronicle-map</artifactId>
-            <version>3.24ea4</version>
-        </dependency>
-        <dependency>
-            <groupId>io.aeron</groupId>
-            <artifactId>aeron-all</artifactId>
-            <version>1.44.0</version>
-        </dependency>
-        <dependency>
-            <groupId>uk.co.real-logic</groupId>
-            <artifactId>sbe-all</artifactId>
-            <version>1.30.0</version>
-        </dependency>
+    <modules>
+        <module>spot-exchange-sbe</module>
+        <module>spot-exchange-infra</module>
+        <module>spot-exchange-model</module>
+        <module>spot-exchange-core</module>
+        <module>spot-exchange-gateway</module>
+    </modules>
 
-        <!-- Spring Boot Web for API/WS -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
-    </dependencies>
+    <properties>
+        <sbe.version>1.30.0</sbe.version>
+        <chronicle.queue.version>5.24ea10</chronicle.queue.version>
+        <chronicle.map.version>3.24ea4</chronicle.map.version>
+        <aeron.version>1.44.0</aeron.version>
+    </properties>
 
-    <build>
-        <plugins>
-            <!-- SBE Tool for Code Generation -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>java</goal>
-                        </goals>
-                        <configuration>
-                            <mainClass>uk.co.real_logic.sbe.SbeTool</mainClass>
-                            <systemProperties>
-                                <systemProperty>
-                                    <key>sbe.output.dir</key>
-                                    <value>${project.build.sourceDirectory}</value>
-                                </systemProperty>
-                                <systemProperty>
-                                    <key>sbe.target.language</key>
-                                    <value>Java</value>
-                                </systemProperty>
-                            </systemProperties>
-                            <arguments>
-                                <argument>${project.basedir}/src/main/resources/sbe/exchange-schema.xml</argument>
-                            </arguments>
-                            <includeProjectDependencies>true</includeProjectDependencies>
-                            <includePluginDependencies>true</includePluginDependencies>
-                        </configuration>
-                    </execution>
-                </executions>
-                <dependencies>
-                    <dependency>
-                        <groupId>uk.co.real-logic</groupId>
-                        <artifactId>sbe-all</artifactId>
-                        <version>1.30.0</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
-        </plugins>
-    </build>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>open.vincentf13.spot_exchange</groupId>
+                <artifactId>spot-exchange-sbe</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.spot_exchange</groupId>
+                <artifactId>spot-exchange-infra</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>open.vincentf13.spot_exchange</groupId>
+                <artifactId>spot-exchange-model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>uk.co.real-logic</groupId>
+                <artifactId>sbe-all</artifactId>
+                <version>${sbe.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.openhft</groupId>
+                <artifactId>chronicle-queue</artifactId>
+                <version>${chronicle.queue.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.openhft</groupId>
+                <artifactId>chronicle-map</artifactId>
+                <version>${chronicle.map.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.aeron</groupId>
+                <artifactId>aeron-all</artifactId>
+                <version>${aeron.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>
