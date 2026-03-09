@@ -116,12 +116,7 @@ flowchart TD
 
 #### A. 身份驗證 (Auth)
 ```json
-{
-  "op": "auth",
-  "args": {
-    "userId": "user_001"
-  }
-}
+{ "op": "auth", "args": { "userId": "user_001" } }
 ```
 
 #### B. 限價下單 (New Order)
@@ -139,9 +134,79 @@ flowchart TD
 }
 ```
 
-### 6.3 執行回報與事件推送 (Server -> Client)
-- **execution**: 訂單狀態變更推送。
-- **balance**: 資產變動推送。
+#### C. 撤單 (Cancel Order)
+```json
+{
+  "op": "order.cancel",
+  "params": { "userId": "user_001", "orderId": "123456" }
+}
+```
+
+#### D. 模擬充值 (Deposit - MVP 專用)
+```json
+{
+  "op": "asset.deposit",
+  "params": { "userId": "user_001", "asset": "USDT", "amount": "10000" }
+}
+```
+
+#### E. 查詢請求 (Queries)
+```json
+{ "op": "asset.query", "params": { "userId": "user_001" } }
+{ "op": "order.query", "params": { "userId": "user_001", "symbol": "BTC_USDT" } }
+{ "op": "trade.query", "params": { "userId": "user_001", "limit": 20 } }
+```
+
+### 6.3 系統推播與響應 (Server -> Client)
+
+#### A. 執行報告 (Execution Report)
+當訂單狀態變更（接受、成交、撤銷、拒絕）時主動推送。
+```json
+{
+  "topic": "execution",
+  "data": {
+    "userId": "user_001",
+    "orderId": "123456",
+    "cid": "client_order_001",
+    "status": "FILLED",
+    "lastQty": "0.05",
+    "lastPrice": "65000.50",
+    "cumQty": "0.1",
+    "avgPrice": "65000.50"
+  }
+}
+```
+
+#### B. 資產狀態響應 (Asset Snapshot)
+```json
+{
+  "topic": "asset.snapshot",
+  "data": [
+    { "asset": "BTC", "available": "0.1", "frozen": "0" },
+    { "asset": "USDT", "available": "5000", "frozen": "6500.5" }
+  ]
+}
+```
+
+#### C. 活躍訂單查詢響應 (Active Orders)
+```json
+{
+  "topic": "order.snapshot",
+  "data": [
+    { "orderId": "123456", "symbol": "BTC_USDT", "side": "BUY", "price": "65000", "qty": "0.1", "filled": "0.05" }
+  ]
+}
+```
+
+#### D. 成交歷史響應 (Trade History)
+```json
+{
+  "topic": "trade.history",
+  "data": [
+    { "tradeId": "t_999", "orderId": "123456", "price": "65000.5", "qty": "0.05", "side": "BUY", "time": 1710000005 }
+  ]
+}
+```
 
 ---
 
