@@ -25,6 +25,12 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     private final StateStore stateStore;
     private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
 
+    // --- 深度優化：使用 ThreadLocal 複用 Buffer 與 Encoder，避免 allocateDirect 抖動 ---
+    private static final ThreadLocal<UnsafeBuffer> BUFFER_CACHE = 
+        ThreadLocal.withInitial(() -> new UnsafeBuffer(ByteBuffer.allocateDirect(512)));
+    private static final ThreadLocal<OrderCreateEncoder> ENCODER_CACHE = 
+        ThreadLocal.withInitial(OrderCreateEncoder::new);
+
     public ExchangeWebSocketHandler(StateStore stateStore) {
         this.stateStore = stateStore;
     }
@@ -35,9 +41,8 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
         String op = node.get("op").asText();
 
         if ("order.create".equals(op)) {
-            // --- 深度加固：局部變數確保執行緒安全 ---
-            OrderCreateEncoder encoder = new OrderCreateEncoder();
-            UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
+            UnsafeBuffer buffer = BUFFER_CACHE.get();
+            OrderCreateEncoder encoder = ENCODER_CACHE.get();
 
             int len = SbeCodec.encode(buffer, 0, encoder
                 .timestamp(System.currentTimeMillis())

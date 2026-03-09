@@ -166,8 +166,8 @@ public class MatchingEngine extends BusySpinWorker {
 
     private void handleAuth(net.openhft.chronicle.wire.WireIn wire) {
         long userId = wire.read("userId").int64();
-        ledger.getOrCreateBalance(userId, 1);
-        ledger.getOrCreateBalance(userId, 2);
+        ledger.initBalance(userId, 1);
+        ledger.initBalance(userId, 2);
         stateStore.getOutboundQueue().acquireAppender().writeDocument(w -> {
             w.write("topic").text("auth.success");
             w.write("userId").int64(userId);
