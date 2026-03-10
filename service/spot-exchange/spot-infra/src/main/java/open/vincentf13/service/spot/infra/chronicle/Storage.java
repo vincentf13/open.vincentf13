@@ -115,9 +115,9 @@ public class Storage {
                                .createPersistedTo(new File(baseDir + Store.METADATA + ".dat"));
         
         // --- 升級為 Fieldless Binary 模式 ---
-        gatewayQueue = SingleChronicleQueueBuilder.fieldlessBinary(baseDir + Store.Q_GATEWAY).build();
-        commandQueue = SingleChronicleQueueBuilder.fieldlessBinary(baseDir + Store.Q_COMMAND).build();
-        resultQueue = SingleChronicleQueueBuilder.fieldlessBinary(baseDir + Store.Q_RESULT).build();
+        gatewayQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_GATEWAY)).build();
+        commandQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_COMMAND)).build();
+        resultQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_RESULT)).build();
         
         instance = this;
         log.info("Chronicle Storage 核心組件初始化完成 (RawWire 模式)，存儲路徑: {}", baseDir);
