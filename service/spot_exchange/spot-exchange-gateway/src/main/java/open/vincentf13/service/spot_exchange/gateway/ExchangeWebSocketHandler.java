@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import net.openhft.chronicle.bytes.Bytes;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -25,8 +26,11 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     private final StateStore stateStore;
     private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
 
+    // --- 深度優化：使用 ThreadLocal 管理 Chronicle Bytes，徹底消除 Zero-GC 漏洞 ---
+    private static final ThreadLocal<Bytes<ByteBuffer>> BYTES_CACHE = 
+        ThreadLocal.withInitial(() -> Bytes.elasticByteBuffer(512));
     private static final ThreadLocal<UnsafeBuffer> BUFFER_CACHE = 
-        ThreadLocal.withInitial(() -> new UnsafeBuffer(ByteBuffer.allocateDirect(512)));
+        ThreadLocal.withInitial(() -> new UnsafeBuffer(0, 0));
     private static final ThreadLocal<OrderCreateEncoder> ENCODER_CACHE = 
         ThreadLocal.withInitial(OrderCreateEncoder::new);
 
@@ -40,7 +44,13 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
         String op = node.get("op").asText();
 
         if ("order.create".equals(op)) {
+            Bytes<ByteBuffer> bytes = BYTES_CACHE.get();
+            bytes.clear();
+            
             UnsafeBuffer buffer = BUFFER_CACHE.get();
+            // 讓 UnsafeBuffer 映射到 Chronicle Bytes 的底層地址
+            buffer.wrap(bytes.addressForWrite(0), (int)bytes.realCapacity());
+            
             OrderCreateEncoder encoder = ENCODER_CACHE.get();
 
             int len = SbeCodec.encode(buffer, 0, encoder
@@ -52,12 +62,12 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
                 .side(Side.get((short) node.get("params").get("side").asInt()))
                 .clientOrderId(node.get("cid").asText()));
 
-            // --- 修正：使用正確的方式寫入 DirectBuffer 內容 ---
+            // 設定實際寫入長度
+            bytes.writePosition(len);
+
             stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
                 wire.write("msgType").int32(encoder.sbeTemplateId());
-                byte[] data = new byte[len];
-                buffer.getBytes(0, data);
-                wire.write("payload").bytes(data);
+                wire.write("payload").bytes(bytes);
             });
         } else if ("auth".equals(op)) {
             String userId = node.get("args").get("userId").asText();

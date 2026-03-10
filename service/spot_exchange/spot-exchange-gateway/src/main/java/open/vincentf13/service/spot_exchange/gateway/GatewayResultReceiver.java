@@ -19,6 +19,8 @@ public class GatewayResultReceiver extends BusySpinWorker {
     private Subscription subscription;
     private FragmentHandler fragmentHandler;
     private long lastReceivedSeq = -1;
+    private final byte[] reusableArray = new byte[2048];
+    private final net.openhft.chronicle.bytes.Bytes<?> writeBytes = net.openhft.chronicle.bytes.Bytes.wrapForRead(reusableArray);
 
     public GatewayResultReceiver(Aeron aeron, StateStore stateStore) {
         this.aeron = aeron;
@@ -40,11 +42,12 @@ public class GatewayResultReceiver extends BusySpinWorker {
             // --- 深度優化：網關回報冪等落地 ---
             if (currentSeq <= lastReceivedSeq) return;
 
-            byte[] data = new byte[length];
-            buffer.getBytes(offset, data);
+            int len = Math.min(length, reusableArray.length);
+            buffer.getBytes(offset, reusableArray, 0, len);
+            writeBytes.readPositionRemaining(0, len);
             
             stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
-                wire.bytes().write(data);
+                wire.bytes().write(writeBytes);
                 wire.write("aeronSeq").int64(currentSeq);
             });
             

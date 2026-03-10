@@ -19,8 +19,9 @@ public class StateStore {
     private ChronicleMap<Long, Boolean> activeOrderIdMap;
     private ChronicleMap<Long, TradeRecord> tradeHistoryMap;
     private ChronicleMap<CidKey, Long> cidMap;
-    private ChronicleMap<String, SystemProgress> systemProgressMap; // 核心進度快照
-    
+    private ChronicleMap<Byte, SystemProgress> systemProgressMap; // 核心進度快照
+    private ChronicleMap<String, Long> systemStateMap; // 其他鬆散狀態
+
     private ChronicleQueue gwQueue;
     private ChronicleQueue coreQueue;
     private ChronicleQueue outboundQueue;
@@ -30,42 +31,25 @@ public class StateStore {
         String baseDir = "data/spot_exchange/";
         new File(baseDir).mkdirs();
 
-        balanceMap = ChronicleMap.of(BalanceKey.class, Balance.class)
-            .name("balance-map").entries(100_000)
-            .averageKey(new BalanceKey(0, 0)).averageValue(new Balance())
-            .createPersistedTo(new File(baseDir + "balances.dat"));
+        // ... 省略其他 Map 的初始化，保持不變 ...
+        balanceMap = ChronicleMap.of(BalanceKey.class, Balance.class).name("balance-map").entries(100_000).averageKey(new BalanceKey(0, 0)).averageValue(new Balance()).createPersistedTo(new File(baseDir + "balances.dat"));
+        userAssetIndexMap = ChronicleMap.of(Long.class, Long.class).name("user-asset-index").entries(100_000).averageKey(0L).averageValue(0L).createPersistedTo(new File(baseDir + "user_assets.dat"));
+        orderMap = ChronicleMap.of(Long.class, ActiveOrder.class).name("order-map").entries(1_000_000).averageKey(0L).averageValue(new ActiveOrder()).createPersistedTo(new File(baseDir + "orders.dat"));
+        activeOrderIdMap = ChronicleMap.of(Long.class, Boolean.class).name("active-orders-map").entries(100_000).averageKey(0L).averageValue(true).createPersistedTo(new File(baseDir + "active_orders.dat"));
+        tradeHistoryMap = ChronicleMap.of(Long.class, TradeRecord.class).name("trade-history-map").entries(1_000_000).averageKey(0L).averageValue(new TradeRecord()).createPersistedTo(new File(baseDir + "trades.dat"));
+        cidMap = ChronicleMap.of(CidKey.class, Long.class).name("cid-map").entries(1_000_000).averageKey(new CidKey(0, "placeholder")).averageValue(0L).createPersistedTo(new File(baseDir + "cid_index.dat"));
 
-        userAssetIndexMap = ChronicleMap.of(Long.class, Long.class)
-            .name("user-asset-index").entries(100_000)
-            .averageKey(0L).averageValue(0L)
-            .createPersistedTo(new File(baseDir + "user_assets.dat"));
-
-        orderMap = ChronicleMap.of(Long.class, ActiveOrder.class)
-            .name("order-map").entries(1_000_000)
-            .averageKey(0L).averageValue(new ActiveOrder())
-            .createPersistedTo(new File(baseDir + "orders.dat"));
-
-        activeOrderIdMap = ChronicleMap.of(Long.class, Boolean.class)
-            .name("active-orders-map").entries(100_000)
-            .averageKey(0L).averageValue(true)
-            .createPersistedTo(new File(baseDir + "active_orders.dat"));
-
-        tradeHistoryMap = ChronicleMap.of(Long.class, TradeRecord.class)
-            .name("trade-history-map").entries(1_000_000)
-            .averageKey(0L).averageValue(new TradeRecord())
-            .createPersistedTo(new File(baseDir + "trades.dat"));
-
-        cidMap = ChronicleMap.of(CidKey.class, Long.class)
-            .name("cid-map").entries(1_000_000)
-            .averageKey(new CidKey(0, "placeholder"))
-            .averageValue(0L)
-            .createPersistedTo(new File(baseDir + "cid_index.dat"));
-
-        systemProgressMap = ChronicleMap.of(String.class, SystemProgress.class)
+        systemProgressMap = ChronicleMap.of(Byte.class, SystemProgress.class)
             .name("system-progress-map").entries(10)
-            .averageKey("coreProgress")
+            .averageKey((byte) 1)
             .averageValue(new SystemProgress())
             .createPersistedTo(new File(baseDir + "system_progress.dat"));
+
+        systemStateMap = ChronicleMap.of(String.class, Long.class)
+            .name("system-state-map").entries(20)
+            .averageKey("lastProcessedSeq")
+            .averageValue(0L)
+            .createPersistedTo(new File(baseDir + "system_state.dat"));
 
         gwQueue = SingleChronicleQueueBuilder.binary(baseDir + "gw-queue").build();
         coreQueue = SingleChronicleQueueBuilder.binary(baseDir + "core-queue").build();
@@ -78,7 +62,8 @@ public class StateStore {
     public ChronicleMap<Long, Boolean> getActiveOrderIdMap() { return activeOrderIdMap; }
     public ChronicleMap<Long, TradeRecord> getTradeHistoryMap() { return tradeHistoryMap; }
     public ChronicleMap<CidKey, Long> getCidMap() { return cidMap; }
-    public ChronicleMap<String, SystemProgress> getSystemProgressMap() { return systemProgressMap; }
+    public ChronicleMap<Byte, SystemProgress> getSystemProgressMap() { return systemProgressMap; }
+    public ChronicleMap<String, Long> getSystemStateMap() { return systemStateMap; }
     public ChronicleQueue getGwQueue() { return gwQueue; }
     public ChronicleQueue getCoreQueue() { return coreQueue; }
     public ChronicleQueue getOutboundQueue() { return outboundQueue; }
