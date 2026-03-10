@@ -35,7 +35,7 @@ public class GatewayAeronSender extends BusySpinWorker {
         publisher = new AeronPublisher(aeron, "aeron:udp?endpoint=localhost:40444", 10);
         tailer = stateStore.getGwQueue().createTailer();
         // --- 深度優化：從持久化進度恢復 ---
-        Long lastSeq = stateStore.getSystemStateMap().get("lastGwAeronSeq");
+        Long lastSeq = stateStore.getSystemStateMap().get((byte)1);
         if (lastSeq != null && lastSeq > 0) tailer.moveToIndex(lastSeq);
     }
 
@@ -54,7 +54,7 @@ public class GatewayAeronSender extends BusySpinWorker {
                 idleStrategy.idle();
             }
             // 更新進度
-            stateStore.getSystemStateMap().put("lastGwAeronSeq", currentIndex);
+            stateStore.getSystemStateMap().put((byte)1, currentIndex);
         }) ? 1 : 0;
     }
 

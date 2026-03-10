@@ -72,10 +72,20 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
         } else if ("auth".equals(op)) {
             String userId = node.get("args").get("userId").asText();
             userSessions.put(userId, session);
+            session.getAttributes().put("userId", userId); // --- 修復：綁定屬性供斷線清理使用 ---
             stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
                 wire.write("msgType").int32(103);
                 wire.write("userId").int64(Long.parseLong(userId));
             });
+        }
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, org.springframework.web.socket.CloseStatus status) {
+        String userId = (String) session.getAttributes().get("userId");
+        if (userId != null) {
+            userSessions.remove(userId);
+            log.info("WebSocket 連線關閉，清理用戶資源: {}", userId);
         }
     }
 

@@ -34,24 +34,23 @@ public class LedgerProcessor {
     public void updateBalance(long userId, int assetId, long currentSeq, java.util.function.Consumer<Balance> action) {
         BalanceKey key = new BalanceKey(userId, assetId);
         
-        try (ExternalMapQueryContext<BalanceKey, Balance, ?> context = stateStore.getBalanceMap().queryContext(key)) {
-            context.writeLock().lock();
-            net.openhft.chronicle.map.MapEntry<BalanceKey, Balance> entry = context.entry();
-            
-            Balance balance = (entry == null) ? new Balance() : entry.value().get();
-            if (balance.getLastSeq() >= currentSeq) return;
-            
-            action.accept(balance);
-            balance.setVersion(balance.getVersion() + 1);
-            balance.setLastSeq(currentSeq);
-            
-            if (entry == null) {
-                context.insert(context.absentEntry(), context.wrapValueAsData(balance));
-                updateUserAssetIndex(userId, assetId);
-            } else {
-                entry.replaceValue(context.wrapValueAsData(balance));
-            }
+        Balance balance = stateStore.getBalanceMap().get(key);
+        if (balance == null) {
+            balance = new Balance();
+            balance.setAvailable(0);
+            balance.setFrozen(0);
+            balance.setVersion(0);
+            balance.setLastSeq(-1);
         }
+        
+        if (balance.getLastSeq() >= currentSeq) return;
+        
+        action.accept(balance);
+        balance.setVersion(balance.getVersion() + 1);
+        balance.setLastSeq(currentSeq);
+        
+        stateStore.getBalanceMap().put(key, balance);
+        updateUserAssetIndex(userId, assetId);
     }
 
     private void updateUserAssetIndex(long userId, int assetId) {

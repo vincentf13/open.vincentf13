@@ -33,7 +33,7 @@ public class EventPublisher extends BusySpinWorker {
     @Override
     protected void onStart() {
         this.tailer = stateStore.getOutboundQueue().createTailer();
-        Long lastSeq = stateStore.getSystemStateMap().get("lastPublishedSeq");
+        Long lastSeq = stateStore.getSystemStateMap().get((byte)3);
         if (lastSeq != null && lastSeq > 0) tailer.moveToIndex(lastSeq);
     }
 
@@ -58,7 +58,7 @@ public class EventPublisher extends BusySpinWorker {
                 );
                 wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
             }
-            stateStore.getSystemStateMap().put("lastPublishedSeq", currentIndex);
+            stateStore.getSystemStateMap().put((byte)3, currentIndex);
         }) ? 1 : 0;
     }
 

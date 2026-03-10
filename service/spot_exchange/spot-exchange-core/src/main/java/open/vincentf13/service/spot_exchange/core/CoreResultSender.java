@@ -36,7 +36,7 @@ public class CoreResultSender extends BusySpinWorker {
         publisher = new AeronPublisher(aeron, "aeron:udp?endpoint=localhost:40445", 30);
         tailer = stateStore.getOutboundQueue().createTailer();
         // --- 深度優化：從持久化進度恢復 ---
-        Long lastSent = stateStore.getSystemStateMap().get("lastCoreResultSeq");
+        Long lastSent = stateStore.getSystemStateMap().get((byte) 4);
         if (lastSent != null && lastSent > 0) tailer.moveToIndex(lastSent);
     }
 
@@ -54,7 +54,7 @@ public class CoreResultSender extends BusySpinWorker {
                 idleStrategy.idle();
             }
             // 更新進度
-            stateStore.getSystemStateMap().put("lastCoreResultSeq", currentIndex);
+            stateStore.getSystemStateMap().put((byte) 4, currentIndex);
         }) ? 1 : 0;
     }
 

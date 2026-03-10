@@ -35,7 +35,7 @@ public class GatewayResultReceiver extends BusySpinWorker {
         subscription = aeron.addSubscription("aeron:udp?endpoint=localhost:40445", 30);
         
         // 恢復上次處理進度 (從系統狀態讀取)
-        this.lastReceivedSeq = stateStore.getSystemStateMap().getOrDefault("lastGwResultSeq", -1L);
+        this.lastReceivedSeq = stateStore.getSystemStateMap().getOrDefault((byte)2, -1L);
 
         fragmentHandler = (buffer, offset, length, header) -> {
             long currentSeq = header.position();
@@ -52,7 +52,7 @@ public class GatewayResultReceiver extends BusySpinWorker {
             });
             
             lastReceivedSeq = currentSeq;
-            stateStore.getSystemStateMap().put("lastGwResultSeq", currentSeq);
+            stateStore.getSystemStateMap().put((byte)2, currentSeq);
         };
     }
 

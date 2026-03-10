@@ -20,7 +20,7 @@ public class StateStore {
     private ChronicleMap<Long, TradeRecord> tradeHistoryMap;
     private ChronicleMap<CidKey, Long> cidMap;
     private ChronicleMap<Byte, SystemProgress> systemProgressMap; // 核心進度快照
-    private ChronicleMap<String, Long> systemStateMap; // 其他鬆散狀態
+    private ChronicleMap<Byte, Long> systemStateMap; // 其他鬆散狀態
 
     private ChronicleQueue gwQueue;
     private ChronicleQueue coreQueue;
@@ -45,9 +45,9 @@ public class StateStore {
             .averageValue(new SystemProgress())
             .createPersistedTo(new File(baseDir + "system_progress.dat"));
 
-        systemStateMap = ChronicleMap.of(String.class, Long.class)
+        systemStateMap = ChronicleMap.of(Byte.class, Long.class)
             .name("system-state-map").entries(20)
-            .averageKey("lastProcessedSeq")
+            .averageKey((byte) 1)
             .averageValue(0L)
             .createPersistedTo(new File(baseDir + "system_state.dat"));
 
@@ -63,7 +63,7 @@ public class StateStore {
     public ChronicleMap<Long, TradeRecord> getTradeHistoryMap() { return tradeHistoryMap; }
     public ChronicleMap<CidKey, Long> getCidMap() { return cidMap; }
     public ChronicleMap<Byte, SystemProgress> getSystemProgressMap() { return systemProgressMap; }
-    public ChronicleMap<String, Long> getSystemStateMap() { return systemStateMap; }
+    public ChronicleMap<Byte, Long> getSystemStateMap() { return systemStateMap; }
     public ChronicleQueue getGwQueue() { return gwQueue; }
     public ChronicleQueue getCoreQueue() { return coreQueue; }
     public ChronicleQueue getOutboundQueue() { return outboundQueue; }
