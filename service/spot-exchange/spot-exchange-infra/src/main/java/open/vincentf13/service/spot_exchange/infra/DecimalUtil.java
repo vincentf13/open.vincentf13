@@ -15,19 +15,22 @@ public class DecimalUtil {
     public static long mulFloor(long a, long b) {
         if (a == 0 || b == 0) return 0;
         
-        long aInt = a / SCALE;
-        long aFrac = a % SCALE;
-        
-        // Zero-GC Fast Path: 對絕大多數不超過 900 萬的乘數進行純 long 運算
-        if (aFrac == 0 || b <= 90_000_000_000L) {
-            return aInt * b + (aFrac * b) / SCALE;
+        try {
+            long aInt = a / SCALE;
+            long aFrac = a % SCALE;
+            
+            // Fast Path: 利用 Math.multiplyExact 自動檢測溢出
+            long res1 = Math.multiplyExact(aInt, b);
+            long prod2 = Math.multiplyExact(aFrac, b);
+            
+            return Math.addExact(res1, prod2 / SCALE);
+        } catch (ArithmeticException e) {
+            // 巨鯨交易回退至 BigInteger 防溢出
+            return BigInteger.valueOf(a)
+                    .multiply(BigInteger.valueOf(b))
+                    .divide(SCALE_BI)
+                    .longValue();
         }
-
-        // 巨鯨交易回退至 BigInteger 防溢出
-        return BigInteger.valueOf(a)
-                .multiply(BigInteger.valueOf(b))
-                .divide(SCALE_BI)
-                .longValue();
     }
 
     /** 
@@ -36,21 +39,23 @@ public class DecimalUtil {
     public static long mulCeil(long a, long b) {
         if (a == 0 || b == 0) return 0;
         
-        long aInt = a / SCALE;
-        long aFrac = a % SCALE;
-        
-        if (aFrac == 0 || b <= 90_000_000_000L) {
-            long fracProd = aFrac * b;
-            long res = aInt * b + fracProd / SCALE;
-            if (fracProd % SCALE > 0) res++;
-            return res;
+        try {
+            long aInt = a / SCALE;
+            long aFrac = a % SCALE;
+            
+            long res1 = Math.multiplyExact(aInt, b);
+            long prod2 = Math.multiplyExact(aFrac, b);
+            long res2 = prod2 / SCALE;
+            if (prod2 % SCALE > 0) res2++;
+            
+            return Math.addExact(res1, res2);
+        } catch (ArithmeticException e) {
+            BigInteger res = BigInteger.valueOf(a).multiply(BigInteger.valueOf(b));
+            BigInteger[] divRem = res.divideAndRemainder(SCALE_BI);
+            if (divRem[1].signum() > 0) {
+                return divRem[0].add(BigInteger.ONE).longValue();
+            }
+            return divRem[0].longValue();
         }
-
-        BigInteger res = BigInteger.valueOf(a).multiply(BigInteger.valueOf(b));
-        BigInteger[] divRem = res.divideAndRemainder(SCALE_BI);
-        if (divRem[1].signum() > 0) {
-            return divRem[0].add(BigInteger.ONE).longValue();
-        }
-        return divRem[0].longValue();
     }
 }

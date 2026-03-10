@@ -9,6 +9,8 @@ import open.vincentf13.service.spot_exchange.infra.*;
 import open.vincentf13.service.spot_exchange.model.SystemProgress;
 import open.vincentf13.service.spot_exchange.sbe.ExecutionReportDecoder;
 
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
+import java.util.Map;
 import java.nio.ByteBuffer;
 
 import static open.vincentf13.service.spot_exchange.infra.ExchangeConstants.*;
@@ -30,37 +32,58 @@ public class EventPublisher extends BusySpinWorker {
     }
 
     @PostConstruct public void init() { start("event-publisher"); }
-@Override
-protected void onStart() {
-    this.tailer = stateStore.getOutboundQueue().createTailer();
-    SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_PUB_PUSH_SEQ);
-    if (saved != null) tailer.moveToIndex(saved.getLastProcessedSeq());
-}
-
-@Override
-protected int doWork() {
-    return tailer.readDocument(wire -> {
-        long seq = tailer.index();
-        int msgType = wire.read("msgType").int32();
-
-        if (msgType == executionDecoder.sbeTemplateId()) {
-            reusableBytes.clear();
-            wire.read("payload").bytes(reusableBytes);
-            payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
-            SbeCodec.decode(payloadBuffer, 0, executionDecoder);
-
-            String json = String.format(
-                "{\"topic\":\"execution\",\"data\":{\"orderId\":%d,\"status\":\"%s\",\"cid\":\"%s\"}}",
-                executionDecoder.orderId(), executionDecoder.status(), executionDecoder.clientOrderId()
-            );
-            wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
+    
+    @Override
+    protected void onStart() {
+        this.tailer = stateStore.getOutboundQueue().createTailer();
+        SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_PUB_PUSH_SEQ);
+        if (saved != null) {
+            progress.setLastProcessedSeq(saved.getLastProcessedSeq());
+            tailer.moveToIndex(progress.getLastProcessedSeq());
+        } else {
+            progress.setLastProcessedSeq(-1L);
         }
-        progress.setLastProcessedSeq(seq);
-        stateStore.getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
-    }) ? 1 : 0;
-}
+    }
+
+    @Override
+    protected int doWork() {
+        boolean handled = tailer.readDocument(wire -> {
+            long seq = tailer.index();
+            int msgType = wire.read("msgType").int32();
+
+            if (msgType == executionDecoder.sbeTemplateId()) {
+                reusableBytes.clear();
+                wire.read("payload").bytes(reusableBytes);
+                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
+                SbeCodec.decode(payloadBuffer, 0, executionDecoder);
+
+                Map<String, Object> data = Map.of(
+                    "orderId", executionDecoder.orderId(),
+                    "status", executionDecoder.status().toString(),
+                    "cid", executionDecoder.clientOrderId(),
+                    "userId", executionDecoder.userId()
+                );
+                String json = OpenObjectMapper.writeValueAsString(Map.of("topic", "execution", "data", data));
+                wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
+            }
+            progress.setLastProcessedSeq(seq);
+        });
+
+        if (handled) {
+            return 1;
+        } else {
+            if (progress.getLastProcessedSeq() != -1) {
+                stateStore.getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
+            }
+            return 0;
+        }
+    }
+
     @Override
     protected void onStop() { 
+        if (progress.getLastProcessedSeq() != -1) {
+            stateStore.getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
+        }
         reusableBytes.releaseLast(); 
     }
 }

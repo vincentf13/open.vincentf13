@@ -14,7 +14,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class BusySpinWorker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
-    protected final IdleStrategy idleStrategy = new BackoffIdleStrategy();
+    protected IdleStrategy idleStrategy = new BackoffIdleStrategy();
+
+    public void setIdleStrategy(IdleStrategy strategy) {
+        this.idleStrategy = strategy;
+    }
 
     public void start(String threadName) {
         if (running.compareAndSet(false, true)) {

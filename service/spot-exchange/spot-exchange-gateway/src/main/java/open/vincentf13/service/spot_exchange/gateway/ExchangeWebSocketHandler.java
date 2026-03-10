@@ -1,7 +1,7 @@
 package open.vincentf13.service.spot_exchange.gateway;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import open.vincentf13.service.spot_exchange.infra.SbeCodec;
 import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.sbe.OrderCreateEncoder;
@@ -22,11 +22,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(ExchangeWebSocketHandler.class);
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private final StateStore stateStore;
     private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
 
-    // --- 深度優化：使用 ThreadLocal 管理 Chronicle Bytes，徹底消除 Zero-GC 漏洞 ---
+    // --- 使用 ThreadLocal 管理 Chronicle Bytes 與 SBE Encoder ---
     private static final ThreadLocal<Bytes<ByteBuffer>> BYTES_CACHE = 
         ThreadLocal.withInitial(() -> Bytes.elasticByteBuffer(512));
     private static final ThreadLocal<UnsafeBuffer> BUFFER_CACHE = 
@@ -39,45 +38,65 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        JsonNode node = objectMapper.readTree(message.getPayload());
-        String op = node.get("op").asText();
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        try {
+            JsonNode node = OpenObjectMapper.readTree(message.getPayload());
+            String op = node.has("op") ? node.get("op").asText() : "";
 
-        if ("order.create".equals(op)) {
-            Bytes<ByteBuffer> bytes = BYTES_CACHE.get();
-            bytes.clear();
-            
-            UnsafeBuffer buffer = BUFFER_CACHE.get();
-            // 讓 UnsafeBuffer 映射到 Chronicle Bytes 的底層地址
-            buffer.wrap(bytes.addressForWrite(0), (int)bytes.realCapacity());
-            
-            OrderCreateEncoder encoder = ENCODER_CACHE.get();
-
-            int len = SbeCodec.encode(buffer, 0, encoder
-                .timestamp(System.currentTimeMillis())
-                .userId(node.get("params").get("userId").asLong())
-                .symbolId(node.get("params").get("symbolId").asLong())
-                .price(node.get("params").get("price").asLong())
-                .qty(node.get("params").get("qty").asLong())
-                .side(Side.get((short) node.get("params").get("side").asInt()))
-                .clientOrderId(node.get("cid").asText()));
-
-            // 設定實際寫入長度
-            bytes.writePosition(len);
-
-            stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
-                wire.write("msgType").int32(encoder.sbeTemplateId());
-                wire.write("payload").bytes(bytes);
-            });
-        } else if ("auth".equals(op)) {
-            String userId = node.get("args").get("userId").asText();
-            userSessions.put(userId, session);
-            session.getAttributes().put("userId", userId); // --- 修復：綁定屬性供斷線清理使用 ---
-            stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
-                wire.write("msgType").int32(103);
-                wire.write("userId").int64(Long.parseLong(userId));
-            });
+            if ("order.create".equals(op)) {
+                handleOrderCreate(node);
+            } else if ("auth".equals(op)) {
+                handleAuth(session, node);
+            } else {
+                log.warn("Unknown operation: {}", op);
+            }
+        } catch (Exception e) {
+            log.error("Handle WS message error: {}", e.getMessage(), e);
         }
+    }
+
+    private void handleOrderCreate(JsonNode node) {
+        JsonNode params = node.get("params");
+        if (params == null) return;
+
+        Bytes<ByteBuffer> bytes = BYTES_CACHE.get();
+        bytes.clear();
+        
+        UnsafeBuffer buffer = BUFFER_CACHE.get();
+        buffer.wrap(bytes.addressForWrite(0), (int)bytes.realCapacity());
+        
+        OrderCreateEncoder encoder = ENCODER_CACHE.get();
+
+        int len = SbeCodec.encode(buffer, 0, encoder
+            .timestamp(System.currentTimeMillis())
+            .userId(params.get("userId").asLong())
+            .symbolId(params.get("symbolId").asLong())
+            .price(params.get("price").asLong())
+            .qty(params.get("qty").asLong())
+            .side(Side.get((short) params.get("side").asInt()))
+            .clientOrderId(node.get("cid").asText()));
+
+        bytes.writePosition(len);
+
+        stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
+            wire.write("msgType").int32(encoder.sbeTemplateId());
+            wire.write("payload").bytes(bytes);
+        });
+    }
+
+    private void handleAuth(WebSocketSession session, JsonNode node) {
+        JsonNode args = node.get("args");
+        if (args == null || !args.has("userId")) return;
+
+        String userId = args.get("userId").asText();
+        userSessions.put(userId, session);
+        session.getAttributes().put("userId", userId);
+        
+        stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
+            wire.write("msgType").int32(103);
+            wire.write("userId").int64(Long.parseLong(userId));
+        });
+        log.info("User auth success: {}", userId);
     }
 
     @Override
@@ -85,15 +104,18 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
         String userId = (String) session.getAttributes().get("userId");
         if (userId != null) {
             userSessions.remove(userId);
-            log.info("WebSocket 連線關閉，清理用戶資源: {}", userId);
+            log.info("WebSocket closed, clean user resource: {}", userId);
         }
     }
 
     public void sendMessage(String userId, String json) {
         WebSocketSession session = userSessions.get(userId);
         if (session != null && session.isOpen()) {
-            try { session.sendMessage(new TextMessage(json)); } 
-            catch (Exception e) { log.error("WS Push Error: {}", userId, e); }
+            try { 
+                session.sendMessage(new TextMessage(json)); 
+            } catch (Exception e) { 
+                log.error("WS Push Error for user {}: {}", userId, e.getMessage()); 
+            }
         }
     }
 }

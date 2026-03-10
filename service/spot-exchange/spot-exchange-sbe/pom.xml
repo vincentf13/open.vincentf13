@@ -34,7 +34,7 @@
                             <systemProperties>
                                 <systemProperty>
                                     <key>sbe.output.dir</key>
-                                    <value>${project.build.sourceDirectory}</value>
+                                    <value>${project.build.directory}/generated-sources/java</value>
                                 </systemProperty>
                                 <systemProperty>
                                     <key>sbe.target.language</key>
@@ -44,6 +44,22 @@
                             <arguments>
                                 <argument>${project.basedir}/src/main/resources/sbe/exchange-schema.xml</argument>
                             </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals><goal>add-source</goal></goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/java</source>
+                            </sources>
                         </configuration>
                     </execution>
                 </executions>

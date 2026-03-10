@@ -13,6 +13,15 @@ import java.io.IOException;
 
 @Component
 public class StateStore {
+    @Value("${state.base-dir:data/spot-exchange/}")
+    private String baseDir;
+
+    @Value("${state.entries.orders:1000000}")
+    private int orderEntries;
+
+    @Value("${state.entries.balances:100000}")
+    private int balanceEntries;
+
     private ChronicleMap<BalanceKey, Balance> balanceMap;
     private ChronicleMap<Long, Long> userAssetIndexMap;
     private ChronicleMap<Long, ActiveOrder> orderMap;
@@ -29,26 +38,53 @@ public class StateStore {
 
     @PostConstruct
     public void init() throws IOException {
-        String baseDir = "data/spot-exchange/";
+        if (!baseDir.endsWith("/")) baseDir += "/";
         new File(baseDir).mkdirs();
 
-        balanceMap = createMap(baseDir + "balances.dat", BalanceKey.class, Balance.class, "balances", 100_000);
-        userAssetIndexMap = createMap(baseDir + "user_assets.dat", Long.class, Long.class, "user-assets", 100_000);
-        orderMap = createMap(baseDir + "orders.dat", Long.class, ActiveOrder.class, "orders", 1_000_000);
-        activeOrderIdMap = createMap(baseDir + "active_orders.dat", Long.class, Boolean.class, "active-idx", 100_000);
-        tradeHistoryMap = createMap(baseDir + "trades.dat", Long.class, TradeRecord.class, "trades", 1_000_000);
-        cidMap = createMap(baseDir + "cid_idx.dat", CidKey.class, Long.class, "cid-idx", 1_000_000);
+        balanceMap = ChronicleMap.of(BalanceKey.class, Balance.class)
+                .name("balances")
+                .entries(balanceEntries)
+                .averageKey(new BalanceKey())
+                .averageValue(new Balance())
+                .createPersistedTo(new File(baseDir + "balances.dat"));
+
+        userAssetIndexMap = ChronicleMap.of(Long.class, Long.class)
+                .name("user-assets")
+                .entries(balanceEntries)
+                .createPersistedTo(new File(baseDir + "user_assets.dat"));
+
+        orderMap = ChronicleMap.of(Long.class, ActiveOrder.class)
+                .name("orders")
+                .entries(orderEntries)
+                .averageValue(new ActiveOrder()) // ActiveOrder 內含 String，建議給予樣本或平均大小
+                .createPersistedTo(new File(baseDir + "orders.dat"));
+
+        activeOrderIdMap = ChronicleMap.of(Long.class, Boolean.class)
+                .name("active-idx")
+                .entries(orderEntries)
+                .createPersistedTo(new File(baseDir + "active_orders.dat"));
+
+        tradeHistoryMap = ChronicleMap.of(Long.class, TradeRecord.class)
+                .name("trades")
+                .entries(orderEntries)
+                .averageValue(new TradeRecord())
+                .createPersistedTo(new File(baseDir + "trades.dat"));
+
+        cidMap = ChronicleMap.of(CidKey.class, Long.class)
+                .name("cid-idx")
+                .entries(orderEntries)
+                .averageKey(new CidKey())
+                .createPersistedTo(new File(baseDir + "cid_idx.dat"));
         
-        // 儲存進度、計數器等元數據
-        systemMetadataMap = createMap(baseDir + "system_metadata.dat", Byte.class, SystemProgress.class, "metadata", 100);
+        systemMetadataMap = ChronicleMap.of(Byte.class, SystemProgress.class)
+                .name("metadata")
+                .entries(100)
+                .averageValue(new SystemProgress())
+                .createPersistedTo(new File(baseDir + "system_metadata.dat"));
 
         gwQueue = SingleChronicleQueueBuilder.binary(baseDir + "gw-queue").build();
         coreQueue = SingleChronicleQueueBuilder.binary(baseDir + "core-queue").build();
         outboundQueue = SingleChronicleQueueBuilder.binary(baseDir + "outbound-queue").build();
-    }
-
-    private <K, V> ChronicleMap<K, V> createMap(String path, Class<K> k, Class<V> v, String name, int entries) throws IOException {
-        return ChronicleMap.of(k, v).name(name).entries(entries).createPersistedTo(new File(path));
     }
 
     public ChronicleMap<BalanceKey, Balance> getBalanceMap() { return balanceMap; }

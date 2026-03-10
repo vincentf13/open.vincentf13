@@ -15,9 +15,7 @@ public class ExchangeConstants {
     public static final byte PK_PUB_PUSH_SEQ = 4;      // WebSocket 推送位點
     public static final byte PK_CORE_OUTBOUND_SEQ = 5; // 核心回報發送位點 (Stream 30)
 
-    // --- Aeron 頻道 ---
-    public static final String INBOUND_CHANNEL = "aeron:udp?endpoint=localhost:40444";
-    public static final String OUTBOUND_CHANNEL = "aeron:udp?endpoint=localhost:40445";
+    // --- Aeron 頻道 (預設值，建議透過配置覆蓋) ---
     public static final int INBOUND_STREAM_ID = 10;
     public static final int OUTBOUND_STREAM_ID = 30;
 

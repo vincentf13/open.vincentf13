@@ -16,7 +16,6 @@ import org.springframework.context.annotation.ComponentScan;
 })
 public class SpotGatewayApplication {
     public static void main(String[] args) {
-        System.setProperty("server.port", "8081");
         SpringApplication.run(SpotGatewayApplication.class, args);
     }
 }

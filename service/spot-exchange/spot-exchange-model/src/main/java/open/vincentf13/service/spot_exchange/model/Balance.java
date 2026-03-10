@@ -1,7 +1,10 @@
 package open.vincentf13.service.spot_exchange.model;
 
 import lombok.Data;
+import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
+import net.openhft.chronicle.bytes.BytesOut;
+import org.jetbrains.annotations.NotNull;
 
 /** 
   用戶資產餘額數據結構
@@ -12,4 +15,20 @@ public class Balance implements BytesMarshallable {
     private long frozen;
     private long version;
     private long lastSeq; // 最後更新此餘額的 WAL Sequence ID
+
+    @Override
+    public void writeMarshallable(@NotNull BytesOut<?> bytes) {
+        bytes.writeLong(available);
+        bytes.writeLong(frozen);
+        bytes.writeLong(version);
+        bytes.writeLong(lastSeq);
+    }
+
+    @Override
+    public void readMarshallable(@NotNull BytesIn<?> bytes) {
+        available = bytes.readLong();
+        frozen = bytes.readLong();
+        version = bytes.readLong();
+        lastSeq = bytes.readLong();
+    }
 }

@@ -49,15 +49,23 @@ public class GatewayResultReceiver extends BusySpinWorker {
             });
 
             progress.setLastProcessedSeq(currentSeq);
-            stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
         };
     }
 
     @Override
     protected int doWork() {
-        return subscription.poll(fragmentHandler, 10);
+        int poll = subscription.poll(fragmentHandler, 10);
+        if (poll == 0 && progress.getLastProcessedSeq() != -1) {
+            stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
+        }
+        return poll;
     }
 
     @Override
-    protected void onStop() { if (subscription != null) subscription.close(); }
+    protected void onStop() { 
+        if (progress.getLastProcessedSeq() != -1) {
+            stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
+        }
+        if (subscription != null) subscription.close(); 
+    }
 }

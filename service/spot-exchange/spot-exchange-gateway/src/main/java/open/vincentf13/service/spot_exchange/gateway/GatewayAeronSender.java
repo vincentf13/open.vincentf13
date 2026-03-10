@@ -55,13 +55,27 @@ public class GatewayAeronSender extends BusySpinWorker {
                 idleStrategy.idle();
             }
             progress.setLastProcessedSeq(seq);
-            stateStore.getSystemMetadataMap().put(PK_GW_INBOUND_SEQ, progress);
         });
-        return handled ? 1 : 0;
+
+        if (handled) {
+            // 每處理一條訊息後，視情況決定是否持久化位點（此處可進一步加入批次邏輯）
+            // 為了簡單起見，我們在 doWork 返回 1 時，讓 BusySpinWorker 的 idleStrategy 處理
+            // 我們在 onStop 中確保最後一次位點被寫入
+            return 1;
+        } else {
+            // 空閒時持久化位點
+            if (progress.getLastProcessedSeq() != -1) {
+                stateStore.getSystemMetadataMap().put(PK_GW_INBOUND_SEQ, progress);
+            }
+            return 0;
+        }
     }
 
     @Override
     protected void onStop() { 
+        if (progress.getLastProcessedSeq() != -1) {
+            stateStore.getSystemMetadataMap().put(PK_GW_INBOUND_SEQ, progress);
+        }
         if (publisher != null) publisher.close();
         reusableBytes.releaseLast(); 
     }

@@ -19,13 +19,22 @@ public class AeronConfig {
     @Value("${aeron.dir:data/spot-exchange/aeron}")
     private String aeronDir;
 
+    @Value("${aeron.inbound.channel:aeron:udp?endpoint=localhost:40444}")
+    private String inboundChannel;
+
+    @Value("${aeron.outbound.channel:aeron:udp?endpoint=localhost:40445}")
+    private String outboundChannel;
+
+    @Value("${aeron.threading-mode:SHARED}")
+    private String threadingMode;
+
     @Bean
     public Aeron aeron() {
         // --- 深度優化：指定固定目錄，避免多服務啟動衝突 ---
         MediaDriver.Context ctx = new MediaDriver.Context()
-                .threadingMode(ThreadingMode.SHARED)
+                .threadingMode(ThreadingMode.valueOf(threadingMode))
                 .aeronDirectoryName(aeronDir)
-                .dirDeleteOnStart(true); // 注意：生產環境應由外部獨立啟動 MediaDriver
+                .dirDeleteOnStart(true); 
 
         driver = MediaDriver.launchEmbedded(ctx);
         
@@ -33,6 +42,9 @@ public class AeronConfig {
                 .aeronDirectoryName(driver.aeronDirectoryName()));
         return aeron;
     }
+
+    public String getInboundChannel() { return inboundChannel; }
+    public String getOutboundChannel() { return outboundChannel; }
 
     @PreDestroy
     public void close() {
