@@ -8,21 +8,21 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.codec.SbeCodec;
-import open.vincentf13.service.spot.infra.worker.BusySpinWorker;
-import open.vincentf13.service.spot.infra.store.StateStore;
+import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.infra.Worker;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.SystemProgress;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
 
-import static open.vincentf13.service.spot.infra.constant.ExchangeConstants.PK_PUB_PUSH_SEQ;
+import static open.vincentf13.service.spot.infra.Constants.PK_PUB_PUSH_SEQ;
 
 @Component
-public class PushWorker extends BusySpinWorker {
+public class PushWorker extends Worker {
     private static final Logger log = LoggerFactory.getLogger(PushWorker.class);
-    private final StateStore stateStore;
+    private final Storage storage;
     private final WsHandler wsHandler;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private ExcerptTailer tailer;
@@ -32,8 +32,8 @@ public class PushWorker extends BusySpinWorker {
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public PushWorker(StateStore stateStore, WsHandler wsHandler) {
-        this.stateStore = stateStore;
+    public PushWorker(Storage storage, WsHandler wsHandler) {
+        this.storage = storage;
         this.wsHandler = wsHandler;
     }
 
@@ -41,8 +41,8 @@ public class PushWorker extends BusySpinWorker {
     
     @Override
     protected void onStart() {
-        this.tailer = stateStore.getOutboundQueue().createTailer();
-        SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_PUB_PUSH_SEQ);
+        this.tailer = storage.resultQueue().createTailer();
+        SystemProgress saved = storage.metadata().get(PK_PUB_PUSH_SEQ);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -77,11 +77,13 @@ public class PushWorker extends BusySpinWorker {
                 }
             }
             progress.setLastProcessedSeq(seq);
-            stateStore.getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
+            storage.metadata().put(PK_PUB_PUSH_SEQ, progress);
         });
         return handled ? 1 : 0;
     }
 
     @Override
-    protected void onStop() { reusableBytes.releaseLast(); }
+    protected void onStop() { 
+        reusableBytes.releaseLast(); 
+    }
 }

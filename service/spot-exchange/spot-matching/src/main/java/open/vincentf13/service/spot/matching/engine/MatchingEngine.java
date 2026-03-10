@@ -7,10 +7,10 @@ import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.worker.BusySpinWorker;
+import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
-import open.vincentf13.service.spot.infra.codec.SbeCodec;
-import open.vincentf13.service.spot.infra.store.StateStore;
+import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.matching.logic.OrderBook;
 import open.vincentf13.service.spot.matching.processor.LedgerProcessor;
 import open.vincentf13.service.spot.model.*;
@@ -19,14 +19,11 @@ import open.vincentf13.service.spot.sbe.*;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-import static open.vincentf13.service.spot.infra.constant.ExchangeConstants.*;
+import static open.vincentf13.service.spot.infra.Constants.*;
 
-/** 
-  撮合引擎 (核心狀態機)
- */
 @Component
-public class MatchingEngine extends BusySpinWorker {
-    private final StateStore stateStore;
+public class MatchingEngine extends Worker {
+    private final Storage storage;
     private final LedgerProcessor ledger;
     private final Int2ObjectHashMap<OrderBook> books = new Int2ObjectHashMap<>();
     private final Long2ObjectHashMap<ActiveOrder> activeOrderIndex = new Long2ObjectHashMap<>();
@@ -44,16 +41,16 @@ public class MatchingEngine extends BusySpinWorker {
     private final Bytes<ByteBuffer> outboundBytes = Bytes.elasticByteBuffer(1024);
     private final UnsafeBuffer outboundSbeBuffer = new UnsafeBuffer(0, 0);
 
-    public MatchingEngine(StateStore stateStore, LedgerProcessor ledger) {
-        this.stateStore = stateStore; this.ledger = ledger;
+    public MatchingEngine(Storage storage, LedgerProcessor ledger) {
+        this.storage = storage; this.ledger = ledger;
     }
 
     @PostConstruct public void init() { start("matching-engine"); }
 
     @Override
     protected void onStart() {
-        this.tailer = stateStore.getCoreQueue().createTailer();
-        SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_CORE_PROGRESS);
+        this.tailer = storage.commandQueue().createTailer();
+        SystemProgress saved = storage.metadata().get(PK_CORE_PROGRESS);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -62,13 +59,12 @@ public class MatchingEngine extends BusySpinWorker {
             progress.setOrderIdCounter(1); progress.setTradeIdCounter(1);
         }
 
-        log.info("正在執行系統啟動校驗...");
-        stateStore.getActiveOrderIdMap().keySet().forEach(id -> {
-            ActiveOrder o = stateStore.getOrderMap().get(id);
+        storage.activeOrders().keySet().forEach(id -> {
+            ActiveOrder o = storage.orders().get(id);
             if (o != null && o.getStatus() < 2) {
                 books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
                 activeOrderIndex.put(id, o);
-            } else stateStore.getActiveOrderIdMap().remove(id);
+            } else storage.activeOrders().remove(id);
         });
 
         if (progress.getLastProcessedSeq() > 0) {
@@ -91,7 +87,7 @@ public class MatchingEngine extends BusySpinWorker {
             else if (msgType == MSG_TYPE_ORDER_CANCEL) dispatchOrderCancel(seq);
 
             progress.setLastProcessedSeq(seq);
-            stateStore.getSystemMetadataMap().put(PK_CORE_PROGRESS, progress);
+            storage.metadata().put(PK_CORE_PROGRESS, progress);
         });
         if (!handled && isReplaying) isReplaying = false;
         return handled ? 1 : 0;
@@ -101,21 +97,21 @@ public class MatchingEngine extends BusySpinWorker {
         SbeCodec.decode(payloadBuffer, 0, createDecoder);
         String cid = createDecoder.clientOrderId();
         CidKey key = new CidKey(createDecoder.userId(), cid);
-        Long resId = stateStore.getCidMap().get(key);
+        Long resId = storage.cids().get(key);
         if (resId != null) {
             if (!isReplaying) resendReport(resId, createDecoder.userId(), cid, createDecoder.timestamp());
             return;
         }
-        stateStore.getCidMap().put(key, handleOrderCreate(createDecoder, seq, cid));
+        storage.cids().put(key, handleOrderCreate(createDecoder, seq, cid));
     }
 
     private void dispatchOrderCancel(long seq) {
         SbeCodec.decode(payloadBuffer, 0, cancelDecoder);
         String cid = cancelDecoder.clientOrderId();
         CidKey key = new CidKey(cancelDecoder.userId(), cid);
-        if (stateStore.getCidMap().containsKey(key)) return;
+        if (storage.cids().containsKey(key)) return;
         handleOrderCancel(cancelDecoder, seq, cid);
-        stateStore.getCidMap().put(key, ID_REJECTED);
+        storage.cids().put(key, ID_REJECTED);
     }
 
     private long handleOrderCreate(OrderCreateDecoder sbe, long seq, String cid) {
@@ -173,11 +169,11 @@ public class MatchingEngine extends BusySpinWorker {
     }
 
     private void persistOrder(ActiveOrder o) {
-        ActiveOrder ex = stateStore.getOrderMap().get(o.getOrderId());
+        ActiveOrder ex = storage.orders().get(o.getOrderId());
         if (ex == null || ex.getLastSeq() < o.getLastSeq()) {
-            stateStore.getOrderMap().put(o.getOrderId(), o);
-            if (o.getStatus() < 2) stateStore.getActiveOrderIdMap().put(o.getOrderId(), true);
-            else stateStore.getActiveOrderIdMap().remove(o.getOrderId());
+            storage.orders().put(o.getOrderId(), o);
+            if (o.getStatus() < 2) storage.activeOrders().put(o.getOrderId(), true);
+            else storage.activeOrders().remove(o.getOrderId());
         }
     }
 
@@ -202,7 +198,7 @@ public class MatchingEngine extends BusySpinWorker {
         outboundSbeBuffer.wrap(outboundBytes.addressForWrite(0), (int)outboundBytes.realCapacity());
         int len = SbeCodec.encode(outboundSbeBuffer, 0, executionEncoder.timestamp(ts).userId(uid).orderId(oid).status(s).lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid));
         outboundBytes.writePosition(len);
-        stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
+        storage.resultQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(executionEncoder.sbeTemplateId()); wire.write("payload").bytes(outboundBytes);
         });
     }
@@ -210,7 +206,7 @@ public class MatchingEngine extends BusySpinWorker {
     private void resendReport(long oid, long uid, String cid, long ts) {
         if (oid == ID_REJECTED) sendReport(uid, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
         else {
-            ActiveOrder o = stateStore.getOrderMap().get(oid);
+            ActiveOrder o = storage.orders().get(oid);
             if (o != null) {
                 OrderStatus s = (o.getStatus() == 2) ? OrderStatus.FILLED : (o.getStatus() == 3) ? OrderStatus.CANCELED : (o.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
                 sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, ts);
@@ -219,10 +215,10 @@ public class MatchingEngine extends BusySpinWorker {
     }
 
     private void persistTrade(OrderBook.TradeEvent t, long tid, long ts, long seq) {
-        TradeRecord r = stateStore.getTradeHistoryMap().get(tid);
+        TradeRecord r = storage.trades().get(tid);
         if (r == null || r.getLastSeq() < seq) {
             r = new TradeRecord(); r.setTradeId(tid); r.setOrderId(t.makerOrderId); r.setPrice(t.price); r.setQty(t.qty); r.setTime(ts); r.setLastSeq(seq);
-            stateStore.getTradeHistoryMap().put(tid, r);
+            storage.trades().put(tid, r);
         }
     }
 
@@ -230,7 +226,7 @@ public class MatchingEngine extends BusySpinWorker {
         long userId = wire.read("userId").int64();
         ledger.initBalance(userId, ASSET_BTC, seq); ledger.initBalance(userId, ASSET_USDT, seq);
         if (isReplaying) return;
-        stateStore.getOutboundQueue().acquireAppender().writeDocument(w -> { w.write("topic").text("auth.success"); w.write("userId").int64(userId); });
+        storage.resultQueue().acquireAppender().writeDocument(w -> { w.write("topic").text("auth.success"); w.write("userId").int64(userId); });
     }
 
     @Override protected void onStop() { reusableBytes.releaseLast(); outboundBytes.releaseLast(); }

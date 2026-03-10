@@ -6,38 +6,38 @@ import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.transport.AeronPublisher;
-import open.vincentf13.service.spot.infra.worker.BusySpinWorker;
-import open.vincentf13.service.spot.infra.store.StateStore;
+import open.vincentf13.service.spot.infra.aeron.Publisher;
+import open.vincentf13.service.spot.infra.Worker;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.SystemProgress;
 
 import java.nio.ByteBuffer;
 
-import static open.vincentf13.service.spot.infra.constant.ExchangeConstants.*;
+import static open.vincentf13.service.spot.infra.Constants.*;
 
 @Component
-public class CoreResultSender extends BusySpinWorker {
+public class CoreResultSender extends Worker {
     private final Aeron aeron;
-    private final StateStore stateStore;
-    private AeronPublisher publisher;
+    private final Storage storage;
+    private Publisher publisher;
     private ExcerptTailer tailer;
     private final SystemProgress progress = new SystemProgress();
     
     private final UnsafeBuffer aeronBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public CoreResultSender(Aeron aeron, StateStore stateStore) {
+    public CoreResultSender(Aeron aeron, Storage storage) {
         this.aeron = aeron;
-        this.stateStore = stateStore;
+        this.storage = storage;
     }
 
     @PostConstruct public void init() { start("core-result-sender"); }
 
     @Override
     protected void onStart() {
-        publisher = new AeronPublisher(aeron, OUTBOUND_CHANNEL, OUTBOUND_STREAM_ID);
-        tailer = stateStore.getOutboundQueue().createTailer();
-        SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_CORE_OUTBOUND_SEQ);
+        publisher = new Publisher(aeron, OUTBOUND_CHANNEL, OUTBOUND_STREAM_ID);
+        tailer = storage.resultQueue().createTailer();
+        SystemProgress saved = storage.metadata().get(PK_CORE_OUTBOUND_SEQ);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -57,7 +57,7 @@ public class CoreResultSender extends BusySpinWorker {
                 idleStrategy.idle();
             }
             progress.setLastProcessedSeq(seq);
-            stateStore.getSystemMetadataMap().put(PK_CORE_OUTBOUND_SEQ, progress);
+            storage.metadata().put(PK_CORE_OUTBOUND_SEQ, progress);
         });
         return handled ? 1 : 0;
     }

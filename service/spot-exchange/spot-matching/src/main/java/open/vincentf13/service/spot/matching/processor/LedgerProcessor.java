@@ -1,19 +1,16 @@
 package open.vincentf13.service.spot.matching.processor;
 
-import open.vincentf13.service.spot.infra.store.StateStore;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Balance;
 import open.vincentf13.service.spot.model.BalanceKey;
 import org.springframework.stereotype.Service;
 
-/** 
-  內存帳務處理器 (金融級原子更新與資產索引版)
- */
 @Service
 public class LedgerProcessor {
-    private final StateStore stateStore;
+    private final Storage storage;
 
-    public LedgerProcessor(StateStore stateStore) {
-        this.stateStore = stateStore;
+    public LedgerProcessor(Storage storage) {
+        this.storage = storage;
     }
 
     public void tradeSettle(long userId, int assetOut, long amountOut, int assetIn, long amountIn, long currentSeq) {
@@ -32,14 +29,10 @@ public class LedgerProcessor {
 
     public void updateBalance(long userId, int assetId, long currentSeq, java.util.function.Consumer<Balance> action) {
         BalanceKey key = new BalanceKey(userId, assetId);
-        
-        Balance balance = stateStore.getBalanceMap().get(key);
+        Balance balance = storage.balances().get(key);
         if (balance == null) {
             balance = new Balance();
-            balance.setAvailable(0);
-            balance.setFrozen(0);
-            balance.setVersion(0);
-            balance.setLastSeq(-1);
+            balance.setAvailable(0); balance.setFrozen(0); balance.setVersion(0); balance.setLastSeq(-1);
         }
         
         if (balance.getLastSeq() >= currentSeq) return;
@@ -48,17 +41,15 @@ public class LedgerProcessor {
         balance.setVersion(balance.getVersion() + 1);
         balance.setLastSeq(currentSeq);
         
-        stateStore.getBalanceMap().put(key, balance);
+        storage.balances().put(key, balance);
         updateUserAssetIndex(userId, assetId);
     }
 
     private void updateUserAssetIndex(long userId, int assetId) {
         if (assetId < 0 || assetId >= 64) return;
-        long currentMask = stateStore.getUserAssetIndexMap().getOrDefault(userId, 0L);
+        long currentMask = storage.userAssets().getOrDefault(userId, 0L);
         long newMask = currentMask | (1L << assetId);
-        if (currentMask != newMask) {
-            stateStore.getUserAssetIndexMap().put(userId, newMask);
-        }
+        if (currentMask != newMask) storage.userAssets().put(userId, newMask);
     }
 
     public void initBalance(long userId, int assetId, long currentSeq) {

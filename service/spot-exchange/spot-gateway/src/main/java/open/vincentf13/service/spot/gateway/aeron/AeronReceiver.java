@@ -5,16 +5,16 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.worker.BusySpinWorker;
-import open.vincentf13.service.spot.infra.store.StateStore;
+import open.vincentf13.service.spot.infra.Worker;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.SystemProgress;
 
-import static open.vincentf13.service.spot.infra.constant.ExchangeConstants.*;
+import static open.vincentf13.service.spot.infra.Constants.*;
 
 @Component
-public class AeronReceiver extends BusySpinWorker {
+public class AeronReceiver extends Worker {
     private final Aeron aeron;
-    private final StateStore stateStore;
+    private final Storage storage;
     private Subscription subscription;
     private FragmentHandler fragmentHandler;
     private final SystemProgress progress = new SystemProgress();
@@ -22,8 +22,8 @@ public class AeronReceiver extends BusySpinWorker {
     private final byte[] reusableArray = new byte[2048];
     private final net.openhft.chronicle.bytes.Bytes<?> writeBytes = net.openhft.chronicle.bytes.Bytes.wrapForRead(reusableArray);
 
-    public AeronReceiver(Aeron aeron, StateStore stateStore) {
-        this.aeron = aeron; this.stateStore = stateStore;
+    public AeronReceiver(Aeron aeron, Storage storage) {
+        this.aeron = aeron; this.storage = storage;
     }
 
     @PostConstruct public void init() { start("aeron-receiver"); }
@@ -31,7 +31,7 @@ public class AeronReceiver extends BusySpinWorker {
     @Override
     protected void onStart() {
         subscription = aeron.addSubscription(OUTBOUND_CHANNEL, OUTBOUND_STREAM_ID);
-        SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_GW_OUTBOUND_SEQ);
+        SystemProgress saved = storage.metadata().get(PK_GW_OUTBOUND_SEQ);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -43,13 +43,13 @@ public class AeronReceiver extends BusySpinWorker {
             buffer.getBytes(offset, reusableArray, 0, len);
             writeBytes.readPositionRemaining(0, len);
             
-            stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
+            storage.resultQueue().acquireAppender().writeDocument(wire -> {
                 wire.bytes().write(writeBytes);
                 wire.write("aeronSeq").int64(currentSeq);
             });
             
             progress.setLastProcessedSeq(currentSeq);
-            stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
+            storage.metadata().put(PK_GW_OUTBOUND_SEQ, progress);
         };
     }
 

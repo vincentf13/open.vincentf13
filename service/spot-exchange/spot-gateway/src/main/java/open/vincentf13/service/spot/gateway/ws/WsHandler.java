@@ -2,8 +2,8 @@ package open.vincentf13.service.spot.gateway.ws;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.service.spot.infra.codec.SbeCodec;
-import open.vincentf13.service.spot.infra.store.StateStore;
+import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class WsHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(WsHandler.class);
-    private final StateStore stateStore;
+    private final Storage storage;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
 
@@ -30,8 +30,8 @@ public class WsHandler extends TextWebSocketHandler {
     private static final ThreadLocal<UnsafeBuffer> BUFFER_CACHE = ThreadLocal.withInitial(() -> new UnsafeBuffer(0, 0));
     private static final ThreadLocal<OrderCreateEncoder> ENCODER_CACHE = ThreadLocal.withInitial(OrderCreateEncoder::new);
 
-    public WsHandler(StateStore stateStore) {
-        this.stateStore = stateStore;
+    public WsHandler(Storage storage) {
+        this.storage = storage;
     }
 
     @Override
@@ -57,7 +57,7 @@ public class WsHandler extends TextWebSocketHandler {
             .side(Side.get((short) params.get("side").asInt())).clientOrderId(node.get("cid").asText()));
 
         bytes.writePosition(len);
-        stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
+        storage.gatewayQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(encoder.sbeTemplateId()); wire.write("payload").bytes(bytes);
         });
     }
@@ -65,7 +65,7 @@ public class WsHandler extends TextWebSocketHandler {
     private void handleAuth(WebSocketSession session, JsonNode node) {
         String uid = node.get("args").get("userId").asText();
         userSessions.put(uid, session); session.getAttributes().put("userId", uid);
-        stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
+        storage.gatewayQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(103); wire.write("userId").int64(Long.parseLong(uid));
         });
     }
