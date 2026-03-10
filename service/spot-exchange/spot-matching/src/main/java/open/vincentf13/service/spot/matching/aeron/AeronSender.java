@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.matching.handler;
+package open.vincentf13.service.spot.matching.aeron;
 
 import io.aeron.Aeron;
 import jakarta.annotation.PostConstruct;
@@ -16,7 +16,7 @@ import java.nio.ByteBuffer;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 @Component
-public class CoreResultSender extends Worker {
+public class AeronSender extends Worker {
     private final Aeron aeron;
     private final Storage storage;
     private Publisher publisher;
@@ -26,7 +26,7 @@ public class CoreResultSender extends Worker {
     private final UnsafeBuffer aeronBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public CoreResultSender(Aeron aeron, Storage storage) {
+    public AeronSender(Aeron aeron, Storage storage) {
         this.aeron = aeron;
         this.storage = storage;
     }

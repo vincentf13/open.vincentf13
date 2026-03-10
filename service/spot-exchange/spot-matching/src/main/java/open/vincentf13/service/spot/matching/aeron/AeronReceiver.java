@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.matching.handler;
+package open.vincentf13.service.spot.matching.aeron;
 
 import io.aeron.Aeron;
 import io.aeron.logbuffer.FragmentHandler;
@@ -13,14 +13,14 @@ import static open.vincentf13.service.spot.infra.Constants.INBOUND_CHANNEL;
 import static open.vincentf13.service.spot.infra.Constants.INBOUND_STREAM_ID;
 
 @Component
-public class CoreAeronReceiver extends Worker {
+public class AeronReceiver extends Worker {
     private final Aeron aeron;
     private final Storage storage;
     private Subscriber subscriber;
     private FragmentHandler fragmentHandler;
     private final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
-    public CoreAeronReceiver(Aeron aeron, Storage storage) {
+    public AeronReceiver(Aeron aeron, Storage storage) {
         this.aeron = aeron; this.storage = storage;
     }
 

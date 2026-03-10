@@ -11,8 +11,6 @@ import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.matching.logic.OrderBook;
-import open.vincentf13.service.spot.matching.processor.LedgerProcessor;
 import open.vincentf13.service.spot.model.*;
 import open.vincentf13.service.spot.sbe.*;
 
@@ -22,9 +20,9 @@ import java.util.*;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 @Component
-public class MatchingEngine extends Worker {
+public class Engine extends Worker {
     private final Storage storage;
-    private final LedgerProcessor ledger;
+    private final Ledger ledger;
     private final Int2ObjectHashMap<OrderBook> books = new Int2ObjectHashMap<>();
     private final Long2ObjectHashMap<ActiveOrder> activeOrderIndex = new Long2ObjectHashMap<>();
     
@@ -41,7 +39,7 @@ public class MatchingEngine extends Worker {
     private final Bytes<ByteBuffer> outboundBytes = Bytes.elasticByteBuffer(1024);
     private final UnsafeBuffer outboundSbeBuffer = new UnsafeBuffer(0, 0);
 
-    public MatchingEngine(Storage storage, LedgerProcessor ledger) {
+    public Engine(Storage storage, Ledger ledger) {
         this.storage = storage; this.ledger = ledger;
     }
 

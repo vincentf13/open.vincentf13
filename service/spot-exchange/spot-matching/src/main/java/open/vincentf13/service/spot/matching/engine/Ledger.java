@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.matching.processor;
+package open.vincentf13.service.spot.matching.engine;
 
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Balance;
@@ -6,10 +6,10 @@ import open.vincentf13.service.spot.model.BalanceKey;
 import org.springframework.stereotype.Service;
 
 @Service
-public class LedgerProcessor {
+public class Ledger {
     private final Storage storage;
 
-    public LedgerProcessor(Storage storage) {
+    public Ledger(Storage storage) {
         this.storage = storage;
     }
 
@@ -34,7 +34,6 @@ public class LedgerProcessor {
             balance = new Balance();
             balance.setAvailable(0); balance.setFrozen(0); balance.setVersion(0); balance.setLastSeq(-1);
         }
-        
         if (balance.getLastSeq() >= currentSeq) return;
         
         action.accept(balance);
