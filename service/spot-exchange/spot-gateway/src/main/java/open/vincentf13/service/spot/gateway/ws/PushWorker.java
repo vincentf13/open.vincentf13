@@ -1,6 +1,5 @@
 package open.vincentf13.service.spot.gateway.ws;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
@@ -10,6 +9,7 @@ import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.util.JsonUtil;
 import open.vincentf13.service.spot.model.Progress;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
 
@@ -21,7 +21,6 @@ import static open.vincentf13.service.spot.infra.Constants.PK_PUB_PUSH_SEQ;
 @Slf4j
 @Component
 public class PushWorker extends Worker {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
     private final WsHandler wsHandler;
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
@@ -63,10 +62,8 @@ public class PushWorker extends Worker {
                     "cid", executionDecoder.clientOrderId(),
                     "userId", executionDecoder.userId()
                 );
-                try {
-                    String json = MAPPER.writeValueAsString(Map.of("topic", "execution", "data", data));
-                    wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
-                } catch (Exception e) { log.error("Push Error: {}", e.getMessage()); }
+                String json = JsonUtil.toJson("execution", data);
+                wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
             }
             progress.setLastProcessedSeq(seq);
             Storage.self().metadata().put(PK_PUB_PUSH_SEQ, progress);
