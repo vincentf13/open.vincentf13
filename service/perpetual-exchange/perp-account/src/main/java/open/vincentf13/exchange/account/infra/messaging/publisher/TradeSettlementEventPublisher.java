@@ -9,11 +9,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class TradeSettlementEventPublisher {
-
-  private final MqOutboxRepository outboxRepository;
-
-  public void publishTradeMarginSettled(TradeMarginSettledEvent event) {
-    outboxRepository.append(
-        AccountTradeTopics.TRADE_MARGIN_SETTLED.getTopic(), event.orderId(), event, null);
-  }
+    
+    private final MqOutboxRepository outboxRepository;
+    
+    public void publishTradeMarginSettled(TradeMarginSettledEvent event) {
+        outboxRepository.append(
+                AccountTradeTopics.TRADE_MARGIN_SETTLED.getTopic(), event.orderId(), event, null);
+    }
 }

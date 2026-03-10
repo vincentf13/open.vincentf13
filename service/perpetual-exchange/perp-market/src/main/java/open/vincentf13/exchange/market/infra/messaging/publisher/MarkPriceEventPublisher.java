@@ -14,28 +14,28 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class MarkPriceEventPublisher {
-
-  private final MqOutboxRepository outboxRepository;
-
-  public void publishMarkPriceUpdated(MarkPriceSnapshot snapshot) {
-    if (snapshot == null || snapshot.getInstrumentId() == null) {
-      return;
+    
+    private final MqOutboxRepository outboxRepository;
+    
+    public void publishMarkPriceUpdated(MarkPriceSnapshot snapshot) {
+        if (snapshot == null || snapshot.getInstrumentId() == null) {
+            return;
+        }
+        MarkPriceUpdatedEvent event =
+                new MarkPriceUpdatedEvent(
+                        snapshot.getInstrumentId(),
+                        snapshot.getMarkPrice(),
+                        snapshot.getTradeId(),
+                        snapshot.getTradeExecutedAt(),
+                        snapshot.getCalculatedAt());
+        outboxRepository.append(
+                MarketTopics.MARK_PRICE_UPDATED.getTopic(), snapshot.getInstrumentId(), event, null);
+        OpenLog.debug(
+                log,
+                MarketEvent.MARK_PRICE_OUTBOX_APPENDED,
+                "instrumentId",
+                snapshot.getInstrumentId(),
+                "tradeId",
+                snapshot.getTradeId());
     }
-    MarkPriceUpdatedEvent event =
-        new MarkPriceUpdatedEvent(
-            snapshot.getInstrumentId(),
-            snapshot.getMarkPrice(),
-            snapshot.getTradeId(),
-            snapshot.getTradeExecutedAt(),
-            snapshot.getCalculatedAt());
-    outboxRepository.append(
-        MarketTopics.MARK_PRICE_UPDATED.getTopic(), snapshot.getInstrumentId(), event, null);
-    OpenLog.debug(
-        log,
-        MarketEvent.MARK_PRICE_OUTBOX_APPENDED,
-        "instrumentId",
-        snapshot.getInstrumentId(),
-        "tradeId",
-        snapshot.getTradeId());
-  }
 }

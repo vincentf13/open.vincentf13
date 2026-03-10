@@ -5,8 +5,8 @@ import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 
-/** 
-  成交記錄數據結構 (冪等加固版)
+/**
+ 成交記錄數據結構 (冪等加固版)
  */
 @Data
 public class Trade implements BytesMarshallable {
@@ -16,7 +16,7 @@ public class Trade implements BytesMarshallable {
     private long qty;
     private long time;
     private long lastSeq; // 生成此成交記錄的 WAL 序號
-
+    
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
         bytes.writeLong(tradeId);
@@ -26,7 +26,7 @@ public class Trade implements BytesMarshallable {
         bytes.writeLong(time);
         bytes.writeLong(lastSeq);
     }
-
+    
     @Override
     public void readMarshallable(BytesIn<?> bytes) {
         tradeId = bytes.readLong();

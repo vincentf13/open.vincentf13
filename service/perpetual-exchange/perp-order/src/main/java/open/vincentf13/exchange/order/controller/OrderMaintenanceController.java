@@ -11,12 +11,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/order/maintenance")
 @RequiredArgsConstructor
 public class OrderMaintenanceController implements OrderMaintenanceApi {
-
-  private final KafkaConsumerResetService kafkaConsumerResetService;
-
-  @Override
-  public OpenApiResponse<Void> reset() {
-    kafkaConsumerResetService.resetConsumers();
-    return OpenApiResponse.success(null);
-  }
+    
+    private final KafkaConsumerResetService kafkaConsumerResetService;
+    
+    @Override
+    public OpenApiResponse<Void> reset() {
+        kafkaConsumerResetService.resetConsumers();
+        return OpenApiResponse.success(null);
+    }
 }

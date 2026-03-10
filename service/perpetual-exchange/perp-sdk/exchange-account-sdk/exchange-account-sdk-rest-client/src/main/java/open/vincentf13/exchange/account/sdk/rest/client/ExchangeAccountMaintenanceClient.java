@@ -4,8 +4,9 @@ import open.vincentf13.exchange.account.sdk.rest.api.AccountMaintenanceApi;
 import org.springframework.cloud.openfeign.FeignClient;
 
 @FeignClient(
-    contextId = "exchangeAccountMaintenanceClient",
-    name = "${exchange.account.client.name:exchange-account}",
-    url = "${exchange.account.client.url:}",
-    path = "/api/account/maintenance")
-public interface ExchangeAccountMaintenanceClient extends AccountMaintenanceApi {}
+        contextId = "exchangeAccountMaintenanceClient",
+        name = "${exchange.account.client.name:exchange-account}",
+        url = "${exchange.account.client.url:}",
+        path = "/api/account/maintenance")
+public interface ExchangeAccountMaintenanceClient extends AccountMaintenanceApi {
+}

@@ -6,4 +6,5 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @AuthRequirement(AuthType.SESSION)
-public @interface SessionAuth {}
+public @interface SessionAuth {
+}

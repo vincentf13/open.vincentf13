@@ -2,20 +2,20 @@ package open.vincentf13.sdk.leetcode.easy.prefix_sum;
 
 import lombok.experimental.UtilityClass;
 
-/** 
+/**
  LeetCode 724: Find Pivot Index
  https://leetcode.com/problems/find-pivot-index/
  
- The pivot index is the index where the sum of all the numbers strictly to the left of the index is equal to 
+ The pivot index is the index where the sum of all the numbers strictly to the left of the index is equal to
  the sum of all the numbers strictly to the index's right.
- If the index is on the left edge of the array, then the left sum is 0 because there are no elements to the left. 
+ If the index is on the left edge of the array, then the left sum is 0 because there are no elements to the left.
  This also applies to the right edge of the array.
  Return the leftmost pivot index. If no such index exists, return -1.
  */
 @UtilityClass
 public class PivotIndex {
-
-    /** 
+    
+    /**
      尋找陣列的樞紐索引。
      
      使用前綴和概念：

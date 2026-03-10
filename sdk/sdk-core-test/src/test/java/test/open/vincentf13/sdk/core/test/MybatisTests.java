@@ -15,7 +15,7 @@
 //import test.open.vincentf13.sdk.core.test.Sample.MybatisUser;
 //import test.open.vincentf13.sdk.core.test.Sample.MybatisUserMapper;
 //
-///**
+/// **
 // * MyBatis 切片測試：透過 Mapper 驗證 MySQL 臨時資料庫的增刪查
 // *
 // * @see test.open.vincentf13.sdk.core.test.MysqlTest

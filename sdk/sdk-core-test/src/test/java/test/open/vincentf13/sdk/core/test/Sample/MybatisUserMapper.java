@@ -5,7 +5,7 @@
 //import org.apache.ibatis.annotations.Options;
 //import org.apache.ibatis.annotations.Select;
 //
-///** 以註解為基礎的 MyBatis Mapper，示範資料寫入與查詢。 */
+/// ** 以註解為基礎的 MyBatis Mapper，示範資料寫入與查詢。 */
 //@Mapper
 //public interface MybatisUserMapper {
 //

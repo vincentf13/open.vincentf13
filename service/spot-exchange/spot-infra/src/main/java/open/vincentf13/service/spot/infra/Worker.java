@@ -12,7 +12,7 @@ public abstract class Worker implements Runnable {
     protected final AtomicBoolean running = new AtomicBoolean(false);
     protected final IdleStrategy idleStrategy = new BackoffIdleStrategy(1, 1, 1, 1);
     private Thread thread;
-
+    
     public void start(String name) {
         if (running.compareAndSet(false, true)) {
             thread = new Thread(this, name);
@@ -20,15 +20,18 @@ public abstract class Worker implements Runnable {
             log.info("Worker {} started", name);
         }
     }
-
+    
     public void stop() {
         running.set(false);
         if (thread != null) {
-            try { thread.join(1000); } catch (InterruptedException ignored) {}
+            try {
+                thread.join(1000);
+            } catch (InterruptedException ignored) {
+            }
         }
         onStop();
     }
-
+    
     @Override
     public void run() {
         onStart();
@@ -37,8 +40,10 @@ public abstract class Worker implements Runnable {
             idleStrategy.idle(workDone);
         }
     }
-
+    
     protected abstract void onStart();
+    
     protected abstract int doWork();
+    
     protected abstract void onStop();
 }

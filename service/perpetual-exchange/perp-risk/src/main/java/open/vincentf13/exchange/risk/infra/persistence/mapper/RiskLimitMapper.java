@@ -5,4 +5,5 @@ import open.vincentf13.exchange.risk.infra.persistence.po.RiskLimitPO;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface RiskLimitMapper extends BaseMapper<RiskLimitPO> {}
+public interface RiskLimitMapper extends BaseMapper<RiskLimitPO> {
+}

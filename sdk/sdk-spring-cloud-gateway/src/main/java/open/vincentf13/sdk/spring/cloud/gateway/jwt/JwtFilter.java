@@ -1,7 +1,5 @@
 package open.vincentf13.sdk.spring.cloud.gateway.jwt;
 
-import java.util.List;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.auth.jwt.session.JwtSessionService;
 import open.vincentf13.sdk.auth.jwt.token.JwtToken;
@@ -21,101 +19,106 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+import java.util.Optional;
+
 @Slf4j
 public class JwtFilter implements GlobalFilter, Ordered {
-
-  private final OpenJwtService openJwtService;
-  private final JwtProperties jwtProperties;
-  private final ObjectProvider<JwtSessionService> sessionServiceProvider;
-  private final AntPathMatcher pathMatcher = new AntPathMatcher();
-
-  public JwtFilter(
-      OpenJwtService openJwtService,
-      ObjectProvider<JwtSessionService> sessionServiceProvider,
-      JwtProperties gatewayJwtProperties) {
-    this.openJwtService = openJwtService;
-    this.sessionServiceProvider = sessionServiceProvider;
-    this.jwtProperties = gatewayJwtProperties;
-  }
-
-  @Override
-  public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-    if (!jwtProperties.isEnabled() || shouldBypass(exchange.getRequest().getPath().value())) {
-      return chain.filter(exchange);
+    
+    private final OpenJwtService openJwtService;
+    private final JwtProperties jwtProperties;
+    private final ObjectProvider<JwtSessionService> sessionServiceProvider;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
+    
+    public JwtFilter(
+            OpenJwtService openJwtService,
+            ObjectProvider<JwtSessionService> sessionServiceProvider,
+            JwtProperties gatewayJwtProperties) {
+        this.openJwtService = openJwtService;
+        this.sessionServiceProvider = sessionServiceProvider;
+        this.jwtProperties = gatewayJwtProperties;
     }
-
-    // 有帶 jwtToken 就依照配置效驗是否在線上，沒帶token就放行，由資源服務器的 @publicKey , @privateKey, jwt效驗 鑑定權限
-    Optional<String> tokenValue = resolveToken(exchange);
-    if (tokenValue.isEmpty()) {
-      return chain.filter(exchange); // 無 jwtToken 放行，由後端資源服務自行判定授權
+    
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange,
+                             GatewayFilterChain chain) {
+        if (!jwtProperties.isEnabled() || shouldBypass(exchange.getRequest().getPath().value())) {
+            return chain.filter(exchange);
+        }
+        
+        // 有帶 jwtToken 就依照配置效驗是否在線上，沒帶token就放行，由資源服務器的 @publicKey , @privateKey, jwt效驗 鑑定權限
+        Optional<String> tokenValue = resolveToken(exchange);
+        if (tokenValue.isEmpty()) {
+            return chain.filter(exchange); // 無 jwtToken 放行，由後端資源服務自行判定授權
+        }
+        
+        Optional<JwtToken> authentication = openJwtService.parseAccessToken(tokenValue.get());
+        if (authentication.isEmpty()) {
+            OpenLog.warn(log, GatewayEvent.JWT_INVALID, "jwtToken", "redacted");
+            return unauthorized(exchange, "Invalid access jwtToken");
+        }
+        
+        JwtToken auth = authentication.get();
+        
+        if (!isSessionActive(auth)) {
+            return unauthorized(exchange, "Session inactive");
+        }
+        
+        return chain
+                       .filter(exchange)
+                       .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
     }
-
-    Optional<JwtToken> authentication = openJwtService.parseAccessToken(tokenValue.get());
-    if (authentication.isEmpty()) {
-      OpenLog.warn(log, GatewayEvent.JWT_INVALID, "jwtToken", "redacted");
-      return unauthorized(exchange, "Invalid access jwtToken");
+    
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE + 10;
     }
-
-    JwtToken auth = authentication.get();
-
-    if (!isSessionActive(auth)) {
-      return unauthorized(exchange, "Session inactive");
+    
+    private boolean shouldBypass(String path) {
+        List<String> permitPaths = jwtProperties.getPermitPaths();
+        if (permitPaths == null || permitPaths.isEmpty()) {
+            return false;
+        }
+        return permitPaths.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
-
-    return chain
-        .filter(exchange)
-        .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
-  }
-
-  @Override
-  public int getOrder() {
-    return Ordered.HIGHEST_PRECEDENCE + 10;
-  }
-
-  private boolean shouldBypass(String path) {
-    List<String> permitPaths = jwtProperties.getPermitPaths();
-    if (permitPaths == null || permitPaths.isEmpty()) {
-      return false;
+    
+    private boolean isSessionActive(JwtToken authentication) {
+        JwtSessionService sessionService = sessionServiceProvider.getIfAvailable();
+        if (sessionService == null) {
+            return true;
+        }
+        boolean active = sessionService.isActive(authentication.getSessionId());
+        if (!active) {
+            OpenLog.info(
+                    log,
+                    GatewayEvent.JWT_SESSION_INACTIVE,
+                    "sessionId",
+                    authentication.getSessionId(),
+                    "principal",
+                    authentication.getName());
+        }
+        return active;
     }
-    return permitPaths.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
-  }
-
-  private boolean isSessionActive(JwtToken authentication) {
-    JwtSessionService sessionService = sessionServiceProvider.getIfAvailable();
-    if (sessionService == null) {
-      return true;
+    
+    private Optional<String> resolveToken(ServerWebExchange exchange) {
+        String header = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        if (!StringUtils.hasText(header)
+                    || !header.startsWith(OpenConstant.HttpHeader.Authorization.BEARER_PREFIX.value())) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                header
+                        .substring(OpenConstant.HttpHeader.Authorization.BEARER_PREFIX.value().length())
+                        .trim());
     }
-    boolean active = sessionService.isActive(authentication.getSessionId());
-    if (!active) {
-      OpenLog.info(
-          log,
-          GatewayEvent.JWT_SESSION_INACTIVE,
-          "sessionId",
-          authentication.getSessionId(),
-          "principal",
-          authentication.getName());
+    
+    private Mono<Void> unauthorized(ServerWebExchange exchange,
+                                    String reason) {
+        if (exchange.getResponse().isCommitted()) {
+            return Mono.empty();
+        }
+        OpenLog.info(log, GatewayEvent.JWT_UNAUTHORIZED, "reason", reason);
+        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+        return exchange.getResponse().setComplete();
     }
-    return active;
-  }
-
-  private Optional<String> resolveToken(ServerWebExchange exchange) {
-    String header = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-    if (!StringUtils.hasText(header)
-        || !header.startsWith(OpenConstant.HttpHeader.Authorization.BEARER_PREFIX.value())) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        header
-            .substring(OpenConstant.HttpHeader.Authorization.BEARER_PREFIX.value().length())
-            .trim());
-  }
-
-  private Mono<Void> unauthorized(ServerWebExchange exchange, String reason) {
-    if (exchange.getResponse().isCommitted()) {
-      return Mono.empty();
-    }
-    OpenLog.info(log, GatewayEvent.JWT_UNAUTHORIZED, "reason", reason);
-    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-    return exchange.getResponse().setComplete();
-  }
 }

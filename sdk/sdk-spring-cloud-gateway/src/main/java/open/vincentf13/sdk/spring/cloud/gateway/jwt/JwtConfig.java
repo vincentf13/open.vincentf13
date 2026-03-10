@@ -13,25 +13,25 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
 @ConditionalOnProperty(
-    prefix = "open.vincentf13.security.gateway",
-    name = "enabled",
-    havingValue = "true",
-    matchIfMissing = true)
+        prefix = "open.vincentf13.security.gateway",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true)
 @ConditionalOnBean(OpenJwtService.class)
 public class JwtConfig {
-
-  @Bean
-  @ConditionalOnMissingBean
-  public JwtFilter jwtGatewayFilter(
-      OpenJwtService openJwtService,
-      ObjectProvider<JwtSessionService> sessionServiceProvider,
-      JwtProperties properties) {
-    return new JwtFilter(openJwtService, sessionServiceProvider, properties);
-  }
-
-  @Bean
-  @ConditionalOnMissingBean
-  public AuthorizationForwardFilter authorizationForwardFilter() {
-    return new AuthorizationForwardFilter();
-  }
+    
+    @Bean
+    @ConditionalOnMissingBean
+    public JwtFilter jwtGatewayFilter(
+            OpenJwtService openJwtService,
+            ObjectProvider<JwtSessionService> sessionServiceProvider,
+            JwtProperties properties) {
+        return new JwtFilter(openJwtService, sessionServiceProvider, properties);
+    }
+    
+    @Bean
+    @ConditionalOnMissingBean
+    public AuthorizationForwardFilter authorizationForwardFilter() {
+        return new AuthorizationForwardFilter();
+    }
 }

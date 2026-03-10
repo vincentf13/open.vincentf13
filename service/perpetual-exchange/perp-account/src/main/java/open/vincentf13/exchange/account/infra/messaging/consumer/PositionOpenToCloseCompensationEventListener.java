@@ -13,16 +13,17 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class PositionOpenToCloseCompensationEventListener {
-
-  private final AccountCommandService accountCommandService;
-
-  @KafkaListener(
-      topics = PositionTopics.Names.POSITION_OPEN_TO_CLOSE_COMPENSATION,
-      groupId = "${open.vincentf13.exchange.account.consumer-group:exchange-account}")
-  public void onOpenToCloseCompensation(
-      @Payload PositionOpenToCloseCompensationEvent event, Acknowledgment acknowledgment) {
-    OpenValidator.validateOrThrow(event);
-    accountCommandService.handleOpenToCloseCompensation(event);
-    acknowledgment.acknowledge();
-  }
+    
+    private final AccountCommandService accountCommandService;
+    
+    @KafkaListener(
+            topics = PositionTopics.Names.POSITION_OPEN_TO_CLOSE_COMPENSATION,
+            groupId = "${open.vincentf13.exchange.account.consumer-group:exchange-account}")
+    public void onOpenToCloseCompensation(
+            @Payload PositionOpenToCloseCompensationEvent event,
+            Acknowledgment acknowledgment) {
+        OpenValidator.validateOrThrow(event);
+        accountCommandService.handleOpenToCloseCompensation(event);
+        acknowledgment.acknowledge();
+    }
 }

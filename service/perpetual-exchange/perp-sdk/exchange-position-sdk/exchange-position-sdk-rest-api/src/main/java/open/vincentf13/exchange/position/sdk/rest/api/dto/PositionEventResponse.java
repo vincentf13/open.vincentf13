@@ -4,4 +4,5 @@ import java.time.Instant;
 import java.util.List;
 
 public record PositionEventResponse(
-    Long positionId, Instant snapshotAt, List<PositionEventItem> events) {}
+        Long positionId, Instant snapshotAt, List<PositionEventItem> events) {
+}

@@ -11,7 +11,7 @@
 //import org.springframework.test.context.DynamicPropertyRegistry;
 //import org.springframework.test.context.DynamicPropertySource;
 //
-///**
+/// **
 // * Redis 容器整合測試
 // *
 // * <p>使用 dokcer redis容器運行 redis 測試 各測試方法前 生成隨機key，各測試互相隔離，可使用平行測試，提升效能。

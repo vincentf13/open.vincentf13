@@ -12,28 +12,30 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class AccountClient extends BaseClient {
-    public static void deposit(String token, double amount) {
+    public static void deposit(String token,
+                               double amount) {
         AccountApi accountApi = FeignClientSupport.buildClient(
-            AccountApi.class, host() + "/account/api/account", token);
+                AccountApi.class, host() + "/account/api/account", token);
         AccountDepositRequest request = new AccountDepositRequest(
-            null,
-            AssetSymbol.USDT,
-            BigDecimal.valueOf(amount),
-            "setup-dep-" + UUID.randomUUID(),
-            Instant.now()
+                null,
+                AssetSymbol.USDT,
+                BigDecimal.valueOf(amount),
+                "setup-dep-" + UUID.randomUUID(),
+                Instant.now()
         );
         FeignClientSupport.assertSuccess(accountApi.deposit(request), "account.deposit");
     }
-
+    
     public static AccountBalanceSheetResponse getBalanceSheet(String token) {
         AccountApi accountApi = FeignClientSupport.buildClient(
-            AccountApi.class, host() + "/account/api/account", token);
+                AccountApi.class, host() + "/account/api/account", token);
         return FeignClientSupport.assertSuccess(accountApi.getBalanceSheet(null), "account.balanceSheet");
     }
-
+    
     public static AccountBalanceItem getSpotAccount(String token) {
         AccountBalanceSheetResponse balanceSheet = getBalanceSheet(token);
         List<AccountBalanceItem> assets = balanceSheet.assets();
@@ -41,9 +43,9 @@ public class AccountClient extends BaseClient {
             return null;
         }
         AccountBalanceItem spot = assets.stream()
-            .filter(asset -> UserAccountCode.SPOT.equals(asset.accountCode()) && AssetSymbol.USDT.equals(asset.asset()))
-            .findFirst()
-            .orElse(null);
+                                        .filter(asset -> UserAccountCode.SPOT.equals(asset.accountCode()) && AssetSymbol.USDT.equals(asset.asset()))
+                                        .findFirst()
+                                        .orElse(null);
         assertNotNull(spot, "Spot account not found for baseline");
         return spot;
     }

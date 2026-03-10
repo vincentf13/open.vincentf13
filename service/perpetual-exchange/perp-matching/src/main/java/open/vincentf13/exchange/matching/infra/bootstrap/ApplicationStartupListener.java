@@ -7,20 +7,22 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ApplicationStartupListener extends OpenApplicationStartupListener {
-
-  private final MatchingEngine matchingEngine;
-  private final WalLoader walLoader;
-
-  public ApplicationStartupListener(
-      MatchingEngine matchingEngine, WalLoader walLoader, StartupCacheLoader startupCacheLoader) {
-    super(startupCacheLoader);
-    this.matchingEngine = matchingEngine;
-    this.walLoader = walLoader;
-  }
-
-  @Override
-  protected void afterCacheLoaded() {
-    walLoader.init();
-    matchingEngine.init();
-  }
+    
+    private final MatchingEngine matchingEngine;
+    private final WalLoader walLoader;
+    
+    public ApplicationStartupListener(
+            MatchingEngine matchingEngine,
+            WalLoader walLoader,
+            StartupCacheLoader startupCacheLoader) {
+        super(startupCacheLoader);
+        this.matchingEngine = matchingEngine;
+        this.walLoader = walLoader;
+    }
+    
+    @Override
+    protected void afterCacheLoaded() {
+        walLoader.init();
+        matchingEngine.init();
+    }
 }

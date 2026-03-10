@@ -5,8 +5,8 @@ import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 
-/** 
-  活躍掛單數據結構
+/**
+ 活躍掛單數據結構
  */
 @Data
 public class Order implements BytesMarshallable {
@@ -22,7 +22,7 @@ public class Order implements BytesMarshallable {
     private String clientOrderId;
     private byte side; // 0=BUY, 1=SELL
     private byte status; // 0=NEW, 1=PARTIAL, 2=FILLED, 3=CANCELED
-
+    
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
         bytes.writeLong(orderId);
@@ -38,7 +38,7 @@ public class Order implements BytesMarshallable {
         bytes.writeByte(side);
         bytes.writeByte(status);
     }
-
+    
     @Override
     public void readMarshallable(BytesIn<?> bytes) {
         orderId = bytes.readLong();

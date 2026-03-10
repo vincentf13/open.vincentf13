@@ -7,10 +7,10 @@ import org.springframework.web.client.RestTemplate;
 
 @AutoConfiguration
 public class RestTemplateAutoConfiguration {
-
-  @Bean
-  @ConditionalOnMissingBean
-  public RestTemplate restTemplate() {
-    return new RestTemplate();
-  }
+    
+    @Bean
+    @ConditionalOnMissingBean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
 }

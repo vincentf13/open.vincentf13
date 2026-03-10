@@ -9,8 +9,8 @@ import open.vincentf13.exchange.order.sdk.rest.dto.OrderCreateRequest;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderPrepareIntentPayload {
-
-  private Long orderId;
-  private Long userId;
-  private OrderCreateRequest request;
+    
+    private Long orderId;
+    private Long userId;
+    private OrderCreateRequest request;
 }

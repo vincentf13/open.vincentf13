@@ -6,4 +6,5 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @AuthRequirement(AuthType.JWT)
-public @interface Jwt {}
+public @interface Jwt {
+}

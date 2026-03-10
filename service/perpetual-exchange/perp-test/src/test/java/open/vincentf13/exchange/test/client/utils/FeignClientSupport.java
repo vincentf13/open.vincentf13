@@ -17,31 +17,35 @@ public final class FeignClientSupport {
     private static final Encoder ENCODER = new JacksonEncoder(new ObjectMapper().findAndRegisterModules());
     private static final Decoder DECODER = new JacksonDecoder(new ObjectMapper().findAndRegisterModules());
     private static final SpringMvcContract CONTRACT = new SpringMvcContract();
-
+    
     private FeignClientSupport() {
     }
-
-    public static <T> T buildClient(Class<T> type, String baseUrl) {
+    
+    public static <T> T buildClient(Class<T> type,
+                                    String baseUrl) {
         return Feign.builder()
-            .client(new RestAssuredFeignClient())
-            .encoder(ENCODER)
-            .decoder(DECODER)
-            .contract(CONTRACT)
-            .target(type, baseUrl);
+                    .client(new RestAssuredFeignClient())
+                    .encoder(ENCODER)
+                    .decoder(DECODER)
+                    .contract(CONTRACT)
+                    .target(type, baseUrl);
     }
-
-    public static <T> T buildClient(Class<T> type, String baseUrl, String token) {
+    
+    public static <T> T buildClient(Class<T> type,
+                                    String baseUrl,
+                                    String token) {
         RequestInterceptor auth = template -> template.header("Authorization", "Bearer " + token);
         return Feign.builder()
-            .client(new RestAssuredFeignClient())
-            .encoder(ENCODER)
-            .decoder(DECODER)
-            .contract(CONTRACT)
-            .requestInterceptor(auth)
-            .target(type, baseUrl);
+                    .client(new RestAssuredFeignClient())
+                    .encoder(ENCODER)
+                    .decoder(DECODER)
+                    .contract(CONTRACT)
+                    .requestInterceptor(auth)
+                    .target(type, baseUrl);
     }
-
-    public static <T> T assertSuccess(OpenApiResponse<T> response, String action) {
+    
+    public static <T> T assertSuccess(OpenApiResponse<T> response,
+                                      String action) {
         assertNotNull(response, action + " response missing");
         assertTrue(response.isSuccess(), action + " failed: " + response.message());
         return response.data();

@@ -1,7 +1,6 @@
 package open.vincentf13.sdk.auth.server.controller;
 
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.sdk.auth.auth.PublicAPI;
 import open.vincentf13.sdk.auth.server.AuthServerEvent;
@@ -24,61 +23,63 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/")
 public class AuthLoginController {
-
-  private static final String LOGIN_SUCCESS_KEY = "auth.login.success";
-
-  private final AuthenticationManager authenticationManager;
-  private final OpenJwtSessionService sessionService;
-  private final MessageSourceAccessor messages;
-
-  public AuthLoginController(
-      AuthenticationManager authenticationManager,
-      OpenJwtSessionService sessionService,
-      MessageSource messageSource) {
-    this.authenticationManager = authenticationManager;
-    this.sessionService = sessionService;
-    this.messages = new MessageSourceAccessor(messageSource);
-  }
-
-  @PublicAPI
-  @PostMapping("/login")
-  public ResponseEntity<OpenApiResponse<JwtTokenPair>> login(
-      @Valid @RequestBody LoginRequest request) {
-    try {
-      Authentication authentication =
-          authenticationManager.authenticate(
-              new UsernamePasswordAuthenticationToken(request.email(), request.password()));
-      SecurityContextHolder.getContext().setAuthentication(authentication);
-
-      OpenJwtSessionService.IssueResult tokens = sessionService.issue(authentication);
-      JwtTokenPair payload =
-          new JwtTokenPair(
-              tokens.accessToken().token(),
-              tokens.accessToken().issuedAt(),
-              tokens.accessToken().expiresAt(),
-              tokens.refreshToken().token(),
-              tokens.refreshToken().expiresAt(),
-              tokens.sessionId());
-
-      OpenLog.info(log, AuthServerEvent.LOGIN_SUCCESS, "username", authentication.getName());
-
-      OpenApiResponse<JwtTokenPair> body =
-          OpenApiResponse.success(payload)
-              .withMeta(
-                  Map.of("message", messages.getMessage(LOGIN_SUCCESS_KEY, "Login successful")));
-      return ResponseEntity.ok(body);
-    } catch (AuthenticationException ex) {
-      FailureReason reason = FailureReason.from(ex);
-      String username = request.email() != null ? request.email() : "<unknown>";
-      OpenLog.warn(
-          log, AuthServerEvent.LOGIN_FAILURE, ex, "username", username, "code", reason.code());
-      OpenApiResponse<JwtTokenPair> body =
-          OpenApiResponse.failure(reason.code(), reason.resolveMessage(messages));
-      return ResponseEntity.status(reason.status()).body(body);
+    
+    private static final String LOGIN_SUCCESS_KEY = "auth.login.success";
+    
+    private final AuthenticationManager authenticationManager;
+    private final OpenJwtSessionService sessionService;
+    private final MessageSourceAccessor messages;
+    
+    public AuthLoginController(
+            AuthenticationManager authenticationManager,
+            OpenJwtSessionService sessionService,
+            MessageSource messageSource) {
+        this.authenticationManager = authenticationManager;
+        this.sessionService = sessionService;
+        this.messages = new MessageSourceAccessor(messageSource);
     }
-  }
+    
+    @PublicAPI
+    @PostMapping("/login")
+    public ResponseEntity<OpenApiResponse<JwtTokenPair>> login(
+            @Valid @RequestBody LoginRequest request) {
+        try {
+            Authentication authentication =
+                    authenticationManager.authenticate(
+                            new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            
+            OpenJwtSessionService.IssueResult tokens = sessionService.issue(authentication);
+            JwtTokenPair payload =
+                    new JwtTokenPair(
+                            tokens.accessToken().token(),
+                            tokens.accessToken().issuedAt(),
+                            tokens.accessToken().expiresAt(),
+                            tokens.refreshToken().token(),
+                            tokens.refreshToken().expiresAt(),
+                            tokens.sessionId());
+            
+            OpenLog.info(log, AuthServerEvent.LOGIN_SUCCESS, "username", authentication.getName());
+            
+            OpenApiResponse<JwtTokenPair> body =
+                    OpenApiResponse.success(payload)
+                                   .withMeta(
+                                           Map.of("message", messages.getMessage(LOGIN_SUCCESS_KEY, "Login successful")));
+            return ResponseEntity.ok(body);
+        } catch (AuthenticationException ex) {
+            FailureReason reason = FailureReason.from(ex);
+            String username = request.email() != null ? request.email() : "<unknown>";
+            OpenLog.warn(
+                    log, AuthServerEvent.LOGIN_FAILURE, ex, "username", username, "code", reason.code());
+            OpenApiResponse<JwtTokenPair> body =
+                    OpenApiResponse.failure(reason.code(), reason.resolveMessage(messages));
+            return ResponseEntity.status(reason.status()).body(body);
+        }
+    }
 }

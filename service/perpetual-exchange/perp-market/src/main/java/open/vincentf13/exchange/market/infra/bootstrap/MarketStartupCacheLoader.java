@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.market.infra.bootstrap;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.admin.contract.client.ExchangeAdminClient;
@@ -11,26 +10,28 @@ import open.vincentf13.sdk.core.bootstrap.OpenStartupCacheLoader;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MarketStartupCacheLoader extends OpenStartupCacheLoader {
-
-  private final ExchangeAdminClient adminClient;
-  private final InstrumentCache instrumentCache;
-
-  @Override
-  protected void doLoadCaches() {
-    loadInstruments();
-  }
-
-  private void loadInstruments() {
-    OpenLog.info(log, MarketEvent.STARTUP_LOADING_INSTRUMENTS);
-
-    List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
-
-    instrumentCache.putAll(instruments);
-
-    OpenLog.info(log, MarketEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
-  }
+    
+    private final ExchangeAdminClient adminClient;
+    private final InstrumentCache instrumentCache;
+    
+    @Override
+    protected void doLoadCaches() {
+        loadInstruments();
+    }
+    
+    private void loadInstruments() {
+        OpenLog.info(log, MarketEvent.STARTUP_LOADING_INSTRUMENTS);
+        
+        List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
+        
+        instrumentCache.putAll(instruments);
+        
+        OpenLog.info(log, MarketEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
+    }
 }

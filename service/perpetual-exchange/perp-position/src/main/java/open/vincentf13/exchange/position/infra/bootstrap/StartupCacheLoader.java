@@ -1,7 +1,5 @@
 package open.vincentf13.exchange.position.infra.bootstrap;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.admin.contract.client.ExchangeAdminClient;
@@ -18,73 +16,81 @@ import open.vincentf13.sdk.core.log.CoreEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import org.springframework.stereotype.Service;
 
-/** Service responsible for loading instrument and risk limit data at application startup. */
+import java.util.List;
+
+/**
+ Service responsible for loading instrument and risk limit data at application startup.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class StartupCacheLoader extends OpenStartupCacheLoader {
-
-  private final ExchangeAdminClient adminClient;
-  private final ExchangeRiskClient riskClient;
-  private final ExchangeMarketClient marketClient;
-  private final InstrumentCache instrumentCache;
-  private final MarkPriceCache markPriceCache;
-  private final RiskLimitCache riskLimitCache;
-
-  /**
-   * Loads all instruments and their risk limits into local caches.
-   *
-   * @throws RuntimeException if loading fails after max retry attempts
-   */
-  @Override
-  protected void doLoadCaches() {
-    loadInstruments();
-    loadRiskLimits();
-    loadMarkPrices();
-  }
-
-  /** Loads all instruments from Admin service and stores them in the cache. */
-  private void loadInstruments() {
-    OpenLog.info(log, PositionEvent.STARTUP_LOADING_INSTRUMENTS);
-
-    List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
-
-    instrumentCache.putAll(instruments);
-
-    OpenLog.info(log, PositionEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
-  }
-
-  /** Loads risk limits for all instruments from Risk service and stores them in the cache. */
-  private void loadRiskLimits() {
-    OpenLog.info(
-        log,
-        PositionEvent.STARTUP_LOADING_RISK_LIMITS,
-        "instrumentCount",
-        instrumentCache.size());
-
-    List<RiskLimitResponse> riskLimits = riskClient.list(null).data();
-
-    if (riskLimits != null) {
-      riskLimits.forEach(
-          riskLimit -> riskLimitCache.put(riskLimit.instrumentId(), riskLimit));
-      OpenLog.info(log, PositionEvent.STARTUP_RISK_LIMITS_LOADED, "count", riskLimits.size());
+    
+    private final ExchangeAdminClient adminClient;
+    private final ExchangeRiskClient riskClient;
+    private final ExchangeMarketClient marketClient;
+    private final InstrumentCache instrumentCache;
+    private final MarkPriceCache markPriceCache;
+    private final RiskLimitCache riskLimitCache;
+    
+    /**
+     Loads all instruments and their risk limits into local caches.
+     
+     @throws RuntimeException if loading fails after max retry attempts
+     */
+    @Override
+    protected void doLoadCaches() {
+        loadInstruments();
+        loadRiskLimits();
+        loadMarkPrices();
     }
-  }
-
-  private void loadMarkPrices() {
-    OpenLog.info(log, CoreEvent.STARTUP_CACHE_LOADING, "Loading mark prices");
-    var response = marketClient.getAllMarkPrices();
-    if (response != null && response.data() != null) {
-      response.data().forEach(
-          markPrice -> {
-            if (markPrice.getMarkPrice() != null) {
-              markPriceCache.update(
-                  markPrice.getInstrumentId(),
-                  markPrice.getMarkPrice(),
-                  markPrice.getCalculatedAt());
-            }
-          });
-      OpenLog.info(log, PositionEvent.STARTUP_MARK_PRICES_LOADED, "count", response.data().size());
+    
+    /**
+     Loads all instruments from Admin service and stores them in the cache.
+     */
+    private void loadInstruments() {
+        OpenLog.info(log, PositionEvent.STARTUP_LOADING_INSTRUMENTS);
+        
+        List<InstrumentSummaryResponse> instruments = adminClient.list(null, null).data();
+        
+        instrumentCache.putAll(instruments);
+        
+        OpenLog.info(log, PositionEvent.STARTUP_INSTRUMENTS_LOADED, "count", instruments.size());
     }
-  }
+    
+    /**
+     Loads risk limits for all instruments from Risk service and stores them in the cache.
+     */
+    private void loadRiskLimits() {
+        OpenLog.info(
+                log,
+                PositionEvent.STARTUP_LOADING_RISK_LIMITS,
+                "instrumentCount",
+                instrumentCache.size());
+        
+        List<RiskLimitResponse> riskLimits = riskClient.list(null).data();
+        
+        if (riskLimits != null) {
+            riskLimits.forEach(
+                    riskLimit -> riskLimitCache.put(riskLimit.instrumentId(), riskLimit));
+            OpenLog.info(log, PositionEvent.STARTUP_RISK_LIMITS_LOADED, "count", riskLimits.size());
+        }
+    }
+    
+    private void loadMarkPrices() {
+        OpenLog.info(log, CoreEvent.STARTUP_CACHE_LOADING, "Loading mark prices");
+        var response = marketClient.getAllMarkPrices();
+        if (response != null && response.data() != null) {
+            response.data().forEach(
+                    markPrice -> {
+                        if (markPrice.getMarkPrice() != null) {
+                            markPriceCache.update(
+                                    markPrice.getInstrumentId(),
+                                    markPrice.getMarkPrice(),
+                                    markPrice.getCalculatedAt());
+                        }
+                    });
+            OpenLog.info(log, PositionEvent.STARTUP_MARK_PRICES_LOADED, "count", response.data().size());
+        }
+    }
 }

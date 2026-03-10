@@ -1,22 +1,23 @@
 package open.vincentf13.sdk.leetcode.easy.hash_map_set;
 
+import lombok.experimental.UtilityClass;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import lombok.experimental.UtilityClass;
 
-/** 
+/**
  LeetCode 1207: Unique Number of Occurrences
  https://leetcode.com/problems/unique-number-of-occurrences/
  
- Given an array of integers arr, return true if the number of occurrences of each value in the array is unique, 
+ Given an array of integers arr, return true if the number of occurrences of each value in the array is unique,
  or false otherwise.
  */
 @UtilityClass
 public class UniqueOccurrences {
-
-    /** 
+    
+    /**
      判斷陣列中每個數值出現的次數是否都是獨一無二的。
      
      使用哈希表與哈希集合：

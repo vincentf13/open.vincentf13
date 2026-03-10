@@ -1,15 +1,15 @@
- package open.vincentf13.sdk.core.metrics.config;
+package open.vincentf13.sdk.core.metrics.config;
 
- import io.micrometer.core.instrument.MeterRegistry;
- import open.vincentf13.sdk.core.metrics.Metrics;
- import org.springframework.boot.autoconfigure.AutoConfiguration;
- import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
- import org.springframework.context.annotation.Bean;
- import org.springframework.beans.factory.annotation.Value;
+import io.micrometer.core.instrument.MeterRegistry;
+import open.vincentf13.sdk.core.metrics.Metrics;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Bean;
 
- @AutoConfiguration
- @ConditionalOnBean(MeterRegistry.class)
- public class MetricsAutoConfig {
+@AutoConfiguration
+@ConditionalOnBean(MeterRegistry.class)
+public class MetricsAutoConfig {
     @Bean
     public Object initMetrics(MeterRegistry registry,
                               @Value("${spring.application.name:app}") String app,
@@ -17,4 +17,4 @@
         Metrics.init(registry, app, env);
         return new Object();
     }
- }
+}

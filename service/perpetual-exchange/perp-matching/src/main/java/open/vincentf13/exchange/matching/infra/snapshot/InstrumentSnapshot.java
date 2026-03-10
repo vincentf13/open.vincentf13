@@ -1,11 +1,5 @@
 package open.vincentf13.exchange.matching.infra.snapshot;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.exchange.matching.domain.order.book.Order;
@@ -14,60 +8,70 @@ import open.vincentf13.exchange.matching.infra.MatchingEvent;
 import open.vincentf13.sdk.core.log.OpenLog;
 import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
 @Slf4j
 public class InstrumentSnapshot {
-
-  private static final long SNAPSHOT_INTERVAL = 1_000L;
-  private final Path snapshotPath;
-  @Getter private final Long instrumentId;
-  private final AtomicLong lastSnapshotSeq = new AtomicLong(0L);
-
-  public InstrumentSnapshot(Long instrumentId) {
-    this.instrumentId = instrumentId;
-    this.snapshotPath = Path.of("data/matching/snapshot-" + instrumentId + ".json");
-  }
-
-  public SnapshotState load() {
-    if (!Files.exists(snapshotPath)) {
-      return null;
+    
+    private static final long SNAPSHOT_INTERVAL = 1_000L;
+    private final Path snapshotPath;
+    @Getter
+    private final Long instrumentId;
+    private final AtomicLong lastSnapshotSeq = new AtomicLong(0L);
+    
+    public InstrumentSnapshot(Long instrumentId) {
+        this.instrumentId = instrumentId;
+        this.snapshotPath = Path.of("data/matching/snapshot-" + instrumentId + ".json");
     }
-    try {
-      String json = Files.readString(snapshotPath);
-      SnapshotState state = OpenObjectMapper.fromJson(json, SnapshotState.class);
-      if (state != null) {
-        lastSnapshotSeq.set(state.getLastSeq());
-      }
-      return state;
-    } catch (IOException ex) {
-      OpenLog.error(log, MatchingEvent.SNAPSHOT_LOAD_FAILED, ex, "instrumentId", instrumentId);
-      return null;
+    
+    public SnapshotState load() {
+        if (!Files.exists(snapshotPath)) {
+            return null;
+        }
+        try {
+            String json = Files.readString(snapshotPath);
+            SnapshotState state = OpenObjectMapper.fromJson(json, SnapshotState.class);
+            if (state != null) {
+                lastSnapshotSeq.set(state.getLastSeq());
+            }
+            return state;
+        } catch (IOException ex) {
+            OpenLog.error(log, MatchingEvent.SNAPSHOT_LOAD_FAILED, ex, "instrumentId", instrumentId);
+            return null;
+        }
     }
-  }
-
-  public void maybeSnapshot(long currentSeq, OrderBook orderBook) {
-    if (currentSeq - lastSnapshotSeq.get() < SNAPSHOT_INTERVAL) {
-      return;
+    
+    public void maybeSnapshot(long currentSeq,
+                              OrderBook orderBook) {
+        if (currentSeq - lastSnapshotSeq.get() < SNAPSHOT_INTERVAL) {
+            return;
+        }
+        writeSnapshot(currentSeq, orderBook);
     }
-    writeSnapshot(currentSeq, orderBook);
-  }
-
-  public void writeSnapshot(long currentSeq, OrderBook orderBook) {
-    List<Order> openOrders = orderBook.dumpOpenOrders();
-    SnapshotState state =
-        SnapshotState.builder()
-            .lastSeq(currentSeq)
-            .openOrders(openOrders)
-            .processedOrderIds(orderBook.dumpProcessedOrderIds())
-            .createdAt(Instant.now())
-            .build();
-    try {
-      if (snapshotPath.getParent() != null) {
-        Files.createDirectories(snapshotPath.getParent());
-      }
-      Files.writeString(snapshotPath, OpenObjectMapper.toPrettyJson(state));
-      lastSnapshotSeq.set(currentSeq);
-    } catch (IOException ex) {
-      OpenLog.error(log, MatchingEvent.SNAPSHOT_WRITE_FAILED, ex, "instrumentId", instrumentId);
+    
+    public void writeSnapshot(long currentSeq,
+                              OrderBook orderBook) {
+        List<Order> openOrders = orderBook.dumpOpenOrders();
+        SnapshotState state =
+                SnapshotState.builder()
+                             .lastSeq(currentSeq)
+                             .openOrders(openOrders)
+                             .processedOrderIds(orderBook.dumpProcessedOrderIds())
+                             .createdAt(Instant.now())
+                             .build();
+        try {
+            if (snapshotPath.getParent() != null) {
+                Files.createDirectories(snapshotPath.getParent());
+            }
+            Files.writeString(snapshotPath, OpenObjectMapper.toPrettyJson(state));
+            lastSnapshotSeq.set(currentSeq);
+        } catch (IOException ex) {
+            OpenLog.error(log, MatchingEvent.SNAPSHOT_WRITE_FAILED, ex, "instrumentId", instrumentId);
+        }
     }
-  }
 }

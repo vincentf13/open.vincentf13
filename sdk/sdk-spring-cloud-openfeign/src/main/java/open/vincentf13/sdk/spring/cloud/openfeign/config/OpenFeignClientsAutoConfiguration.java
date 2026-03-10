@@ -5,4 +5,5 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @AutoConfiguration
 @EnableFeignClients(basePackages = "${open.vincentf13.cloud.feign.base-packages:open.vincentf13}")
-public class OpenFeignClientsAutoConfiguration {}
+public class OpenFeignClientsAutoConfiguration {
+}

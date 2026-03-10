@@ -1,7 +1,6 @@
 package open.vincentf13.exchange.risk.controller;
 
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.risk.domain.model.RiskLimit;
 import open.vincentf13.exchange.risk.sdk.rest.api.OrderPrecheckRequest;
@@ -14,45 +13,47 @@ import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/risk")
 @RequiredArgsConstructor
 public class RiskController implements RiskApi {
-
-  private final RiskLimitQueryService riskLimitQueryService;
-  private final OrderPrecheckService orderPrecheckService;
-
-  @Override
-  public OpenApiResponse<RiskLimitResponse> getRiskLimit(@NotNull Long instrumentId) {
-    RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(instrumentId);
-    return OpenApiResponse.success(toResponse(riskLimit));
-  }
-
-  @Override
-  public OpenApiResponse<List<RiskLimitResponse>> list(Long instrumentId) {
-    if (instrumentId != null) {
-      RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(instrumentId);
-      return OpenApiResponse.success(List.of(toResponse(riskLimit)));
+    
+    private final RiskLimitQueryService riskLimitQueryService;
+    private final OrderPrecheckService orderPrecheckService;
+    
+    @Override
+    public OpenApiResponse<RiskLimitResponse> getRiskLimit(@NotNull Long instrumentId) {
+        RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(instrumentId);
+        return OpenApiResponse.success(toResponse(riskLimit));
     }
-    List<RiskLimitResponse> list =
-        riskLimitQueryService.getAllRiskLimits().stream().map(this::toResponse).toList();
-    return OpenApiResponse.success(list);
-  }
-
-  private RiskLimitResponse toResponse(RiskLimit riskLimit) {
-    return new RiskLimitResponse(
-        riskLimit.getInstrumentId(),
-        riskLimit.getInitialMarginRate(),
-        riskLimit.getMaxLeverage(),
-        riskLimit.getMaintenanceMarginRate(),
-        riskLimit.getLiquidationFeeRate(),
-        riskLimit.getActive(),
-        riskLimit.getUpdatedAt());
-  }
-
-  @Override
-  public OpenApiResponse<OrderPrecheckResponse> precheckOrder(
-      @NotNull OrderPrecheckRequest request) {
-    return OpenApiResponse.success(orderPrecheckService.precheck(request));
-  }
+    
+    @Override
+    public OpenApiResponse<List<RiskLimitResponse>> list(Long instrumentId) {
+        if (instrumentId != null) {
+            RiskLimit riskLimit = riskLimitQueryService.getRiskLimitByInstrumentId(instrumentId);
+            return OpenApiResponse.success(List.of(toResponse(riskLimit)));
+        }
+        List<RiskLimitResponse> list =
+                riskLimitQueryService.getAllRiskLimits().stream().map(this::toResponse).toList();
+        return OpenApiResponse.success(list);
+    }
+    
+    private RiskLimitResponse toResponse(RiskLimit riskLimit) {
+        return new RiskLimitResponse(
+                riskLimit.getInstrumentId(),
+                riskLimit.getInitialMarginRate(),
+                riskLimit.getMaxLeverage(),
+                riskLimit.getMaintenanceMarginRate(),
+                riskLimit.getLiquidationFeeRate(),
+                riskLimit.getActive(),
+                riskLimit.getUpdatedAt());
+    }
+    
+    @Override
+    public OpenApiResponse<OrderPrecheckResponse> precheckOrder(
+            @NotNull OrderPrecheckRequest request) {
+        return OpenApiResponse.success(orderPrecheckService.precheck(request));
+    }
 }

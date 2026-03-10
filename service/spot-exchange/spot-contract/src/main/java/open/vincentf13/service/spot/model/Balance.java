@@ -5,8 +5,8 @@ import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 
-/** 
-  用戶資產餘額數據結構
+/**
+ 用戶資產餘額數據結構
  */
 @Data
 public class Balance implements BytesMarshallable {
@@ -14,7 +14,7 @@ public class Balance implements BytesMarshallable {
     private long frozen;
     private long version;
     private long lastSeq; // 最後更新此餘額的 WAL Sequence ID
-
+    
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
         bytes.writeLong(available);
@@ -22,7 +22,7 @@ public class Balance implements BytesMarshallable {
         bytes.writeLong(version);
         bytes.writeLong(lastSeq);
     }
-
+    
     @Override
     public void readMarshallable(BytesIn<?> bytes) {
         available = bytes.readLong();

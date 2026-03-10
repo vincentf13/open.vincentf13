@@ -20,18 +20,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class NettyServer {
     private static final Logger log = LoggerFactory.getLogger(NettyServer.class);
-
+    private final WsHandler wsHandler;
     @Value("${server.port:8081}")
     private int port;
-
-    private final WsHandler wsHandler;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
-
+    
     public NettyServer(WsHandler wsHandler) {
         this.wsHandler = wsHandler;
     }
-
+    
     @PostConstruct
     public void start() {
         new Thread(() -> {
@@ -51,7 +49,7 @@ public class NettyServer {
                          ch.pipeline().addLast(wsHandler);
                      }
                  });
-
+                
                 log.info("Netty WebSocket Server started on port {}", port);
                 b.bind(port).sync().channel().closeFuture().sync();
             } catch (Exception e) {
@@ -61,10 +59,12 @@ public class NettyServer {
             }
         }, "netty-server").start();
     }
-
+    
     @PreDestroy
     public void stop() {
-        if (bossGroup != null) bossGroup.shutdownGracefully();
-        if (workerGroup != null) workerGroup.shutdownGracefully();
+        if (bossGroup != null)
+            bossGroup.shutdownGracefully();
+        if (workerGroup != null)
+            workerGroup.shutdownGracefully();
     }
 }

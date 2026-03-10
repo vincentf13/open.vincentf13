@@ -12,15 +12,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/risk/maintenance")
 @RequiredArgsConstructor
 public class RiskMaintenanceController implements RiskMaintenanceApi {
-
-  private final StartupCacheLoader startupCacheLoader;
-  private final KafkaConsumerResetService kafkaConsumerResetService;
-
-  @Override
-  public OpenApiResponse<Void> reloadCaches() {
-    // 調用現有的啟動加載邏輯來更新最新數據
-    startupCacheLoader.loadCaches();
-    kafkaConsumerResetService.resetConsumers();
-    return OpenApiResponse.success(null);
-  }
+    
+    private final StartupCacheLoader startupCacheLoader;
+    private final KafkaConsumerResetService kafkaConsumerResetService;
+    
+    @Override
+    public OpenApiResponse<Void> reloadCaches() {
+        // 調用現有的啟動加載邏輯來更新最新數據
+        startupCacheLoader.loadCaches();
+        kafkaConsumerResetService.resetConsumers();
+        return OpenApiResponse.success(null);
+    }
 }

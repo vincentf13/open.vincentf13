@@ -5,8 +5,8 @@ import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 
 public interface AccountMaintenanceApi {
-
-  @PostMapping("/reload-caches")
-  @PublicAPI
-  OpenApiResponse<Void> reloadCaches();
+    
+    @PostMapping("/reload-caches")
+    @PublicAPI
+    OpenApiResponse<Void> reloadCaches();
 }

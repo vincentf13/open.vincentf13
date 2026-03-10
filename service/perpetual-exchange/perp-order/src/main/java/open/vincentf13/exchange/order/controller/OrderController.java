@@ -1,6 +1,5 @@
 package open.vincentf13.exchange.order.controller;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import open.vincentf13.exchange.order.infra.OrderErrorCode;
 import open.vincentf13.exchange.order.sdk.rest.api.OrderApi;
@@ -15,37 +14,40 @@ import open.vincentf13.sdk.spring.mvc.OpenApiResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
 public class OrderController implements OrderApi {
-
-  private final OrderCommandService orderCommandService;
-  private final OrderQueryService orderQueryService;
-
-  @Override
-  public OpenApiResponse<OrderResponse> create(OrderCreateRequest request) {
-    Long userId =
-        OpenJwtLoginUserHolder.currentUserIdOrThrow(
-            () -> OpenException.of(OrderErrorCode.ORDER_NOT_FOUND));
-    return OpenApiResponse.success(orderCommandService.createOrder(userId, request));
-  }
-
-  @Override
-  public OpenApiResponse<OrderResponse> getOrder(Long orderId) {
-    return OpenApiResponse.success(orderQueryService.get(orderId));
-  }
-
-  @Override
-  public OpenApiResponse<OrderEventResponse> getOrderEvents(Long orderId) {
-    Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
-    return OpenApiResponse.success(orderQueryService.getOrderEvents(jwtUserId, orderId));
-  }
-
-  @Override
-  public OpenApiResponse<List<OrderResponse>> getOrders(Long userId, Long instrumentId) {
-    Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
-    Long resolvedUserId = jwtUserId != null ? jwtUserId : userId;
-    return OpenApiResponse.success(orderQueryService.getOrders(resolvedUserId, instrumentId));
-  }
+    
+    private final OrderCommandService orderCommandService;
+    private final OrderQueryService orderQueryService;
+    
+    @Override
+    public OpenApiResponse<OrderResponse> create(OrderCreateRequest request) {
+        Long userId =
+                OpenJwtLoginUserHolder.currentUserIdOrThrow(
+                        () -> OpenException.of(OrderErrorCode.ORDER_NOT_FOUND));
+        return OpenApiResponse.success(orderCommandService.createOrder(userId, request));
+    }
+    
+    @Override
+    public OpenApiResponse<OrderResponse> getOrder(Long orderId) {
+        return OpenApiResponse.success(orderQueryService.get(orderId));
+    }
+    
+    @Override
+    public OpenApiResponse<OrderEventResponse> getOrderEvents(Long orderId) {
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        return OpenApiResponse.success(orderQueryService.getOrderEvents(jwtUserId, orderId));
+    }
+    
+    @Override
+    public OpenApiResponse<List<OrderResponse>> getOrders(Long userId,
+                                                          Long instrumentId) {
+        Long jwtUserId = OpenJwtLoginUserHolder.currentUserId();
+        Long resolvedUserId = jwtUserId != null ? jwtUserId : userId;
+        return OpenApiResponse.success(orderQueryService.getOrders(resolvedUserId, instrumentId));
+    }
 }

@@ -11,12 +11,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/system")
 public class SystemAdminController implements SystemMaintenanceApi {
-
-  private final SystemMaintenanceCommandService maintenanceService;
-
-  @Override
-  public OpenApiResponse<Void> resetSystemData() {
-    maintenanceService.resetData();
-    return OpenApiResponse.success(null);
-  }
+    
+    private final SystemMaintenanceCommandService maintenanceService;
+    
+    @Override
+    public OpenApiResponse<Void> resetSystemData() {
+        maintenanceService.resetData();
+        return OpenApiResponse.success(null);
+    }
 }

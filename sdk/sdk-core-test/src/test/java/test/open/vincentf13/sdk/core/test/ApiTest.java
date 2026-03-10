@@ -10,7 +10,7 @@
 //import org.springframework.test.web.servlet.MockMvc;
 //import test.open.vincentf13.sdk.core.test.Sample.DemoController;
 //
-//// REST 切片測試：用 MockMvc 在精簡 WebMVC Context 中驗證 Controller 行為
+/// / REST 切片測試：用 MockMvc 在精簡 WebMVC Context 中驗證 Controller 行為
 //@WebMvcTest(controllers = DemoController.class)
 //class ApiTest {
 //  @Autowired MockMvc mockMvc;

@@ -1,12 +1,13 @@
 package open.vincentf13.sdk.leetcode.easy.hash_map_set;
 
+import lombok.experimental.UtilityClass;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import lombok.experimental.UtilityClass;
 
-/** 
+/**
  LeetCode 2215: Find the Difference of Two Arrays
  https://leetcode.com/problems/find-the-difference-of-two-arrays/
  
@@ -16,8 +17,8 @@ import lombok.experimental.UtilityClass;
  */
 @UtilityClass
 public class DifferenceOfTwoArrays {
-
-    /** 
+    
+    /**
      找出兩個陣列中的獨有且不重複的整數列表。
      
      使用哈希集合 (Hash Set) 技巧：
@@ -32,7 +33,8 @@ public class DifferenceOfTwoArrays {
      @param nums2 第二個整數陣列
      @return 包含兩個差異列表的列表
      */
-    public static List<List<Integer>> findDifference(int[] nums1, int[] nums2) {
+    public static List<List<Integer>> findDifference(int[] nums1,
+                                                     int[] nums2) {
         Set<Integer> set1 = new HashSet<>();
         for (int num : nums1) {
             set1.add(num);

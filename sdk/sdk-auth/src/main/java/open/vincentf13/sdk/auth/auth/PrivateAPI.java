@@ -6,4 +6,5 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @AuthRequirement(AuthType.API_KEY)
-public @interface PrivateAPI {}
+public @interface PrivateAPI {
+}

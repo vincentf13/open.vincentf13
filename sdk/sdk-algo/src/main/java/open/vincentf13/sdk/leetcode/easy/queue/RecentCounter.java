@@ -3,27 +3,27 @@ package open.vincentf13.sdk.leetcode.easy.queue;
 import java.util.LinkedList;
 import java.util.Queue;
 
-/** 
+/**
  LeetCode 933: Number of Recent Calls
  https://leetcode.com/problems/number-of-recent-calls/
  
  You have a RecentCounter class which counts the number of recent requests within a certain time frame.
  Implement the RecentCounter class:
  - RecentCounter() Initializes the counter with zero recent requests.
- - int ping(int t) Adds a new request at time t, where t represents some time in milliseconds, 
-   and returns the number of requests that has happened in the past 3000 milliseconds (including the new request). 
-   Specifically, return the number of requests that have happened in the inclusive range [t - 3000, t].
+ - int ping(int t) Adds a new request at time t, where t represents some time in milliseconds,
+ and returns the number of requests that has happened in the past 3000 milliseconds (including the new request).
+ Specifically, return the number of requests that have happened in the inclusive range [t - 3000, t].
  It is guaranteed that every call to ping uses a strictly increasing value of t.
  */
 public class RecentCounter {
-
+    
     private final Queue<Integer> requests;
-
+    
     public RecentCounter() {
         this.requests = new LinkedList<>();
     }
-
-    /** 
+    
+    /**
      在時間 t 添加新請求並返回過去 3000 毫秒內的請求總數。
      
      使用隊列 (Queue) 技巧：

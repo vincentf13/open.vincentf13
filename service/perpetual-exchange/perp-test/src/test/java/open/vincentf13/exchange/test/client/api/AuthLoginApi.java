@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 public interface AuthLoginApi {
-
+    
     @PostMapping("/login")
     OpenApiResponse<JwtTokenPair> login(@Valid @RequestBody LoginRequest request);
 }

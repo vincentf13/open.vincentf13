@@ -2,10 +2,11 @@ package open.vincentf13.sdk.leetcode.easy.array_string;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class GreatestCommonDivisorOfStringsTest {
-
+    
     @Test
     @DisplayName("測試所有字串最大公因數案例")
     void testGcdOfStrings() {

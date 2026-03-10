@@ -12,14 +12,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/api/position/maintenance")
 public class PositionMaintenanceController implements PositionMaintenanceApi {
-
-  private final StartupCacheLoader startupCacheLoader;
-  private final KafkaConsumerResetService kafkaConsumerResetService;
-
-  @Override
-  public OpenApiResponse<Void> reloadCaches() {
-    startupCacheLoader.loadCaches();
-    kafkaConsumerResetService.resetConsumers();
-    return OpenApiResponse.success(null);
-  }
+    
+    private final StartupCacheLoader startupCacheLoader;
+    private final KafkaConsumerResetService kafkaConsumerResetService;
+    
+    @Override
+    public OpenApiResponse<Void> reloadCaches() {
+        startupCacheLoader.loadCaches();
+        kafkaConsumerResetService.resetConsumers();
+        return OpenApiResponse.success(null);
+    }
 }

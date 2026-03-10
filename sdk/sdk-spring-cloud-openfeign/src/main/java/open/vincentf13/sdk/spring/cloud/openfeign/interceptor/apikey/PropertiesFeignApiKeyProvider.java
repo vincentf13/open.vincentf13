@@ -1,22 +1,23 @@
 package open.vincentf13.sdk.spring.cloud.openfeign.interceptor.apikey;
 
-import java.util.Optional;
 import org.springframework.util.StringUtils;
 
+import java.util.Optional;
+
 public class PropertiesFeignApiKeyProvider implements FeignApiKeyProvider {
-
-  private final FeignApiKeyProperties properties;
-
-  public PropertiesFeignApiKeyProvider(FeignApiKeyProperties properties) {
-    this.properties = properties;
-  }
-
-  @Override
-  public Optional<String> apiKey() {
-    if (!properties.isEnabled()) {
-      return Optional.empty();
+    
+    private final FeignApiKeyProperties properties;
+    
+    public PropertiesFeignApiKeyProvider(FeignApiKeyProperties properties) {
+        this.properties = properties;
     }
-    String value = properties.getValue();
-    return StringUtils.hasText(value) ? Optional.of(value) : Optional.empty();
-  }
+    
+    @Override
+    public Optional<String> apiKey() {
+        if (!properties.isEnabled()) {
+            return Optional.empty();
+        }
+        String value = properties.getValue();
+        return StringUtils.hasText(value) ? Optional.of(value) : Optional.empty();
+    }
 }

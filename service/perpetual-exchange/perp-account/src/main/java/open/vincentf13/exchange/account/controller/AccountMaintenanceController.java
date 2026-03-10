@@ -13,16 +13,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/account/maintenance")
 @RequiredArgsConstructor
 public class AccountMaintenanceController implements AccountMaintenanceApi {
-
-  private final AccountStartupCacheLoader accountStartupCacheLoader;
-  private final InstrumentCache instrumentCache;
-  private final KafkaConsumerResetService kafkaConsumerResetService;
-
-  @Override
-  public OpenApiResponse<Void> reloadCaches() {
-    instrumentCache.clear();
-    accountStartupCacheLoader.loadCaches();
-    kafkaConsumerResetService.resetConsumers();
-    return OpenApiResponse.success(null);
-  }
+    
+    private final AccountStartupCacheLoader accountStartupCacheLoader;
+    private final InstrumentCache instrumentCache;
+    private final KafkaConsumerResetService kafkaConsumerResetService;
+    
+    @Override
+    public OpenApiResponse<Void> reloadCaches() {
+        instrumentCache.clear();
+        accountStartupCacheLoader.loadCaches();
+        kafkaConsumerResetService.resetConsumers();
+        return OpenApiResponse.success(null);
+    }
 }

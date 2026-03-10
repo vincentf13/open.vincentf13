@@ -6,6 +6,7 @@ import feign.Response;
 import io.restassured.RestAssured;
 import io.restassured.response.ResponseBody;
 import io.restassured.specification.RequestSpecification;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,11 +14,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class RestAssuredFeignClient implements Client {
-
+    
     @Override
-    public Response execute(Request request, Request.Options options) throws IOException {
+    public Response execute(Request request,
+                            Request.Options options) throws IOException {
         RequestSpecification spec = RestAssured.given();
-
+        
         // 1. 設定 Headers (尋找 Content-Type)
         String contentType = null;
         for (Map.Entry<String, Collection<String>> entry : request.headers().entrySet()) {
@@ -32,13 +34,13 @@ public class RestAssuredFeignClient implements Client {
                 entry.getValue().forEach(value -> spec.header(name, value));
             }
         }
-
+        
         // 2. 預設 Content-Type (若未設定且有 Body，預設為 JSON)
         if (contentType == null && request.body() != null) {
             contentType = "application/json";
             spec.contentType(contentType);
         }
-
+        
         // 3. 設定 Body
         if (request.body() != null) {
             if (contentType != null && contentType.toLowerCase().contains("json")) {
@@ -51,7 +53,7 @@ public class RestAssuredFeignClient implements Client {
                 spec.body(request.body());
             }
         }
-
+        
         io.restassured.response.Response response = switch (request.httpMethod()) {
             case GET -> spec.get(request.url());
             case POST -> spec.post(request.url());
@@ -63,21 +65,21 @@ public class RestAssuredFeignClient implements Client {
             case TRACE -> spec.request("TRACE", request.url());
             default -> spec.request(request.httpMethod().name(), request.url());
         };
-
+        
         Map<String, Collection<String>> headers = new LinkedHashMap<>();
         response.getHeaders().forEach(header ->
-            headers.computeIfAbsent(header.getName(), key -> new ArrayList<>())
-                .add(header.getValue()));
-
+                                              headers.computeIfAbsent(header.getName(), key -> new ArrayList<>())
+                                                     .add(header.getValue()));
+        
         ResponseBody<?> body = response.getBody();
         byte[] payload = body == null ? new byte[0] : body.asByteArray();
-
+        
         return Response.builder()
-            .status(response.statusCode())
-            .reason(response.statusLine())
-            .headers(headers)
-            .body(new java.io.ByteArrayInputStream(payload), payload.length)
-            .request(request)
-            .build();
+                       .status(response.statusCode())
+                       .reason(response.statusLine())
+                       .headers(headers)
+                       .body(new java.io.ByteArrayInputStream(payload), payload.length)
+                       .request(request)
+                       .build();
     }
 }

@@ -12,15 +12,16 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class TradeMarginSettledEventListener {
-
-  private final PositionCommandService positionCommandService;
-
-  @KafkaListener(
-      topics = AccountTradeTopics.Names.TRADE_MARGIN_SETTLED,
-      groupId = "${exchange.position.trade-settled.consumer-group:exchange-position-trade-settled}")
-  public void onTradeMarginSettled(
-      @Payload TradeMarginSettledEvent event, Acknowledgment acknowledgment) {
-    positionCommandService.handleTradeMarginSettled(event);
-    acknowledgment.acknowledge();
-  }
+    
+    private final PositionCommandService positionCommandService;
+    
+    @KafkaListener(
+            topics = AccountTradeTopics.Names.TRADE_MARGIN_SETTLED,
+            groupId = "${exchange.position.trade-settled.consumer-group:exchange-position-trade-settled}")
+    public void onTradeMarginSettled(
+            @Payload TradeMarginSettledEvent event,
+            Acknowledgment acknowledgment) {
+        positionCommandService.handleTradeMarginSettled(event);
+        acknowledgment.acknowledge();
+    }
 }

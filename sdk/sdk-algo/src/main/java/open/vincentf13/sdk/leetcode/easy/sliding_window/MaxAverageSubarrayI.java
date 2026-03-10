@@ -2,7 +2,7 @@ package open.vincentf13.sdk.leetcode.easy.sliding_window;
 
 import lombok.experimental.UtilityClass;
 
-/** 
+/**
  LeetCode 643: Maximum Average Subarray I
  https://leetcode.com/problems/maximum-average-subarray-i/
  
@@ -11,8 +11,8 @@ import lombok.experimental.UtilityClass;
  */
 @UtilityClass
 public class MaxAverageSubarrayI {
-
-    /** 
+    
+    /**
      找出長度為 k 的連續子陣列的最大平均值。
      
      使用滑動視窗 (Sliding Window) 技巧：
@@ -25,10 +25,11 @@ public class MaxAverageSubarrayI {
      空間複雜度: O(1)。
      
      @param nums 整數陣列
-     @param k 子陣列長度
+     @param k    子陣列長度
      @return 最大平均值
      */
-    public static double findMaxAverage(int[] nums, int k) {
+    public static double findMaxAverage(int[] nums,
+                                        int k) {
         // 先計算第一個視窗的總和
         long sum = 0;
         for (int i = 0; i < k; i++) {

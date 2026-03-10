@@ -10,17 +10,21 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public class OrderClient extends BaseClient {
-    public static void placeOrder(String token, int instrumentId, OrderSide side, double price, int quantity) {
+    public static void placeOrder(String token,
+                                  int instrumentId,
+                                  OrderSide side,
+                                  double price,
+                                  int quantity) {
         OrderApi orderApi = FeignClientSupport.buildClient(
-            OrderApi.class, host() + "/order/api/orders", token);
+                OrderApi.class, host() + "/order/api/orders", token);
         OrderCreateRequest request = OrderCreateRequest.builder()
-            .instrumentId((long) instrumentId)
-            .side(side)
-            .type(OrderType.LIMIT)
-            .price(BigDecimal.valueOf(price))
-            .quantity(BigDecimal.valueOf(quantity))
-            .clientOrderId(UUID.randomUUID().toString())
-            .build();
+                                                       .instrumentId((long) instrumentId)
+                                                       .side(side)
+                                                       .type(OrderType.LIMIT)
+                                                       .price(BigDecimal.valueOf(price))
+                                                       .quantity(BigDecimal.valueOf(quantity))
+                                                       .clientOrderId(UUID.randomUUID().toString())
+                                                       .build();
         FeignClientSupport.assertSuccess(orderApi.create(request), "order.create");
     }
 }

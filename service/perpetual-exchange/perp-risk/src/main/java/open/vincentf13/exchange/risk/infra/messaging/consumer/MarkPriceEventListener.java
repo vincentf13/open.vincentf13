@@ -14,14 +14,14 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 public class MarkPriceEventListener {
-
-  private final MarkPriceCache markPriceCache;
-
-  @KafkaListener(
-      topics = MarketTopics.Names.MARK_PRICE_UPDATED,
-      groupId = "${spring.kafka.consumer.group-id:exchange-risk}")
-  public void onMarkPriceUpdated(@Payload MarkPriceUpdatedEvent event) {
-    OpenValidator.validateOrThrow(event);
-    markPriceCache.put(event.instrumentId(), event.markPrice());
-  }
+    
+    private final MarkPriceCache markPriceCache;
+    
+    @KafkaListener(
+            topics = MarketTopics.Names.MARK_PRICE_UPDATED,
+            groupId = "${spring.kafka.consumer.group-id:exchange-risk}")
+    public void onMarkPriceUpdated(@Payload MarkPriceUpdatedEvent event) {
+        OpenValidator.validateOrThrow(event);
+        markPriceCache.put(event.instrumentId(), event.markPrice());
+    }
 }

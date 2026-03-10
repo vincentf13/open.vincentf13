@@ -6,4 +6,5 @@ import org.springframework.context.annotation.Import;
 
 @AutoConfiguration
 @Import({ConfigKafkaProducer.class})
-public class SdkInfraKafkaAutoConfiguration {}
+public class SdkInfraKafkaAutoConfiguration {
+}

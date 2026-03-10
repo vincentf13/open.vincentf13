@@ -10,9 +10,10 @@ import org.springframework.context.annotation.Import;
 @AutoConfiguration
 @ConditionalOnWebApplication
 @Import({
-  LoggingController.class,
-  KafkaAdminController.class,
-  KafkaConsumerResetService.class,
-  KafkaDebugOffsetResetConfiguration.class
+        LoggingController.class,
+        KafkaAdminController.class,
+        KafkaConsumerResetService.class,
+        KafkaDebugOffsetResetConfiguration.class
 })
-public class LoggingAutoConfiguration {}
+public class LoggingAutoConfiguration {
+}

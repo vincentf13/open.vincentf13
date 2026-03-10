@@ -3,8 +3,6 @@ package open.vincentf13.exchange.account.infra.persistence.po;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import java.math.BigDecimal;
-import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,22 +11,25 @@ import open.vincentf13.exchange.account.sdk.rest.api.enums.AccountCategory;
 import open.vincentf13.exchange.account.sdk.rest.api.enums.PlatformAccountCode;
 import open.vincentf13.exchange.common.sdk.enums.AssetSymbol;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @TableName("platform_accounts")
 public class PlatformAccountPO {
-
-  @TableId(value = "account_id", type = IdType.INPUT)
-  private Long accountId;
-
-  private PlatformAccountCode accountCode;
-  private String accountName;
-  private AccountCategory category;
-  private AssetSymbol asset;
-  private BigDecimal balance;
-  private Integer version;
-  private Instant updatedAt;
-  private Instant createdAt;
+    
+    @TableId(value = "account_id", type = IdType.INPUT)
+    private Long accountId;
+    
+    private PlatformAccountCode accountCode;
+    private String accountName;
+    private AccountCategory category;
+    private AssetSymbol asset;
+    private BigDecimal balance;
+    private Integer version;
+    private Instant updatedAt;
+    private Instant createdAt;
 }

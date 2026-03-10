@@ -1,6 +1,6 @@
 //package test.open.vincentf13.sdk.core.test.Sample;
 //
-///** 測試用 MyBatis 實體，對應 mybatis_users 資料表。 */
+/// ** 測試用 MyBatis 實體，對應 mybatis_users 資料表。 */
 //public class MybatisUser {
 //
 //  private Long id;

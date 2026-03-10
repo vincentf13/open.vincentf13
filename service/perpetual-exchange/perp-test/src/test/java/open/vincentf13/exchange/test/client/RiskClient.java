@@ -7,7 +7,7 @@ import open.vincentf13.exchange.test.client.utils.FeignClientSupport;
 public class RiskClient extends BaseClient {
     public static RiskLimitResponse getRiskLimit(int instrumentId) {
         RiskApi riskApi = FeignClientSupport.buildClient(
-            RiskApi.class, host() + "/risk/api/risk");
+                RiskApi.class, host() + "/risk/api/risk");
         return FeignClientSupport.assertSuccess(riskApi.getRiskLimit((long) instrumentId), "risk.getLimit");
     }
 }

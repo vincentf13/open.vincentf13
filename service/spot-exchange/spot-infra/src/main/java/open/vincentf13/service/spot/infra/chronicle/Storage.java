@@ -17,42 +17,41 @@ import java.io.IOException;
 @Component
 public class Storage {
     private static Storage instance;
-    public static Storage self() { return instance; }
-
     @Value("${state.base-dir:data/spot-exchange/}")
     private String baseDir;
-
     @Value("${state.entries.orders:1000000}")
     private int orderEntries;
-
     @Value("${state.entries.balances:100000}")
     private int balanceEntries;
-
     private ChronicleMap<BalanceKey, Balance> balances;
     private ChronicleMap<Long, Long> userAssets;
     private ChronicleMap<Long, Order> orders;
     private ChronicleMap<Long, Boolean> activeOrders;
     private ChronicleMap<Long, Trade> trades;
     private ChronicleMap<CidKey, Long> cids;
-    private ChronicleMap<Byte, Progress> metadata; 
-    
+    private ChronicleMap<Byte, Progress> metadata;
     private ChronicleQueue gatewayQueue;
     private ChronicleQueue commandQueue;
     private ChronicleQueue resultQueue;
 
+    public static Storage self() {
+        return instance;
+    }
+    
     @PostConstruct
     public void init() throws IOException {
-        if (!baseDir.endsWith("/")) baseDir += "/";
+        if (!baseDir.endsWith("/"))
+            baseDir += "/";
         new File(baseDir).mkdirs();
-
+        
         balances = createMap("balances", BalanceKey.class, Balance.class, balanceEntries, new BalanceKey(), new Balance());
         userAssets = createMap("user-assets", Long.class, Long.class, balanceEntries, 0L, 0L);
         orders = createMap("orders", Long.class, Order.class, orderEntries, 0L, new Order());
         activeOrders = createMap("active-idx", Long.class, Boolean.class, orderEntries, 0L, true);
         trades = createMap("trades", Long.class, Trade.class, orderEntries, 0L, new Trade());
         cids = createMap("cid-idx", CidKey.class, Long.class, orderEntries, new CidKey(), 0L);
-        metadata = createMap("metadata", Byte.class, Progress.class, 100, (byte)0, new Progress());
-
+        metadata = createMap("metadata", Byte.class, Progress.class, 100, (byte) 0, new Progress());
+        
         gatewayQueue = SingleChronicleQueueBuilder.binary(baseDir + "gw-queue").build();
         commandQueue = SingleChronicleQueueBuilder.binary(baseDir + "core-queue").build();
         resultQueue = SingleChronicleQueueBuilder.binary(baseDir + "outbound-queue").build();
@@ -60,29 +59,75 @@ public class Storage {
         instance = this;
         log.info("Chronicle Storage initialized and static instance set.");
     }
-
-    private <K, V> ChronicleMap<K, V> createMap(String name, Class<K> k, Class<V> v, int entries, K avgKey, V avgValue) throws IOException {
+    
+    private <K, V> ChronicleMap<K, V> createMap(String name,
+                                                Class<K> k,
+                                                Class<V> v,
+                                                int entries,
+                                                K avgKey,
+                                                V avgValue) throws IOException {
         return ChronicleMap.of(k, v).name(name).entries(entries).averageKey(avgKey).averageValue(avgValue).createPersistedTo(new File(baseDir + name + ".dat"));
     }
-
-    public ChronicleMap<BalanceKey, Balance> balances() { return balances; }
-    public ChronicleMap<Long, Long> userAssets() { return userAssets; }
-    public ChronicleMap<Long, Order> orders() { return orders; }
-    public ChronicleMap<Long, Boolean> activeOrders() { return activeOrders; }
-    public ChronicleMap<Long, Trade> trades() { return trades; }
-    public ChronicleMap<CidKey, Long> cids() { return cids; }
-    public ChronicleMap<Byte, Progress> metadata() { return metadata; }
     
-    public ChronicleQueue gatewayQueue() { return gatewayQueue; }
-    public ChronicleQueue commandQueue() { return commandQueue; }
-    public ChronicleQueue resultQueue() { return resultQueue; }
-
+    public ChronicleMap<BalanceKey, Balance> balances() {
+        return balances;
+    }
+    
+    public ChronicleMap<Long, Long> userAssets() {
+        return userAssets;
+    }
+    
+    public ChronicleMap<Long, Order> orders() {
+        return orders;
+    }
+    
+    public ChronicleMap<Long, Boolean> activeOrders() {
+        return activeOrders;
+    }
+    
+    public ChronicleMap<Long, Trade> trades() {
+        return trades;
+    }
+    
+    public ChronicleMap<CidKey, Long> cids() {
+        return cids;
+    }
+    
+    public ChronicleMap<Byte, Progress> metadata() {
+        return metadata;
+    }
+    
+    public ChronicleQueue gatewayQueue() {
+        return gatewayQueue;
+    }
+    
+    public ChronicleQueue commandQueue() {
+        return commandQueue;
+    }
+    
+    public ChronicleQueue resultQueue() {
+        return resultQueue;
+    }
+    
     @PreDestroy
     public void close() {
-        closeQuietly(balances); closeQuietly(userAssets); closeQuietly(orders);
-        closeQuietly(activeOrders); closeQuietly(trades); closeQuietly(cids); closeQuietly(metadata);
-        closeQuietly(gatewayQueue); closeQuietly(commandQueue); closeQuietly(resultQueue);
+        closeQuietly(balances);
+        closeQuietly(userAssets);
+        closeQuietly(orders);
+        closeQuietly(activeOrders);
+        closeQuietly(trades);
+        closeQuietly(cids);
+        closeQuietly(metadata);
+        closeQuietly(gatewayQueue);
+        closeQuietly(commandQueue);
+        closeQuietly(resultQueue);
     }
-
-    private void closeQuietly(AutoCloseable c) { try { if (c != null) c.close(); } catch (Exception ignored) {} }
+    
+    private void closeQuietly(AutoCloseable c) {
+        try {
+            if (c != null)
+                c.close();
+        } catch (Exception ignored) {
+        }
+    }
 }

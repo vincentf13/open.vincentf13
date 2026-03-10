@@ -5,4 +5,5 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableConfigurationProperties(RiskPreCheckProperties.class)
-public class RiskConfiguration {}
+public class RiskConfiguration {
+}

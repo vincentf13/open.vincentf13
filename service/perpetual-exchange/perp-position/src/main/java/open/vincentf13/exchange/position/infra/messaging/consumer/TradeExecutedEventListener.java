@@ -18,24 +18,25 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class TradeExecutedEventListener {
-
-  private final PositionCommandService positionCommandService;
-
-  @KafkaListener(
-      topics = MatchingTopics.Names.TRADE_EXECUTED,
-      groupId =
-          "${exchange.position.trade-executed.consumer-group:exchange-position-trade-executed}")
-  public void onTradeExecuted(@Payload TradeExecutedEvent event, Acknowledgment acknowledgment) {
-    try {
-      positionCommandService.handleTradeExecuted(event);
-      acknowledgment.acknowledge();
-    } catch (OpenException e) {
-      if (e.getCode() == PositionErrorCode.DUPLICATE_REQUEST) {
-        OpenLog.warn(log, PositionEvent.POSITION_TRADE_DUPLICATE, e, "event", event);
-        acknowledgment.acknowledge();
-        return;
-      }
-      throw e;
+    
+    private final PositionCommandService positionCommandService;
+    
+    @KafkaListener(
+            topics = MatchingTopics.Names.TRADE_EXECUTED,
+            groupId =
+                    "${exchange.position.trade-executed.consumer-group:exchange-position-trade-executed}")
+    public void onTradeExecuted(@Payload TradeExecutedEvent event,
+                                Acknowledgment acknowledgment) {
+        try {
+            positionCommandService.handleTradeExecuted(event);
+            acknowledgment.acknowledge();
+        } catch (OpenException e) {
+            if (e.getCode() == PositionErrorCode.DUPLICATE_REQUEST) {
+                OpenLog.warn(log, PositionEvent.POSITION_TRADE_DUPLICATE, e, "event", event);
+                acknowledgment.acknowledge();
+                return;
+            }
+            throw e;
+        }
     }
-  }
 }

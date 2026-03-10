@@ -5,8 +5,8 @@ import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 
-/** 
-  系統全域進度快照 (確保序號與計數器的原子對齊)
+/**
+ 系統全域進度快照 (確保序號與計數器的原子對齊)
  */
 @Data
 public class Progress implements BytesMarshallable {
@@ -14,7 +14,7 @@ public class Progress implements BytesMarshallable {
     private long orderIdCounter;   // 訂單 ID 計數器
     private long tradeIdCounter;   // 成交 ID 計數器
     private long lastAeronPos;     // 最後接收到的 Aeron Position
-
+    
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
         bytes.writeLong(lastProcessedSeq);
@@ -22,7 +22,7 @@ public class Progress implements BytesMarshallable {
         bytes.writeLong(tradeIdCounter);
         bytes.writeLong(lastAeronPos);
     }
-
+    
     @Override
     public void readMarshallable(BytesIn<?> bytes) {
         lastProcessedSeq = bytes.readLong();
