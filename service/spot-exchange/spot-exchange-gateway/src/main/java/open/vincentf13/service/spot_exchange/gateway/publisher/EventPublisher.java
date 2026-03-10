@@ -1,22 +1,28 @@
-package open.vincentf13.service.spot_exchange.gateway;
+package open.vincentf13.service.spot_exchange.gateway.publisher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot_exchange.infra.*;
+import open.vincentf13.service.spot_exchange.gateway.handler.ExchangeWebSocketHandler;
+import open.vincentf13.service.spot_exchange.infra.codec.SbeCodec;
+import open.vincentf13.service.spot_exchange.infra.worker.BusySpinWorker;
+import open.vincentf13.service.spot_exchange.infra.store.StateStore;
 import open.vincentf13.service.spot_exchange.model.SystemProgress;
 import open.vincentf13.service.spot_exchange.sbe.ExecutionReportDecoder;
 
-import java.util.Map;
 import java.nio.ByteBuffer;
+import java.util.Map;
 
-import static open.vincentf13.service.spot_exchange.infra.ExchangeConstants.*;
+import static open.vincentf13.service.spot_exchange.infra.constant.ExchangeConstants.PK_PUB_PUSH_SEQ;
 
 @Component
 public class EventPublisher extends BusySpinWorker {
+    private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
     private final StateStore stateStore;
     private final ExchangeWebSocketHandler wsHandler;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -72,23 +78,13 @@ public class EventPublisher extends BusySpinWorker {
                 }
             }
             progress.setLastProcessedSeq(seq);
+            stateStore.getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
         });
-
-        if (handled) {
-            return 1;
-        } else {
-            if (progress.getLastProcessedSeq() != -1) {
-                stateStore.getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
-            }
-            return 0;
-        }
+        return handled ? 1 : 0;
     }
 
     @Override
     protected void onStop() { 
-        if (progress.getLastProcessedSeq() != -1) {
-            stateStore.getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
-        }
         reusableBytes.releaseLast(); 
     }
 }

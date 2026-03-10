@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot_exchange.core;
+package open.vincentf13.service.spot_exchange.matching.engine;
 
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.Bytes;
@@ -7,14 +7,19 @@ import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot_exchange.infra.*;
+import open.vincentf13.service.spot_exchange.infra.worker.BusySpinWorker;
+import open.vincentf13.service.spot_exchange.infra.util.DecimalUtil;
+import open.vincentf13.service.spot_exchange.infra.codec.SbeCodec;
+import open.vincentf13.service.spot_exchange.infra.store.StateStore;
+import open.vincentf13.service.spot_exchange.matching.logic.OrderBook;
+import open.vincentf13.service.spot_exchange.matching.processor.LedgerProcessor;
 import open.vincentf13.service.spot_exchange.model.*;
 import open.vincentf13.service.spot_exchange.sbe.*;
 
 import java.nio.ByteBuffer;
 import java.util.*;
 
-import static open.vincentf13.service.spot_exchange.infra.ExchangeConstants.*;
+import static open.vincentf13.service.spot_exchange.infra.constant.ExchangeConstants.*;
 
 /** 
   撮合引擎 (核心狀態機)
@@ -98,8 +103,7 @@ public class MatchingEngine extends BusySpinWorker {
         CidKey key = new CidKey(createDecoder.userId(), cid);
         Long resId = stateStore.getCidMap().get(key);
         if (resId != null) {
-            if (!isReplaying && resId > 0) resendReport(resId, createDecoder.userId(), cid, createDecoder.timestamp());
-            else if (!isReplaying && resId == ID_REJECTED) sendReport(createDecoder.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, createDecoder.timestamp());
+            if (!isReplaying) resendReport(resId, createDecoder.userId(), cid, createDecoder.timestamp());
             return;
         }
         stateStore.getCidMap().put(key, handleOrderCreate(createDecoder, seq, cid));
@@ -135,10 +139,10 @@ public class MatchingEngine extends BusySpinWorker {
         List<OrderBook.TradeEvent> trades = books.computeIfAbsent(o.getSymbolId(), OrderBook::new).match(o);
         for (OrderBook.TradeEvent t : trades) {
             long tid = progress.getTradeIdCounter(); progress.setTradeIdCounter(tid + 1);
-            persistTrade(t, tid, ts, seq);
+            persistTrade(t, tid, sbe.timestamp(), seq);
             processTradeLedger(t, seq, o);
             syncOrder(t.makerOrderId, seq);
-            sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, ts);
+            sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, sbe.timestamp());
         }
         syncOrder(oid, seq);
         OrderStatus st = (o.getStatus() == 2) ? OrderStatus.FILLED : OrderStatus.NEW;

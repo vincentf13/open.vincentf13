@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot_exchange.infra;
+package open.vincentf13.service.spot_exchange.infra.util;
 
 import java.math.BigInteger;
 

@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot_exchange.core;
+package open.vincentf13.service.spot_exchange.matching.logic;
 
 import open.vincentf13.service.spot_exchange.model.ActiveOrder;
 import java.util.*;
@@ -11,8 +11,6 @@ public class OrderBook {
     private final int symbolId;
     private final TreeMap<Long, LinkedList<ActiveOrder>> bids = new TreeMap<>(Collections.reverseOrder());
     private final TreeMap<Long, LinkedList<ActiveOrder>> asks = new TreeMap<>();
-    
-    // --- 深度優化：內部索引，確保撤單操作為 O(1) ---
     private final Map<Long, ActiveOrder> internalMap = new HashMap<>();
 
     public OrderBook(int symbolId) {
@@ -66,7 +64,7 @@ public class OrderBook {
             TreeMap<Long, LinkedList<ActiveOrder>> sideMap = (target.getSide() == 0) ? bids : asks;
             LinkedList<ActiveOrder> orders = sideMap.get(target.getPrice());
             if (orders != null) {
-                orders.remove(target); // LinkedList.remove(Object) 在已知引用時仍是 O(N)，但在特定價格層級下開銷已極小
+                orders.remove(target);
                 if (orders.isEmpty()) sideMap.remove(target.getPrice());
             }
         }

@@ -1,14 +1,16 @@
-package open.vincentf13.service.spot_exchange.gateway;
+package open.vincentf13.service.spot_exchange.gateway.transport;
 
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot_exchange.infra.*;
+import open.vincentf13.service.spot_exchange.infra.transport.AeronSubscriber;
+import open.vincentf13.service.spot_exchange.infra.worker.BusySpinWorker;
+import open.vincentf13.service.spot_exchange.infra.store.StateStore;
 import open.vincentf13.service.spot_exchange.model.SystemProgress;
 
-import static open.vincentf13.service.spot_exchange.infra.ExchangeConstants.*;
+import static open.vincentf13.service.spot_exchange.infra.constant.ExchangeConstants.*;
 
 @Component
 public class GatewayResultReceiver extends BusySpinWorker {
@@ -22,8 +24,7 @@ public class GatewayResultReceiver extends BusySpinWorker {
     private final net.openhft.chronicle.bytes.Bytes<?> writeBytes = net.openhft.chronicle.bytes.Bytes.wrapForRead(reusableArray);
 
     public GatewayResultReceiver(Aeron aeron, StateStore stateStore) {
-        this.aeron = aeron;
-        this.stateStore = stateStore;
+        this.aeron = aeron; this.stateStore = stateStore;
     }
 
     @PostConstruct public void init() { start("gw-result-receiver"); }
@@ -42,30 +43,18 @@ public class GatewayResultReceiver extends BusySpinWorker {
             int len = Math.min(length, reusableArray.length);
             buffer.getBytes(offset, reusableArray, 0, len);
             writeBytes.readPositionRemaining(0, len);
-
+            
             stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
                 wire.bytes().write(writeBytes);
                 wire.write("aeronSeq").int64(currentSeq);
             });
-
+            
             progress.setLastProcessedSeq(currentSeq);
+            stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
         };
     }
 
-    @Override
-    protected int doWork() {
-        int poll = subscription.poll(fragmentHandler, 10);
-        if (poll == 0 && progress.getLastProcessedSeq() != -1) {
-            stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
-        }
-        return poll;
-    }
+    @Override protected int doWork() { return subscription.poll(fragmentHandler, 10); }
 
-    @Override
-    protected void onStop() { 
-        if (progress.getLastProcessedSeq() != -1) {
-            stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
-        }
-        if (subscription != null) subscription.close(); 
-    }
+    @Override protected void onStop() { if (subscription != null) subscription.close(); }
 }

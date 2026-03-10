@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot_exchange.infra;
+package open.vincentf13.service.spot_exchange.infra.codec;
 
 import open.vincentf13.service.spot_exchange.sbe.*;
 import org.agrona.DirectBuffer;

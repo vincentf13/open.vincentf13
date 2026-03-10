@@ -1,5 +1,6 @@
-package open.vincentf13.service.spot_exchange.gateway;
+package open.vincentf13.service.spot_exchange.gateway.config;
 
+import open.vincentf13.service.spot_exchange.gateway.handler.ExchangeWebSocketHandler;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;

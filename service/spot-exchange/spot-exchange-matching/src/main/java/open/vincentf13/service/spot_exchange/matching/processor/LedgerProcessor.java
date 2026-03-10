@@ -1,6 +1,6 @@
-package open.vincentf13.service.spot_exchange.core;
+package open.vincentf13.service.spot_exchange.matching.processor;
 
-import open.vincentf13.service.spot_exchange.infra.StateStore;
+import open.vincentf13.service.spot_exchange.infra.store.StateStore;
 import open.vincentf13.service.spot_exchange.model.Balance;
 import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.springframework.stereotype.Service;
@@ -71,7 +71,6 @@ public class LedgerProcessor {
 
     public boolean tryFreeze(long userId, int assetId, long currentSeq, long amount) {
         if (amount <= 0) return true;
-        
         boolean[] success = {false};
         updateBalance(userId, assetId, currentSeq, b -> {
             if (b.getAvailable() >= amount) {

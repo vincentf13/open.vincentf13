@@ -1,21 +1,20 @@
-package open.vincentf13.service.spot_exchange.gateway;
+package open.vincentf13.service.spot_exchange.matching.app;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 /** 
-  現貨交易所 - 網關啟動類
-  負責 WebSocket 接入與 Aeron 轉發
+  現貨交易所 - 撮合核心啟動類
  */
 @SpringBootApplication
 @ComponentScan(basePackages = {
-    "open.vincentf13.service.spot_exchange.gateway",
+    "open.vincentf13.service.spot_exchange.matching",
     "open.vincentf13.service.spot_exchange.infra"
 })
-public class SpotGatewayApplication {
+public class SpotMatchingApplication {
     public static void main(String[] args) {
-        System.setProperty("server.port", "8081");
-        SpringApplication.run(SpotGatewayApplication.class, args);
+        System.setProperty("spring.main.web-application-type", "none");
+        SpringApplication.run(SpotMatchingApplication.class, args);
     }
 }

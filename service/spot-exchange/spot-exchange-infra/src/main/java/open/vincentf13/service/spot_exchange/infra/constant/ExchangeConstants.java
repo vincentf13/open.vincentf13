@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot_exchange.infra;
+package open.vincentf13.service.spot_exchange.infra.constant;
 
 /** 
   全系統核心常量 (Review 基準)

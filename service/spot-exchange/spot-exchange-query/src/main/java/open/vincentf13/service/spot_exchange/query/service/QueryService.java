@@ -1,7 +1,7 @@
-package open.vincentf13.service.spot_exchange.query;
+package open.vincentf13.service.spot_exchange.query.service;
 
 import net.openhft.chronicle.map.ExternalMapQueryContext;
-import open.vincentf13.service.spot_exchange.infra.StateStore;
+import open.vincentf13.service.spot_exchange.infra.store.StateStore;
 import open.vincentf13.service.spot_exchange.model.ActiveOrder;
 import open.vincentf13.service.spot_exchange.model.Balance;
 import open.vincentf13.service.spot_exchange.model.BalanceKey;
@@ -20,7 +20,6 @@ public class QueryService {
 
     public List<Balance> getUserBalances(long userId) {
         List<Balance> results = new ArrayList<>();
-        // --- 深度優化：透過 Bitmask 索引進行 O(1) 資產發現，避免全表掃描 ---
         Long mask = stateStore.getUserAssetIndexMap().get(userId);
         if (mask == null || mask == 0) return results;
 

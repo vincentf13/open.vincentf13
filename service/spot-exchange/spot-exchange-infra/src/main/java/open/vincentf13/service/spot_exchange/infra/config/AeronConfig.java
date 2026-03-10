@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot_exchange.infra;
+package open.vincentf13.service.spot_exchange.infra.config;
 
 import io.aeron.Aeron;
 import io.aeron.driver.MediaDriver;
