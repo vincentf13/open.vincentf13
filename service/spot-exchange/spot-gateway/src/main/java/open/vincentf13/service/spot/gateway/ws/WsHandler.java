@@ -1,6 +1,5 @@
 package open.vincentf13.service.spot.gateway.ws;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -12,6 +11,7 @@ import net.openhft.chronicle.bytes.Bytes;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.util.JsonUtil;
+import open.vincentf13.service.spot.model.OrderRequest;
 import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -21,46 +21,56 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * WebSocket 指令處理器
- */
+import static open.vincentf13.service.spot.infra.Constants.*;
+
 @Slf4j
 @Component
 @ChannelHandler.Sharable
 public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    private static final AttributeKey<String> ATTR_USER_ID = AttributeKey.valueOf("userId");
+    private static final AttributeKey<String> ATTR_USER_ID = AttributeKey.valueOf(FIELD_USER_ID);
     private final Map<String, Channel> userChannels = new ConcurrentHashMap<>();
 
+    // --- Zero-GC 資源池 ---
     private final ThreadLocal<Bytes<ByteBuffer>> bytesCache = ThreadLocal.withInitial(() -> Bytes.elasticByteBuffer(512));
     private final ThreadLocal<UnsafeBuffer> bufferCache = ThreadLocal.withInitial(() -> new UnsafeBuffer(0, 0));
     private final ThreadLocal<OrderCreateEncoder> orderEncoder = ThreadLocal.withInitial(OrderCreateEncoder::new);
+    
+    // --- 關鍵優化：重用 Request 物件，徹底消除此路徑的物件分配 ---
+    private final ThreadLocal<OrderRequest> reusableOrderRequest = ThreadLocal.withInitial(OrderRequest::new);
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
-        JsonNode root = JsonUtil.readTree(frame.text());
+        String text = frame.text();
+        if (text.contains(OP_PING)) { ctx.channel().writeAndFlush(new TextWebSocketFrame(RESP_PONG)); return; }
+
+        // 初步解析獲取操作類型 (這裡仍會分配 JsonNode，但在極致場景下可改用字串掃描)
+        var root = JsonUtil.readTree(text);
         if (root == null) return;
 
-        String op = root.path("op").asText("");
-        switch (op) {
-            case "order.create" -> handleOrderCreate(ctx.channel(), root);
-            case "auth"         -> handleAuth(ctx.channel(), root);
-            case "ping"         -> ctx.channel().writeAndFlush(new TextWebSocketFrame("{\"op\":\"pong\"}"));
-            default             -> log.warn("Unknown operation [{}]", op);
+        String op = root.path(FIELD_OP).asText("");
+        if (OP_ORDER_CREATE.equals(op)) {
+            // 使用重用物件解析，避免 new OrderRequest()
+            OrderRequest req = reusableOrderRequest.get();
+            req.reset();
+            JsonUtil.updateObject(text, req);
+            handleOrderCreate(ctx.channel(), req);
+        } else if (OP_AUTH.equals(op)) {
+            handleAuth(ctx.channel(), root);
         }
     }
 
-    private void handleOrderCreate(Channel channel, JsonNode root) {
-        JsonNode params = root.get("params");
-        if (params == null) return;
-
+    private void handleOrderCreate(Channel channel, OrderRequest req) {
+        OrderRequest.Params p = req.getParams();
+        // 這裡 p 也是預初始化的，不需要檢查 null
+        
         Bytes<ByteBuffer> bytes = bytesCache.get(); bytes.clear();
         UnsafeBuffer buffer = bufferCache.get(); buffer.wrap(bytes.addressForWrite(0), (int) bytes.realCapacity());
         OrderCreateEncoder encoder = orderEncoder.get();
 
         int len = SbeCodec.encode(buffer, 0, encoder.timestamp(System.currentTimeMillis())
-            .userId(params.path("userId").asLong()).symbolId(params.path("symbolId").asLong())
-            .price(params.path("price").asLong()).qty(params.path("qty").asLong())
-            .side(Side.get((short) params.path("side").asInt(0))).clientOrderId(root.path("cid").asText("")));
+            .userId(p.getUserId()).symbolId(p.getSymbolId())
+            .price(p.getPrice()).qty(p.getQty())
+            .side(Side.get((short) p.getSide())).clientOrderId(req.getCid()));
 
         bytes.writePosition(len);
         Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
@@ -68,8 +78,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         });
     }
 
-    private void handleAuth(Channel channel, JsonNode root) {
-        long userId = root.path("args").path("userId").asLong(0);
+    private void handleAuth(Channel channel, com.fasterxml.jackson.databind.JsonNode root) {
+        long userId = root.path(FIELD_ARGS).path(FIELD_USER_ID).asLong(0);
         if (userId == 0) return;
 
         String uidStr = String.valueOf(userId);
@@ -77,7 +87,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         channel.attr(ATTR_USER_ID).set(uidStr);
 
         Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
-            wire.write("msgType").int32(103); wire.write("userId").int64(userId);
+            wire.write("msgType").int32(MSG_TYPE_AUTH); wire.write(FIELD_USER_ID).int64(userId);
         });
     }
 
