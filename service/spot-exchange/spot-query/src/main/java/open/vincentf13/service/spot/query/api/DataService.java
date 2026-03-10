@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.query.service;
+package open.vincentf13.service.spot.query.api;
 
 import net.openhft.chronicle.map.ExternalMapQueryContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
@@ -11,14 +11,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class QueryService {
+public class DataService {
     private final Storage storage;
 
-    public QueryService(Storage storage) {
+    public DataService(Storage storage) {
         this.storage = storage;
     }
 
-    public List<Balance> getUserBalances(long userId) {
+    public List<Balance> getBalances(long userId) {
         List<Balance> results = new ArrayList<>();
         Long mask = storage.userAssets().get(userId);
         if (mask == null || mask == 0) return results;
@@ -38,7 +38,7 @@ public class QueryService {
         return results;
     }
 
-    public List<ActiveOrder> getActiveOrders(long userId) {
+    public List<ActiveOrder> getOrders(long userId) {
         List<ActiveOrder> results = new ArrayList<>();
         storage.activeOrders().keySet().forEach(orderId -> {
             try (ExternalMapQueryContext<Long, ActiveOrder, ?> context = 
