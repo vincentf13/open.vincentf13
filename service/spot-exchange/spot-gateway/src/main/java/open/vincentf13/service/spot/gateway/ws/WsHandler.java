@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.gateway.handler;
+package open.vincentf13.service.spot.gateway.ws;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-public class ExchangeWebSocketHandler extends TextWebSocketHandler {
-    private static final Logger log = LoggerFactory.getLogger(ExchangeWebSocketHandler.class);
+public class WsHandler extends TextWebSocketHandler {
+    private static final Logger log = LoggerFactory.getLogger(WsHandler.class);
     private final StateStore stateStore;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
@@ -30,7 +30,7 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     private static final ThreadLocal<UnsafeBuffer> BUFFER_CACHE = ThreadLocal.withInitial(() -> new UnsafeBuffer(0, 0));
     private static final ThreadLocal<OrderCreateEncoder> ENCODER_CACHE = ThreadLocal.withInitial(OrderCreateEncoder::new);
 
-    public ExchangeWebSocketHandler(StateStore stateStore) {
+    public WsHandler(StateStore stateStore) {
         this.stateStore = stateStore;
     }
 

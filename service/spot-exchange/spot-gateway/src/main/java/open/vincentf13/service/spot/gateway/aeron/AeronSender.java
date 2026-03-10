@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.gateway.transport;
+package open.vincentf13.service.spot.gateway.aeron;
 
 import io.aeron.Aeron;
 import jakarta.annotation.PostConstruct;
@@ -16,7 +16,7 @@ import java.nio.ByteBuffer;
 import static open.vincentf13.service.spot.infra.constant.ExchangeConstants.*;
 
 @Component
-public class GatewayAeronSender extends BusySpinWorker {
+public class AeronSender extends BusySpinWorker {
     private final Aeron aeron;
     private final StateStore stateStore;
     private AeronPublisher publisher;
@@ -25,11 +25,11 @@ public class GatewayAeronSender extends BusySpinWorker {
     private final UnsafeBuffer aeronBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public GatewayAeronSender(Aeron aeron, StateStore stateStore) {
+    public AeronSender(Aeron aeron, StateStore stateStore) {
         this.aeron = aeron; this.stateStore = stateStore;
     }
 
-    @PostConstruct public void init() { start("gw-aeron-sender"); }
+    @PostConstruct public void init() { start("aeron-sender"); }
 
     @Override
     protected void onStart() {

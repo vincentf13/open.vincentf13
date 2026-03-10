@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.gateway.publisher;
+package open.vincentf13.service.spot.gateway.ws;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -8,7 +8,6 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.gateway.handler.ExchangeWebSocketHandler;
 import open.vincentf13.service.spot.infra.codec.SbeCodec;
 import open.vincentf13.service.spot.infra.worker.BusySpinWorker;
 import open.vincentf13.service.spot.infra.store.StateStore;
@@ -21,10 +20,10 @@ import java.util.Map;
 import static open.vincentf13.service.spot.infra.constant.ExchangeConstants.PK_PUB_PUSH_SEQ;
 
 @Component
-public class EventPublisher extends BusySpinWorker {
-    private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
+public class PushWorker extends BusySpinWorker {
+    private static final Logger log = LoggerFactory.getLogger(PushWorker.class);
     private final StateStore stateStore;
-    private final ExchangeWebSocketHandler wsHandler;
+    private final WsHandler wsHandler;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private ExcerptTailer tailer;
     private final SystemProgress progress = new SystemProgress();
@@ -33,12 +32,12 @@ public class EventPublisher extends BusySpinWorker {
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public EventPublisher(StateStore stateStore, ExchangeWebSocketHandler wsHandler) {
+    public PushWorker(StateStore stateStore, WsHandler wsHandler) {
         this.stateStore = stateStore;
         this.wsHandler = wsHandler;
     }
 
-    @PostConstruct public void init() { start("event-publisher"); }
+    @PostConstruct public void init() { start("push-worker"); }
     
     @Override
     protected void onStart() {
@@ -84,7 +83,5 @@ public class EventPublisher extends BusySpinWorker {
     }
 
     @Override
-    protected void onStop() { 
-        reusableBytes.releaseLast(); 
-    }
+    protected void onStop() { reusableBytes.releaseLast(); }
 }

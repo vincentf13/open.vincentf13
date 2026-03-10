@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.gateway.app;
+package open.vincentf13.service.spot.gateway;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,9 +9,9 @@ import org.springframework.context.annotation.ComponentScan;
     "open.vincentf13.service.spot.gateway",
     "open.vincentf13.service.spot.infra"
 })
-public class SpotGatewayApplication {
+public class GatewayApp {
     public static void main(String[] args) {
         System.setProperty("server.port", "8081");
-        SpringApplication.run(SpotGatewayApplication.class, args);
+        SpringApplication.run(GatewayApp.class, args);
     }
 }

@@ -1,11 +1,10 @@
-package open.vincentf13.service.spot.gateway.transport;
+package open.vincentf13.service.spot.gateway.aeron;
 
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.transport.AeronSubscriber;
 import open.vincentf13.service.spot.infra.worker.BusySpinWorker;
 import open.vincentf13.service.spot.infra.store.StateStore;
 import open.vincentf13.service.spot.model.SystemProgress;
@@ -13,7 +12,7 @@ import open.vincentf13.service.spot.model.SystemProgress;
 import static open.vincentf13.service.spot.infra.constant.ExchangeConstants.*;
 
 @Component
-public class GatewayResultReceiver extends BusySpinWorker {
+public class AeronReceiver extends BusySpinWorker {
     private final Aeron aeron;
     private final StateStore stateStore;
     private Subscription subscription;
@@ -23,11 +22,11 @@ public class GatewayResultReceiver extends BusySpinWorker {
     private final byte[] reusableArray = new byte[2048];
     private final net.openhft.chronicle.bytes.Bytes<?> writeBytes = net.openhft.chronicle.bytes.Bytes.wrapForRead(reusableArray);
 
-    public GatewayResultReceiver(Aeron aeron, StateStore stateStore) {
+    public AeronReceiver(Aeron aeron, StateStore stateStore) {
         this.aeron = aeron; this.stateStore = stateStore;
     }
 
-    @PostConstruct public void init() { start("gw-result-receiver"); }
+    @PostConstruct public void init() { start("aeron-receiver"); }
 
     @Override
     protected void onStart() {
