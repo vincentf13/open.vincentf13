@@ -5,13 +5,8 @@ import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
-import open.vincentf13.service.spot_exchange.infra.DecimalUtil;
-import open.vincentf13.service.spot_exchange.infra.SbeCodec;
-import open.vincentf13.service.spot_exchange.infra.StateStore;
-import open.vincentf13.service.spot_exchange.model.ActiveOrder;
-import open.vincentf13.service.spot_exchange.model.CidKey;
-import open.vincentf13.service.spot_exchange.model.TradeRecord;
+import open.vincentf13.service.spot_exchange.infra.*;
+import open.vincentf13.service.spot_exchange.model.*;
 import open.vincentf13.service.spot_exchange.sbe.*;
 
 import java.nio.ByteBuffer;
@@ -19,15 +14,14 @@ import java.util.*;
 
 @Component
 public class MatchingEngine extends BusySpinWorker {
-    private static final long SYSTEM_USER_ID = 0L; // --- 全系統對帳帳戶 ---
+    private static final long SYSTEM_USER_ID = 0L;
     
     private final StateStore stateStore;
     private final LedgerProcessor ledger;
     private final Map<Integer, OrderBook> books = new HashMap<>();
     private final Map<Long, ActiveOrder> activeOrderIndex = new HashMap<>();
     
-    private long orderIdCounter = 1;
-    private long tradeIdCounter = 1;
+    private final SystemProgress progress = new SystemProgress(); // 內存快照
     private ExcerptTailer tailer;
     private boolean isReplaying = false;
 
@@ -50,26 +44,32 @@ public class MatchingEngine extends BusySpinWorker {
     @Override
     protected void onStart() {
         this.tailer = stateStore.getCoreQueue().createTailer();
-        this.orderIdCounter = stateStore.getSystemStateMap().getOrDefault("orderIdCounter", 1L);
-        this.tradeIdCounter = stateStore.getSystemStateMap().getOrDefault("tradeIdCounter", 1L);
+        
+        // 1. 恢復原子進度
+        SystemProgress savedProgress = stateStore.getSystemProgressMap().get("coreProgress");
+        if (savedProgress != null) {
+            this.progress.setLastProcessedSeq(savedProgress.getLastProcessedSeq());
+            this.progress.setOrderIdCounter(savedProgress.getOrderIdCounter());
+            this.progress.setTradeIdCounter(savedProgress.getTradeIdCounter());
+        } else {
+            this.progress.setOrderIdCounter(1);
+            this.progress.setTradeIdCounter(1);
+        }
 
-        log.info("正在執行金融級有序重建...");
-        List<ActiveOrder> activeOrders = new ArrayList<>();
+        log.info("正在執行系統啟動校驗與有序重建...");
         stateStore.getActiveOrderIdMap().keySet().forEach(id -> {
             ActiveOrder o = stateStore.getOrderMap().get(id);
-            if (o != null && o.getStatus() < 2) activeOrders.add(o);
-            else stateStore.getActiveOrderIdMap().remove(id);
+            if (o != null && o.getStatus() < 2) {
+                books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
+                activeOrderIndex.put(id, o);
+            } else {
+                stateStore.getActiveOrderIdMap().remove(id);
+            }
         });
 
-        activeOrders.stream().sorted(Comparator.comparingLong(ActiveOrder::getOrderId)).forEach(order -> {
-            books.computeIfAbsent(order.getSymbolId(), OrderBook::new).add(order);
-            activeOrderIndex.put(order.getOrderId(), order);
-        });
-
-        Long lastSeq = stateStore.getSystemStateMap().get("lastProcessedSeq");
-        if (lastSeq != null && lastSeq > 0) {
+        if (progress.getLastProcessedSeq() > 0) {
             isReplaying = true;
-            tailer.moveToIndex(lastSeq);
+            tailer.moveToIndex(progress.getLastProcessedSeq());
         }
     }
 
@@ -97,9 +97,9 @@ public class MatchingEngine extends BusySpinWorker {
                     break;
             }
             
-            stateStore.getSystemStateMap().put("lastProcessedSeq", currentIndex);
-            stateStore.getSystemStateMap().put("orderIdCounter", orderIdCounter);
-            stateStore.getSystemStateMap().put("tradeIdCounter", tradeIdCounter);
+            // --- 原子更新系統進度 ---
+            progress.setLastProcessedSeq(currentIndex);
+            stateStore.getSystemProgressMap().put("coreProgress", progress);
         }) ? 1 : 0;
     }
 
@@ -111,7 +111,7 @@ public class MatchingEngine extends BusySpinWorker {
             return;
         }
         handleOrderCreate(sbe, seq);
-        stateStore.getCidMap().put(key, orderIdCounter - 1);
+        stateStore.getCidMap().put(key, 0L);
     }
 
     private void handleOrderCancelWithIdempotency(OrderCancelDecoder sbe, long seq) {
@@ -132,7 +132,9 @@ public class MatchingEngine extends BusySpinWorker {
         }
 
         ActiveOrder order = new ActiveOrder();
-        order.setOrderId(orderIdCounter++);
+        order.setOrderId(progress.getOrderIdCounter());
+        progress.setOrderIdCounter(progress.getOrderIdCounter() + 1); // 累加內存計數器
+        
         order.setClientOrderId(sbe.clientOrderId());
         order.setUserId(sbe.userId());
         order.setSymbolId((int)sbe.symbolId());
@@ -150,7 +152,8 @@ public class MatchingEngine extends BusySpinWorker {
         List<OrderBook.TradeEvent> trades = book.match(order);
 
         for (OrderBook.TradeEvent t : trades) {
-            persistTrade(t, tradeIdCounter++, ts);
+            persistTrade(t, progress.getTradeIdCounter(), ts);
+            progress.setTradeIdCounter(progress.getTradeIdCounter() + 1);
             processTradeLedger(t, currentSeq, order);
             syncOrderState(t.makerOrderId, currentSeq);
             sendExecutionReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, ts);
@@ -169,9 +172,8 @@ public class MatchingEngine extends BusySpinWorker {
         }
 
         books.get(order.getSymbolId()).remove(order);
-        long remainingQty = order.getQty() - order.getFilled();
-        long unfreezeAmount = (order.getSide() == 0) ? DecimalUtil.mulCeil(order.getPrice(), remainingQty) : remainingQty;
-        ledger.unfreeze(order.getUserId(), (order.getSide() == 0) ? 2 : 1, seq, unfreezeAmount);
+        long unfreeze = (order.getSide() == 0) ? DecimalUtil.mulCeil(order.getPrice(), order.getQty() - order.getFilled()) : order.getQty() - order.getFilled();
+        ledger.unfreeze(order.getUserId(), (order.getSide() == 0) ? 2 : 1, seq, unfreeze);
 
         order.setStatus((byte)3); order.setLastSeq(seq);
         activeOrderIndex.remove(order.getOrderId());
@@ -192,11 +194,10 @@ public class MatchingEngine extends BusySpinWorker {
     private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq, ActiveOrder taker) {
         long floor = DecimalUtil.mulFloor(t.price, t.qty);
         long ceil = DecimalUtil.mulCeil(t.price, t.qty);
-        long dust = ceil - floor; // --- 收集進位塵埃 ---
+        long dust = ceil - floor;
 
         if (taker.getSide() == 0) { // Taker BUY
-            long takerFrozen = DecimalUtil.mulCeil(taker.getPrice(), t.qty);
-            ledger.tradeSettleWithRefund(t.takerUserId, 2, ceil, takerFrozen, 1, t.qty, currentSeq);
+            ledger.tradeSettleWithRefund(t.takerUserId, 2, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), 1, t.qty, currentSeq);
             ledger.tradeSettle(t.makerUserId, 1, t.qty, 2, floor, currentSeq);
         } else { // Taker SELL
             ledger.tradeSettle(t.takerUserId, 1, t.qty, 2, floor, currentSeq);
@@ -204,8 +205,6 @@ public class MatchingEngine extends BusySpinWorker {
             long mCeil = (maker != null) ? DecimalUtil.mulCeil(maker.getPrice(), t.qty) : ceil;
             ledger.tradeSettleWithRefund(t.makerUserId, 2, ceil, mCeil, 1, t.qty, currentSeq);
         }
-        
-        // 將塵埃轉入系統帳戶，保持全系統資產平衡
         if (dust > 0) ledger.addAvailable(SYSTEM_USER_ID, 2, currentSeq, dust);
     }
 

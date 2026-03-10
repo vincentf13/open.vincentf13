@@ -14,12 +14,12 @@ import java.io.IOException;
 @Component
 public class StateStore {
     private ChronicleMap<BalanceKey, Balance> balanceMap;
-    private ChronicleMap<Long, Long> userAssetIndexMap; // userId -> AssetId Bitmask ($O(1)$ discovery)
+    private ChronicleMap<Long, Long> userAssetIndexMap;
     private ChronicleMap<Long, ActiveOrder> orderMap;
     private ChronicleMap<Long, Boolean> activeOrderIdMap;
     private ChronicleMap<Long, TradeRecord> tradeHistoryMap;
     private ChronicleMap<CidKey, Long> cidMap;
-    private ChronicleMap<String, Long> systemStateMap;
+    private ChronicleMap<String, SystemProgress> systemProgressMap; // 核心進度快照
     
     private ChronicleQueue gwQueue;
     private ChronicleQueue coreQueue;
@@ -57,15 +57,15 @@ public class StateStore {
 
         cidMap = ChronicleMap.of(CidKey.class, Long.class)
             .name("cid-map").entries(1_000_000)
-            .averageKey(new CidKey(0, "client_order_id_placeholder_001"))
+            .averageKey(new CidKey(0, "placeholder"))
             .averageValue(0L)
             .createPersistedTo(new File(baseDir + "cid_index.dat"));
 
-        systemStateMap = ChronicleMap.of(String.class, Long.class)
-            .name("system-state-map").entries(20)
-            .averageKey("lastProcessedSeq")
-            .averageValue(0L)
-            .createPersistedTo(new File(baseDir + "system_state.dat"));
+        systemProgressMap = ChronicleMap.of(String.class, SystemProgress.class)
+            .name("system-progress-map").entries(10)
+            .averageKey("coreProgress")
+            .averageValue(new SystemProgress())
+            .createPersistedTo(new File(baseDir + "system_progress.dat"));
 
         gwQueue = SingleChronicleQueueBuilder.binary(baseDir + "gw-queue").build();
         coreQueue = SingleChronicleQueueBuilder.binary(baseDir + "core-queue").build();
@@ -78,7 +78,7 @@ public class StateStore {
     public ChronicleMap<Long, Boolean> getActiveOrderIdMap() { return activeOrderIdMap; }
     public ChronicleMap<Long, TradeRecord> getTradeHistoryMap() { return tradeHistoryMap; }
     public ChronicleMap<CidKey, Long> getCidMap() { return cidMap; }
-    public ChronicleMap<String, Long> getSystemStateMap() { return systemStateMap; }
+    public ChronicleMap<String, SystemProgress> getSystemProgressMap() { return systemProgressMap; }
     public ChronicleQueue getGwQueue() { return gwQueue; }
     public ChronicleQueue getCoreQueue() { return coreQueue; }
     public ChronicleQueue getOutboundQueue() { return outboundQueue; }
@@ -91,7 +91,7 @@ public class StateStore {
         if (activeOrderIdMap != null) activeOrderIdMap.close();
         if (tradeHistoryMap != null) tradeHistoryMap.close();
         if (cidMap != null) cidMap.close();
-        if (systemStateMap != null) systemStateMap.close();
+        if (systemProgressMap != null) systemProgressMap.close();
         if (gwQueue != null) gwQueue.close();
         if (coreQueue != null) coreQueue.close();
         if (outboundQueue != null) outboundQueue.close();
