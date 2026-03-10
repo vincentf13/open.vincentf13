@@ -1,12 +1,12 @@
 package open.vincentf13.service.spot.matching.aeron;
 
 import io.aeron.Aeron;
+import io.aeron.Publication;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.aeron.Publisher;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
@@ -18,7 +18,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 public class AeronSender extends Worker {
     private final Aeron aeron;
-    private Publisher publisher;
+    private Publication publication;
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
     
@@ -33,7 +33,7 @@ public class AeronSender extends Worker {
 
     @Override
     protected void onStart() {
-        publisher = new Publisher(aeron, Channel.OUTBOUND, Channel.OUT_STREAM);
+        publication = aeron.addPublication(Channel.OUTBOUND, Channel.OUT_STREAM);
         tailer = Storage.self().resultQueue().createTailer();
         Progress saved = Storage.self().metadata().get(Pk.RESULT);
         if (saved != null) {
@@ -50,7 +50,7 @@ public class AeronSender extends Worker {
             wire.read("payload").bytes(reusableBytes);
             aeronBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
             
-            while (publisher.tryPublish(aeronBuffer, 0, aeronBuffer.capacity()) < 0) {
+            while (publication.offer(aeronBuffer, 0, aeronBuffer.capacity()) < 0) {
                 if (!running.get()) return;
                 idleStrategy.idle();
             }
@@ -62,7 +62,7 @@ public class AeronSender extends Worker {
 
     @Override
     protected void onStop() { 
-        if (publisher != null) publisher.close();
+        if (publication != null) publication.close();
         reusableBytes.releaseLast(); 
     }
 }
