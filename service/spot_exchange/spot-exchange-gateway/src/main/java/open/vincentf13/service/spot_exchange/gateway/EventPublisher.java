@@ -1,10 +1,10 @@
 package open.vincentf13.service.spot_exchange.gateway;
 
 import jakarta.annotation.PostConstruct;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot_exchange.gateway.ExchangeWebSocketHandler;
 import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
 import open.vincentf13.service.spot_exchange.infra.SbeCodec;
 import open.vincentf13.service.spot_exchange.infra.StateStore;
@@ -20,6 +20,7 @@ public class EventPublisher extends BusySpinWorker {
 
     private final ExecutionReportDecoder executionDecoder = new ExecutionReportDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
+    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
     public EventPublisher(StateStore stateStore, ExchangeWebSocketHandler wsHandler) {
         this.stateStore = stateStore;
@@ -32,11 +33,8 @@ public class EventPublisher extends BusySpinWorker {
     @Override
     protected void onStart() {
         this.tailer = stateStore.getOutboundQueue().createTailer();
-        // --- 深度優化：從持久化進度恢復，確保回報不遺失 ---
         Long lastSeq = stateStore.getSystemStateMap().get("lastPublishedSeq");
-        if (lastSeq != null && lastSeq > 0) {
-            tailer.moveToIndex(lastSeq);
-        }
+        if (lastSeq != null && lastSeq > 0) tailer.moveToIndex(lastSeq);
     }
 
     @Override
@@ -46,8 +44,12 @@ public class EventPublisher extends BusySpinWorker {
             int msgType = wire.read("msgType").int32();
             
             if (msgType == executionDecoder.sbeTemplateId()) {
-                byte[] bytes = wire.read("payload").bytes();
-                payloadBuffer.wrap(bytes);
+                reusableBytes.clear();
+                wire.read("payload").bytes(reusableBytes);
+                
+                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), 
+                                 (int)reusableBytes.readRemaining());
+                
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
                 
                 String json = String.format(
@@ -56,12 +58,12 @@ public class EventPublisher extends BusySpinWorker {
                 );
                 wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
             }
-            
-            // 更新推送進度
             stateStore.getSystemStateMap().put("lastPublishedSeq", currentIndex);
         }) ? 1 : 0;
     }
 
     @Override
-    protected void onStop() {}
+    protected void onStop() {
+        if (reusableBytes != null) reusableBytes.releaseLast();
+    }
 }

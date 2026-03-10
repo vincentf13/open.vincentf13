@@ -2,6 +2,9 @@ package open.vincentf13.service.spot_exchange.core;
 
 import io.aeron.Aeron;
 import io.aeron.Publication;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
@@ -9,67 +12,56 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import open.vincentf13.service.spot_exchange.infra.AeronPublisher;
+import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
+import open.vincentf13.service.spot_exchange.infra.StateStore;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-/** 
-  Core 結果發送器 (Stream 30)
-  負責輪詢 outbound-queue 並透過 Aeron 將執行報告發送給 Gateway
- */
 @Component
-public class CoreResultSender implements Runnable {
-    private static final Logger log = LoggerFactory.getLogger(CoreResultSender.class);
+public class CoreResultSender extends BusySpinWorker {
     private final Aeron aeron;
-    private final AtomicBoolean running = new AtomicBoolean(false);
-    private ChronicleQueue outboundQueue;
-    private Publication publication;
-    private ExecutorService executor;
+    private final StateStore stateStore;
+    private AeronPublisher publisher;
+    private ExcerptTailer tailer;
+    
+    private final UnsafeBuffer aeronBuffer = new UnsafeBuffer(0, 0);
+    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public CoreResultSender(Aeron aeron) {
+    public CoreResultSender(Aeron aeron, StateStore stateStore) {
         this.aeron = aeron;
+        this.stateStore = stateStore;
     }
 
     @PostConstruct
-    public void start() {
-        outboundQueue = SingleChronicleQueueBuilder.binary("data/spot_exchange/outbound-queue").build();
-        publication = aeron.addPublication("aeron:udp?endpoint=localhost:40445", 30);
-        
-        running.set(true);
-        executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "core-result-sender"));
-        executor.submit(this);
+    public void init() { start("core-result-sender"); }
+
+    @Override
+    protected void onStart() {
+        publisher = new AeronPublisher(aeron, "aeron:udp?endpoint=localhost:40445", 30);
+        tailer = stateStore.getOutboundQueue().createTailer();
     }
 
     @Override
-    public void run() {
-        ExcerptTailer tailer = outboundQueue.createTailer();
-        UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1024));
-
-        while (running.get()) {
-            boolean handled = tailer.readDocument(wire -> {
-                // 將執行報告序列化並發送 (SBE 模式模擬)
-                byte[] data = wire.bytes().toByteArray();
-                buffer.putBytes(0, data);
-                long result = publication.offer(buffer, 0, data.length);
-                if (result < 0 && result != -2) { // -2 為 Backpressured，MVP 暫不處理
-                    log.warn("Result Aeron 發送失敗: {}", result);
-                }
-            });
-
-            if (!handled) {
-                Thread.onSpinWait();
+    protected int doWork() {
+        boolean handled = tailer.readDocument(wire -> {
+            reusableBytes.clear();
+            wire.read("payload").bytes(reusableBytes);
+            
+            aeronBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), 
+                             (int)reusableBytes.readRemaining());
+            
+            while (publisher.tryPublish(aeronBuffer, 0, aeronBuffer.capacity()) < 0) {
+                if (!running.get()) return;
+                idleStrategy.idle();
             }
-        }
+        });
+        return handled ? 1 : 0;
     }
 
-    @PreDestroy
-    public void stop() {
-        running.set(false);
-        if (executor != null) executor.shutdown();
-        if (outboundQueue != null) outboundQueue.close();
+    @Override
+    protected void onStop() {
+        if (publisher != null) publisher.close();
+        if (reusableBytes != null) reusableBytes.releaseLast();
     }
 }

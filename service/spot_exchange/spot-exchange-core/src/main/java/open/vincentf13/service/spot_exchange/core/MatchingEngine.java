@@ -223,18 +223,14 @@ public class MatchingEngine extends BusySpinWorker {
     private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq, ActiveOrder taker) {
         long floor = DecimalUtil.mulFloor(t.price, t.qty);
         long ceil = DecimalUtil.mulCeil(t.price, t.qty);
-        if (taker.getSide() == 0) {
-            ledger.settlement(t.takerUserId, 2, currentSeq, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty));
-            ledger.addAvailable(t.takerUserId, 1, currentSeq, t.qty);
-            ledger.settlement(t.makerUserId, 1, currentSeq, t.qty, t.qty);
-            ledger.addAvailable(t.makerUserId, 2, currentSeq, floor);
-        } else {
-            ledger.settlement(t.takerUserId, 1, currentSeq, t.qty, t.qty);
-            ledger.addAvailable(t.takerUserId, 2, currentSeq, floor);
+        if (taker.getSide() == 0) { // Taker BUY
+            ledger.tradeSettleWithRefund(t.takerUserId, 2, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), 1, t.qty, currentSeq);
+            ledger.tradeSettle(t.makerUserId, 1, t.qty, 2, floor, currentSeq);
+        } else { // Taker SELL
+            ledger.tradeSettle(t.takerUserId, 1, t.qty, 2, floor, currentSeq);
             ActiveOrder maker = activeOrderIndex.get(t.makerOrderId);
             long mCeil = (maker != null) ? DecimalUtil.mulCeil(maker.getPrice(), t.qty) : ceil;
-            ledger.settlement(t.makerUserId, 2, currentSeq, ceil, mCeil);
-            ledger.addAvailable(t.makerUserId, 1, currentSeq, t.qty);
+            ledger.tradeSettleWithRefund(t.makerUserId, 2, ceil, mCeil, 1, t.qty, currentSeq);
         }
     }
 
