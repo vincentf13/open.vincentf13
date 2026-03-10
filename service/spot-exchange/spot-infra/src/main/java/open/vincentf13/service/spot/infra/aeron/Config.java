@@ -15,7 +15,7 @@ public class Config {
     private MediaDriver driver;
     private Aeron aeron;
 
-    @Value("${aeron.dir:data/spot-exchange/aeron}")
+    @Value("${aeron.dir}")
     private String aeronDir;
 
     @Bean

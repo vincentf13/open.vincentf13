@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: spot-matching
+  main:
+    web-application-type: none
+
+aeron:
+  dir: data/spot-exchange/aeron
+
+state:
+  base-dir: data/spot-exchange/
+  entries:
+    orders: 1000000
+    balances: 100000

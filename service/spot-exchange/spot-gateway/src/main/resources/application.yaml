@@ -1,0 +1,12 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: spot-gateway
+
+aeron:
+  dir: data/spot-exchange/aeron
+
+state:
+  base-dir: data/spot-exchange/
