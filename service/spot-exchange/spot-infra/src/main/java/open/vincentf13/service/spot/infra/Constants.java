@@ -20,10 +20,7 @@ public class Constants {
       存儲相關配置與檔案名稱 (Store)
      */
     public static class Store {
-        /** 預設數據存儲根目錄 */
         public static final String DEFAULT_BASE_DIR = "data/spot-exchange/";
-        
-        // --- Chronicle Map 檔案名稱 ---
         public static final String BALANCES = "balances";
         public static final String USER_ASSETS = "user-assets";
         public static final String ORDERS = "orders";
@@ -31,8 +28,6 @@ public class Constants {
         public static final String TRADES = "trades";
         public static final String CIDS = "cid-idx";
         public static final String METADATA = "metadata";
-
-        // --- Chronicle Queue 隊列名稱 ---
         public static final String Q_GATEWAY = "gw-queue";
         public static final String Q_COMMAND = "core-queue";
         public static final String Q_RESULT = "outbound-queue";
@@ -71,7 +66,6 @@ public class Constants {
      */
     public static class Msg {
         public static final int ORDER_CREATE = 100;
-        public static final int ORDER_CANCEL = 101;
         public static final int DEPOSIT = 102;
         public static final int AUTH = 103;
     }

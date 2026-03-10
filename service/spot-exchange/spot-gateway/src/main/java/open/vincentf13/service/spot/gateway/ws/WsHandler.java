@@ -10,6 +10,7 @@ import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.chronicle.Fields;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.util.JsonUtil;
 import open.vincentf13.service.spot.model.OrderRequest;
@@ -64,30 +65,20 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleOrderCreate(Channel channel, OrderRequest req) {
-        // 從重用物件中提取參數 (避免在 Heap 產生臨時物件)
         OrderRequest.Params p = req.getParams();
-        // 堆外內存緩衝區
         Bytes<ByteBuffer> bytes = bytesCache.get(); bytes.clear();
-        // 內存裸寫: 用於繞過 JVM 邊界檢查直接操作內存
-        UnsafeBuffer buffer = bufferCache.get();
-        // CPU 快取友善 : 將 UnsafeBuffer 鎖定在 Bytes 物件的起始物理地址上
-        // 這樣 SBE 編碼器寫入數據時，就是直接在操作那塊堆外記憶體，效率接近 C 語言的 Load/Store
-        buffer.wrap(bytes.addressForWrite(0), (int) bytes.realCapacity());
+        UnsafeBuffer buffer = bufferCache.get(); buffer.wrap(bytes.addressForWrite(0), (int) bytes.realCapacity());
         OrderCreateEncoder encoder = orderEncoder.get();
-        
-        // 執行 SBE 二進制編碼：
-        // 這一步是 O(1) 操作，按順序將數據填入緩衝區的固定位置 (如 offset + 8 寫 userId)
-        // 返回值 len 是這次下單指令編碼後的總位元組長度
+
+        // 執行二進制協議編碼 (SBE)
         int len = SbeCodec.encode(buffer, 0, encoder.timestamp(System.currentTimeMillis())
-                                                    .userId(p.getUserId()).symbolId(p.getSymbolId())
-                                                    .price(p.getPrice()).qty(p.getQty())
-                                                    .side(Side.get((short) p.getSide())).clientOrderId(req.getCid()));
-        // 同步指標：告訴 Bytes 對象，現在有效數據已經寫到了 len 的位置
-        // 若不寫這行，下游組件會認為緩衝區是空的
+            .userId(p.getUserId()).symbolId(p.getSymbolId())
+            .price(p.getPrice()).qty(p.getQty())
+            .side(Side.get((short) p.getSide())).clientOrderId(req.getCid()));
+
         bytes.writePosition(len);
         
-        // 寫入本地隊列 WAL (Write-Ahead Log)：利用 mmap 技術將內存數據持久化到磁碟
-        //  這是為了保證數據不丟失，並供後續的 Aeron 發送器異步讀取發往撮合引擎
+        // 寫入本地隊列 WAL，供 Aeron 發送器異步讀取
         Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
             wire.write(Fields.msgType).int32(encoder.sbeTemplateId());
             wire.write(Fields.payload).bytes(bytes);

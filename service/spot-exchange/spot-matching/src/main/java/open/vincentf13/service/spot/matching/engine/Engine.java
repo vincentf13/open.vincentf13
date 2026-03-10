@@ -12,6 +12,7 @@ import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.chronicle.Fields;
 import open.vincentf13.service.spot.model.*;
 import open.vincentf13.service.spot.sbe.*;
 
@@ -23,7 +24,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 /**
   撮合引擎 (核心狀態機)
   採用單執行緒 Busy-spin 模式運行，確保極致的確定性與延遲表現
-  負責處理所有掛單、撤單邏輯，並驅動 Ledger 執行帳務更新
+  負責處理所有掛單邏輯，並驅動 Ledger 執行帳務更新
  */
 @Slf4j
 @Component
@@ -37,7 +38,6 @@ public class Engine extends Worker {
     private boolean isReplaying = false; // 重播旗標：用於抑制重播期間的副作用
 
     private final OrderCreateDecoder createDecoder = new OrderCreateDecoder();
-    private final OrderCancelDecoder cancelDecoder = new OrderCancelDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
     
@@ -91,7 +91,6 @@ public class Engine extends Worker {
 
             if (msgType == Msg.AUTH) handleAuth(wire, seq);
             else if (msgType == Msg.ORDER_CREATE) dispatchOrderCreate(seq);
-            else if (msgType == Msg.ORDER_CANCEL) dispatchOrderCancel(seq);
 
             progress.setLastProcessedSeq(seq);
             Storage.self().metadata().put(Pk.ENGINE, progress);
@@ -110,15 +109,6 @@ public class Engine extends Worker {
             return;
         }
         Storage.self().cids().put(key, handleOrderCreate(createDecoder, seq, cid));
-    }
-
-    private void dispatchOrderCancel(long seq) {
-        SbeCodec.decode(payloadBuffer, 0, cancelDecoder);
-        String cid = cancelDecoder.clientOrderId();
-        CidKey key = new CidKey(cancelDecoder.userId(), cid);
-        if (Storage.self().cids().containsKey(key)) return;
-        handleOrderCancel(cancelDecoder, seq, cid);
-        Storage.self().cids().put(key, ID_REJECTED);
     }
 
     private long handleOrderCreate(OrderCreateDecoder sbe, long seq, String cid) {
@@ -151,20 +141,6 @@ public class Engine extends Worker {
         OrderStatus st = (o.getStatus() == 2) ? OrderStatus.FILLED : OrderStatus.NEW;
         sendReport(sbe.userId(), oid, cid, st, 0, 0, o.getFilled(), 0, ts);
         return oid;
-    }
-
-    private void handleOrderCancel(OrderCancelDecoder sbe, long seq, String cid) {
-        Order o = activeOrderIndex.get(sbe.orderId());
-        if (o == null || o.getUserId() != sbe.userId()) {
-            sendReport(sbe.userId(), sbe.orderId(), cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
-            return;
-        }
-        books.get(o.getSymbolId()).remove(o);
-        long unf = (o.getSide() == 0) ? DecimalUtil.mulCeil(o.getPrice(), o.getQty() - o.getFilled()) : o.getQty() - o.getFilled();
-        ledger.unfreeze(o.getUserId(), (o.getSide() == 0) ? Asset.USDT : Asset.BTC, seq, unf);
-        o.setStatus((byte)3); o.setLastSeq(seq); activeOrderIndex.remove(o.getOrderId());
-        persistOrder(o);
-        sendReport(o.getUserId(), o.getOrderId(), cid, OrderStatus.CANCELED, 0, 0, o.getFilled(), 0, sbe.timestamp());
     }
 
     private void syncOrder(long id, long seq) {
@@ -216,7 +192,7 @@ public class Engine extends Worker {
         else {
             Order o = Storage.self().orders().get(oid);
             if (o != null) {
-                OrderStatus s = (o.getStatus() == 2) ? OrderStatus.FILLED : (o.getStatus() == 3) ? OrderStatus.CANCELED : (o.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
+                OrderStatus s = (o.getStatus() == 2) ? OrderStatus.FILLED : (o.getStatus() == 3) ? OrderStatus.REJECTED : (o.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
                 sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, ts);
             }
         }

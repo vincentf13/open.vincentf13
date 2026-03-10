@@ -6,13 +6,12 @@ import java.util.*;
 /**
   內存訂單簿 (OrderBook)
   實作「價格優先、時間優先 (Price-Time Priority)」撮合算法
-  效能優化：透過 HashMap 建立訂單索引，實現撤單操作的 $O(1)$ 時間複雜度
  */
 public class OrderBook {
     private final int symbolId;
     private final TreeMap<Long, LinkedList<Order>> bids = new TreeMap<>(Collections.reverseOrder());
     private final TreeMap<Long, LinkedList<Order>> asks = new TreeMap<>();
-    private final Map<Long, Order> internalMap = new HashMap<>(); // 快速撤單索引
+    private final Map<Long, Order> internalMap = new HashMap<>(); 
 
     public OrderBook(int symbolId) {
         this.symbolId = symbolId;
@@ -62,21 +61,6 @@ public class OrderBook {
         TreeMap<Long, LinkedList<Order>> sideMap = (order.getSide() == 0) ? bids : asks;
         sideMap.computeIfAbsent(order.getPrice(), k -> new LinkedList<>()).add(order);
         internalMap.put(order.getOrderId(), order);
-    }
-
-    /**
-      O(1) 撤單實作
-     */
-    public void remove(Order order) {
-        Order target = internalMap.remove(order.getOrderId());
-        if (target != null) {
-            TreeMap<Long, LinkedList<Order>> sideMap = (target.getSide() == 0) ? bids : asks;
-            LinkedList<Order> orders = sideMap.get(target.getPrice());
-            if (orders != null) {
-                orders.remove(target);
-                if (orders.isEmpty()) sideMap.remove(target.getPrice());
-            }
-        }
     }
 
     public Optional<Order> findOrder(long orderId) {

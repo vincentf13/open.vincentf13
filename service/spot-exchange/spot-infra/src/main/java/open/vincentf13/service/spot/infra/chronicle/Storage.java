@@ -72,6 +72,10 @@ public class Storage {
     private ChronicleQueue commandQueue;  
     private ChronicleQueue resultQueue;   
 
+    /**
+      系統啟動初始化
+      建立或加載磁碟上的數據文件，並根據配置預分配內存空間
+     */
     @PostConstruct
     public void init() throws IOException {
         if (!baseDir.endsWith("/")) baseDir += "/";
@@ -85,10 +89,10 @@ public class Storage {
         cids = createMap(Store.CIDS, CidKey.class, Long.class, indexEntries, new CidKey(), 0L);
         metadata = createMap(Store.METADATA, Byte.class, Progress.class, 100, (byte)0, new Progress());
 
-        // --- 升級為 Fieldless Binary 模式，並啟用同步刷盤以確保數據落地安全 ---
-        gatewayQueue = SingleChronicleQueueBuilder.fieldlessBinary(baseDir + Store.Q_GATEWAY).sync(true).build();
-        commandQueue = SingleChronicleQueueBuilder.fieldlessBinary(baseDir + Store.Q_COMMAND).sync(true).build();
-        resultQueue = SingleChronicleQueueBuilder.fieldlessBinary(baseDir + Store.Q_RESULT).sync(true).build();
+        // --- 建立隊列，啟用同步刷盤以確保數據落地安全 ---
+        gatewayQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_GATEWAY)).sync(true).build();
+        commandQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_COMMAND)).sync(true).build();
+        resultQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_RESULT)).sync(true).build();
         
         instance = this;
         log.info("Chronicle Storage 核心組件初始化完成 (RawWire + Sync 模式)，存儲路徑: {}", baseDir);
@@ -96,12 +100,18 @@ public class Storage {
 
     /**
       建立 Chronicle Map 的通用輔助方法
+      @param name Map 的名稱，用於日誌識別與檔案命名
+      @param k Key 的類別
+      @param v Value 的類別
+      @param entries 預分配的總條目數。Chronicle Map 是靜態空間分配，此值決定了檔案的物理大小。
+      @param avgKey 平均 Key 的範例。用於讓 Chronicle 精確計算序列化長度，減少內存碎片並優化尋址。
+      @param avgValue 平均 Value 的範例。
      */
     private <K, V> ChronicleMap<K, V> createMap(String name, Class<K> k, Class<V> v, int entries, K avgKey, V avgValue) throws IOException {
         return ChronicleMap.of(k, v)
                 .name(name) // 設定 Map 邏輯名稱，用於日誌識別與排查
-                .entries(entries) // 預分配條目數：決定了 MMF 檔案的初始大小與雜湊桶數量
-                .averageKey(avgKey) // 效能關鍵：提供平均 Key 樣本以精確計算內存佈局，減少碎片
+                .entries(entries) // 核心參數：預計存儲的資料筆數，會影響雜湊桶 (Hash Buckets) 的分配
+                .averageKey(avgKey) // 效能關鍵：提供平均 Key 樣本，避免為變長欄位分配過大空間
                 .averageValue(avgValue) // 效能關鍵：提供平均 Value 樣本
                 .createPersistedTo(new File(baseDir + name + ".dat")); // 物理持久化：將內存數據映射至磁碟檔案
     }
@@ -118,6 +128,9 @@ public class Storage {
     public ChronicleQueue commandQueue() { return commandQueue; }
     public ChronicleQueue resultQueue() { return resultQueue; }
 
+    /**
+      系統關閉時，安全釋放內存映射檔案
+     */
     @PreDestroy
     public void close() {
         closeQuietly(balances); closeQuietly(userAssets); closeQuietly(orders);
