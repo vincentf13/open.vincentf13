@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sbe:messageSchema xmlns:sbe="http://fixprotocol.io/2016/sbe"
+                   package="open.vincentf13.service.spot.sbe"
+                   id="1"
+                   version="1"
+                   semanticVersion="5.2"
+                   description="Spot Exchange SBE Schema"
+                   byteOrder="littleEndian">
+
+    <types>
+        <!-- SBE 必需的訊息標頭 -->
+        <composite name="messageHeader" description="Message identifiers and length of message root">
+            <type name="blockLength" primitiveType="uint16"/>
+            <type name="templateId" primitiveType="uint16"/>
+            <type name="schemaId" primitiveType="uint16"/>
+            <type name="version" primitiveType="uint16"/>
+        </composite>
+
+        <!-- 固定長度型別 -->
+        <type name="char32" primitiveType="char" length="32" characterEncoding="UTF-8"/>
+
+        <!-- 列舉 -->
+        <enum name="Side" encodingType="uint8">
+            <validValue name="BUY">0</validValue>
+            <validValue name="SELL">1</validValue>
+        </enum>
+        <enum name="OrderStatus" encodingType="uint8">
+            <validValue name="NEW">0</validValue>
+            <validValue name="PARTIALLY_FILLED">1</validValue>
+            <validValue name="FILLED">2</validValue>
+            <validValue name="CANCELED">3</validValue>
+            <validValue name="REJECTED">4</validValue>
+        </enum>
+    </types>
+
+    <!-- 1. 下單指令 -->
+    <sbe:message name="OrderCreate" id="100" description="New Order Command">
+        <field name="timestamp" id="1" type="int64"/>
+        <field name="userId" id="2" type="int64"/>
+        <field name="clientOrderId" id="3" type="char32"/>
+        <field name="symbolId" id="4" type="int64"/>
+        <field name="price" id="5" type="int64"/>
+        <field name="qty" id="6" type="int64"/>
+        <field name="side" id="7" type="Side"/>
+    </sbe:message>
+
+    <!-- 2. 撤單指令 -->
+    <sbe:message name="OrderCancel" id="101" description="Cancel Order Command">
+        <field name="timestamp" id="1" type="int64"/>
+        <field name="userId" id="2" type="int64"/>
+        <field name="orderId" id="3" type="int64"/>
+        <field name="clientOrderId" id="4" type="char32"/>
+    </sbe:message>
+
+    <!-- 3. 充值指令 -->
+    <sbe:message name="Deposit" id="102" description="Deposit Asset Command">
+        <field name="timestamp" id="1" type="int64"/>
+        <field name="userId" id="2" type="int64"/>
+        <field name="assetId" id="3" type="int64"/>
+        <field name="amount" id="4" type="int64"/>
+    </sbe:message>
+
+    <!-- 4. 認證指令 -->
+    <sbe:message name="Auth" id="103" description="User Auth Command">
+        <field name="timestamp" id="1" type="int64"/>
+        <field name="userId" id="2" type="int64"/>
+    </sbe:message>
+
+    <!-- 5. 執行報告 (Output) -->
+    <sbe:message name="ExecutionReport" id="200" description="Order Execution Report">
+        <field name="timestamp" id="1" type="int64"/>
+        <field name="userId" id="2" type="int64"/>
+        <field name="orderId" id="3" type="int64"/>
+        <field name="clientOrderId" id="4" type="char32"/>
+        <field name="status" id="5" type="OrderStatus"/>
+        <field name="lastPrice" id="6" type="int64"/>
+        <field name="lastQty" id="7" type="int64"/>
+        <field name="cumQty" id="8" type="int64"/>
+        <field name="avgPrice" id="9" type="int64"/>
+    </sbe:message>
+
+</sbe:messageSchema>

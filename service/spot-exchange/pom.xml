@@ -11,7 +11,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>open.vincentf13.spot_exchange</groupId>
+    <groupId>open.vincentf13.spot</groupId>
     <artifactId>spot-exchange</artifactId>
     <packaging>pom</packaging>
 
@@ -19,11 +19,11 @@
     <description>Spot Exchange service aggregation</description>
 
     <modules>
-        <module>spot-exchange-contract</module>
-        <module>spot-exchange-infra</module>
-        <module>spot-exchange-matching</module>
-        <module>spot-exchange-gateway</module>
-        <module>spot-exchange-query</module>
+        <module>spot-contract</module>
+        <module>spot-infra</module>
+        <module>spot-matching</module>
+        <module>spot-gateway</module>
+        <module>spot-query</module>
     </modules>
 
     <properties>
@@ -36,18 +36,18 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>open.vincentf13.spot_exchange</groupId>
-                <artifactId>spot-exchange-contract</artifactId>
+                <groupId>open.vincentf13.spot</groupId>
+                <artifactId>spot-contract</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>open.vincentf13.spot_exchange</groupId>
-                <artifactId>spot-exchange-infra</artifactId>
+                <groupId>open.vincentf13.spot</groupId>
+                <artifactId>spot-infra</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>open.vincentf13.spot_exchange</groupId>
-                <artifactId>spot-exchange-matching</artifactId>
+                <groupId>open.vincentf13.spot</groupId>
+                <artifactId>spot-matching</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
