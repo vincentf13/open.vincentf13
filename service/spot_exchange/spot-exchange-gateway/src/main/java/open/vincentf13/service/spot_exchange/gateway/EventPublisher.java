@@ -30,41 +30,35 @@ public class EventPublisher extends BusySpinWorker {
     }
 
     @PostConstruct public void init() { start("event-publisher"); }
+@Override
+protected void onStart() {
+    this.tailer = stateStore.getOutboundQueue().createTailer();
+    SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_PUB_PUSH_SEQ);
+    if (saved != null) tailer.moveToIndex(saved.getLastProcessedSeq());
+}
 
-    @Override
-    protected void onStart() {
-        this.tailer = stateStore.getOutboundQueue().createTailer();
-        SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_PUB_PUSH_SEQ);
-        if (saved != null) {
-            progress.setLastProcessedSeq(saved.getLastProcessedSeq());
-            tailer.moveToIndex(progress.getLastProcessedSeq());
+@Override
+protected int doWork() {
+    return tailer.readDocument(wire -> {
+        long seq = tailer.index();
+        int msgType = wire.read("msgType").int32();
+
+        if (msgType == executionDecoder.sbeTemplateId()) {
+            reusableBytes.clear();
+            wire.read("payload").bytes(reusableBytes);
+            payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
+            SbeCodec.decode(payloadBuffer, 0, executionDecoder);
+
+            String json = String.format(
+                "{\"topic\":\"execution\",\"data\":{\"orderId\":%d,\"status\":\"%s\",\"cid\":\"%s\"}}",
+                executionDecoder.orderId(), executionDecoder.status(), executionDecoder.clientOrderId()
+            );
+            wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
         }
-    }
-
-    @Override
-    protected int doWork() {
-        boolean handled = tailer.readDocument(wire -> {
-            long seq = tailer.index();
-            int msgType = wire.read("msgType").int32();
-            
-            if (msgType == executionDecoder.sbeTemplateId()) {
-                reusableBytes.clear();
-                wire.read("payload").bytes(reusableBytes);
-                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
-                SbeCodec.decode(payloadBuffer, 0, executionDecoder);
-                
-                String json = String.format(
-                    "{\"topic\":\"execution\",\"data\":{\"orderId\":%d,\"status\":\"%s\",\"cid\":\"%s\"}}",
-                    executionDecoder.orderId(), executionDecoder.status(), executionDecoder.clientOrderId()
-                );
-                wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
-            }
-            progress.setLastProcessedSeq(seq);
-            stateStore.getSystemMetadataMap().getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
-        });
-        return handled ? 1 : 0;
-    }
-
+        progress.setLastProcessedSeq(seq);
+        stateStore.getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
+    }) ? 1 : 0;
+}
     @Override
     protected void onStop() { 
         reusableBytes.releaseLast(); 

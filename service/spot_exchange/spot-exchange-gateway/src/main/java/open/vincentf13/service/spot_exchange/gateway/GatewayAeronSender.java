@@ -49,7 +49,7 @@ public class GatewayAeronSender extends BusySpinWorker {
             reusableBytes.clear();
             wire.read("payload").bytes(reusableBytes);
             aeronBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
-            
+
             while (publisher.tryPublish(aeronBuffer, 0, aeronBuffer.capacity()) < 0) {
                 if (!running.get()) return;
                 idleStrategy.idle();

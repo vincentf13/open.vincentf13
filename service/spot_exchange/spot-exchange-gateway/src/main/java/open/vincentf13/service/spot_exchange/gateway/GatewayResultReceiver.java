@@ -42,12 +42,12 @@ public class GatewayResultReceiver extends BusySpinWorker {
             int len = Math.min(length, reusableArray.length);
             buffer.getBytes(offset, reusableArray, 0, len);
             writeBytes.readPositionRemaining(0, len);
-            
+
             stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
                 wire.bytes().write(writeBytes);
                 wire.write("aeronSeq").int64(currentSeq);
             });
-            
+
             progress.setLastProcessedSeq(currentSeq);
             stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
         };
