@@ -33,9 +33,6 @@ delete_resource() {
 }
 
 log_step "Deleting Application Services"
-delete_resource "$K8S_DIR/service-exchange" "false"
-delete_resource "$K8S_DIR/service-template" "false"
-delete_resource "$K8S_DIR/service-test" "false"
 delete_resource "$K8S_DIR/ingress.yaml" "false"
 
 log_step "Deleting ArgoCD"

@@ -8,6 +8,5 @@ export const options = {
     }]
 };
 export default function () {
-    http.get('http://127.0.0.1/service-template/burn?ms=200');
     sleep(1);
 }

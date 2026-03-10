@@ -20,8 +20,6 @@
     <modules>
         <module>perpetual-exchange</module>
         <module>spot-exchange</module>
-        <module>service-template</module>
-        <module>service-test</module>
     </modules>
 
     <build>

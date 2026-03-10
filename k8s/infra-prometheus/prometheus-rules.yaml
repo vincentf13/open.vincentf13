@@ -38,14 +38,3 @@ data:
             annotations:
               summary: "CPU 使用率過高"
               description: "{{ $labels.instance }} CPU 使用率 > 80% 已持續 1 分鐘，請檢查節點負載。"
-      - name: service-template-app
-        rules:
-          - alert: ServiceTemplateProcessCpuHigh
-            expr: system_cpu_usage{application="service-template"} > 0.8
-            for: 1m
-            labels:
-              severity: critical
-              service: service-template
-            annotations:
-              summary: "service-template 服務 CPU 超過80%"
-              description: "process_cpu_usage 高於 80% 已持續 1 分鐘，建議檢查工作負載或擴大服務。"
