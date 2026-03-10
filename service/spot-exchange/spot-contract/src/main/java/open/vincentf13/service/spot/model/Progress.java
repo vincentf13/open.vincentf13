@@ -9,7 +9,7 @@ import net.openhft.chronicle.bytes.BytesOut;
   系統全域進度快照 (確保序號與計數器的原子對齊)
  */
 @Data
-public class SystemProgress implements BytesMarshallable {
+public class Progress implements BytesMarshallable {
     private long lastProcessedSeq; // 最後處理的 WAL 序號
     private long orderIdCounter;   // 訂單 ID 計數器
     private long tradeIdCounter;   // 成交 ID 計數器

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.SystemProgress;
+import open.vincentf13.service.spot.model.Progress;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
 
 import java.nio.ByteBuffer;
@@ -26,7 +26,7 @@ public class PushWorker extends Worker {
     private final WsHandler wsHandler;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private ExcerptTailer tailer;
-    private final SystemProgress progress = new SystemProgress();
+    private final Progress progress = new Progress();
 
     private final ExecutionReportDecoder executionDecoder = new ExecutionReportDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
@@ -42,7 +42,7 @@ public class PushWorker extends Worker {
     @Override
     protected void onStart() {
         this.tailer = storage.resultQueue().createTailer();
-        SystemProgress saved = storage.metadata().get(PK_PUB_PUSH_SEQ);
+        Progress saved = storage.metadata().get(PK_PUB_PUSH_SEQ);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());

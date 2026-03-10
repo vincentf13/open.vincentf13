@@ -9,7 +9,7 @@ import net.openhft.chronicle.bytes.BytesOut;
   活躍掛單數據結構
  */
 @Data
-public class ActiveOrder implements BytesMarshallable {
+public class Order implements BytesMarshallable {
     private long orderId;
     private long userId;
     private long price;

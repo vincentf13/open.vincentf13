@@ -7,7 +7,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.SystemProgress;
+import open.vincentf13.service.spot.model.Progress;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -17,7 +17,7 @@ public class AeronReceiver extends Worker {
     private final Storage storage;
     private Subscription subscription;
     private FragmentHandler fragmentHandler;
-    private final SystemProgress progress = new SystemProgress();
+    private final Progress progress = new Progress();
     
     private final byte[] reusableArray = new byte[2048];
     private final net.openhft.chronicle.bytes.Bytes<?> writeBytes = net.openhft.chronicle.bytes.Bytes.wrapForRead(reusableArray);
@@ -31,7 +31,7 @@ public class AeronReceiver extends Worker {
     @Override
     protected void onStart() {
         subscription = aeron.addSubscription(OUTBOUND_CHANNEL, OUTBOUND_STREAM_ID);
-        SystemProgress saved = storage.metadata().get(PK_GW_OUTBOUND_SEQ);
+        Progress saved = storage.metadata().get(PK_GW_OUTBOUND_SEQ);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 

@@ -30,11 +30,11 @@ public class Storage {
     // --- 系統狀態 (Maps) ---
     private ChronicleMap<BalanceKey, Balance> balances;
     private ChronicleMap<Long, Long> userAssets;
-    private ChronicleMap<Long, ActiveOrder> orders;
+    private ChronicleMap<Long, Order> orders;
     private ChronicleMap<Long, Boolean> activeOrders;
-    private ChronicleMap<Long, TradeRecord> trades;
+    private ChronicleMap<Long, Trade> trades;
     private ChronicleMap<CidKey, Long> cids;
-    private ChronicleMap<Byte, SystemProgress> metadata; 
+    private ChronicleMap<Byte, Progress> metadata; 
     
     // --- 數據隊列 (Queues) ---
     private ChronicleQueue gatewayQueue;  // 網關接收指令緩衝
@@ -48,11 +48,11 @@ public class Storage {
 
         balances = createMap("balances", BalanceKey.class, Balance.class, balanceEntries, new BalanceKey(), new Balance());
         userAssets = createMap("user-assets", Long.class, Long.class, balanceEntries, 0L, 0L);
-        orders = createMap("orders", Long.class, ActiveOrder.class, orderEntries, 0L, new ActiveOrder());
+        orders = createMap("orders", Long.class, Order.class, orderEntries, 0L, new Order());
         activeOrders = createMap("active-idx", Long.class, Boolean.class, orderEntries, 0L, true);
-        trades = createMap("trades", Long.class, TradeRecord.class, orderEntries, 0L, new TradeRecord());
+        trades = createMap("trades", Long.class, Trade.class, orderEntries, 0L, new Trade());
         cids = createMap("cid-idx", CidKey.class, Long.class, orderEntries, new CidKey(), 0L);
-        metadata = createMap("metadata", Byte.class, SystemProgress.class, 100, (byte)0, new SystemProgress());
+        metadata = createMap("metadata", Byte.class, Progress.class, 100, (byte)0, new Progress());
 
         gatewayQueue = SingleChronicleQueueBuilder.binary(baseDir + "gw-queue").build();
         commandQueue = SingleChronicleQueueBuilder.binary(baseDir + "core-queue").build();
@@ -70,11 +70,11 @@ public class Storage {
 
     public ChronicleMap<BalanceKey, Balance> balances() { return balances; }
     public ChronicleMap<Long, Long> userAssets() { return userAssets; }
-    public ChronicleMap<Long, ActiveOrder> orders() { return orders; }
+    public ChronicleMap<Long, Order> orders() { return orders; }
     public ChronicleMap<Long, Boolean> activeOrders() { return activeOrders; }
-    public ChronicleMap<Long, TradeRecord> trades() { return trades; }
+    public ChronicleMap<Long, Trade> trades() { return trades; }
     public ChronicleMap<CidKey, Long> cids() { return cids; }
-    public ChronicleMap<Byte, SystemProgress> metadata() { return metadata; }
+    public ChronicleMap<Byte, Progress> metadata() { return metadata; }
     
     public ChronicleQueue gatewayQueue() { return gatewayQueue; }
     public ChronicleQueue commandQueue() { return commandQueue; }

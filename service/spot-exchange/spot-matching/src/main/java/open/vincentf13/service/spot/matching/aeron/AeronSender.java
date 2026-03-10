@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.aeron.Publisher;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.SystemProgress;
+import open.vincentf13.service.spot.model.Progress;
 
 import java.nio.ByteBuffer;
 
@@ -21,7 +21,7 @@ public class AeronSender extends Worker {
     private final Storage storage;
     private Publisher publisher;
     private ExcerptTailer tailer;
-    private final SystemProgress progress = new SystemProgress();
+    private final Progress progress = new Progress();
     
     private final UnsafeBuffer aeronBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
@@ -37,7 +37,7 @@ public class AeronSender extends Worker {
     protected void onStart() {
         publisher = new Publisher(aeron, OUTBOUND_CHANNEL, OUTBOUND_STREAM_ID);
         tailer = storage.resultQueue().createTailer();
-        SystemProgress saved = storage.metadata().get(PK_CORE_OUTBOUND_SEQ);
+        Progress saved = storage.metadata().get(PK_CORE_OUTBOUND_SEQ);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());

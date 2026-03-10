@@ -1,6 +1,6 @@
 package open.vincentf13.service.spot.matching.engine;
 
-import open.vincentf13.service.spot.model.ActiveOrder;
+import open.vincentf13.service.spot.model.Order;
 import java.util.*;
 
 /** 
@@ -9,30 +9,30 @@ import java.util.*;
  */
 public class OrderBook {
     private final int symbolId;
-    private final TreeMap<Long, LinkedList<ActiveOrder>> bids = new TreeMap<>(Collections.reverseOrder());
-    private final TreeMap<Long, LinkedList<ActiveOrder>> asks = new TreeMap<>();
-    private final Map<Long, ActiveOrder> internalMap = new HashMap<>();
+    private final TreeMap<Long, LinkedList<Order>> bids = new TreeMap<>(Collections.reverseOrder());
+    private final TreeMap<Long, LinkedList<Order>> asks = new TreeMap<>();
+    private final Map<Long, Order> internalMap = new HashMap<>();
 
     public OrderBook(int symbolId) {
         this.symbolId = symbolId;
     }
 
-    public List<TradeEvent> match(ActiveOrder newOrder) {
+    public List<TradeEvent> match(Order newOrder) {
         List<TradeEvent> trades = new ArrayList<>();
         boolean isBuy = newOrder.getSide() == 0;
-        TreeMap<Long, LinkedList<ActiveOrder>> counterSide = isBuy ? asks : bids;
+        TreeMap<Long, LinkedList<Order>> counterSide = isBuy ? asks : bids;
 
         while (newOrder.getQty() > newOrder.getFilled() && !counterSide.isEmpty()) {
-            Map.Entry<Long, LinkedList<ActiveOrder>> bestEntry = counterSide.firstEntry();
+            Map.Entry<Long, LinkedList<Order>> bestEntry = counterSide.firstEntry();
             long bestPrice = bestEntry.getKey();
 
             if (isBuy ? (newOrder.getPrice() < bestPrice) : (newOrder.getPrice() > bestPrice)) break;
 
-            LinkedList<ActiveOrder> ordersAtPrice = bestEntry.getValue();
-            Iterator<ActiveOrder> iterator = ordersAtPrice.iterator();
+            LinkedList<Order> ordersAtPrice = bestEntry.getValue();
+            Iterator<Order> iterator = ordersAtPrice.iterator();
 
             while (iterator.hasNext() && newOrder.getQty() > newOrder.getFilled()) {
-                ActiveOrder maker = iterator.next();
+                Order maker = iterator.next();
                 long matchQty = Math.min(newOrder.getQty() - newOrder.getFilled(), maker.getQty() - maker.getFilled());
 
                 trades.add(new TradeEvent(maker.getUserId(), newOrder.getUserId(), bestPrice, matchQty, maker.getOrderId()));
@@ -52,17 +52,17 @@ public class OrderBook {
         return trades;
     }
 
-    public void add(ActiveOrder order) {
-        TreeMap<Long, LinkedList<ActiveOrder>> sideMap = (order.getSide() == 0) ? bids : asks;
+    public void add(Order order) {
+        TreeMap<Long, LinkedList<Order>> sideMap = (order.getSide() == 0) ? bids : asks;
         sideMap.computeIfAbsent(order.getPrice(), k -> new LinkedList<>()).add(order);
         internalMap.put(order.getOrderId(), order);
     }
 
-    public void remove(ActiveOrder order) {
-        ActiveOrder target = internalMap.remove(order.getOrderId());
+    public void remove(Order order) {
+        Order target = internalMap.remove(order.getOrderId());
         if (target != null) {
-            TreeMap<Long, LinkedList<ActiveOrder>> sideMap = (target.getSide() == 0) ? bids : asks;
-            LinkedList<ActiveOrder> orders = sideMap.get(target.getPrice());
+            TreeMap<Long, LinkedList<Order>> sideMap = (target.getSide() == 0) ? bids : asks;
+            LinkedList<Order> orders = sideMap.get(target.getPrice());
             if (orders != null) {
                 orders.remove(target);
                 if (orders.isEmpty()) sideMap.remove(target.getPrice());
@@ -70,7 +70,7 @@ public class OrderBook {
         }
     }
 
-    public Optional<ActiveOrder> findOrder(long orderId) {
+    public Optional<Order> findOrder(long orderId) {
         return Optional.ofNullable(internalMap.get(orderId));
     }
 

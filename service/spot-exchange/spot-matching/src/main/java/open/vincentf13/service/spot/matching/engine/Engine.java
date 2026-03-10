@@ -24,9 +24,9 @@ public class Engine extends Worker {
     private final Storage storage;
     private final Ledger ledger;
     private final Int2ObjectHashMap<OrderBook> books = new Int2ObjectHashMap<>();
-    private final Long2ObjectHashMap<ActiveOrder> activeOrderIndex = new Long2ObjectHashMap<>();
+    private final Long2ObjectHashMap<Order> activeOrderIndex = new Long2ObjectHashMap<>();
     
-    private final SystemProgress progress = new SystemProgress();
+    private final Progress progress = new Progress();
     private ExcerptTailer tailer;
     private boolean isReplaying = false;
 
@@ -48,7 +48,7 @@ public class Engine extends Worker {
     @Override
     protected void onStart() {
         this.tailer = storage.commandQueue().createTailer();
-        SystemProgress saved = storage.metadata().get(PK_CORE_PROGRESS);
+        Progress saved = storage.metadata().get(PK_CORE_PROGRESS);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -58,7 +58,7 @@ public class Engine extends Worker {
         }
 
         storage.activeOrders().keySet().forEach(id -> {
-            ActiveOrder o = storage.orders().get(id);
+            Order o = storage.orders().get(id);
             if (o != null && o.getStatus() < 2) {
                 books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
                 activeOrderIndex.put(id, o);
@@ -123,7 +123,7 @@ public class Engine extends Worker {
         }
 
         long oid = progress.getOrderIdCounter(); progress.setOrderIdCounter(oid + 1);
-        ActiveOrder o = new ActiveOrder();
+        Order o = new Order();
         o.setOrderId(oid); o.setClientOrderId(cid); o.setUserId(sbe.userId());
         o.setSymbolId((int)sbe.symbolId()); o.setPrice(sbe.price()); o.setQty(sbe.qty());
         o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
@@ -145,7 +145,7 @@ public class Engine extends Worker {
     }
 
     private void handleOrderCancel(OrderCancelDecoder sbe, long seq, String cid) {
-        ActiveOrder o = activeOrderIndex.get(sbe.orderId());
+        Order o = activeOrderIndex.get(sbe.orderId());
         if (o == null || o.getUserId() != sbe.userId()) {
             sendReport(sbe.userId(), sbe.orderId(), cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             return;
@@ -159,15 +159,15 @@ public class Engine extends Worker {
     }
 
     private void syncOrder(long id, long seq) {
-        ActiveOrder o = activeOrderIndex.get(id);
+        Order o = activeOrderIndex.get(id);
         if (o != null) {
             if (o.getFilled() == o.getQty()) { o.setStatus((byte)2); activeOrderIndex.remove(id); }
             o.setVersion(o.getVersion() + 1); o.setLastSeq(seq); persistOrder(o);
         }
     }
 
-    private void persistOrder(ActiveOrder o) {
-        ActiveOrder ex = storage.orders().get(o.getOrderId());
+    private void persistOrder(Order o) {
+        Order ex = storage.orders().get(o.getOrderId());
         if (ex == null || ex.getLastSeq() < o.getLastSeq()) {
             storage.orders().put(o.getOrderId(), o);
             if (o.getStatus() < 2) storage.activeOrders().put(o.getOrderId(), true);
@@ -175,7 +175,7 @@ public class Engine extends Worker {
         }
     }
 
-    private void processTradeLedger(OrderBook.TradeEvent t, long seq, ActiveOrder taker) {
+    private void processTradeLedger(OrderBook.TradeEvent t, long seq, Order taker) {
         long floor = DecimalUtil.mulFloor(t.price, t.qty);
         long ceil = DecimalUtil.mulCeil(t.price, t.qty);
         if (taker.getSide() == 0) {
@@ -183,7 +183,7 @@ public class Engine extends Worker {
             ledger.tradeSettle(t.makerUserId, ASSET_BTC, t.qty, ASSET_USDT, floor, seq);
         } else {
             ledger.tradeSettle(t.takerUserId, ASSET_BTC, t.qty, ASSET_USDT, floor, seq);
-            ActiveOrder m = activeOrderIndex.get(t.makerOrderId);
+            Order m = activeOrderIndex.get(t.makerOrderId);
             long mCeil = (m != null) ? DecimalUtil.mulCeil(m.getPrice(), t.qty) : ceil;
             ledger.tradeSettleWithRefund(t.makerUserId, ASSET_USDT, ceil, mCeil, ASSET_BTC, t.qty, seq);
         }
@@ -204,7 +204,7 @@ public class Engine extends Worker {
     private void resendReport(long oid, long uid, String cid, long ts) {
         if (oid == ID_REJECTED) sendReport(uid, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
         else {
-            ActiveOrder o = storage.orders().get(oid);
+            Order o = storage.orders().get(oid);
             if (o != null) {
                 OrderStatus s = (o.getStatus() == 2) ? OrderStatus.FILLED : (o.getStatus() == 3) ? OrderStatus.CANCELED : (o.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
                 sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, ts);
@@ -213,9 +213,9 @@ public class Engine extends Worker {
     }
 
     private void persistTrade(OrderBook.TradeEvent t, long tid, long ts, long seq) {
-        TradeRecord r = storage.trades().get(tid);
+        Trade r = storage.trades().get(tid);
         if (r == null || r.getLastSeq() < seq) {
-            r = new TradeRecord(); r.setTradeId(tid); r.setOrderId(t.makerOrderId); r.setPrice(t.price); r.setQty(t.qty); r.setTime(ts); r.setLastSeq(seq);
+            r = new Trade(); r.setTradeId(tid); r.setOrderId(t.makerOrderId); r.setPrice(t.price); r.setQty(t.qty); r.setTime(ts); r.setLastSeq(seq);
             storage.trades().put(tid, r);
         }
     }

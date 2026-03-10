@@ -2,7 +2,7 @@ package open.vincentf13.service.spot.query.api;
 
 import net.openhft.chronicle.map.ExternalMapQueryContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.ActiveOrder;
+import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Balance;
 import open.vincentf13.service.spot.model.BalanceKey;
 import org.springframework.stereotype.Service;
@@ -38,14 +38,14 @@ public class DataService {
         return results;
     }
 
-    public List<ActiveOrder> getOrders(long userId) {
-        List<ActiveOrder> results = new ArrayList<>();
+    public List<Order> getOrders(long userId) {
+        List<Order> results = new ArrayList<>();
         storage.activeOrders().keySet().forEach(orderId -> {
-            try (ExternalMapQueryContext<Long, ActiveOrder, ?> context = 
+            try (ExternalMapQueryContext<Long, Order, ?> context = 
                      storage.orders().queryContext(orderId)) {
                 context.readLock().lock();
                 if (context.entry() != null) {
-                    ActiveOrder order = context.entry().value().get();
+                    Order order = context.entry().value().get();
                     if (order.getUserId() == userId) {
                         results.add(order);
                     }

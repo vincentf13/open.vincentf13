@@ -9,7 +9,7 @@ import net.openhft.chronicle.bytes.BytesOut;
   成交記錄數據結構 (冪等加固版)
  */
 @Data
-public class TradeRecord implements BytesMarshallable {
+public class Trade implements BytesMarshallable {
     private long tradeId;
     private long orderId;
     private long price;

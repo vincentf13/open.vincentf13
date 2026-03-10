@@ -1,6 +1,6 @@
 package open.vincentf13.service.spot.query.api;
 
-import open.vincentf13.service.spot.model.ActiveOrder;
+import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Balance;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +21,7 @@ public class Controller {
     }
 
     @GetMapping("/orders")
-    public List<ActiveOrder> getOrders(@RequestParam long userId) {
+    public List<Order> getOrders(@RequestParam long userId) {
         return service.getOrders(userId);
     }
 }
