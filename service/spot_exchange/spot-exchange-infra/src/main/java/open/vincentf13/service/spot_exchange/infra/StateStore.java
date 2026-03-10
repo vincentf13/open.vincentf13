@@ -11,9 +11,6 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.IOException;
 
-/** 
-  系統狀態中心 (簡化版：統一進度與狀態管理)
- */
 @Component
 public class StateStore {
     private ChronicleMap<BalanceKey, Balance> balanceMap;
@@ -23,8 +20,8 @@ public class StateStore {
     private ChronicleMap<Long, TradeRecord> tradeHistoryMap;
     private ChronicleMap<CidKey, Long> cidMap;
     
-    // 統一元數據 Map: (1=CoreProgress, 2=GatewaySeq, 3=OutboundSeq ...)
-    private ChronicleMap<Byte, SystemProgress> metadataMap; 
+    // --- 簡化：統一使用 BytesMarshallable 儲存所有類型的元數據與位點 ---
+    private ChronicleMap<Byte, SystemProgress> systemMetadataMap; 
     
     private ChronicleQueue gwQueue;
     private ChronicleQueue coreQueue;
@@ -41,7 +38,9 @@ public class StateStore {
         activeOrderIdMap = createMap(baseDir + "active_orders.dat", Long.class, Boolean.class, "active-idx", 100_000);
         tradeHistoryMap = createMap(baseDir + "trades.dat", Long.class, TradeRecord.class, "trades", 1_000_000);
         cidMap = createMap(baseDir + "cid_idx.dat", CidKey.class, Long.class, "cid-idx", 1_000_000);
-        metadataMap = createMap(baseDir + "metadata.dat", Byte.class, SystemProgress.class, "metadata", 100);
+        
+        // 儲存進度、計數器等元數據
+        systemMetadataMap = createMap(baseDir + "system_metadata.dat", Byte.class, SystemProgress.class, "metadata", 100);
 
         gwQueue = SingleChronicleQueueBuilder.binary(baseDir + "gw-queue").build();
         coreQueue = SingleChronicleQueueBuilder.binary(baseDir + "core-queue").build();
@@ -58,7 +57,7 @@ public class StateStore {
     public ChronicleMap<Long, Boolean> getActiveOrderIdMap() { return activeOrderIdMap; }
     public ChronicleMap<Long, TradeRecord> getTradeHistoryMap() { return tradeHistoryMap; }
     public ChronicleMap<CidKey, Long> getCidMap() { return cidMap; }
-    public ChronicleMap<Byte, SystemProgress> getMetadataMap() { return metadataMap; }
+    public ChronicleMap<Byte, SystemProgress> getSystemMetadataMap() { return systemMetadataMap; }
     
     public ChronicleQueue getGwQueue() { return gwQueue; }
     public ChronicleQueue getCoreQueue() { return coreQueue; }
@@ -67,7 +66,7 @@ public class StateStore {
     @PreDestroy
     public void close() {
         balanceMap.close(); userAssetIndexMap.close(); orderMap.close(); 
-        activeOrderIdMap.close(); tradeHistoryMap.close(); cidMap.close(); metadataMap.close();
+        activeOrderIdMap.close(); tradeHistoryMap.close(); cidMap.close(); systemMetadataMap.close();
         gwQueue.close(); coreQueue.close(); outboundQueue.close();
     }
 }

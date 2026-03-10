@@ -4,13 +4,11 @@ import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
-import net.openhft.chronicle.queue.ChronicleQueue;
-import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
-import org.agrona.concurrent.BackoffIdleStrategy;
-import org.agrona.concurrent.IdleStrategy;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
-import open.vincentf13.service.spot_exchange.infra.StateStore;
+import open.vincentf13.service.spot_exchange.infra.*;
+import open.vincentf13.service.spot_exchange.model.SystemProgress;
+
+import static open.vincentf13.service.spot_exchange.infra.ExchangeConstants.*;
 
 @Component
 public class GatewayResultReceiver extends BusySpinWorker {
@@ -18,7 +16,8 @@ public class GatewayResultReceiver extends BusySpinWorker {
     private final StateStore stateStore;
     private Subscription subscription;
     private FragmentHandler fragmentHandler;
-    private long lastReceivedSeq = -1;
+    private final SystemProgress progress = new SystemProgress();
+    
     private final byte[] reusableArray = new byte[2048];
     private final net.openhft.chronicle.bytes.Bytes<?> writeBytes = net.openhft.chronicle.bytes.Bytes.wrapForRead(reusableArray);
 
@@ -27,20 +26,18 @@ public class GatewayResultReceiver extends BusySpinWorker {
         this.stateStore = stateStore;
     }
 
-    @PostConstruct
-    public void init() { start("gw-result-receiver"); }
+    @PostConstruct public void init() { start("gw-result-receiver"); }
 
     @Override
     protected void onStart() {
-        subscription = aeron.addSubscription("aeron:udp?endpoint=localhost:40445", 30);
-        
-        // 恢復上次處理進度 (從系統狀態讀取)
-        this.lastReceivedSeq = stateStore.getSystemStateMap().getOrDefault((byte)2, -1L);
+        subscription = aeron.addSubscription(OUTBOUND_CHANNEL, OUTBOUND_STREAM_ID);
+        SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_GW_OUTBOUND_SEQ);
+        if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
+        else progress.setLastProcessedSeq(-1L);
 
         fragmentHandler = (buffer, offset, length, header) -> {
             long currentSeq = header.position();
-            // --- 深度優化：網關回報冪等落地 ---
-            if (currentSeq <= lastReceivedSeq) return;
+            if (currentSeq <= progress.getLastProcessedSeq()) return;
 
             int len = Math.min(length, reusableArray.length);
             buffer.getBytes(offset, reusableArray, 0, len);
@@ -51,8 +48,8 @@ public class GatewayResultReceiver extends BusySpinWorker {
                 wire.write("aeronSeq").int64(currentSeq);
             });
             
-            lastReceivedSeq = currentSeq;
-            stateStore.getSystemStateMap().put((byte)2, currentSeq);
+            progress.setLastProcessedSeq(currentSeq);
+            stateStore.getSystemMetadataMap().put(PK_GW_OUTBOUND_SEQ, progress);
         };
     }
 
@@ -62,7 +59,5 @@ public class GatewayResultReceiver extends BusySpinWorker {
     }
 
     @Override
-    protected void onStop() {
-        if (subscription != null) subscription.close();
-    }
+    protected void onStop() { if (subscription != null) subscription.close(); }
 }

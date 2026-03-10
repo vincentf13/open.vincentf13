@@ -5,18 +5,20 @@ import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot_exchange.infra.BusySpinWorker;
-import open.vincentf13.service.spot_exchange.infra.SbeCodec;
-import open.vincentf13.service.spot_exchange.infra.StateStore;
+import open.vincentf13.service.spot_exchange.infra.*;
+import open.vincentf13.service.spot_exchange.model.SystemProgress;
 import open.vincentf13.service.spot_exchange.sbe.ExecutionReportDecoder;
 
 import java.nio.ByteBuffer;
+
+import static open.vincentf13.service.spot_exchange.infra.ExchangeConstants.*;
 
 @Component
 public class EventPublisher extends BusySpinWorker {
     private final StateStore stateStore;
     private final ExchangeWebSocketHandler wsHandler;
     private ExcerptTailer tailer;
+    private final SystemProgress progress = new SystemProgress();
 
     private final ExecutionReportDecoder executionDecoder = new ExecutionReportDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
@@ -27,29 +29,28 @@ public class EventPublisher extends BusySpinWorker {
         this.wsHandler = wsHandler;
     }
 
-    @PostConstruct
-    public void init() { start("event-publisher"); }
+    @PostConstruct public void init() { start("event-publisher"); }
 
     @Override
     protected void onStart() {
         this.tailer = stateStore.getOutboundQueue().createTailer();
-        Long lastSeq = stateStore.getSystemStateMap().get((byte)3);
-        if (lastSeq != null && lastSeq > 0) tailer.moveToIndex(lastSeq);
+        SystemProgress saved = stateStore.getSystemMetadataMap().get(PK_PUB_PUSH_SEQ);
+        if (saved != null) {
+            progress.setLastProcessedSeq(saved.getLastProcessedSeq());
+            tailer.moveToIndex(progress.getLastProcessedSeq());
+        }
     }
 
     @Override
     protected int doWork() {
-        return tailer.readDocument(wire -> {
-            long currentIndex = tailer.index();
+        boolean handled = tailer.readDocument(wire -> {
+            long seq = tailer.index();
             int msgType = wire.read("msgType").int32();
             
             if (msgType == executionDecoder.sbeTemplateId()) {
                 reusableBytes.clear();
                 wire.read("payload").bytes(reusableBytes);
-                
-                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), 
-                                 (int)reusableBytes.readRemaining());
-                
+                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
                 
                 String json = String.format(
@@ -58,12 +59,14 @@ public class EventPublisher extends BusySpinWorker {
                 );
                 wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
             }
-            stateStore.getSystemStateMap().put((byte)3, currentIndex);
-        }) ? 1 : 0;
+            progress.setLastProcessedSeq(seq);
+            stateStore.getSystemMetadataMap().getSystemMetadataMap().put(PK_PUB_PUSH_SEQ, progress);
+        });
+        return handled ? 1 : 0;
     }
 
     @Override
-    protected void onStop() {
-        if (reusableBytes != null) reusableBytes.releaseLast();
+    protected void onStop() { 
+        reusableBytes.releaseLast(); 
     }
 }
