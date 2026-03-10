@@ -1,7 +1,7 @@
 package open.vincentf13.service.spot_exchange.gateway;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import open.vincentf13.service.spot_exchange.infra.SbeCodec;
 import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.sbe.OrderCreateEncoder;
@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(ExchangeWebSocketHandler.class);
     private final StateStore stateStore;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
 
     // --- 使用 ThreadLocal 管理 Chronicle Bytes 與 SBE Encoder ---
@@ -40,7 +41,7 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
-            JsonNode node = OpenObjectMapper.readTree(message.getPayload());
+            JsonNode node = objectMapper.readTree(message.getPayload());
             String op = node.has("op") ? node.get("op").asText() : "";
 
             if ("order.create".equals(op)) {

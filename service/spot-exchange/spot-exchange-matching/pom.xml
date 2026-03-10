@@ -10,20 +10,12 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spot-exchange-infra</artifactId>
+    <artifactId>spot-exchange-matching</artifactId>
 
     <dependencies>
         <dependency>
-            <groupId>io.aeron</groupId>
-            <artifactId>aeron-all</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>net.openhft</groupId>
-            <artifactId>chronicle-queue</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>net.openhft</groupId>
-            <artifactId>chronicle-map</artifactId>
+            <groupId>open.vincentf13.spot_exchange</groupId>
+            <artifactId>spot-exchange-infra</artifactId>
         </dependency>
         <dependency>
             <groupId>open.vincentf13.spot_exchange</groupId>
@@ -34,16 +26,4 @@
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 </project>

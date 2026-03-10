@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot_exchange.gateway;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
@@ -9,7 +10,6 @@ import open.vincentf13.service.spot_exchange.infra.*;
 import open.vincentf13.service.spot_exchange.model.SystemProgress;
 import open.vincentf13.service.spot_exchange.sbe.ExecutionReportDecoder;
 
-import open.vincentf13.sdk.core.mapper.OpenObjectMapper;
 import java.util.Map;
 import java.nio.ByteBuffer;
 
@@ -19,6 +19,7 @@ import static open.vincentf13.service.spot_exchange.infra.ExchangeConstants.*;
 public class EventPublisher extends BusySpinWorker {
     private final StateStore stateStore;
     private final ExchangeWebSocketHandler wsHandler;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private ExcerptTailer tailer;
     private final SystemProgress progress = new SystemProgress();
 
@@ -63,8 +64,12 @@ public class EventPublisher extends BusySpinWorker {
                     "cid", executionDecoder.clientOrderId(),
                     "userId", executionDecoder.userId()
                 );
-                String json = OpenObjectMapper.writeValueAsString(Map.of("topic", "execution", "data", data));
-                wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
+                try {
+                    String json = objectMapper.writeValueAsString(Map.of("topic", "execution", "data", data));
+                    wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
+                } catch (Exception e) {
+                    log.error("Serialize execution report error: {}", e.getMessage());
+                }
             }
             progress.setLastProcessedSeq(seq);
         });

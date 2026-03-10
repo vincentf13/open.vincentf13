@@ -19,11 +19,11 @@
     <description>Spot Exchange service aggregation</description>
 
     <modules>
-        <module>spot-exchange-sbe</module>
+        <module>spot-exchange-contract</module>
         <module>spot-exchange-infra</module>
-        <module>spot-exchange-model</module>
-        <module>spot-exchange-core</module>
+        <module>spot-exchange-matching</module>
         <module>spot-exchange-gateway</module>
+        <module>spot-exchange-query</module>
     </modules>
 
     <properties>
@@ -37,7 +37,7 @@
         <dependencies>
             <dependency>
                 <groupId>open.vincentf13.spot_exchange</groupId>
-                <artifactId>spot-exchange-sbe</artifactId>
+                <artifactId>spot-exchange-contract</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -47,7 +47,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13.spot_exchange</groupId>
-                <artifactId>spot-exchange-model</artifactId>
+                <artifactId>spot-exchange-matching</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
