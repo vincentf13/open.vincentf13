@@ -42,10 +42,7 @@ public class LedgerProcessor {
             balance.setLastSeq(-1);
         }
         
-        // --- 金融級一致性：序列檢查 ---
-        if (balance.getLastSeq() >= currentSeq) {
-            return;
-        }
+        if (balance.getLastSeq() >= currentSeq) return;
         
         action.accept(balance);
         balance.setVersion(balance.getVersion() + 1);

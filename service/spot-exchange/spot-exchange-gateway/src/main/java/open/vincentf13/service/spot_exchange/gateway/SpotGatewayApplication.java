@@ -11,11 +11,11 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootApplication
 @ComponentScan(basePackages = {
     "open.vincentf13.service.spot_exchange.gateway",
-    "open.vincentf13.service.spot_exchange.infra",
-    "open.vincentf13.service.spot_exchange.core" // 需要 StateStore 與 AeronConfig
+    "open.vincentf13.service.spot_exchange.infra"
 })
 public class SpotGatewayApplication {
     public static void main(String[] args) {
+        System.setProperty("server.port", "8081");
         SpringApplication.run(SpotGatewayApplication.class, args);
     }
 }
