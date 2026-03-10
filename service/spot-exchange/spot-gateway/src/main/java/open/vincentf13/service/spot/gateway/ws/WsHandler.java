@@ -2,54 +2,60 @@ package open.vincentf13.service.spot.gateway.ws;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.util.AttributeKey;
+import net.openhft.chronicle.bytes.Bytes;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.TextWebSocketHandler;
-import net.openhft.chronicle.bytes.Bytes;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-public class WsHandler extends TextWebSocketHandler {
+@ChannelHandler.Sharable
+public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private static final Logger log = LoggerFactory.getLogger(WsHandler.class);
+    private static final AttributeKey<String> USER_ID_KEY = AttributeKey.valueOf("userId");
+    
     private final Storage storage;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final Map<String, WebSocketSession> userSessions = new ConcurrentHashMap<>();
+    private final Map<String, Channel> userChannels = new ConcurrentHashMap<>();
 
-    private static final ThreadLocal<Bytes<ByteBuffer>> BYTES_CACHE = ThreadLocal.withInitial(() -> Bytes.elasticByteBuffer(512));
-    private static final ThreadLocal<UnsafeBuffer> BUFFER_CACHE = ThreadLocal.withInitial(() -> new UnsafeBuffer(0, 0));
-    private static final ThreadLocal<OrderCreateEncoder> ENCODER_CACHE = ThreadLocal.withInitial(OrderCreateEncoder::new);
+    private final ThreadLocal<Bytes<ByteBuffer>> bytesCache = ThreadLocal.withInitial(() -> Bytes.elasticByteBuffer(512));
+    private final ThreadLocal<UnsafeBuffer> bufferCache = ThreadLocal.withInitial(() -> new UnsafeBuffer(0, 0));
+    private final ThreadLocal<OrderCreateEncoder> encoderCache = ThreadLocal.withInitial(OrderCreateEncoder::new);
 
     public WsHandler(Storage storage) {
         this.storage = storage;
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
         try {
-            JsonNode node = objectMapper.readTree(message.getPayload());
+            JsonNode node = objectMapper.readTree(frame.text());
             String op = node.has("op") ? node.get("op").asText() : "";
             if ("order.create".equals(op)) handleOrderCreate(node);
-            else if ("auth".equals(op)) handleAuth(session, node);
-        } catch (Exception e) { log.error("WS error: {}", e.getMessage()); }
+            else if ("auth".equals(op)) handleAuth(ctx.channel(), node);
+        } catch (Exception e) { log.error("Netty WS error: {}", e.getMessage()); }
     }
 
     private void handleOrderCreate(JsonNode node) {
         JsonNode params = node.get("params");
         if (params == null) return;
-        Bytes<ByteBuffer> bytes = BYTES_CACHE.get(); bytes.clear();
-        UnsafeBuffer buffer = BUFFER_CACHE.get(); buffer.wrap(bytes.addressForWrite(0), (int)bytes.realCapacity());
-        OrderCreateEncoder encoder = ENCODER_CACHE.get();
+        Bytes<ByteBuffer> bytes = bytesCache.get(); bytes.clear();
+        UnsafeBuffer buffer = bufferCache.get(); buffer.wrap(bytes.addressForWrite(0), (int)bytes.realCapacity());
+        OrderCreateEncoder encoder = encoderCache.get();
 
         int len = SbeCodec.encode(buffer, 0, encoder.timestamp(System.currentTimeMillis())
             .userId(params.get("userId").asLong()).symbolId(params.get("symbolId").asLong())
@@ -62,24 +68,26 @@ public class WsHandler extends TextWebSocketHandler {
         });
     }
 
-    private void handleAuth(WebSocketSession session, JsonNode node) {
+    private void handleAuth(Channel channel, JsonNode node) {
         String uid = node.get("args").get("userId").asText();
-        userSessions.put(uid, session); session.getAttributes().put("userId", uid);
+        userChannels.put(uid, channel);
+        channel.attr(USER_ID_KEY).set(uid);
         storage.gatewayQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(103); wire.write("userId").int64(Long.parseLong(uid));
         });
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, org.springframework.web.socket.CloseStatus status) {
-        String uid = (String) session.getAttributes().get("userId");
-        if (uid != null) userSessions.remove(uid);
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        String uid = ctx.channel().attr(USER_ID_KEY).get();
+        if (uid != null) userChannels.remove(uid);
+        super.channelInactive(ctx);
     }
 
     public void sendMessage(String uid, String json) {
-        WebSocketSession s = userSessions.get(uid);
-        if (s != null && s.isOpen()) {
-            try { s.sendMessage(new TextMessage(json)); } catch (Exception ignored) {}
+        Channel c = userChannels.get(uid);
+        if (c != null && c.isActive()) {
+            c.writeAndFlush(new TextWebSocketFrame(json));
         }
     }
 }
