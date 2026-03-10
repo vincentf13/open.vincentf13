@@ -12,7 +12,6 @@ import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.chronicle.Fields;
 import open.vincentf13.service.spot.model.*;
 import open.vincentf13.service.spot.sbe.*;
 
@@ -35,7 +34,7 @@ public class Engine extends Worker {
     
     private final Progress progress = new Progress();
     private ExcerptTailer tailer;
-    private boolean isReplaying = false; // 重播旗標：用於抑制重播期間的副作用 (如發送回報)
+    private boolean isReplaying = false; // 重播旗標：用於抑制重播期間的副作用
 
     private final OrderCreateDecoder createDecoder = new OrderCreateDecoder();
     private final OrderCancelDecoder cancelDecoder = new OrderCancelDecoder();
@@ -56,8 +55,8 @@ public class Engine extends Worker {
     protected void onStart() {
         this.tailer = Storage.self().commandQueue().createTailer();
         
-        // 1. 加載持久化進度與計數器
-        Progress saved = Storage.self().metadata().get(PK_CORE_PROGRESS);
+        // 加載持久化進度與計數器
+        Progress saved = Storage.self().metadata().get(Pk.ENGINE);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -66,7 +65,6 @@ public class Engine extends Worker {
             progress.setOrderIdCounter(1); progress.setTradeIdCounter(1);
         }
 
-        // 2. 根據 activeOrderIndex 恢復內存訂單簿狀態
         log.info("正在恢復內存訂單簿狀態...");
         Storage.self().activeOrders().keySet().forEach(id -> {
             Order o = Storage.self().orders().get(id);
@@ -76,7 +74,6 @@ public class Engine extends Worker {
             } else Storage.self().activeOrders().remove(id);
         });
 
-        // 3. 定位到上次處理的位點，準備重播 WAL
         if (progress.getLastProcessedSeq() > 0) {
             isReplaying = true; tailer.moveToIndex(progress.getLastProcessedSeq());
         }
@@ -87,38 +84,28 @@ public class Engine extends Worker {
         boolean handled = tailer.readDocument(wire -> {
             long seq = tailer.index();
             int msgType = wire.read(Fields.msgType).int32();
-            
-            // 檢查重播結束邊界
             if (isReplaying && seq >= tailer.queue().lastIndex()) isReplaying = false;
 
-            // 零拷貝解析載體
             reusableBytes.clear(); wire.read(Fields.payload).bytes(reusableBytes);
             payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
 
-            // --- 指令分發器 ---
-            if (msgType == MSG_TYPE_AUTH) handleAuth(wire, seq);
-            else if (msgType == MSG_TYPE_ORDER_CREATE) dispatchOrderCreate(seq);
-            else if (msgType == MSG_TYPE_ORDER_CANCEL) dispatchOrderCancel(seq);
+            if (msgType == Msg.AUTH) handleAuth(wire, seq);
+            else if (msgType == Msg.ORDER_CREATE) dispatchOrderCreate(seq);
+            else if (msgType == Msg.ORDER_CANCEL) dispatchOrderCancel(seq);
 
-            // 原子提交進度：包含上次處理序號與最新的 ID 計數器
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(PK_CORE_PROGRESS, progress);
+            Storage.self().metadata().put(Pk.ENGINE, progress);
         });
         if (!handled && isReplaying) isReplaying = false;
         return handled ? 1 : 0;
     }
 
-    /**
-      建立訂單分發 (含冪等性檢查)
-     */
     private void dispatchOrderCreate(long seq) {
         SbeCodec.decode(payloadBuffer, 0, createDecoder);
         String cid = createDecoder.clientOrderId();
         CidKey key = new CidKey(createDecoder.userId(), cid);
-        
         Long resId = Storage.self().cids().get(key);
         if (resId != null) {
-            // 已處理過的指令，觸發冪等重發回報
             if (!isReplaying) resendReport(resId, createDecoder.userId(), cid, createDecoder.timestamp());
             return;
         }
@@ -129,28 +116,21 @@ public class Engine extends Worker {
         SbeCodec.decode(payloadBuffer, 0, cancelDecoder);
         String cid = cancelDecoder.clientOrderId();
         CidKey key = new CidKey(cancelDecoder.userId(), cid);
-        
         if (Storage.self().cids().containsKey(key)) return;
         handleOrderCancel(cancelDecoder, seq, cid);
         Storage.self().cids().put(key, ID_REJECTED);
     }
 
-    /**
-      撮合核心邏輯：風控凍結 -> 匹配 -> 結算 -> 回報
-     */
     private long handleOrderCreate(OrderCreateDecoder sbe, long seq, String cid) {
         long ts = sbe.timestamp();
-        // 計算名義價值 (Buy 用 USDT, Sell 用 BTC)
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
-        int aid = (sbe.side() == Side.BUY) ? ASSET_USDT : ASSET_BTC;
+        int aid = (sbe.side() == Side.BUY) ? Asset.USDT : Asset.BTC;
 
-        // 1. 風控凍結 (原子操作)
         if (!ledger.tryFreeze(sbe.userId(), aid, seq, cost)) {
             sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
             return ID_REJECTED;
         }
 
-        // 2. 生成全局唯一訂單 ID
         long oid = progress.getOrderIdCounter(); progress.setOrderIdCounter(oid + 1);
         Order o = new Order();
         o.setOrderId(oid); o.setClientOrderId(cid); o.setUserId(sbe.userId());
@@ -159,19 +139,14 @@ public class Engine extends Worker {
         o.setVersion(1); o.setLastSeq(seq);
 
         activeOrderIndex.put(oid, o); persistOrder(o);
-        
-        // 3. 執行撮合
         List<OrderBook.TradeEvent> trades = books.computeIfAbsent(o.getSymbolId(), OrderBook::new).match(o);
         for (OrderBook.TradeEvent t : trades) {
             long tid = progress.getTradeIdCounter(); progress.setTradeIdCounter(tid + 1);
             persistTrade(t, tid, sbe.timestamp(), seq);
             processTradeLedger(t, seq, o);
             syncOrder(t.makerOrderId, seq);
-            // 發送 Maker 回報
             sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, sbe.timestamp());
         }
-        
-        // 4. 同步 Taker 狀態
         syncOrder(oid, seq);
         OrderStatus st = (o.getStatus() == 2) ? OrderStatus.FILLED : OrderStatus.NEW;
         sendReport(sbe.userId(), oid, cid, st, 0, 0, o.getFilled(), 0, ts);
@@ -184,12 +159,9 @@ public class Engine extends Worker {
             sendReport(sbe.userId(), sbe.orderId(), cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             return;
         }
-        
         books.get(o.getSymbolId()).remove(o);
-        // 解凍剩餘資金
         long unf = (o.getSide() == 0) ? DecimalUtil.mulCeil(o.getPrice(), o.getQty() - o.getFilled()) : o.getQty() - o.getFilled();
-        ledger.unfreeze(o.getUserId(), (o.getSide() == 0) ? ASSET_USDT : ASSET_BTC, seq, unf);
-        
+        ledger.unfreeze(o.getUserId(), (o.getSide() == 0) ? Asset.USDT : Asset.BTC, seq, unf);
         o.setStatus((byte)3); o.setLastSeq(seq); activeOrderIndex.remove(o.getOrderId());
         persistOrder(o);
         sendReport(o.getUserId(), o.getOrderId(), cid, OrderStatus.CANCELED, 0, 0, o.getFilled(), 0, sbe.timestamp());
@@ -212,24 +184,19 @@ public class Engine extends Worker {
         }
     }
 
-    /**
-      成交結算邏輯：實施「扣款進位 (Ceil)、入帳捨去 (Floor)」規則保護平台資產
-     */
     private void processTradeLedger(OrderBook.TradeEvent t, long seq, Order taker) {
         long floor = DecimalUtil.mulFloor(t.price, t.qty);
         long ceil = DecimalUtil.mulCeil(t.price, t.qty);
-        if (taker.getSide() == 0) { // Taker Buy
-            // 處理 Taker 的價格改進退款
-            ledger.tradeSettleWithRefund(t.takerUserId, ASSET_USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), ASSET_BTC, t.qty, seq);
-            ledger.tradeSettle(t.makerUserId, ASSET_BTC, t.qty, ASSET_USDT, floor, seq);
-        } else { // Taker Sell
-            ledger.tradeSettle(t.takerUserId, ASSET_BTC, t.qty, ASSET_USDT, floor, seq);
+        if (taker.getSide() == 0) {
+            ledger.tradeSettleWithRefund(t.takerUserId, Asset.USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), Asset.BTC, t.qty, seq);
+            ledger.tradeSettle(t.makerUserId, Asset.BTC, t.qty, Asset.USDT, floor, seq);
+        } else {
+            ledger.tradeSettle(t.takerUserId, Asset.BTC, t.qty, Asset.USDT, floor, seq);
             Order m = activeOrderIndex.get(t.makerOrderId);
             long mCeil = (m != null) ? DecimalUtil.mulCeil(m.getPrice(), t.qty) : ceil;
-            ledger.tradeSettleWithRefund(t.makerUserId, ASSET_USDT, ceil, mCeil, ASSET_BTC, t.qty, seq);
+            ledger.tradeSettleWithRefund(t.makerUserId, Asset.USDT, ceil, mCeil, Asset.BTC, t.qty, seq);
         }
-        // 歸集捨入差額到系統帳戶
-        if (ceil > floor) ledger.addAvailable(SYSTEM_USER_ID, ASSET_USDT, seq, ceil - floor);
+        if (ceil > floor) ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, seq, ceil - floor);
     }
 
     private void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts) {
@@ -265,7 +232,7 @@ public class Engine extends Worker {
 
     private void handleAuth(net.openhft.chronicle.wire.WireIn wire, long seq) {
         long userId = wire.read(Fields.userId).int64();
-        ledger.initBalance(userId, ASSET_BTC, seq); ledger.initBalance(userId, ASSET_USDT, seq);
+        ledger.initBalance(userId, Asset.BTC, seq); ledger.initBalance(userId, Asset.USDT, seq);
         if (isReplaying) return;
         Storage.self().resultQueue().acquireAppender().writeDocument(w -> {
             w.write(Fields.topic).text("auth.success");

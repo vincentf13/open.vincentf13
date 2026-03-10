@@ -35,17 +35,17 @@ public class Storage {
 
     // --- 系統狀態 (Maps) ---
     private ChronicleMap<BalanceKey, Balance> balances;
-    private ChronicleMap<Long, Long> userAssets; // 用於快速定位用戶擁有的非零資產 (Bitmask)
+    private ChronicleMap<Long, Long> userAssets;
     private ChronicleMap<Long, Order> orders;
-    private ChronicleMap<Long, Boolean> activeOrders; // 掛單索引，用於啟動時快速重建訂單簿
+    private ChronicleMap<Long, Boolean> activeOrders;
     private ChronicleMap<Long, Trade> trades;
-    private ChronicleMap<CidKey, Long> cids; // 冪等性校驗 Map
-    private ChronicleMap<Byte, Progress> metadata; // 存儲各組件的 Sequence ID 與全局計數器
+    private ChronicleMap<CidKey, Long> cids;
+    private ChronicleMap<Byte, Progress> metadata; 
     
     // --- 數據隊列 (Queues) ---
-    private ChronicleQueue gatewayQueue;  // 網關接收指令緩衝
-    private ChronicleQueue commandQueue;  // 撮合引擎待處理指令 (WAL)
-    private ChronicleQueue resultQueue;   // 撮合引擎執行結果回報 (用於推播與外部訂閱)
+    private ChronicleQueue gatewayQueue;
+    private ChronicleQueue commandQueue;
+    private ChronicleQueue resultQueue;
 
     @PostConstruct
     public void init() throws IOException {
@@ -65,7 +65,7 @@ public class Storage {
         resultQueue = SingleChronicleQueueBuilder.binary(baseDir + "outbound-queue").build();
         
         instance = this;
-        log.info("Chronicle Storage initialized and static instance set.");
+        log.info("Chronicle Storage initialized.");
     }
 
     private <K, V> ChronicleMap<K, V> createMap(String name, Class<K> k, Class<V> v, int entries, K avgKey, V avgValue) throws IOException {

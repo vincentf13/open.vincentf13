@@ -12,24 +12,26 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import static open.vincentf13.service.spot.infra.Constants.Ws;
+
+@Slf4j
 @Component
 public class NettyServer {
-    private static final Logger log = LoggerFactory.getLogger(NettyServer.class);
-    private final WsHandler wsHandler;
     @Value("${server.port:8081}")
     private int port;
+
+    private final WsHandler wsHandler;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
-    
+
     public NettyServer(WsHandler wsHandler) {
         this.wsHandler = wsHandler;
     }
-    
+
     @PostConstruct
     public void start() {
         new Thread(() -> {
@@ -45,11 +47,11 @@ public class NettyServer {
                          ch.pipeline().addLast(new HttpServerCodec());
                          ch.pipeline().addLast(new ChunkedWriteHandler());
                          ch.pipeline().addLast(new HttpObjectAggregator(65536));
-                         ch.pipeline().addLast(new WebSocketServerProtocolHandler("/ws/spot"));
+                         ch.pipeline().addLast(new WebSocketServerProtocolHandler(Ws.PATH));
                          ch.pipeline().addLast(wsHandler);
                      }
                  });
-                
+
                 log.info("Netty WebSocket Server started on port {}", port);
                 b.bind(port).sync().channel().closeFuture().sync();
             } catch (Exception e) {
@@ -59,12 +61,10 @@ public class NettyServer {
             }
         }, "netty-server").start();
     }
-    
+
     @PreDestroy
     public void stop() {
-        if (bossGroup != null)
-            bossGroup.shutdownGracefully();
-        if (workerGroup != null)
-            workerGroup.shutdownGracefully();
+        if (bossGroup != null) bossGroup.shutdownGracefully();
+        if (workerGroup != null) workerGroup.shutdownGracefully();
     }
 }

@@ -10,7 +10,6 @@ import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.chronicle.Fields;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.util.JsonUtil;
 import open.vincentf13.service.spot.model.OrderRequest;
@@ -34,7 +33,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @ChannelHandler.Sharable
 public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    private static final AttributeKey<String> ATTR_USER_ID = AttributeKey.valueOf(FIELD_USER_ID);
+    private static final AttributeKey<String> ATTR_USER_ID = AttributeKey.valueOf(Ws.USER_ID);
     private final Map<String, Channel> userChannels = new ConcurrentHashMap<>();
 
     // --- Zero-GC 資源池 (ThreadLocal 隔離) ---
@@ -47,19 +46,19 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
         String text = frame.text();
         // 快速判斷 Ping，避開 JSON 解析開銷
-        if (text.contains(OP_PING)) { ctx.channel().writeAndFlush(new TextWebSocketFrame(RESP_PONG)); return; }
+        if (text.contains(Ws.PING)) { ctx.channel().writeAndFlush(new TextWebSocketFrame(Ws.PONG)); return; }
 
         JsonNode root = JsonUtil.readTree(text);
         if (root == null) return;
 
-        String op = root.path(FIELD_OP).asText("");
-        if (OP_ORDER_CREATE.equals(op)) {
+        String op = root.path(Ws.OP).asText("");
+        if (Ws.CREATE.equals(op)) {
             // 使用重用物件執行 Zero-Allocation 解析
             OrderRequest req = reusableOrderRequest.get();
             req.reset();
             JsonUtil.updateObject(text, req);
             handleOrderCreate(ctx.channel(), req);
-        } else if (OP_AUTH.equals(op)) {
+        } else if (Ws.AUTH.equals(op)) {
             handleAuth(ctx.channel(), root);
         }
     }
@@ -86,7 +85,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleAuth(Channel channel, JsonNode root) {
-        long userId = root.path(FIELD_ARGS).path(FIELD_USER_ID).asLong(0);
+        long userId = root.path(Ws.ARGS).path(Ws.USER_ID).asLong(0);
         if (userId == 0) return;
 
         String uidStr = String.valueOf(userId);
@@ -94,7 +93,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         channel.attr(ATTR_USER_ID).set(uidStr); // 在 Channel 上貼標籤，實現 $O(1)$ 的斷線清理
 
         Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(Fields.msgType).int32(MSG_TYPE_AUTH);
+            wire.write(Fields.msgType).int32(Msg.AUTH);
             wire.write(Fields.userId).int64(userId);
         });
     }
@@ -102,7 +101,10 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         String uid = ctx.channel().attr(ATTR_USER_ID).get();
-        if (uid != null) userChannels.remove(uid);
+        if (uid != null) {
+            userChannels.remove(uid);
+            log.debug("User {} disconnected", uid);
+        }
         super.channelInactive(ctx);
     }
 
