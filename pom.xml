@@ -113,12 +113,12 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-auth-sdk-rest-api</artifactId>
+                <artifactId>perp-auth-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-auth-sdk-rest-client</artifactId>
+                <artifactId>perp-auth-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -143,7 +143,7 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-sdk</artifactId>
+                <artifactId>perp-sdk</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -209,117 +209,117 @@
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-user-sdk-rest-api</artifactId>
+                <artifactId>perp-user-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-user-sdk-rest-client</artifactId>
+                <artifactId>perp-user-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-order-sdk-rest-api</artifactId>
+                <artifactId>perp-order-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-order-sdk-rest-client</artifactId>
+                <artifactId>perp-order-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-order-sdk-mq</artifactId>
+                <artifactId>perp-order-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-account-sdk-rest-api</artifactId>
+                <artifactId>perp-account-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-account-sdk-rest-client</artifactId>
+                <artifactId>perp-account-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-account-sdk-mq</artifactId>
+                <artifactId>perp-account-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-position-sdk-rest-api</artifactId>
+                <artifactId>perp-position-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-position-sdk-rest-client</artifactId>
+                <artifactId>perp-position-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-position-sdk-mq</artifactId>
+                <artifactId>perp-position-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-matching-sdk-rest-api</artifactId>
+                <artifactId>perp-matching-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-matching-sdk-rest-client</artifactId>
+                <artifactId>perp-matching-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-matching-sdk-mq</artifactId>
+                <artifactId>perp-matching-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-risk-sdk-rest-api</artifactId>
+                <artifactId>perp-risk-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-risk-sdk-rest-client</artifactId>
+                <artifactId>perp-risk-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-risk-sdk-mq</artifactId>
+                <artifactId>perp-risk-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-market-sdk-rest-api</artifactId>
+                <artifactId>perp-market-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-market-sdk-rest-client</artifactId>
+                <artifactId>perp-market-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-market-sdk-mq</artifactId>
+                <artifactId>perp-market-sdk-mq</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-admin-sdk-rest-api</artifactId>
+                <artifactId>perp-admin-sdk-rest-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-admin-sdk-rest-client</artifactId>
+                <artifactId>perp-admin-sdk-rest-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>open.vincentf13</groupId>
-                <artifactId>perpetual-exchange-common-sdk</artifactId>
+                <artifactId>perp-common-sdk</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

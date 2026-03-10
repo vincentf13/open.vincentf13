@@ -11,16 +11,16 @@ mkdir -p "$LOG_DIR"
 
 # List of services to process
 SERVICES=(
-  "perpetual-exchange-account"
-  "perpetual-exchange-admin"
-  "perpetual-exchange-auth"
-  "perpetual-exchange-gateway"
-  "perpetual-exchange-market"
-  "perpetual-exchange-matching"
-  "perpetual-exchange-order"
-  "perpetual-exchange-position"
-  "perpetual-exchange-risk"
-  "perpetual-exchange-user"
+  "perp-account"
+  "perp-admin"
+  "perp-auth"
+  "perp-gateway"
+  "perp-market"
+  "perp-matching"
+  "perp-order"
+  "perp-position"
+  "perp-risk"
+  "perp-user"
 )
 
 # 取得 Kind 節點列表
@@ -107,7 +107,7 @@ echo "--------------------------------------------------"
 if [ $FAILURES -eq 0 ]; then
   echo -e "${GREEN}All services images built and loaded successfully!${NC}"
   echo "Triggering rollout restart for all Perpetual Exchange services..."
-  kubectl rollout restart deployment -l 'app in (perpetual-exchange-account, perpetual-exchange-admin, perpetual-exchange-auth, perpetual-exchange-gateway, perpetual-exchange-market, perpetual-exchange-matching, perpetual-exchange-order, perpetual-exchange-position, perpetual-exchange-risk, perpetual-exchange-user)'
+  kubectl rollout restart deployment -l 'app in (perp-account, perp-admin, perp-auth, perp-gateway, perp-market, perp-matching, perp-order, perp-position, perp-risk, perp-user)'
   echo "Check Kubernetes status with: kubectl get pods"
 else
   echo -e "${RED}$FAILURES services failed to redeploy. Check logs in $LOG_DIR${NC}"

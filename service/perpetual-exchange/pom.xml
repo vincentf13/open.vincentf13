@@ -19,17 +19,17 @@
     <description>Perpetual Exchange service aggregation</description>
 
     <modules>
-        <module>perpetual-exchange-sdk</module>
-        <module>perpetual-exchange-gateway</module>
-        <module>perpetual-exchange-auth</module>
-        <module>perpetual-exchange-user</module>
-        <module>perpetual-exchange-order</module>
-        <module>perpetual-exchange-position</module>
-        <module>perpetual-exchange-risk</module>
-        <module>perpetual-exchange-account</module>
-        <module>perpetual-exchange-market</module>
-        <module>perpetual-exchange-admin</module>
-        <module>perpetual-exchange-matching</module>
-        <module>perpetual-exchange-test</module>
+        <module>perp-sdk</module>
+        <module>perp-gateway</module>
+        <module>perp-auth</module>
+        <module>perp-user</module>
+        <module>perp-order</module>
+        <module>perp-position</module>
+        <module>perp-risk</module>
+        <module>perp-account</module>
+        <module>perp-market</module>
+        <module>perp-admin</module>
+        <module>perp-matching</module>
+        <module>perp-test</module>
     </modules>
 </project>
