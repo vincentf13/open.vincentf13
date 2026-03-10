@@ -4,7 +4,6 @@ import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.model.Balance;
 import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.springframework.stereotype.Service;
-import net.openhft.chronicle.map.ExternalMapQueryContext;
 
 /** 
   內存帳務處理器 (金融級原子更新與資產索引版)
@@ -43,7 +42,10 @@ public class LedgerProcessor {
             balance.setLastSeq(-1);
         }
         
-        if (balance.getLastSeq() >= currentSeq) return;
+        // --- 金融級一致性：序列檢查 ---
+        if (balance.getLastSeq() >= currentSeq) {
+            return;
+        }
         
         action.accept(balance);
         balance.setVersion(balance.getVersion() + 1);
@@ -71,6 +73,8 @@ public class LedgerProcessor {
     }
 
     public boolean tryFreeze(long userId, int assetId, long currentSeq, long amount) {
+        if (amount <= 0) return true;
+        
         boolean[] success = {false};
         updateBalance(userId, assetId, currentSeq, b -> {
             if (b.getAvailable() >= amount) {

@@ -23,4 +23,10 @@ public class ExchangeConstants {
 
     public static final int ASSET_BTC = 1;
     public static final int ASSET_USDT = 2;
+
+    // --- 訊息類型 ID ---
+    public static final int MSG_TYPE_ORDER_CREATE = 100;
+    public static final int MSG_TYPE_ORDER_CANCEL = 101;
+    public static final int MSG_TYPE_DEPOSIT = 102;
+    public static final int MSG_TYPE_AUTH = 103;
 }
