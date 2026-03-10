@@ -19,25 +19,27 @@ public class LedgerProcessor {
 
     public void updateBalance(long userId, int assetId, long currentSeq, java.util.function.Consumer<Balance> action) {
         BalanceKey key = new BalanceKey(userId, assetId);
-        try (ExternalMapQueryContext<BalanceKey, Balance, ?> context = stateStore.getBalanceMap().queryContext(key)) {
-            context.writeLock().lock();
-            net.openhft.chronicle.map.MapEntry<BalanceKey, Balance> entry = context.entry();
-            Balance balance = (entry == null) ? new Balance() : entry.value().get();
-            
-            if (balance.getLastSeq() >= currentSeq) return;
-            
-            action.accept(balance);
-            balance.setVersion(balance.getVersion() + 1);
-            balance.setLastSeq(currentSeq);
-            
-            if (entry == null) {
-                context.insert(context.absentEntry(), context.wrapValueAsData(balance));
-                // --- 維護資產索引 ---
-                updateUserAssetIndex(userId, assetId);
-            } else {
-                entry.replaceValue(context.wrapValueAsData(balance));
-            }
+        
+        Balance balance = stateStore.getBalanceMap().get(key);
+        if (balance == null) {
+            balance = new Balance();
+            balance.setAvailable(0);
+            balance.setFrozen(0);
+            balance.setVersion(0);
+            balance.setLastSeq(-1);
         }
+        
+        // --- 金融級一致性：序列檢查 ---
+        if (balance.getLastSeq() >= currentSeq) {
+            return;
+        }
+        
+        action.accept(balance);
+        balance.setVersion(balance.getVersion() + 1);
+        balance.setLastSeq(currentSeq);
+        
+        stateStore.getBalanceMap().put(key, balance);
+        updateUserAssetIndex(userId, assetId);
     }
 
     private void updateUserAssetIndex(long userId, int assetId) {
@@ -63,6 +65,18 @@ public class LedgerProcessor {
             }
         });
         return success[0];
+    }
+
+    /** 
+      解凍資產 (撤單)
+     */
+    public void unfreeze(long userId, int assetId, long currentSeq, long amount) {
+        if (amount <= 0) return;
+        updateBalance(userId, assetId, currentSeq, b -> {
+            long actualToUnfreeze = Math.min(b.getFrozen(), amount);
+            b.setFrozen(b.getFrozen() - actualToUnfreeze);
+            b.setAvailable(b.getAvailable() + actualToUnfreeze);
+        });
     }
 
     /** 

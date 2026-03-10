@@ -10,7 +10,7 @@ import org.agrona.MutableDirectBuffer;
 @SuppressWarnings("all")
 public final class OrderCancelEncoder
 {
-    public static final int BLOCK_LENGTH = 24;
+    public static final int BLOCK_LENGTH = 56;
     public static final int TEMPLATE_ID = 101;
     public static final int SCHEMA_ID = 1;
     public static final int SCHEMA_VERSION = 1;
@@ -259,6 +259,107 @@ public final class OrderCancelEncoder
         return this;
     }
 
+
+    public static int clientOrderIdId()
+    {
+        return 4;
+    }
+
+    public static int clientOrderIdSinceVersion()
+    {
+        return 0;
+    }
+
+    public static int clientOrderIdEncodingOffset()
+    {
+        return 24;
+    }
+
+    public static int clientOrderIdEncodingLength()
+    {
+        return 32;
+    }
+
+    public static String clientOrderIdMetaAttribute(final MetaAttribute metaAttribute)
+    {
+        if (MetaAttribute.PRESENCE == metaAttribute)
+        {
+            return "required";
+        }
+
+        return "";
+    }
+
+    public static byte clientOrderIdNullValue()
+    {
+        return (byte)0;
+    }
+
+    public static byte clientOrderIdMinValue()
+    {
+        return (byte)32;
+    }
+
+    public static byte clientOrderIdMaxValue()
+    {
+        return (byte)126;
+    }
+
+    public static int clientOrderIdLength()
+    {
+        return 32;
+    }
+
+
+    public OrderCancelEncoder clientOrderId(final int index, final byte value)
+    {
+        if (index < 0 || index >= 32)
+        {
+            throw new IndexOutOfBoundsException("index out of range: index=" + index);
+        }
+
+        final int pos = offset + 24 + (index * 1);
+        buffer.putByte(pos, value);
+
+        return this;
+    }
+
+    public static String clientOrderIdCharacterEncoding()
+    {
+        return java.nio.charset.StandardCharsets.UTF_8.name();
+    }
+
+    public OrderCancelEncoder putClientOrderId(final byte[] src, final int srcOffset)
+    {
+        final int length = 32;
+        if (srcOffset < 0 || srcOffset > (src.length - length))
+        {
+            throw new IndexOutOfBoundsException("Copy will go out of range: offset=" + srcOffset);
+        }
+
+        buffer.putBytes(offset + 24, src, srcOffset, length);
+
+        return this;
+    }
+
+    public OrderCancelEncoder clientOrderId(final String src)
+    {
+        final int length = 32;
+        final byte[] bytes = (null == src || src.isEmpty()) ? org.agrona.collections.ArrayUtil.EMPTY_BYTE_ARRAY : src.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        if (bytes.length > length)
+        {
+            throw new IndexOutOfBoundsException("String too large for copy: byte length=" + bytes.length);
+        }
+
+        buffer.putBytes(offset + 24, bytes, 0, bytes.length);
+
+        for (int start = bytes.length; start < length; ++start)
+        {
+            buffer.putByte(offset + 24 + start, (byte)0);
+        }
+
+        return this;
+    }
 
     public String toString()
     {

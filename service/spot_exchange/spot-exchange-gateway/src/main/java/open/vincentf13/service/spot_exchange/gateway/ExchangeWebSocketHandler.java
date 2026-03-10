@@ -49,14 +49,15 @@ public class ExchangeWebSocketHandler extends TextWebSocketHandler {
                 .symbolId(node.get("params").get("symbolId").asLong())
                 .price(node.get("params").get("price").asLong())
                 .qty(node.get("params").get("qty").asLong())
-                .side(Side.get(node.get("params").get("side").asInt()))
+                .side(Side.get((short) node.get("params").get("side").asInt()))
                 .clientOrderId(node.get("cid").asText()));
 
             // --- 修正：使用正確的方式寫入 DirectBuffer 內容 ---
             stateStore.getGwQueue().acquireAppender().writeDocument(wire -> {
                 wire.write("msgType").int32(encoder.sbeTemplateId());
-                // 透過 bytes(buffer, offset, length) 直接處理 DirectBuffer
-                wire.write("payload").bytes(buffer, 0, len);
+                byte[] data = new byte[len];
+                buffer.getBytes(0, data);
+                wire.write("payload").bytes(data);
             });
         } else if ("auth".equals(op)) {
             String userId = node.get("args").get("userId").asText();

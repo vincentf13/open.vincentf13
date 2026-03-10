@@ -68,7 +68,7 @@ public class OrderBook {
         return trades;
     }
 
-    private void add(ActiveOrder order) {
+    public void add(ActiveOrder order) {
         TreeMap<Long, LinkedList<ActiveOrder>> sideMap = (order.getSide() == 0) ? bids : asks;
         sideMap.computeIfAbsent(order.getPrice(), k -> new LinkedList<>()).add(order);
     }
@@ -81,6 +81,17 @@ public class OrderBook {
             for (ActiveOrder o : orders) if (o.getOrderId() == orderId) return Optional.of(o);
         }
         return Optional.empty();
+    }
+
+    public void remove(ActiveOrder order) {
+        TreeMap<Long, LinkedList<ActiveOrder>> sideMap = (order.getSide() == 0) ? bids : asks;
+        LinkedList<ActiveOrder> ordersAtPrice = sideMap.get(order.getPrice());
+        if (ordersAtPrice != null) {
+            ordersAtPrice.removeIf(o -> o.getOrderId() == order.getOrderId());
+            if (ordersAtPrice.isEmpty()) {
+                sideMap.remove(order.getPrice());
+            }
+        }
     }
 
     public static class TradeEvent {

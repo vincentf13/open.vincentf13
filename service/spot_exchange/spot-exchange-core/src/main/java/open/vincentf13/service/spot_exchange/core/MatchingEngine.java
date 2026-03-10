@@ -245,7 +245,9 @@ public class MatchingEngine extends BusySpinWorker {
             .lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid));
         stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(executionEncoder.sbeTemplateId());
-            wire.write("payload").bytes(outboundBuffer, 0, len);
+            byte[] data = new byte[len];
+            outboundBuffer.getBytes(0, data);
+            wire.write("payload").bytes(data);
         });
     }
 
@@ -259,5 +261,5 @@ public class MatchingEngine extends BusySpinWorker {
         });
     }
 
-    @Override protected void onStop() { if (reusableBytes != null) reusableBytes.release(); }
+    @Override protected void onStop() { if (reusableBytes != null) reusableBytes.releaseLast(); }
 }

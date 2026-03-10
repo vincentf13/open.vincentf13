@@ -49,6 +49,7 @@
         <field name="timestamp" id="1" type="int64"/>
         <field name="userId" id="2" type="int64"/>
         <field name="orderId" id="3" type="int64"/>
+        <field name="clientOrderId" id="4" type="char32"/>
     </sbe:message>
 
     <!-- 3. 充值指令 -->

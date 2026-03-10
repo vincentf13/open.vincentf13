@@ -62,6 +62,6 @@ public class GatewayAeronSender extends BusySpinWorker {
     @Override
     protected void onStop() {
         if (publisher != null) publisher.close();
-        if (reusableBytes != null) reusableBytes.release();
+        if (reusableBytes != null) reusableBytes.releaseLast();
     }
 }

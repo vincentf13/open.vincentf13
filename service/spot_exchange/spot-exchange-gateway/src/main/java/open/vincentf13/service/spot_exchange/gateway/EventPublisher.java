@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot_exchange.core;
+package open.vincentf13.service.spot_exchange.gateway;
 
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.queue.ExcerptTailer;
@@ -46,8 +46,8 @@ public class EventPublisher extends BusySpinWorker {
             int msgType = wire.read("msgType").int32();
             
             if (msgType == executionDecoder.sbeTemplateId()) {
-                net.openhft.chronicle.bytes.Bytes<?> bytes = wire.read("payload").bytes();
-                payloadBuffer.wrap(bytes.addressForRead(bytes.readPosition()), (int)bytes.readRemaining());
+                byte[] bytes = wire.read("payload").bytes();
+                payloadBuffer.wrap(bytes);
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
                 
                 String json = String.format(
