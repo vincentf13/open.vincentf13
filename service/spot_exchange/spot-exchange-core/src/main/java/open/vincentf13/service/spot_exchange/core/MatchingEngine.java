@@ -19,6 +19,8 @@ import java.util.*;
 
 @Component
 public class MatchingEngine extends BusySpinWorker {
+    private static final long SYSTEM_USER_ID = 0L; // --- 全系統對帳帳戶 ---
+    
     private final StateStore stateStore;
     private final LedgerProcessor ledger;
     private final Map<Integer, OrderBook> books = new HashMap<>();
@@ -31,11 +33,8 @@ public class MatchingEngine extends BusySpinWorker {
 
     private final OrderCreateDecoder orderCreateDecoder = new OrderCreateDecoder();
     private final OrderCancelDecoder orderCancelDecoder = new OrderCancelDecoder();
-    
-    // --- 深度優化：使用預分配的 UnsafeBuffer，不進行數據拷貝 ---
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
-    
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private final UnsafeBuffer outboundBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1024));
@@ -54,15 +53,17 @@ public class MatchingEngine extends BusySpinWorker {
         this.orderIdCounter = stateStore.getSystemStateMap().getOrDefault("orderIdCounter", 1L);
         this.tradeIdCounter = stateStore.getSystemStateMap().getOrDefault("tradeIdCounter", 1L);
 
-        log.info("正在執行系統啟動校驗與重建...");
+        log.info("正在執行金融級有序重建...");
+        List<ActiveOrder> activeOrders = new ArrayList<>();
         stateStore.getActiveOrderIdMap().keySet().forEach(id -> {
             ActiveOrder o = stateStore.getOrderMap().get(id);
-            if (o != null && o.getStatus() < 2) {
-                books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
-                activeOrderIndex.put(id, o);
-            } else {
-                stateStore.getActiveOrderIdMap().remove(id);
-            }
+            if (o != null && o.getStatus() < 2) activeOrders.add(o);
+            else stateStore.getActiveOrderIdMap().remove(id);
+        });
+
+        activeOrders.stream().sorted(Comparator.comparingLong(ActiveOrder::getOrderId)).forEach(order -> {
+            books.computeIfAbsent(order.getSymbolId(), OrderBook::new).add(order);
+            activeOrderIndex.put(order.getOrderId(), order);
         });
 
         Long lastSeq = stateStore.getSystemStateMap().get("lastProcessedSeq");
@@ -78,24 +79,19 @@ public class MatchingEngine extends BusySpinWorker {
             long currentIndex = tailer.index();
             int msgType = wire.read("msgType").int32();
             
-            if (isReplaying && currentIndex >= tailer.queue().lastIndex()) {
-                isReplaying = false;
-            }
+            if (isReplaying && currentIndex >= tailer.queue().lastIndex()) isReplaying = false;
 
-            // --- 深度優化：真正實現零拷貝 ---
             reusableBytes.clear();
             wire.read("payload").bytes(reusableBytes);
-            // 直接 wrap 地址與長度，消除 toByteArray()
-            payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), 
-                             (int)reusableBytes.readRemaining());
+            payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
 
             switch (msgType) {
                 case 103: handleAuth(wire, currentIndex); break;
-                case 100: // OrderCreate
+                case 100: 
                     SbeCodec.decode(payloadBuffer, 0, orderCreateDecoder);
                     handleOrderCreateWithIdempotency(orderCreateDecoder, currentIndex);
                     break;
-                case 101: // OrderCancel
+                case 101: 
                     SbeCodec.decode(payloadBuffer, 0, orderCancelDecoder);
                     handleOrderCancelWithIdempotency(orderCancelDecoder, currentIndex);
                     break;
@@ -177,8 +173,7 @@ public class MatchingEngine extends BusySpinWorker {
         long unfreezeAmount = (order.getSide() == 0) ? DecimalUtil.mulCeil(order.getPrice(), remainingQty) : remainingQty;
         ledger.unfreeze(order.getUserId(), (order.getSide() == 0) ? 2 : 1, seq, unfreezeAmount);
 
-        order.setStatus((byte)3);
-        order.setLastSeq(seq);
+        order.setStatus((byte)3); order.setLastSeq(seq);
         activeOrderIndex.remove(order.getOrderId());
         saveOrderAndIndex(order);
 
@@ -192,6 +187,26 @@ public class MatchingEngine extends BusySpinWorker {
             if (order.getStatus() < 2) stateStore.getActiveOrderIdMap().put(order.getOrderId(), true);
             else stateStore.getActiveOrderIdMap().remove(order.getOrderId());
         }
+    }
+
+    private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq, ActiveOrder taker) {
+        long floor = DecimalUtil.mulFloor(t.price, t.qty);
+        long ceil = DecimalUtil.mulCeil(t.price, t.qty);
+        long dust = ceil - floor; // --- 收集進位塵埃 ---
+
+        if (taker.getSide() == 0) { // Taker BUY
+            long takerFrozen = DecimalUtil.mulCeil(taker.getPrice(), t.qty);
+            ledger.tradeSettleWithRefund(t.takerUserId, 2, ceil, takerFrozen, 1, t.qty, currentSeq);
+            ledger.tradeSettle(t.makerUserId, 1, t.qty, 2, floor, currentSeq);
+        } else { // Taker SELL
+            ledger.tradeSettle(t.takerUserId, 1, t.qty, 2, floor, currentSeq);
+            ActiveOrder maker = activeOrderIndex.get(t.makerOrderId);
+            long mCeil = (maker != null) ? DecimalUtil.mulCeil(maker.getPrice(), t.qty) : ceil;
+            ledger.tradeSettleWithRefund(t.makerUserId, 2, ceil, mCeil, 1, t.qty, currentSeq);
+        }
+        
+        // 將塵埃轉入系統帳戶，保持全系統資產平衡
+        if (dust > 0) ledger.addAvailable(SYSTEM_USER_ID, 2, currentSeq, dust);
     }
 
     private void resendReport(long orderId, long ts) {
@@ -212,25 +227,8 @@ public class MatchingEngine extends BusySpinWorker {
     private void syncOrderState(long orderId, long seq) {
         ActiveOrder o = activeOrderIndex.get(orderId);
         if (o != null) {
-            if (o.getFilled() == o.getQty()) {
-                o.setStatus((byte)2); activeOrderIndex.remove(orderId);
-            }
-            o.setVersion(o.getVersion() + 1); o.setLastSeq(seq);
-            saveOrderAndIndex(o);
-        }
-    }
-
-    private void processTradeLedger(OrderBook.TradeEvent t, long currentSeq, ActiveOrder taker) {
-        long floor = DecimalUtil.mulFloor(t.price, t.qty);
-        long ceil = DecimalUtil.mulCeil(t.price, t.qty);
-        if (taker.getSide() == 0) { // Taker BUY
-            ledger.tradeSettleWithRefund(t.takerUserId, 2, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), 1, t.qty, currentSeq);
-            ledger.tradeSettle(t.makerUserId, 1, t.qty, 2, floor, currentSeq);
-        } else { // Taker SELL
-            ledger.tradeSettle(t.takerUserId, 1, t.qty, 2, floor, currentSeq);
-            ActiveOrder maker = activeOrderIndex.get(t.makerOrderId);
-            long mCeil = (maker != null) ? DecimalUtil.mulCeil(maker.getPrice(), t.qty) : ceil;
-            ledger.tradeSettleWithRefund(t.makerUserId, 2, ceil, mCeil, 1, t.qty, currentSeq);
+            if (o.getFilled() == o.getQty()) { o.setStatus((byte)2); activeOrderIndex.remove(orderId); }
+            o.setVersion(o.getVersion() + 1); o.setLastSeq(seq); saveOrderAndIndex(o);
         }
     }
 
@@ -241,16 +239,13 @@ public class MatchingEngine extends BusySpinWorker {
             .lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid));
         stateStore.getOutboundQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(executionEncoder.sbeTemplateId());
-            byte[] data = new byte[len];
-            outboundBuffer.getBytes(0, data);
-            wire.write("payload").bytes(data);
+            byte[] data = new byte[len]; outboundBuffer.getBytes(0, data); wire.write("payload").bytes(data);
         });
     }
 
     private void handleAuth(net.openhft.chronicle.wire.WireIn wire, long currentSeq) {
         long userId = wire.read("userId").int64();
-        ledger.initBalance(userId, 1, currentSeq);
-        ledger.initBalance(userId, 2, currentSeq);
+        ledger.initBalance(userId, 1, currentSeq); ledger.initBalance(userId, 2, currentSeq);
         if (isReplaying) return;
         stateStore.getOutboundQueue().acquireAppender().writeDocument(w -> {
             w.write("topic").text("auth.success"); w.write("userId").int64(userId);

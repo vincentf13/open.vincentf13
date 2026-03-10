@@ -1,13 +1,13 @@
 package open.vincentf13.service.spot_exchange.core;
 
-import net.openhft.chronicle.map.ExternalMapQueryContext;
 import open.vincentf13.service.spot_exchange.infra.StateStore;
 import open.vincentf13.service.spot_exchange.model.Balance;
 import open.vincentf13.service.spot_exchange.model.BalanceKey;
 import org.springframework.stereotype.Service;
+import net.openhft.chronicle.map.ExternalMapQueryContext;
 
 /** 
-  內存帳務處理器 (金融級原子更新版)
+  內存帳務處理器 (金融級原子更新與資產索引版)
  */
 @Service
 public class LedgerProcessor {
@@ -17,19 +17,11 @@ public class LedgerProcessor {
         this.stateStore = stateStore;
     }
 
-    /** 
-      單用戶資產綜合結算 (確保對向變更的原子性)
-     */
     public void tradeSettle(long userId, int assetOut, long amountOut, int assetIn, long amountIn, long currentSeq) {
-        // 先處理流出資產 (扣除凍結)
         updateBalance(userId, assetOut, currentSeq, b -> b.setFrozen(Math.max(0, b.getFrozen() - amountOut)));
-        // 再處理流入資產 (增加可用)
         updateBalance(userId, assetIn, currentSeq, b -> b.setAvailable(b.getAvailable() + amountIn));
     }
 
-    /** 
-      特殊結算：支援退還價格改進導致的凍結差額
-     */
     public void tradeSettleWithRefund(long userId, int assetOut, long amountOut, long totalFrozen, int assetIn, long amountIn, long currentSeq) {
         updateBalance(userId, assetOut, currentSeq, b -> {
             b.setFrozen(Math.max(0, b.getFrozen() - totalFrozen));
@@ -41,17 +33,34 @@ public class LedgerProcessor {
 
     public void updateBalance(long userId, int assetId, long currentSeq, java.util.function.Consumer<Balance> action) {
         BalanceKey key = new BalanceKey(userId, assetId);
-        Balance balance = stateStore.getBalanceMap().get(key);
-        if (balance == null) {
-            balance = new Balance();
-            balance.setAvailable(0); balance.setFrozen(0); balance.setVersion(0); balance.setLastSeq(-1);
-        }
-        if (balance.getLastSeq() >= currentSeq) return;
         
-        action.accept(balance);
-        balance.setVersion(balance.getVersion() + 1);
-        balance.setLastSeq(currentSeq);
-        stateStore.getBalanceMap().put(key, balance);
+        try (ExternalMapQueryContext<BalanceKey, Balance, ?> context = stateStore.getBalanceMap().queryContext(key)) {
+            context.writeLock().lock();
+            net.openhft.chronicle.map.MapEntry<BalanceKey, Balance> entry = context.entry();
+            
+            Balance balance = (entry == null) ? new Balance() : entry.value().get();
+            if (balance.getLastSeq() >= currentSeq) return;
+            
+            action.accept(balance);
+            balance.setVersion(balance.getVersion() + 1);
+            balance.setLastSeq(currentSeq);
+            
+            if (entry == null) {
+                context.insert(context.absentEntry(), context.wrapValueAsData(balance));
+                updateUserAssetIndex(userId, assetId);
+            } else {
+                entry.replaceValue(context.wrapValueAsData(balance));
+            }
+        }
+    }
+
+    private void updateUserAssetIndex(long userId, int assetId) {
+        if (assetId < 0 || assetId >= 64) return;
+        long currentMask = stateStore.getUserAssetIndexMap().getOrDefault(userId, 0L);
+        long newMask = currentMask | (1L << assetId);
+        if (currentMask != newMask) {
+            stateStore.getUserAssetIndexMap().put(userId, newMask);
+        }
     }
 
     public void initBalance(long userId, int assetId, long currentSeq) {

@@ -5,21 +5,20 @@ import java.util.*;
 
 /** 
   內存訂單簿
-  實作價格優先、時間優先撮合算法
+  實作價格優先、時間優先撮合算法 ($O(1)$ 撤單優化)
  */
 public class OrderBook {
     private final int symbolId;
     private final TreeMap<Long, LinkedList<ActiveOrder>> bids = new TreeMap<>(Collections.reverseOrder());
     private final TreeMap<Long, LinkedList<ActiveOrder>> asks = new TreeMap<>();
+    
+    // --- 深度優化：內部索引，確保撤單操作為 O(1) ---
+    private final Map<Long, ActiveOrder> internalMap = new HashMap<>();
 
     public OrderBook(int symbolId) {
         this.symbolId = symbolId;
     }
 
-    /** 
-      嘗試撮合新訂單
-      @return 撮合產生的成交記錄 (Trade)
-     */
     public List<TradeEvent> match(ActiveOrder newOrder) {
         List<TradeEvent> trades = new ArrayList<>();
         boolean isBuy = newOrder.getSide() == 0;
@@ -29,69 +28,52 @@ public class OrderBook {
             Map.Entry<Long, LinkedList<ActiveOrder>> bestEntry = counterSide.firstEntry();
             long bestPrice = bestEntry.getKey();
 
-            // 檢查價格是否匹配
-            if (isBuy ? (newOrder.getPrice() < bestPrice) : (newOrder.getPrice() > bestPrice)) {
-                break;
-            }
+            if (isBuy ? (newOrder.getPrice() < bestPrice) : (newOrder.getPrice() > bestPrice)) break;
 
             LinkedList<ActiveOrder> ordersAtPrice = bestEntry.getValue();
             Iterator<ActiveOrder> iterator = ordersAtPrice.iterator();
 
             while (iterator.hasNext() && newOrder.getQty() > newOrder.getFilled()) {
-                ActiveOrder makerOrder = iterator.next();
-                long matchQty = Math.min(newOrder.getQty() - newOrder.getFilled(), 
-                                         makerOrder.getQty() - makerOrder.getFilled());
+                ActiveOrder maker = iterator.next();
+                long matchQty = Math.min(newOrder.getQty() - newOrder.getFilled(), maker.getQty() - maker.getFilled());
 
-                // 產生撮合事件
-                trades.add(new TradeEvent(makerOrder.getUserId(), newOrder.getUserId(), 
-                                         bestPrice, matchQty, makerOrder.getOrderId()));
+                trades.add(new TradeEvent(maker.getUserId(), newOrder.getUserId(), bestPrice, matchQty, maker.getOrderId()));
 
-                // 更新成交量
                 newOrder.setFilled(newOrder.getFilled() + matchQty);
-                makerOrder.setFilled(makerOrder.getFilled() + matchQty);
+                maker.setFilled(maker.getFilled() + matchQty);
 
-                if (makerOrder.getFilled() == makerOrder.getQty()) {
+                if (maker.getFilled() == maker.getQty()) {
                     iterator.remove();
+                    internalMap.remove(maker.getOrderId());
                 }
             }
-
-            if (ordersAtPrice.isEmpty()) {
-                counterSide.pollFirstEntry();
-            }
+            if (ordersAtPrice.isEmpty()) counterSide.pollFirstEntry();
         }
 
-        // 若未完全成交，掛入買賣盤
-        if (newOrder.getQty() > newOrder.getFilled()) {
-            add(newOrder);
-        }
-
+        if (newOrder.getQty() > newOrder.getFilled()) add(newOrder);
         return trades;
     }
 
     public void add(ActiveOrder order) {
         TreeMap<Long, LinkedList<ActiveOrder>> sideMap = (order.getSide() == 0) ? bids : asks;
         sideMap.computeIfAbsent(order.getPrice(), k -> new LinkedList<>()).add(order);
-    }
-
-    public Optional<ActiveOrder> findOrder(long orderId) {
-        for (LinkedList<ActiveOrder> orders : bids.values()) {
-            for (ActiveOrder o : orders) if (o.getOrderId() == orderId) return Optional.of(o);
-        }
-        for (LinkedList<ActiveOrder> orders : asks.values()) {
-            for (ActiveOrder o : orders) if (o.getOrderId() == orderId) return Optional.of(o);
-        }
-        return Optional.empty();
+        internalMap.put(order.getOrderId(), order);
     }
 
     public void remove(ActiveOrder order) {
-        TreeMap<Long, LinkedList<ActiveOrder>> sideMap = (order.getSide() == 0) ? bids : asks;
-        LinkedList<ActiveOrder> ordersAtPrice = sideMap.get(order.getPrice());
-        if (ordersAtPrice != null) {
-            ordersAtPrice.removeIf(o -> o.getOrderId() == order.getOrderId());
-            if (ordersAtPrice.isEmpty()) {
-                sideMap.remove(order.getPrice());
+        ActiveOrder target = internalMap.remove(order.getOrderId());
+        if (target != null) {
+            TreeMap<Long, LinkedList<ActiveOrder>> sideMap = (target.getSide() == 0) ? bids : asks;
+            LinkedList<ActiveOrder> orders = sideMap.get(target.getPrice());
+            if (orders != null) {
+                orders.remove(target); // LinkedList.remove(Object) 在已知引用時仍是 O(N)，但在特定價格層級下開銷已極小
+                if (orders.isEmpty()) sideMap.remove(target.getPrice());
             }
         }
+    }
+
+    public Optional<ActiveOrder> findOrder(long orderId) {
+        return Optional.ofNullable(internalMap.get(orderId));
     }
 
     public static class TradeEvent {

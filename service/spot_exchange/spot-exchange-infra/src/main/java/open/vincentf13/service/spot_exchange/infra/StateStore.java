@@ -11,15 +11,13 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.IOException;
 
-/** 
-  系統狀態與隊列管理中心 (統一單例管理)
- */
 @Component
 public class StateStore {
     private ChronicleMap<BalanceKey, Balance> balanceMap;
+    private ChronicleMap<Long, Long> userAssetIndexMap; // userId -> AssetId Bitmask ($O(1)$ discovery)
     private ChronicleMap<Long, ActiveOrder> orderMap;
     private ChronicleMap<Long, Boolean> activeOrderIdMap;
-    private ChronicleMap<Long, TradeRecord> tradeHistoryMap; // tradeId -> Record
+    private ChronicleMap<Long, TradeRecord> tradeHistoryMap;
     private ChronicleMap<CidKey, Long> cidMap;
     private ChronicleMap<String, Long> systemStateMap;
     
@@ -36,6 +34,11 @@ public class StateStore {
             .name("balance-map").entries(100_000)
             .averageKey(new BalanceKey(0, 0)).averageValue(new Balance())
             .createPersistedTo(new File(baseDir + "balances.dat"));
+
+        userAssetIndexMap = ChronicleMap.of(Long.class, Long.class)
+            .name("user-asset-index").entries(100_000)
+            .averageKey(0L).averageValue(0L)
+            .createPersistedTo(new File(baseDir + "user_assets.dat"));
 
         orderMap = ChronicleMap.of(Long.class, ActiveOrder.class)
             .name("order-map").entries(1_000_000)
@@ -59,7 +62,7 @@ public class StateStore {
             .createPersistedTo(new File(baseDir + "cid_index.dat"));
 
         systemStateMap = ChronicleMap.of(String.class, Long.class)
-            .name("system-state-map").entries(10)
+            .name("system-state-map").entries(20)
             .averageKey("lastProcessedSeq")
             .averageValue(0L)
             .createPersistedTo(new File(baseDir + "system_state.dat"));
@@ -70,6 +73,7 @@ public class StateStore {
     }
 
     public ChronicleMap<BalanceKey, Balance> getBalanceMap() { return balanceMap; }
+    public ChronicleMap<Long, Long> getUserAssetIndexMap() { return userAssetIndexMap; }
     public ChronicleMap<Long, ActiveOrder> getOrderMap() { return orderMap; }
     public ChronicleMap<Long, Boolean> getActiveOrderIdMap() { return activeOrderIdMap; }
     public ChronicleMap<Long, TradeRecord> getTradeHistoryMap() { return tradeHistoryMap; }
@@ -82,6 +86,7 @@ public class StateStore {
     @PreDestroy
     public void close() {
         if (balanceMap != null) balanceMap.close();
+        if (userAssetIndexMap != null) userAssetIndexMap.close();
         if (orderMap != null) orderMap.close();
         if (activeOrderIdMap != null) activeOrderIdMap.close();
         if (tradeHistoryMap != null) tradeHistoryMap.close();

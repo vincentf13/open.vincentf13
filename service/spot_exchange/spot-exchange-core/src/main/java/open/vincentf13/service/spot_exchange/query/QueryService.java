@@ -10,9 +10,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 
-  高性能查詢服務 (金融級一致性讀取版)
- */
 @Service
 public class QueryService {
     private final StateStore stateStore;
@@ -23,10 +20,13 @@ public class QueryService {
 
     public List<Balance> getUserBalances(long userId) {
         List<Balance> results = new ArrayList<>();
-        // 遍歷 KeySet 以定位屬於該用戶的資產
-        stateStore.getBalanceMap().keySet().forEach(key -> {
-            if (key.getUserId() == userId) {
-                // --- 深度優化：使用 Map Context 鎖定 Entry 讀取，確保跨進程原子性 ---
+        // --- 深度優化：透過 Bitmask 索引進行 O(1) 資產發現，避免全表掃描 ---
+        Long mask = stateStore.getUserAssetIndexMap().get(userId);
+        if (mask == null || mask == 0) return results;
+
+        for (int assetId = 0; assetId < 64; assetId++) {
+            if (((mask >> assetId) & 1L) == 1) {
+                BalanceKey key = new BalanceKey(userId, assetId);
                 try (ExternalMapQueryContext<BalanceKey, Balance, ?> context = 
                          stateStore.getBalanceMap().queryContext(key)) {
                     context.readLock().lock();
@@ -35,14 +35,13 @@ public class QueryService {
                     }
                 }
             }
-        });
+        }
         return results;
     }
 
     public List<ActiveOrder> getActiveOrders(long userId) {
         List<ActiveOrder> results = new ArrayList<>();
         stateStore.getActiveOrderIdMap().keySet().forEach(orderId -> {
-            // --- 深度優化：確保讀取的訂單狀態不是 MatchingEngine 寫入到一半的數據 ---
             try (ExternalMapQueryContext<Long, ActiveOrder, ?> context = 
                      stateStore.getOrderMap().queryContext(orderId)) {
                 context.readLock().lock();
