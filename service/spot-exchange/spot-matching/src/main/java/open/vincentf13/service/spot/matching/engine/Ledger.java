@@ -7,12 +7,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class Ledger {
-    private final Storage storage;
-
-    public Ledger(Storage storage) {
-        this.storage = storage;
-    }
-
     public void tradeSettle(long userId, int assetOut, long amountOut, int assetIn, long amountIn, long currentSeq) {
         updateBalance(userId, assetOut, currentSeq, b -> b.setFrozen(Math.max(0, b.getFrozen() - amountOut)));
         updateBalance(userId, assetIn, currentSeq, b -> b.setAvailable(b.getAvailable() + amountIn));
@@ -29,7 +23,7 @@ public class Ledger {
 
     public void updateBalance(long userId, int assetId, long currentSeq, java.util.function.Consumer<Balance> action) {
         BalanceKey key = new BalanceKey(userId, assetId);
-        Balance balance = storage.balances().get(key);
+        Balance balance = Storage.self().balances().get(key);
         if (balance == null) {
             balance = new Balance();
             balance.setAvailable(0); balance.setFrozen(0); balance.setVersion(0); balance.setLastSeq(-1);
@@ -40,15 +34,15 @@ public class Ledger {
         balance.setVersion(balance.getVersion() + 1);
         balance.setLastSeq(currentSeq);
         
-        storage.balances().put(key, balance);
+        Storage.self().balances().put(key, balance);
         updateUserAssetIndex(userId, assetId);
     }
 
     private void updateUserAssetIndex(long userId, int assetId) {
         if (assetId < 0 || assetId >= 64) return;
-        long currentMask = storage.userAssets().getOrDefault(userId, 0L);
+        long currentMask = Storage.self().userAssets().getOrDefault(userId, 0L);
         long newMask = currentMask | (1L << assetId);
-        if (currentMask != newMask) storage.userAssets().put(userId, newMask);
+        if (currentMask != newMask) Storage.self().userAssets().put(userId, newMask);
     }
 
     public void initBalance(long userId, int assetId, long currentSeq) {

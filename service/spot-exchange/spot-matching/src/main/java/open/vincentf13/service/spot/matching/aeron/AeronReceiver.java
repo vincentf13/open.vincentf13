@@ -15,13 +15,12 @@ import static open.vincentf13.service.spot.infra.Constants.INBOUND_STREAM_ID;
 @Component
 public class AeronReceiver extends Worker {
     private final Aeron aeron;
-    private final Storage storage;
     private Subscriber subscriber;
     private FragmentHandler fragmentHandler;
     private final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
-    public AeronReceiver(Aeron aeron, Storage storage) {
-        this.aeron = aeron; this.storage = storage;
+    public AeronReceiver(Aeron aeron) {
+        this.aeron = aeron;
     }
 
     @PostConstruct public void init() { start("core-aeron-receiver"); }
@@ -31,7 +30,7 @@ public class AeronReceiver extends Worker {
         subscriber = new Subscriber(aeron, INBOUND_CHANNEL, INBOUND_STREAM_ID);
         fragmentHandler = (buffer, offset, length, header) -> {
             pointerBytesStore.set(buffer.addressOffset() + offset, length);
-            storage.commandQueue().acquireAppender().writeDocument(wire -> {
+            Storage.self().commandQueue().acquireAppender().writeDocument(wire -> {
                 wire.write("msgType").int32(100); 
                 wire.write("payload").bytes(pointerBytesStore);
                 wire.write("aeronSeq").int64(header.position()); 

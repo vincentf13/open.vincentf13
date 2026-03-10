@@ -18,7 +18,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 public class AeronSender extends Worker {
     private final Aeron aeron;
-    private final Storage storage;
     private Publisher publisher;
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
@@ -26,9 +25,8 @@ public class AeronSender extends Worker {
     private final UnsafeBuffer aeronBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public AeronSender(Aeron aeron, Storage storage) {
+    public AeronSender(Aeron aeron) {
         this.aeron = aeron;
-        this.storage = storage;
     }
 
     @PostConstruct public void init() { start("core-result-sender"); }
@@ -36,8 +34,8 @@ public class AeronSender extends Worker {
     @Override
     protected void onStart() {
         publisher = new Publisher(aeron, OUTBOUND_CHANNEL, OUTBOUND_STREAM_ID);
-        tailer = storage.resultQueue().createTailer();
-        Progress saved = storage.metadata().get(PK_CORE_OUTBOUND_SEQ);
+        tailer = Storage.self().resultQueue().createTailer();
+        Progress saved = Storage.self().metadata().get(PK_CORE_OUTBOUND_SEQ);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -57,7 +55,7 @@ public class AeronSender extends Worker {
                 idleStrategy.idle();
             }
             progress.setLastProcessedSeq(seq);
-            storage.metadata().put(PK_CORE_OUTBOUND_SEQ, progress);
+            Storage.self().metadata().put(PK_CORE_OUTBOUND_SEQ, progress);
         });
         return handled ? 1 : 0;
     }

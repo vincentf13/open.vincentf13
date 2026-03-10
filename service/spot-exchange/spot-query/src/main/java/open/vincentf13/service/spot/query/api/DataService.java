@@ -12,26 +12,18 @@ import java.util.List;
 
 @Service
 public class DataService {
-    private final Storage storage;
-
-    public DataService(Storage storage) {
-        this.storage = storage;
-    }
-
     public List<Balance> getBalances(long userId) {
         List<Balance> results = new ArrayList<>();
-        Long mask = storage.userAssets().get(userId);
+        Long mask = Storage.self().userAssets().get(userId);
         if (mask == null || mask == 0) return results;
 
         for (int assetId = 0; assetId < 64; assetId++) {
             if (((mask >> assetId) & 1L) == 1) {
                 BalanceKey key = new BalanceKey(userId, assetId);
                 try (ExternalMapQueryContext<BalanceKey, Balance, ?> context = 
-                         storage.balances().queryContext(key)) {
+                         Storage.self().balances().queryContext(key)) {
                     context.readLock().lock();
-                    if (context.entry() != null) {
-                        results.add(context.entry().value().get());
-                    }
+                    if (context.entry() != null) results.add(context.entry().value().get());
                 }
             }
         }
@@ -40,15 +32,13 @@ public class DataService {
 
     public List<Order> getOrders(long userId) {
         List<Order> results = new ArrayList<>();
-        storage.activeOrders().keySet().forEach(orderId -> {
+        Storage.self().activeOrders().keySet().forEach(orderId -> {
             try (ExternalMapQueryContext<Long, Order, ?> context = 
-                     storage.orders().queryContext(orderId)) {
+                     Storage.self().orders().queryContext(orderId)) {
                 context.readLock().lock();
                 if (context.entry() != null) {
                     Order order = context.entry().value().get();
-                    if (order.getUserId() == userId) {
-                        results.add(order);
-                    }
+                    if (order.getUserId() == userId) results.add(order);
                 }
             }
         });

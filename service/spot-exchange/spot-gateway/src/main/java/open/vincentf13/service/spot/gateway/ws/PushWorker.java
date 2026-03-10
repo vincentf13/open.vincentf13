@@ -2,11 +2,10 @@ package open.vincentf13.service.spot.gateway.ws;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.Worker;
@@ -19,12 +18,11 @@ import java.util.Map;
 
 import static open.vincentf13.service.spot.infra.Constants.PK_PUB_PUSH_SEQ;
 
+@Slf4j
 @Component
 public class PushWorker extends Worker {
-    private static final Logger log = LoggerFactory.getLogger(PushWorker.class);
-    private final Storage storage;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private final WsHandler wsHandler;
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
 
@@ -32,8 +30,7 @@ public class PushWorker extends Worker {
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
-    public PushWorker(Storage storage, WsHandler wsHandler) {
-        this.storage = storage;
+    public PushWorker(WsHandler wsHandler) {
         this.wsHandler = wsHandler;
     }
 
@@ -41,14 +38,12 @@ public class PushWorker extends Worker {
     
     @Override
     protected void onStart() {
-        this.tailer = storage.resultQueue().createTailer();
-        Progress saved = storage.metadata().get(PK_PUB_PUSH_SEQ);
+        this.tailer = Storage.self().resultQueue().createTailer();
+        Progress saved = Storage.self().metadata().get(PK_PUB_PUSH_SEQ);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
-        } else {
-            progress.setLastProcessedSeq(-1L);
-        }
+        } else progress.setLastProcessedSeq(-1L);
     }
 
     @Override
@@ -58,8 +53,7 @@ public class PushWorker extends Worker {
             int msgType = wire.read("msgType").int32();
 
             if (msgType == executionDecoder.sbeTemplateId()) {
-                reusableBytes.clear();
-                wire.read("payload").bytes(reusableBytes);
+                reusableBytes.clear(); wire.read("payload").bytes(reusableBytes);
                 payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
 
@@ -70,20 +64,16 @@ public class PushWorker extends Worker {
                     "userId", executionDecoder.userId()
                 );
                 try {
-                    String json = objectMapper.writeValueAsString(Map.of("topic", "execution", "data", data));
+                    String json = MAPPER.writeValueAsString(Map.of("topic", "execution", "data", data));
                     wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
-                } catch (Exception e) {
-                    log.error("Serialize execution report error: {}", e.getMessage());
-                }
+                } catch (Exception e) { log.error("Push Error: {}", e.getMessage()); }
             }
             progress.setLastProcessedSeq(seq);
-            storage.metadata().put(PK_PUB_PUSH_SEQ, progress);
+            Storage.self().metadata().put(PK_PUB_PUSH_SEQ, progress);
         });
         return handled ? 1 : 0;
     }
 
     @Override
-    protected void onStop() { 
-        reusableBytes.releaseLast(); 
-    }
+    protected void onStop() { reusableBytes.releaseLast(); }
 }

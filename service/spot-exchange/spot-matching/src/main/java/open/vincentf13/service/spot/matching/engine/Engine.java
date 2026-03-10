@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.collections.Int2ObjectHashMap;
@@ -19,9 +20,9 @@ import java.util.*;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
+@Slf4j
 @Component
 public class Engine extends Worker {
-    private final Storage storage;
     private final Ledger ledger;
     private final Int2ObjectHashMap<OrderBook> books = new Int2ObjectHashMap<>();
     private final Long2ObjectHashMap<Order> activeOrderIndex = new Long2ObjectHashMap<>();
@@ -39,16 +40,16 @@ public class Engine extends Worker {
     private final Bytes<ByteBuffer> outboundBytes = Bytes.elasticByteBuffer(1024);
     private final UnsafeBuffer outboundSbeBuffer = new UnsafeBuffer(0, 0);
 
-    public Engine(Storage storage, Ledger ledger) {
-        this.storage = storage; this.ledger = ledger;
+    public Engine(Ledger ledger) {
+        this.ledger = ledger;
     }
 
     @PostConstruct public void init() { start("matching-engine"); }
 
     @Override
     protected void onStart() {
-        this.tailer = storage.commandQueue().createTailer();
-        Progress saved = storage.metadata().get(PK_CORE_PROGRESS);
+        this.tailer = Storage.self().commandQueue().createTailer();
+        Progress saved = Storage.self().metadata().get(PK_CORE_PROGRESS);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -57,12 +58,12 @@ public class Engine extends Worker {
             progress.setOrderIdCounter(1); progress.setTradeIdCounter(1);
         }
 
-        storage.activeOrders().keySet().forEach(id -> {
-            Order o = storage.orders().get(id);
+        Storage.self().activeOrders().keySet().forEach(id -> {
+            Order o = Storage.self().orders().get(id);
             if (o != null && o.getStatus() < 2) {
                 books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
                 activeOrderIndex.put(id, o);
-            } else storage.activeOrders().remove(id);
+            } else Storage.self().activeOrders().remove(id);
         });
 
         if (progress.getLastProcessedSeq() > 0) {
@@ -85,7 +86,7 @@ public class Engine extends Worker {
             else if (msgType == MSG_TYPE_ORDER_CANCEL) dispatchOrderCancel(seq);
 
             progress.setLastProcessedSeq(seq);
-            storage.metadata().put(PK_CORE_PROGRESS, progress);
+            Storage.self().metadata().put(PK_CORE_PROGRESS, progress);
         });
         if (!handled && isReplaying) isReplaying = false;
         return handled ? 1 : 0;
@@ -95,21 +96,21 @@ public class Engine extends Worker {
         SbeCodec.decode(payloadBuffer, 0, createDecoder);
         String cid = createDecoder.clientOrderId();
         CidKey key = new CidKey(createDecoder.userId(), cid);
-        Long resId = storage.cids().get(key);
+        Long resId = Storage.self().cids().get(key);
         if (resId != null) {
             if (!isReplaying) resendReport(resId, createDecoder.userId(), cid, createDecoder.timestamp());
             return;
         }
-        storage.cids().put(key, handleOrderCreate(createDecoder, seq, cid));
+        Storage.self().cids().put(key, handleOrderCreate(createDecoder, seq, cid));
     }
 
     private void dispatchOrderCancel(long seq) {
         SbeCodec.decode(payloadBuffer, 0, cancelDecoder);
         String cid = cancelDecoder.clientOrderId();
         CidKey key = new CidKey(cancelDecoder.userId(), cid);
-        if (storage.cids().containsKey(key)) return;
+        if (Storage.self().cids().containsKey(key)) return;
         handleOrderCancel(cancelDecoder, seq, cid);
-        storage.cids().put(key, ID_REJECTED);
+        Storage.self().cids().put(key, ID_REJECTED);
     }
 
     private long handleOrderCreate(OrderCreateDecoder sbe, long seq, String cid) {
@@ -167,11 +168,11 @@ public class Engine extends Worker {
     }
 
     private void persistOrder(Order o) {
-        Order ex = storage.orders().get(o.getOrderId());
+        Order ex = Storage.self().orders().get(o.getOrderId());
         if (ex == null || ex.getLastSeq() < o.getLastSeq()) {
-            storage.orders().put(o.getOrderId(), o);
-            if (o.getStatus() < 2) storage.activeOrders().put(o.getOrderId(), true);
-            else storage.activeOrders().remove(o.getOrderId());
+            Storage.self().orders().put(o.getOrderId(), o);
+            if (o.getStatus() < 2) Storage.self().activeOrders().put(o.getOrderId(), true);
+            else Storage.self().activeOrders().remove(o.getOrderId());
         }
     }
 
@@ -196,7 +197,7 @@ public class Engine extends Worker {
         outboundSbeBuffer.wrap(outboundBytes.addressForWrite(0), (int)outboundBytes.realCapacity());
         int len = SbeCodec.encode(outboundSbeBuffer, 0, executionEncoder.timestamp(ts).userId(uid).orderId(oid).status(s).lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid));
         outboundBytes.writePosition(len);
-        storage.resultQueue().acquireAppender().writeDocument(wire -> {
+        Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {
             wire.write("msgType").int32(executionEncoder.sbeTemplateId()); wire.write("payload").bytes(outboundBytes);
         });
     }
@@ -204,7 +205,7 @@ public class Engine extends Worker {
     private void resendReport(long oid, long uid, String cid, long ts) {
         if (oid == ID_REJECTED) sendReport(uid, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
         else {
-            Order o = storage.orders().get(oid);
+            Order o = Storage.self().orders().get(oid);
             if (o != null) {
                 OrderStatus s = (o.getStatus() == 2) ? OrderStatus.FILLED : (o.getStatus() == 3) ? OrderStatus.CANCELED : (o.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
                 sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, ts);
@@ -213,10 +214,10 @@ public class Engine extends Worker {
     }
 
     private void persistTrade(OrderBook.TradeEvent t, long tid, long ts, long seq) {
-        Trade r = storage.trades().get(tid);
+        Trade r = Storage.self().trades().get(tid);
         if (r == null || r.getLastSeq() < seq) {
             r = new Trade(); r.setTradeId(tid); r.setOrderId(t.makerOrderId); r.setPrice(t.price); r.setQty(t.qty); r.setTime(ts); r.setLastSeq(seq);
-            storage.trades().put(tid, r);
+            Storage.self().trades().put(tid, r);
         }
     }
 
@@ -224,7 +225,7 @@ public class Engine extends Worker {
         long userId = wire.read("userId").int64();
         ledger.initBalance(userId, ASSET_BTC, seq); ledger.initBalance(userId, ASSET_USDT, seq);
         if (isReplaying) return;
-        storage.resultQueue().acquireAppender().writeDocument(w -> { w.write("topic").text("auth.success"); w.write("userId").int64(userId); });
+        Storage.self().resultQueue().acquireAppender().writeDocument(w -> { w.write("topic").text("auth.success"); w.write("userId").int64(userId); });
     }
 
     @Override protected void onStop() { reusableBytes.releaseLast(); outboundBytes.releaseLast(); }
