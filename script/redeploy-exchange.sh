@@ -36,7 +36,7 @@ echo "Starting PARALLEL build and manual redeploy process for Perpetual Exchange
 # 函數：處理單一服務 (Build + Load + Update)
 process_service() {
   local SVC=$1
-  local SERVICE_DIR="$PROJECT_ROOT/service/perpetual_exchange/$SVC"
+  local SERVICE_DIR="$PROJECT_ROOT/service/perpetual-exchange/$SVC"
   local DOCKERFILE="$SERVICE_DIR/Dockerfile"
   local LOG_FILE="$LOG_DIR/${SVC}.log"
 

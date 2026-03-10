@@ -5,24 +5,27 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>open.vincentf13</groupId>
-        <artifactId>root</artifactId>
+        <groupId>open.vincentf13.perpetual-exchange</groupId>
+        <artifactId>perpetual-exchange</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>service</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>perpetual-exchange-gateway</artifactId>
+    <name>exchange-gateway</name>
+    <description>API Gateway / BFF layer</description>
 
-    <name>service</name>
-    <description>Business service aggregation</description>
-
-    <modules>
-        <module>perpetual-exchange</module>
-        <module>spot-exchange</module>
-        <module>service-template</module>
-        <module>service-test</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-spring-cloud-gateway</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>open.vincentf13</groupId>
+            <artifactId>sdk-spring-cloud-alibaba-nacos</artifactId>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
