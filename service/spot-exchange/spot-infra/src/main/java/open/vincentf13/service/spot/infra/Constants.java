@@ -14,11 +14,12 @@ public class Constants {
     public static final long ID_REJECTED = 0L;
 
     // --- 進度位點 Key (PK) ---
-    public static final byte PK_ENGINE = 1;
-    public static final byte PK_GATEWAY_IN = 2;
-    public static final byte PK_GATEWAY_OUT = 3;
-    public static final byte PK_PUSH = 4;
-    public static final byte PK_RESULT = 5;
+    public static final byte PK_CORE_ENGINE = 1;
+    public static final byte PK_GW_COMMAND_SENDER = 2;
+    public static final byte PK_GW_RESULT_RECEIVER = 3;
+    public static final byte PK_GW_PUSH_WORKER = 4;
+    public static final byte PK_CORE_RESULT_SENDER = 5;
+    public static final byte PK_CORE_COMMAND_RECEIVER = 6;
 
     // --- 指令類型 (MSG) ---
     public static final int MSG_ORDER_CREATE = 100;

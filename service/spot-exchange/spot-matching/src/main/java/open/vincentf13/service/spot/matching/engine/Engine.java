@@ -48,13 +48,21 @@ public class Engine extends Worker {
         this.ledger = ledger;
     }
 
-    @PostConstruct public void init() { start("matching-engine"); }
+    /** 初始化並啟動工作執行緒 */
+    @PostConstruct public void init() { start("core-matching-engine"); }
 
+    /** 
+     工作啟動準備：
+     1. 加載 Command Queue Tailer
+     2. 從 Metadata 恢復撮合進度與 ID 計數器
+     3. 重建內存訂單簿索引 (Active Orders)
+     4. 若有進度則進入重播模式
+     */
     @Override
     protected void onStart() {
         this.tailer = Storage.self().commandQueue().createTailer();
         
-        Progress saved = Storage.self().metadata().get(PK_ENGINE);
+        Progress saved = Storage.self().metadata().get(PK_CORE_ENGINE);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -91,7 +99,7 @@ public class Engine extends Worker {
             else if (msgType == MSG_ORDER_CREATE) dispatchOrderCreate(seq);
 
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(PK_ENGINE, progress);
+            Storage.self().metadata().put(PK_CORE_ENGINE, progress);
         });
         if (!handled && isReplaying) isReplaying = false;
         return handled ? 1 : 0;

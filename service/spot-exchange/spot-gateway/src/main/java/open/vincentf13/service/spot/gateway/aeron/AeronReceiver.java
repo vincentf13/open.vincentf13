@@ -10,8 +10,7 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
 import org.springframework.stereotype.Component;
 
-import static open.vincentf13.service.spot.infra.Constants.Channel;
-import static open.vincentf13.service.spot.infra.Constants.PK_GATEWAY_OUT;
+import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 接收器 (Zero-Copy 最佳化版)
@@ -33,7 +32,7 @@ public class AeronReceiver extends Worker {
     }
 
     /** 初始化並啟動工作執行緒 */
-    @PostConstruct public void init() { start("aeron-receiver"); }
+    @PostConstruct public void init() { start("gw-result-receiver"); }
 
     /** 
      工作啟動準備：
@@ -43,7 +42,7 @@ public class AeronReceiver extends Worker {
     @Override
     protected void onStart() {
         subscription = aeron.addSubscription(Channel.OUTBOUND, Channel.OUT_STREAM);
-        Progress saved = Storage.self().metadata().get(PK_GATEWAY_OUT);
+        Progress saved = Storage.self().metadata().get(PK_GW_RESULT_RECEIVER);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -72,7 +71,7 @@ public class AeronReceiver extends Worker {
 
             // 更新進度
             progress.setLastProcessedSeq(currentSeq);
-            Storage.self().metadata().put(PK_GATEWAY_OUT, progress);
+            Storage.self().metadata().put(PK_GW_RESULT_RECEIVER, progress);
         };
     }
 

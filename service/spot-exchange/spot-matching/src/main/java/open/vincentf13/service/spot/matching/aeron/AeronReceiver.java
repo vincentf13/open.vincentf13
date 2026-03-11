@@ -6,13 +6,6 @@ import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import org.springframework.stereotype.Component;
-import net.openhft.chronicle.bytes.PointerBytesStore;
-
-import static open.vincentf13.service.spot.infra.Constants.*;
-
-import open.vincentf13.service.spot.infra.Worker;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
 import org.springframework.stereotype.Component;
 import net.openhft.chronicle.bytes.PointerBytesStore;
@@ -38,7 +31,7 @@ public class AeronReceiver extends Worker {
     }
 
     /** 初始化並啟動工作執行緒 */
-    @PostConstruct public void init() { start("core-aeron-receiver"); }
+    @PostConstruct public void init() { start("core-command-receiver"); }
 
     /** 
      工作啟動準備：
@@ -49,34 +42,42 @@ public class AeronReceiver extends Worker {
     protected void onStart() {
         subscription = aeron.addSubscription(Channel.INBOUND, Channel.IN_STREAM);
         // 加載處理進度
-        Progress saved = Storage.self().metadata().get(PK_COMMAND);
+        Progress saved = Storage.self().metadata().get(PK_CORE_COMMAND_RECEIVER);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
         /** 
          Aeron 片段處理回調 (Zero-Copy)：
-         1. 獲取數據幀位址
-         2. 零拷貝寫入本地 Command Queue
+         1. 獲取數據幀位址與類型
+         2. 根據 msgType 解析認證或交易指令
+         3. 零拷貝寫入本地 Command Queue
          */
         fragmentHandler = (buffer, offset, length, header) -> {
             long currentSeq = header.position();
             // 冪等性檢查
             if (currentSeq <= progress.getLastProcessedSeq()) return;
 
-            // 零拷貝實現：直接將指針映射至 Aeron 堆外內存
-            pointerBytesStore.set(buffer.addressOffset() + offset, length);
-            
-            // 將指令持久化至本地隊列 (Command WAL)
+            // 前 4 字節為系統訊息類型 (MSG_*)
+            int msgType = buffer.getInt(offset);
+            long messageAddress = buffer.addressOffset() + offset;
+
             Storage.self().commandQueue().acquireAppender().writeDocument(wire -> {
-                // 為了簡化，目前假設 Inbound 都是 OrderCreate 類型
-                wire.write("msgType").int32(100); 
-                wire.write("payload").bytes(pointerBytesStore);
+                wire.write("msgType").int32(msgType);
+                if (msgType == MSG_AUTH) {
+                    // 認證訊息：讀取 8 字節 userId
+                    long userId = buffer.getLong(offset + 4);
+                    wire.write("userId").int64(userId);
+                } else {
+                    // 交易指令：零拷貝寫入剩餘 Payload
+                    pointerBytesStore.set(messageAddress + 4, length - 4);
+                    wire.write("payload").bytes(pointerBytesStore);
+                }
                 wire.write("aeronSeq").int64(currentSeq); 
             });
 
             // 更新並持久化進度
             progress.setLastProcessedSeq(currentSeq);
-            Storage.self().metadata().put(PK_COMMAND, progress);
+            Storage.self().metadata().put(PK_CORE_COMMAND_RECEIVER, progress);
         };
     }
 

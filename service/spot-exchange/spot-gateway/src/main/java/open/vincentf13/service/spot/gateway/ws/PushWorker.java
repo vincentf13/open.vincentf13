@@ -34,12 +34,12 @@ public class PushWorker extends Worker {
         this.wsHandler = wsHandler;
     }
 
-    @PostConstruct public void init() { start("push-worker"); }
+    @PostConstruct public void init() { start("gw-push-worker"); }
     
     @Override
     protected void onStart() {
         this.tailer = Storage.self().resultQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(PK_PUSH);
+        Progress saved = Storage.self().metadata().get(PK_GW_PUSH_WORKER);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -67,7 +67,7 @@ public class PushWorker extends Worker {
                 wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
             }
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(PK_PUSH, progress);
+            Storage.self().metadata().put(PK_GW_PUSH_WORKER, progress);
         });
         return handled ? 1 : 0;
     }
