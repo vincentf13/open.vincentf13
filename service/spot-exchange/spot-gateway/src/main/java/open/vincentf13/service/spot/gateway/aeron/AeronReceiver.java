@@ -4,20 +4,14 @@ import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
-import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.Worker;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.Progress;
-
-import static open.vincentf13.service.spot.infra.Constants.*;
-
 import net.openhft.chronicle.bytes.PointerBytesStore;
-import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
+import org.springframework.stereotype.Component;
 
-import static open.vincentf13.service.spot.infra.Constants.*;
+import static open.vincentf13.service.spot.infra.Constants.Channel;
+import static open.vincentf13.service.spot.infra.Constants.PK_GATEWAY_OUT;
 
 /** 
  Gateway Aeron 接收器 (Zero-Copy 最佳化版)
@@ -71,7 +65,8 @@ public class AeronReceiver extends Worker {
             pointerBytesStore.set(messageAddress, length);
 
             // 將數據原子地寫入本地 Result 隊列
-            Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {                wire.bytes().write(pointerBytesStore);
+            Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {
+                wire.bytes().write(pointerBytesStore);
                 wire.write("aeronSeq").int64(currentSeq);
             });
 

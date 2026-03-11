@@ -52,12 +52,14 @@ public abstract class Worker implements Runnable {
         if (thread != null) {
             try {
                 // 1. 給予較充裕的時間（5秒）等待背景執行緒完成當前任務並退出循環
-                if (!thread.join(5000)) {
+                thread.join(5000);
+                if (thread.isAlive()) {
                     log.warn("Worker {} 未能在 5 秒內優雅退出，嘗試發出中斷信號...", thread.getName());
                     // 2. 若超時仍未退出，發出中斷信號以喚醒可能處於阻塞狀態的操作
                     thread.interrupt();
                     // 3. 最後再給予 1 秒的緩衝時間
-                    if (!thread.join(1000)) {
+                    thread.join(1000);
+                    if (thread.isAlive()) {
                         log.error("Worker {} 強制停機超時！執行緒仍處於活躍狀態，這可能導致釋放堆外內存時發生 JVM Crash", thread.getName());
                     }
                 }
