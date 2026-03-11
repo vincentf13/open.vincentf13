@@ -51,7 +51,7 @@ public class Storage {
     private ChronicleMap<Long, Long> userAssets; 
     /** 全局訂單庫 (orderId -> Order) */
     private ChronicleMap<Long, Order> orders;
-    /** 當前活躍掛單的 ID 索引。用於系統啟動時，快速找出哪些訂單需要載入內存訂單簿 */
+    /** 當前活躍掛單的 ID 索引。用於系統啟動時，快速找出哪些訂單 need 載入內存訂單簿 */
     private ChronicleMap<Long, Boolean> activeOrders;
     /** 成交歷史紀錄 (tradeId -> Trade) */
     private ChronicleMap<Long, Trade> trades;
@@ -89,13 +89,13 @@ public class Storage {
         cids = createMap(Store.CIDS, CidKey.class, Long.class, indexEntries, new CidKey(), 0L);
         metadata = createMap(Store.METADATA, Byte.class, Progress.class, 100, (byte)0, new Progress());
 
-        // --- 建立隊列，啟用同步刷盤以確保數據落地安全 ---
-        gatewayQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_GATEWAY)).sync(true).build();
-        commandQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_COMMAND)).sync(true).build();
-        resultQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_RESULT)).sync(true).build();
+        // --- 建立隊列 (RawWire 模式) ---
+        gatewayQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_GATEWAY)).build();
+        commandQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_COMMAND)).build();
+        resultQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_RESULT)).build();
         
         instance = this;
-        log.info("Chronicle Storage 核心組件初始化完成 (RawWire + Sync 模式)，存儲路徑: {}", baseDir);
+        log.info("Chronicle Storage 核心組件初始化完成 (RawWire 模式)，存儲路徑: {}", baseDir);
     }
 
     /**

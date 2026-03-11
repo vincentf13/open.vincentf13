@@ -30,7 +30,7 @@ public class AeronReceiver extends Worker {
     @Override
     protected void onStart() {
         subscription = aeron.addSubscription(Channel.OUTBOUND, Channel.OUT_STREAM);
-        Progress saved = Storage.self().metadata().get(Pk.GATEWAY_OUT);
+        Progress saved = Storage.self().metadata().get(PK_GATEWAY_OUT);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -48,7 +48,7 @@ public class AeronReceiver extends Worker {
             });
             
             progress.setLastProcessedSeq(currentSeq);
-            Storage.self().metadata().put(Pk.GATEWAY_OUT, progress);
+            Storage.self().metadata().put(PK_GATEWAY_OUT, progress);
         };
     }
 

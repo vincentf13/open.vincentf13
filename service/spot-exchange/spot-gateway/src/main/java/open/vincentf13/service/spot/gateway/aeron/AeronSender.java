@@ -34,7 +34,7 @@ public class AeronSender extends Worker {
     protected void onStart() {
         publication = aeron.addPublication(Channel.INBOUND, Channel.IN_STREAM);
         tailer = Storage.self().gatewayQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(Pk.GATEWAY_IN);
+        Progress saved = Storage.self().metadata().get(PK_GATEWAY_IN);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -54,7 +54,7 @@ public class AeronSender extends Worker {
                 idleStrategy.idle();
             }
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(Pk.GATEWAY_IN, progress);
+            Storage.self().metadata().put(PK_GATEWAY_IN, progress);
         });
         return handled ? 1 : 0;
     }

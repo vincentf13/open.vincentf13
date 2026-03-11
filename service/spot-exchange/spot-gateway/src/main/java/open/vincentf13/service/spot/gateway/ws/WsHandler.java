@@ -10,7 +10,6 @@ import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.chronicle.Fields;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.util.JsonUtil;
 import open.vincentf13.service.spot.model.OrderRequest;
@@ -94,7 +93,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         channel.attr(ATTR_USER_ID).set(uidStr); // 在 Channel 上貼標籤，實現 $O(1)$ 的斷線清理
 
         Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(Fields.msgType).int32(Msg.AUTH);
+            wire.write(Fields.msgType).int32(MSG_AUTH);
             wire.write(Fields.userId).int64(userId);
         });
     }

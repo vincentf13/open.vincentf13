@@ -12,7 +12,6 @@ import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.chronicle.Fields;
 import open.vincentf13.service.spot.model.*;
 import open.vincentf13.service.spot.sbe.*;
 
@@ -35,7 +34,7 @@ public class Engine extends Worker {
     
     private final Progress progress = new Progress();
     private ExcerptTailer tailer;
-    private boolean isReplaying = false; // 重播旗標：用於抑制重播期間的副作用
+    private boolean isReplaying = false; // 重播旗標
 
     private final OrderCreateDecoder createDecoder = new OrderCreateDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
@@ -55,8 +54,7 @@ public class Engine extends Worker {
     protected void onStart() {
         this.tailer = Storage.self().commandQueue().createTailer();
         
-        // 加載持久化進度與計數器
-        Progress saved = Storage.self().metadata().get(Pk.ENGINE);
+        Progress saved = Storage.self().metadata().get(PK_ENGINE);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -83,17 +81,17 @@ public class Engine extends Worker {
     protected int doWork() {
         boolean handled = tailer.readDocument(wire -> {
             long seq = tailer.index();
-            int msgType = wire.read(Fields.msgType).int32();
+            int msgType = wire.read("msgType").int32();
             if (isReplaying && seq >= tailer.queue().lastIndex()) isReplaying = false;
 
-            reusableBytes.clear(); wire.read(Fields.payload).bytes(reusableBytes);
+            reusableBytes.clear(); wire.read("payload").bytes(reusableBytes);
             payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
 
-            if (msgType == Msg.AUTH) handleAuth(wire, seq);
-            else if (msgType == Msg.ORDER_CREATE) dispatchOrderCreate(seq);
+            if (msgType == MSG_AUTH) handleAuth(wire, seq);
+            else if (msgType == MSG_ORDER_CREATE) dispatchOrderCreate(seq);
 
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(Pk.ENGINE, progress);
+            Storage.self().metadata().put(PK_ENGINE, progress);
         });
         if (!handled && isReplaying) isReplaying = false;
         return handled ? 1 : 0;
@@ -114,7 +112,7 @@ public class Engine extends Worker {
     private long handleOrderCreate(OrderCreateDecoder sbe, long seq, String cid) {
         long ts = sbe.timestamp();
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
-        int aid = (sbe.side() == Side.BUY) ? Asset.USDT : Asset.BTC;
+        int aid = (sbe.side() == Side.BUY) ? ASSET_USDT : ASSET_BTC;
 
         if (!ledger.tryFreeze(sbe.userId(), aid, seq, cost)) {
             sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
@@ -164,15 +162,15 @@ public class Engine extends Worker {
         long floor = DecimalUtil.mulFloor(t.price, t.qty);
         long ceil = DecimalUtil.mulCeil(t.price, t.qty);
         if (taker.getSide() == 0) {
-            ledger.tradeSettleWithRefund(t.takerUserId, Asset.USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), Asset.BTC, t.qty, seq);
-            ledger.tradeSettle(t.makerUserId, Asset.BTC, t.qty, Asset.USDT, floor, seq);
+            ledger.tradeSettleWithRefund(t.takerUserId, ASSET_USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), ASSET_BTC, t.qty, seq);
+            ledger.tradeSettle(t.makerUserId, ASSET_BTC, t.qty, ASSET_USDT, floor, seq);
         } else {
-            ledger.tradeSettle(t.takerUserId, Asset.BTC, t.qty, Asset.USDT, floor, seq);
+            ledger.tradeSettle(t.takerUserId, ASSET_BTC, t.qty, ASSET_USDT, floor, seq);
             Order m = activeOrderIndex.get(t.makerOrderId);
             long mCeil = (m != null) ? DecimalUtil.mulCeil(m.getPrice(), t.qty) : ceil;
-            ledger.tradeSettleWithRefund(t.makerUserId, Asset.USDT, ceil, mCeil, Asset.BTC, t.qty, seq);
+            ledger.tradeSettleWithRefund(t.makerUserId, ASSET_USDT, ceil, mCeil, ASSET_BTC, t.qty, seq);
         }
-        if (ceil > floor) ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, seq, ceil - floor);
+        if (ceil > floor) ledger.addAvailable(PLATFORM_USER_ID, ASSET_USDT, seq, ceil - floor);
     }
 
     private void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts) {
@@ -182,8 +180,8 @@ public class Engine extends Worker {
         int len = SbeCodec.encode(outboundSbeBuffer, 0, executionEncoder.timestamp(ts).userId(uid).orderId(oid).status(s).lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid));
         outboundBytes.writePosition(len);
         Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(Fields.msgType).int32(executionEncoder.sbeTemplateId());
-            wire.write(Fields.payload).bytes(outboundBytes);
+            wire.write("msgType").int32(executionEncoder.sbeTemplateId());
+            wire.write("payload").bytes(outboundBytes);
         });
     }
 
@@ -207,12 +205,12 @@ public class Engine extends Worker {
     }
 
     private void handleAuth(net.openhft.chronicle.wire.WireIn wire, long seq) {
-        long userId = wire.read(Fields.userId).int64();
-        ledger.initBalance(userId, Asset.BTC, seq); ledger.initBalance(userId, Asset.USDT, seq);
+        long userId = wire.read("userId").int64();
+        ledger.initBalance(userId, ASSET_BTC, seq); ledger.initBalance(userId, ASSET_USDT, seq);
         if (isReplaying) return;
         Storage.self().resultQueue().acquireAppender().writeDocument(w -> {
-            w.write(Fields.topic).text("auth.success");
-            w.write(Fields.userId).int64(userId);
+            w.write("topic").text("auth.success");
+            w.write("userId").int64(userId);
         });
     }
 

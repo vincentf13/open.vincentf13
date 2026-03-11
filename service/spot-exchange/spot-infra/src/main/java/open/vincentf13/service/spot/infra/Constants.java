@@ -3,18 +3,31 @@ package open.vincentf13.service.spot.infra;
 import net.openhft.chronicle.wire.WireKey;
 
 /**
-  全系統共享核心常數 (整合版)
-  採用內部類別區分職責，提供清晰的命名空間，避免常數名過長
+  全系統共享核心常數
  */
 public class Constants {
     /** 系統財務精度縮放倍數 (10^8) */
     public static final long SCALE = 100_000_000L;
-    
     /** 平台系統用戶 ID */
     public static final long PLATFORM_USER_ID = 0L;
-    
     /** 無效或拒絕標識 ID */
     public static final long ID_REJECTED = 0L;
+
+    // --- 進度位點 Key (PK) ---
+    public static final byte PK_ENGINE = 1;
+    public static final byte PK_GATEWAY_IN = 2;
+    public static final byte PK_GATEWAY_OUT = 3;
+    public static final byte PK_PUSH = 4;
+    public static final byte PK_RESULT = 5;
+
+    // --- 指令類型 (MSG) ---
+    public static final int MSG_ORDER_CREATE = 100;
+    public static final int MSG_DEPOSIT = 102;
+    public static final int MSG_AUTH = 103;
+
+    // --- 資產 ID (ASSET) ---
+    public static final int ASSET_BTC = 1;
+    public static final int ASSET_USDT = 2;
 
     /**
       存儲相關配置與檔案名稱 (Store)
@@ -34,18 +47,7 @@ public class Constants {
     }
 
     /**
-      進度位點 Key (Progress Keys)
-     */
-    public static class Pk {
-        public static final byte ENGINE = 1;
-        public static final byte GATEWAY_IN = 2;
-        public static final byte GATEWAY_OUT = 3;
-        public static final byte PUSH = 4;
-        public static final byte RESULT = 5;
-    }
-
-    /**
-      Chronicle Wire 數據欄位定義 (建模版)
+      Chronicle Wire 數據欄位定義
      */
     public enum Fields implements WireKey {
         msgType, payload, aeronSeq, userId, topic, data, timestamp
@@ -59,23 +61,6 @@ public class Constants {
         public static final String OUTBOUND = "aeron:udp?endpoint=localhost:40445";
         public static final int IN_STREAM = 10;
         public static final int OUT_STREAM = 30;
-    }
-
-    /**
-      指令類型 (Message Types)
-     */
-    public static class Msg {
-        public static final int ORDER_CREATE = 100;
-        public static final int DEPOSIT = 102;
-        public static final int AUTH = 103;
-    }
-
-    /**
-      資產 ID
-     */
-    public static class Asset {
-        public static final int BTC = 1;
-        public static final int USDT = 2;
     }
 
     /**
