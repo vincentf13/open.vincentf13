@@ -11,22 +11,41 @@ import open.vincentf13.service.spot.model.Progress;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
+import net.openhft.chronicle.bytes.PointerBytesStore;
+import org.springframework.stereotype.Component;
+import open.vincentf13.service.spot.infra.Worker;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.model.Progress;
+
+import static open.vincentf13.service.spot.infra.Constants.*;
+
+/** 
+ Gateway Aeron 接收器 (Zero-Copy 最佳化版)
+ 職責：監聽來自核心引擎的回報數據，並將其持久化至本地 Result WAL
+ 最佳化：利用 PointerBytesStore 將 Aeron 緩衝區位址直接映射給 Chronicle 寫入，消除堆內拷貝
+ */
 @Component
 public class AeronReceiver extends Worker {
     private final Aeron aeron;
     private Subscription subscription;
     private FragmentHandler fragmentHandler;
     private final Progress progress = new Progress();
-    
-    private final byte[] reusableArray = new byte[2048];
-    private final net.openhft.chronicle.bytes.Bytes<?> writeBytes = net.openhft.chronicle.bytes.Bytes.wrapForRead(reusableArray);
+
+    // 零拷貝關鍵：指標型 Bytes 存儲，用於動態映射外部內存位址
+    private final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
     public AeronReceiver(Aeron aeron) {
         this.aeron = aeron;
     }
 
+    /** 初始化並啟動工作執行緒 */
     @PostConstruct public void init() { start("aeron-receiver"); }
 
+    /** 
+     工作啟動準備：
+     1. 建立 Aeron Subscription 
+     2. 加載上次處理成功的 Aeron Position (Checkpoint)
+     */
     @Override
     protected void onStart() {
         subscription = aeron.addSubscription(Channel.OUTBOUND, Channel.OUT_STREAM);
@@ -34,25 +53,37 @@ public class AeronReceiver extends Worker {
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
+        /** 
+         Aeron 片段處理回調 (Zero-Copy)：
+         1. 獲取當前數據幀的內存位址
+         2. 將 pointerBytesStore 指向該位址
+         3. 讓 Chronicle 直接從該位址讀取數據並寫入文件
+         */
         fragmentHandler = (buffer, offset, length, header) -> {
             long currentSeq = header.position();
+            // 冪等性檢查
             if (currentSeq <= progress.getLastProcessedSeq()) return;
 
-            int len = Math.min(length, reusableArray.length);
-            buffer.getBytes(offset, reusableArray, 0, len);
-            writeBytes.readPositionRemaining(0, len);
-            
-            Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {
-                wire.bytes().write(writeBytes);
+            // 計算當前訊息在堆外內存中的絕對物理位址
+            long messageAddress = buffer.addressOffset() + offset;
+
+            // 零拷貝實現：將指標指向 Aeron Buffer 的堆外地址
+            pointerBytesStore.set(messageAddress, length);
+
+            // 將數據原子地寫入本地 Result 隊列
+            Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {                wire.bytes().write(pointerBytesStore);
                 wire.write("aeronSeq").int64(currentSeq);
             });
-            
+
+            // 更新進度
             progress.setLastProcessedSeq(currentSeq);
             Storage.self().metadata().put(PK_GATEWAY_OUT, progress);
         };
     }
 
+    /** 核心工作循環 */
     @Override protected int doWork() { return subscription.poll(fragmentHandler, 10); }
 
+    /** 資源清理 */
     @Override protected void onStop() { if (subscription != null) subscription.close(); }
 }

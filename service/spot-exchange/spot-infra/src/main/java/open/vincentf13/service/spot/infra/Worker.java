@@ -15,7 +15,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
-    // 預設採用 Backoff 策略，在無工作時依次進行自旋、Yield 與暫停，以減少 CPU 空轉壓力
+    // Agrona 的空閒策略 (IdleStrategy) 是低延遲架構中的核心組件
+    // 它決定了當 doWork() 返回 0（代表當前沒有任務處理）時，背景執行緒該如何「休息」
+    // BackoffIdleStrategy(1, 1, 1, 1) 的參數意義如下：
+    // 1. maxSpins:  先嘗試「忙等待/自旋」的次數。這裡是 1 次，極致降低延遲。
+    // 2. maxYields: 自旋後，嘗試 Thread.yield() 讓出 CPU 時間片的次數。這裡是 1 次。
+    // 3. minParkNs: 之後進入「休眠/掛起」的最小奈秒數。這裡是 1 奈秒。
+    // 4. maxParkNs: 休眠的最大奈秒數（隨等待時間增加）。這裡是 1 奈秒。
+    // 這種配置 (1,1,1,1) 屬於「極激進型」，優先保證極速響應，只有在完全沒事做時才進行極短時間的掛起，
+    // 目的是在維持微秒級響應的同時，避免 100% 的 CPU 死循環佔用。
     protected final IdleStrategy idleStrategy = new BackoffIdleStrategy(1, 1, 1, 1);
     private Thread thread;
     

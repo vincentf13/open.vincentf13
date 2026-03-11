@@ -3,22 +3,20 @@ package open.vincentf13.service.spot.gateway.aeron;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import jakarta.annotation.PostConstruct;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import org.agrona.concurrent.UnsafeBuffer;
-import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.springframework.stereotype.Component;
 
-import java.nio.ByteBuffer;
-
-import static open.vincentf13.service.spot.infra.Constants.*;
+import static open.vincentf13.service.spot.infra.Constants.Channel;
+import static open.vincentf13.service.spot.infra.Constants.PK_GATEWAY_IN;
 
 /** 
- Gateway Aeron 發送器
- 職責：從本地 Chronicle Queue (GW WAL) 讀取已持久化的指令，並透過 Aeron 發送至核心引擎 (Matching Core)
- 這種設計保證了指令在發出前已先本地落地，符合 Deterministic 確定性重播要求
+ Gateway Aeron 發送器 (Zero-Copy 最佳化版)
+ 職責：從本地 Chronicle Queue (GW WAL) 讀取已持久化的指令，並透過 Aeron 發送至核心引擎
+ 最佳化：直接將 Aeron 的 UnsafeBuffer 指向 Chronicle 的堆外內存地址，實現零拷貝傳輸
  */
 @Component
 public class AeronSender extends Worker {
@@ -26,8 +24,8 @@ public class AeronSender extends Worker {
     private Publication publication;
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
-    private final UnsafeBuffer aeronBuffer = new UnsafeBuffer(0, 0);
-    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
+    // 用於發送的 Buffer，內容會動態指向 Chronicle 的內存位址
+    private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(0, 0);
 
     public AeronSender(Aeron aeron) {
         this.aeron = aeron;
@@ -53,35 +51,42 @@ public class AeronSender extends Worker {
     }
 
     /** 
-     核心工作循環：
+     核心工作循環 (Zero-Copy)：
      1. 從本地隊列讀取文檔
-     2. 提取二進制 Payload (SBE 編碼數據)
-     3. 透過 Aeron 發布至通訊頻道，若遇到背壓則進入 Idle 重試
-     4. 成功發送後更新並保存處理進度
+     2. 直接獲取 Chronicle 堆外內存地址與長度
+     3. 透過 UnsafeBuffer.wrap 實現「零拷貝」包裝
+     4. 透過 Aeron 發布，成功後更新進度
      */
     @Override
     protected int doWork() {
         boolean handled = tailer.readDocument(wire -> {
             long seq = tailer.index();
-            reusableBytes.clear(); wire.read("payload").bytes(reusableBytes);
-            aeronBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
             
-            // 實作背壓處理與重試邏輯：當 Aeron 緩衝區滿或暫時無法發送時，持續重試
-            while (publication.offer(aeronBuffer, 0, aeronBuffer.capacity()) < 0) {
-                if (!running.get()) return;
-                idleStrategy.idle();
-            }
-            // 更新並持久化當前已處理的 Sequence ID
+            // 零拷貝關鍵點：不將 bytes 拷貝出來，而是直接在閉包內操作其內存位址
+            wire.read("payload").bytes(bytes -> {
+                long address = bytes.addressForRead(bytes.readPosition());
+                int length = (int) bytes.readRemaining();
+                
+                // 將發送 Buffer 直接指向 Chronicle 映射文件的內存地址
+                unsafeBuffer.wrap(address, length);
+                
+                // 實作背壓處理與重試邏輯
+                while (publication.offer(unsafeBuffer, 0, length) < 0) {
+                    if (!running.get()) return;
+                    idleStrategy.idle();
+                }
+            });
+            
+            // 更新並持久化進度
             progress.setLastProcessedSeq(seq);
             Storage.self().metadata().put(PK_GATEWAY_IN, progress);
         });
         return handled ? 1 : 0;
     }
 
-    /** 資源清理：關閉 Publication 並釋放堆外內存 */
+    /** 資源清理 */
     @Override
     protected void onStop() { 
         if (publication != null) publication.close();
-        reusableBytes.releaseLast(); 
     }
 }
