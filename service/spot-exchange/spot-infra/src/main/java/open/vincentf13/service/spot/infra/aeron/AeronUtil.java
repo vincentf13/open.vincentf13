@@ -2,7 +2,7 @@ package open.vincentf13.service.spot.infra.aeron;
 
 import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
-import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.IdleStrategy;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,7 +25,7 @@ public class AeronUtil {
      @param length 欲申請的總字節長度
      @param idleStrategy 背壓時的重試/休眠策略
      @param running 運行狀態旗標，用於在中斷時安全退出
-     @param writer 寫入回調，提供申請到的 Buffer (MutableDirectBuffer) 與其偏移量 (Offset)
+     @param writer 寫入回調，提供申請到的 Buffer (UnsafeBuffer) 與其偏移量 (Offset)
      */
     public static void claimAndSend(
             Publication publication, 
@@ -33,7 +33,7 @@ public class AeronUtil {
             int length, 
             IdleStrategy idleStrategy, 
             AtomicBoolean running, 
-            BiConsumer<MutableDirectBuffer, Integer> writer) {
+            BiConsumer<UnsafeBuffer, Integer> writer) {
         
         // tryClaim 會在 Aeron 緩衝區滿 (Back-pressure) 或狀態異常時返回負數
         // 我們採用循環重試策略，配合 IdleStrategy 減少 CPU 消耗，直到成功申請到空間
@@ -44,9 +44,9 @@ public class AeronUtil {
         
         try {
             // 直接在預留的內存區塊上執行寫入
-            // buffer: Aeron 底層的環形緩衝區 (MutableDirectBuffer)
+            // buffer: Aeron 底層的環形緩衝區 (UnsafeBuffer)
             // offset: 目前這條訊息在該緩衝區中的起始寫入位址
-            writer.accept(bufferClaim.buffer(), bufferClaim.offset());
+            writer.accept((UnsafeBuffer) bufferClaim.buffer(), bufferClaim.offset());
         } finally {
             // 提交發送 (Commit)
             bufferClaim.commit();

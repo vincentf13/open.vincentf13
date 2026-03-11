@@ -6,6 +6,7 @@ import io.aeron.logbuffer.BufferClaim;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
@@ -26,6 +27,8 @@ public class AeronSender extends Worker {
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
     private final BufferClaim bufferClaim = new BufferClaim();
+    // 用於零拷貝包裝 Payload 的暫時 Buffer
+    private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
 
     public AeronSender(Aeron aeron) {
         this.aeron = aeron;
@@ -58,14 +61,16 @@ public class AeronSender extends Worker {
             long seq = tailer.index();
             int msgType = wire.read("msgType").int32();
             
-            // 從 Result Queue 讀取二進制 Payload
-            Bytes<?> payload = wire.read("payload").bytes();
-            int payloadLength = (int) payload.readRemaining();
-            
-            // 使用 infra 提供的零拷貝工具發送 [msgType(4)][Payload(N)]
-            AeronUtil.claimAndSend(publication, bufferClaim, 4 + payloadLength, idleStrategy, running, (buffer, offset) -> {
-                buffer.putInt(offset, msgType);
-                payload.read(buffer, offset + 4, payloadLength);
+            // 從 Result Queue 讀取二進制 Payload 並零拷貝發送
+            wire.read("payload").bytes(payload -> {
+                int payloadLength = (int) payload.readRemaining();
+                // 使用 infra 提供的零拷貝工具發送 [msgType(4)][Payload(N)]
+                AeronUtil.claimAndSend(publication, bufferClaim, 4 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+                    buffer.putInt(offset, msgType);
+                    // 零拷貝核心：將 Chronicle 內存位址包裝後 拷貝至 Aeron 緩衝區
+                    payloadWrapBuffer.wrap(payload.addressForRead(payload.readPosition()), payloadLength);
+                    buffer.putBytes(offset + 4, payloadWrapBuffer, 0, payloadLength);
+                });
             });
             
             progress.setLastProcessedSeq(seq);

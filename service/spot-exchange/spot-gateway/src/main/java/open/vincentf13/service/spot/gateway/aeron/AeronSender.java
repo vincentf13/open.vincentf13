@@ -4,13 +4,13 @@ import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
 import jakarta.annotation.PostConstruct;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -27,6 +27,8 @@ public class AeronSender extends Worker {
     private final Progress progress = new Progress();
     // 每個發送執行緒獨佔一個 BufferClaim
     private final BufferClaim bufferClaim = new BufferClaim();
+    // 用於零拷貝包裝 Payload 的暫時 Buffer
+    private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
 
     public AeronSender(Aeron aeron) {
         this.aeron = aeron;
@@ -68,15 +70,16 @@ public class AeronSender extends Worker {
                 });
             } else if (msgType == MSG_ORDER_CREATE) {
                 // 交易指令：[msgType(4)][SBE_Payload(N)] (零拷貝)
-                Bytes<?> payload = wire.read(Fields.payload).bytes();
-                int payloadLength = (int) payload.readRemaining();
-                
-                AeronUtil.claimAndSend(publication, bufferClaim, 4 + payloadLength, idleStrategy, running, (buffer, offset) -> {
-                    buffer.putInt(offset, MSG_ORDER_CREATE);
-                    payload.read(buffer, offset + 4, payloadLength);
+                wire.read(Fields.payload).bytes(payload -> {
+                    int payloadLength = (int) payload.readRemaining();
+                    AeronUtil.claimAndSend(publication, bufferClaim, 4 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+                        buffer.putInt(offset, MSG_ORDER_CREATE);
+                        // 零拷貝核心：將 Chronicle 內存位址包裝後 拷貝至 Aeron 緩衝區
+                        payloadWrapBuffer.wrap(payload.addressForRead(payload.readPosition()), payloadLength);
+                        buffer.putBytes(offset + 4, payloadWrapBuffer, 0, payloadLength);
+                    });
                 });
             }
-            
             progress.setLastProcessedSeq(seq);
             Storage.self().metadata().put(PK_GW_COMMAND_SENDER, progress);
         });
