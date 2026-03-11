@@ -67,7 +67,7 @@ public class AeronReceiver extends Worker {
                     // 認證訊息：讀取 8 字節 userId
                     long userId = buffer.getLong(offset + 4);
                     wire.write("userId").int64(userId);
-                } else {
+                } else if (msgType == MSG_ORDER_CREATE) {
                     // 交易指令：零拷貝寫入剩餘 Payload
                     pointerBytesStore.set(messageAddress + 4, length - 4);
                     wire.write("payload").bytes(pointerBytesStore);
