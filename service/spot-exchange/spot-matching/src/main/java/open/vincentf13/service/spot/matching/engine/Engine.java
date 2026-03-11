@@ -69,7 +69,7 @@ public class Engine extends Worker {
     protected void onStart() {
         this.tailer = Storage.self().commandQueue().createTailer();
         
-        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_CORE_ENGINE);
+        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_ENGINE);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -97,16 +97,17 @@ public class Engine extends Worker {
     /** 
      核心工作循環：
      1. 從 Command Queue 讀取下一個指令文檔
-     2. 解析 msgType 並分發處理邏輯
-     3. 更新處理位點並保存進度
+     2. 提取 GW 原始序號與指令類型
+     3. 分發處理邏輯，使用 gwSeq 維護帳務與狀態一致性
      */
     @Override
     protected int doWork() {
         boolean handled = tailer.readDocument(wire -> {
             long seq = tailer.index();
             int msgType = wire.read(ChronicleWireKey.msgType).int32();
+            // 讀取 Gateway 原始序號
+            long gwSeq = wire.read(ChronicleWireKey.gwSeq).int64();
             
-            // 處理重播結束判定
             if (isReplaying && seq >= tailer.queue().lastIndex()) {
                 isReplaying = false;
                 log.info("重播結束，引擎切換至實時處理模式");
@@ -117,13 +118,13 @@ public class Engine extends Worker {
             wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
             payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
 
-            // 業務邏輯分發
-            if (msgType == MsgType.AUTH) handleAuth(wire, seq);
-            else if (msgType == MsgType.ORDER_CREATE) dispatchOrderCreate(seq);
+            // 業務邏輯分發：將 gwSeq 傳入作為冪等性標籤
+            if (msgType == MsgType.AUTH) handleAuth(wire, gwSeq);
+            else if (msgType == MsgType.ORDER_CREATE) dispatchOrderCreate(gwSeq);
 
-            // 更新並持久化當前進度位點
+            // 更新並持久化當前進度位點 (仍以 Command Queue 的本地 Seq 為準，以便重播跳轉)
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(MetaDataKey.PK_CORE_ENGINE, progress);
+            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_ENGINE, progress);
         });
         
         if (!handled && isReplaying) isReplaying = false;
@@ -131,38 +132,32 @@ public class Engine extends Worker {
     }
 
     /** 處理訂單創建入口 (含冪等性檢查) */
-    private void dispatchOrderCreate(long seq) {
+    private void dispatchOrderCreate(long gwSeq) {
         SbeCodec.decode(payloadBuffer, 0, createDecoder);
         String cid = createDecoder.clientOrderId();
         CidKey key = new CidKey(createDecoder.userId(), cid);
         
-        // 冪等性校驗：若 clientOrderId 已存在，則僅在非重播模式下重發最後一條回報
+        // 冪等性校驗：若 clientOrderId 已存在
         Long resId = Storage.self().cids().get(key);
         if (resId != null) {
             if (!isReplaying) resendReport(resId, createDecoder.userId(), cid, createDecoder.timestamp());
             return;
         }
         
-        // 執行核心下單邏輯並記錄結果
-        Storage.self().cids().put(key, handleOrderCreate(createDecoder, seq, cid));
+        // 執行核心下單邏輯，使用 gwSeq 標記狀態
+        Storage.self().cids().put(key, handleOrderCreate(createDecoder, gwSeq, cid));
     }
 
     /** 
-     核心限價單處理邏輯：
-     1. 風控檢查 (餘額預扣/凍結)
-     2. 對象初始化與持久化
-     3. 驅動訂單簿進行撮合
-     4. 處理成交與帳務結算
-     5. 發送成交回報
+     核心限價單處理邏輯
      */
-    private long handleOrderCreate(OrderCreateDecoder sbe, long seq, String cid) {
+    private long handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, String cid) {
         long ts = sbe.timestamp();
-        // 計算預扣成本：買單預扣金額（含溢價），賣單預扣數量
         long cost = (sbe.side() == Side.BUY) ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
         int aid = (sbe.side() == Side.BUY) ? Asset.USDT : Asset.BTC;
 
-        // 步驟 1: 預扣資產，若失敗則拒絕訂單
-        if (!ledger.tryFreeze(sbe.userId(), aid, seq, cost)) {
+        // 步驟 1: 預扣資產，使用 gwSeq 確保 Ledger 冪等
+        if (!ledger.tryFreeze(sbe.userId(), aid, gwSeq, cost)) {
             sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
             return ID_REJECTED;
         }
@@ -173,7 +168,8 @@ public class Engine extends Worker {
         o.setOrderId(oid); o.setClientOrderId(cid); o.setUserId(sbe.userId());
         o.setSymbolId((int)sbe.symbolId()); o.setPrice(sbe.price()); o.setQty(sbe.qty());
         o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
-        o.setVersion(1); o.setLastSeq(seq);
+        o.setVersion(1); 
+        o.setLastSeq(gwSeq); // 使用 GW 序號標記
 
         activeOrderIndex.put(oid, o); 
         persistOrder(o);
@@ -181,18 +177,17 @@ public class Engine extends Worker {
         // 步驟 3: 進入訂單簿撮合
         List<OrderBook.TradeEvent> trades = books.computeIfAbsent(o.getSymbolId(), OrderBook::new).match(o);
         
-        // 步驟 4: 處理撮合產生的成交事件
+        // 步驟 4: 處理成交事件
         for (OrderBook.TradeEvent t : trades) {
             long tid = progress.getTradeIdCounter(); progress.setTradeIdCounter(tid + 1);
-            persistTrade(t, tid, sbe.timestamp(), seq);
-            processTradeLedger(t, seq, o);
-            syncOrder(t.makerOrderId, seq);
-            // 發送 Maker 成交回報
+            persistTrade(t, tid, sbe.timestamp(), gwSeq);
+            processTradeLedger(t, gwSeq, o);
+            syncOrder(t.makerOrderId, gwSeq);
             sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, sbe.timestamp());
         }
 
-        // 步驟 5: 同步 Taker 訂單最終狀態並發送 Taker 回報
-        syncOrder(oid, seq);
+        // 步驟 5: 同步 Taker 狀態
+        syncOrder(oid, gwSeq);
         OrderStatus st = (o.getStatus() == 2) ? OrderStatus.FILLED : OrderStatus.NEW;
         sendReport(sbe.userId(), oid, cid, st, 0, 0, o.getFilled(), 0, ts);
         
@@ -200,24 +195,23 @@ public class Engine extends Worker {
     }
 
     /** 更新訂單狀態並維持持久化一致性 */
-    private void syncOrder(long id, long seq) {
+    private void syncOrder(long id, long gwSeq) {
         Order o = activeOrderIndex.get(id);
         if (o != null) {
-            // 若訂單完全成交，將其從活躍索引移除
             if (o.getFilled() == o.getQty()) { 
                 o.setStatus((byte)2); 
                 activeOrderIndex.remove(id); 
             }
             o.setVersion(o.getVersion() + 1); 
-            o.setLastSeq(seq); 
+            o.setLastSeq(gwSeq); 
             persistOrder(o);
         }
     }
 
-    /** 持久化訂單至 Chronicle Map 並同步活躍訂單索引 */
+    /** 持久化訂單至 Chronicle Map */
     private void persistOrder(Order o) {
         Order ex = Storage.self().orders().get(o.getOrderId());
-        // 僅當 Sequence ID 遞增時寫入，確保重播時的最終一致性
+        // 核心防禦：基於 GW 序號判斷是否寫入，確保狀態不回退
         if (ex == null || ex.getLastSeq() < o.getLastSeq()) {
             Storage.self().orders().put(o.getOrderId(), o);
             if (o.getStatus() < 2) Storage.self().activeOrders().put(o.getOrderId(), true);
@@ -226,56 +220,39 @@ public class Engine extends Worker {
     }
 
     /** 成交後的帳務結算與溢價退款 */
-    private void processTradeLedger(OrderBook.TradeEvent t, long seq, Order taker) {
+    private void processTradeLedger(OrderBook.TradeEvent t, long gwSeq, Order taker) {
         long floor = DecimalUtil.mulFloor(t.price, t.qty);
         long ceil = DecimalUtil.mulCeil(t.price, t.qty);
         
         if (taker.getSide() == 0) { // Taker 買入
-            // 結算並根據 Taker 限定價與成交價的差值進行退款
-            ledger.tradeSettleWithRefund(t.takerUserId, Asset.USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), Asset.BTC, t.qty, seq);
-            ledger.tradeSettle(t.makerUserId, Asset.BTC, t.qty, Asset.USDT, floor, seq);
+            ledger.tradeSettleWithRefund(t.takerUserId, Asset.USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), Asset.BTC, t.qty, gwSeq);
+            ledger.tradeSettle(t.makerUserId, Asset.BTC, t.qty, Asset.USDT, floor, gwSeq);
         } else { // Taker 賣出
-            ledger.tradeSettle(t.takerUserId, Asset.BTC, t.qty, Asset.USDT, floor, seq);
+            ledger.tradeSettle(t.takerUserId, Asset.BTC, t.qty, Asset.USDT, floor, gwSeq);
             Order m = activeOrderIndex.get(t.makerOrderId);
             long mCeil = (m != null) ? DecimalUtil.mulCeil(m.getPrice(), t.qty) : ceil;
-            ledger.tradeSettleWithRefund(t.makerUserId, Asset.USDT, ceil, mCeil, Asset.BTC, t.qty, seq);
+            ledger.tradeSettleWithRefund(t.makerUserId, Asset.USDT, ceil, mCeil, Asset.BTC, t.qty, gwSeq);
         }
         
-        // 差額利潤歸入平台帳戶 (Scale 捨入誤差)
         if (ceil > floor) {
-            ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, seq, ceil - floor);
+            ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, gwSeq, ceil - floor);
         }
     }
 
     /** 封裝並發送成交回報 (SBE 二進位格式) */
     private void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts) {
         if (isReplaying) return;
-        
         outboundBytes.clear();
-        // 將 SBE 緩衝區映射至 Bytes 堆外內存位址
         outboundSbeBuffer.wrap(outboundBytes.addressForWrite(0), (int)outboundBytes.realCapacity());
-        
-        int len = SbeCodec.encode(outboundSbeBuffer, 0, executionEncoder
-                .timestamp(ts)
-                .userId(uid)
-                .orderId(oid)
-                .status(s)
-                .lastPrice(lp)
-                .lastQty(lq)
-                .cumQty(cq)
-                .avgPrice(ap)
-                .clientOrderId(cid));
-        
+        int len = SbeCodec.encode(outboundSbeBuffer, 0, executionEncoder.timestamp(ts).userId(uid).orderId(oid).status(s).lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid));
         outboundBytes.writePosition(len);
-        
-        // 寫入 Result Queue (WAL)
         Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {
             wire.write(ChronicleWireKey.msgType).int32(executionEncoder.sbeTemplateId());
             wire.write(ChronicleWireKey.payload).bytes(outboundBytes);
         });
     }
 
-    /** 重發最後一條已知的訂單回報 */
+    /** 重發回報 */
     private void resendReport(long oid, long uid, String cid, long ts) {
         if (oid == ID_REJECTED) {
             sendReport(uid, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
@@ -291,21 +268,20 @@ public class Engine extends Worker {
     }
 
     /** 持久化成交歷史 */
-    private void persistTrade(OrderBook.TradeEvent t, long tid, long ts, long seq) {
+    private void persistTrade(OrderBook.TradeEvent t, long tid, long ts, long gwSeq) {
         Trade r = Storage.self().trades().get(tid);
-        if (r == null || r.getLastSeq() < seq) {
+        if (r == null || r.getLastSeq() < gwSeq) {
             r = new Trade(); 
-            r.setTradeId(tid); r.setOrderId(t.makerOrderId); r.setPrice(t.price); r.setQty(t.qty); r.setTime(ts); r.setLastSeq(seq);
+            r.setTradeId(tid); r.setOrderId(t.makerOrderId); r.setPrice(t.price); r.setQty(t.qty); r.setTime(ts); r.setLastSeq(gwSeq);
             Storage.self().trades().put(tid, r);
         }
     }
 
-    /** 處理系統認證訊息：初始化用戶資產餘額並回覆成功信號 */
-    private void handleAuth(net.openhft.chronicle.wire.WireIn wire, long seq) {
+    /** 處理系統認證訊息 */
+    private void handleAuth(net.openhft.chronicle.wire.WireIn wire, long gwSeq) {
         long userId = wire.read(ChronicleWireKey.userId).int64();
-        // 確保用戶的基本資產表已初始化 (冪等操作)
-        ledger.initBalance(userId, Asset.BTC, seq); 
-        ledger.initBalance(userId, Asset.USDT, seq);
+        ledger.initBalance(userId, Asset.BTC, gwSeq); 
+        ledger.initBalance(userId, Asset.USDT, gwSeq);
         
         if (isReplaying) return;
         
@@ -315,7 +291,6 @@ public class Engine extends Worker {
         });
     }
 
-    /** 資源釋放：關閉時清理堆外內存緩衝區 */
     @Override 
     protected void onStop() { 
         reusableBytes.releaseLast(); 

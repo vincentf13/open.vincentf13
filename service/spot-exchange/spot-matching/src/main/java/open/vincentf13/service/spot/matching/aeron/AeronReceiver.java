@@ -15,7 +15,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 /** 
  Matching Core Aeron 接收器 (Zero-Copy 最佳化版)
  職責：監聽來自 Gateway 的指令數據，將其持久化至本地 Command WAL
- 最佳化：利用 PointerBytesStore 將 Aeron 接收 Buffer 直接送入 Chronicle 寫入流程，實現零拷貝落地
+ 最佳化：從封包提取 gwSeq 並以此作為 Checkpoint 位點，消除 Aeron 序號飄移風險
  */
 @Component
 public class AeronReceiver extends Worker {
@@ -36,13 +36,13 @@ public class AeronReceiver extends Worker {
     /** 
      工作啟動準備：
      1. 建立 Aeron Subscription (Inbound Stream)
-     2. 加載上次處理成功的 Aeron Position，確保訊息不漏不重
+     2. 加載上次處理成功的 GW Sequence ID，確保訊息不漏不重
      */
     @Override
     protected void onStart() {
         subscription = aeron.addSubscription(AeronChannel.INBOUND, AeronChannel.IN_STREAM);
-        // 加載處理進度
-        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_CORE_COMMAND_RECEIVER);
+        // 加載處理進度 (以 Gateway Sequence 為準)
+        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_COMMAND_RECEIVER);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -53,31 +53,35 @@ public class AeronReceiver extends Worker {
          3. 零拷貝寫入本地 Command Queue
          */
         fragmentHandler = (buffer, offset, length, header) -> {
-            long currentSeq = header.position();
-            // 冪等性檢查
-            if (currentSeq <= progress.getLastProcessedSeq()) return;
-
             // 前 4 字節為系統訊息類型 (MsgType.*)
             int msgType = buffer.getInt(offset);
+            // 隨後 8 字節為 Gateway 原始序號 (gwSeq)
+            long gwSeq = buffer.getLong(offset + 4);
+            
+            // 冪等性檢查：基於 GW 序號，防止 Driver 重啟導致的重複處理
+            if (gwSeq <= progress.getLastProcessedSeq()) return;
+
             long messageAddress = buffer.addressOffset() + offset;
 
             Storage.self().commandQueue().acquireAppender().writeDocument(wire -> {
-                wire.write("msgType").int32(msgType);
+                wire.write(ChronicleWireKey.msgType).int32(msgType);
+                wire.write(ChronicleWireKey.gwSeq).int64(gwSeq);
+                
                 if (msgType == MsgType.AUTH) {
-                    // 認證訊息：讀取 8 字節 userId
-                    long userId = buffer.getLong(offset + 4);
-                    wire.write("userId").int64(userId);
+                    // 認證訊息：讀取 8 字節 userId (Offset: 4+8=12)
+                    long userId = buffer.getLong(offset + 12);
+                    wire.write(ChronicleWireKey.userId).int64(userId);
                 } else if (msgType == MsgType.ORDER_CREATE) {
-                    // 交易指令：零拷貝寫入剩餘 Payload
-                    pointerBytesStore.set(messageAddress + 4, length - 4);
-                    wire.write("payload").bytes(pointerBytesStore);
+                    // 交易指令：零拷貝寫入剩餘 Payload (Offset: 12)
+                    pointerBytesStore.set(messageAddress + 12, length - 12);
+                    wire.write(ChronicleWireKey.payload).bytes(pointerBytesStore);
                 }
-                wire.write("aeronSeq").int64(currentSeq); 
+                wire.write(ChronicleWireKey.aeronSeq).int64(header.position()); 
             });
 
-            // 更新並持久化進度
-            progress.setLastProcessedSeq(currentSeq);
-            Storage.self().metadata().put(MetaDataKey.PK_CORE_COMMAND_RECEIVER, progress);
+            // 更新並持久化進度 (記錄最後處理成功的 GW Seq)
+            progress.setLastProcessedSeq(gwSeq);
+            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_COMMAND_RECEIVER, progress);
         };
     }
 

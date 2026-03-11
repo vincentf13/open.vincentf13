@@ -75,7 +75,7 @@ public class Constants {
       Chronicle Wire 數據欄位定義
      */
     public enum ChronicleWireKey implements WireKey {
-        msgType, payload, aeronSeq, userId, topic, data, timestamp
+        msgType, payload, aeronSeq, gwSeq, userId, topic, data, timestamp
     }
 
     /**

@@ -4,6 +4,7 @@ import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
 import jakarta.annotation.PostConstruct;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
@@ -17,7 +18,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 /** 
  Gateway Aeron 發送器 (極致 Zero-Copy 版)
  職責：從 GW WAL 讀取指令並透過 Aeron 發送至核心引擎
- 最佳化：採用 AeronUtil 的 tryClaim 機制實現原地寫入，消除所有中間拷貝
+ 最佳化：在封包中封裝 GW 原始 Index，確保全系統確定性
  */
 @Component
 public class AeronSender extends Worker {
@@ -25,9 +26,7 @@ public class AeronSender extends Worker {
     private Publication publication;
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
-    // 每個發送執行緒獨佔一個 BufferClaim
     private final BufferClaim bufferClaim = new BufferClaim();
-    // 用於零拷貝包裝 Payload 的暫時 Buffer
     private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
 
     public AeronSender(Aeron aeron) {
@@ -42,7 +41,7 @@ public class AeronSender extends Worker {
     protected void onStart() {
         publication = aeron.addPublication(AeronChannel.INBOUND, AeronChannel.IN_STREAM);
         tailer = Storage.self().gatewayQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_GW_COMMAND_SENDER);
+        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_GW_COMMAND_SENDER);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -52,8 +51,8 @@ public class AeronSender extends Worker {
     /** 
      核心工作循環 (Zero-Copy)：
      1. 從本地隊列讀取文檔
-     2. 調用 AeronUtil 實現三階段提交發送
-     3. 成功後更新進度
+     2. 封裝封包：[msgType(4)][gwSeq(8)][Content(N)]
+     3. 透過 AeronUtil 直接寫入發送緩衝區
      */
     @Override
     protected int doWork() {
@@ -62,27 +61,28 @@ public class AeronSender extends Worker {
             int msgType = wire.read(ChronicleWireKey.msgType).int32();
             
             if (msgType == MsgType.AUTH) {
-                // 認證訊息：[msgType(4)][userId(8)]
+                // 認證訊息：[msgType(4)][gwSeq(8)][userId(8)]
                 long userId = wire.read(ChronicleWireKey.userId).int64();
-                AeronUtil.claimAndSend(publication, bufferClaim, 12, idleStrategy, running, (buffer, offset) -> {
+                AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.AUTH);
-                    buffer.putLong(offset + 4, userId);
+                    buffer.putLong(offset + 4, seq);
+                    buffer.putLong(offset + 12, userId);
                 });
             } else if (msgType == MsgType.ORDER_CREATE) {
-                // 交易指令：[msgType(4)][SBE_Payload(N)] (零拷貝)
+                // 交易指令：[msgType(4)][gwSeq(8)][SBE_Payload(N)] (零拷貝)
                 wire.read(ChronicleWireKey.payload).bytes(payload -> {
                     int payloadLength = (int) payload.readRemaining();
-                    AeronUtil.claimAndSend(publication, bufferClaim, 4 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+                    AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
                         buffer.putInt(offset, MsgType.ORDER_CREATE);
-                        // 零拷貝核心：將 Chronicle 內存位址包裝後 拷貝至 Aeron 緩衝區
+                        buffer.putLong(offset + 4, seq);
                         payloadWrapBuffer.wrap(payload.addressForRead(payload.readPosition()), payloadLength);
-                        buffer.putBytes(offset + 4, payloadWrapBuffer, 0, payloadLength);
+                        buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
                     });
                 });
             }
             
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(MetaDataKey.PK_GW_COMMAND_SENDER, progress);
+            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_GW_COMMAND_SENDER, progress);
         });
         return handled ? 1 : 0;
     }
