@@ -33,30 +33,67 @@ public abstract class Worker implements Runnable {
     
     /** 
      停止工作者執行緒
-     設置運行狀態為 false 並嘗試等待執行緒結束，隨後觸發 onStop 鉤子
+     採用「優雅退出」策略：先發出停止信號，等待執行緒結束後再執行資源清理
      */
     public void stop() {
-        running.set(false);
+        // 確保停止邏輯只執行一次
+        if (!running.compareAndSet(true, false)) {
+            return;
+        }
+        
         if (thread != null) {
             try {
-                thread.join(1000);
-            } catch (InterruptedException ignored) {
+                // 1. 給予較充裕的時間（5秒）等待背景執行緒完成當前任務並退出循環
+                if (!thread.join(5000)) {
+                    log.warn("Worker {} 未能在 5 秒內優雅退出，嘗試發出中斷信號...", thread.getName());
+                    // 2. 若超時仍未退出，發出中斷信號以喚醒可能處於阻塞狀態的操作
+                    thread.interrupt();
+                    // 3. 最後再給予 1 秒的緩衝時間
+                    if (!thread.join(1000)) {
+                        log.error("Worker {} 強制停機超時！執行緒仍處於活躍狀態，這可能導致釋放堆外內存時發生 JVM Crash", thread.getName());
+                    }
+                }
+            } catch (InterruptedException e) {
+                log.error("等待 Worker {} 停止時被中斷", thread.getName());
+                Thread.currentThread().interrupt();
             }
         }
+        
+        // 狀態二次確認：如果在所有等待手段後執行緒仍然活躍
+        if (thread != null && thread.isAlive()) {
+            String errorMsg = String.format("Worker %s 停機失敗且仍然處於活躍狀態！為了預防 JVM Crash，已跳過資源釋放 (onStop)。", thread.getName());
+            log.error(errorMsg);
+            throw new RuntimeException(errorMsg);
+        }
+        
+        // 執行資源清理（如釋放 Bytes、關閉 Publication 等）
         onStop();
+        log.info("Worker {} 已停止並清理資源", thread != null ? thread.getName() : "Unknown");
     }
     
     /** 
      工作者運行核心
-     定義了完整的生命週期：onStart -> 循環執行 doWork -> 結束時觸發
+     定義了完整的生命週期：onStart -> 循環執行 doWork -> 結束
      */
     @Override
     public void run() {
         onStart();
-        while (running.get()) {
-            // doWork 返回處理的任務數量，供 IdleStrategy 決定是否需要進入空閒等待
-            int workDone = doWork();
-            idleStrategy.idle(workDone);
+        try {
+            // 同時檢查運行標誌位與執行緒中斷狀態
+            while (running.get() && !Thread.currentThread().isInterrupted()) {
+                int workDone = doWork();
+                idleStrategy.idle(workDone);
+            }
+        } catch (Exception e) {
+            // 捕獲所有異常，確保執行緒崩潰時有日誌記錄
+            if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
+                log.warn("Worker {} 收到中斷信號，準備退出", Thread.currentThread().getName());
+            } else {
+                log.error("Worker {} 運行時發生未預期錯誤", Thread.currentThread().getName(), e);
+            }
+        } finally {
+            // 確保循環結束，便於 stop() 中的 join() 順利返回
+            running.set(false);
         }
     }
     
