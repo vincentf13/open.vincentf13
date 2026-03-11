@@ -79,8 +79,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         
         // 寫入本地隊列 WAL，供 Aeron 發送器異步讀取
         Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(Fields.msgType).int32(encoder.sbeTemplateId());
-            wire.write(Fields.payload).bytes(bytes);
+            wire.write(ChronicleWireKey.msgType).int32(encoder.sbeTemplateId());
+            wire.write(ChronicleWireKey.payload).bytes(bytes);
         });
     }
 
@@ -93,8 +93,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         channel.attr(ATTR_USER_ID).set(uidStr); // 在 Channel 上貼標籤，實現 $O(1)$ 的斷線清理
 
         Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(Fields.msgType).int32(MSG_AUTH);
-            wire.write(Fields.userId).int64(userId);
+            wire.write(ChronicleWireKey.msgType).int32(MSG_AUTH);
+            wire.write(ChronicleWireKey.userId).int64(userId);
         });
     }
 

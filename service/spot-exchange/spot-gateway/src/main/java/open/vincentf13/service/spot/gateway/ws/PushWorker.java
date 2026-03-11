@@ -1,6 +1,5 @@
 package open.vincentf13.service.spot.gateway.ws;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
@@ -39,7 +38,7 @@ public class PushWorker extends Worker {
     @Override
     protected void onStart() {
         this.tailer = Storage.self().resultQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(PK_GW_PUSH_WORKER);
+        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_GW_PUSH_WORKER);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -50,10 +49,10 @@ public class PushWorker extends Worker {
     protected int doWork() {
         boolean handled = tailer.readDocument(wire -> {
             long seq = tailer.index();
-            int msgType = wire.read(Fields.msgType).int32();
+            int msgType = wire.read(ChronicleWireKey.msgType).int32();
 
             if (msgType == executionDecoder.sbeTemplateId()) {
-                reusableBytes.clear(); wire.read(Fields.payload).bytes(reusableBytes);
+                reusableBytes.clear(); wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
                 payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
 
@@ -67,7 +66,7 @@ public class PushWorker extends Worker {
                 wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
             }
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(PK_GW_PUSH_WORKER, progress);
+            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_GW_PUSH_WORKER, progress);
         });
         return handled ? 1 : 0;
     }

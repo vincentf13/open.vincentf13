@@ -62,7 +62,7 @@ public class Engine extends Worker {
     protected void onStart() {
         this.tailer = Storage.self().commandQueue().createTailer();
         
-        Progress saved = Storage.self().metadata().get(PK_CORE_ENGINE);
+        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_ENGINE);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -99,7 +99,7 @@ public class Engine extends Worker {
             else if (msgType == MSG_ORDER_CREATE) dispatchOrderCreate(seq);
 
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(PK_CORE_ENGINE, progress);
+            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_ENGINE, progress);
         });
         if (!handled && isReplaying) isReplaying = false;
         return handled ? 1 : 0;

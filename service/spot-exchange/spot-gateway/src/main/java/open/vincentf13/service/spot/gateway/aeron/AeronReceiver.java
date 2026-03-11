@@ -41,8 +41,8 @@ public class AeronReceiver extends Worker {
      */
     @Override
     protected void onStart() {
-        subscription = aeron.addSubscription(Channel.OUTBOUND, Channel.OUT_STREAM);
-        Progress saved = Storage.self().metadata().get(PK_GW_RESULT_RECEIVER);
+        subscription = aeron.addSubscription(AeronChannel.OUTBOUND, AeronChannel.OUT_STREAM);
+        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_GW_RESULT_RECEIVER);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -71,7 +71,7 @@ public class AeronReceiver extends Worker {
 
             // 更新進度
             progress.setLastProcessedSeq(currentSeq);
-            Storage.self().metadata().put(PK_GW_RESULT_RECEIVER, progress);
+            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_GW_RESULT_RECEIVER, progress);
         };
     }
 

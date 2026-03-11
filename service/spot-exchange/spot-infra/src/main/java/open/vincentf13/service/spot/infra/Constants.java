@@ -1,5 +1,7 @@
 package open.vincentf13.service.spot.infra;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import net.openhft.chronicle.wire.WireKey;
 
 /**
@@ -13,14 +15,6 @@ public class Constants {
     /** 無效或拒絕標識 ID */
     public static final long ID_REJECTED = 0L;
 
-    // --- 進度位點 Key (PK) ---
-    public static final byte PK_CORE_ENGINE = 1;
-    public static final byte PK_GW_COMMAND_SENDER = 2;
-    public static final byte PK_GW_RESULT_RECEIVER = 3;
-    public static final byte PK_GW_PUSH_WORKER = 4;
-    public static final byte PK_CORE_RESULT_SENDER = 5;
-    public static final byte PK_CORE_COMMAND_RECEIVER = 6;
-
     // --- 指令類型 (MSG) ---
     public static final int MSG_ORDER_CREATE = 100;
     public static final int MSG_DEPOSIT = 102;
@@ -31,9 +25,9 @@ public class Constants {
     public static final int ASSET_USDT = 2;
 
     /**
-      存儲相關配置與檔案名稱 (Store)
+      Chronicle Map 檔案與名稱列舉
      */
-    public static class Store {
+    public static class ChronicleMapEnum {
         public static final String DEFAULT_BASE_DIR = "data/spot-exchange/";
         public static final String BALANCES = "balances";
         public static final String USER_ASSETS = "user-assets";
@@ -42,22 +36,45 @@ public class Constants {
         public static final String TRADES = "trades";
         public static final String CIDS = "cid-idx";
         public static final String METADATA = "metadata";
-        public static final String Q_GATEWAY = "gw-queue";
-        public static final String Q_COMMAND = "core-queue";
-        public static final String Q_RESULT = "outbound-queue";
+
+        /** 
+          進度位點元數據 Key (MetaData PK)
+          用於在 metadata Map 中標識各組件的處理進度
+         */
+        public static class MetaData {
+            public static final byte PK_CORE_ENGINE = 1;
+            public static final byte PK_GW_COMMAND_SENDER = 2;
+            public static final byte PK_GW_RESULT_RECEIVER = 3;
+            public static final byte PK_GW_PUSH_WORKER = 4;
+            public static final byte PK_CORE_RESULT_SENDER = 5;
+            public static final byte PK_CORE_COMMAND_RECEIVER = 6;
+        }
+    }
+
+    /** 
+      Chronicle Queue 檔案名稱列舉
+     */
+    @Getter
+    @RequiredArgsConstructor
+    public enum ChronicleQueueEnum {
+        GATEWAY("gw-queue"),
+        COMMAND("core-queue"),
+        RESULT("outbound-queue");
+
+        private final String path;
     }
 
     /**
       Chronicle Wire 數據欄位定義
      */
-    public enum Fields implements WireKey {
+    public enum ChronicleWireKey implements WireKey {
         msgType, payload, aeronSeq, userId, topic, data, timestamp
     }
 
     /**
       Aeron 頻道與串流配置
      */
-    public static class Channel {
+    public static class AeronChannel {
         public static final String INBOUND = "aeron:udp?endpoint=localhost:40444";
         public static final String OUTBOUND = "aeron:udp?endpoint=localhost:40445";
         public static final int IN_STREAM = 10;

@@ -4,7 +4,6 @@ import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
 import jakarta.annotation.PostConstruct;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
@@ -40,9 +39,9 @@ public class AeronSender extends Worker {
     /** 工作啟動準備 */
     @Override
     protected void onStart() {
-        publication = aeron.addPublication(Channel.OUTBOUND, Channel.OUT_STREAM);
+        publication = aeron.addPublication(AeronChannel.OUTBOUND, AeronChannel.OUT_STREAM);
         tailer = Storage.self().resultQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(PK_CORE_RESULT_SENDER);
+        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_RESULT_SENDER);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -74,7 +73,7 @@ public class AeronSender extends Worker {
             });
             
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(PK_CORE_RESULT_SENDER, progress);
+            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_RESULT_SENDER, progress);
         });
         return handled ? 1 : 0;
     }

@@ -40,9 +40,9 @@ public class AeronReceiver extends Worker {
      */
     @Override
     protected void onStart() {
-        subscription = aeron.addSubscription(Channel.INBOUND, Channel.IN_STREAM);
+        subscription = aeron.addSubscription(AeronChannel.INBOUND, AeronChannel.IN_STREAM);
         // 加載處理進度
-        Progress saved = Storage.self().metadata().get(PK_CORE_COMMAND_RECEIVER);
+        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_COMMAND_RECEIVER);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -77,7 +77,7 @@ public class AeronReceiver extends Worker {
 
             // 更新並持久化進度
             progress.setLastProcessedSeq(currentSeq);
-            Storage.self().metadata().put(PK_CORE_COMMAND_RECEIVER, progress);
+            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_COMMAND_RECEIVER, progress);
         };
     }
 

@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.IOException;
 
-import static open.vincentf13.service.spot.infra.Constants.Store;
+import static open.vincentf13.service.spot.infra.Constants.*;
 
 /**
   系統存儲中心 (Storage) - 系統的「記憶」與「血管」
@@ -31,7 +31,7 @@ public class Storage {
     /** 提供全系統靜態訪問點 */
     public static Storage self() { return instance; }
 
-    @Value("${state.base-dir:" + Store.DEFAULT_BASE_DIR + "}")
+    @Value("${state.base-dir:" + ChronicleMapEnum.DEFAULT_BASE_DIR + "}")
     private String baseDir;
 
     @Value("${state.entries.orders:1000000}")
@@ -81,18 +81,18 @@ public class Storage {
         if (!baseDir.endsWith("/")) baseDir += "/";
         new File(baseDir).mkdirs();
 
-        balances = createMap(Store.BALANCES, BalanceKey.class, Balance.class, balanceEntries, new BalanceKey(), new Balance());
-        userAssets = createMap(Store.USER_ASSETS, Long.class, Long.class, balanceEntries, 0L, 0L);
-        orders = createMap(Store.ORDERS, Long.class, Order.class, orderEntries, 0L, new Order());
-        activeOrders = createMap(Store.ACTIVE_ORDERS, Long.class, Boolean.class, orderEntries, 0L, true);
-        trades = createMap(Store.TRADES, Long.class, Trade.class, indexEntries, 0L, new Trade());
-        cids = createMap(Store.CIDS, CidKey.class, Long.class, indexEntries, new CidKey(), 0L);
-        metadata = createMap(Store.METADATA, Byte.class, Progress.class, 100, (byte)0, new Progress());
+        balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, balanceEntries, new BalanceKey(), new Balance());
+        userAssets = createMap(ChronicleMapEnum.USER_ASSETS, Long.class, Long.class, balanceEntries, 0L, 0L);
+        orders = createMap(ChronicleMapEnum.ORDERS, Long.class, Order.class, orderEntries, 0L, new Order());
+        activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, Long.class, Boolean.class, orderEntries, 0L, true);
+        trades = createMap(ChronicleMapEnum.TRADES, Long.class, Trade.class, indexEntries, 0L, new Trade());
+        cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, Long.class, indexEntries, new CidKey(), 0L);
+        metadata = createMap(ChronicleMapEnum.METADATA, Byte.class, Progress.class, 100, (byte)0, new Progress());
 
         // --- 建立隊列 (RawWire 模式) ---
-        gatewayQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_GATEWAY)).build();
-        commandQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_COMMAND)).build();
-        resultQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + Store.Q_RESULT)).build();
+        gatewayQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + ChronicleQueueEnum.GATEWAY.getPath())).build();
+        commandQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + ChronicleQueueEnum.COMMAND.getPath())).build();
+        resultQueue = SingleChronicleQueueBuilder.fieldlessBinary(new File(baseDir + ChronicleQueueEnum.RESULT.getPath())).build();
         
         instance = this;
         log.info("Chronicle Storage 核心組件初始化完成 (RawWire 模式)，存儲路徑: {}", baseDir);
