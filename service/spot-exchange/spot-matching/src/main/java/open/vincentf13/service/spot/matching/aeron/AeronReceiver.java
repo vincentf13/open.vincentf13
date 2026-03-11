@@ -42,7 +42,7 @@ public class AeronReceiver extends Worker {
     protected void onStart() {
         subscription = aeron.addSubscription(AeronChannel.INBOUND, AeronChannel.IN_STREAM);
         // 加載處理進度 (以 Gateway Sequence 為準)
-        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_COMMAND_RECEIVER);
+        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_CORE_COMMAND_RECEIVER);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -64,24 +64,24 @@ public class AeronReceiver extends Worker {
             long messageAddress = buffer.addressOffset() + offset;
 
             Storage.self().commandQueue().acquireAppender().writeDocument(wire -> {
-                wire.write(ChronicleWireKey.msgType).int32(msgType);
-                wire.write(ChronicleWireKey.gwSeq).int64(gwSeq);
+                wire.write("msgType").int32(msgType);
+                wire.write("gwSeq").int64(gwSeq);
                 
                 if (msgType == MsgType.AUTH) {
                     // 認證訊息：讀取 8 字節 userId (Offset: 4+8=12)
                     long userId = buffer.getLong(offset + 12);
-                    wire.write(ChronicleWireKey.userId).int64(userId);
+                    wire.write("userId").int64(userId);
                 } else if (msgType == MsgType.ORDER_CREATE) {
                     // 交易指令：零拷貝寫入剩餘 Payload (Offset: 12)
                     pointerBytesStore.set(messageAddress + 12, length - 12);
-                    wire.write(ChronicleWireKey.payload).bytes(pointerBytesStore);
+                    wire.write("payload").bytes(pointerBytesStore);
                 }
-                wire.write(ChronicleWireKey.aeronSeq).int64(header.position()); 
+                wire.write("aeronSeq").int64(header.position()); 
             });
 
             // 更新並持久化進度 (記錄最後處理成功的 GW Seq)
             progress.setLastProcessedSeq(gwSeq);
-            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_COMMAND_RECEIVER, progress);
+            Storage.self().metadata().put(MetaDataKey.PK_CORE_COMMAND_RECEIVER, progress);
         };
     }
 

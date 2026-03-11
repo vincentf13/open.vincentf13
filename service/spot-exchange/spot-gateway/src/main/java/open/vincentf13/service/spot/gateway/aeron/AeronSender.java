@@ -4,14 +4,13 @@ import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
 import jakarta.annotation.PostConstruct;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import org.agrona.concurrent.UnsafeBuffer;
-import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -41,7 +40,7 @@ public class AeronSender extends Worker {
     protected void onStart() {
         publication = aeron.addPublication(AeronChannel.INBOUND, AeronChannel.IN_STREAM);
         tailer = Storage.self().gatewayQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_GW_COMMAND_SENDER);
+        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_GW_COMMAND_SENDER);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -82,7 +81,7 @@ public class AeronSender extends Worker {
             }
             
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_GW_COMMAND_SENDER, progress);
+            Storage.self().metadata().put(MetaDataKey.PK_GW_COMMAND_SENDER, progress);
         });
         return handled ? 1 : 0;
     }

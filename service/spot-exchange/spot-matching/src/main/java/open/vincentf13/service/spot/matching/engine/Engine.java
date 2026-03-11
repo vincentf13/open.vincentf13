@@ -69,7 +69,7 @@ public class Engine extends Worker {
     protected void onStart() {
         this.tailer = Storage.self().commandQueue().createTailer();
         
-        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_ENGINE);
+        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_CORE_ENGINE);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -124,7 +124,7 @@ public class Engine extends Worker {
 
             // 更新並持久化當前進度位點 (仍以 Command Queue 的本地 Seq 為準，以便重播跳轉)
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_ENGINE, progress);
+            Storage.self().metadata().put(MetaDataKey.PK_CORE_ENGINE, progress);
         });
         
         if (!handled && isReplaying) isReplaying = false;
