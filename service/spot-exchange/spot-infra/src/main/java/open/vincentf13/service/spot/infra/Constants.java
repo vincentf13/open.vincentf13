@@ -15,14 +15,34 @@ public class Constants {
     /** 無效或拒絕標識 ID */
     public static final long ID_REJECTED = 0L;
 
-    // --- 指令類型 (MSG) ---
-    public static final int MSG_ORDER_CREATE = 100;
-    public static final int MSG_DEPOSIT = 102;
-    public static final int MSG_AUTH = 103;
+    /** 
+      進度位點元數據 Key (MetaDataKey)
+     */
+    public static class MetaDataKey {
+        public static final byte PK_CORE_ENGINE = 1;
+        public static final byte PK_GW_COMMAND_SENDER = 2;
+        public static final byte PK_GW_RESULT_RECEIVER = 3;
+        public static final byte PK_GW_WS_PUSH_WORKER = 4;
+        public static final byte PK_CORE_RESULT_SENDER = 5;
+        public static final byte PK_CORE_COMMAND_RECEIVER = 6;
+    }
 
-    // --- 資產 ID (ASSET) ---
-    public static final int ASSET_BTC = 1;
-    public static final int ASSET_USDT = 2;
+    /** 
+      系統指令類型 (MsgType)
+     */
+    public static class MsgType {
+        public static final int ORDER_CREATE = 100;
+        public static final int DEPOSIT = 102;
+        public static final int AUTH = 103;
+    }
+
+    /** 
+      資產 ID (Asset)
+     */
+    public static class Asset {
+        public static final int BTC = 1;
+        public static final int USDT = 2;
+    }
 
     /**
       Chronicle Map 檔案與名稱列舉
@@ -36,19 +56,6 @@ public class Constants {
         public static final String TRADES = "trades";
         public static final String CIDS = "cid-idx";
         public static final String METADATA = "metadata";
-
-        /** 
-          進度位點元數據 Key (MetaData PK)
-          用於在 metadata Map 中標識各組件的處理進度
-         */
-        public static class MetaData {
-            public static final byte PK_CORE_ENGINE = 1;
-            public static final byte PK_GW_COMMAND_SENDER = 2;
-            public static final byte PK_GW_RESULT_RECEIVER = 3;
-            public static final byte PK_GW_PUSH_WORKER = 4;
-            public static final byte PK_CORE_RESULT_SENDER = 5;
-            public static final byte PK_CORE_COMMAND_RECEIVER = 6;
-        }
     }
 
     /** 

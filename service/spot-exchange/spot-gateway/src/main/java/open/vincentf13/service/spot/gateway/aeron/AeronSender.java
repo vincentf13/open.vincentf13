@@ -5,12 +5,12 @@ import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
-import org.agrona.concurrent.UnsafeBuffer;
-import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -42,7 +42,7 @@ public class AeronSender extends Worker {
     protected void onStart() {
         publication = aeron.addPublication(AeronChannel.INBOUND, AeronChannel.IN_STREAM);
         tailer = Storage.self().gatewayQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_GW_COMMAND_SENDER);
+        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_GW_COMMAND_SENDER);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -61,27 +61,28 @@ public class AeronSender extends Worker {
             long seq = tailer.index();
             int msgType = wire.read(ChronicleWireKey.msgType).int32();
             
-            if (msgType == MSG_AUTH) {
+            if (msgType == MsgType.AUTH) {
                 // 認證訊息：[msgType(4)][userId(8)]
                 long userId = wire.read(ChronicleWireKey.userId).int64();
                 AeronUtil.claimAndSend(publication, bufferClaim, 12, idleStrategy, running, (buffer, offset) -> {
-                    buffer.putInt(offset, MSG_AUTH);
+                    buffer.putInt(offset, MsgType.AUTH);
                     buffer.putLong(offset + 4, userId);
                 });
-            } else if (msgType == MSG_ORDER_CREATE) {
+            } else if (msgType == MsgType.ORDER_CREATE) {
                 // 交易指令：[msgType(4)][SBE_Payload(N)] (零拷貝)
                 wire.read(ChronicleWireKey.payload).bytes(payload -> {
                     int payloadLength = (int) payload.readRemaining();
                     AeronUtil.claimAndSend(publication, bufferClaim, 4 + payloadLength, idleStrategy, running, (buffer, offset) -> {
-                        buffer.putInt(offset, MSG_ORDER_CREATE);
+                        buffer.putInt(offset, MsgType.ORDER_CREATE);
                         // 零拷貝核心：將 Chronicle 內存位址包裝後 拷貝至 Aeron 緩衝區
                         payloadWrapBuffer.wrap(payload.addressForRead(payload.readPosition()), payloadLength);
                         buffer.putBytes(offset + 4, payloadWrapBuffer, 0, payloadLength);
                     });
                 });
             }
+            
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_GW_COMMAND_SENDER, progress);
+            Storage.self().metadata().put(MetaDataKey.PK_GW_COMMAND_SENDER, progress);
         });
         return handled ? 1 : 0;
     }

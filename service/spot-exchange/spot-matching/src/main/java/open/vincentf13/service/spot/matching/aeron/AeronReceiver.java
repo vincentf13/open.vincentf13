@@ -42,7 +42,7 @@ public class AeronReceiver extends Worker {
     protected void onStart() {
         subscription = aeron.addSubscription(AeronChannel.INBOUND, AeronChannel.IN_STREAM);
         // 加載處理進度
-        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_COMMAND_RECEIVER);
+        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_CORE_COMMAND_RECEIVER);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -57,17 +57,17 @@ public class AeronReceiver extends Worker {
             // 冪等性檢查
             if (currentSeq <= progress.getLastProcessedSeq()) return;
 
-            // 前 4 字節為系統訊息類型 (MSG_*)
+            // 前 4 字節為系統訊息類型 (MsgType.*)
             int msgType = buffer.getInt(offset);
             long messageAddress = buffer.addressOffset() + offset;
 
             Storage.self().commandQueue().acquireAppender().writeDocument(wire -> {
                 wire.write("msgType").int32(msgType);
-                if (msgType == MSG_AUTH) {
+                if (msgType == MsgType.AUTH) {
                     // 認證訊息：讀取 8 字節 userId
                     long userId = buffer.getLong(offset + 4);
                     wire.write("userId").int64(userId);
-                } else if (msgType == MSG_ORDER_CREATE) {
+                } else if (msgType == MsgType.ORDER_CREATE) {
                     // 交易指令：零拷貝寫入剩餘 Payload
                     pointerBytesStore.set(messageAddress + 4, length - 4);
                     wire.write("payload").bytes(pointerBytesStore);
@@ -77,7 +77,7 @@ public class AeronReceiver extends Worker {
 
             // 更新並持久化進度
             progress.setLastProcessedSeq(currentSeq);
-            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_COMMAND_RECEIVER, progress);
+            Storage.self().metadata().put(MetaDataKey.PK_CORE_COMMAND_RECEIVER, progress);
         };
     }
 

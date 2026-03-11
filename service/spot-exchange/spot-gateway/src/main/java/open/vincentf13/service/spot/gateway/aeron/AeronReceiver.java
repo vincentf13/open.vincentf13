@@ -5,10 +5,10 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.PointerBytesStore;
+import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
-import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -23,7 +23,7 @@ public class AeronReceiver extends Worker {
     private Subscription subscription;
     private FragmentHandler fragmentHandler;
     private final Progress progress = new Progress();
-
+    
     // 零拷貝關鍵：指標型 Bytes 存儲，用於動態映射外部內存位址
     private final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
@@ -42,7 +42,8 @@ public class AeronReceiver extends Worker {
     @Override
     protected void onStart() {
         subscription = aeron.addSubscription(AeronChannel.OUTBOUND, AeronChannel.OUT_STREAM);
-        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_GW_RESULT_RECEIVER);
+        // 加載處理進度：讀取最後一次成功處理並落地到 Result WAL 的 Aeron 位置
+        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_GW_RESULT_RECEIVER);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
 
@@ -59,19 +60,19 @@ public class AeronReceiver extends Worker {
 
             // 計算當前訊息在堆外內存中的絕對物理位址
             long messageAddress = buffer.addressOffset() + offset;
-
+            
             // 零拷貝實現：將指標指向 Aeron Buffer 的堆外地址
             pointerBytesStore.set(messageAddress, length);
-
+            
             // 將數據原子地寫入本地 Result 隊列
             Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {
                 wire.bytes().write(pointerBytesStore);
-                wire.write("aeronSeq").int64(currentSeq);
+                wire.write(ChronicleWireKey.aeronSeq).int64(currentSeq);
             });
 
             // 更新進度
             progress.setLastProcessedSeq(currentSeq);
-            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_GW_RESULT_RECEIVER, progress);
+            Storage.self().metadata().put(MetaDataKey.PK_GW_RESULT_RECEIVER, progress);
         };
     }
 

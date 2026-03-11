@@ -6,17 +6,14 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
-import open.vincentf13.service.spot.infra.util.JsonUtil;
-import open.vincentf13.service.spot.model.OrderRequest;
-import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
-import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.util.JsonUtil;
+import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
+import open.vincentf13.service.spot.sbe.Side;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -33,79 +30,82 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @ChannelHandler.Sharable
 public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    private static final AttributeKey<String> ATTR_USER_ID = AttributeKey.valueOf(Ws.USER_ID);
     private final Map<String, Channel> userChannels = new ConcurrentHashMap<>();
-
-    // --- Zero-GC 資源池 (ThreadLocal 隔離) ---
-    private final ThreadLocal<Bytes<ByteBuffer>> bytesCache = ThreadLocal.withInitial(() -> Bytes.elasticByteBuffer(512));
-    private final ThreadLocal<UnsafeBuffer> bufferCache = ThreadLocal.withInitial(() -> new UnsafeBuffer(0, 0));
-    private final ThreadLocal<OrderCreateEncoder> orderEncoder = ThreadLocal.withInitial(OrderCreateEncoder::new);
-    private final ThreadLocal<OrderRequest> reusableOrderRequest = ThreadLocal.withInitial(OrderRequest::new);
+    
+    // 預分配 SBE 編碼對象與緩衝區 (ThreadLocal 化以確保執行緒安全)
+    private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
+    private final UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1024));
+    private final Bytes<ByteBuffer> bytes = Bytes.elasticByteBuffer(1024);
+    private final byte[] tempArray = new byte[1024];
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
-        String text = frame.text();
-        // 快速判斷 Ping，避開 JSON 解析開銷
-        if (text.contains(Ws.PING)) { ctx.channel().writeAndFlush(new TextWebSocketFrame(Ws.PONG)); return; }
-
-        JsonNode root = JsonUtil.readTree(text);
-        if (root == null) return;
-
-        String op = root.path(Ws.OP).asText("");
-        if (Ws.CREATE.equals(op)) {
-            // 使用重用物件執行 Zero-Allocation 解析
-            OrderRequest req = reusableOrderRequest.get();
-            req.reset();
-            JsonUtil.updateObject(text, req);
-            handleOrderCreate(ctx.channel(), req);
-        } else if (Ws.AUTH.equals(op)) {
-            handleAuth(ctx.channel(), root);
-        }
-    }
-
-    private void handleOrderCreate(Channel channel, OrderRequest req) {
-        OrderRequest.Params p = req.getParams();
-        Bytes<ByteBuffer> bytes = bytesCache.get(); bytes.clear();
-        UnsafeBuffer buffer = bufferCache.get(); buffer.wrap(bytes.addressForWrite(0), (int) bytes.realCapacity());
-        OrderCreateEncoder encoder = orderEncoder.get();
-
-        // 執行二進制協議編碼 (SBE)
-        int len = SbeCodec.encode(buffer, 0, encoder.timestamp(System.currentTimeMillis())
-            .userId(p.getUserId()).symbolId(p.getSymbolId())
-            .price(p.getPrice()).qty(p.getQty())
-            .side(Side.get((short) p.getSide())).clientOrderId(req.getCid()));
-
-        bytes.writePosition(len);
+        JsonNode root = JsonUtil.parse(frame.text());
+        String op = root.get(Ws.OP).asText();
         
-        // 寫入本地隊列 WAL，供 Aeron 發送器異步讀取
-        Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(ChronicleWireKey.msgType).int32(encoder.sbeTemplateId());
-            wire.write(ChronicleWireKey.payload).bytes(bytes);
-        });
+        if (Ws.PING.equals(op)) ctx.writeAndFlush(new TextWebSocketFrame(Ws.PONG));
+        else if (Ws.AUTH.equals(op)) handleAuth(ctx, root);
+        else if (Ws.CREATE.equals(op)) handleOrderCreate(ctx, root);
     }
 
-    private void handleAuth(Channel channel, JsonNode root) {
-        long userId = root.path(Ws.ARGS).path(Ws.USER_ID).asLong(0);
-        if (userId == 0) return;
-
-        String uidStr = String.valueOf(userId);
-        userChannels.put(uidStr, channel);
-        channel.attr(ATTR_USER_ID).set(uidStr); // 在 Channel 上貼標籤，實現 $O(1)$ 的斷線清理
-
+    /** 
+      處理認證指令 (auth)
+      邏輯：將 userId 與 Channel 綁定，並寫入本地指令隊列
+     */
+    private void handleAuth(ChannelHandlerContext ctx, JsonNode root) {
+        long userId = root.get(Ws.ARGS).get(0).get(Ws.USER_ID).asLong();
+        userChannels.put(String.valueOf(userId), ctx.channel());
+        
+        // 寫入本地隊列：認證訊息 [msgType][userId]
         Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(ChronicleWireKey.msgType).int32(MSG_AUTH);
+            wire.write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
             wire.write(ChronicleWireKey.userId).int64(userId);
         });
     }
 
+    /** 
+      處理下單指令 (order.create)
+      邏輯：JSON -> SBE 二進位 -> 寫入本地隊切
+     */
+    private void handleOrderCreate(ChannelHandlerContext ctx, JsonNode root) {
+        JsonNode args = root.get(Ws.ARGS).get(0);
+        
+        // 使用 SbeEncoder 進行二進位編碼
+        buffer.setMemory(0, buffer.capacity(), (byte) 0);
+        createEncoder.wrap(buffer, 0)
+                .timestamp(System.currentTimeMillis())
+                .userId(args.get(Ws.USER_ID).asLong())
+                .symbolId(args.get(Ws.SYMBOL_ID).asInt())
+                .price(args.get(Ws.PRICE).asLong())
+                .qty(args.get(Ws.QTY).asLong())
+                .side(Side.valueOf(args.get(Ws.SIDE).asText().toUpperCase()))
+                .clientOrderId(root.get(Ws.CID).asText());
+
+        int len = createEncoder.encodedLength();
+        buffer.getBytes(0, tempArray, 0, len);
+        bytes.clear();
+        bytes.write(tempArray, 0, len);
+        
+        Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
+            wire.write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
+            wire.write(ChronicleWireKey.payload).bytes(bytes);
+        });
+    }
+
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        String uid = ctx.channel().attr(ATTR_USER_ID).get();
-        if (uid != null) {
-            userChannels.remove(uid);
-            log.debug("User {} disconnected", uid);
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        log.error("WebSocket 異常: {}", cause.getMessage());
+        ctx.close();
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+        userChannels.values().remove(ctx.channel());
+        try {
+            super.channelInactive(ctx);
+        } catch (Exception e) {
+            log.error("Channel Inactive Error: {}", e.getMessage());
         }
-        super.channelInactive(ctx);
     }
 
     public void sendMessage(String userId, String json) {

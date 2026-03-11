@@ -5,12 +5,12 @@ import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import org.agrona.concurrent.UnsafeBuffer;
-import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -41,7 +41,7 @@ public class AeronSender extends Worker {
     protected void onStart() {
         publication = aeron.addPublication(AeronChannel.OUTBOUND, AeronChannel.OUT_STREAM);
         tailer = Storage.self().resultQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaData.PK_CORE_RESULT_SENDER);
+        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_CORE_RESULT_SENDER);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -58,10 +58,10 @@ public class AeronSender extends Worker {
     protected int doWork() {
         boolean handled = tailer.readDocument(wire -> {
             long seq = tailer.index();
-            int msgType = wire.read("msgType").int32();
+            int msgType = wire.read(ChronicleWireKey.msgType).int32();
             
             // 從 Result Queue 讀取二進制 Payload 並零拷貝發送
-            wire.read("payload").bytes(payload -> {
+            wire.read(ChronicleWireKey.payload).bytes(payload -> {
                 int payloadLength = (int) payload.readRemaining();
                 // 使用 infra 提供的零拷貝工具發送 [msgType(4)][Payload(N)]
                 AeronUtil.claimAndSend(publication, bufferClaim, 4 + payloadLength, idleStrategy, running, (buffer, offset) -> {
@@ -73,7 +73,7 @@ public class AeronSender extends Worker {
             });
             
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(ChronicleMapEnum.MetaData.PK_CORE_RESULT_SENDER, progress);
+            Storage.self().metadata().put(MetaDataKey.PK_CORE_RESULT_SENDER, progress);
         });
         return handled ? 1 : 0;
     }

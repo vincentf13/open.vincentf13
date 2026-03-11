@@ -12,6 +12,8 @@ public class JsonUtil {
     private static final ObjectMapper MAPPER = new ObjectMapper()
                                                        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     
+    public static JsonNode parse(String content) { return readTree(content); }
+
     public static JsonNode readTree(String content) {
         try {
             return MAPPER.readTree(content);
