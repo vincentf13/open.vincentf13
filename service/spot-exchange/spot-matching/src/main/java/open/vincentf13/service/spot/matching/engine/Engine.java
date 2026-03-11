@@ -107,7 +107,7 @@ public class Engine extends Worker {
             int msgType = wire.read(ChronicleWireKey.msgType).int32();
             // 讀取 Gateway 原始序號
             long gwSeq = wire.read(ChronicleWireKey.gwSeq).int64();
-            
+             
             if (isReplaying && seq >= tailer.queue().lastIndex()) {
                 isReplaying = false;
                 log.info("重播結束，引擎切換至實時處理模式");
