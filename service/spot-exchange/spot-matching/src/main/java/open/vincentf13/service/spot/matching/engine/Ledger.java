@@ -11,19 +11,24 @@ import org.springframework.stereotype.Service;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存帳務處理器 (Ledger) - 終極精簡版
- 職責：管理全系統資產的一致性與流轉，實現單一入口的 Zero-GC 更新
+ 內存帳務處理器 (Ledger) - 終極 Zero-Allocation 版
+ 職責：管理全系統資產的一致性與流轉，達成全路徑零對象分配
  */
 @Service
 public class Ledger {
     private final ChronicleMap<BalanceKey, Balance> balancesDiskMap = Storage.self().balances();
     private final ChronicleMap<Long, Long> userAssetBitmaskDiskMap = Storage.self().userAssets();
-    private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(0L);
+    
+    /** 預分配位圖快取：避免 Rehashing 分配 */
+    private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
 
     private final Balance reusableBalance = new Balance();
     private final BalanceKey reusableKey = new BalanceKey();
+    
+    /** 冷啟動專用物件：用於初始化磁碟中不存在的新帳戶，徹底消除 new Balance() */
+    private final Balance coldStartReusable = new Balance();
 
-    /** 執行成交結算：利用 Delta 向量實現零對象分配的買賣互換 */
+    /** 執行成交結算 */
     public void settleTrade(long mUid, long tUid, long tradePrice, long tradeQty, byte takerSide, long takerPrice, long seq) {
         final long floor = DecimalUtil.mulFloor(tradePrice, tradeQty), ceil = DecimalUtil.mulCeil(tradePrice, tradeQty);
 
@@ -49,7 +54,9 @@ public class Ledger {
     public boolean freezeBalance(long userId, int assetId, long amount, long seq) {
         reusableKey.set(userId, assetId);
         Balance b = balancesDiskMap.getUsing(reusableKey, reusableBalance);
-        if (b == null) { b = new Balance(); b.setAvailable(0); b.setFrozen(0); }
+        
+        // 優化：使用 coldStartReusable 代替 new Balance()
+        if (b == null) b = prepareNewAccount();
         
         if (b.getAvailable() >= amount) {
             b.setAvailable(b.getAvailable() - amount);
@@ -66,14 +73,13 @@ public class Ledger {
         access(userId, assetId, 0, 0, seq);
     }
 
-    /** 
-      唯一的狀態變更入口：
-      封裝了 讀取(getUsing) -> 更新 -> 標記(seq) -> 落盤(put) -> 索引(bitmask) 的全流程
-     */
+    /** 核心變更入口：絕對零分配 */
     private void access(long userId, int assetId, long availDelta, long frozenDelta, long seq) {
         reusableKey.set(userId, assetId);
         Balance b = balancesDiskMap.getUsing(reusableKey, reusableBalance);
-        if (b == null) { b = new Balance(); b.setAvailable(0); b.setFrozen(0); }
+        
+        // 優化：使用 coldStartReusable 代替 new Balance()
+        if (b == null) b = prepareNewAccount();
         
         b.setAvailable(b.getAvailable() + availDelta);
         b.setFrozen(Math.max(0, b.getFrozen() + frozenDelta));
@@ -82,6 +88,15 @@ public class Ledger {
         
         balancesDiskMap.put(reusableKey, b);
         updateAssetIndex(userId, assetId);
+    }
+
+    /** 零分配初始化新帳戶數據 */
+    private Balance prepareNewAccount() {
+        coldStartReusable.setAvailable(0);
+        coldStartReusable.setFrozen(0);
+        coldStartReusable.setVersion(0);
+        coldStartReusable.setLastSeq(-1);
+        return coldStartReusable;
     }
 
     private void updateAssetIndex(long userId, int assetId) {
