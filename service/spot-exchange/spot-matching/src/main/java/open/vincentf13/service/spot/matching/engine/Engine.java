@@ -6,6 +6,7 @@ import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import net.openhft.chronicle.wire.WireIn;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
@@ -13,16 +14,17 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.*;
 
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎執行緒 (Engine Orchestrator)
- 職責：指令路由、重播管理與全局連續性一致性校驗
+ 職責：指令路由、狀態管理與一致性檢查，實現熱點路徑零物件分配
  */
 @Slf4j
 @Component
-public class Engine extends Worker {
+public class Engine extends Worker implements Consumer<WireIn> {
     private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
 
@@ -77,45 +79,50 @@ public class Engine extends Worker {
 
     @Override
     protected int doWork() {
-        boolean handled = tailer.readDocument(wire -> {
-            long seq = tailer.index();
-            int msgType = wire.read(ChronicleWireKey.msgType).int32();
-            long gwSeq = wire.read(ChronicleWireKey.gwSeq).int64();
-            
-            if (isReplaying && seq >= tailer.queue().lastIndex()) {
-                setReplaying(false);
-                log.info("狀態重播完成，進入實時模式 (gwSeq: {})", gwSeq);
-            }
+        // 優化：直接傳遞 this，消除 readDocument 的 Lambda 分配
+        return tailer.readDocument(this) ? 1 : 0;
+    }
 
-            // --- 全局連續性斷言 ---
-            long lastSeq = progress.getLastProcessedGwSeq();
-            if (lastSeq != -1) {
-                if (gwSeq == lastSeq) return; 
-                if (gwSeq != lastSeq + 1) {
-                    log.error("指令跳號！期望: {}, 實際: {}。", lastSeq + 1, gwSeq);
-                    System.exit(1); 
-                }
-            }
-
-            // --- 業務分發 ---
-            if (msgType == MsgType.AUTH) {
-                authProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
-            } else if (msgType == MsgType.ORDER_CREATE) {
-                // 僅在需要時讀取 Payload，防止 AUTH 指令解析失敗
-                reusableBytes.clear(); 
-                wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
-                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
-                
-                orderProcessor.processCreateCommand(payloadBuffer, gwSeq, this::nextOrderId, this::nextTradeId);
-            }
-
-            progress.setLastProcessedSeq(seq);
-            progress.setLastProcessedGwSeq(gwSeq);
-            metadata.put(MetaDataKey.MACHING_ENGINE_POINT, progress);
-        });
+    /** 
+      指令處理回調：實現熱點路徑 Zero-Allocation 
+     */
+    @Override
+    public void accept(WireIn wire) {
+        final long seq = tailer.index();
+        final int msgType = wire.read(ChronicleWireKey.msgType).int32();
+        final long gwSeq = wire.read(ChronicleWireKey.gwSeq).int64();
         
-        if (!handled && isReplaying) setReplaying(false);
-        return handled ? 1 : 0;
+        // 狀態切換
+        if (isReplaying && seq >= tailer.queue().lastIndex()) {
+            setReplaying(false);
+            log.info("重播完成，切換至實時模式 (gwSeq: {})", gwSeq);
+        }
+
+        // 連續性斷言
+        final long lastSeq = progress.getLastProcessedGwSeq();
+        if (lastSeq != -1) {
+            if (gwSeq == lastSeq) return; 
+            if (gwSeq != lastSeq + 1) {
+                log.error("指令跳號！期望: {}, 實際: {}。", lastSeq + 1, gwSeq);
+                System.exit(1); 
+            }
+        }
+
+        // 路由分發
+        if (msgType == MsgType.AUTH) {
+            authProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
+        } else if (msgType == MsgType.ORDER_CREATE) {
+            reusableBytes.clear(); 
+            wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
+            payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
+            
+            orderProcessor.processCreateCommand(payloadBuffer, gwSeq, this::nextOrderId, this::nextTradeId);
+        }
+
+        // 進度存檔
+        progress.setLastProcessedSeq(seq);
+        progress.setLastProcessedGwSeq(gwSeq);
+        metadata.put(MetaDataKey.MACHING_ENGINE_POINT, progress);
     }
 
     private long nextOrderId() {

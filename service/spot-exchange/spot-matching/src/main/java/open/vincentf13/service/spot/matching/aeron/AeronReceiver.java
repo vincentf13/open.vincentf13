@@ -19,8 +19,8 @@ import net.openhft.chronicle.wire.DocumentContext;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- Matching Core Aeron 接收器 (災難恢復增強版)
- 職責：監聽來自 Gateway 的指令數據，並透過事務方式落地 WAL
+ Matching Core Aeron 接收器
+ 職責：監聽網路指令並透過事務寫入落地 WAL，達成零物件分配
  */
 @Component
 public class AeronReceiver extends Worker {
@@ -58,10 +58,9 @@ public class AeronReceiver extends Worker {
 
     @Override
     protected int doWork() {
-        // --- 核心一致性防線：活性檢查 ---
         if (currentState == AeronState.SENDING && !subscription.isConnected()) {
             currentState = AeronState.WAITING;
-            log.warn("檢測到發送端 (Gateway) 斷開，回退至握手探測模式...");
+            log.warn("檢測到發送端斷開，回退至握手模式...");
         }
 
         if (currentState == AeronState.WAITING) {
@@ -82,18 +81,19 @@ public class AeronReceiver extends Worker {
     }
 
     private final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
-        int msgType = buffer.getInt(offset);
-        long gwSeq = buffer.getLong(offset + 4);
+        final int msgType = buffer.getInt(offset);
+        final long gwSeq = buffer.getLong(offset + 4);
         
         if (currentState == AeronState.WAITING && gwSeq > progress.getLastProcessedSeq()) {
             currentState = AeronState.SENDING;
-            log.info("已與發送端 (Gateway) 對齊進度，握手成功");
+            log.info("已與發送端對齊進度，握手成功");
         }
 
         if (gwSeq <= progress.getLastProcessedSeq()) return;
 
-        long messageAddress = buffer.addressOffset() + offset;
+        final long messageAddress = buffer.addressOffset() + offset;
         
+        // 事務寫入：消除 Lambda
         try (DocumentContext dc = gwToMatchingWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
             dc.wire().write(ChronicleWireKey.gwSeq).int64(gwSeq);

@@ -9,22 +9,24 @@ import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import net.openhft.chronicle.wire.WireIn;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 
+import java.nio.ByteBuffer;
+import java.util.function.Consumer;
+
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- Matching Core Aeron 發送器 (災難恢復增強版)
- 職責：讀取核心回報流 (Matching -> Gateway) 並發送至 Gateway
- 最佳化：移除本地 Progress 持久化，由接收端透過反向握手決定發送起點
+ Matching Core Aeron 發送器
+ 職責：讀取回報流並發送至 Gateway，實現熱點路徑零物件分配
  */
 @Component
-public class AeronSender extends Worker {
-    // 依賴的具體存儲結構 (反映 Matching -> Gateway 流向)
+public class AeronSender extends Worker implements Consumer<WireIn> {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
 
     private final Aeron aeron;
@@ -33,70 +35,75 @@ public class AeronSender extends Worker {
     private ExcerptTailer tailer;
     private final BufferClaim bufferClaim = new BufferClaim();
     private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
+    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
     private AeronState currentState = AeronState.WAITING;
+
+    // 暫存發送上下文，消除 Lambda 捕獲
+    private int ctxMsgType;
+    private long ctxMatchingSeq;
 
     public AeronSender(Aeron aeron) {
         this.aeron = aeron;
     }
 
-    /** 初始化並啟動工作執行緒 */
     @PostConstruct public void init() { start("core-result-sender"); }
 
     @Override
     protected void onStart() {
-        // 1. 數據發送通道 (發送至 Gateway)
         publication = aeron.addPublication(AeronChannel.GATEWAY_URL, AeronChannel.DATA_STREAM_ID);
-        // 2. 控制訊號監聽通道 (監聽來自 Gateway 的進度回報)
         controlSubscription = aeron.addSubscription(AeronChannel.MATCHING_URL, AeronChannel.CONTROL_STREAM_ID);
-        
         tailer = matchingToGwWal.createTailer();
         currentState = AeronState.WAITING;
-        log.info("AeronSender (Core) 啟動成功，進入靜默等待狀態...");
+        log.info("AeronSender (Core) 啟動成功...");
     }
 
     @Override
     protected int doWork() {
-        // 1. 活性檢查
         if (currentState == AeronState.SENDING && !publication.isConnected()) {
             currentState = AeronState.WAITING;
-            log.warn("檢測到接收端 (Gateway) 連線中斷，回退至靜默等待模式...");
+            log.warn("檢測到 Gateway 斷開，回退至靜默等待模式...");
         }
 
-        // 2. 監聽握手訊號
         int workDone = 0;
         if (currentState == AeronState.WAITING) {
             workDone = controlSubscription.poll(resumeHandler, 1);
         }
 
-        // 3. 僅在 SENDING 狀態下執行數據發送
         if (currentState == AeronState.SENDING) {
-            boolean handled = tailer.readDocument(wire -> {
-                long seq = tailer.index();
-                int msgType = wire.read(ChronicleWireKey.msgType).int32();
-                // 提取核心本地生成的 matchingSeq (若有則傳遞，否則使用 seq)
-                long mSeq = wire.read(ChronicleWireKey.matchingSeq).int64();
-                final long finalMatchingSeq = (mSeq == 0) ? seq : mSeq;
-                
-                wire.read(ChronicleWireKey.payload).bytes(payload -> {
-                    int payloadLength = (int) payload.readRemaining();
-                    AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
-                        buffer.putInt(offset, msgType);
-                        buffer.putLong(offset + 4, finalMatchingSeq); // 傳遞核心原始序號
-                        payloadWrapBuffer.wrap(payload.addressForRead(payload.readPosition()), payloadLength);
-                        buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
-                    });
-                });
-            });
-            if (handled) workDone++;
+            // 優化：直接傳遞 this 作為 Consumer，消除 Lambda 分配
+            if (tailer.readDocument(this)) workDone++;
         }
         
         return workDone;
     }
 
+    /** 
+      指令讀取回調：消除每條訊息的 Lambda 分配
+     */
+    @Override
+    public void accept(WireIn wire) {
+        this.ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
+        long mSeq = wire.read(ChronicleWireKey.matchingSeq).int64();
+        this.ctxMatchingSeq = (mSeq == 0) ? tailer.index() : mSeq;
+        
+        // 提取 Payload：配合內部預分配的 reusableBytes
+        reusableBytes.clear();
+        wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
+        
+        final int payloadLength = (int) reusableBytes.readRemaining();
+        
+        // 發送：AeronUtil 內部仍有 Lambda，但 JIT 通常能對 BiConsumer 進行完美內聯
+        AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+            buffer.putInt(offset, ctxMsgType);
+            buffer.putLong(offset + 4, ctxMatchingSeq);
+            payloadWrapBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), payloadLength);
+            buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
+        });
+    }
+
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
-        int msgType = buffer.getInt(offset);
-        if (msgType == MsgType.RESUME) {
+        if (buffer.getInt(offset) == MsgType.RESUME) {
             long lastProcessedIndex = buffer.getLong(offset + 4);
             log.info("收到 Gateway 握手訊號，執行跳轉至: {}", lastProcessedIndex);
             if (lastProcessedIndex == -1) tailer.toStart();
@@ -109,5 +116,6 @@ public class AeronSender extends Worker {
     protected void onStop() { 
         if (publication != null) publication.close();
         if (controlSubscription != null) controlSubscription.close();
+        reusableBytes.releaseLast();
     }
 }
