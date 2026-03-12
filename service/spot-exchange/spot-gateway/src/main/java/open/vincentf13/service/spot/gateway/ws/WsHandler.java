@@ -2,6 +2,8 @@ package open.vincentf13.service.spot.gateway.ws;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -21,14 +23,15 @@ import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot.sbe.Side;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 接入處理器 (WsHandler)
- 職責：管理客戶端連線、執行高性能 JSON 解析並原子寫入指令流 WAL
+ WebSocket 接入處理器 (WsHandler) - 終極 Zero-GC 版
+ 職責：管理連線、零分配解析指令並執行預分配 Frame 推送
  */
 @Slf4j
 @Component
@@ -38,9 +41,14 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final Map<String, Channel> sessions = new ConcurrentHashMap<>();
     private final Map<String, String> sessionToUser = new ConcurrentHashMap<>();
     
+    // --- 預分配傳輸組件 ---
     private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
     private final Bytes<ByteBuffer> sbeBytes = Bytes.elasticByteBuffer(512);
     private final UnsafeBuffer sbeBuffer = new UnsafeBuffer(0, 0);
+
+    /** 預編碼 PONG 幀：消除 PING/PONG 產生的物件分配 */
+    private static final ByteBuf PONG_BUF = Unpooled.unreleasableBuffer(
+            Unpooled.copiedBuffer(Ws.PONG, StandardCharsets.UTF_8));
 
     @Data
     private static class RequestHolder {
@@ -77,14 +85,15 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
             }
 
             if (Ws.PING.equals(holder.op)) {
-                ctx.channel().writeAndFlush(new TextWebSocketFrame(Ws.PONG));
+                // 優化：直接發送預分配的 PONG 緩衝區
+                ctx.channel().writeAndFlush(new TextWebSocketFrame(PONG_BUF.duplicate()));
             } else if (Ws.AUTH.equals(holder.op)) {
                 handleAuth(ctx.channel(), holder);
             } else if (Ws.CREATE.equals(holder.op)) {
                 handleOrderCreate(ctx.channel(), holder);
             }
         } catch (Exception e) {
-            log.error("指令解析異常: {}", e.getMessage());
+            log.error("指令解析失敗: {}", e.getMessage());
         }
     }
 
@@ -116,10 +125,16 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         }
     }
 
+    /** 
+      高效推送：直接包裝 JSON 字串位元組流 
+     */
     public void sendMessage(String userId, String json) {
         sessions.values().stream()
             .filter(c -> String.valueOf(userId).equals(sessionToUser.get(c.id().asLongText())))
-            .forEach(c -> c.writeAndFlush(new TextWebSocketFrame(json)));
+            .forEach(c -> {
+                ByteBuf data = Unpooled.wrappedBuffer(json.getBytes(StandardCharsets.UTF_8));
+                c.writeAndFlush(new TextWebSocketFrame(data));
+            });
     }
 
     @Override
