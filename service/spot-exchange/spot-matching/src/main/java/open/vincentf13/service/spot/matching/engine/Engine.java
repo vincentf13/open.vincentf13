@@ -18,29 +18,29 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎執行緒 (Engine Orchestrator)
- 職責：作為系統的編排者與路由器，負責指令讀取、狀態恢復切換與全局序號管理
+ 職責：指令隊列路由、重播模式管理、全局 Sequence 斷言
  */
 @Slf4j
 @Component
 public class Engine extends Worker {
-    // 依賴的具體存儲結構 (僅限於路由與進度管理)
     private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
 
     private final OrderProcessor orderProcessor;
     private final SystemProcessor systemProcessor;
+    private final ExecutionReporter reporter;
     
     private final Progress progress = new Progress();
     private ExcerptTailer tailer;
     private boolean isReplaying = false;
 
-    // 預分配讀取緩衝區
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
 
-    public Engine(OrderProcessor orderProcessor, SystemProcessor systemProcessor) {
+    public Engine(OrderProcessor orderProcessor, SystemProcessor systemProcessor, ExecutionReporter reporter) {
         this.orderProcessor = orderProcessor;
         this.systemProcessor = systemProcessor;
+        this.reporter = reporter;
     }
 
     @PostConstruct public void init() { start("core-matching-engine"); }
@@ -49,7 +49,6 @@ public class Engine extends Worker {
     protected void onStart() {
         this.tailer = gwToMatchingWal.createTailer();
         
-        // 1. 加載全局進度
         Progress saved = metadata.get(MetaDataKey.MACHING_ENGINE_POINT);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
@@ -60,14 +59,14 @@ public class Engine extends Worker {
             progress.setOrderIdCounter(1); progress.setTradeIdCounter(1);
         }
 
-        // 2. 驅動 Processor 恢復內部索引 (下沉邏輯執行)
+        // 下沉職責：驅動 Processor 重建內存狀態
         orderProcessor.rebuildState();
 
-        // 3. 判斷重播範圍
         if (progress.getLastProcessedSeq() > 0) {
             isReplaying = true; 
             tailer.moveToIndex(progress.getLastProcessedSeq());
-            log.info("啟動重播恢復模式，起始位點: {}", progress.getLastProcessedSeq());
+            log.info("引擎進入恢復模式 [Tailer Index: {}, Last GwSeq: {}]", 
+                    progress.getLastProcessedSeq(), progress.getLastProcessedGwSeq());
         }
     }
 
@@ -80,34 +79,33 @@ public class Engine extends Worker {
             
             if (isReplaying && seq >= tailer.queue().lastIndex()) {
                 isReplaying = false;
-                log.info("狀態重播結束，進入實時模式 (gwSeq: {})", gwSeq);
+                log.info("重播恢復完成，切換至實時處理模式 [gwSeq: {}]", gwSeq);
             }
 
-            // --- 全局連續性斷言 (線性一致性防線) ---
+            // --- 全局連續性斷言 (Sequence Continuity Assertion) ---
             long lastSeq = progress.getLastProcessedGwSeq();
             if (lastSeq != -1) {
-                if (gwSeq == lastSeq) return; 
+                if (gwSeq == lastSeq) return; // 冪等丟棄
                 if (gwSeq != lastSeq + 1) {
-                    log.error("致命錯誤：指令序號跳號！期望: {}, 實際: {}。", lastSeq + 1, gwSeq);
+                    log.error("致命錯誤：發現指令流空洞！期望: {}, 實際: {}。系統停機防禦。", lastSeq + 1, gwSeq);
                     System.exit(1); 
                 }
             }
 
-            // 零拷貝提取 Payload
+            // 零拷貝 Payload 準備
             reusableBytes.clear(); 
             wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
             payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
 
-            // --- 業務路由 ---
+            // --- 路由分發 ---
             if (msgType == MsgType.AUTH) {
                 systemProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq, isReplaying);
             } else if (msgType == MsgType.ORDER_CREATE) {
-                // 完全下沉：由 Processor 負責解碼與冪等檢查
                 orderProcessor.processCreateCommand(payloadBuffer, gwSeq, isReplaying, 
                     this::nextOrderId, this::nextTradeId);
             }
 
-            // --- 狀態更新與保存 ---
+            // --- 狀態落盤 ---
             progress.setLastProcessedSeq(seq);
             progress.setLastProcessedGwSeq(gwSeq);
             metadata.put(MetaDataKey.MACHING_ENGINE_POINT, progress);
@@ -131,5 +129,6 @@ public class Engine extends Worker {
 
     @Override protected void onStop() { 
         reusableBytes.releaseLast(); 
+        if (reporter != null) reporter.close();
     }
 }
