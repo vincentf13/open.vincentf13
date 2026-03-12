@@ -17,21 +17,20 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  訂單處理核心 (Order Processor)
- 職責：領域編排者，協調訂單簿、帳務與回報發送
+ 職責：領域編排者，協調自持物件池的 OrderBook 與帳務系統
  */
 @Slf4j
 @Component
 public class OrderProcessor {
-    /** 僅保留全局冪等性索引，其餘數據管理下沉至 OrderBook */
+    private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
-    
-    /** Symbol 訂單簿映射：管理各交易對的狀態機實例 */
     private final Int2ObjectHashMap<OrderBook> symbolOrderBookMap = new Int2ObjectHashMap<>();
     
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
+    private final Order reusableOrder = new Order();
     private final CidKey reusableCidKey = new CidKey();
     private final byte[] tempCidBytes = new byte[32];
 
@@ -40,9 +39,6 @@ public class OrderProcessor {
         this.reporter = reporter;
     }
 
-    /** 
-      重建狀態：委派至 OrderBook 靜態引導方法執行全局恢復
-     */
     public void rebuildState() {
         log.info("OrderProcessor 正在恢復領域模型狀態...");
         OrderBook.rebuildAll(this::getOrAddBook);
@@ -68,20 +64,23 @@ public class OrderProcessor {
             return;
         }
 
-        Order taker = new Order();
+        // --- 零分配關鍵：從對應交易對的物件池借用 Order 實體 ---
+        OrderBook book = getOrAddBook((int)sbe.symbolId());
+        Order taker = book.borrowOrder();
+        
+        // 數據填充
         taker.setOrderId(orderId); taker.setClientOrderId(sbe.clientOrderId()); taker.setUserId(sbe.userId());
         taker.setSymbolId((int)sbe.symbolId()); taker.setPrice(sbe.price()); taker.setQty(sbe.qty());
         taker.setSide((byte)(isBuy ? 0 : 1)); taker.setStatus((byte)0);
         taker.setVersion(1); taker.setLastSeq(gwSeq);
 
-        // 執行撮合：由 OrderBook 自主處理 Maker 持久化與狀態更新
-        OrderBook book = getOrAddBook(taker.getSymbolId());
+        // 執行撮合 (內部自動處理歸還)
         book.match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, (maker, p, q) -> {
             processTradeLedger(maker.getUserId(), taker.getUserId(), p, q, taker, gwSeq);
             reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", OrderStatus.PARTIALLY_FILLED, p, q, 0, 0, sbe.timestamp());
         });
 
-        // Taker 持久化：同樣委派給所屬交易對的 Book 執行
+        // Taker 結案同步
         book.syncOrder(taker, gwSeq);
         
         reporter.sendReport(taker.getUserId(), orderId, taker.getClientOrderId(), 
