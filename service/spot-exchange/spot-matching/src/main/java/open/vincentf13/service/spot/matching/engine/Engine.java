@@ -7,10 +7,8 @@ import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.*;
-import open.vincentf13.service.spot.sbe.*;
 
 import java.nio.ByteBuffer;
 
@@ -18,7 +16,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎執行緒 (Engine Orchestrator)
- 職責：作為系統的編排者，負責指令讀取、狀態管理與邏輯分發
+ 職責：作為系統的核心驅動者，執行指令隊列輪詢、狀態恢復與業務路由
  */
 @Slf4j
 @Component
@@ -31,7 +29,6 @@ public class Engine extends Worker {
     private ExcerptTailer tailer;
     private boolean isReplaying = false;
 
-    // 預分配讀取緩衝區
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
 
@@ -66,7 +63,7 @@ public class Engine extends Worker {
         if (progress.getLastProcessedSeq() > 0) {
             isReplaying = true; 
             tailer.moveToIndex(progress.getLastProcessedSeq());
-            log.info("引擎進入重播模式，起始位點: {}", progress.getLastProcessedSeq());
+            log.info("啟動重播恢復模式，起始位點: {}", progress.getLastProcessedSeq());
         }
     }
 
@@ -77,25 +74,26 @@ public class Engine extends Worker {
             int msgType = wire.read(ChronicleWireKey.msgType).int32();
             long gwSeq = wire.read(ChronicleWireKey.gwSeq).int64();
             
+            // 判定重播是否結束
             if (isReplaying && seq >= tailer.queue().lastIndex()) {
                 isReplaying = false;
-                log.info("重播結束，切換至實時模式");
+                log.info("狀態恢復完成，進入實時處理模式 (gwSeq: {})", gwSeq);
             }
 
-            // 提取二進位 Payload 位址
+            // 零拷貝提取數據地址並包裹
             reusableBytes.clear(); 
             wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
             payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
 
-            // --- 指令分發 (Router) ---
+            // --- 業務指令分發 ---
             if (msgType == MsgType.AUTH) {
-                // AUTH 指令直接提取 userId
                 systemProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq, isReplaying);
             } else if (msgType == MsgType.ORDER_CREATE) {
-                dispatchOrderCreate(gwSeq);
+                orderProcessor.processCreateCommand(payloadBuffer, gwSeq, isReplaying, 
+                    this::nextOrderId, this::nextTradeId);
             }
 
-            // 更新與保存進度
+            // --- 進度更新與持久化 ---
             progress.setLastProcessedSeq(seq);
             Storage.self().metadata().put(MetaDataKey.MACHING_ENGINE_POINT, progress);
         });
@@ -104,32 +102,16 @@ public class Engine extends Worker {
         return handled ? 1 : 0;
     }
 
-    /** 訂單指令分發與冪等校驗 */
-    private void dispatchOrderCreate(long gwSeq) {
-        SbeCodec.decode(payloadBuffer, 0, createDecoder);
-        String cid = createDecoder.clientOrderId();
-        CidKey key = new CidKey(createDecoder.userId(), cid);
-        
-        Long resId = Storage.self().cids().get(key);
-        if (resId != null) {
-            if (!isReplaying) {
-                Order o = Storage.self().orders().get(resId);
-                if (o != null) reporter.resendReport(o, gwSeq);
-            }
-            return;
-        }
-        
-        long orderId = progress.getOrderIdCounter(); 
-        progress.setOrderIdCounter(orderId + 1);
-        
-        // 委派交易業務，傳遞確定性 tradeId 生成器
-        orderProcessor.handleOrderCreate(createDecoder, gwSeq, orderId, cid, isReplaying, () -> {
-            long tid = progress.getTradeIdCounter();
-            progress.setTradeIdCounter(tid + 1);
-            return tid;
-        });
-        
-        Storage.self().cids().put(key, orderId);
+    private long nextOrderId() {
+        long id = progress.getOrderIdCounter();
+        progress.setOrderIdCounter(id + 1);
+        return id;
+    }
+
+    private long nextTradeId() {
+        long id = progress.getTradeIdCounter();
+        progress.setTradeIdCounter(id + 1);
+        return id;
     }
 
     @Override protected void onStop() { 

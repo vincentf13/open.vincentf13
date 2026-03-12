@@ -7,7 +7,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  系統指令處理器 (System Processor)
- 職責：處理與交易撮合無關的系統級指令，如身份認證、資產初始化等
+ 職責：處理身份認證、資產初始化等非交易撮合指令
  */
 @Slf4j
 @Component
@@ -21,15 +21,15 @@ public class SystemProcessor {
     }
 
     /** 
-      處理用戶認證
-      邏輯：初始化用戶資產表並回傳成功訊號
+      處理用戶認證 
+      邏輯：初始化核心帳戶，並在 Result WAL 記錄成功訊號
      */
     public void handleAuth(long userId, long gwSeq, boolean isReplaying) {
-        // 初始化基本資產帳戶 (BTC/USDT)
+        // 1. 初始化交易對所需的基礎資產帳戶 (BTC/USDT)
         ledger.initBalance(userId, Asset.BTC, gwSeq); 
         ledger.initBalance(userId, Asset.USDT, gwSeq);
         
-        // 發送認證成功回報
+        // 2. 發送認證成功回報 (外部可見性)
         reporter.sendAuthSuccess(userId, gwSeq, isReplaying);
         
         if (!isReplaying) {
