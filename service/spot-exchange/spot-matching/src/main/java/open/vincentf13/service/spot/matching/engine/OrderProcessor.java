@@ -41,7 +41,7 @@ public class OrderProcessor {
 
     public void rebuildState() {
         log.info("OrderProcessor 正在恢復領域模型狀態...");
-        OrderBook.rebuildAll(this::getOrAddBook);
+        OrderBook.rebuildAll(symbolId -> symbolOrderBookMap.computeIfAbsent(symbolId, id -> new OrderBook(id)));
     }
 
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
@@ -64,14 +64,16 @@ public class OrderProcessor {
             return;
         }
 
-        // 2. 領域處理：Admission -> 撮合 -> 結案同步 一口氣完成
-        OrderBook book = getOrAddBook((int) sbe.symbolId());
+        // 2. 領域處理：Admission -> 撮合 -> 結案同步
+        OrderBook book = symbolOrderBookMap.computeIfAbsent((int) sbe.symbolId(), id -> new OrderBook(id));
         Order taker = book.processTaker(orderId, sbe, gwSeq, tradeIdSupplier, (maker, p, q) -> {
-            processTradeLedger(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
+            // 3. 執行帳務結算 (已下沉至 Ledger)
+            ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
+            // 4. 處理 Maker 回報
             reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", OrderStatus.PARTIALLY_FILLED, p, q, 0, 0, sbe.timestamp());
         });
 
-        // 3. 最終回報與發送
+        // 5. 處理 Taker 最終回報
         reporter.sendReport(taker.getUserId(), orderId, taker.getClientOrderId(), 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, sbe.timestamp());
@@ -81,20 +83,5 @@ public class OrderProcessor {
 
         if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
-
-    private void processTradeLedger(long makerUid, long takerUid, long price, long qty, byte takerSide, long takerPrice, long seq) {
-        long floor = DecimalUtil.mulFloor(price, qty), ceil = DecimalUtil.mulCeil(price, qty);
-        if (takerSide == 0) { // Taker BUY
-            ledger.tradeSettleWithRefund(takerUid, Asset.USDT, ceil, DecimalUtil.mulCeil(takerPrice, qty), Asset.BTC, qty, seq);
-            ledger.tradeSettle(makerUid, Asset.BTC, qty, Asset.USDT, floor, seq);
-        } else { // Taker SELL
-            ledger.tradeSettle(takerUid, Asset.BTC, qty, Asset.USDT, floor, seq);
-            ledger.tradeSettle(makerUid, Asset.USDT, ceil, Asset.BTC, qty, seq);
-        }
-        if (ceil > floor) ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, seq, ceil - floor);
-    }
-
-    private OrderBook getOrAddBook(int symbolId) {
-        return symbolOrderBookMap.computeIfAbsent(symbolId, id -> new OrderBook(id));
-    }
+    
 }
