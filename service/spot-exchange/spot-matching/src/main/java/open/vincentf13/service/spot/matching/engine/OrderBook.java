@@ -8,7 +8,6 @@ import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Long2ObjectHashMap;
 import java.util.*;
-import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 /** 
@@ -41,24 +40,29 @@ public class OrderBook {
     }
 
     /** 
-      處理 Taker 指令門面
-      封裝了 Admission -> 撮合 -> Taker 結案持久化 的完整生命週期
+      恢復訂單：從磁碟恢復掛單狀態
+      注意：恢復時需 new 一個新對象，因為這些對象將長期駐留在內存中，不屬於物件池
      */
-    public Order processTaker(long orderId, OrderCreateDecoder sbe, long gwSeq, 
-                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        // 1. Admission (借用並填充)
-        Order taker = borrowAndFill(orderId, sbe, gwSeq);
+    public void recoverOrder(Order o) {
+        if (o == null || o.getStatus() >= 2) return;
         
-        // 2. 執行撮合與 Maker 處理
-        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
+        // 建立獨立的內存實體
+        Order recovered = new Order();
+        copyOrder(o, recovered);
         
-        // 3. Taker 結案同步 (下沉邏輯)
-        syncOrder(taker, gwSeq);
-        
-        return taker;
+        add(recovered);
     }
 
-    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long gwSeq) {
+    private void copyOrder(Order src, Order dst) {
+        dst.setOrderId(src.getOrderId()); dst.setUserId(src.getUserId());
+        dst.setSymbolId(src.getSymbolId()); dst.setPrice(src.getPrice());
+        dst.setQty(src.getQty()); dst.setFilled(src.getFilled());
+        dst.setSide(src.getSide()); dst.setStatus(src.getStatus());
+        dst.setVersion(src.getVersion()); dst.setLastSeq(src.getLastSeq());
+        dst.setClientOrderId(src.getClientOrderId());
+    }
+
+    public Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long gwSeq) {
         Order o = orderPool.pollFirst();
         if (o == null) o = new Order();
         o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
@@ -71,11 +75,12 @@ public class OrderBook {
 
     public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
-    public static void rebuildAll(IntFunction<OrderBook> bookFinder) {
-        Storage.self().activeOrders().forEach((id, active) -> {
-            Order o = Storage.self().orders().getUsing(id, new Order());
-            if (o != null && o.getStatus() < 2) bookFinder.apply(o.getSymbolId()).add(o);
-        });
+    public Order processTaker(long orderId, OrderCreateDecoder sbe, long gwSeq, 
+                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
+        Order taker = borrowAndFill(orderId, sbe, gwSeq);
+        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
+        syncOrder(taker, gwSeq);
+        return taker;
     }
 
     private void match(Order taker, long gwSeq, long timestamp, Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
@@ -107,7 +112,6 @@ public class OrderBook {
 
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
-                
                 finalizer.onMatch(maker, bestPrice, matchQty);
 
                 if (maker.getFilled() == maker.getQty()) {

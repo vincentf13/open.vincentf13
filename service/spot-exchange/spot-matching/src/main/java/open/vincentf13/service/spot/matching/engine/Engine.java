@@ -18,7 +18,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎執行緒 (Engine Orchestrator)
- 職責：作為系統唯一的狀態機驅動者，負責指令路由、全局 Sequence 連貫性檢查與重播管理
+ 職責：指令路由、重播管理與全局連續性一致性校驗
  */
 @Slf4j
 @Component
@@ -84,25 +84,28 @@ public class Engine extends Worker {
             
             if (isReplaying && seq >= tailer.queue().lastIndex()) {
                 setReplaying(false);
-                log.info("狀態重播完成，切換至實時模式 (gwSeq: {})", gwSeq);
+                log.info("狀態重播完成，進入實時模式 (gwSeq: {})", gwSeq);
             }
 
+            // --- 全局連續性斷言 ---
             long lastSeq = progress.getLastProcessedGwSeq();
             if (lastSeq != -1) {
                 if (gwSeq == lastSeq) return; 
                 if (gwSeq != lastSeq + 1) {
-                    log.error("指令跳號！期望: {}, 實際: {}。觸發安全停機。", lastSeq + 1, gwSeq);
+                    log.error("指令跳號！期望: {}, 實際: {}。", lastSeq + 1, gwSeq);
                     System.exit(1); 
                 }
             }
 
-            reusableBytes.clear(); 
-            wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
-            payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
-
+            // --- 業務分發 ---
             if (msgType == MsgType.AUTH) {
                 authProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
             } else if (msgType == MsgType.ORDER_CREATE) {
+                // 僅在需要時讀取 Payload，防止 AUTH 指令解析失敗
+                reusableBytes.clear(); 
+                wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
+                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
+                
                 orderProcessor.processCreateCommand(payloadBuffer, gwSeq, this::nextOrderId, this::nextTradeId);
             }
 

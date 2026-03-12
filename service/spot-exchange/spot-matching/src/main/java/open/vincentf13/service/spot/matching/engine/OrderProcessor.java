@@ -17,13 +17,14 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  訂單處理核心 (Order Processor)
- 職責：作為領域編排者，協調訂單簿狀態機與外部系統 (Ledger/Reporter)
+ 職責：領域編排者，協調訂單簿、帳務與回報發送
  */
 @Slf4j
 @Component
 public class OrderProcessor {
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
+    private final ChronicleMap<Long, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
@@ -39,9 +40,18 @@ public class OrderProcessor {
         this.reporter = reporter;
     }
 
+    /** 
+      重建狀態：使用局部復用對象達成 Zero-GC 恢復
+     */
     public void rebuildState() {
         log.info("OrderProcessor 正在恢復領域模型狀態...");
-        OrderBook.rebuildAll(symbolId -> symbolOrderBookMap.computeIfAbsent(symbolId, id -> new OrderBook(id)));
+        Order localReusable = new Order();
+        activeOrderIdDiskMap.forEach((id, active) -> {
+            Order o = allOrdersDiskMap.getUsing(id, localReusable); 
+            if (o != null) {
+                symbolOrderBookMap.computeIfAbsent(o.getSymbolId(), id1 -> new OrderBook(id1)).recoverOrder(o);
+            }
+        });
     }
 
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
@@ -57,23 +67,20 @@ public class OrderProcessor {
         boolean isBuy = sbe.side() == Side.BUY;
         long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
-        // 1. 風控校驗
         if (!ledger.tryFreeze(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, gwSeq, cost)) {
             reporter.sendReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             reporter.flushBatch(gwSeq);
             return;
         }
 
-        // 2. 領域處理：Admission -> 撮合 -> 結案同步
+        // 領域處理
         OrderBook book = symbolOrderBookMap.computeIfAbsent(sbe.symbolId(), id -> new OrderBook(id));
         Order taker = book.processTaker(orderId, sbe, gwSeq, tradeIdSupplier, (maker, p, q) -> {
-            // 3. 執行帳務結算 (已下沉至 Ledger)
             ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
-            // 4. 處理 Maker 回報
             reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", OrderStatus.PARTIALLY_FILLED, p, q, 0, 0, sbe.timestamp());
         });
 
-        // 5. 處理 Taker 最終回報
+        // Taker 回報
         reporter.sendReport(taker.getUserId(), orderId, taker.getClientOrderId(), 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, sbe.timestamp());
