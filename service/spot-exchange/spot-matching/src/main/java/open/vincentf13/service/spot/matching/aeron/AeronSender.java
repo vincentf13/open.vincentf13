@@ -58,6 +58,8 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         log.info("AeronSender (Core) 啟動成功...");
     }
 
+    private long backPressureCount = 0;
+
     @Override
     protected int doWork() {
         if (currentState == AeronState.SENDING && !publication.isConnected()) {
@@ -79,6 +81,13 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
                     break;
                 }
             }
+            
+            // 監控背壓情況 (透過 AeronUtil 執行時可能觸發)
+            // 註：具體背壓次數需在 AeronUtil 內計數，此處僅作為佔位提示
+            if (workDone > 0 && backPressureCount > 1000) {
+                log.warn("警告：回報鏈路偵測到嚴重背壓，請檢查 Gateway 接收效能！");
+                backPressureCount = 0;
+            }
         }
         
         return workDone;
@@ -99,8 +108,8 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         
         final int payloadLength = (int) reusableBytes.readRemaining();
         
-        // 發送：AeronUtil 內部仍有 Lambda，但 JIT 通常能對 BiConsumer 進行完美內聯
-        AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+        // 發送：累加背壓重試次數
+        this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
             buffer.putInt(offset, ctxMsgType);
             buffer.putLong(offset + 4, ctxMatchingSeq);
             payloadWrapBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), payloadLength);

@@ -32,7 +32,7 @@ public class AeronUtil {
      @param running 運行狀態旗標，用於在中斷時安全退出
      @param writer 寫入回調，提供申請到的 Buffer (UnsafeBuffer) 與其偏移量 (Offset)
      */
-    public static void claimAndSend(
+    public static long claimAndSend(
             Publication publication, 
             BufferClaim bufferClaim, 
             int length, 
@@ -40,10 +40,12 @@ public class AeronUtil {
             AtomicBoolean running, 
             BiConsumer<UnsafeBuffer, Integer> writer) {
         
+        long attempts = 0;
         // tryClaim 會在 Aeron 緩衝區滿 (Back-pressure) 或狀態異常時返回負數
         // 我們採用循環重試策略，配合 IdleStrategy 減少 CPU 消耗，直到成功申請到空間
         while (publication.tryClaim(length, bufferClaim) < 0) {
-            if (!running.get()) return;
+            if (!running.get()) return attempts;
+            attempts++;
             idleStrategy.idle();
         }
         
@@ -56,5 +58,6 @@ public class AeronUtil {
             // 提交發送 (Commit)
             bufferClaim.commit();
         }
+        return attempts;
     }
 }

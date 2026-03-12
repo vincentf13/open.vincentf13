@@ -25,13 +25,15 @@ import open.vincentf13.service.spot.sbe.Side;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Collections;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  WebSocket 接入處理器 (WsHandler)
- 職責：管理連線、零分配解析指令並執行 $O(1)$ 的精準推送
+ 職責：管理連線、零分配解析指令並執行 $O(1)$ 的精準推送，支援多設備同時在線
  */
 @Slf4j
 @Component
@@ -43,8 +45,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final Map<String, Channel> sessions = new ConcurrentHashMap<>();
     /** SessionID -> UserID 映射 (用於斷線清理) */
     private final Map<String, Long> sessionToUser = new ConcurrentHashMap<>();
-    /** UserID -> Channel 映射：實現 $O(1)$ 推送關鍵 */
-    private final Map<Long, Channel> userToSession = new ConcurrentHashMap<>();
+    /** UserID -> Channels 映射：支援同一用戶多設備同時在線 */
+    private final Map<Long, Set<Channel>> userToSessions = new ConcurrentHashMap<>();
     
     private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
     
@@ -112,7 +114,10 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private void handleAuth(Channel channel, RequestHolder holder) {
         String sid = channel.id().asLongText();
         sessionToUser.put(sid, holder.userId);
-        userToSession.put(holder.userId, channel); // 建立雙向索引
+        
+        // 支援多設備在線：將新連線加入該用戶的連線集合中
+        userToSessions.computeIfAbsent(holder.userId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
+                .add(channel);
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
@@ -127,7 +132,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
             dc.wire().write(ChronicleWireKey.userId).int64(uid);
-            dc.wire().write(ChronicleWireKey.data).int64(holder.orderId); // 借用 data 傳遞 orderId
+            dc.wire().write(ChronicleWireKey.data).int64(holder.orderId);
         }
     }
 
@@ -138,8 +143,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);
             dc.wire().write(ChronicleWireKey.userId).int64(uid);
-            dc.wire().write(ChronicleWireKey.topic).int32(holder.assetId); // 與 Engine 解析對應
-            dc.wire().write(ChronicleWireKey.data).int64(holder.amount); // 與 Engine 解析對應
+            dc.wire().write(ChronicleWireKey.topic).int32(holder.assetId);
+            dc.wire().write(ChronicleWireKey.data).int64(holder.amount);
         }
     }
 
@@ -147,7 +152,6 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         Long uid = sessionToUser.get(channel.id().asLongText());
         if (uid == null) return;
 
-        // 全併發無鎖編碼
         Bytes<ByteBuffer> sbeBytes = SBE_BYTES_THREAD_LOCAL.get();
         UnsafeBuffer sbeBuffer = SBE_BUFFER_THREAD_LOCAL.get();
         
@@ -166,14 +170,24 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     /** 
-      精準推送：$O(1)$ 查找，徹底消除全量遍歷 
+      精準推送：向該用戶的所有活躍設備推送訊息，並確保記憶體安全釋放 
      */
     public void sendMessage(long userId, ByteBuf data) {
-        Channel c = userToSession.get(userId);
-        if (c != null && c.isActive()) {
-            c.writeAndFlush(new TextWebSocketFrame(data.retain()));
-        } else {
-            // 如果連線已失效，則釋放數據緩衝區
+        Set<Channel> channels = userToSessions.get(userId);
+        if (channels == null || channels.isEmpty()) {
+            data.release(); // 沒人在線，直接釋放
+            return;
+        }
+
+        try {
+            for (Channel c : channels) {
+                if (c.isActive()) {
+                    // 每向一個設備發送，引用計數 +1 (Netty flush 後會自動 -1)
+                    c.writeAndFlush(new TextWebSocketFrame(data.retain()));
+                }
+            }
+        } finally {
+            // 釋放原始引用
             data.release();
         }
     }
@@ -184,9 +198,11 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         sessions.remove(sid);
         Long uid = sessionToUser.remove(sid);
         if (uid != null) {
-            // 關鍵修正：僅當 userToSession 裡存儲的是當前關閉的連線時才移除
-            // 防止同一用戶開啟多個連線時，其中一個斷開導致其他連線收不到推送
-            userToSession.remove(uid, ctx.channel());
+            Set<Channel> channels = userToSessions.get(uid);
+            if (channels != null) {
+                channels.remove(ctx.channel());
+                if (channels.isEmpty()) userToSessions.remove(uid);
+            }
         }
     }
 

@@ -17,7 +17,6 @@ import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 
 import java.nio.ByteBuffer;
-import java.util.function.Consumer;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -38,6 +37,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
     private AeronState currentState = AeronState.WAITING;
+    private long backPressureCount = 0;
 
     // 執行上下文：消除 Lambda 捕獲
     private int ctxMsgType;
@@ -72,6 +72,11 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
 
         if (currentState == AeronState.SENDING) {
             if (tailer.readDocument(this)) workDone++;
+            
+            if (workDone > 0 && backPressureCount > 1000) {
+                log.warn("警告：指令鏈路偵測到嚴重背壓，核心引擎可能處理過慢或 GC 中！");
+                backPressureCount = 0;
+            }
         }
         return workDone;
     }
@@ -85,7 +90,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         switch (ctxMsgType) {
             case MsgType.AUTH -> {
                 final long userId = wire.read(ChronicleWireKey.userId).int64();
-                AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.AUTH);
                     buffer.putLong(offset + 4, ctxSeq);
                     buffer.putLong(offset + 12, userId);
@@ -95,7 +100,8 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
                 reusableBytes.clear();
                 wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
                 final int payloadLength = (int) reusableBytes.readRemaining();
-                AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+                
+                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CREATE);
                     buffer.putLong(offset + 4, ctxSeq);
                     payloadWrapBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), payloadLength);
@@ -105,18 +111,18 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
             case MsgType.ORDER_CANCEL -> {
                 final long uid = wire.read(ChronicleWireKey.userId).int64();
                 final long oid = wire.read(ChronicleWireKey.data).int64();
-                AeronUtil.claimAndSend(publication, bufferClaim, 28, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 28, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CANCEL);
                     buffer.putLong(offset + 4, ctxSeq);
                     buffer.putLong(offset + 12, uid);
-                    buffer.putLong(offset + 20, oid); // 使用 offset 20 傳遞數據
+                    buffer.putLong(offset + 20, oid);
                 });
             }
             case MsgType.DEPOSIT -> {
                 final long uid = wire.read(ChronicleWireKey.userId).int64();
                 final int aid = wire.read(ChronicleWireKey.topic).int32();
                 final long amt = wire.read(ChronicleWireKey.data).int64();
-                AeronUtil.claimAndSend(publication, bufferClaim, 32, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 32, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.DEPOSIT);
                     buffer.putLong(offset + 4, ctxSeq);
                     buffer.putLong(offset + 12, uid);
