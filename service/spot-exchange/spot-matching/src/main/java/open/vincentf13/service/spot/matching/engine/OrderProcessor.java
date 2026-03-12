@@ -65,7 +65,7 @@ public class OrderProcessor {
         }
 
         // 2. 領域處理：Admission -> 撮合 -> 結案同步
-        OrderBook book = symbolOrderBookMap.computeIfAbsent((int) sbe.symbolId(), id -> new OrderBook(id));
+        OrderBook book = symbolOrderBookMap.computeIfAbsent(sbe.symbolId(), id -> new OrderBook(id));
         Order taker = book.processTaker(orderId, sbe, gwSeq, tradeIdSupplier, (maker, p, q) -> {
             // 3. 執行帳務結算 (已下沉至 Ledger)
             ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);

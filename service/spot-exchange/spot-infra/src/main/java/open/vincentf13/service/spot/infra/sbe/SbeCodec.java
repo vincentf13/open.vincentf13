@@ -8,6 +8,8 @@ import org.agrona.MutableDirectBuffer;
   SBE 編解碼輔助工具 (線程安全且 Zero-GC 版本)
  */
 public class SbeCodec {
+    public static final int BLOCK_AND_VERSION_HEADER_SIZE = 8; // 2+2+2+2 for block, template, schema, version
+
     private static final ThreadLocal<MessageHeaderEncoder> HEADER_ENCODER = ThreadLocal.withInitial(MessageHeaderEncoder::new);
     private static final ThreadLocal<MessageHeaderDecoder> HEADER_DECODER = ThreadLocal.withInitial(MessageHeaderDecoder::new);
 

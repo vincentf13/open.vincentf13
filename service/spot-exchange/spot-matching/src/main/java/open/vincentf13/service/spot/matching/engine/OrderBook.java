@@ -61,7 +61,7 @@ public class OrderBook {
     private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long gwSeq) {
         Order o = orderPool.pollFirst();
         if (o == null) o = new Order();
-        o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId((int)sbe.symbolId());
+        o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
         o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
         o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
         o.setVersion(1); o.setLastSeq(gwSeq);

@@ -1,15 +1,19 @@
 package open.vincentf13.service.spot.gateway.ws;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.TextWebSocketHandler;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.util.JsonUtil;
@@ -23,57 +27,86 @@ import java.util.concurrent.ConcurrentHashMap;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 接入處理器 (WsHandler)
- 職責：管理客戶端連線、解析 JSON 請求並寫入客戶端指令流 (Client -> Gateway)
+ WebSocket 接入處理器 (WsHandler) - 高性能版
+ 職責：使用 Jackson Streaming API 實現零 Map 分配的指令解析
  */
 @Slf4j
 @Component
-public class WsHandler extends TextWebSocketHandler {
-    // 依賴的具體存儲結構 (反映 Client -> Gateway 流向)
+@ChannelHandler.Sharable
+public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
-
-    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, Channel> sessions = new ConcurrentHashMap<>();
     private final Map<String, String> sessionToUser = new ConcurrentHashMap<>();
     
     private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
     private final Bytes<ByteBuffer> sbeBytes = Bytes.elasticByteBuffer(512);
     private final UnsafeBuffer sbeBuffer = new UnsafeBuffer(0, 0);
 
+    /** 內部復用對象，承載單次請求數據 */
+    @Data
+    private static class RequestHolder {
+        String op;
+        long userId;
+        int symbolId;
+        long price;
+        long qty;
+        String side;
+        String cid;
+
+        void reset() { op = null; userId = 0; symbolId = 0; price = 0; qty = 0; side = null; cid = null; }
+    }
+
+    private final ThreadLocal<RequestHolder> holderPool = ThreadLocal.withInitial(RequestHolder::new);
+
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
-        sessions.put(session.getId(), session);
+    public void channelActive(ChannelHandlerContext ctx) {
+        sessions.put(ctx.channel().id().asLongText(), ctx.channel());
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        try {
-            Map<String, Object> req = JsonUtil.toMap(message.getPayload());
-            String op = (String) req.get(Ws.OP);
+    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
+        RequestHolder holder = holderPool.get();
+        holder.reset();
 
-            if (Ws.PING.equals(op)) {
-                session.sendMessage(new TextMessage(Ws.PONG));
-            } else if (Ws.AUTH.equals(op)) {
-                handleAuth(session, req);
-            } else if (Ws.CREATE.equals(op)) {
-                handleOrderCreate(session, req);
+        try (JsonParser parser = JsonUtil.createParser(frame.content())) {
+            while (parser.nextToken() != JsonToken.END_OBJECT) {
+                String field = parser.getCurrentName();
+                if (field == null) continue;
+                parser.nextToken();
+                
+                switch (field) {
+                    case Ws.OP -> holder.op = parser.getText();
+                    case Ws.USER_ID -> holder.userId = parser.getLongValue();
+                    case Ws.SYMBOL_ID -> holder.symbolId = parser.getIntValue();
+                    case Ws.PRICE -> holder.price = parser.getLongValue();
+                    case Ws.QTY -> holder.qty = parser.getLongValue();
+                    case Ws.SIDE -> holder.side = parser.getText();
+                    case Ws.CID -> holder.cid = parser.getText();
+                }
+            }
+
+            if (Ws.PING.equals(holder.op)) {
+                ctx.channel().writeAndFlush(new TextWebSocketFrame(Ws.PONG));
+            } else if (Ws.AUTH.equals(holder.op)) {
+                handleAuth(ctx.channel(), holder);
+            } else if (Ws.CREATE.equals(holder.op)) {
+                handleOrderCreate(ctx.channel(), holder);
             }
         } catch (Exception e) {
-            log.error("處理 WS 訊息失敗: {}", e.getMessage());
+            log.error("解析指令失敗: {}", e.getMessage());
         }
     }
 
-    private void handleAuth(WebSocketSession session, Map<String, Object> req) {
-        long userId = ((Number) req.get(Ws.USER_ID)).longValue();
-        sessionToUser.put(session.getId(), String.valueOf(userId));
-        
+    private void handleAuth(Channel channel, RequestHolder holder) {
+        sessionToUser.put(channel.id().asLongText(), String.valueOf(holder.userId));
         clientToGwWal.acquireAppender().writeDocument(wire -> {
             wire.write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
-            wire.write(ChronicleWireKey.userId).int64(userId);
+            wire.write(ChronicleWireKey.userId).int64(holder.userId);
         });
     }
 
-    private void handleOrderCreate(WebSocketSession session, Map<String, Object> req) {
-        String uid = sessionToUser.get(session.getId());
+    private void handleOrderCreate(Channel channel, RequestHolder holder) {
+        String uid = sessionToUser.get(channel.id().asLongText());
         if (uid == null) return;
 
         synchronized (sbeBytes) {
@@ -82,11 +115,11 @@ public class WsHandler extends TextWebSocketHandler {
             
             int sbeLen = SbeCodec.encode(sbeBuffer, 0, createEncoder
                 .userId(Long.parseLong(uid))
-                .symbolId(((Number) req.get(Ws.SYMBOL_ID)).longValue())
-                .price(((Number) req.get(Ws.PRICE)).longValue())
-                .qty(((Number) req.get(Ws.QTY)).longValue())
-                .side(Side.valueOf((String) req.get(Ws.SIDE)))
-                .clientOrderId((String) req.get(Ws.CID))
+                .symbolId(holder.symbolId)
+                .price(holder.price)
+                .qty(holder.qty)
+                .side(Side.valueOf(holder.side))
+                .clientOrderId(holder.cid)
                 .timestamp(System.currentTimeMillis()));
             
             sbeBytes.writePosition(sbeLen);
@@ -100,15 +133,18 @@ public class WsHandler extends TextWebSocketHandler {
 
     public void sendMessage(String userId, String json) {
         sessions.values().stream()
-            .filter(s -> String.valueOf(userId).equals(sessionToUser.get(s.getId())))
-            .forEach(s -> {
-                try { s.sendMessage(new TextMessage(json)); } catch (Exception ignored) {}
-            });
+            .filter(c -> String.valueOf(userId).equals(sessionToUser.get(c.id().asLongText())))
+            .forEach(c -> c.writeAndFlush(new TextWebSocketFrame(json)));
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        sessions.remove(session.getId());
-        sessionToUser.remove(session.getId());
+    public void channelInactive(ChannelHandlerContext ctx) {
+        sessions.remove(ctx.channel().id().asLongText());
+        sessionToUser.remove(ctx.channel().id().asLongText());
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        ctx.close();
     }
 }

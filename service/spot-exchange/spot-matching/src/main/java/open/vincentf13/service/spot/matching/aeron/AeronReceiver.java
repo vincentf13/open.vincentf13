@@ -12,6 +12,8 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
 import org.springframework.stereotype.Component;
 import net.openhft.chronicle.bytes.PointerBytesStore;
+import net.openhft.chronicle.map.ChronicleMap;
+import net.openhft.chronicle.queue.ChronicleQueue;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -21,6 +23,10 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Component
 public class AeronReceiver extends Worker {
+    // 依賴的具體存儲結構 (反映 Gateway -> Matching 流向)
+    private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
+    private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
+
     private final Aeron aeron;
     private Subscription subscription;
     private Publication controlPublication;
@@ -42,7 +48,7 @@ public class AeronReceiver extends Worker {
         subscription = aeron.addSubscription(AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID);
         controlPublication = aeron.addPublication(AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
         
-        Progress saved = Storage.self().metadata().get(MetaDataKey.MACHING_RECEVIER_POINT);
+        Progress saved = metadata.get(MetaDataKey.MACHING_RECEVIER_POINT);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
         
@@ -86,18 +92,18 @@ public class AeronReceiver extends Worker {
         if (gwSeq <= progress.getLastProcessedSeq()) return;
 
         long messageAddress = buffer.addressOffset() + offset;
-        Storage.self().commandQueue().acquireAppender().writeDocument(wire -> {
-            wire.write("msgType").int32(msgType);
-            wire.write("gwSeq").int64(gwSeq);
+        gwToMatchingWal.acquireAppender().writeDocument(wire -> {
+            wire.write(ChronicleWireKey.msgType).int32(msgType);
+            wire.write(ChronicleWireKey.gwSeq).int64(gwSeq);
             if (msgType == MsgType.AUTH) {
-                wire.write("userId").int64(buffer.getLong(offset + 12));
+                wire.write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
             } else if (msgType == MsgType.ORDER_CREATE) {
                 pointerBytesStore.set(messageAddress + 12, length - 12);
-                wire.write("payload").bytes(pointerBytesStore);
+                wire.write(ChronicleWireKey.payload).bytes(pointerBytesStore);
             }
         });
         progress.setLastProcessedSeq(gwSeq);
-        Storage.self().metadata().put(MetaDataKey.MACHING_RECEVIER_POINT, progress);
+        metadata.put(MetaDataKey.MACHING_RECEVIER_POINT, progress);
     };
 
     @Override

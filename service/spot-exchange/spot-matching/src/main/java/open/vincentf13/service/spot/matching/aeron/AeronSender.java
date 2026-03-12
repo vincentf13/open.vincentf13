@@ -7,27 +7,30 @@ import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.Bytes;
+import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.Progress;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Matching Core Aeron 發送器 (災難恢復增強版)
- 職責：將成交回報與行情數據發送至 Gateway
+ 職責：讀取核心回報流 (Matching -> Gateway) 並發送至 Gateway
+ 最佳化：移除本地 Progress 持久化，由接收端透過反向握手決定發送起點
  */
 @Component
 public class AeronSender extends Worker {
+    // 依賴的具體存儲結構 (反映 Matching -> Gateway 流向)
+    private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
+
     private final Aeron aeron;
     private Publication publication;
     private Subscription controlSubscription;
     private ExcerptTailer tailer;
-    private final Progress progress = new Progress();
     private final BufferClaim bufferClaim = new BufferClaim();
     private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
 
@@ -47,9 +50,9 @@ public class AeronSender extends Worker {
         // 2. 控制訊號監聽通道 (監聽來自 Gateway 的進度回報)
         controlSubscription = aeron.addSubscription(AeronChannel.MATCHING_URL, AeronChannel.CONTROL_STREAM_ID);
         
-        tailer = Storage.self().resultQueue().createTailer();
+        tailer = matchingToGwWal.createTailer();
         currentState = AeronState.WAITING;
-        log.info("AeronSender (Core) 啟動，進入靜默等待狀態...");
+        log.info("AeronSender (Core) 啟動成功，進入靜默等待狀態...");
     }
 
     @Override
@@ -71,21 +74,19 @@ public class AeronSender extends Worker {
             boolean handled = tailer.readDocument(wire -> {
                 long seq = tailer.index();
                 int msgType = wire.read(ChronicleWireKey.msgType).int32();
-                // 提取核心本地生成的 matchingSeq
-                long matchingSeq = wire.read(ChronicleWireKey.matchingSeq).int64();
+                // 提取核心本地生成的 matchingSeq (若有則傳遞，否則使用 seq)
+                long mSeq = wire.read(ChronicleWireKey.matchingSeq).int64();
+                final long finalMatchingSeq = (mSeq == 0) ? seq : mSeq;
                 
                 wire.read(ChronicleWireKey.payload).bytes(payload -> {
                     int payloadLength = (int) payload.readRemaining();
                     AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
                         buffer.putInt(offset, msgType);
-                        buffer.putLong(offset + 4, matchingSeq); // 傳遞核心原始序號
+                        buffer.putLong(offset + 4, finalMatchingSeq); // 傳遞核心原始序號
                         payloadWrapBuffer.wrap(payload.addressForRead(payload.readPosition()), payloadLength);
                         buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
                     });
                 });
-                
-                progress.setLastProcessedSeq(seq);
-                Storage.self().metadata().put(MetaDataKey.PK_CORE_RESULT_SENDER, progress);
             });
             if (handled) workDone++;
         }
