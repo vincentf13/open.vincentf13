@@ -28,15 +28,21 @@ import static open.vincentf13.service.spot.infra.Constants.PLATFORM_USER_ID;
 @Slf4j
 @Component
 public class OrderProcessor {
+    /** 訂單全集磁碟表：存儲系統歷史上所有的訂單詳細快照 */
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
+    /** 活躍訂單 ID 磁碟表：僅存儲當前簿中活躍訂單的 ID，用於啟動時快速重建內存狀態 */
     private final ChronicleMap<Long, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
+    /** 成交歷史磁碟表：持久化記錄所有的撮合成交流水，供審計與 Query 模組使用 */
     private final ChronicleMap<Long, Trade> tradeHistoryDiskMap = Storage.self().trades();
+    /** 冪等性映射磁碟表：ClientOrderId -> OrderId 映射，確保同一個請求不會被重複處理 */
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
     
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
+    /** Symbol 訂單簿映射：按交易對 (SymbolId) 組織的內存價格優先隊列 */
     private final Int2ObjectHashMap<OrderBook> symbolOrderBookMap = new Int2ObjectHashMap<>();
+    /** 活躍訂單內存索引：內存中活躍訂單對象的直接指針，實現微秒級的成交狀態更新，避免磁碟 IO */
     private final Long2ObjectHashMap<Order> activeOrderMemoryIndex = new Long2ObjectHashMap<>(100_000, 0.5f);
     
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
