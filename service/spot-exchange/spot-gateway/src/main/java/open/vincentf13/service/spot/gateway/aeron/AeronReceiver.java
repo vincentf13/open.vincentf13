@@ -19,8 +19,8 @@ import open.vincentf13.service.spot.model.Progress;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- Gateway Aeron 接收器 (災難恢復增強版)
- 職責：監聽核心回報流 (Matching -> Gateway)，並透過事務方式落地 WAL
+ Gateway Aeron 接收器
+ 職責：監聽回報流並透過事務方式落地 WAL，實現熱點路徑零物件分配
  */
 @Component
 public class AeronReceiver extends Worker {
@@ -53,12 +53,11 @@ public class AeronReceiver extends Worker {
         else progress.setLastProcessedSeq(-1L);
         
         currentState = AeronState.WAITING;
-        log.info("AeronReceiver 啟動：當前進度: {}", progress.getLastProcessedSeq());
+        log.info("AeronReceiver (Gateway) 啟動：當前進度: {}", progress.getLastProcessedSeq());
     }
 
     @Override
     protected int doWork() {
-        // --- 核心一致性防線：活性檢查 ---
         if (currentState == AeronState.SENDING && !subscription.isConnected()) {
             currentState = AeronState.WAITING;
             log.warn("檢測到核心引擎斷開，重新進入握手探測模式...");
@@ -82,8 +81,8 @@ public class AeronReceiver extends Worker {
     }
 
     private final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
-        int msgType = buffer.getInt(offset);
-        long matchingSeq = buffer.getLong(offset + 4);
+        final int msgType = buffer.getInt(offset);
+        final long matchingSeq = buffer.getLong(offset + 4);
         
         if (currentState == AeronState.WAITING && matchingSeq > progress.getLastProcessedSeq()) {
             currentState = AeronState.SENDING;
@@ -92,9 +91,10 @@ public class AeronReceiver extends Worker {
 
         if (matchingSeq <= progress.getLastProcessedSeq()) return;
 
-        long messageAddress = buffer.addressOffset() + offset;
+        final long messageAddress = buffer.addressOffset() + offset;
         pointerBytesStore.set(messageAddress, length);
         
+        // 事務落地：零分配寫入
         try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
             dc.wire().bytes().write(pointerBytesStore);
         }

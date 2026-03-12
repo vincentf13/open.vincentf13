@@ -6,22 +6,27 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import net.openhft.chronicle.wire.WireIn;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 
+import java.nio.ByteBuffer;
+import java.util.function.Consumer;
+
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- Gateway Aeron 發送器 (災難恢復增強版)
- 職責：從 GW WAL 讀取指令並發送至核心引擎
+ Gateway Aeron 發送器
+ 職責：讀取客戶端指令流並發送至 Matching Core，實現熱點路徑零物件分配
  */
 @Component
-public class AeronSender extends Worker {
+public class AeronSender extends Worker implements Consumer<WireIn> {
     private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
 
     private final Aeron aeron;
@@ -30,8 +35,13 @@ public class AeronSender extends Worker {
     private ExcerptTailer tailer;
     private final BufferClaim bufferClaim = new BufferClaim();
     private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
+    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
 
     private AeronState currentState = AeronState.WAITING;
+
+    // 執行上下文：消除 Lambda 捕獲
+    private int ctxMsgType;
+    private long ctxSeq;
 
     public AeronSender(Aeron aeron) {
         this.aeron = aeron;
@@ -43,56 +53,58 @@ public class AeronSender extends Worker {
     protected void onStart() {
         publication = aeron.addPublication(AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID);
         controlSubscription = aeron.addSubscription(AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
-        
         tailer = clientToGwWal.createTailer();
         currentState = AeronState.WAITING;
-        log.info("AeronSender 啟動成功，進入靜默等待狀態...");
+        log.info("AeronSender (Gateway) 啟動成功...");
     }
 
     @Override
     protected int doWork() {
-        // --- 活性檢查：偵測核心引擎是否斷開 ---
         if (currentState == AeronState.SENDING && !publication.isConnected()) {
             currentState = AeronState.WAITING;
-            log.warn("檢測到接收端 (Matching Core) 連線中斷，回退至靜默等待模式...");
+            log.warn("檢測到核心引擎斷開，回退至靜默等待模式...");
         }
 
+        int workDone = 0;
         if (currentState == AeronState.WAITING) {
-            return controlSubscription.poll(resumeHandler, 1);
+            workDone = controlSubscription.poll(resumeHandler, 1);
         }
 
         if (currentState == AeronState.SENDING) {
-            boolean handled = tailer.readDocument(wire -> {
-                long seq = tailer.index();
-                int msgType = wire.read(ChronicleWireKey.msgType).int32();
-                
-                if (msgType == MsgType.AUTH) {
-                    long userId = wire.read(ChronicleWireKey.userId).int64();
-                    AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
-                        buffer.putInt(offset, MsgType.AUTH);
-                        buffer.putLong(offset + 4, seq);
-                        buffer.putLong(offset + 12, userId);
-                    });
-                } else if (msgType == MsgType.ORDER_CREATE) {
-                    wire.read(ChronicleWireKey.payload).bytes(payload -> {
-                        int payloadLength = (int) payload.readRemaining();
-                        AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
-                            buffer.putInt(offset, MsgType.ORDER_CREATE);
-                            buffer.putLong(offset + 4, seq);
-                            payloadWrapBuffer.wrap(payload.addressForRead(payload.readPosition()), payloadLength);
-                            buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
-                        });
-                    });
-                }
-            });
-            return handled ? 1 : 0;
+            if (tailer.readDocument(this)) workDone++;
         }
-        return 0;
+        return workDone;
+    }
+
+    /** 指令讀取回調：零分配處理 */
+    @Override
+    public void accept(WireIn wire) {
+        this.ctxSeq = tailer.index();
+        this.ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
+        
+        if (ctxMsgType == MsgType.AUTH) {
+            final long userId = wire.read(ChronicleWireKey.userId).int64();
+            AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
+                buffer.putInt(offset, MsgType.AUTH);
+                buffer.putLong(offset + 4, ctxSeq);
+                buffer.putLong(offset + 12, userId);
+            });
+        } else if (ctxMsgType == MsgType.ORDER_CREATE) {
+            reusableBytes.clear();
+            wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
+            final int payloadLength = (int) reusableBytes.readRemaining();
+            
+            AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+                buffer.putInt(offset, MsgType.ORDER_CREATE);
+                buffer.putLong(offset + 4, ctxSeq);
+                payloadWrapBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), payloadLength);
+                buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
+            });
+        }
     }
 
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
-        int msgType = buffer.getInt(offset);
-        if (msgType == MsgType.RESUME) {
+        if (buffer.getInt(offset) == MsgType.RESUME) {
             long lastProcessedIndex = buffer.getLong(offset + 4);
             log.info("收到 Core 握手訊號，執行跳轉至: {}", lastProcessedIndex);
             if (lastProcessedIndex == -1) tailer.toStart();
@@ -105,5 +117,6 @@ public class AeronSender extends Worker {
     protected void onStop() { 
         if (publication != null) publication.close();
         if (controlSubscription != null) controlSubscription.close();
+        reusableBytes.releaseLast();
     }
 }
