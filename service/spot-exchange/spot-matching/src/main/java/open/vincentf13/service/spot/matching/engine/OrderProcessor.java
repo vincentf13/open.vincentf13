@@ -16,6 +16,10 @@ import java.util.function.Supplier;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
+/** 
+ 訂單處理核心 (Order Processor)
+ 職責：執行訂單業務邏輯，實施指令級冪等過濾
+ */
 @Slf4j
 @Component
 public class OrderProcessor {
@@ -31,10 +35,12 @@ public class OrderProcessor {
     private final Long2ObjectHashMap<Order> activeOrderMemoryIndex = new Long2ObjectHashMap<>(100_000, 0.5f);
     
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
-    private final Order reusableOrder = new Order();
     private final Trade reusableTrade = new Trade();
     private final CidKey reusableCidKey = new CidKey();
     private final byte[] tempCidBytes = new byte[32];
+
+    private long currentGwSeq;
+    private long currentTimestamp;
 
     public OrderProcessor(Ledger ledger, ExecutionReporter reporter) {
         this.ledger = ledger;
@@ -52,15 +58,17 @@ public class OrderProcessor {
         });
     }
 
+    /** 
+      處理訂單指令入口 
+      優化：發現重複指令直接返回，僅保留靜默過濾能力
+     */
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
         SbeCodec.decode(payload, 0, decoder);
         decoder.getClientOrderId(tempCidBytes, 0);
         reusableCidKey.set(decoder.userId(), tempCidBytes, 0, 32);
         
-        Long existingOid = clientOrderIdDiskMap.get(reusableCidKey);
-        if (existingOid != null) {
-            Order o = allOrdersDiskMap.getUsing(existingOid, reusableOrder);
-            if (o != null) reporter.resendReport(o, gwSeq);
+        // 冪等性過濾：如果已處理過，則直接跳過 (不再重發回報)
+        if (clientOrderIdDiskMap.containsKey(reusableCidKey)) {
             return;
         }
         
@@ -68,6 +76,8 @@ public class OrderProcessor {
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, Supplier<Long> tradeIdSupplier) {
+        this.currentGwSeq = gwSeq;
+        this.currentTimestamp = sbe.timestamp();
         boolean isBuy = sbe.side() == Side.BUY;
         long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
@@ -97,7 +107,6 @@ public class OrderProcessor {
                     Order maker = activeOrderMemoryIndex.get(mOid);
                     if (maker != null) syncOrder(maker, gwSeq);
                     
-                    // 暫存至批量緩衝
                     reporter.sendReport(mUid, mOid, "", OrderStatus.PARTIALLY_FILLED, price, qty, 0, 0, sbe.timestamp());
                 });
 
@@ -106,7 +115,6 @@ public class OrderProcessor {
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, sbe.timestamp());
         
-        // --- 批量發送：將本次指令產生的所有回報一次性寫入隊列 ---
         reporter.flushBatch(gwSeq);
         
         clientOrderIdDiskMap.put(new CidKey(taker.getUserId(), tempCidBytes), orderId);
@@ -119,8 +127,7 @@ public class OrderProcessor {
             ledger.tradeSettle(makerUid, Asset.BTC, qty, Asset.USDT, floor, seq);
         } else {
             ledger.tradeSettle(takerUid, Asset.BTC, qty, Asset.USDT, floor, seq);
-            Order m = activeOrderMemoryIndex.get(taker.getOrderId());
-            ledger.tradeSettleWithRefund(makerUid, Asset.USDT, ceil, m != null ? DecimalUtil.mulCeil(m.getPrice(), qty) : ceil, Asset.BTC, qty, seq);
+            ledger.tradeSettle(makerUid, Asset.USDT, ceil, Asset.BTC, qty, seq);
         }
         if (ceil > floor) ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, seq, ceil - floor);
     }
