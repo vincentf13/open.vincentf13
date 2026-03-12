@@ -14,6 +14,7 @@ public class Balance implements BytesMarshallable {
     private long frozen;
     private long version;
     private long lastSeq; // 最後更新此餘額的 WAL Sequence ID
+    private long lastTradeId; // 最後更新此餘額的全域成交 ID
     
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
@@ -21,6 +22,7 @@ public class Balance implements BytesMarshallable {
         bytes.writeLong(frozen);
         bytes.writeLong(version);
         bytes.writeLong(lastSeq);
+        bytes.writeLong(lastTradeId);
     }
     
     @Override
@@ -29,5 +31,6 @@ public class Balance implements BytesMarshallable {
         frozen = bytes.readLong();
         version = bytes.readLong();
         lastSeq = bytes.readLong();
+        lastTradeId = bytes.readLong();
     }
 }

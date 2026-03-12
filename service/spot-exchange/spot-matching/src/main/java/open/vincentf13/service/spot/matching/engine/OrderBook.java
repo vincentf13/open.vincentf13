@@ -10,6 +10,7 @@ import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Supplier;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -22,37 +23,53 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class OrderBook {
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
-    public static OrderBook get(int symbolId) {
-        return INSTANCES.computeIfAbsent(symbolId, OrderBook::new);
+    // 全域共享物件池：加固為執行緒安全容器
+    private static final Deque<Order> GLOBAL_ORDER_POOL = new ConcurrentLinkedDeque<>();
+    private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ConcurrentLinkedDeque<>();
+
+    static {
+        for (int i = 0; i < MatchingConfig.INITIAL_POOL_SIZE; i++) GLOBAL_ORDER_POOL.add(new Order());
+        for (int i = 0; i < 10000; i++) GLOBAL_DEQUE_POOL.add(new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY));
     }
 
-    private static final int INITIAL_DEQUE_CAPACITY = MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY;
-    private static final int POOL_MAX_SIZE = MatchingConfig.INITIAL_POOL_SIZE;
+    public static OrderBook get(int symbolId) {
+        return INSTANCES.computeIfAbsent(symbolId, id -> {
+            // 依照 symbolId 配置動態的 base，quote 統一為 USDT (2)
+            return new OrderBook(id, id, Asset.USDT);
+        });
+    }
 
     private final int symbolId;
+    private final int baseAssetId;
+    private final int quoteAssetId;
+    
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
     private final ChronicleMap<Long, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
+    private final ChronicleMap<Long, String> userActiveOrdersDiskMap = Storage.self().userActiveOrders();
     private final ChronicleMap<Long, Trade> tradeHistoryDiskMap = Storage.self().trades();
 
+    /** 
+      雙索引結構優化：
+      TreeMap 提供有序性 (用於撮合)
+      Long2ObjectHashMap 提供 $O(1)$ 查找 (用於快速插入與更新)
+     */
     private final TreeMap<Long, Deque<Order>> bids = new TreeMap<>(Collections.reverseOrder());
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
+    private final Long2ObjectHashMap<Deque<Order>> priceLevelIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
+    
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
 
-    private final Deque<Order> orderPool = new ArrayDeque<>(POOL_MAX_SIZE);
-    private final Deque<Deque<Order>> dequePool = new ArrayDeque<>(1000);
     private final Trade reusableTrade = new Trade();
     private static final Order SCAN_REUSABLE = new Order();
 
     @FunctionalInterface public interface TradeFinalizer {
-        void onMatch(long tradeId, Order maker, long price, long qty);
+        void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset);
     }
 
-    private OrderBook(int symbolId) {
+    private OrderBook(int symbolId, int baseAssetId, int quoteAssetId) {
         this.symbolId = symbolId;
-        for (int i = 0; i < 1000; i++) {
-            orderPool.add(new Order());
-            dequePool.add(new ArrayDeque<>(INITIAL_DEQUE_CAPACITY));
-        }
+        this.baseAssetId = baseAssetId;
+        this.quoteAssetId = quoteAssetId;
     }
 
     public void recoverOrder(Order o) {
@@ -72,11 +89,11 @@ public class OrderBook {
     }
 
     private Order borrowOrder() {
-        Order o = orderPool.pollFirst();
+        Order o = GLOBAL_ORDER_POOL.pollFirst();
         return (o == null) ? new Order() : o;
     }
 
-    public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
+    public void releaseOrder(Order o) { if (o != null) GLOBAL_ORDER_POOL.addLast(o); }
 
     public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
                              Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
@@ -131,7 +148,7 @@ public class OrderBook {
 
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
-                finalizer.onMatch(tid, maker, bestPrice, matchQty);
+                finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
 
                 if (maker.getFilled() == maker.getQty()) {
                     syncOrder(maker, gwSeq);
@@ -144,19 +161,26 @@ public class OrderBook {
             }
             if (makers != null && makers.isEmpty()) {
                 counterSide.remove(bestPrice);
+                priceLevelIndex.remove(bestPrice); // 同步移除快速索引
                 makers.clear(); // 清理引用，防止記憶體洩漏
-                dequePool.addLast(makers); 
+                GLOBAL_DEQUE_POOL.addLast(makers); 
             } else break;
         }
         if (taker.getQty() > taker.getFilled()) add(taker);
     }
 
     private void add(Order order) {
-        TreeMap<Long, Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
-        levels.computeIfAbsent(order.getPrice(), k -> {
-            Deque<Order> poolDeque = dequePool.pollFirst();
-            return (poolDeque == null) ? new ArrayDeque<>(INITIAL_DEQUE_CAPACITY) : poolDeque;
-        }).addLast(order);
+        final long price = order.getPrice();
+        // 優化：先從 $O(1)$ 快速索引查找價位容器
+        Deque<Order> level = priceLevelIndex.get(price);
+        if (level == null) {
+            TreeMap<Long, Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
+            level = GLOBAL_DEQUE_POOL.pollFirst();
+            if (level == null) level = new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY);
+            levels.put(price, level);
+            priceLevelIndex.put(price, level);
+        }
+        level.addLast(order);
         orderIndex.put(order.getOrderId(), order);
     }
 
@@ -167,13 +191,51 @@ public class OrderBook {
         
         allOrdersDiskMap.put(o.getOrderId(), o);
         
-        // --- 核心修正：正確維護活躍訂單 ID 清單 ---
+        // --- 核心修正：正確維護活躍訂單 ID 清單與用戶二級索引 ---
+        final long uid = o.getUserId();
+        final String oidStr = o.getOrderId() + ",";
+        
         if (o.getStatus() < 2) {
             activeOrderIdDiskMap.put(o.getOrderId(), Boolean.TRUE);
+            String current = userActiveOrdersDiskMap.get(uid);
+            if (current == null) {
+                userActiveOrdersDiskMap.put(uid, oidStr);
+            } else if (!current.contains(oidStr)) {
+                userActiveOrdersDiskMap.put(uid, current + oidStr);
+            }
         } else {
             activeOrderIdDiskMap.remove(o.getOrderId());
+            String current = userActiveOrdersDiskMap.get(uid);
+            if (current != null && current.contains(oidStr)) {
+                // 優化：精準替換並移除多餘逗號
+                String updated = current.replace(oidStr, "");
+                if (updated.isEmpty()) userActiveOrdersDiskMap.remove(uid);
+                else userActiveOrdersDiskMap.put(uid, updated);
+            }
         }
     }
 
-    public void remove(long orderId) { orderIndex.remove(orderId); }
+    public void remove(long orderId) { 
+        Order o = orderIndex.remove(orderId); 
+        if (o != null) {
+            // 從價位佇列中徹底移除，防止「幽靈訂單」殘留
+            Deque<Order> level = priceLevelIndex.get(o.getPrice());
+            if (level != null) {
+                level.remove(o);
+                if (level.isEmpty()) {
+                    priceLevelIndex.remove(o.getPrice());
+                    if (o.getSide() == OrderSide.BUY) {
+                        bids.remove(o.getPrice());
+                    } else {
+                        asks.remove(o.getPrice());
+                    }
+                    GLOBAL_DEQUE_POOL.addLast(level);
+                }
+            }
+            releaseOrder(o);
+        }
+    }
+
+    public int getBaseAssetId() { return baseAssetId; }
+    public int getQuoteAssetId() { return quoteAssetId; }
 }

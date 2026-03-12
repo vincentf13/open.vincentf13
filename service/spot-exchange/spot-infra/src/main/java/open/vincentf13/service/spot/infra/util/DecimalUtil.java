@@ -9,6 +9,19 @@ public class DecimalUtil {
     public static final long SCALE = 100_000_000L; // 10^8
     private static final BigInteger SCALE_BI = BigInteger.valueOf(SCALE);
     
+    /** 
+      乘法安全預檢：判定 a * b 是否會超過 Long.MAX_VALUE
+     */
+    public static boolean isMultiplySafe(long a, long b) {
+        if (a == 0 || b == 0) return true;
+        try {
+            Math.multiplyExact(a, b);
+            return true;
+        } catch (ArithmeticException e) {
+            return false;
+        }
+    }
+
     /**
      大額安全乘法並向下取整 (入帳用)
      */

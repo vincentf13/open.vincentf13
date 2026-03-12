@@ -16,9 +16,9 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
+import open.vincentf13.service.spot.gateway.util.JsonUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
-import open.vincentf13.service.spot.infra.util.JsonUtil;
 import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot.sbe.Side;
 
@@ -47,8 +47,10 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final Map<Long, Channel> userToSession = new ConcurrentHashMap<>();
     
     private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
-    private final Bytes<ByteBuffer> sbeBytes = Bytes.elasticByteBuffer(512);
-    private final UnsafeBuffer sbeBuffer = new UnsafeBuffer(0, 0);
+    
+    /** ThreadLocal 緩衝區：消除 synchronized 競爭，實現全並發 SBE 編碼 */
+    private static final ThreadLocal<Bytes<ByteBuffer>> SBE_BYTES_THREAD_LOCAL = ThreadLocal.withInitial(() -> Bytes.elasticByteBuffer(512));
+    private static final ThreadLocal<UnsafeBuffer> SBE_BUFFER_THREAD_LOCAL = ThreadLocal.withInitial(() -> new UnsafeBuffer(0, 0));
 
     private static final ByteBuf PONG_BUF = Unpooled.unreleasableBuffer(
             Unpooled.copiedBuffer(Ws.PONG, StandardCharsets.UTF_8));
@@ -114,19 +116,21 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         Long uid = sessionToUser.get(channel.id().asLongText());
         if (uid == null) return;
 
-        synchronized (sbeBytes) {
-            sbeBytes.clear();
-            sbeBuffer.wrap(sbeBytes.addressForWrite(0), (int) sbeBytes.realCapacity());
-            int sbeLen = SbeCodec.encode(sbeBuffer, 0, createEncoder
-                .userId(uid).symbolId(holder.symbolId).price(holder.price)
-                .qty(holder.qty).side(Side.valueOf(holder.side)).clientOrderId(holder.cid)
-                .timestamp(System.currentTimeMillis()));
-            sbeBytes.writePosition(sbeLen);
+        // 全併發無鎖編碼
+        Bytes<ByteBuffer> sbeBytes = SBE_BYTES_THREAD_LOCAL.get();
+        UnsafeBuffer sbeBuffer = SBE_BUFFER_THREAD_LOCAL.get();
+        
+        sbeBytes.clear();
+        sbeBuffer.wrap(sbeBytes.addressForWrite(0), (int) sbeBytes.realCapacity());
+        int sbeLen = SbeCodec.encode(sbeBuffer, 0, createEncoder
+            .userId(uid).symbolId(holder.symbolId).price(holder.price)
+            .qty(holder.qty).side(Side.valueOf(holder.side)).clientOrderId(holder.cid)
+            .timestamp(System.currentTimeMillis()));
+        sbeBytes.writePosition(sbeLen);
 
-            try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
-                dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
-                dc.wire().write(ChronicleWireKey.payload).bytes(sbeBytes);
-            }
+        try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
+            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
+            dc.wire().write(ChronicleWireKey.payload).bytes(sbeBytes);
         }
     }
 

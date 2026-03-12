@@ -26,7 +26,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  職責：讀取回報流並發送至 Gateway，實現熱點路徑零物件分配
  */
 @Component
-public class AeronSender extends Worker implements Consumer<WireIn> {
+public class AeronSender extends Worker implements net.openhft.chronicle.wire.ReadMarshallable {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
 
     private final Aeron aeron;
@@ -71,8 +71,14 @@ public class AeronSender extends Worker implements Consumer<WireIn> {
         }
 
         if (currentState == AeronState.SENDING) {
-            // 優化：直接傳遞 this 作為 Consumer，消除 Lambda 分配
-            if (tailer.readDocument(this)) workDone++;
+            // 批量發送優化：一次工作周期處理最多 100 條訊息
+            for (int i = 0; i < 100; i++) {
+                if (tailer.readDocument(this)) {
+                    workDone++;
+                } else {
+                    break;
+                }
+            }
         }
         
         return workDone;
@@ -82,7 +88,7 @@ public class AeronSender extends Worker implements Consumer<WireIn> {
       指令讀取回調：消除每條訊息的 Lambda 分配
      */
     @Override
-    public void accept(WireIn wire) {
+    public void readMarshallable(WireIn wire) {
         this.ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
         long mSeq = wire.read(ChronicleWireKey.matchingSeq).int64();
         this.ctxMatchingSeq = (mSeq == 0) ? tailer.index() : mSeq;

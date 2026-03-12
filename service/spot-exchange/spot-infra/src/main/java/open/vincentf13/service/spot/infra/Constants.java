@@ -70,11 +70,16 @@ public class Constants {
       Chronicle Map 檔案與名稱列舉
      */
     public static class ChronicleMapEnum {
-        public static final String DEFAULT_BASE_DIR = "data/spot-exchange/";
+        // 從系統環境變數獲取路徑，預設為 "data/spot-exchange/"
+        public static final String DEFAULT_BASE_DIR = System.getProperty("SPOT_MAP_DIR", "data/spot-exchange/map/");
+        public static final String WAL_BASE_DIR = System.getProperty("SPOT_WAL_DIR", "data/spot-exchange/wal/");
+        
         public static final String BALANCES = "balances";
         public static final String USER_ASSETS = "user-assets";
         public static final String ORDERS = "orders";
         public static final String ACTIVE_ORDERS = "active-idx";
+        // 新增二級索引：用戶的活躍訂單 (用於 Query)
+        public static final String USER_ACTIVE_ORDERS = "user-active-orders";
         public static final String TRADES = "trades";
         public static final String CIDS = "cid-idx";
         public static final String METADATA = "metadata";

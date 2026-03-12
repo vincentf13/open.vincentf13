@@ -48,21 +48,25 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
         SbeCodec.decode(payload, 0, decoder);
-        decoder.getClientOrderId(); // 此處 decoder 內置 long 讀取
+        decoder.clientOrderId(); // 此處 decoder 內置 long 讀取
         reusableCidKey.set(decoder.userId(), decoder.clientOrderId());
-        
+
         if (clientOrderIdDiskMap.containsKey(reusableCidKey)) return;
-        
+
         handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), tradeIdSupplier);
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, Supplier<Long> tradeIdSupplier) {
         final long cid = sbe.clientOrderId();
         boolean isBuy = sbe.side() == Side.BUY;
+
+        // 3. 獲取領域物件 (提前獲取以取得資產資訊)
+        OrderBook book = OrderBook.get(sbe.symbolId());
+        int assetId = isBuy ? book.getQuoteAssetId() : book.getBaseAssetId();
         long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
         // 1. 風控校驗
-        if (!ledger.freezeBalance(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, cost, gwSeq)) {
+        if (!ledger.freezeBalance(sbe.userId(), assetId, cost, gwSeq)) {
             reporter.sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             reporter.flushBatch(gwSeq);
             // 修正點：記錄拒絕訂單的冪等映射
@@ -78,15 +82,13 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         this.ctxPrice = sbe.price();
         this.ctxSide = (byte)(isBuy ? OrderSide.BUY : OrderSide.SELL);
 
-        // 3. 領域執行
-        OrderBook book = OrderBook.get(sbe.symbolId());
         Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, this);
 
-    // 4. Taker 最終回報
+        // 4. Taker 最終回報
         reporter.sendReport(taker.getUserId(), orderId, cid, 
                 toSbeStatus(taker.getStatus()), 
                 0, 0, taker.getFilled(), 0, ctxTimestamp);
-        
+
         // 5. 批量落地與最終冪等存檔
         reporter.flushBatch(gwSeq);
         reusableCidKey.set(taker.getUserId(), cid);
@@ -104,17 +106,16 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     }
 
     @Override
-    public void onMatch(long tradeId, Order maker, long price, long qty) {
-        ledger.settleTrade(maker.getUserId(), ctxUserId, price, qty, ctxSide, ctxPrice, ctxGwSeq);
-        
-        // 1. Maker 回報
+    public void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset) {
+        ledger.settleTrade(maker.getUserId(), ctxUserId, price, qty, ctxSide, ctxPrice, ctxGwSeq, baseAsset, quoteAsset, tradeId);
+
+        // 1. Maker 回報 (Maker 的平均價就是當前成交價)
         reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
                 maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
-                price, qty, maker.getFilled(), maker.getPrice(), ctxTimestamp);
-        
+                price, qty, maker.getFilled(), price, ctxTimestamp);
+
         // 2. Taker 回報 (針對此筆成交)
         reporter.sendReport(ctxUserId, 0, reusableCidKey.getClientOrderId(),
-                OrderStatus.PARTIALLY_FILLED, // 這裡僅代表成交發生，最終狀態由 handleOrderCreate 發送
-                price, qty, 0, 0, ctxTimestamp);
-    }
-}
+                OrderStatus.PARTIALLY_FILLED, 
+                price, qty, 0, price, ctxTimestamp);
+    }}
