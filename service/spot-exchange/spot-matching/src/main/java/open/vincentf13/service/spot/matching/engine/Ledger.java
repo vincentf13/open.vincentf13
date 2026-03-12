@@ -8,16 +8,16 @@ import org.springframework.stereotype.Service;
 
 import java.util.function.Consumer;
 
-import static open.vincentf13.service.spot.infra.Constants.*;
-
 /** 
  內存帳務處理器 (Ledger)
- 職責：管理資產狀態，處理凍結、結算與退款
+ 職責：管理全系統資產的一致性，處理凍結、結算與退款
  */
 @Service
 public class Ledger {
-    // 依賴的具體存儲結構
+    /** 餘額主表：持久化存儲用戶各幣種的餘額狀態 (可用、凍結) */
     private final ChronicleMap<BalanceKey, Balance> balances = Storage.self().balances();
+    
+    /** 持倉索引：採用 Bitmask 記錄用戶擁有的資產類型，用於 Query 模組快速篩選非零帳戶 */
     private final ChronicleMap<Long, Long> userAssets = Storage.self().userAssets();
 
     public void tradeSettle(long userId, int assetOut, long amountOut, int assetIn, long amountIn, long seq) {

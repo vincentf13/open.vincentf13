@@ -21,19 +21,21 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Component
 public class ExecutionReporter {
+    /** 回報流 WAL：從 Matching 傳回 Gateway 的成交回報與行情隊列 */
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
 
+    /** SBE 編碼器：將業務對象高效序列化為二進位協議格式 */
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
+    
+    /** 序列化緩衝區：存儲 SBE 編碼後的二進位數據塊 */
     private final Bytes<ByteBuffer> outboundBytes = Bytes.elasticByteBuffer(1024);
+    
+    /** 寫入視圖：提供給 SbeCodec 使用的堆外內存封裝 */
     private final UnsafeBuffer outboundSbeBuffer = new UnsafeBuffer(0, 0);
 
-    /** 由 Engine 統一控制的重播狀態 */
+    /** 重播控制：由 Engine 設置，若為 TRUE 則攔截所有發送動作以防副作用重複 */
     @Setter private boolean replaying = false;
 
-    /** 
-      發送成交回報 (ExecutionReport)
-      若處於 replaying 狀態，則靜默攔截所有發送
-     */
     public void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts, long gwSeq) {
         if (replaying) return;
         
@@ -60,7 +62,6 @@ public class ExecutionReporter {
         });
     }
 
-    /** 重發訂單回報 */
     public void resendReport(Order o, long gwSeq) {
         OrderStatus s = switch (o.getStatus()) {
             case 2 -> OrderStatus.FILLED;
@@ -71,7 +72,6 @@ public class ExecutionReporter {
         sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, System.currentTimeMillis(), gwSeq);
     }
 
-    /** 發送認證成功回報 */
     public void sendAuthSuccess(long userId, long gwSeq) {
         if (replaying) return;
         matchingToGwWal.acquireAppender().writeDocument(w -> {
