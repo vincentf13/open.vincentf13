@@ -11,15 +11,18 @@ import java.util.function.Consumer;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存帳務處理器 (Ledger) - Zero-GC 優化版
- 職責：管理全系統資產的一致性，透過物件復用降低 GC 壓力
+ 內存帳務處理器 (Ledger)
+ 職責：管理全系統資產的一致性，透過物件復用壓制 GC 抖動
  */
 @Service
 public class Ledger {
+    /** 餘額主表：持久化存儲，支撐系統恢復後的資產重建 */
     private final ChronicleMap<BalanceKey, Balance> balances = Storage.self().balances();
+    
+    /** 持倉索引：採用 64-bit Bitmask，為 Query 模組提供 $O(1)$ 的非零資產預篩選 */
     private final ChronicleMap<Long, Long> userAssets = Storage.self().userAssets();
 
-    // 物件復用池
+    // --- 零分配復用指標 ---
     private final Balance reusableBalance = new Balance();
     private final BalanceKey reusableKey = new BalanceKey();
 
@@ -59,17 +62,14 @@ public class Ledger {
     }
 
     /** 
-      核心更新邏輯：採用 getUsing 實現零分配
+      核心更新：配合 getUsing API 實現零對象分配的數據填充與寫入
      */
     private void updateBalance(long userId, int assetId, long seq, Consumer<Balance> action) {
-        reusableKey.setUserId(userId);
-        reusableKey.setAssetId(assetId);
+        reusableKey.setUserId(userId); reusableKey.setAssetId(assetId);
         
-        // 使用 getUsing 進行零分配讀取
         Balance balance = balances.getUsing(reusableKey, reusableBalance);
-        
         if (balance == null) {
-            balance = new Balance(); // 首次初始化允許一次性分配
+            balance = new Balance(); 
             balance.setAvailable(0); balance.setFrozen(0); balance.setVersion(0);
         }
         

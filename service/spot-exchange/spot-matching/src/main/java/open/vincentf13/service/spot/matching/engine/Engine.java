@@ -18,34 +18,28 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎執行緒 (Engine Orchestrator)
- 職責：指令隊列路由、重播模式切換、全局一致性檢查
+ 職責：作為系統唯一的狀態機驅動者，負責指令路由、全局 Sequence 連續性斷言與重播模式管理
  */
 @Slf4j
 @Component
 public class Engine extends Worker {
-    /** 指令流 WAL：從 Gateway 傳輸至 Matching 的原始指令隊列 */
+    /** 指令流 WAL：從 Gateway 傳輸至 Matching 的原始指令隊列，保證指令的物理順序 */
     private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
     
-    /** 元數據存儲：持久化記錄本組件與下屬 Processor 的處理進度位點 */
+    /** 元數據存儲：持久化記錄處理位點，包含本地 Queue Index 與來源端業務 Sequence (gwSeq) */
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
 
     private final OrderProcessor orderProcessor;
     private final SystemProcessor systemProcessor;
     private final ExecutionReporter reporter;
     
-    /** 本地狀態追蹤：內存中的進度快照，包含 OrderId 與 TradeId 計數器 */
+    /** 內存進度快照：持有全局 ID 生成器，確保 OrderId 與 TradeId 在重播時的絕對一致性 */
     private final Progress progress = new Progress();
-    
-    /** 隊列讀取器：用於順序掃描指令流 */
     private ExcerptTailer tailer;
-    
-    /** 重播旗標：標識系統是否處於故障恢復階段 */
     private boolean isReplaying = false;
 
-    /** 零拷貝緩衝區：提供給 SBE 解碼器直接訪問堆外內存的視圖 */
+    /** 零拷貝解碼緩衝區：直接包裹 Chronicle Queue 堆外內存地址，消除數據搬運開銷 */
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
-    
-    /** 復用容器：從 Chronicle Queue 提取二進位 Payload 的中轉對象 */
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
 
     public Engine(OrderProcessor orderProcessor, SystemProcessor systemProcessor, ExecutionReporter reporter) {
@@ -95,14 +89,18 @@ public class Engine extends Worker {
             
             if (isReplaying && seq >= tailer.queue().lastIndex()) {
                 setReplaying(false);
-                log.info("重播完成，切換至實時處理模式 (gwSeq: {})", gwSeq);
+                log.info("狀態重播完成，切換至實時模式 (gwSeq: {})", gwSeq);
             }
 
+            /** 
+              全局連續性斷言 (Sequence Continuity Assertion)
+              這是 Event Sourcing 架構的一致性生命線，確保指令流無空洞執行，防止財務狀態機因跳號而損壞
+             */
             long lastSeq = progress.getLastProcessedGwSeq();
             if (lastSeq != -1) {
                 if (gwSeq == lastSeq) return; 
                 if (gwSeq != lastSeq + 1) {
-                    log.error("指令跳號！期望: {}, 實際: {}。", lastSeq + 1, gwSeq);
+                    log.error("指令跳號！期望: {}, 實際: {}。觸發安全停機。", lastSeq + 1, gwSeq);
                     System.exit(1); 
                 }
             }
