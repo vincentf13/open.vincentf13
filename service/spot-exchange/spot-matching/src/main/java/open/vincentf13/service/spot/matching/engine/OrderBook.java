@@ -44,7 +44,7 @@ public class OrderBook {
     private static final Order SCAN_REUSABLE = new Order();
 
     @FunctionalInterface public interface TradeFinalizer {
-        void onMatch(Order maker, long price, long qty);
+        void onMatch(long tradeId, Order maker, long price, long qty);
     }
 
     private OrderBook(int symbolId) {
@@ -131,7 +131,7 @@ public class OrderBook {
 
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
-                finalizer.onMatch(maker, bestPrice, matchQty);
+                finalizer.onMatch(tid, maker, bestPrice, matchQty);
 
                 if (maker.getFilled() == maker.getQty()) {
                     syncOrder(maker, gwSeq);

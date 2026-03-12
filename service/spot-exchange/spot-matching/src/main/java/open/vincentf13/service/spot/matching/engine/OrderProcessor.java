@@ -82,9 +82,9 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         OrderBook book = OrderBook.get(sbe.symbolId());
         Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, this);
 
-        // 4. Taker 最終回報
+    // 4. Taker 最終回報
         reporter.sendReport(taker.getUserId(), orderId, cid, 
-                taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
+                toSbeStatus(taker.getStatus()), 
                 0, 0, taker.getFilled(), 0, ctxTimestamp);
         
         // 5. 批量落地與最終冪等存檔
@@ -95,11 +95,26 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 
+    private OrderStatus toSbeStatus(byte status) {
+        return switch (status) {
+            case 1 -> OrderStatus.PARTIALLY_FILLED;
+            case 2 -> OrderStatus.FILLED;
+            default -> OrderStatus.NEW;
+        };
+    }
+
     @Override
-    public void onMatch(Order maker, long price, long qty) {
+    public void onMatch(long tradeId, Order maker, long price, long qty) {
         ledger.settleTrade(maker.getUserId(), ctxUserId, price, qty, ctxSide, ctxPrice, ctxGwSeq);
+        
+        // 1. Maker 回報
         reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
                 maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
                 price, qty, maker.getFilled(), maker.getPrice(), ctxTimestamp);
+        
+        // 2. Taker 回報 (針對此筆成交)
+        reporter.sendReport(ctxUserId, 0, reusableCidKey.getClientOrderId(),
+                OrderStatus.PARTIALLY_FILLED, // 這裡僅代表成交發生，最終狀態由 handleOrderCreate 發送
+                price, qty, 0, 0, ctxTimestamp);
     }
 }
