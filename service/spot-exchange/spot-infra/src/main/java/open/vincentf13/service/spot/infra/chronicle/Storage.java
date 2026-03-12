@@ -3,6 +3,7 @@ package open.vincentf13.service.spot.infra.chronicle;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.queue.RollCycles;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import open.vincentf13.service.spot.model.*;
 
@@ -28,7 +29,7 @@ public class Storage {
     private ChronicleMap<Long, Long> userAssets;
     private ChronicleMap<Long, Order> orders;
     private ChronicleMap<Long, Boolean> activeOrders;
-    private ChronicleMap<Long, String> userActiveOrders; // 新增：userId -> 逗號分隔的 orderIds
+    private ChronicleMap<Long, String> userActiveOrders; 
     private ChronicleMap<Long, Trade> trades;
     private ChronicleMap<CidKey, Long> cids;
     private ChronicleMap<Byte, Progress> metadata;
@@ -69,11 +70,11 @@ public class Storage {
             userActiveOrders = buildMap(ChronicleMap.of(Long.class, String.class)
                     .name(ChronicleMapEnum.USER_ACTIVE_ORDERS)
                     .entries(100_000)
-                    .averageValue("1234567890123456789,"), new File(mapDir + ChronicleMapEnum.USER_ACTIVE_ORDERS));
+                    .averageValue("1234567890123456789,1234567890123456789,1234567890123456789,1234567890123456789,"), new File(mapDir + ChronicleMapEnum.USER_ACTIVE_ORDERS));
 
             trades = buildMap(ChronicleMap.of(Long.class, Trade.class)
                     .name(ChronicleMapEnum.TRADES)
-                    .entries(10_000_000)
+                    .entries(50_000_000)
                     .averageValue(new Trade()), new File(mapDir + ChronicleMapEnum.TRADES));
 
             cids = buildMap(ChronicleMap.of(CidKey.class, Long.class)
@@ -86,16 +87,45 @@ public class Storage {
                     .entries(100)
                     .averageValue(new Progress()), new File(mapDir + ChronicleMapEnum.METADATA));
 
-            // 2. 初始化 Queues
-            clientToGwWal = SingleChronicleQueueBuilder.binary(walDir + ChronicleQueueEnum.CLIENT_TO_GW.getPath()).build();
-            gwToMatchingWal = SingleChronicleQueueBuilder.binary(walDir + ChronicleQueueEnum.GW_TO_MATCHING.getPath()).build();
-            matchingToGwWal = SingleChronicleQueueBuilder.binary(walDir + ChronicleQueueEnum.MATCHING_TO_GW.getPath()).build();
+            // 2. 初始化 Queues (優化：使用 HOURLY 分卷，方便磁碟空間管理)
+            clientToGwWal = SingleChronicleQueueBuilder.binary(walDir + ChronicleQueueEnum.CLIENT_TO_GW.getPath())
+                    .rollCycle(RollCycles.HOURLY)
+                    .build();
+            gwToMatchingWal = SingleChronicleQueueBuilder.binary(walDir + ChronicleQueueEnum.GW_TO_MATCHING.getPath())
+                    .rollCycle(RollCycles.HOURLY)
+                    .build();
+            matchingToGwWal = SingleChronicleQueueBuilder.binary(walDir + ChronicleQueueEnum.MATCHING_TO_GW.getPath())
+                    .rollCycle(RollCycles.HOURLY)
+                    .build();
 
             log.info("Chronicle Storage 初始化完成。Map 目錄: {}, WAL 目錄: {}", mapDir, walDir);
+            
+            // 註冊關閉鉤子：確保 JVM 退出時安全釋放檔案鎖
+            Runtime.getRuntime().addShutdownHook(new Thread(this::close, "storage-shutdown-hook"));
         } catch (Exception e) {
             log.error("Chronicle Storage 初始化致命錯誤！請檢查檔案是否損壞或權限問題: {}", e.getMessage(), e);
             throw new RuntimeException("Storage init failed", e);
         }
+    }
+
+    /** 
+      容量監控：定期輸出各個 Map 的使用率，預防溢出崩潰 
+     */
+    public void logStatus() {
+        log.info("--- Storage 容量狀態報告 ---");
+        logMapStatus(balances, "餘額表", 100_000);
+        logMapStatus(orders, "訂單主表", 1_000_000);
+        logMapStatus(activeOrders, "活躍索引", 100_000);
+        logMapStatus(userActiveOrders, "用戶掛單索引", 100_000);
+        logMapStatus(trades, "成交歷史", 10_000_000);
+        logMapStatus(cids, "冪等表", 1_000_000);
+        log.info("---------------------------");
+    }
+
+    private void logMapStatus(ChronicleMap<?, ?> map, String label, int maxEntries) {
+        if (map == null) return;
+        long size = map.size();
+        log.info("{}: 當前筆數={}, 預估使用率={} %", label, size, (size * 100 / maxEntries));
     }
 
     private <K, V> ChronicleMap<K, V> buildMap(net.openhft.chronicle.map.ChronicleMapBuilder<K, V> builder, File file) throws IOException {

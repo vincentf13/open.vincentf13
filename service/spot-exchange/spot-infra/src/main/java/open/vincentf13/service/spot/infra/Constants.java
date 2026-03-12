@@ -45,6 +45,7 @@ public class Constants {
      */
     public static class MsgType {
         public static final int ORDER_CREATE = 100;
+        public static final int ORDER_CANCEL = 101;
         public static final int DEPOSIT = 102;
         public static final int AUTH = 103;
         public static final int RESUME = 200; // 災難恢復握手訊號
@@ -110,9 +111,9 @@ public class Constants {
      */
     public static class AeronChannel {
         /** 發送至 Matching Core 的通道 */
-        public static final String MATCHING_URL = "aeron:udp?endpoint=localhost:40444";
+        public static final String MATCHING_URL = System.getProperty("AERON_MATCHING_URL", "aeron:udp?endpoint=localhost:40444");
         /** 發送至 Gateway 的通道 */
-        public static final String GATEWAY_URL = "aeron:udp?endpoint=localhost:40445";
+        public static final String GATEWAY_URL = System.getProperty("AERON_GATEWAY_URL", "aeron:udp?endpoint=localhost:40445");
         
         /** 統一數據流 ID */
         public static final int DATA_STREAM_ID = 10;
@@ -127,6 +128,7 @@ public class Constants {
         public static final String PATH = "/ws/spot";
         public static final String PONG = "{\"op\":\"pong\"}";
         public static final String CREATE = "order.create";
+        public static final String CANCEL = "order.cancel";
         public static final String DEPOSIT = "deposit";
         public static final String AUTH = "auth";
         public static final String PING = "ping";
@@ -135,6 +137,7 @@ public class Constants {
         public static final String PARAMS = "params";
         public static final String ARGS = "args";
         public static final String USER_ID = "userId";
+        public static final String ORDER_ID = "orderId";
         public static final String SYMBOL_ID = "symbolId";
         public static final String PRICE = "price";
         public static final String QTY = "qty";

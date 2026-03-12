@@ -79,6 +79,22 @@ public class Ledger {
         return false;
     }
 
+    /** 
+      撤單解凍：將餘額從凍結退回可用 
+     */
+    public void unfreezeBalance(long userId, int assetId, long amount, long seq) {
+        reusableKey.set(userId, assetId);
+        Balance b = balancesDiskMap.getUsing(reusableKey, reusableBalance);
+        if (b == null) return;
+
+        // 屏障：防止重播重複解凍
+        if (b.getLastSeq() >= seq) return;
+
+        b.setAvailable(b.getAvailable() + amount);
+        b.setFrozen(Math.max(0, b.getFrozen() - amount));
+        commit(reusableKey, b, seq, 0);
+    }
+
     public void initAccount(long userId, int assetId, long seq) {
         access(userId, assetId, 0, 0, seq, 0);
     }

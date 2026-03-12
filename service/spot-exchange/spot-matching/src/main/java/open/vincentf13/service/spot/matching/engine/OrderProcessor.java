@@ -56,6 +56,43 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), tradeIdSupplier);
     }
 
+    /** 
+      處理撤單指令 
+     */
+    public void processCancelCommand(long userId, long orderId, long gwSeq) {
+        Order o = Storage.self().orders().get(orderId);
+        if (o == null || o.getUserId() != userId || o.getStatus() >= 2) {
+            // 訂單不存在、不屬於該用戶或已結束，直接忽略
+            return;
+        }
+
+        // 冪等檢查：如果訂單記錄的 lastSeq 已經是當前或更後，說明已處理過
+        if (o.getLastSeq() >= gwSeq) return;
+
+        // 1. 從領域模型移除 (OrderBook 會處理內存索引與物件池回收)
+        OrderBook book = OrderBook.get(o.getSymbolId());
+        book.remove(orderId);
+
+        // 2. 資金解凍
+        long unfreezeQty = o.getQty() - o.getFilled();
+        if (unfreezeQty > 0) {
+            int assetId = (o.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
+            long amount = (o.getSide() == OrderSide.BUY) ? DecimalUtil.mulCeil(o.getPrice(), unfreezeQty) : unfreezeQty;
+            ledger.unfreezeBalance(userId, assetId, amount, gwSeq);
+        }
+
+        // 3. 更新磁碟狀態為 CANCELED
+        o.setStatus((byte) 3); // 3=CANCELED
+        o.setLastSeq(gwSeq);
+        book.syncOrder(o, gwSeq);
+
+        // 4. 發送回報
+        reporter.sendReport(userId, orderId, o.getClientOrderId(), OrderStatus.CANCELED, 
+                0, 0, o.getFilled(), 0, System.currentTimeMillis());
+        reporter.flushBatch(gwSeq);
+
+        log.info("訂單 {} 撤單成功 (userId: {}, gwSeq: {})", orderId, userId, gwSeq);
+    }
     private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, Supplier<Long> tradeIdSupplier) {
         final long cid = sbe.clientOrderId();
         boolean isBuy = sbe.side() == Side.BUY;

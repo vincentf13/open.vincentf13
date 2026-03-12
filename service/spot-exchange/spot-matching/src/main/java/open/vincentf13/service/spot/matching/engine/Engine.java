@@ -120,7 +120,7 @@ public class Engine extends Worker implements ReadMarshallable {
             }
         }
 
-        // 路由分發 (補全 DEPOSIT)
+        // 路由分發 (補全 DEPOSIT 與 ORDER_CANCEL)
         switch (msgType) {
             case MsgType.AUTH -> authProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
             case MsgType.ORDER_CREATE -> {
@@ -128,6 +128,11 @@ public class Engine extends Worker implements ReadMarshallable {
                 wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
                 payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
                 orderProcessor.processCreateCommand(payloadBuffer, gwSeq, this::nextOrderId, this::nextTradeId);
+            }
+            case MsgType.ORDER_CANCEL -> {
+                long uid = wire.read(ChronicleWireKey.userId).int64();
+                long oid = wire.read(ChronicleWireKey.data).int64(); // 借用 data 傳遞 orderId
+                orderProcessor.processCancelCommand(uid, oid, gwSeq);
             }
             case MsgType.DEPOSIT -> {
                 long uid = wire.read(ChronicleWireKey.userId).int64();
@@ -142,6 +147,7 @@ public class Engine extends Worker implements ReadMarshallable {
         progress.setLastProcessedGwSeq(gwSeq);
         if (seq % 100 == 0) {
             metadata.put(MetaDataKey.MACHING_ENGINE_POINT, progress);
+            Storage.self().logStatus(); // 觸發容量報告
         }
     }
 

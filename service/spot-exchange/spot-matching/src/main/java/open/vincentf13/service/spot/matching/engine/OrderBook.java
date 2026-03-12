@@ -212,11 +212,14 @@ public class OrderBook {
         } else {
             activeOrderIdDiskMap.remove(o.getOrderId());
             String current = userActiveOrdersDiskMap.get(uid);
-            if (current != null && current.contains(oidStr)) {
-                // 優化：精準替換並移除多餘逗號
-                String updated = current.replace(oidStr, "");
-                if (updated.isEmpty()) userActiveOrdersDiskMap.remove(uid);
-                else userActiveOrdersDiskMap.put(uid, updated);
+            if (current != null) {
+                int start = current.indexOf(oidStr);
+                if (start != -1) {
+                    // 優化：精準切割，僅拼接一次
+                    String updated = current.substring(0, start) + current.substring(start + oidStr.length());
+                    if (updated.isEmpty()) userActiveOrdersDiskMap.remove(uid);
+                    else userActiveOrdersDiskMap.put(uid, updated);
+                }
             }
         }
     }

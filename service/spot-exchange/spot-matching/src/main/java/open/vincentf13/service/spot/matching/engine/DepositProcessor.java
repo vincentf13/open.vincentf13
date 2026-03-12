@@ -3,6 +3,7 @@ package open.vincentf13.service.spot.matching.engine;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
+import open.vincentf13.service.spot.sbe.OrderStatus;
 import org.springframework.stereotype.Component;
 import net.openhft.chronicle.map.ChronicleMap;
 

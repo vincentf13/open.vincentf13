@@ -57,9 +57,9 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     @Data
     private static class RequestHolder {
-        String op; long userId; int symbolId; long price; long qty; String side; long cid;
+        String op; long userId; long orderId; int symbolId; long price; long qty; String side; long cid;
         int assetId; long amount;
-        void reset() { op = null; userId = 0; symbolId = 0; price = 0; qty = 0; side = null; cid = 0; assetId = 0; amount = 0; }
+        void reset() { op = null; userId = 0; orderId = 0; symbolId = 0; price = 0; qty = 0; side = null; cid = 0; assetId = 0; amount = 0; }
     }
 
     private final ThreadLocal<RequestHolder> holderPool = ThreadLocal.withInitial(RequestHolder::new);
@@ -82,6 +82,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
                 switch (field) {
                     case Ws.OP -> holder.op = parser.getText();
                     case Ws.USER_ID -> holder.userId = parser.getLongValue();
+                    case Ws.ORDER_ID -> holder.orderId = parser.getLongValue();
                     case Ws.SYMBOL_ID -> holder.symbolId = parser.getIntValue();
                     case Ws.PRICE -> holder.price = parser.getLongValue();
                     case Ws.QTY -> holder.qty = parser.getLongValue();
@@ -98,6 +99,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
                 handleAuth(ctx.channel(), holder);
             } else if (Ws.CREATE.equals(holder.op)) {
                 handleOrderCreate(ctx.channel(), holder);
+            } else if (Ws.CANCEL.equals(holder.op)) {
+                handleOrderCancel(ctx.channel(), holder);
             } else if (Ws.DEPOSIT.equals(holder.op)) {
                 handleDeposit(ctx.channel(), holder);
             }
@@ -114,6 +117,17 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
             dc.wire().write(ChronicleWireKey.userId).int64(holder.userId);
+        }
+    }
+
+    private void handleOrderCancel(Channel channel, RequestHolder holder) {
+        Long uid = sessionToUser.get(channel.id().asLongText());
+        if (uid == null) return;
+        
+        try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
+            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
+            dc.wire().write(ChronicleWireKey.userId).int64(uid);
+            dc.wire().write(ChronicleWireKey.data).int64(holder.orderId); // 借用 data 傳遞 orderId
         }
     }
 
@@ -169,7 +183,11 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         String sid = ctx.channel().id().asLongText();
         sessions.remove(sid);
         Long uid = sessionToUser.remove(sid);
-        if (uid != null) userToSession.remove(uid);
+        if (uid != null) {
+            // 關鍵修正：僅當 userToSession 裡存儲的是當前關閉的連線時才移除
+            // 防止同一用戶開啟多個連線時，其中一個斷開導致其他連線收不到推送
+            userToSession.remove(uid, ctx.channel());
+        }
     }
 
     @Override
