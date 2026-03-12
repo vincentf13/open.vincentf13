@@ -33,6 +33,13 @@ public class OrderBook {
         void onTrade(long makerUserId, long takerUserId, long price, long qty, long makerOrderId);
     }
 
+    /** 
+      執行撮合 (回調模式)
+      
+      優化設計：採用 Functional Callback 代替返回 List<TradeEvent>
+      1. Zero-Allocation：徹底消除每秒數萬次撮合產生的 ArrayList 與 Event 物件分配，壓制 Young GC。
+      2. Cache Locality：在數據尚在 L1/L2 緩存時立即觸發結算邏輯，實現流水線式處理，極大降低延遲。
+     */
     public void match(Order taker, TradeHandler handler) {
         final boolean isBuy = taker.getSide() == 0;
         final TreeMap<Long, Deque<Order>> counterSide = isBuy ? asks : bids;
