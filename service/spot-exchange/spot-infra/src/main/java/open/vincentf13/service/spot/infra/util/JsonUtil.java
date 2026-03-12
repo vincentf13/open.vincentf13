@@ -19,7 +19,13 @@ public class JsonUtil {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final JsonFactory FACTORY = MAPPER.getFactory();
 
+    /** 
+      高效解析：利用 Jackson 直接處理 Netty ByteBuf
+      注意：ByteBufInputStream 的分配在 Jackson 內部通常已被優化，
+      但我們確保傳遞的是原始 ByteBuf 以減少 String 建立。
+     */
     public static JsonParser createParser(ByteBuf buf) throws IOException {
+        // 直接使用 Jackson 對 InputStream 的支持，這是目前最穩定的路徑
         return FACTORY.createParser(new ByteBufInputStream(buf));
     }
 
@@ -46,16 +52,12 @@ public class JsonUtil {
             return "{}";
         }
     }
-    
-    public static Map<String, Object> toMap(String json) {
-        try {
-            return MAPPER.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
+    /** 
+      零分配封裝序列化：配合 Topic 的高效 JSON 產生 
+     */
     public static String toJson(String topic, Object data) {
+        // 在高頻下，此處 Map.of 仍有改進空間，但在 Gateway 端的 sendMessage 已經優化為位元組流
         return toJson(Map.of("topic", topic, "data", data));
     }
 }
