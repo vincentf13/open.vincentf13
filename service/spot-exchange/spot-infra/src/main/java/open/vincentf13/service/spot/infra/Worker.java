@@ -92,6 +92,7 @@ public abstract class Worker implements Runnable {
             // 同時檢查運行標誌位與執行緒中斷狀態
             while (running.get() && !Thread.currentThread().isInterrupted()) {
                 int workDone = doWork();
+                // 根據工作量決定等待策略：有任務時不休眠，無任務時逐步退避 (Spin -> Yield -> Park)
                 idleStrategy.idle(workDone);
             }
         } catch (Exception e) {
@@ -107,7 +108,11 @@ public abstract class Worker implements Runnable {
         }
     }
     
-    /** 啟動時的初始化鉤子，由子類實作 */
+    /** 
+      啟動時的初始化鉤子，由子類實作
+      此方法在背景工作執行緒正式開始 while 循環前被調用一次，
+      適用於建立網絡連線、加載 Checkpoint 或初始化內存索引等操作
+     */
     protected abstract void onStart();
     
     /** 
