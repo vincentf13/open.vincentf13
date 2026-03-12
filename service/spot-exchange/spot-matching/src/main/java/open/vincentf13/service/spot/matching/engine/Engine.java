@@ -31,7 +31,6 @@ public class Engine extends Worker {
     private ExcerptTailer tailer;
     private boolean isReplaying = false;
 
-    // 預分配 SBE 解碼組件
     private final OrderCreateDecoder createDecoder = new OrderCreateDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
@@ -47,7 +46,6 @@ public class Engine extends Worker {
     @Override
     protected void onStart() {
         this.tailer = Storage.self().commandQueue().createTailer();
-        
         Progress saved = Storage.self().metadata().get(MetaDataKey.MACHING_ENGINE_POINT);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
@@ -67,7 +65,6 @@ public class Engine extends Worker {
         if (progress.getLastProcessedSeq() > 0) {
             isReplaying = true; 
             tailer.moveToIndex(progress.getLastProcessedSeq());
-            log.info("引擎進入重播模式，起始位點: {}", progress.getLastProcessedSeq());
         }
     }
 
@@ -84,15 +81,12 @@ public class Engine extends Worker {
             wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
             payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
 
-            // 1. 指令分發
             if (msgType == MsgType.AUTH) handleAuth(gwSeq);
             else if (msgType == MsgType.ORDER_CREATE) dispatchOrderCreate(gwSeq);
 
-            // 2. 更新與持久化進度
             progress.setLastProcessedSeq(seq);
             Storage.self().metadata().put(MetaDataKey.MACHING_ENGINE_POINT, progress);
         });
-        
         if (!handled && isReplaying) isReplaying = false;
         return handled ? 1 : 0;
     }
@@ -102,7 +96,6 @@ public class Engine extends Worker {
         String cid = createDecoder.clientOrderId();
         CidKey key = new CidKey(createDecoder.userId(), cid);
         
-        // 冪等性檢查
         Long resId = Storage.self().cids().get(key);
         if (resId != null) {
             if (!isReplaying) {
@@ -115,12 +108,22 @@ public class Engine extends Worker {
         long orderId = progress.getOrderIdCounter(); 
         progress.setOrderIdCounter(orderId + 1);
         
-        // 委派至 Processor 執行業務
-        Storage.self().cids().put(key, processor.handleOrderCreate(createDecoder, gwSeq, orderId, cid, isReplaying));
+        // 傳遞確定性的 tradeId 生成器
+        processor.handleOrderCreate(createDecoder, gwSeq, orderId, cid, isReplaying, () -> {
+            long tid = progress.getTradeIdCounter();
+            progress.setTradeIdCounter(tid + 1);
+            return tid;
+        });
+        
+        Storage.self().cids().put(key, orderId);
     }
 
     private void handleAuth(long gwSeq) {
-        long userId = createDecoder.userId(); // 此處應從 Payload 或 Wire 讀取，目前簡化處理
+        // 認證訊息 Payload 目前僅包含 userId (由 WsHandler 寫入)
+        // 由於 AUTH 不走 SBE (目前是 Wire 直接寫入)，我們從 Wire 讀取
+        // 注意：doWork 已經 poll 了 payload，這裡需要從 wire 讀取 userId 欄位
+        // 修正：handleAuth 應該直接接收已讀取的 userId
+        long userId = payloadBuffer.getLong(0); // 假設認證 Payload 就是一個 Long
         ledger.initBalance(userId, Asset.BTC, gwSeq); 
         ledger.initBalance(userId, Asset.USDT, gwSeq);
         reporter.sendAuthSuccess(userId, gwSeq, isReplaying);

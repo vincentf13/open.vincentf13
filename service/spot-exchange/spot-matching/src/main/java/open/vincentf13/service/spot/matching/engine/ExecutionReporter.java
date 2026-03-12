@@ -15,7 +15,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  執行回報發送器 (Execution Reporter)
- 職責：將引擎產生的成交回報、認證結果等封裝為 SBE 或 Wire 格式並持久化至 Result WAL
+ 職責：將引擎產生的成交回報、認證結果等封裝為 SBE 格式並持久化至 Result WAL
  */
 @Component
 public class ExecutionReporter {
@@ -25,7 +25,6 @@ public class ExecutionReporter {
 
     /** 
       發送成交回報 (ExecutionReport)
-      @param isReplaying 若處於重播模式，則僅執行邏輯不發送外部訊號
      */
     public void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts, long gwSeq, boolean isReplaying) {
         if (isReplaying) return;
@@ -42,7 +41,7 @@ public class ExecutionReporter {
                 .lastQty(lq)
                 .cumQty(cq)
                 .avgPrice(ap)
-                .clientOrderId(cid));
+                .clientOrderId(cid == null ? "" : cid));
         
         outboundBytes.writePosition(sbeLen);
         
@@ -54,12 +53,15 @@ public class ExecutionReporter {
     }
 
     /** 
-      重發已知訂單的回報
+      重發訂單回報 (用於冪等性補發)
      */
     public void resendReport(Order o, long gwSeq) {
-        OrderStatus s = (o.getStatus() == 2) ? OrderStatus.FILLED : 
-                        (o.getStatus() == 3) ? OrderStatus.REJECTED : 
-                        (o.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
+        OrderStatus s = switch (o.getStatus()) {
+            case 2 -> OrderStatus.FILLED;
+            case 3 -> OrderStatus.REJECTED;
+            case 1 -> OrderStatus.PARTIALLY_FILLED;
+            default -> OrderStatus.NEW;
+        };
         sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, System.currentTimeMillis(), gwSeq, false);
     }
 
@@ -75,7 +77,6 @@ public class ExecutionReporter {
         });
     }
 
-    /** 資源釋放 */
     public void close() {
         outboundBytes.releaseLast();
     }
