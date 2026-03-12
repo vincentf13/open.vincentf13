@@ -9,6 +9,3 @@ aeron:
 
 state:
   base-dir: data/spot-exchange/
-  entries:
-    orders: 1000000
-    balances: 100000
