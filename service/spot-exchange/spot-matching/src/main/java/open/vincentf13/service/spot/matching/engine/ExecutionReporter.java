@@ -8,6 +8,7 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.sbe.ExecutionReportEncoder;
 import open.vincentf13.service.spot.sbe.OrderStatus;
 
@@ -17,14 +18,15 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  執行回報發送器 (Execution Reporter)
- 職責：收集並批量執行事務寫入，確保回報的原子性落地
+ 職責：收集指令產生的所有回報，並批量、原子地寫入 WAL
  */
 @Component
 public class ExecutionReporter {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
     
-    private final Bytes<ByteBuffer> batchBytes = Bytes.elasticByteBuffer(4096);
+    /** 批量緩衝區：擴大至 16KB，確保即使產生大量成交也能安全容納 */
+    private final Bytes<ByteBuffer> batchBytes = Bytes.elasticByteBuffer(16384);
     private final UnsafeBuffer sbeWrapBuffer = new UnsafeBuffer(0, 0);
 
     @Setter private boolean replaying = false;
@@ -33,6 +35,9 @@ public class ExecutionReporter {
         if (replaying) return;
         
         int pos = (int) batchBytes.writePosition();
+        // 確保緩衝區空間足夠
+        batchBytes.ensureCapacity(pos + 128); 
+        
         sbeWrapBuffer.wrap(batchBytes.addressForWrite(pos), (int) batchBytes.realCapacity() - pos);
         
         int sbeLen = SbeCodec.encode(sbeWrapBuffer, 0, executionEncoder
@@ -43,9 +48,6 @@ public class ExecutionReporter {
         batchBytes.writePosition(pos + sbeLen);
     }
 
-    /** 
-      事務批量寫入：使用 DocumentContext 確保 Payload 完整性
-     */
     public void flushBatch(long gwSeq) {
         if (replaying || batchBytes.writePosition() == 0) {
             batchBytes.clear();

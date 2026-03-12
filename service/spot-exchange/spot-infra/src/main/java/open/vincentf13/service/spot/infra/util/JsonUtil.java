@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ByteBufOutputStream;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,8 +22,6 @@ public class JsonUtil {
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final JsonFactory FACTORY = MAPPER.getFactory();
-
-    /** 預分配 TypeReference：消除每次調用 toMap 時的匿名內部類分配 */
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     @Data
@@ -35,6 +34,17 @@ public class JsonUtil {
 
     public static JsonParser createParser(ByteBuf buf) throws IOException {
         return FACTORY.createParser(new ByteBufInputStream(buf));
+    }
+
+    /** 
+      零分配序列化：將對象直接寫入 Netty ByteBuf，徹底消除 String 建立開銷 
+     */
+    public static void writeToByteBuf(ByteBuf buf, Object value) {
+        try (ByteBufOutputStream os = new ByteBufOutputStream(buf)) {
+            MAPPER.writeValue(os, value);
+        } catch (IOException e) {
+            log.error("JSON 序列化失敗: {}", e.getMessage());
+        }
     }
 
     public static String toJson(Object value) {
@@ -50,14 +60,6 @@ public class JsonUtil {
             return MAPPER.readValue(json, MAP_TYPE);
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    public static void updateObject(String content, Object target) {
-        try {
-            MAPPER.readerForUpdating(target).readValue(content);
-        } catch (Exception e) {
-            log.error("Update Object Error: {}", e.getMessage());
         }
     }
 }

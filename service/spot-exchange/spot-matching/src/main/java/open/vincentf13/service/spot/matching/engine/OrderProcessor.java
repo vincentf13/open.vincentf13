@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 訂單處理核心 (Order Processor) - 終極 Zero-Allocation 版
+ 訂單處理核心 (Order Processor)
  職責：領域編排者，協調風控、訂單簿狀態機與外部回報發送
  */
 @Slf4j
@@ -26,11 +26,10 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
-    // --- 預分配組件 ---
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
     private final CidKey reusableCidKey = new CidKey();
 
-    // --- 執行上下文 (用於消除 Lambda 捕獲) ---
+    // 執行上下文
     private long ctxGwSeq;
     private long ctxTimestamp;
     private long ctxUserId;
@@ -49,11 +48,9 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
         SbeCodec.decode(payload, 0, decoder);
+        decoder.getClientOrderId(); // 此處 decoder 內置 long 讀取
+        reusableCidKey.set(decoder.userId(), decoder.clientOrderId());
         
-        final long cid = decoder.clientOrderId();
-        reusableCidKey.set(decoder.userId(), cid);
-        
-        // 冪等過濾：零分配檢查
         if (clientOrderIdDiskMap.containsKey(reusableCidKey)) return;
         
         handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), tradeIdSupplier);
@@ -61,17 +58,20 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, Supplier<Long> tradeIdSupplier) {
         final long cid = sbe.clientOrderId();
-        final boolean isBuy = sbe.side() == Side.BUY;
-        final long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
+        boolean isBuy = sbe.side() == Side.BUY;
+        long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
         // 1. 風控校驗
         if (!ledger.freezeBalance(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, cost, gwSeq)) {
             reporter.sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             reporter.flushBatch(gwSeq);
+            // 修正點：記錄拒絕訂單的冪等映射
+            reusableCidKey.set(sbe.userId(), cid);
+            clientOrderIdDiskMap.put(reusableCidKey, ID_REJECTED);
             return;
         }
 
-        // 2. 設置執行上下文
+        // 2. 設置執行上下文供 onMatch 使用
         this.ctxGwSeq = gwSeq;
         this.ctxTimestamp = sbe.timestamp();
         this.ctxUserId = sbe.userId();
@@ -82,24 +82,22 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         OrderBook book = OrderBook.get(sbe.symbolId());
         Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, this);
 
-        // 4. 最終回報
+        // 4. Taker 最終回報
         reporter.sendReport(taker.getUserId(), orderId, cid, 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, ctxTimestamp);
         
-        // 5. 批量落地與最終冪等存檔 (使用復用對象，徹底消除 new CidKey)
+        // 5. 批量落地與最終冪等存檔
         reporter.flushBatch(gwSeq);
         reusableCidKey.set(taker.getUserId(), cid);
         clientOrderIdDiskMap.put(reusableCidKey, orderId);
 
-        // 6. 資源安全歸還
         if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 
     @Override
     public void onMatch(Order maker, long price, long qty) {
         ledger.settleTrade(maker.getUserId(), ctxUserId, price, qty, ctxSide, ctxPrice, ctxGwSeq);
-        
         reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
                 maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
                 price, qty, maker.getFilled(), maker.getPrice(), ctxTimestamp);

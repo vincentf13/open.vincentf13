@@ -1,5 +1,7 @@
 package open.vincentf13.service.spot.gateway.ws;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -21,8 +23,8 @@ import java.nio.ByteBuffer;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 推送背景執行緒 (PushWorker) - 終極 Zero-GC 版
- 職責：讀取回報流並推送，消除所有臨時 Map 與 String 分配
+ WebSocket 推送背景執行緒 (PushWorker) - 終極性能版
+ 職責：讀取回報流並直接序列化至 ByteBuf 推送，達成全路徑零分配
  */
 @Slf4j
 @Component
@@ -47,7 +49,6 @@ public class PushWorker extends Worker {
     }
 
     private final PushEvent pushEventReusable = new PushEvent();
-    /** 復用 Envelope：消除 Map.of() 分配 */
     private final JsonUtil.Envelope envelopeReusable = new JsonUtil.Envelope("execution", pushEventReusable);
 
     public PushWorker(WsHandler wsHandler) {
@@ -82,21 +83,23 @@ public class PushWorker extends Worker {
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
                 int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
 
-                // 零分配填充載體
+                // 1. 填充載體
                 pushEventReusable.setOrderId(executionDecoder.orderId());
-                
                 int statusOrdinal = executionDecoder.status().value();
-                if (statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length) {
-                    pushEventReusable.setStatus(ORDER_STATUS_STRINGS[statusOrdinal]);
-                } else {
-                    pushEventReusable.setStatus("UNKNOWN");
-                }
-                
+                pushEventReusable.setStatus(statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length ? 
+                        ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN");
                 pushEventReusable.setCid(executionDecoder.clientOrderId());
                 pushEventReusable.setUserId(executionDecoder.userId());
 
-                // 序列化：直接使用預綁定的 envelopeReusable，達成零分配
-                wsHandler.sendMessage(pushEventReusable.getUserId(), JsonUtil.toJson(envelopeReusable));
+                // 2. 優化點：從 Netty 池分配 ByteBuf，直接寫入 JSON
+                ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(512);
+                JsonUtil.writeToByteBuf(outBuf, envelopeReusable);
+
+                // 3. 推送 (sendMessage 負責 data.release())
+                wsHandler.sendMessage(pushEventReusable.getUserId(), outBuf);
+                
+                // 注意：TextWebSocketFrame 會在發送後釋放 ByteBuf (由 Netty 負責)
+                // 但為了保證安全，sendMessage 內部使用了 data.retain()
 
                 offset += currentMsgLen;
             }

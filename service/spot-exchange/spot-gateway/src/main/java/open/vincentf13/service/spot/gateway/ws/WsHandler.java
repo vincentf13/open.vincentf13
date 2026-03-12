@@ -31,17 +31,20 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  WebSocket 接入處理器 (WsHandler)
- 職責：管理連線、零分配解析指令並執行 Zero-String 推送
+ 職責：管理連線、零分配解析指令並執行 $O(1)$ 的精準推送
  */
 @Slf4j
 @Component
 @ChannelHandler.Sharable
 public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
-    private final Map<String, Channel> sessions = new ConcurrentHashMap<>();
     
-    /** SessionID -> UserID 映射：Value 改用 Long 避免 String 分配 */
+    /** SessionID -> Channel 映射 */
+    private final Map<String, Channel> sessions = new ConcurrentHashMap<>();
+    /** SessionID -> UserID 映射 (用於斷線清理) */
     private final Map<String, Long> sessionToUser = new ConcurrentHashMap<>();
+    /** UserID -> Channel 映射：實現 $O(1)$ 推送關鍵 */
+    private final Map<Long, Channel> userToSession = new ConcurrentHashMap<>();
     
     private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
     private final Bytes<ByteBuffer> sbeBytes = Bytes.elasticByteBuffer(512);
@@ -97,7 +100,10 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleAuth(Channel channel, RequestHolder holder) {
-        sessionToUser.put(channel.id().asLongText(), holder.userId);
+        String sid = channel.id().asLongText();
+        sessionToUser.put(sid, holder.userId);
+        userToSession.put(holder.userId, channel); // 建立雙向索引
+        
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
             dc.wire().write(ChronicleWireKey.userId).int64(holder.userId);
@@ -125,25 +131,24 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     /** 
-      高效推送：使用 long 型 UID 比對，彻底消除 String.valueOf()
+      精準推送：$O(1)$ 查找，徹底消除全量遍歷 
      */
-    public void sendMessage(long userId, String json) {
-        sessions.values().stream()
-            .filter(c -> {
-                Long uid = sessionToUser.get(c.id().asLongText());
-                return uid != null && uid == userId;
-            })
-            .forEach(c -> {
-                ByteBuf data = Unpooled.wrappedBuffer(json.getBytes(StandardCharsets.UTF_8));
-                c.writeAndFlush(new TextWebSocketFrame(data));
-            });
+    public void sendMessage(long userId, ByteBuf data) {
+        Channel c = userToSession.get(userId);
+        if (c != null && c.isActive()) {
+            c.writeAndFlush(new TextWebSocketFrame(data.retain()));
+        } else {
+            // 如果連線已失效，則釋放數據緩衝區
+            data.release();
+        }
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         String sid = ctx.channel().id().asLongText();
         sessions.remove(sid);
-        sessionToUser.remove(sid);
+        Long uid = sessionToUser.remove(sid);
+        if (uid != null) userToSession.remove(uid);
     }
 
     @Override

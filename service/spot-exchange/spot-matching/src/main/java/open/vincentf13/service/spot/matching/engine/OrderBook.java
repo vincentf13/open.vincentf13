@@ -15,7 +15,8 @@ import java.util.function.Supplier;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存訂單簿 (OrderBook) - 終極 Zero-Allocation 版
+ 內存訂單簿 (OrderBook)
+ 職責：領域狀態機，管理撮合、持久化同步與容器回收
  */
 @Slf4j
 public class OrderBook {
@@ -72,11 +73,7 @@ public class OrderBook {
 
     private Order borrowOrder() {
         Order o = orderPool.pollFirst();
-        if (o == null) {
-            log.warn("Symbol {} 物件池枯竭，發生額外分配！", symbolId);
-            return new Order();
-        }
-        return o;
+        return (o == null) ? new Order() : o;
     }
 
     public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
@@ -91,12 +88,10 @@ public class OrderBook {
 
     private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq) {
         Order o = borrowOrder();
-        // 必須重置所有關鍵狀態
         o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
         o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
         o.setSide((byte)(sbe.side() == Side.BUY ? OrderSide.BUY : OrderSide.SELL));
-        o.setStatus((byte)0); // 補回漏掉的 status 重置
-        o.setVersion(1); o.setLastSeq(gwSeq);
+        o.setStatus((byte)0); o.setVersion(1); o.setLastSeq(gwSeq);
         o.setClientOrderId(clientOrderId);
         return o;
     }
@@ -149,13 +144,14 @@ public class OrderBook {
             }
             if (makers != null && makers.isEmpty()) {
                 counterSide.remove(bestPrice);
-                dequePool.addLast(makers);
+                makers.clear(); // 清理引用，防止記憶體洩漏
+                dequePool.addLast(makers); 
             } else break;
         }
         if (taker.getQty() > taker.getFilled()) add(taker);
     }
 
-    public void add(Order order) {
+    private void add(Order order) {
         TreeMap<Long, Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
         levels.computeIfAbsent(order.getPrice(), k -> {
             Deque<Order> poolDeque = dequePool.pollFirst();
@@ -168,9 +164,15 @@ public class OrderBook {
         if (o.getFilled() == o.getQty()) o.setStatus((byte) 2);
         else if (o.getFilled() > 0) o.setStatus((byte) 1);
         o.setVersion(o.getVersion() + 1); o.setLastSeq(gwSeq);
+        
         allOrdersDiskMap.put(o.getOrderId(), o);
-        if (o.getStatus() < 2) activeOrderIdDiskMap.put(o.getOrderId(), true);
-        else activeOrderIdDiskMap.remove(o.getOrderId());
+        
+        // --- 核心修正：正確維護活躍訂單 ID 清單 ---
+        if (o.getStatus() < 2) {
+            activeOrderIdDiskMap.put(o.getOrderId(), Boolean.TRUE);
+        } else {
+            activeOrderIdDiskMap.remove(o.getOrderId());
+        }
     }
 
     public void remove(long orderId) { orderIndex.remove(orderId); }
