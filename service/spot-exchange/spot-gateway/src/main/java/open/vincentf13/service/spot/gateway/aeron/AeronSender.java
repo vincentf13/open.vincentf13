@@ -71,7 +71,14 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         }
 
         if (currentState == AeronState.SENDING) {
-            if (tailer.readDocument(this)) workDone++;
+            // 批量發送優化：一次工作周期處理最多 100 條指令
+            for (int i = 0; i < 100; i++) {
+                if (tailer.readDocument(this)) {
+                    workDone++;
+                } else {
+                    break;
+                }
+            }
             
             if (workDone > 0 && backPressureCount > 1000) {
                 log.warn("警告：指令鏈路偵測到嚴重背壓，核心引擎可能處理過慢或 GC 中！");

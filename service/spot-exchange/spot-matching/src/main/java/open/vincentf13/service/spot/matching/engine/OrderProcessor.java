@@ -95,28 +95,40 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     }
     private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, Supplier<Long> tradeIdSupplier) {
         final long cid = sbe.clientOrderId();
+        final long price = sbe.price();
+        final long qty = sbe.qty();
+        final long userId = sbe.userId();
         boolean isBuy = sbe.side() == Side.BUY;
 
-        // 3. 獲取領域物件 (提前獲取以取得資產資訊)
+        // 1. 參數合法性校驗 (Risk Check)
+        if (price <= 0 || qty <= 0) {
+            reporter.sendReport(userId, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
+            reporter.flushBatch(gwSeq);
+            reusableCidKey.set(userId, cid);
+            clientOrderIdDiskMap.put(reusableCidKey, ID_REJECTED);
+            log.warn("拒絕非法指令：UserId={}, Price={}, Qty={}", userId, price, qty);
+            return;
+        }
+
+        // 3. 獲取領域物件
         OrderBook book = OrderBook.get(sbe.symbolId());
         int assetId = isBuy ? book.getQuoteAssetId() : book.getBaseAssetId();
-        long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
+        long cost = isBuy ? DecimalUtil.mulCeil(price, qty) : qty;
 
-        // 1. 風控校驗
-        if (!ledger.freezeBalance(sbe.userId(), assetId, cost, gwSeq)) {
-            reporter.sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
+        // 2. 風控校驗 (餘額檢查)
+        if (!ledger.freezeBalance(userId, assetId, cost, gwSeq)) {
+            reporter.sendReport(userId, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             reporter.flushBatch(gwSeq);
-            // 修正點：記錄拒絕訂單的冪等映射
-            reusableCidKey.set(sbe.userId(), cid);
+            reusableCidKey.set(userId, cid);
             clientOrderIdDiskMap.put(reusableCidKey, ID_REJECTED);
             return;
         }
 
-        // 2. 設置執行上下文供 onMatch 使用
+        // 設置執行上下文
         this.ctxGwSeq = gwSeq;
         this.ctxTimestamp = sbe.timestamp();
-        this.ctxUserId = sbe.userId();
-        this.ctxPrice = sbe.price();
+        this.ctxUserId = userId;
+        this.ctxPrice = price;
         this.ctxSide = (byte)(isBuy ? OrderSide.BUY : OrderSide.SELL);
 
         Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, this);
@@ -126,7 +138,6 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
                 toSbeStatus(taker.getStatus()), 
                 0, 0, taker.getFilled(), 0, ctxTimestamp);
 
-        // 5. 批量落地與最終冪等存檔
         reporter.flushBatch(gwSeq);
         reusableCidKey.set(taker.getUserId(), cid);
         clientOrderIdDiskMap.put(reusableCidKey, orderId);
@@ -138,15 +149,22 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         return switch (status) {
             case 1 -> OrderStatus.PARTIALLY_FILLED;
             case 2 -> OrderStatus.FILLED;
+            case 3 -> OrderStatus.CANCELED;
             default -> OrderStatus.NEW;
         };
     }
 
     @Override
     public void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset) {
+        // 自成交預防 (Self-Trade Prevention)
+        if (maker.getUserId() == ctxUserId) {
+            log.info("觸發 STB：用戶 {} 嘗試與自己的訂單 {} 成交，跳過撮合", ctxUserId, maker.getOrderId());
+            return;
+        }
+
         ledger.settleTrade(maker.getUserId(), ctxUserId, price, qty, ctxSide, ctxPrice, ctxGwSeq, baseAsset, quoteAsset, tradeId);
 
-        // 1. Maker 回報 (Maker 的平均價就是當前成交價)
+        // 1. Maker 回報
         reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
                 maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
                 price, qty, maker.getFilled(), price, ctxTimestamp);

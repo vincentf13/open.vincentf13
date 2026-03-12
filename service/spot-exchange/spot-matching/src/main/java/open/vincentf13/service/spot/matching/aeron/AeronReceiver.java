@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.aeron;
 
 import io.aeron.Aeron;
+import io.aeron.FragmentAssembler;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
@@ -34,6 +35,9 @@ public class AeronReceiver extends Worker {
     private final Progress progress = new Progress();
     private final PointerBytesStore pointerBytesStore = new PointerBytesStore();
     
+    // 使用 FragmentAssembler 確保跨 MTU 訊息的完整性 (處理網路分片)
+    private FragmentAssembler assembler;
+    
     private AeronState currentState = AeronState.WAITING;
     private long lastResumeSentTime = 0;
 
@@ -47,6 +51,9 @@ public class AeronReceiver extends Worker {
     protected void onStart() {
         subscription = aeron.addSubscription(AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID);
         controlPublication = aeron.addPublication(AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
+        
+        // 初始化重組器：包裝原始 handler
+        this.assembler = new FragmentAssembler(fragmentHandler);
         
         Progress saved = metadata.get(MetaDataKey.MACHING_RECEVIER_POINT);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
@@ -70,7 +77,8 @@ public class AeronReceiver extends Worker {
                 lastResumeSentTime = now;
             }
         }
-        return subscription.poll(fragmentHandler, 10);
+        // 關鍵：傳遞 assembler 而非直接傳遞 fragmentHandler
+        return subscription.poll(assembler, 10);
     }
 
     private void sendResumeSignalBlocking() {
@@ -87,7 +95,6 @@ public class AeronReceiver extends Worker {
         
         // 1. 握手與自愈邏輯
         if (currentState == AeronState.WAITING) {
-            // 判定為對端重置 (序號從 0 開始且當前進度較大) 或 正常銜接
             if (gwSeq == 0 && lastSeq > 1000) {
                 log.warn("檢測到發送端 WAL 重置 (gwSeq=0, lastProcessed={})，執行進度重置", lastSeq);
                 progress.setLastProcessedSeq(-1L);
@@ -115,6 +122,13 @@ public class AeronReceiver extends Worker {
             } else if (msgType == MsgType.ORDER_CREATE) {
                 pointerBytesStore.set(messageAddress + 12, length - 12);
                 dc.wire().write(ChronicleWireKey.payload).bytes(pointerBytesStore);
+            } else if (msgType == MsgType.ORDER_CANCEL) {
+                dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
+                dc.wire().write(ChronicleWireKey.data).int64(buffer.getLong(offset + 20));
+            } else if (msgType == MsgType.DEPOSIT) {
+                dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
+                dc.wire().write(ChronicleWireKey.topic).int32(buffer.getInt(offset + 20));
+                dc.wire().write(ChronicleWireKey.data).int64(buffer.getLong(offset + 24));
             }
         }
         

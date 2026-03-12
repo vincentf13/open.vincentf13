@@ -1,26 +1,27 @@
 package open.vincentf13.service.spot.gateway.aeron;
 
 import io.aeron.Aeron;
+import io.aeron.FragmentAssembler;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
-import net.openhft.chronicle.bytes.PointerBytesStore;
-import net.openhft.chronicle.map.ChronicleMap;
-import net.openhft.chronicle.queue.ChronicleQueue;
-import net.openhft.chronicle.wire.DocumentContext;
-import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
+import org.springframework.stereotype.Component;
+import net.openhft.chronicle.bytes.PointerBytesStore;
+import net.openhft.chronicle.map.ChronicleMap;
+import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.wire.DocumentContext;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 接收器
- 職責：監聽回報流並透過事務方式落地 WAL，實現熱點路徑零物件分配
+ 職責：監聽核心引擎回報並落地 WAL，達成零物件分配
  */
 @Component
 public class AeronReceiver extends Worker {
@@ -34,6 +35,9 @@ public class AeronReceiver extends Worker {
     private final Progress progress = new Progress();
     private final PointerBytesStore pointerBytesStore = new PointerBytesStore();
     
+    // 支援網路分片訊息重組
+    private FragmentAssembler assembler;
+
     private AeronState currentState = AeronState.WAITING;
     private long lastResumeSentTime = 0;
 
@@ -47,13 +51,14 @@ public class AeronReceiver extends Worker {
     protected void onStart() {
         subscription = aeron.addSubscription(AeronChannel.GATEWAY_URL, AeronChannel.DATA_STREAM_ID);
         controlPublication = aeron.addPublication(AeronChannel.MATCHING_URL, AeronChannel.CONTROL_STREAM_ID);
+        this.assembler = new FragmentAssembler(fragmentHandler);
         
         Progress saved = metadata.get(MetaDataKey.GW_RECEVIER_POINT);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
         
         currentState = AeronState.WAITING;
-        log.info("AeronReceiver (Gateway) 啟動：當前進度: {}", progress.getLastProcessedSeq());
+        log.info("AeronReceiver (Gateway) 啟動：當前進度: {}，進入握手狀態...", progress.getLastProcessedSeq());
     }
 
     @Override
@@ -70,7 +75,7 @@ public class AeronReceiver extends Worker {
                 lastResumeSentTime = now;
             }
         }
-        return subscription.poll(fragmentHandler, 10);
+        return subscription.poll(assembler, 10);
     }
 
     private void sendResumeSignalBlocking() {
@@ -81,7 +86,6 @@ public class AeronReceiver extends Worker {
     }
 
     private final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
-        final int msgType = buffer.getInt(offset);
         final long matchingSeq = buffer.getLong(offset + 4);
         final long lastSeq = progress.getLastProcessedSeq();
         
