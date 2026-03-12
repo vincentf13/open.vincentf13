@@ -15,21 +15,19 @@ import java.util.function.Supplier;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 訂單處理核心 (Order Processor)
+ 訂單處理核心 (Order Processor) - 終極 Zero-Allocation 版
  職責：領域編排者，協調風控、訂單簿狀態機與外部回報發送
  */
 @Slf4j
 @Component
 public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
-    private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
     // --- 預分配組件 ---
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
-    private final Order reusableOrder = new Order();
     private final CidKey reusableCidKey = new CidKey();
 
     // --- 執行上下文 (用於消除 Lambda 捕獲) ---
@@ -55,6 +53,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         final long cid = decoder.clientOrderId();
         reusableCidKey.set(decoder.userId(), cid);
         
+        // 冪等過濾：零分配檢查
         if (clientOrderIdDiskMap.containsKey(reusableCidKey)) return;
         
         handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), tradeIdSupplier);
@@ -72,25 +71,28 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             return;
         }
 
-        // --- 設置執行上下文 ---
+        // 2. 設置執行上下文
         this.ctxGwSeq = gwSeq;
         this.ctxTimestamp = sbe.timestamp();
         this.ctxUserId = sbe.userId();
         this.ctxPrice = sbe.price();
         this.ctxSide = (byte)(isBuy ? OrderSide.BUY : OrderSide.SELL);
 
+        // 3. 領域執行
         OrderBook book = OrderBook.get(sbe.symbolId());
         Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, this);
 
-        // 最終回報
+        // 4. 最終回報
         reporter.sendReport(taker.getUserId(), orderId, cid, 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, ctxTimestamp);
         
+        // 5. 批量落地與最終冪等存檔 (使用復用對象，徹底消除 new CidKey)
         reporter.flushBatch(gwSeq);
         reusableCidKey.set(taker.getUserId(), cid);
         clientOrderIdDiskMap.put(reusableCidKey, orderId);
 
+        // 6. 資源安全歸還
         if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 

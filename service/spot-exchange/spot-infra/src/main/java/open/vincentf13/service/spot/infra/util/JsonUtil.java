@@ -2,6 +2,7 @@ package open.vincentf13.service.spot.infra.util;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.Map;
 
 @Slf4j
 public class JsonUtil {
@@ -20,9 +22,9 @@ public class JsonUtil {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final JsonFactory FACTORY = MAPPER.getFactory();
 
-    /** 
-      JSON 外殼：用於消除序列化時的 Map.of 分配 
-     */
+    /** 預分配 TypeReference：消除每次調用 toMap 時的匿名內部類分配 */
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -40,6 +42,14 @@ public class JsonUtil {
             return MAPPER.writeValueAsString(value);
         } catch (Exception e) {
             return "{}";
+        }
+    }
+
+    public static Map<String, Object> toMap(String json) {
+        try {
+            return MAPPER.readValue(json, MAP_TYPE);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
