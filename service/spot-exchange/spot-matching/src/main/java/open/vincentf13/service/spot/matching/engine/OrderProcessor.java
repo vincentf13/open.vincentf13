@@ -16,12 +16,11 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  訂單處理核心 (Order Processor)
- 職責：作為領域編排者，協調風控、訂單簿狀態機與外部回報發送
+ 職責：領域編排者，協調風控、訂單簿狀態機與外部回報發送
  */
 @Slf4j
 @Component
 public class OrderProcessor {
-    /** 僅保留全局冪等性索引，其餘數據管理下沉至 OrderBook */
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
 
     private final Ledger ledger;
@@ -37,9 +36,6 @@ public class OrderProcessor {
         this.reporter = reporter;
     }
 
-    /** 
-      重建狀態：委派至 OrderBook 執行領域內部的全局恢復
-     */
     public void rebuildState() {
         log.info("OrderProcessor 正在恢復領域模型狀態...");
         OrderBook.rebuildAll();
@@ -66,19 +62,27 @@ public class OrderProcessor {
             return;
         }
 
-        // 2. 領域處理：Admission -> 撮合 -> 結案同步 一口氣完成
-        Order taker = OrderBook.get(sbe.symbolId()).handleCreate(orderId, sbe, gwSeq, tradeIdSupplier, (maker, p, q) -> {
-            // 執行跨領域協調：帳務結算與回報
+        // 2. 領域處理：Admission -> 撮合 -> 結案同步
+        OrderBook book = OrderBook.get(sbe.symbolId());
+        Order taker = book.handleCreate(orderId, sbe, gwSeq, tradeIdSupplier, (maker, p, q) -> {
+            // 3. 執行帳務結算
             ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
-            reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", OrderStatus.PARTIALLY_FILLED, p, q, 0, 0, sbe.timestamp());
+            
+            // 4. 處理 Maker 回報：補全累計成交量 (cumQty) 與成交價 (avgPrice)
+            reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", 
+                    maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
+                    p, q, maker.getFilled(), maker.getPrice(), sbe.timestamp());
         });
 
-        // 3. 最終回報
+        // 5. 處理 Taker 最終回報
         reporter.sendReport(taker.getUserId(), orderId, taker.getClientOrderId(), 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, sbe.timestamp());
         
         reporter.flushBatch(gwSeq);
         clientOrderIdDiskMap.put(new CidKey(taker.getUserId(), tempCidBytes), orderId);
+
+        // --- 資源安全釋放點：在所有回報發送完成後才歸還 Taker 到物件池 ---
+        if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 }

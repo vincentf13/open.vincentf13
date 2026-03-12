@@ -9,14 +9,16 @@ import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import java.util.*;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
+
+import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  內存訂單簿 (OrderBook)
- 職責：領域狀態機，自主管理實例註冊、Admission、撮合流與最終狀態同步
+ 職責：領域狀態機，自主管理訂單生命週期、撮合流與數據持久化
  */
 public class OrderBook {
-    /** 全局實例註冊表：按交易對管理 OrderBook 單例 */
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
     public static OrderBook get(int symbolId) {
@@ -47,23 +49,13 @@ public class OrderBook {
         for (int i = 0; i < 1000; i++) orderPool.add(new Order());
     }
 
-    /** 
-      指令處理入口：封裝完整的 Taker 生命週期 
-     */
+    /** 指令入口：封裝 Admission -> 撮合 -> 狀態落地 */
     public Order handleCreate(long orderId, OrderCreateDecoder sbe, long gwSeq, 
                              Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        // 1. 從池中領取並初始化
         Order taker = borrowAndFill(orderId, sbe, gwSeq);
-        
-        // 2. 執行撮合
         match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
-        
-        // 3. 狀態落地
         syncOrder(taker, gwSeq);
-        
-        // 4. 資源回收判定
-        if (taker.getStatus() == 2) releaseOrder(taker);
-        
+        // 注意：不再此處 release Taker，由 Processor 控制以確保回報發送安全
         return taker;
     }
 
@@ -132,6 +124,7 @@ public class OrderBook {
 
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
+                
                 finalizer.onMatch(maker, bestPrice, matchQty);
 
                 if (maker.getFilled() == maker.getQty()) {
