@@ -52,7 +52,7 @@ public class Engine extends Worker {
     @Override
     protected void onStart() {
         this.tailer = Storage.self().commandQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(ChronicleMapEnum.MetaDataKey.PK_CORE_ENGINE);
+        Progress saved = Storage.self().metadata().get(MetaDataKey.MACHING_ENGINE_POINT);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
@@ -93,7 +93,7 @@ public class Engine extends Worker {
             else if (msgType == MsgType.ORDER_CREATE) dispatchOrderCreate(gwSeq);
 
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(ChronicleMapEnum.MetaDataKey.PK_CORE_ENGINE, progress);
+            Storage.self().metadata().put(MetaDataKey.MACHING_ENGINE_POINT, progress);
         });
         if (!handled && isReplaying) isReplaying = false;
         return handled ? 1 : 0;
@@ -105,7 +105,7 @@ public class Engine extends Worker {
         CidKey key = new CidKey(createDecoder.userId(), cid);
         Long resId = Storage.self().cids().get(key);
         if (resId != null) {
-            if (!isReplaying) resendReport(resId, createDecoder.userId(), cid, createDecoder.timestamp());
+            if (!isReplaying) resendReport(resId, createDecoder.userId(), cid, createDecoder.timestamp(), gwSeq);
             return;
         }
         Storage.self().cids().put(key, handleOrderCreate(createDecoder, gwSeq, cid));
@@ -117,7 +117,7 @@ public class Engine extends Worker {
         int aid = (sbe.side() == Side.BUY) ? Asset.USDT : Asset.BTC;
 
         if (!ledger.tryFreeze(sbe.userId(), aid, gwSeq, cost)) {
-            sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
+            sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts, gwSeq);
             return ID_REJECTED;
         }
 
@@ -135,11 +135,11 @@ public class Engine extends Worker {
             persistTrade(t, tid, sbe.timestamp(), gwSeq);
             processTradeLedger(t, gwSeq, o);
             syncOrder(t.makerOrderId, gwSeq);
-            sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, sbe.timestamp());
+            sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, sbe.timestamp(), gwSeq);
         }
         syncOrder(oid, gwSeq);
         OrderStatus st = (o.getStatus() == 2) ? OrderStatus.FILLED : OrderStatus.NEW;
-        sendReport(sbe.userId(), oid, cid, st, 0, 0, o.getFilled(), 0, ts);
+        sendReport(sbe.userId(), oid, cid, st, 0, 0, o.getFilled(), 0, ts, gwSeq);
         return oid;
     }
 
@@ -175,10 +175,7 @@ public class Engine extends Worker {
         if (ceil > floor) ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, gwSeq, ceil - floor);
     }
 
-    /** 
-     回報發送：包含產生該回報的核心本地序號 (matchingSeq)
-     */
-    private void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts) {
+    private void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts, long gwSeq) {
         if (isReplaying) return;
         outboundBytes.clear();
         outboundSbeBuffer.wrap(outboundBytes.addressForWrite(0), (int)outboundBytes.realCapacity());
@@ -187,19 +184,18 @@ public class Engine extends Worker {
         
         Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {
             wire.write(ChronicleWireKey.msgType).int32(executionEncoder.sbeTemplateId());
-            // 寫入核心本地生成的序號
             wire.write(ChronicleWireKey.matchingSeq).int64(Storage.self().resultQueue().lastIndex()); 
             wire.write(ChronicleWireKey.payload).bytes(outboundBytes);
         });
     }
 
-    private void resendReport(long oid, long uid, String cid, long ts) {
-        if (oid == ID_REJECTED) sendReport(uid, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts);
+    private void resendReport(long oid, long uid, String cid, long ts, long gwSeq) {
+        if (oid == ID_REJECTED) sendReport(uid, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts, gwSeq);
         else {
             Order o = Storage.self().orders().get(oid);
             if (o != null) {
                 OrderStatus s = (o.getStatus() == 2) ? OrderStatus.FILLED : (o.getStatus() == 3) ? OrderStatus.REJECTED : (o.getStatus() == 1) ? OrderStatus.PARTIALLY_FILLED : OrderStatus.NEW;
-                sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, ts);
+                sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, ts, gwSeq);
             }
         }
     }

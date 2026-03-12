@@ -42,7 +42,7 @@ public class AeronReceiver extends Worker {
         subscription = aeron.addSubscription(AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID);
         controlPublication = aeron.addPublication(AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
         
-        Progress saved = Storage.self().metadata().get(MetaDataKey.PK_CORE_COMMAND_RECEIVER);
+        Progress saved = Storage.self().metadata().get(MetaDataKey.MACHING_RECEVIER_POINT);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
         
@@ -52,13 +52,11 @@ public class AeronReceiver extends Worker {
 
     @Override
     protected int doWork() {
-        // 1. 活性檢查：若連線斷開且非等待狀態，則回退至 WAITING 以觸發重新握手
         if (currentState == AeronState.SENDING && !subscription.isConnected()) {
             currentState = AeronState.WAITING;
             log.warn("Aeron 連線已中斷，回退至握手模式...");
         }
 
-        // 2. 握手邏輯
         if (currentState == AeronState.WAITING) {
             long now = System.currentTimeMillis();
             if (now - lastResumeSentTime > 500) {
@@ -66,8 +64,6 @@ public class AeronReceiver extends Worker {
                 lastResumeSentTime = now;
             }
         }
-        
-        // 3. 數據接收
         return subscription.poll(fragmentHandler, 10);
     }
 
@@ -91,17 +87,17 @@ public class AeronReceiver extends Worker {
 
         long messageAddress = buffer.addressOffset() + offset;
         Storage.self().commandQueue().acquireAppender().writeDocument(wire -> {
-            wire.write("msgType").int32(msgType);
-            wire.write("gwSeq").int64(gwSeq);
+            wire.write(ChronicleWireKey.msgType).int32(msgType);
+            wire.write(ChronicleWireKey.gwSeq).int64(gwSeq);
             if (msgType == MsgType.AUTH) {
-                wire.write("userId").int64(buffer.getLong(offset + 12));
+                wire.write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
             } else if (msgType == MsgType.ORDER_CREATE) {
                 pointerBytesStore.set(messageAddress + 12, length - 12);
-                wire.write("payload").bytes(pointerBytesStore);
+                wire.write(ChronicleWireKey.payload).bytes(pointerBytesStore);
             }
         });
         progress.setLastProcessedSeq(gwSeq);
-        Storage.self().metadata().put(MetaDataKey.PK_CORE_COMMAND_RECEIVER, progress);
+        Storage.self().metadata().put(MetaDataKey.MACHING_RECEVIER_POINT, progress);
     };
 
     @Override

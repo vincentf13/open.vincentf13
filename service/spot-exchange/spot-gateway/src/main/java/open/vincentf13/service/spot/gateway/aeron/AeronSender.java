@@ -6,19 +6,20 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.Progress;
-import org.agrona.concurrent.UnsafeBuffer;
-import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 發送器 (災難恢復增強版)
  職責：從 GW WAL 讀取指令並發送至核心引擎
+ 最佳化：進度由接收端 (Core) 透過控制通道決定，本地不再維護持久化位點
  */
 @Component
 public class AeronSender extends Worker {
@@ -26,7 +27,6 @@ public class AeronSender extends Worker {
     private Publication publication;
     private Subscription controlSubscription;
     private ExcerptTailer tailer;
-    private final Progress progress = new Progress();
     private final BufferClaim bufferClaim = new BufferClaim();
     private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
 
@@ -43,27 +43,18 @@ public class AeronSender extends Worker {
         publication = aeron.addPublication(AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID);
         controlSubscription = aeron.addSubscription(AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
         
+        // 僅建立 Tailer，不執行跳轉，等待握手訊號
         tailer = Storage.self().gatewayQueue().createTailer();
         currentState = AeronState.WAITING;
-        log.info("AeronSender 啟動，進入靜默等待狀態...");
+        log.info("AeronSender 啟動成功，進入靜默等待狀態...");
     }
 
     @Override
     protected int doWork() {
-        // 1. 活性檢查：若接收端連線中斷，回退至等待模式
-        if (currentState == AeronState.SENDING && !publication.isConnected()) {
-            currentState = AeronState.WAITING;
-            log.warn("檢測到接收端 (Matching Core) 連線中斷，回退至靜默等待模式...");
-        }
-
-        int workDone = 0;
-
-        // 2. 握手邏輯：僅在 WAITING 狀態下監聽握手訊號
         if (currentState == AeronState.WAITING) {
-            workDone = controlSubscription.poll(resumeHandler, 1);
+            return controlSubscription.poll(resumeHandler, 1);
         }
 
-        // 3. 發送邏輯：僅在 SENDING 狀態下執行數據發送
         if (currentState == AeronState.SENDING) {
             boolean handled = tailer.readDocument(wire -> {
                 long seq = tailer.index();
@@ -87,14 +78,10 @@ public class AeronSender extends Worker {
                         });
                     });
                 }
-                
-                progress.setLastProcessedSeq(seq);
-                Storage.self().metadata().put(MetaDataKey.PK_GW_COMMAND_SENDER, progress);
             });
-            if (handled) workDone++;
+            return handled ? 1 : 0;
         }
-        
-        return workDone;
+        return 0;
     }
 
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {

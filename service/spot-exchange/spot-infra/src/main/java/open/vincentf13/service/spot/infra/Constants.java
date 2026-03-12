@@ -19,12 +19,11 @@ public class Constants {
       進度位點元數據 Key (MetaDataKey)
      */
     public static class MetaDataKey {
-        public static final byte PK_CORE_ENGINE = 1;
-        public static final byte PK_GW_COMMAND_SENDER = 2;
-        public static final byte PK_GW_RESULT_RECEIVER = 3;
-        public static final byte PK_GW_WS_PUSH_WORKER = 4;
-        public static final byte PK_CORE_RESULT_SENDER = 5;
-        public static final byte PK_CORE_COMMAND_RECEIVER = 6;
+        public static final byte MACHING_RECEVIER_POINT = 1;
+        public static final byte MACHING_ENGINE_POINT = 2;
+        public static final byte GW_RECEVIER_POINT = 3;
+        public static final byte WS_PUSH_TO_CLIENT_POINT = 4;
+
     }
 
     /** 
