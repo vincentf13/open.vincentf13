@@ -16,6 +16,11 @@ import net.openhft.chronicle.bytes.BytesOut;
 public class BalanceKey implements BytesMarshallable {
     private long userId;
     private int assetId;
+
+    public void set(long userId, int assetId) {
+        this.userId = userId;
+        this.assetId = assetId;
+    }
     
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {

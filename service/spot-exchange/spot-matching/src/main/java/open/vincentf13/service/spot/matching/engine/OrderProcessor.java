@@ -59,7 +59,7 @@ public class OrderProcessor {
         long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
         // 1. 風控校驗
-        if (!ledger.tryFreeze(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, gwSeq, cost)) {
+        if (!ledger.freezeBalance(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, cost, gwSeq)) {
             reporter.sendReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             reporter.flushBatch(gwSeq);
             return;
@@ -86,7 +86,8 @@ public class OrderProcessor {
         
         // 6. 批量落地與最終冪等存檔
         reporter.flushBatch(gwSeq);
-        clientOrderIdDiskMap.put(new CidKey(taker.getUserId(), tempCidBytes), orderId);
+        reusableCidKey.set(taker.getUserId(), tempCidBytes, 0, 32);
+        clientOrderIdDiskMap.put(reusableCidKey, orderId);
 
         // 7. 資源安全歸還
         if (taker.getStatus() == 2) book.releaseOrder(taker);

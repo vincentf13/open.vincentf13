@@ -27,9 +27,8 @@ public class AuthProcessor {
     public void handleAuth(long userId,
                            long gwSeq) {
         // 1. 初始化資產帳戶
-        ledger.initBalance(userId, Asset.BTC, gwSeq);
-        ledger.initBalance(userId, Asset.USDT, gwSeq);
-        
+        ledger.initAccount(userId, Asset.BTC, gwSeq); 
+        ledger.initAccount(userId, Asset.USDT, gwSeq);        
         // 2. 發送認證成功回報
         reporter.sendAuthSuccess(userId, gwSeq);
         
