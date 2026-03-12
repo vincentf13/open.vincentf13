@@ -48,10 +48,10 @@ public class Constants {
         public static final int ORDER_CANCEL = 101;
         public static final int DEPOSIT = 102;
         public static final int AUTH = 103;
-        public static final int EXECUTION_REPORT = 104; 
+        public static final int EXECUTION_REPORT = 104;
         public static final int AUTH_REPORT = 105; // 新增：認證結果回報
         public static final int SNAPSHOT = 106; // 新增：快照指令 (內部觸發)
-        public static final int RESUME = 200; 
+        public static final int RESUME = 200;
     }
 
     /** 
