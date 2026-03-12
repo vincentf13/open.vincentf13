@@ -14,16 +14,16 @@ import org.springframework.stereotype.Component;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.wire.DocumentContext;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Matching Core Aeron 接收器 (災難恢復增強版)
- 職責：監聽來自 Gateway 的指令數據，並主動上報進度實現握手
+ 職責：監聽來自 Gateway 的指令數據，並透過事務方式落地 WAL
  */
 @Component
 public class AeronReceiver extends Worker {
-    // 依賴的具體存儲結構 (反映 Gateway -> Matching 流向)
     private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
 
@@ -58,9 +58,10 @@ public class AeronReceiver extends Worker {
 
     @Override
     protected int doWork() {
+        // --- 核心一致性防線：活性檢查 ---
         if (currentState == AeronState.SENDING && !subscription.isConnected()) {
             currentState = AeronState.WAITING;
-            log.warn("Aeron 連線已中斷，回退至握手模式...");
+            log.warn("檢測到發送端 (Gateway) 斷開，回退至握手探測模式...");
         }
 
         if (currentState == AeronState.WAITING) {
@@ -86,22 +87,24 @@ public class AeronReceiver extends Worker {
         
         if (currentState == AeronState.WAITING && gwSeq > progress.getLastProcessedSeq()) {
             currentState = AeronState.SENDING;
-            log.info("已收到業務數據，握手成功，停止上報進度");
+            log.info("已與發送端 (Gateway) 對齊進度，握手成功");
         }
 
         if (gwSeq <= progress.getLastProcessedSeq()) return;
 
         long messageAddress = buffer.addressOffset() + offset;
-        gwToMatchingWal.acquireAppender().writeDocument(wire -> {
-            wire.write(ChronicleWireKey.msgType).int32(msgType);
-            wire.write(ChronicleWireKey.gwSeq).int64(gwSeq);
+        
+        try (DocumentContext dc = gwToMatchingWal.acquireAppender().writingDocument()) {
+            dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
+            dc.wire().write(ChronicleWireKey.gwSeq).int64(gwSeq);
             if (msgType == MsgType.AUTH) {
-                wire.write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
+                dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
             } else if (msgType == MsgType.ORDER_CREATE) {
                 pointerBytesStore.set(messageAddress + 12, length - 12);
-                wire.write(ChronicleWireKey.payload).bytes(pointerBytesStore);
+                dc.wire().write(ChronicleWireKey.payload).bytes(pointerBytesStore);
             }
-        });
+        }
+        
         progress.setLastProcessedSeq(gwSeq);
         metadata.put(MetaDataKey.MACHING_RECEVIER_POINT, progress);
     };

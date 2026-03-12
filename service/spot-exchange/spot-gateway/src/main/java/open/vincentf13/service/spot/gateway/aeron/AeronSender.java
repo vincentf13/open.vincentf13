@@ -18,11 +18,10 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 發送器 (災難恢復增強版)
- 職責：讀取客戶端指令流 (Client -> Gateway) 並發送至核心引擎
+ 職責：從 GW WAL 讀取指令並發送至核心引擎
  */
 @Component
 public class AeronSender extends Worker {
-    // 依賴的具體存儲結構 (反映 Client -> Gateway 流向)
     private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
 
     private final Aeron aeron;
@@ -52,6 +51,12 @@ public class AeronSender extends Worker {
 
     @Override
     protected int doWork() {
+        // --- 活性檢查：偵測核心引擎是否斷開 ---
+        if (currentState == AeronState.SENDING && !publication.isConnected()) {
+            currentState = AeronState.WAITING;
+            log.warn("檢測到接收端 (Matching Core) 連線中斷，回退至靜默等待模式...");
+        }
+
         if (currentState == AeronState.WAITING) {
             return controlSubscription.poll(resumeHandler, 1);
         }

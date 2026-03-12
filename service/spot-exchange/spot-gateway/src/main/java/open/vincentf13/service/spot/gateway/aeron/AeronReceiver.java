@@ -9,6 +9,7 @@ import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.wire.DocumentContext;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
@@ -19,11 +20,10 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 接收器 (災難恢復增強版)
- 職責：監聽核心回報流 (Matching -> Gateway)，並主動上報進度實現握手
+ 職責：監聽核心回報流 (Matching -> Gateway)，並透過事務方式落地 WAL
  */
 @Component
 public class AeronReceiver extends Worker {
-    // 依賴的具體存儲結構 (反映 Matching -> Gateway 流向)
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
 
@@ -53,11 +53,17 @@ public class AeronReceiver extends Worker {
         else progress.setLastProcessedSeq(-1L);
         
         currentState = AeronState.WAITING;
-        log.info("AeronReceiver 啟動：監聽回報流於 {}, 當前進度: {}", AeronChannel.GATEWAY_URL, progress.getLastProcessedSeq());
+        log.info("AeronReceiver 啟動：當前進度: {}", progress.getLastProcessedSeq());
     }
 
     @Override
     protected int doWork() {
+        // --- 核心一致性防線：活性檢查 ---
+        if (currentState == AeronState.SENDING && !subscription.isConnected()) {
+            currentState = AeronState.WAITING;
+            log.warn("檢測到核心引擎斷開，重新進入握手探測模式...");
+        }
+
         if (currentState == AeronState.WAITING) {
             long now = System.currentTimeMillis();
             if (now - lastResumeSentTime > 500) {
@@ -81,7 +87,7 @@ public class AeronReceiver extends Worker {
         
         if (currentState == AeronState.WAITING && matchingSeq > progress.getLastProcessedSeq()) {
             currentState = AeronState.SENDING;
-            log.info("Gateway 回報鏈路同步成功");
+            log.info("已與核心引擎對齊進度，回報鏈路握手成功");
         }
 
         if (matchingSeq <= progress.getLastProcessedSeq()) return;
@@ -89,9 +95,9 @@ public class AeronReceiver extends Worker {
         long messageAddress = buffer.addressOffset() + offset;
         pointerBytesStore.set(messageAddress, length);
         
-        matchingToGwWal.acquireAppender().writeDocument(wire -> {
-            wire.bytes().write(pointerBytesStore);
-        });
+        try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
+            dc.wire().bytes().write(pointerBytesStore);
+        }
 
         progress.setLastProcessedSeq(matchingSeq);
         metadata.put(MetaDataKey.GW_RECEVIER_POINT, progress);
