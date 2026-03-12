@@ -16,9 +16,14 @@ public class AeronUtil {
 
     /** 
      實現「三階段提交」的極致零拷貝發送：
-     1. 空間申請 (Claim)：在 Aeron 環形緩衝區中原子性地預留一段空間，此時該空間被當前執行緒「鎖定」專用。
-     2. 原地寫入 (In-place Write)：透過傳入的 writer 直接在 Aeron 的堆外內存上組裝數據，消除數據拷貝開銷。
-     3. 最終提交 (Commit)：更新訊息 Header，讓這段內存數據對網絡端的接收者正式可見。
+     1. 空間申請 (Claim)：在 Aeron 本機 Media Driver 管理的環形緩衝區 (Log Buffer) 中原子性地預留一段空間。
+        注意：若 Media Driver 緩衝區滿或未連接，此方法會持續阻塞重試。
+     2. 原地寫入 (In-place Write)：透過傳入的 writer 直接在該堆外內存地址上組裝數據，消除 Java 堆內到堆外的拷貝。
+     3. 最終提交 (Commit)：更新訊息 Header，讓數據對 Media Driver 變為「可發送」狀態。
+     
+     重要聲明：
+     此方法的成功僅代表數據已成功寫入本機內存映射文件 (MMAP)，並交由 Media Driver 接管。
+     實際的網絡傳輸、對端接收與確認是由 Media Driver 在背景異步完成的，並非實時同步送達。
      
      @param publication Aeron 發布通道
      @param bufferClaim 執行緒私有的 Claim 佔位對象

@@ -34,6 +34,7 @@ public class Constants {
         public static final int ORDER_CREATE = 100;
         public static final int DEPOSIT = 102;
         public static final int AUTH = 103;
+        public static final int RESUME = 200; // 災難恢復握手訊號
     }
 
     /** 
@@ -42,6 +43,14 @@ public class Constants {
     public static class Asset {
         public static final int BTC = 1;
         public static final int USDT = 2;
+    }
+
+    /** 
+      Aeron 通訊組件工作狀態 (AeronState)
+     */
+    public enum AeronState {
+        WAITING, // 等待握手/同步中
+        SENDING  // 正常發送數據中
     }
 
     /**
@@ -75,17 +84,22 @@ public class Constants {
       Chronicle Wire 數據欄位定義
      */
     public enum ChronicleWireKey implements WireKey {
-        msgType, payload, aeronSeq, gwSeq, userId, topic, data, timestamp
+        msgType, payload, gwSeq, userId, topic, data, timestamp
     }
 
     /**
       Aeron 頻道與串流配置
      */
     public static class AeronChannel {
-        public static final String INBOUND = "aeron:udp?endpoint=localhost:40444";
-        public static final String OUTBOUND = "aeron:udp?endpoint=localhost:40445";
-        public static final int IN_STREAM = 10;
-        public static final int OUT_STREAM = 30;
+        /** 發送至 Matching Core 的通道 */
+        public static final String MATCHING_URL = "aeron:udp?endpoint=localhost:40444";
+        /** 發送至 Gateway 的通道 */
+        public static final String GATEWAY_URL = "aeron:udp?endpoint=localhost:40445";
+        
+        /** 統一數據流 ID */
+        public static final int DATA_STREAM_ID = 10;
+        /** 統一控制流 ID (用於反向握手) */
+        public static final int CONTROL_STREAM_ID = 11;
     }
 
     /**
