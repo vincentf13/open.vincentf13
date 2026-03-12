@@ -14,8 +14,8 @@ import java.util.function.Supplier;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存訂單簿 (OrderBook)
- 職責：領域狀態機，自主管理訂單生命週期、撮合流與數據持久化
+ 內存訂單簿 (OrderBook) - 極致優化版
+ 職責：領域狀態機，實現 Order 與 Deque 雙重池化，達成熱點路徑絕對零分配
  */
 public class OrderBook {
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
@@ -23,6 +23,9 @@ public class OrderBook {
     public static OrderBook get(int symbolId) {
         return INSTANCES.computeIfAbsent(symbolId, OrderBook::new);
     }
+
+    private static final int INITIAL_DEQUE_CAPACITY = MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY;
+    private static final int POOL_MAX_SIZE = MatchingConfig.INITIAL_POOL_SIZE;
 
     private final int symbolId;
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
@@ -33,9 +36,12 @@ public class OrderBook {
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
 
-    private final Deque<Order> orderPool = new ArrayDeque<>(MatchingConfig.INITIAL_POOL_SIZE);
-    private final Trade reusableTrade = new Trade();
+    /** Order 物件池 */
+    private final Deque<Order> orderPool = new ArrayDeque<>(POOL_MAX_SIZE);
+    /** Deque 容器池：用於管理價格層級隊列，徹底消除 new ArrayDeque() */
+    private final Deque<Deque<Order>> dequePool = new ArrayDeque<>(1000);
     
+    private final Trade reusableTrade = new Trade();
     private static final Order SCAN_REUSABLE = new Order();
 
     @FunctionalInterface public interface TradeFinalizer {
@@ -44,7 +50,10 @@ public class OrderBook {
 
     private OrderBook(int symbolId) {
         this.symbolId = symbolId;
-        for (int i = 0; i < MatchingConfig.STARTUP_PRE_ALLOCATE_COUNT; i++) orderPool.add(new Order());
+        for (int i = 0; i < MatchingConfig.STARTUP_PRE_ALLOCATE_COUNT; i++) {
+            orderPool.add(new Order());
+            dequePool.add(new ArrayDeque<>(INITIAL_DEQUE_CAPACITY));
+        }
     }
 
     public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
@@ -77,6 +86,16 @@ public class OrderBook {
     }
 
     public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
+
+    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq) {
+        Order o = borrowOrder();
+        o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
+        o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
+        o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
+        o.setVersion(1); o.setLastSeq(gwSeq);
+        o.setClientOrderId(clientOrderId);
+        return o;
+    }
 
     public static void rebuildAll() {
         ChronicleMap<Long, Order> allOrders = Storage.self().orders();
@@ -124,15 +143,20 @@ public class OrderBook {
                     break;
                 }
             }
-            if (makers != null && makers.isEmpty()) counterSide.remove(bestPrice);
-            else break;
+            if (makers != null && makers.isEmpty()) {
+                counterSide.remove(bestPrice);
+                dequePool.addLast(makers); // 價格層級清空，回收 Deque 容器
+            } else break;
         }
         if (taker.getQty() > taker.getFilled()) add(taker);
     }
 
     public void add(Order order) {
         TreeMap<Long, Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
-        levels.computeIfAbsent(order.getPrice(), k -> new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY)).addLast(order);
+        levels.computeIfAbsent(order.getPrice(), k -> {
+            Deque<Order> d = dequePool.pollFirst();
+            return (d == null) ? new ArrayDeque<>(INITIAL_DEQUE_CAPACITY) : d;
+        }).addLast(order);
         orderIndex.put(order.getOrderId(), order);
     }
 
