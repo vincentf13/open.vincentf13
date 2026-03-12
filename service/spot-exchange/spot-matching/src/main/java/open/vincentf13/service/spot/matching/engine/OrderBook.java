@@ -6,16 +6,23 @@ import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
 import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import open.vincentf13.service.spot.sbe.Side;
+import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import java.util.*;
-import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 /** 
  內存訂單簿 (OrderBook)
- 職責：領域狀態機，自主管理訂單 Admission、撮合流、最終狀態同步與生命週期池
+ 職責：領域狀態機，自主管理實例註冊、Admission、撮合流與最終狀態同步
  */
 public class OrderBook {
+    /** 全局實例註冊表：按交易對管理 OrderBook 單例 */
+    private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
+    
+    public static OrderBook get(int symbolId) {
+        return INSTANCES.computeIfAbsent(symbolId, OrderBook::new);
+    }
+
     private static final int INITIAL_DEQUE_CAPACITY = 4096;
     private static final int POOL_MAX_SIZE = 100_000;
 
@@ -35,9 +42,29 @@ public class OrderBook {
         void onMatch(Order maker, long price, long qty);
     }
 
-    public OrderBook(int symbolId) {
+    private OrderBook(int symbolId) {
         this.symbolId = symbolId;
         for (int i = 0; i < 1000; i++) orderPool.add(new Order());
+    }
+
+    /** 
+      指令處理入口：封裝完整的 Taker 生命週期 
+     */
+    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long gwSeq, 
+                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
+        // 1. 從池中領取並初始化
+        Order taker = borrowAndFill(orderId, sbe, gwSeq);
+        
+        // 2. 執行撮合
+        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
+        
+        // 3. 狀態落地
+        syncOrder(taker, gwSeq);
+        
+        // 4. 資源回收判定
+        if (taker.getStatus() == 2) releaseOrder(taker);
+        
+        return taker;
     }
 
     public void recoverOrder(Order o) {
@@ -56,24 +83,6 @@ public class OrderBook {
         dst.setClientOrderId(src.getClientOrderId());
     }
 
-    /** 
-      處理 Taker 指令門面
-      封裝了 Admission -> 撮合 -> 最終狀態同步 -> 資源回收 的完整閉環
-     */
-    public Order processTaker(long orderId, OrderCreateDecoder sbe, long gwSeq, 
-                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        Order taker = borrowAndFill(orderId, sbe, gwSeq);
-        
-        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
-        
-        syncOrder(taker, gwSeq);
-        
-        // --- 資源自動回收：若 Taker 已結案且不在簿中，則歸還池中 ---
-        if (taker.getStatus() == 2) releaseOrder(taker);
-        
-        return taker;
-    }
-
     private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long gwSeq) {
         Order o = orderPool.pollFirst();
         if (o == null) o = new Order();
@@ -85,12 +94,12 @@ public class OrderBook {
         return o;
     }
 
-    private void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
+    public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
-    public static void rebuildAll(IntFunction<OrderBook> bookFinder) {
+    public static void rebuildAll() {
         Storage.self().activeOrders().forEach((id, active) -> {
             Order o = Storage.self().orders().getUsing(id, new Order());
-            if (o != null && o.getStatus() < 2) bookFinder.apply(o.getSymbolId()).recoverOrder(o);
+            if (o != null && o.getStatus() < 2) OrderBook.get(o.getSymbolId()).recoverOrder(o);
         });
     }
 
@@ -140,7 +149,7 @@ public class OrderBook {
         if (taker.getQty() > taker.getFilled()) add(taker);
     }
 
-    private void add(Order order) {
+    public void add(Order order) {
         TreeMap<Long, Deque<Order>> levels = (order.getSide() == 0) ? bids : asks;
         levels.computeIfAbsent(order.getPrice(), k -> new ArrayDeque<>(INITIAL_DEQUE_CAPACITY)).addLast(order);
         orderIndex.put(order.getOrderId(), order);
