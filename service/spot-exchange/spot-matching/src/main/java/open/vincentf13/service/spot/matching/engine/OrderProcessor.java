@@ -41,8 +41,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         this.reporter = reporter;
     }
 
-    public void rebuildState() {
-        log.info("OrderProcessor 正在恢復領域模型狀態...");
+    public void coldStartRebuild() {
+        log.warn("未檢測到有效內存快照，正在執行耗時的全量磁碟掃描以恢復狀態...");
         OrderBook.rebuildAll();
     }
 
@@ -156,12 +156,6 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     @Override
     public void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset) {
-        // 自成交預防 (Self-Trade Prevention)
-        if (maker.getUserId() == ctxUserId) {
-            log.info("觸發 STB：用戶 {} 嘗試與自己的訂單 {} 成交，跳過撮合", ctxUserId, maker.getOrderId());
-            return;
-        }
-
         ledger.settleTrade(maker.getUserId(), ctxUserId, price, qty, ctxSide, ctxPrice, ctxGwSeq, baseAsset, quoteAsset, tradeId);
 
         // 1. Maker 回報
@@ -173,4 +167,27 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         reporter.sendReport(ctxUserId, 0, reusableCidKey.getClientOrderId(),
                 OrderStatus.PARTIALLY_FILLED, 
                 price, qty, 0, price, ctxTimestamp);
-    }}
+    }
+
+    @Override
+    public void onSTP(Order maker, long gwSeq) {
+        // 執行「取消舊單」策略
+        long unfreezeQty = maker.getQty() - maker.getFilled();
+        if (unfreezeQty > 0) {
+            OrderBook book = OrderBook.get(maker.getSymbolId());
+            int assetId = (maker.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
+            long amount = (maker.getSide() == OrderSide.BUY) ? DecimalUtil.mulCeil(maker.getPrice(), unfreezeQty) : unfreezeQty;
+            ledger.unfreezeBalance(maker.getUserId(), assetId, amount, gwSeq);
+        }
+
+        // 更新磁碟狀態與發送回報
+        maker.setStatus((byte) 3); // CANCELED
+        OrderBook.get(maker.getSymbolId()).syncOrder(maker, gwSeq);
+
+        reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
+                OrderStatus.CANCELED, 0, 0, maker.getFilled(), 0, ctxTimestamp);
+
+        log.info("STP 撤單處理完成: OrderId={}, UserId={}", maker.getOrderId(), maker.getUserId());
+    }
+    }
+

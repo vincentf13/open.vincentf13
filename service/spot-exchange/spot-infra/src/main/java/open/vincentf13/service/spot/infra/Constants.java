@@ -37,7 +37,7 @@ public class Constants {
         public static final byte MACHING_ENGINE_POINT = 2;
         public static final byte GW_RECEVIER_POINT = 3;
         public static final byte WS_PUSH_TO_CLIENT_POINT = 4;
-
+        public static final byte LAST_SNAPSHOT_INFO = 5; // 新增：最後一次成功快照的元數據
     }
 
     /** 
@@ -48,7 +48,10 @@ public class Constants {
         public static final int ORDER_CANCEL = 101;
         public static final int DEPOSIT = 102;
         public static final int AUTH = 103;
-        public static final int RESUME = 200; // 災難恢復握手訊號
+        public static final int EXECUTION_REPORT = 104; 
+        public static final int AUTH_REPORT = 105; // 新增：認證結果回報
+        public static final int SNAPSHOT = 106; // 新增：快照指令 (內部觸發)
+        public static final int RESUME = 200; 
     }
 
     /** 
@@ -74,6 +77,7 @@ public class Constants {
         // 從系統環境變數獲取路徑，預設為 "data/spot-exchange/"
         public static final String DEFAULT_BASE_DIR = System.getProperty("SPOT_MAP_DIR", "data/spot-exchange/map/");
         public static final String WAL_BASE_DIR = System.getProperty("SPOT_WAL_DIR", "data/spot-exchange/wal/");
+        public static final String SNAPSHOT_BASE_DIR = System.getProperty("SPOT_SNAPSHOT_DIR", "data/spot-exchange/snapshot/");
         
         public static final String BALANCES = "balances";
         public static final String USER_ASSETS = "user-assets";

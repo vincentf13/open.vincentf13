@@ -55,7 +55,8 @@ public class ExecutionReporter {
         }
 
         try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
-            dc.wire().write(ChronicleWireKey.gwSeq).int64(gwSeq);
+            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.EXECUTION_REPORT);
+            dc.wire().write(ChronicleWireKey.matchingSeq).int64(gwSeq);
             dc.wire().write(ChronicleWireKey.payload).bytes(batchBytes);
         }
         
@@ -64,11 +65,18 @@ public class ExecutionReporter {
 
     public void sendAuthSuccess(long userId, long gwSeq) {
         if (replaying) return;
+        
+        // 複用 batchBytes 臨時寫入 userId
+        batchBytes.clear();
+        batchBytes.writeLong(userId);
+        
         try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
-            dc.wire().write(ChronicleWireKey.topic).text("auth.success");
-            dc.wire().write(ChronicleWireKey.gwSeq).int64(gwSeq);
-            dc.wire().write(ChronicleWireKey.userId).int64(userId);
+            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH_REPORT);
+            dc.wire().write(ChronicleWireKey.matchingSeq).int64(gwSeq);
+            dc.wire().write(ChronicleWireKey.payload).bytes(batchBytes);
         }
+        
+        batchBytes.clear();
     }
 
     public void close() {

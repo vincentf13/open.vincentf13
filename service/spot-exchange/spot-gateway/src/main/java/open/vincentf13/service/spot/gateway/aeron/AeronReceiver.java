@@ -86,6 +86,7 @@ public class AeronReceiver extends Worker {
     }
 
     private final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
+        final int msgType = buffer.getInt(offset);
         final long matchingSeq = buffer.getLong(offset + 4);
         final long lastSeq = progress.getLastProcessedSeq();
         
@@ -107,11 +108,15 @@ public class AeronReceiver extends Worker {
         }
 
         final long messageAddress = buffer.addressOffset() + offset;
-        pointerBytesStore.set(messageAddress, length);
         
-        // 事務落地：零分配寫入
+        // 事務落地：對齊核心引擎的寫入格式，將純 SBE 資料放入 payload 欄位
         try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
-            dc.wire().bytes().write(pointerBytesStore);
+            dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
+            dc.wire().write(ChronicleWireKey.matchingSeq).int64(matchingSeq);
+            
+            // 跳過前 12 位元組 (Aeron Header)，提取純 SBE Payload
+            pointerBytesStore.set(messageAddress + 12, length - 12);
+            dc.wire().write(ChronicleWireKey.payload).bytes(pointerBytesStore);
         }
 
         progress.setLastProcessedSeq(matchingSeq);

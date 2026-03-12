@@ -50,7 +50,7 @@
                             <systemProperties>
                                 <systemProperty>
                                     <key>sbe.output.dir</key>
-                                    <value>${project.build.directory}/generated-sources/java</value>
+                                    <value>${project.build.directory}/generated-sources/sbe</value>
                                 </systemProperty>
                                 <systemProperty>
                                     <key>sbe.target.language</key>
@@ -71,19 +71,34 @@
                 <version>3.3.0</version>
                 <executions>
                     <execution>
+                        <id>add-source</id>
                         <phase>generate-sources</phase>
                         <goals><goal>add-source</goal></goals>
                         <configuration>
                             <sources>
-                                <source>${project.build.directory}/generated-sources/java</source>
+                                <source>${project.build.directory}/generated-sources/sbe</source>
                             </sources>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
+            <!-- 確保編譯器能看到生成的程式碼 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>21</release>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
                 <configuration>
                     <skip>true</skip>
                 </configuration>

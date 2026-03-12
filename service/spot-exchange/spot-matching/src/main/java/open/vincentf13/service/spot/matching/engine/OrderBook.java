@@ -64,6 +64,8 @@ public class OrderBook {
 
     @FunctionalInterface public interface TradeFinalizer {
         void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset);
+        /** 新增：自成交預防回調 */
+        void onSTP(Order maker, long gwSeq);
     }
 
     private OrderBook(int symbolId, int baseAssetId, int quoteAssetId) {
@@ -113,16 +115,85 @@ public class OrderBook {
         return o;
     }
 
+    public static Collection<OrderBook> getInstances() {
+        return INSTANCES.values();
+    }
+
+    public void saveState(net.openhft.chronicle.bytes.BytesOut<?> bytes) {
+        bytes.writeInt(symbolId);
+        bytes.writeInt(baseAssetId);
+        bytes.writeInt(quoteAssetId);
+
+        // 備份掛單數
+        bytes.writeInt(orderIndex.size());
+        
+        // 分別備份 bids 與 asks
+        saveSide(bytes, bids);
+        saveSide(bytes, asks);
+    }
+
+    private void saveSide(net.openhft.chronicle.bytes.BytesOut<?> bytes, TreeMap<Long, Deque<Order>> side) {
+        bytes.writeInt(side.size()); // 價位檔位數
+        side.forEach((price, orders) -> {
+            bytes.writeLong(price);
+            bytes.writeInt(orders.size());
+            for (Order o : orders) {
+                o.writeMarshallable(bytes);
+            }
+        });
+    }
+
+    public void loadState(net.openhft.chronicle.bytes.BytesIn<?> bytes) {
+        // 1. 清理當前狀態 (如果需要)
+        clear();
+        
+        // 2. 讀取基礎屬性 (略過，因為 Instance 已建立)
+        bytes.readInt(); bytes.readInt(); bytes.readInt();
+        int totalOrders = bytes.readInt();
+
+        // 3. 讀取 Bids & Asks
+        loadSide(bytes, bids);
+        loadSide(bytes, asks);
+        
+        log.info("訂單簿 {} 恢復完成：共加載 {} 筆掛單", symbolId, totalOrders);
+    }
+
+    private void loadSide(net.openhft.chronicle.bytes.BytesIn<?> bytes, TreeMap<Long, Deque<Order>> side) {
+        int levelCount = bytes.readInt();
+        for (int i = 0; i < levelCount; i++) {
+            long price = bytes.readLong();
+            int ordersAtLevel = bytes.readInt();
+            Deque<Order> level = GLOBAL_DEQUE_POOL.pollFirst();
+            if (level == null) level = new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY);
+            
+            for (int j = 0; j < ordersAtLevel; j++) {
+                Order o = borrowOrder();
+                o.readMarshallable(bytes);
+                level.addLast(o);
+                orderIndex.put(o.getOrderId(), o);
+            }
+            side.put(price, level);
+            priceLevelIndex.put(price, level);
+        }
+    }
+
+    private void clear() {
+        orderIndex.values().forEach(this::releaseOrder);
+        orderIndex.clear();
+        bids.values().forEach(level -> { level.clear(); GLOBAL_DEQUE_POOL.addLast(level); });
+        bids.clear();
+        asks.values().forEach(level -> { level.clear(); GLOBAL_DEQUE_POOL.addLast(level); });
+        asks.clear();
+        priceLevelIndex.clear();
+    }
+
     public static void rebuildAll() {
+        // 此方法已由 Snapshot 加載機制取代，僅作為冷啟動兜底
         ChronicleMap<Long, Order> allOrders = Storage.self().orders();
         Storage.self().activeOrders().forEach((id, active) -> {
             Order o = allOrders.getUsing(id, SCAN_REUSABLE);
-            if (o != null) {
-                if (o.getStatus() < 2) {
-                    OrderBook.get(o.getSymbolId()).recoverOrder(o);
-                }
-            } else {
-                log.warn("狀態重建警告：發現活躍訂單索引指向不存在的訂單 ID: {}", id);
+            if (o != null && o.getStatus() < 2) {
+                OrderBook.get(o.getSymbolId()).recoverOrder(o);
             }
         });
     }
@@ -131,6 +202,7 @@ public class OrderBook {
         final boolean isBuy = taker.getSide() == OrderSide.BUY;
         final TreeMap<Long, Deque<Order>> counterSide = isBuy ? asks : bids;
         final long takerPrice = taker.getPrice();
+        final long takerUserId = taker.getUserId();
 
         while (taker.getQty() > taker.getFilled()) {
             if (counterSide.isEmpty()) break;
@@ -142,6 +214,18 @@ public class OrderBook {
                 Order maker = makers.peekFirst();
                 if (!orderIndex.containsKey(maker.getOrderId())) {
                     releaseOrder(makers.pollFirst()); continue;
+                }
+
+                // --- 核心修正：自成交預防 (STP) ---
+                if (maker.getUserId() == takerUserId) {
+                    log.info("觸發 STP：用戶 {} 嘗試與自己的訂單 {} 成交。執行「取消舊單」策略。", takerUserId, maker.getOrderId());
+                    // 1. 從索引中移除
+                    orderIndex.remove(maker.getOrderId());
+                    // 2. 從佇列中移除
+                    makers.pollFirst();
+                    // 3. 觸發外部撤單邏輯 (資金解凍與回報)
+                    finalizer.onSTP(maker, gwSeq);
+                    continue; // 繼續嘗試與下一個 maker 撮合
                 }
 
                 long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());

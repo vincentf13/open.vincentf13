@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.map.ChronicleMap;
@@ -24,6 +25,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class Engine extends Worker implements ReadMarshallable {
     private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
@@ -32,20 +34,15 @@ public class Engine extends Worker implements ReadMarshallable {
     private final AuthProcessor authProcessor;
     private final DepositProcessor depositProcessor;
     private final ExecutionReporter reporter;
+    private final SnapshotService snapshotService;
     
     private final Progress progress = new Progress();
     private ExcerptTailer tailer;
     private boolean isReplaying = false;
+    private long lastSnapshotSeq = -1;
 
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
-
-    public Engine(OrderProcessor orderProcessor, AuthProcessor authProcessor, DepositProcessor depositProcessor, ExecutionReporter reporter) {
-        this.orderProcessor = orderProcessor;
-        this.authProcessor = authProcessor;
-        this.depositProcessor = depositProcessor;
-        this.reporter = reporter;
-    }
 
     @PostConstruct public void init() { start("core-matching-engine"); }
 
@@ -56,6 +53,13 @@ public class Engine extends Worker implements ReadMarshallable {
 
     @Override
     protected void onStart() {
+        boolean recoveredFromSnapshot = false;
+        // --- 核心改進：優先從快照恢復內存與磁碟狀態 ---
+        if (snapshotService.recoverFromLatestSnapshot()) {
+            log.info("從磁碟快照成功恢復所有 Chronicle Map 與 OrderBook 內存狀態！");
+            recoveredFromSnapshot = true;
+        }
+
         this.tailer = gwToMatchingWal.createTailer();
         
         Progress saved = metadata.get(MetaDataKey.MACHING_ENGINE_POINT);
@@ -64,23 +68,27 @@ public class Engine extends Worker implements ReadMarshallable {
             progress.setLastProcessedGwSeq(saved.getLastProcessedGwSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
             progress.setTradeIdCounter(saved.getTradeIdCounter());
+            lastSnapshotSeq = progress.getLastProcessedGwSeq();
             log.info("從元數據恢復位點: WAL={}, gwSeq={}, OrderId={}, TradeId={}", 
                 progress.getLastProcessedSeq(), progress.getLastProcessedGwSeq(),
                 progress.getOrderIdCounter(), progress.getTradeIdCounter());
         } else {
-            log.warn("元數據不存在，將進行冷啟動初始化...");
+            log.warn("元數據不存在，執行冷啟動...");
             progress.setOrderIdCounter(1); progress.setTradeIdCounter(1);
             progress.setLastProcessedSeq(-1L);
             progress.setLastProcessedGwSeq(-1L);
         }
 
-        orderProcessor.rebuildState();
+        // 如果不是從快照恢復的，才需要掃描 ChronicleMap 重建
+        if (!recoveredFromSnapshot) {
+            orderProcessor.coldStartRebuild();
+        }
 
-        // 自愈機制：如果檢測到重播，啟動屏障保護
+        // 自愈機制
         if (progress.getLastProcessedSeq() > 0) {
             setReplaying(true); 
             tailer.moveToIndex(progress.getLastProcessedSeq());
-            log.info("✅ 引擎狀態自愈啟動：正在重播 WAL 以校準記憶體狀態...");
+            log.info("✅ 引擎狀態自愈啟動：正在重播增量 WAL 以校準記憶體狀態...");
         } else {
             setReplaying(false);
             tailer.toStart();
@@ -140,14 +148,28 @@ public class Engine extends Worker implements ReadMarshallable {
                 long amount = wire.read(ChronicleWireKey.data).int64(); // 借用 data 傳遞 amount
                 depositProcessor.handleDeposit(uid, assetId, amount, gwSeq);
             }
+            case MsgType.SNAPSHOT -> {
+                if (!isReplaying) {
+                    snapshotService.createSnapshot(progress);
+                    lastSnapshotSeq = gwSeq;
+                }
+            }
         }
 
-        // 進度存檔 (優化：每 100 條存檔一次，降低 IO 壓力)
+        // 進度存檔
         progress.setLastProcessedSeq(seq);
         progress.setLastProcessedGwSeq(gwSeq);
+
+        // --- 核心改進：自動快照策略 ---
+        // 每 100 條存檔元數據位點 (Checkpoint)
         if (seq % 100 == 0) {
             metadata.put(MetaDataKey.MACHING_ENGINE_POINT, progress);
-            Storage.self().logStatus(); // 觸發容量報告
+        }
+
+        // 每 100,000 條執行完整磁碟快照 (Snapshot)
+        if (!isReplaying && gwSeq - lastSnapshotSeq >= 100_000) {
+            snapshotService.createSnapshot(progress);
+            lastSnapshotSeq = gwSeq;
         }
     }
 

@@ -6,6 +6,8 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
@@ -17,7 +19,6 @@ import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 
 import java.nio.ByteBuffer;
-import java.util.function.Consumer;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -25,7 +26,9 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  Matching Core Aeron 發送器
  職責：讀取回報流並發送至 Gateway，實現熱點路徑零物件分配
  */
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class AeronSender extends Worker implements net.openhft.chronicle.wire.ReadMarshallable {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
 
@@ -42,10 +45,6 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     // 暫存發送上下文，消除 Lambda 捕獲
     private int ctxMsgType;
     private long ctxMatchingSeq;
-
-    public AeronSender(Aeron aeron) {
-        this.aeron = aeron;
-    }
 
     @PostConstruct public void init() { start("core-result-sender"); }
 
@@ -82,8 +81,6 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
                 }
             }
             
-            // 監控背壓情況 (透過 AeronUtil 執行時可能觸發)
-            // 註：具體背壓次數需在 AeronUtil 內計數，此處僅作為佔位提示
             if (workDone > 0 && backPressureCount > 1000) {
                 log.warn("警告：回報鏈路偵測到嚴重背壓，請檢查 Gateway 接收效能！");
                 backPressureCount = 0;
@@ -94,7 +91,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     }
 
     /** 
-      指令讀取回調：消除每條訊息的 Lambda 分配
+      指令讀取回調：以統一格式發送回報「信封」
      */
     @Override
     public void readMarshallable(WireIn wire) {
@@ -102,7 +99,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         long mSeq = wire.read(ChronicleWireKey.matchingSeq).int64();
         this.ctxMatchingSeq = (mSeq == 0) ? tailer.index() : mSeq;
         
-        // 提取 Payload：配合內部預分配的 reusableBytes
+        // 提取 Body：統一使用 payload 欄位
         reusableBytes.clear();
         wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
         
@@ -112,8 +109,10 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
             buffer.putInt(offset, ctxMsgType);
             buffer.putLong(offset + 4, ctxMatchingSeq);
-            payloadWrapBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), payloadLength);
-            buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
+            if (payloadLength > 0) {
+                payloadWrapBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), payloadLength);
+                buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
+            }
         });
     }
 
