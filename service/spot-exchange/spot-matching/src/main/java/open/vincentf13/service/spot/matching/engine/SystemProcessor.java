@@ -22,18 +22,16 @@ public class SystemProcessor {
 
     /** 
       處理用戶認證 
-      邏輯：初始化核心帳戶，並在 Result WAL 記錄成功訊號
+      邏輯：初始化核心帳戶，發送成功回報 (由 reporter 負責攔截重播副作用)
      */
-    public void handleAuth(long userId, long gwSeq, boolean isReplaying) {
-        // 1. 初始化交易對所需的基礎資產帳戶 (BTC/USDT)
+    public void handleAuth(long userId, long gwSeq) {
+        // 1. 初始化資產帳戶
         ledger.initBalance(userId, Asset.BTC, gwSeq); 
         ledger.initBalance(userId, Asset.USDT, gwSeq);
         
-        // 2. 發送認證成功回報 (外部可見性)
-        reporter.sendAuthSuccess(userId, gwSeq, isReplaying);
+        // 2. 發送認證成功回報
+        reporter.sendAuthSuccess(userId, gwSeq);
         
-        if (!isReplaying) {
-            log.info("用戶 {} 認證成功 (gwSeq: {})", userId, gwSeq);
-        }
+        log.debug("用戶 {} 認證處理完成 (gwSeq: {})", userId, gwSeq);
     }
 }

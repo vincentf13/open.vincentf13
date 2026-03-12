@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.matching.engine;
 
+import lombok.Setter;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -20,18 +21,21 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Component
 public class ExecutionReporter {
-    // 依賴的具體存儲結構 (反映 Matching -> Gateway 流向)
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
 
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
     private final Bytes<ByteBuffer> outboundBytes = Bytes.elasticByteBuffer(1024);
     private final UnsafeBuffer outboundSbeBuffer = new UnsafeBuffer(0, 0);
 
+    /** 由 Engine 統一控制的重播狀態 */
+    @Setter private boolean replaying = false;
+
     /** 
       發送成交回報 (ExecutionReport)
+      若處於 replaying 狀態，則靜默攔截所有發送
      */
-    public void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts, long gwSeq, boolean isReplaying) {
-        if (isReplaying) return;
+    public void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts, long gwSeq) {
+        if (replaying) return;
         
         outboundBytes.clear();
         outboundSbeBuffer.wrap(outboundBytes.addressForWrite(0), (int)outboundBytes.realCapacity());
@@ -56,9 +60,7 @@ public class ExecutionReporter {
         });
     }
 
-    /** 
-      重發訂單回報
-     */
+    /** 重發訂單回報 */
     public void resendReport(Order o, long gwSeq) {
         OrderStatus s = switch (o.getStatus()) {
             case 2 -> OrderStatus.FILLED;
@@ -66,14 +68,12 @@ public class ExecutionReporter {
             case 1 -> OrderStatus.PARTIALLY_FILLED;
             default -> OrderStatus.NEW;
         };
-        sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, System.currentTimeMillis(), gwSeq, false);
+        sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, System.currentTimeMillis(), gwSeq);
     }
 
-    /** 
-      發送認證成功回報
-     */
-    public void sendAuthSuccess(long userId, long gwSeq, boolean isReplaying) {
-        if (isReplaying) return;
+    /** 發送認證成功回報 */
+    public void sendAuthSuccess(long userId, long gwSeq) {
+        if (replaying) return;
         matchingToGwWal.acquireAppender().writeDocument(w -> {
             w.write(ChronicleWireKey.topic).text("auth.success");
             w.write(ChronicleWireKey.gwSeq).int64(gwSeq);

@@ -18,7 +18,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎執行緒 (Engine Orchestrator)
- 職責：指令隊列路由、重播模式管理、全局 Sequence 斷言
+ 職責：指令隊列路由、重播模式切換、全局一致性檢查
  */
 @Slf4j
 @Component
@@ -59,14 +59,15 @@ public class Engine extends Worker {
             progress.setOrderIdCounter(1); progress.setTradeIdCounter(1);
         }
 
-        // 下沉職責：驅動 Processor 重建內存狀態
         orderProcessor.rebuildState();
 
         if (progress.getLastProcessedSeq() > 0) {
-            isReplaying = true; 
+            this.isReplaying = true;
+            reporter.setReplaying(true); // 僅需在 Reporter 層級攔截輸出
             tailer.moveToIndex(progress.getLastProcessedSeq());
-            log.info("引擎進入恢復模式 [Tailer Index: {}, Last GwSeq: {}]", 
-                    progress.getLastProcessedSeq(), progress.getLastProcessedGwSeq());
+            log.info("啟動重播恢復模式，位點: {}", progress.getLastProcessedSeq());
+        } else {
+            reporter.setReplaying(false);
         }
     }
 
@@ -77,41 +78,44 @@ public class Engine extends Worker {
             int msgType = wire.read(ChronicleWireKey.msgType).int32();
             long gwSeq = wire.read(ChronicleWireKey.gwSeq).int64();
             
+            // 判斷是否追上末尾，若追上則切換為實時模式
             if (isReplaying && seq >= tailer.queue().lastIndex()) {
-                isReplaying = false;
-                log.info("重播恢復完成，切換至實時處理模式 [gwSeq: {}]", gwSeq);
+                this.isReplaying = false;
+                reporter.setReplaying(false);
+                log.info("狀態恢復完成，進入實時模式 (gwSeq: {})", gwSeq);
             }
 
-            // --- 全局連續性斷言 (Sequence Continuity Assertion) ---
+            // 連續性檢查
             long lastSeq = progress.getLastProcessedGwSeq();
             if (lastSeq != -1) {
-                if (gwSeq == lastSeq) return; // 冪等丟棄
+                if (gwSeq == lastSeq) return; 
                 if (gwSeq != lastSeq + 1) {
-                    log.error("致命錯誤：發現指令流空洞！期望: {}, 實際: {}。系統停機防禦。", lastSeq + 1, gwSeq);
+                    log.error("指令跳號！期望: {}, 實際: {}。", lastSeq + 1, gwSeq);
                     System.exit(1); 
                 }
             }
 
-            // 零拷貝 Payload 準備
             reusableBytes.clear(); 
             wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
             payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
 
-            // --- 路由分發 ---
+            // 路由分發 (Processor 現在是完全無狀態的於重播旗標)
             if (msgType == MsgType.AUTH) {
-                systemProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq, isReplaying);
+                systemProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
             } else if (msgType == MsgType.ORDER_CREATE) {
-                orderProcessor.processCreateCommand(payloadBuffer, gwSeq, isReplaying, 
-                    this::nextOrderId, this::nextTradeId);
+                orderProcessor.processCreateCommand(payloadBuffer, gwSeq, this::nextOrderId, this::nextTradeId);
             }
 
-            // --- 狀態落盤 ---
+            // 進度更新
             progress.setLastProcessedSeq(seq);
             progress.setLastProcessedGwSeq(gwSeq);
             metadata.put(MetaDataKey.MACHING_ENGINE_POINT, progress);
         });
         
-        if (!handled && isReplaying) isReplaying = false;
+        if (!handled && isReplaying) {
+            isReplaying = false;
+            reporter.setReplaying(false);
+        }
         return handled ? 1 : 0;
     }
 
@@ -129,6 +133,6 @@ public class Engine extends Worker {
 
     @Override protected void onStop() { 
         reusableBytes.releaseLast(); 
-        if (reporter != null) reporter.close();
+        reporter.close();
     }
 }

@@ -23,11 +23,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  訂單處理核心 (Order Processor)
- 職責：執行訂單生命週期管理，包含風控、撮合與資產結算
- 
- 優化點：
- 1. 職責解耦：下沉所有 Chronicle 數據指標，Engine 僅負責傳遞指令。
- 2. 確定性保證：ID 生成完全外置化，保證重播路徑與實時路徑物理對齊。
+ 職責：純粹的業務邏輯執行，不維護重播狀態（由 Reporter 統一攔截輸出）
  */
 @Slf4j
 @Component
@@ -60,33 +56,29 @@ public class OrderProcessor {
         });
     }
 
-    public void processCreateCommand(UnsafeBuffer payload, long gwSeq, boolean isReplaying, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
+    public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
         SbeCodec.decode(payload, 0, decoder);
         String cid = decoder.clientOrderId();
         CidKey key = new CidKey(decoder.userId(), cid);
         
-        // 冪等性檢查
         Long existingOid = cids.get(key);
         if (existingOid != null) {
-            if (!isReplaying) {
-                Order o = orders.get(existingOid);
-                if (o != null) reporter.resendReport(o, gwSeq);
-            }
+            Order o = orders.get(existingOid);
+            if (o != null) reporter.resendReport(o, gwSeq);
             return;
         }
         
-        // 執行核心業務：handleOrderCreate 內部會負責 cids.put(key, orderId)
-        handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), cid, isReplaying, tradeIdSupplier);
+        handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), cid, tradeIdSupplier);
     }
 
-    private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, String cid, boolean isReplaying, Supplier<Long> tradeIdSupplier) {
+    private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, String cid, Supplier<Long> tradeIdSupplier) {
         long ts = sbe.timestamp();
         boolean isBuy = sbe.side() == Side.BUY;
         long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
         int aid = isBuy ? Asset.USDT : Asset.BTC;
 
         if (!ledger.tryFreeze(sbe.userId(), aid, gwSeq, cost)) {
-            reporter.sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts, gwSeq, isReplaying);
+            reporter.sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts, gwSeq);
             return;
         }
 
@@ -106,15 +98,14 @@ public class OrderProcessor {
             processTradeLedger(t, gwSeq, taker);
             Order maker = activeIndex.get(t.makerOrderId);
             if (maker != null) syncOrder(maker, gwSeq);
-            reporter.sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, ts, gwSeq, isReplaying);
+            reporter.sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, ts, gwSeq);
         }
 
         syncOrder(taker, gwSeq);
         reporter.sendReport(taker.getUserId(), orderId, cid, 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
-                0, 0, taker.getFilled(), 0, ts, gwSeq, isReplaying);
+                0, 0, taker.getFilled(), 0, ts, gwSeq);
         
-        // 冪等映射存檔
         cids.put(new CidKey(taker.getUserId(), cid), orderId);
     }
 
@@ -127,10 +118,10 @@ public class OrderProcessor {
     private void processTradeLedger(OrderBook.TradeEvent t, long gwSeq, Order taker) {
         long floor = DecimalUtil.mulFloor(t.price, t.qty);
         long ceil = DecimalUtil.mulCeil(t.price, t.qty);
-        if (taker.getSide() == 0) { // Taker BUY
+        if (taker.getSide() == 0) {
             ledger.tradeSettleWithRefund(t.takerUserId, Asset.USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), t.qty), Asset.BTC, t.qty, gwSeq);
             ledger.tradeSettle(t.makerUserId, Asset.BTC, t.qty, Asset.USDT, floor, gwSeq);
-        } else { // Taker SELL
+        } else {
             ledger.tradeSettle(t.takerUserId, Asset.BTC, t.qty, Asset.USDT, floor, gwSeq);
             Order m = activeIndex.get(t.makerOrderId);
             ledger.tradeSettleWithRefund(t.makerUserId, Asset.USDT, ceil, m != null ? DecimalUtil.mulCeil(m.getPrice(), t.qty) : ceil, Asset.BTC, t.qty, gwSeq);
@@ -150,10 +141,5 @@ public class OrderProcessor {
         orders.put(o.getOrderId(), o);
         if (o.getStatus() < 2) activeOrders.put(o.getOrderId(), true);
         else activeOrders.remove(o.getOrderId());
-    }
-
-    public void rebuildIndex(Order o) {
-        books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
-        activeIndex.put(o.getOrderId(), o);
     }
 }
