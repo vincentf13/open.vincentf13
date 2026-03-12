@@ -11,12 +11,12 @@ import static open.vincentf13.service.spot.infra.Constants.Asset;
  */
 @Slf4j
 @Component
-public class SystemProcessor {
+public class AuthProcessor {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
-    public SystemProcessor(Ledger ledger,
-                           ExecutionReporter reporter) {
+    public AuthProcessor(Ledger ledger,
+                         ExecutionReporter reporter) {
         this.ledger = ledger;
         this.reporter = reporter;
     }

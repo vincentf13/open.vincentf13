@@ -34,7 +34,7 @@ public class Engine extends Worker {
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
     
     private final OrderProcessor orderProcessor;
-    private final SystemProcessor systemProcessor;
+    private final AuthProcessor authProcessor;
     private final ExecutionReporter reporter;
     
     /**
@@ -50,10 +50,10 @@ public class Engine extends Worker {
     private boolean isReplaying = false;
     
     public Engine(OrderProcessor orderProcessor,
-                  SystemProcessor systemProcessor,
+                  AuthProcessor authProcessor,
                   ExecutionReporter reporter) {
         this.orderProcessor = orderProcessor;
-        this.systemProcessor = systemProcessor;
+        this.authProcessor = authProcessor;
         this.reporter = reporter;
     }
     
@@ -124,7 +124,7 @@ public class Engine extends Worker {
             payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int) reusableBytes.readRemaining());
             
             if (msgType == MsgType.AUTH) {
-                systemProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
+                authProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
             } else if (msgType == MsgType.ORDER_CREATE) {
                 orderProcessor.processCreateCommand(payloadBuffer, gwSeq, this::nextOrderId, this::nextTradeId);
             }
