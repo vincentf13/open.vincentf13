@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.matching.engine;
 
+import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
@@ -14,9 +15,9 @@ import java.util.function.Supplier;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存訂單簿 (OrderBook)
- 職責：領域狀態機，自主管理訂單與容器生命週期，達成絕對零物件分配
+ 內存訂單簿 (OrderBook) - 終極 Zero-Allocation 版
  */
+@Slf4j
 public class OrderBook {
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
@@ -25,7 +26,7 @@ public class OrderBook {
     }
 
     private static final int INITIAL_DEQUE_CAPACITY = MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY;
-    private static final int POOL_MAX_SIZE = 100_000;
+    private static final int POOL_MAX_SIZE = MatchingConfig.INITIAL_POOL_SIZE;
 
     private final int symbolId;
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
@@ -36,12 +37,8 @@ public class OrderBook {
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
 
-    /** 物件池：循環利用 Order 實體 */
     private final Deque<Order> orderPool = new ArrayDeque<>(POOL_MAX_SIZE);
-    
-    /** 容器池：循環利用價格位準的隊列實體，徹底消除 new ArrayDeque() */
     private final Deque<Deque<Order>> dequePool = new ArrayDeque<>(1000);
-    
     private final Trade reusableTrade = new Trade();
     private static final Order SCAN_REUSABLE = new Order();
 
@@ -55,14 +52,6 @@ public class OrderBook {
             orderPool.add(new Order());
             dequePool.add(new ArrayDeque<>(INITIAL_DEQUE_CAPACITY));
         }
-    }
-
-    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
-                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        Order taker = borrowAndFill(orderId, sbe, clientOrderId, gwSeq);
-        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
-        syncOrder(taker, gwSeq);
-        return taker;
     }
 
     public void recoverOrder(Order o) {
@@ -83,16 +72,30 @@ public class OrderBook {
 
     private Order borrowOrder() {
         Order o = orderPool.pollFirst();
-        return (o == null) ? new Order() : o;
+        if (o == null) {
+            log.warn("Symbol {} 物件池枯竭，發生額外分配！", symbolId);
+            return new Order();
+        }
+        return o;
     }
 
     public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
+    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
+                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
+        Order taker = borrowAndFill(orderId, sbe, clientOrderId, gwSeq);
+        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
+        syncOrder(taker, gwSeq);
+        return taker;
+    }
+
     private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq) {
         Order o = borrowOrder();
+        // 必須重置所有關鍵狀態
         o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
         o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
-        o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
+        o.setSide((byte)(sbe.side() == Side.BUY ? OrderSide.BUY : OrderSide.SELL));
+        o.setStatus((byte)0); // 補回漏掉的 status 重置
         o.setVersion(1); o.setLastSeq(gwSeq);
         o.setClientOrderId(clientOrderId);
         return o;
@@ -146,7 +149,7 @@ public class OrderBook {
             }
             if (makers != null && makers.isEmpty()) {
                 counterSide.remove(bestPrice);
-                dequePool.addLast(makers); // 回收 Deque 實體
+                dequePool.addLast(makers);
             } else break;
         }
         if (taker.getQty() > taker.getFilled()) add(taker);
