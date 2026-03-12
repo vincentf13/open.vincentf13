@@ -21,13 +21,12 @@ import java.util.Map;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 推送背景執行緒 (PushWorker)
- 職責：讀取核心回報流 (Matching -> Gateway) 並推送至客戶端
+ WebSocket 推送背景執行緒 (PushWorker) - 批量解碼優化版
+ 職責：讀取核心回報流 (Matching -> Gateway)，解析單個 Payload 中的多筆 SBE 訊息並推送
  */
 @Slf4j
 @Component
 public class PushWorker extends Worker {
-    // 依賴的具體存儲結構 (反映 Matching -> Gateway 流向)
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
 
@@ -37,7 +36,7 @@ public class PushWorker extends Worker {
 
     private final ExecutionReportDecoder executionDecoder = new ExecutionReportDecoder();
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
-    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
+    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(4096);
 
     public PushWorker(WsHandler wsHandler) {
         this.wsHandler = wsHandler;
@@ -59,22 +58,39 @@ public class PushWorker extends Worker {
     protected int doWork() {
         boolean handled = tailer.readDocument(wire -> {
             long seq = tailer.index();
-            int msgType = wire.read(ChronicleWireKey.msgType).int32();
+            
+            // 讀取 Payload 至緩衝區
+            reusableBytes.clear(); 
+            wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
+            
+            long address = reusableBytes.addressForRead(reusableBytes.readPosition());
+            int totalLen = (int) reusableBytes.readRemaining();
+            int offset = 0;
 
-            if (msgType == executionDecoder.sbeTemplateId()) {
-                reusableBytes.clear(); wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
-                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
+            // --- 核心優化：批量解碼循環 ---
+            // 由於一個 Payload 包含多個 SBE 封包，我們需按長度位移連續解碼
+            while (offset < totalLen) {
+                payloadBuffer.wrap(address + offset, totalLen - offset);
+                
+                // 執行 SBE 解碼
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
+                
+                // 獲取目前封包的長度 (BlockLength + HeaderSize)
+                int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
 
+                // 推送邏輯
                 Map<String, Object> data = Map.of(
                     "orderId", executionDecoder.orderId(),
                     "status", executionDecoder.status().toString(),
                     "cid", executionDecoder.clientOrderId(),
                     "userId", executionDecoder.userId()
                 );
-                String json = JsonUtil.toJson("execution", data);
-                wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
+                wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), JsonUtil.toJson("execution", data));
+
+                // 指標位移至下一個封包
+                offset += currentMsgLen;
             }
+
             progress.setLastProcessedSeq(seq);
             metadata.put(MetaDataKey.WS_PUSH_TO_CLIENT_POINT, progress);
         });

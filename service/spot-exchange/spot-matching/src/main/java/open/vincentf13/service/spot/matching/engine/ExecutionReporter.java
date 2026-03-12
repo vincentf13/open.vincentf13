@@ -16,60 +16,54 @@ import java.nio.ByteBuffer;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 執行回報發送器 (Execution Reporter)
- 職責：將引擎產生的成交回報、認證結果等封裝為 SBE 格式並持久化至回報流 WAL
+ 執行回報發送器 (Execution Reporter) - 批量優化版
+ 職責：收集單次指令處理產生的所有回報，並在最後一次性寫入 WAL
  */
 @Component
 public class ExecutionReporter {
-    /** 回報流 WAL：從 Matching 傳回 Gateway 的成交回報與行情隊列 */
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
-
-    /** SBE 編碼器：將業務對象高效序列化為二進位協議格式 */
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
     
-    /** 序列化緩衝區：存儲 SBE 編碼後的二進位數據塊 */
-    private final Bytes<ByteBuffer> outboundBytes = Bytes.elasticByteBuffer(1024);
-    
-    /** 寫入視圖：提供給 SbeCodec 使用的堆外內存封裝 */
-    private final UnsafeBuffer outboundSbeBuffer = new UnsafeBuffer(0, 0);
+    /** 批量緩衝區：暫存單筆指令產生的所有回報 */
+    private final Bytes<ByteBuffer> batchBytes = Bytes.elasticByteBuffer(4096);
+    private final UnsafeBuffer sbeWrapBuffer = new UnsafeBuffer(0, 0);
 
-    /** 重播控制：由 Engine 設置，若為 TRUE 則攔截所有發送動作以防副作用重複 */
     @Setter private boolean replaying = false;
 
-    public void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts, long gwSeq) {
+    /** 
+      將回報寫入批量緩衝區 (暫不落地)
+     */
+    public void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts) {
         if (replaying) return;
         
-        outboundBytes.clear();
-        outboundSbeBuffer.wrap(outboundBytes.addressForWrite(0), (int)outboundBytes.realCapacity());
+        // SBE 編碼至緩衝區末尾
+        int pos = (int) batchBytes.writePosition();
+        sbeWrapBuffer.wrap(batchBytes.addressForWrite(pos), (int) batchBytes.realCapacity() - pos);
         
-        int sbeLen = SbeCodec.encode(outboundSbeBuffer, 0, executionEncoder
-                .timestamp(ts)
-                .userId(uid)
-                .orderId(oid)
-                .status(s)
-                .lastPrice(lp)
-                .lastQty(lq)
-                .cumQty(cq)
-                .avgPrice(ap)
+        int sbeLen = SbeCodec.encode(sbeWrapBuffer, 0, executionEncoder
+                .timestamp(ts).userId(uid).orderId(oid).status(s)
+                .lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap)
                 .clientOrderId(cid == null ? "" : cid));
         
-        outboundBytes.writePosition(sbeLen);
-        
-        matchingToGwWal.acquireAppender().writeDocument(wire -> {
-            wire.write(ChronicleWireKey.msgType).int32(executionEncoder.sbeTemplateId());
-            wire.write(ChronicleWireKey.gwSeq).int64(gwSeq);
-            wire.write(ChronicleWireKey.payload).bytes(outboundBytes);
-        });
+        batchBytes.writePosition(pos + sbeLen);
     }
 
-    public void resendReport(Order o, long gwSeq) {
-        OrderStatus s = switch (o.getStatus()) {
-            case 2 -> OrderStatus.FILLED;
-            case 3 -> OrderStatus.REJECTED;
-            case 1 -> OrderStatus.PARTIALLY_FILLED;
-            default -> OrderStatus.NEW;
-        };
-        sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, System.currentTimeMillis(), gwSeq);
+    /** 
+      將緩衝區內的所有回報一次性寫入 WAL
+     */
+    public void flushBatch(long gwSeq) {
+        if (replaying || batchBytes.writePosition() == 0) {
+            batchBytes.clear();
+            return;
+        }
+
+        matchingToGwWal.acquireAppender().writeDocument(wire -> {
+            wire.write(ChronicleWireKey.gwSeq).int64(gwSeq);
+            // 寫入包含多個 SBE 封包的二進位塊
+            wire.write(ChronicleWireKey.payload).bytes(batchBytes);
+        });
+        
+        batchBytes.clear();
     }
 
     public void sendAuthSuccess(long userId, long gwSeq) {
@@ -81,7 +75,18 @@ public class ExecutionReporter {
         });
     }
 
+    public void resendReport(Order o, long gwSeq) {
+        OrderStatus s = switch (o.getStatus()) {
+            case 2 -> OrderStatus.FILLED;
+            case 3 -> OrderStatus.REJECTED;
+            case 1 -> OrderStatus.PARTIALLY_FILLED;
+            default -> OrderStatus.NEW;
+        };
+        sendReport(o.getUserId(), o.getOrderId(), o.getClientOrderId(), s, 0, 0, o.getFilled(), 0, System.currentTimeMillis());
+        flushBatch(gwSeq);
+    }
+
     public void close() {
-        outboundBytes.releaseLast();
+        batchBytes.releaseLast();
     }
 }

@@ -36,15 +36,13 @@ public class OrderProcessor {
     private final CidKey reusableCidKey = new CidKey();
     private final byte[] tempCidBytes = new byte[32];
 
-    private long currentGwSeq;
-    private long currentTimestamp;
-
     public OrderProcessor(Ledger ledger, ExecutionReporter reporter) {
         this.ledger = ledger;
         this.reporter = reporter;
     }
 
     public void rebuildState() {
+        log.info("OrderProcessor 恢復內存狀態...");
         activeOrderIdDiskMap.forEach((id, active) -> {
             Order o = allOrdersDiskMap.getUsing(id, new Order()); 
             if (o != null && o.getStatus() < 2) {
@@ -70,13 +68,12 @@ public class OrderProcessor {
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, Supplier<Long> tradeIdSupplier) {
-        this.currentGwSeq = gwSeq;
-        this.currentTimestamp = sbe.timestamp();
         boolean isBuy = sbe.side() == Side.BUY;
         long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
         if (!ledger.tryFreeze(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, gwSeq, cost)) {
-            reporter.sendReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, currentTimestamp, gwSeq);
+            reporter.sendReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
+            reporter.flushBatch(gwSeq);
             return;
         }
 
@@ -86,7 +83,6 @@ public class OrderProcessor {
         taker.setSide((byte)(isBuy ? 0 : 1)); taker.setStatus((byte)0);
         taker.setVersion(1); taker.setLastSeq(gwSeq);
 
-        // 性能優化：此處不立即執行 allOrdersDiskMap.put，待撮合完成後合併寫入
         activeOrderMemoryIndex.put(orderId, taker); 
         
         symbolOrderBookMap.computeIfAbsent(taker.getSymbolId(), OrderBook::new)
@@ -94,36 +90,39 @@ public class OrderProcessor {
                     long tid = tradeIdSupplier.get();
                     reusableTrade.setTradeId(tid); reusableTrade.setOrderId(mOid); 
                     reusableTrade.setPrice(price); reusableTrade.setQty(qty); 
-                    reusableTrade.setTime(currentTimestamp); reusableTrade.setLastSeq(currentGwSeq);
+                    reusableTrade.setTime(sbe.timestamp()); reusableTrade.setLastSeq(gwSeq);
                     tradeHistoryDiskMap.put(tid, reusableTrade);
 
-                    processTradeLedger(mUid, tUid, price, qty, taker);
+                    processTradeLedger(mUid, tUid, price, qty, taker, gwSeq);
                     Order maker = activeOrderMemoryIndex.get(mOid);
-                    if (maker != null) syncOrder(maker, currentGwSeq);
+                    if (maker != null) syncOrder(maker, gwSeq);
                     
-                    reporter.sendReport(mUid, mOid, "", OrderStatus.PARTIALLY_FILLED, price, qty, 0, 0, currentTimestamp, currentGwSeq);
+                    // 暫存至批量緩衝
+                    reporter.sendReport(mUid, mOid, "", OrderStatus.PARTIALLY_FILLED, price, qty, 0, 0, sbe.timestamp());
                 });
 
         syncOrder(taker, gwSeq);
         reporter.sendReport(taker.getUserId(), orderId, taker.getClientOrderId(), 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
-                0, 0, taker.getFilled(), 0, currentTimestamp, gwSeq);
+                0, 0, taker.getFilled(), 0, sbe.timestamp());
+        
+        // --- 批量發送：將本次指令產生的所有回報一次性寫入隊列 ---
+        reporter.flushBatch(gwSeq);
         
         clientOrderIdDiskMap.put(new CidKey(taker.getUserId(), tempCidBytes), orderId);
     }
 
-    private void processTradeLedger(long makerUid, long takerUid, long price, long qty, Order taker) {
+    private void processTradeLedger(long makerUid, long takerUid, long price, long qty, Order taker, long seq) {
         long floor = DecimalUtil.mulFloor(price, qty), ceil = DecimalUtil.mulCeil(price, qty);
-        if (taker.getSide() == 0) { // Taker BUY
-            // Taker 依照實際成交價結算，並獲得溢價退款
-            ledger.tradeSettleWithRefund(takerUid, Asset.USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), qty), Asset.BTC, qty, currentGwSeq);
-            ledger.tradeSettle(makerUid, Asset.BTC, qty, Asset.USDT, floor, currentGwSeq);
-        } else { // Taker SELL
-            ledger.tradeSettle(takerUid, Asset.BTC, qty, Asset.USDT, floor, currentGwSeq);
-            // Maker BUY (Maker 始終以自己的掛單價成交，無退款)
-            ledger.tradeSettle(makerUid, Asset.USDT, ceil, Asset.BTC, qty, currentGwSeq);
+        if (taker.getSide() == 0) {
+            ledger.tradeSettleWithRefund(takerUid, Asset.USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), qty), Asset.BTC, qty, seq);
+            ledger.tradeSettle(makerUid, Asset.BTC, qty, Asset.USDT, floor, seq);
+        } else {
+            ledger.tradeSettle(takerUid, Asset.BTC, qty, Asset.USDT, floor, seq);
+            Order m = activeOrderMemoryIndex.get(taker.getOrderId());
+            ledger.tradeSettleWithRefund(makerUid, Asset.USDT, ceil, m != null ? DecimalUtil.mulCeil(m.getPrice(), qty) : ceil, Asset.BTC, qty, seq);
         }
-        if (ceil > floor) ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, currentGwSeq, ceil - floor);
+        if (ceil > floor) ledger.addAvailable(PLATFORM_USER_ID, Asset.USDT, seq, ceil - floor);
     }
 
     public void syncOrder(Order o, long gwSeq) {
@@ -131,8 +130,6 @@ public class OrderProcessor {
             o.setStatus((byte)2); activeOrderMemoryIndex.remove(o.getOrderId()); 
         } else if (o.getFilled() > 0) o.setStatus((byte)1);
         o.setVersion(o.getVersion() + 1); o.setLastSeq(gwSeq); 
-        
-        // 核心持久化點：將最終狀態同步至磁碟
         allOrdersDiskMap.put(o.getOrderId(), o);
         if (o.getStatus() < 2) activeOrderIdDiskMap.put(o.getOrderId(), true);
         else activeOrderIdDiskMap.remove(o.getOrderId());
