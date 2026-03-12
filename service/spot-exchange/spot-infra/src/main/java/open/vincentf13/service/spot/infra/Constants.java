@@ -18,6 +18,8 @@ public class Constants {
     /** 
       進度位點元數據 Key (MetaDataKey)
      */
+    public static final String[] ORDER_STATUS_STRINGS = {"NEW", "PARTIALLY_FILLED", "FILLED", "REJECTED", "CANCELED"};
+
     public static class OrderSide {
         public static final byte BUY = 0;
         public static final byte SELL = 1;

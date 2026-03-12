@@ -21,8 +21,8 @@ import java.nio.ByteBuffer;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 推送背景執行緒 (PushWorker) - 終極 Zero-GC 版
- 職責：讀取回報流並推送，消除所有臨時 Map 分配
+ WebSocket 推送背景執行緒 (PushWorker) - 終極 Zero-String 版
+ 職責：讀取回報流並推送，消除所有臨時 String 與 Map 分配
  */
 @Slf4j
 @Component
@@ -38,11 +38,11 @@ public class PushWorker extends Worker {
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(4096);
 
-    /** 預分配推送載體：消除 Map.of() */
+    /** 預分配推送載體 */
     @Data
     private static class PushEvent {
         long orderId;
-        String status;
+        String status; // 這裡將存儲快取中的靜態 String 引用
         long cid;
         long userId;
     }
@@ -81,14 +81,22 @@ public class PushWorker extends Worker {
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
                 int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
 
-                // 零分配填充載體
+                // 1. 零分配填充載體
                 pushEventReusable.setOrderId(executionDecoder.orderId());
-                pushEventReusable.setStatus(executionDecoder.status().toString());
+                
+                // 2. 性能優化：使用靜態字串快取，避免 enum.toString() 導致的分配
+                int statusOrdinal = executionDecoder.status().value();
+                if (statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length) {
+                    pushEventReusable.setStatus(ORDER_STATUS_STRINGS[statusOrdinal]);
+                } else {
+                    pushEventReusable.setStatus("UNKNOWN");
+                }
+                
                 pushEventReusable.setCid(executionDecoder.clientOrderId());
                 pushEventReusable.setUserId(executionDecoder.userId());
 
-                // 序列化並推送
-                wsHandler.sendMessage(String.valueOf(pushEventReusable.getUserId()), 
+                // 3. 序列化並推送 (直接傳遞 long 型 UID)
+                wsHandler.sendMessage(pushEventReusable.getUserId(), 
                         JsonUtil.toJson("execution", pushEventReusable));
 
                 offset += currentMsgLen;
