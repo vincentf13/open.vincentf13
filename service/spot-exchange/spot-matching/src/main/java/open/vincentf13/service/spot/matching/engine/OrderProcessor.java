@@ -17,13 +17,13 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  訂單處理核心 (Order Processor)
- 職責：領域編排者，協調自持物件池的 OrderBook 與帳務系統
+ 職責：作為領域編排者，協調訂單簿狀態機與外部系統 (Ledger/Reporter)
  */
 @Slf4j
 @Component
 public class OrderProcessor {
-    private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
+    private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
@@ -48,7 +48,6 @@ public class OrderProcessor {
         SbeCodec.decode(payload, 0, decoder);
         decoder.getClientOrderId(tempCidBytes, 0);
         reusableCidKey.set(decoder.userId(), tempCidBytes, 0, 32);
-        
         if (clientOrderIdDiskMap.containsKey(reusableCidKey)) return;
         
         handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), tradeIdSupplier);
@@ -58,45 +57,37 @@ public class OrderProcessor {
         boolean isBuy = sbe.side() == Side.BUY;
         long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
+        // 1. 風控校驗
         if (!ledger.tryFreeze(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, gwSeq, cost)) {
             reporter.sendReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             reporter.flushBatch(gwSeq);
             return;
         }
 
-        // --- 零分配關鍵：從對應交易對的物件池借用 Order 實體 ---
-        OrderBook book = getOrAddBook((int)sbe.symbolId());
-        Order taker = book.borrowOrder();
-        
-        // 數據填充
-        taker.setOrderId(orderId); taker.setClientOrderId(sbe.clientOrderId()); taker.setUserId(sbe.userId());
-        taker.setSymbolId((int)sbe.symbolId()); taker.setPrice(sbe.price()); taker.setQty(sbe.qty());
-        taker.setSide((byte)(isBuy ? 0 : 1)); taker.setStatus((byte)0);
-        taker.setVersion(1); taker.setLastSeq(gwSeq);
-
-        // 執行撮合 (內部自動處理歸還)
-        book.match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, (maker, p, q) -> {
-            processTradeLedger(maker.getUserId(), taker.getUserId(), p, q, taker, gwSeq);
+        // 2. 領域處理：Admission -> 撮合 -> 結案同步 一口氣完成
+        OrderBook book = getOrAddBook((int) sbe.symbolId());
+        Order taker = book.processTaker(orderId, sbe, gwSeq, tradeIdSupplier, (maker, p, q) -> {
+            processTradeLedger(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
             reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", OrderStatus.PARTIALLY_FILLED, p, q, 0, 0, sbe.timestamp());
         });
 
-        // Taker 結案同步
-        book.syncOrder(taker, gwSeq);
-        
+        // 3. 最終回報與發送
         reporter.sendReport(taker.getUserId(), orderId, taker.getClientOrderId(), 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, sbe.timestamp());
         
         reporter.flushBatch(gwSeq);
         clientOrderIdDiskMap.put(new CidKey(taker.getUserId(), tempCidBytes), orderId);
+
+        if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 
-    private void processTradeLedger(long makerUid, long takerUid, long price, long qty, Order taker, long seq) {
+    private void processTradeLedger(long makerUid, long takerUid, long price, long qty, byte takerSide, long takerPrice, long seq) {
         long floor = DecimalUtil.mulFloor(price, qty), ceil = DecimalUtil.mulCeil(price, qty);
-        if (taker.getSide() == 0) {
-            ledger.tradeSettleWithRefund(takerUid, Asset.USDT, ceil, DecimalUtil.mulCeil(taker.getPrice(), qty), Asset.BTC, qty, seq);
+        if (takerSide == 0) { // Taker BUY
+            ledger.tradeSettleWithRefund(takerUid, Asset.USDT, ceil, DecimalUtil.mulCeil(takerPrice, qty), Asset.BTC, qty, seq);
             ledger.tradeSettle(makerUid, Asset.BTC, qty, Asset.USDT, floor, seq);
-        } else {
+        } else { // Taker SELL
             ledger.tradeSettle(takerUid, Asset.BTC, qty, Asset.USDT, floor, seq);
             ledger.tradeSettle(makerUid, Asset.USDT, ceil, Asset.BTC, qty, seq);
         }

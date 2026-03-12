@@ -4,18 +4,20 @@ import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
+import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
+import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Long2ObjectHashMap;
 import java.util.*;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 /** 
- 內存訂單簿 (OrderBook) - Zero-GC 物件池優化版
- 職責：自主管理撮合邏輯與物件生命週期，徹底消除熱點路徑的 new 操作
+ 內存訂單簿 (OrderBook)
+ 職責：領域狀態機，自主管理訂單 Admission、撮合流、最終狀態同步與生命週期池
  */
 public class OrderBook {
     private static final int INITIAL_DEQUE_CAPACITY = 4096;
-    private static final int POOL_SIZE = 100_000; // 預分配物件池大小
+    private static final int POOL_SIZE = 100_000;
 
     private final int symbolId;
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
@@ -26,52 +28,57 @@ public class OrderBook {
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(200_000, 0.5f); 
 
-    /** 物件池：循環利用 Order 對象，徹底消除 Young GC */
     private final Deque<Order> orderPool = new ArrayDeque<>(POOL_SIZE);
     private final Trade reusableTrade = new Trade();
 
+    @FunctionalInterface public interface TradeFinalizer {
+        void onMatch(Order maker, long price, long qty);
+    }
+
     public OrderBook(int symbolId) {
         this.symbolId = symbolId;
-        // 預分配物件池
-        for (int i = 0; i < 10000; i++) { // 先預分配 1 萬個，不夠時動態建立
-            orderPool.add(new Order());
-        }
+        for (int i = 0; i < 10000; i++) orderPool.add(new Order());
     }
 
     /** 
-      從池中領取物件並重置狀態
+      處理 Taker 指令門面
+      封裝了 Admission -> 撮合 -> Taker 結案持久化 的完整生命週期
      */
-    public Order borrowOrder() {
+    public Order processTaker(long orderId, OrderCreateDecoder sbe, long gwSeq, 
+                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
+        // 1. Admission (借用並填充)
+        Order taker = borrowAndFill(orderId, sbe, gwSeq);
+        
+        // 2. 執行撮合與 Maker 處理
+        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
+        
+        // 3. Taker 結案同步 (下沉邏輯)
+        syncOrder(taker, gwSeq);
+        
+        return taker;
+    }
+
+    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long gwSeq) {
         Order o = orderPool.pollFirst();
         if (o == null) o = new Order();
-        // 重置關鍵欄位
-        o.setFilled(0); o.setStatus((byte)0); o.setVersion(0); o.setLastSeq(-1);
+        o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId((int)sbe.symbolId());
+        o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
+        o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
+        o.setVersion(1); o.setLastSeq(gwSeq);
+        o.setClientOrderId(sbe.clientOrderId());
         return o;
     }
 
-    /** 
-      歸還物件至池中
-     */
-    public void releaseOrder(Order o) {
-        if (o != null) orderPool.addLast(o);
-    }
+    public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
     public static void rebuildAll(IntFunction<OrderBook> bookFinder) {
-        ChronicleMap<Long, Boolean> activeIds = Storage.self().activeOrders();
-        ChronicleMap<Long, Order> allOrders = Storage.self().orders();
-        activeIds.forEach((id, active) -> {
-            Order o = allOrders.getUsing(id, new Order());
-            if (o != null && o.getStatus() < 2) {
-                bookFinder.apply(o.getSymbolId()).add(o);
-            }
+        Storage.self().activeOrders().forEach((id, active) -> {
+            Order o = Storage.self().orders().getUsing(id, new Order());
+            if (o != null && o.getStatus() < 2) bookFinder.apply(o.getSymbolId()).add(o);
         });
     }
 
-    @FunctionalInterface public interface TradeHandler {
-        void onTrade(Order maker, long price, long qty);
-    }
-
-    public void match(Order taker, long gwSeq, long timestamp, Supplier<Long> tradeIdSupplier, TradeHandler handler) {
+    private void match(Order taker, long gwSeq, long timestamp, Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
         final boolean isBuy = taker.getSide() == 0;
         final TreeMap<Long, Deque<Order>> counterSide = isBuy ? asks : bids;
         final long takerPrice = taker.getPrice();
@@ -87,13 +94,12 @@ public class OrderBook {
             while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
                 Order maker = makers.peekFirst();
                 if (!orderIndex.containsKey(maker.getOrderId())) {
-                    releaseOrder(makers.pollFirst()); // 撤單釋放
-                    continue;
+                    releaseOrder(makers.pollFirst()); continue;
                 }
 
                 long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
-                
                 long tid = tradeIdSupplier.get();
+                
                 reusableTrade.setTradeId(tid); reusableTrade.setOrderId(maker.getOrderId());
                 reusableTrade.setPrice(bestPrice); reusableTrade.setQty(matchQty);
                 reusableTrade.setTime(timestamp); reusableTrade.setLastSeq(gwSeq);
@@ -101,12 +107,13 @@ public class OrderBook {
 
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
-                handler.onTrade(maker, bestPrice, matchQty);
+                
+                finalizer.onMatch(maker, bestPrice, matchQty);
 
                 if (maker.getFilled() == maker.getQty()) {
                     syncOrder(maker, gwSeq);
                     orderIndex.remove(maker.getOrderId());
-                    releaseOrder(makers.pollFirst()); // 完全成交釋放
+                    releaseOrder(makers.pollFirst()); 
                 } else {
                     syncOrder(maker, gwSeq);
                     break;
@@ -116,7 +123,6 @@ public class OrderBook {
             else break;
         }
         if (taker.getQty() > taker.getFilled()) add(taker);
-        else releaseOrder(taker); // Taker 直接完全成交，歸還物件
     }
 
     public void add(Order order) {
