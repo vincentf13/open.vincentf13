@@ -72,9 +72,9 @@ public class Constants {
     @Getter
     @RequiredArgsConstructor
     public enum ChronicleQueueEnum {
-        GATEWAY("gw-queue"),
-        COMMAND("core-queue"),
-        RESULT("outbound-queue");
+        CLIENT_TO_GW("client-to-gw-wal"),
+        GW_TO_MATCHING("gw-to-matching-wal"),
+        MATCHING_TO_GW("matching-to-gw-wal");
 
         private final String path;
     }

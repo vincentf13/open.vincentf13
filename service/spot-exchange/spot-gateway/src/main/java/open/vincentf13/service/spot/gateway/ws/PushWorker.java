@@ -3,6 +3,8 @@ package open.vincentf13.service.spot.gateway.ws;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
+import net.openhft.chronicle.map.ChronicleMap;
+import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
@@ -18,9 +20,17 @@ import java.util.Map;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
+/** 
+ WebSocket 推送背景執行緒 (PushWorker)
+ 職責：讀取核心回報流 (Matching -> Gateway) 並推送至客戶端
+ */
 @Slf4j
 @Component
 public class PushWorker extends Worker {
+    // 依賴的具體存儲結構 (反映 Matching -> Gateway 流向)
+    private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
+    private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
+
     private final WsHandler wsHandler;
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
@@ -37,8 +47,8 @@ public class PushWorker extends Worker {
     
     @Override
     protected void onStart() {
-        this.tailer = Storage.self().resultQueue().createTailer();
-        Progress saved = Storage.self().metadata().get(MetaDataKey.WS_PUSH_TO_CLIENT_POINT);
+        this.tailer = matchingToGwWal.createTailer();
+        Progress saved = metadata.get(MetaDataKey.WS_PUSH_TO_CLIENT_POINT);
         if (saved != null) {
             progress.setLastProcessedSeq(saved.getLastProcessedSeq());
             tailer.moveToIndex(progress.getLastProcessedSeq());
@@ -66,7 +76,7 @@ public class PushWorker extends Worker {
                 wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), json);
             }
             progress.setLastProcessedSeq(seq);
-            Storage.self().metadata().put(MetaDataKey.WS_PUSH_TO_CLIENT_POINT, progress);
+            metadata.put(MetaDataKey.WS_PUSH_TO_CLIENT_POINT, progress);
         });
         return handled ? 1 : 0;
     }

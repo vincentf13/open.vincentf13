@@ -1,16 +1,17 @@
 package open.vincentf13.service.spot.gateway.ws;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
+import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.wire.DocumentContext;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.util.JsonUtil;
 import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot.sbe.Side;
@@ -21,95 +22,93 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
-/**
-  WebSocket 指令處理器
-  負責：JSON 解析、參數校驗、SBE 編碼、Aeron 轉發
-  效能：採用 ThreadLocal 緩衝區與 POJO 重用技術實現全路徑 Zero-GC 指令轉換
+/** 
+ WebSocket 接入處理器 (WsHandler)
+ 職責：管理客戶端連線、解析 JSON 請求並寫入客戶端指令流 (Client -> Gateway)
  */
 @Slf4j
 @Component
-@ChannelHandler.Sharable
-public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    private final Map<String, Channel> userChannels = new ConcurrentHashMap<>();
+public class WsHandler extends TextWebSocketHandler {
+    // 依賴的具體存儲結構 (反映 Client -> Gateway 流向)
+    private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
+
+    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, String> sessionToUser = new ConcurrentHashMap<>();
     
-    // 預分配 SBE 編碼對象與緩衝區 (ThreadLocal 化以確保執行緒安全)
     private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
-    private final UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(1024));
-    private final Bytes<ByteBuffer> bytes = Bytes.elasticByteBuffer(1024);
-    private final byte[] tempArray = new byte[1024];
+    private final Bytes<ByteBuffer> sbeBytes = Bytes.elasticByteBuffer(512);
+    private final UnsafeBuffer sbeBuffer = new UnsafeBuffer(0, 0);
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
-        JsonNode root = JsonUtil.parse(frame.text());
-        String op = root.get(Ws.OP).asText();
-        
-        if (Ws.PING.equals(op)) ctx.writeAndFlush(new TextWebSocketFrame(Ws.PONG));
-        else if (Ws.AUTH.equals(op)) handleAuth(ctx, root);
-        else if (Ws.CREATE.equals(op)) handleOrderCreate(ctx, root);
+    public void afterConnectionEstablished(WebSocketSession session) {
+        sessions.put(session.getId(), session);
     }
 
-    /** 
-      處理認證指令 (auth)
-      邏輯：將 userId 與 Channel 綁定，並寫入本地指令隊列
-     */
-    private void handleAuth(ChannelHandlerContext ctx, JsonNode root) {
-        long userId = root.get(Ws.ARGS).get(0).get(Ws.USER_ID).asLong();
-        userChannels.put(String.valueOf(userId), ctx.channel());
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        try {
+            Map<String, Object> req = JsonUtil.toMap(message.getPayload());
+            String op = (String) req.get(Ws.OP);
+
+            if (Ws.PING.equals(op)) {
+                session.sendMessage(new TextMessage(Ws.PONG));
+            } else if (Ws.AUTH.equals(op)) {
+                handleAuth(session, req);
+            } else if (Ws.CREATE.equals(op)) {
+                handleOrderCreate(session, req);
+            }
+        } catch (Exception e) {
+            log.error("處理 WS 訊息失敗: {}", e.getMessage());
+        }
+    }
+
+    private void handleAuth(WebSocketSession session, Map<String, Object> req) {
+        long userId = ((Number) req.get(Ws.USER_ID)).longValue();
+        sessionToUser.put(session.getId(), String.valueOf(userId));
         
-        // 寫入本地隊列：認證訊息 [msgType][userId]
-        Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
+        clientToGwWal.acquireAppender().writeDocument(wire -> {
             wire.write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
             wire.write(ChronicleWireKey.userId).int64(userId);
         });
     }
 
-    /** 
-      處理下單指令 (order.create)
-      邏輯：JSON -> SBE 二進位 -> 寫入本地隊切
-     */
-    private void handleOrderCreate(ChannelHandlerContext ctx, JsonNode root) {
-        JsonNode args = root.get(Ws.ARGS).get(0);
-        
-        // 使用 SbeEncoder 進行二進位編碼
-        buffer.setMemory(0, buffer.capacity(), (byte) 0);
-        createEncoder.wrap(buffer, 0)
-                .timestamp(System.currentTimeMillis())
-                .userId(args.get(Ws.USER_ID).asLong())
-                .symbolId(args.get(Ws.SYMBOL_ID).asInt())
-                .price(args.get(Ws.PRICE).asLong())
-                .qty(args.get(Ws.QTY).asLong())
-                .side(Side.valueOf(args.get(Ws.SIDE).asText().toUpperCase()))
-                .clientOrderId(root.get(Ws.CID).asText());
+    private void handleOrderCreate(WebSocketSession session, Map<String, Object> req) {
+        String uid = sessionToUser.get(session.getId());
+        if (uid == null) return;
 
-        int len = createEncoder.encodedLength();
-        buffer.getBytes(0, tempArray, 0, len);
-        bytes.clear();
-        bytes.write(tempArray, 0, len);
-        
-        Storage.self().gatewayQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
-            wire.write(ChronicleWireKey.payload).bytes(bytes);
-        });
-    }
+        synchronized (sbeBytes) {
+            sbeBytes.clear();
+            sbeBuffer.wrap(sbeBytes.addressForWrite(0), (int) sbeBytes.realCapacity());
+            
+            int sbeLen = SbeCodec.encode(sbeBuffer, 0, createEncoder
+                .userId(Long.parseLong(uid))
+                .symbolId(((Number) req.get(Ws.SYMBOL_ID)).longValue())
+                .price(((Number) req.get(Ws.PRICE)).longValue())
+                .qty(((Number) req.get(Ws.QTY)).longValue())
+                .side(Side.valueOf((String) req.get(Ws.SIDE)))
+                .clientOrderId((String) req.get(Ws.CID))
+                .timestamp(System.currentTimeMillis()));
+            
+            sbeBytes.writePosition(sbeLen);
 
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        log.error("WebSocket 異常: {}", cause.getMessage());
-        ctx.close();
-    }
-
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) {
-        userChannels.values().remove(ctx.channel());
-        try {
-            super.channelInactive(ctx);
-        } catch (Exception e) {
-            log.error("Channel Inactive Error: {}", e.getMessage());
+            try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
+                dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
+                dc.wire().write(ChronicleWireKey.payload).bytes(sbeBytes);
+            }
         }
     }
 
     public void sendMessage(String userId, String json) {
-        Channel channel = userChannels.get(userId);
-        if (channel != null && channel.isActive()) channel.writeAndFlush(new TextWebSocketFrame(json));
+        sessions.values().stream()
+            .filter(s -> String.valueOf(userId).equals(sessionToUser.get(s.getId())))
+            .forEach(s -> {
+                try { s.sendMessage(new TextMessage(json)); } catch (Exception ignored) {}
+            });
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        sessions.remove(session.getId());
+        sessionToUser.remove(session.getId());
     }
 }

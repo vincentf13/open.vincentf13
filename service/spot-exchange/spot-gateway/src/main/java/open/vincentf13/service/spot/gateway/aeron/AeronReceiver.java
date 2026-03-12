@@ -7,6 +7,8 @@ import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import net.openhft.chronicle.bytes.PointerBytesStore;
+import net.openhft.chronicle.map.ChronicleMap;
+import net.openhft.chronicle.queue.ChronicleQueue;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
@@ -17,10 +19,14 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 接收器 (災難恢復增強版)
- 職責：監聽來自核心引擎的回報數據，並主動上報進度實現握手
+ 職責：監聽核心回報流 (Matching -> Gateway)，並主動上報進度實現握手
  */
 @Component
 public class AeronReceiver extends Worker {
+    // 依賴的具體存儲結構 (反映 Matching -> Gateway 流向)
+    private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
+    private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
+
     private final Aeron aeron;
     private Subscription subscription;
     private Publication controlPublication;
@@ -42,21 +48,16 @@ public class AeronReceiver extends Worker {
         subscription = aeron.addSubscription(AeronChannel.GATEWAY_URL, AeronChannel.DATA_STREAM_ID);
         controlPublication = aeron.addPublication(AeronChannel.MATCHING_URL, AeronChannel.CONTROL_STREAM_ID);
         
-        Progress saved = Storage.self().metadata().get(MetaDataKey.GW_RECEVIER_POINT);
+        Progress saved = metadata.get(MetaDataKey.GW_RECEVIER_POINT);
         if (saved != null) progress.setLastProcessedSeq(saved.getLastProcessedSeq());
         else progress.setLastProcessedSeq(-1L);
         
         currentState = AeronState.WAITING;
-        log.info("AeronReceiver 啟動：當前進度: {}, 進入握手狀態...", progress.getLastProcessedSeq());
+        log.info("AeronReceiver 啟動：監聽回報流於 {}, 當前進度: {}", AeronChannel.GATEWAY_URL, progress.getLastProcessedSeq());
     }
 
     @Override
     protected int doWork() {
-        if (currentState == AeronState.SENDING && !subscription.isConnected()) {
-            currentState = AeronState.WAITING;
-            log.warn("檢測到核心引擎連線中斷，回退至握手模式...");
-        }
-
         if (currentState == AeronState.WAITING) {
             long now = System.currentTimeMillis();
             if (now - lastResumeSentTime > 500) {
@@ -76,24 +77,24 @@ public class AeronReceiver extends Worker {
 
     private final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
         int msgType = buffer.getInt(offset);
-        long gwSeq = buffer.getLong(offset + 4);
+        long matchingSeq = buffer.getLong(offset + 4);
         
-        if (currentState == AeronState.WAITING && gwSeq > progress.getLastProcessedSeq()) {
+        if (currentState == AeronState.WAITING && matchingSeq > progress.getLastProcessedSeq()) {
             currentState = AeronState.SENDING;
             log.info("Gateway 回報鏈路同步成功");
         }
 
-        if (gwSeq <= progress.getLastProcessedSeq()) return;
+        if (matchingSeq <= progress.getLastProcessedSeq()) return;
 
         long messageAddress = buffer.addressOffset() + offset;
         pointerBytesStore.set(messageAddress, length);
         
-        Storage.self().resultQueue().acquireAppender().writeDocument(wire -> {
+        matchingToGwWal.acquireAppender().writeDocument(wire -> {
             wire.bytes().write(pointerBytesStore);
         });
 
-        progress.setLastProcessedSeq(gwSeq);
-        Storage.self().metadata().put(MetaDataKey.GW_RECEVIER_POINT, progress);
+        progress.setLastProcessedSeq(matchingSeq);
+        metadata.put(MetaDataKey.GW_RECEVIER_POINT, progress);
     };
 
     @Override

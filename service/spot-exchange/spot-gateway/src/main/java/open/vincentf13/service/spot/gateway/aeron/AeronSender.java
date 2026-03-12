@@ -6,23 +6,25 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
-import net.openhft.chronicle.bytes.Bytes;
+import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.Progress;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 發送器 (災難恢復增強版)
- 職責：從 GW WAL 讀取指令並發送至核心引擎
+ 職責：讀取客戶端指令流 (Client -> Gateway) 並發送至核心引擎
  */
 @Component
 public class AeronSender extends Worker {
+    // 依賴的具體存儲結構 (反映 Client -> Gateway 流向)
+    private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
+
     private final Aeron aeron;
     private Publication publication;
     private Subscription controlSubscription;
@@ -43,9 +45,9 @@ public class AeronSender extends Worker {
         publication = aeron.addPublication(AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID);
         controlSubscription = aeron.addSubscription(AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
         
-        tailer = Storage.self().gatewayQueue().createTailer();
+        tailer = clientToGwWal.createTailer();
         currentState = AeronState.WAITING;
-        log.info("AeronSender 啟動，進入靜默等待狀態...");
+        log.info("AeronSender 啟動成功，進入靜默等待狀態...");
     }
 
     @Override
