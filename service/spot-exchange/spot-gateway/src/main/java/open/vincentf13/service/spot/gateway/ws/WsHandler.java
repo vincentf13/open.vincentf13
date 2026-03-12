@@ -27,8 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 接入處理器 (WsHandler) - 高性能版
- 職責：使用 Jackson Streaming API 實現零 Map 分配的指令解析
+ WebSocket 接入處理器 (WsHandler)
+ 職責：管理客戶端連線、執行高性能 JSON 解析並原子寫入指令流 WAL
  */
 @Slf4j
 @Component
@@ -42,17 +42,9 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final Bytes<ByteBuffer> sbeBytes = Bytes.elasticByteBuffer(512);
     private final UnsafeBuffer sbeBuffer = new UnsafeBuffer(0, 0);
 
-    /** 內部復用對象，承載單次請求數據 */
     @Data
     private static class RequestHolder {
-        String op;
-        long userId;
-        int symbolId;
-        long price;
-        long qty;
-        String side;
-        String cid;
-
+        String op; long userId; int symbolId; long price; long qty; String side; String cid;
         void reset() { op = null; userId = 0; symbolId = 0; price = 0; qty = 0; side = null; cid = null; }
     }
 
@@ -73,7 +65,6 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
                 String field = parser.getCurrentName();
                 if (field == null) continue;
                 parser.nextToken();
-                
                 switch (field) {
                     case Ws.OP -> holder.op = parser.getText();
                     case Ws.USER_ID -> holder.userId = parser.getLongValue();
@@ -93,16 +84,18 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
                 handleOrderCreate(ctx.channel(), holder);
             }
         } catch (Exception e) {
-            log.error("解析指令失敗: {}", e.getMessage());
+            log.error("指令解析異常: {}", e.getMessage());
         }
     }
 
     private void handleAuth(Channel channel, RequestHolder holder) {
         sessionToUser.put(channel.id().asLongText(), String.valueOf(holder.userId));
-        clientToGwWal.acquireAppender().writeDocument(wire -> {
-            wire.write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
-            wire.write(ChronicleWireKey.userId).int64(holder.userId);
-        });
+        
+        // 使用 DocumentContext 執行事務寫入
+        try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
+            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
+            dc.wire().write(ChronicleWireKey.userId).int64(holder.userId);
+        }
     }
 
     private void handleOrderCreate(Channel channel, RequestHolder holder) {
@@ -112,16 +105,10 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         synchronized (sbeBytes) {
             sbeBytes.clear();
             sbeBuffer.wrap(sbeBytes.addressForWrite(0), (int) sbeBytes.realCapacity());
-            
             int sbeLen = SbeCodec.encode(sbeBuffer, 0, createEncoder
-                .userId(Long.parseLong(uid))
-                .symbolId(holder.symbolId)
-                .price(holder.price)
-                .qty(holder.qty)
-                .side(Side.valueOf(holder.side))
-                .clientOrderId(holder.cid)
+                .userId(Long.parseLong(uid)).symbolId(holder.symbolId).price(holder.price)
+                .qty(holder.qty).side(Side.valueOf(holder.side)).clientOrderId(holder.cid)
                 .timestamp(System.currentTimeMillis()));
-            
             sbeBytes.writePosition(sbeLen);
 
             try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
