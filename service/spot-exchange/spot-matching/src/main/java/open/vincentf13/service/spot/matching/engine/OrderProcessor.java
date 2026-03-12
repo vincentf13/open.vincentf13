@@ -3,6 +3,7 @@ package open.vincentf13.service.spot.matching.engine;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.Order;
@@ -14,7 +15,6 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -23,12 +23,12 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  訂單處理核心 (Order Processor)
- 職責：執行訂單生命週期管理
+ 職責：管理訂單狀態機，負責從索引恢復、冪等檢查到撮合結算的全生命週期
  */
 @Slf4j
 @Component
 public class OrderProcessor {
-    // 依賴的具體存儲結構
+    // 具體數據指標下沉至此
     private final ChronicleMap<Long, Order> orders = Storage.self().orders();
     private final ChronicleMap<Long, Boolean> activeOrders = Storage.self().activeOrders();
     private final ChronicleMap<Long, Trade> tradesStore = Storage.self().trades();
@@ -37,9 +37,11 @@ public class OrderProcessor {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
+    // 內存高效索引
     private final Int2ObjectHashMap<OrderBook> books = new Int2ObjectHashMap<>();
     private final Long2ObjectHashMap<Order> activeIndex = new Long2ObjectHashMap<>();
     
+    // 預分配解碼器
     private final OrderCreateDecoder createDecoder = new OrderCreateDecoder();
 
     public OrderProcessor(Ledger ledger, ExecutionReporter reporter) {
@@ -47,11 +49,31 @@ public class OrderProcessor {
         this.reporter = reporter;
     }
 
+    /** 
+      重建狀態：從持久化 Map 中恢復活躍訂單並重建內存訂單簿
+     */
+    public void rebuildState() {
+        log.info("OrderProcessor 正在恢復內存訂單簿...");
+        activeOrders.keySet().forEach(id -> {
+            Order o = orders.get(id);
+            if (o != null && o.getStatus() < 2) {
+                books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
+                activeIndex.put(id, o);
+            } else {
+                activeOrders.remove(id);
+            }
+        });
+    }
+
+    /** 
+      處理訂單創建指令 (封裝解碼、冪等與業務)
+     */
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, boolean isReplaying, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
         SbeCodec.decode(payload, 0, createDecoder);
         String cid = createDecoder.clientOrderId();
         CidKey key = new CidKey(createDecoder.userId(), cid);
         
+        // 1. 冪等檢查與回報重發
         Long resId = cids.get(key);
         if (resId != null) {
             if (!isReplaying) {
@@ -61,8 +83,12 @@ public class OrderProcessor {
             return;
         }
         
-        handleOrderCreate(createDecoder, gwSeq, orderIdSupplier.get(), cid, isReplaying, tradeIdSupplier);
-        cids.put(key, orderIdSupplier.get()); // 此處已在內部消費過 ID，需注意一致性，目前僅為示意
+        // 2. 執行核心業務
+        long orderId = orderIdSupplier.get();
+        handleOrderCreate(createDecoder, gwSeq, orderId, cid, isReplaying, tradeIdSupplier);
+        
+        // 3. 落地冪等索引
+        cids.put(key, orderId);
     }
 
     private void handleOrderCreate(OrderCreateDecoder sbe, long gwSeq, long orderId, String cid, boolean isReplaying, Supplier<Long> tradeIdSupplier) {
@@ -71,11 +97,13 @@ public class OrderProcessor {
         long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
         int aid = isBuy ? Asset.USDT : Asset.BTC;
 
+        // 風控
         if (!ledger.tryFreeze(sbe.userId(), aid, gwSeq, cost)) {
             reporter.sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, ts, gwSeq, isReplaying);
             return;
         }
 
+        // Taker 初始化
         Order taker = new Order();
         taker.setOrderId(orderId); taker.setClientOrderId(cid); taker.setUserId(sbe.userId());
         taker.setSymbolId((int)sbe.symbolId()); taker.setPrice(sbe.price()); taker.setQty(sbe.qty());
@@ -85,8 +113,9 @@ public class OrderProcessor {
         activeIndex.put(orderId, taker); 
         persistOrder(taker);
 
-        List<OrderBook.TradeEvent> matchEvents = books.computeIfAbsent(taker.getSymbolId(), OrderBook::new).match(taker);
-        for (OrderBook.TradeEvent t : matchEvents) {
+        // 撮合執行
+        List<OrderBook.TradeEvent> events = books.computeIfAbsent(taker.getSymbolId(), OrderBook::new).match(taker);
+        for (OrderBook.TradeEvent t : events) {
             long tid = tradeIdSupplier.get();
             persistTrade(t, tid, ts, gwSeq);
             processTradeLedger(t, gwSeq, taker);
@@ -95,12 +124,11 @@ public class OrderProcessor {
             reporter.sendReport(t.makerUserId, t.makerOrderId, "", OrderStatus.PARTIALLY_FILLED, t.price, t.qty, 0, 0, ts, gwSeq, isReplaying);
         }
 
+        // Taker 結案
         syncOrder(taker, gwSeq);
         reporter.sendReport(taker.getUserId(), orderId, cid, 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, ts, gwSeq, isReplaying);
-        
-        cids.put(new CidKey(taker.getUserId(), cid), orderId);
     }
 
     private void persistTrade(OrderBook.TradeEvent t, long tid, long ts, long gwSeq) {
@@ -135,10 +163,5 @@ public class OrderProcessor {
         orders.put(o.getOrderId(), o);
         if (o.getStatus() < 2) activeOrders.put(o.getOrderId(), true);
         else activeOrders.remove(o.getOrderId());
-    }
-
-    public void rebuildIndex(Order o) {
-        books.computeIfAbsent(o.getSymbolId(), OrderBook::new).add(o);
-        activeIndex.put(o.getOrderId(), o);
     }
 }
