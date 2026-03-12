@@ -34,17 +34,31 @@ public class DataService {
     
     public List<Order> getOrders(long userId) {
         List<Order> results = new ArrayList<>();
-        Storage.self().activeOrders().keySet().forEach(orderId -> {
-            try (ExternalMapQueryContext<Long, Order, ?> context =
-                         Storage.self().orders().queryContext(orderId)) {
-                context.readLock().lock();
-                if (context.entry() != null) {
-                    Order order = context.entry().value().get();
-                    if (order.getUserId() == userId)
-                        results.add(order);
+        String activeOrderIdsStr = Storage.self().userActiveOrders().get(userId);
+        
+        if (activeOrderIdsStr == null || activeOrderIdsStr.isEmpty()) {
+            return results;
+        }
+
+        String[] orderIds = activeOrderIdsStr.split(",");
+        for (String idStr : orderIds) {
+            if (idStr.isEmpty()) continue;
+            try {
+                long orderId = Long.parseLong(idStr);
+                try (ExternalMapQueryContext<Long, Order, ?> context =
+                             Storage.self().orders().queryContext(orderId)) {
+                    context.readLock().lock();
+                    if (context.entry() != null) {
+                        Order order = context.entry().value().get();
+                        if (order.getUserId() == userId) {
+                            results.add(order);
+                        }
+                    }
                 }
+            } catch (NumberFormatException ignored) {
+                // 忽略解析錯誤
             }
-        });
+        }
         return results;
     }
 }

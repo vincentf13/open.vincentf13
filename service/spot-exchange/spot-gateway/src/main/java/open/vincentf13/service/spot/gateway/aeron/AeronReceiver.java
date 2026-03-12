@@ -65,7 +65,7 @@ public class AeronReceiver extends Worker {
 
         if (currentState == AeronState.WAITING) {
             long now = System.currentTimeMillis();
-            if (now - lastResumeSentTime > 500) {
+            if (now - lastResumeSentTime > 200) { // 縮短至 200ms
                 sendResumeSignalBlocking();
                 lastResumeSentTime = now;
             }
@@ -83,13 +83,24 @@ public class AeronReceiver extends Worker {
     private final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
         final int msgType = buffer.getInt(offset);
         final long matchingSeq = buffer.getLong(offset + 4);
+        final long lastSeq = progress.getLastProcessedSeq();
         
-        if (currentState == AeronState.WAITING && matchingSeq > progress.getLastProcessedSeq()) {
-            currentState = AeronState.SENDING;
-            log.info("已與核心引擎對齊進度，回報鏈路握手成功");
+        // 1. 握手與自愈邏輯
+        if (currentState == AeronState.WAITING) {
+            if (matchingSeq == 0 && lastSeq > 1000) {
+                log.warn("檢測到核心引擎重置 (matchingSeq=0)，執行進度重置");
+                progress.setLastProcessedSeq(-1L);
+            } else if (matchingSeq > lastSeq) {
+                currentState = AeronState.SENDING;
+                log.info("已與核心引擎對齊進度 (mSeq: {})，回報鏈路握手成功", matchingSeq);
+            }
         }
 
         if (matchingSeq <= progress.getLastProcessedSeq()) return;
+
+        if (currentState == AeronState.SENDING && matchingSeq != lastSeq + 1 && lastSeq != -1) {
+            log.error("回報鏈路跳號！期望: {}, 實際: {}。將強制對齊位點。", lastSeq + 1, matchingSeq);
+        }
 
         final long messageAddress = buffer.addressOffset() + offset;
         pointerBytesStore.set(messageAddress, length);

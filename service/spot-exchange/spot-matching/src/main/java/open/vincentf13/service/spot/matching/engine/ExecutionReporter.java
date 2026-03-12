@@ -25,8 +25,8 @@ public class ExecutionReporter {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
     private final ExecutionReportEncoder executionEncoder = new ExecutionReportEncoder();
     
-    /** 批量緩衝區：擴大至 16KB，確保即使產生大量成交也能安全容納 */
-    private final Bytes<ByteBuffer> batchBytes = Bytes.elasticByteBuffer(16384);
+    /** 批量緩衝區：擴大至 64KB，確保即使產生大量成交也能安全容納 */
+    private final Bytes<ByteBuffer> batchBytes = Bytes.elasticByteBuffer(65536);
     private final UnsafeBuffer sbeWrapBuffer = new UnsafeBuffer(0, 0);
 
     @Setter private boolean replaying = false;
@@ -35,10 +35,10 @@ public class ExecutionReporter {
         if (replaying) return;
         
         int pos = (int) batchBytes.writePosition();
-        // 確保緩衝區空間足夠
-        batchBytes.ensureCapacity(pos + 128); 
+        // 確保緩衝區空間足夠 (預留 256B 給 SBE Header + Body)
+        batchBytes.ensureCapacity(pos + 256); 
         
-        sbeWrapBuffer.wrap(batchBytes.addressForWrite(pos), (int) batchBytes.realCapacity() - pos);
+        sbeWrapBuffer.wrap(batchBytes.addressForWrite(pos), (int) (batchBytes.realCapacity() - pos));
         
         int sbeLen = SbeCodec.encode(sbeWrapBuffer, 0, executionEncoder
                 .timestamp(ts).userId(uid).orderId(oid).status(s)

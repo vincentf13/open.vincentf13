@@ -26,7 +26,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  職責：讀取客戶端指令流並發送至 Matching Core，實現熱點路徑零物件分配
  */
 @Component
-public class AeronSender extends Worker implements Consumer<WireIn> {
+public class AeronSender extends Worker implements net.openhft.chronicle.wire.ReadMarshallable {
     private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
 
     private final Aeron aeron;
@@ -78,7 +78,7 @@ public class AeronSender extends Worker implements Consumer<WireIn> {
 
     /** 指令讀取回調：零分配處理 */
     @Override
-    public void accept(WireIn wire) {
+    public void readMarshallable(WireIn wire) {
         this.ctxSeq = tailer.index();
         this.ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
         

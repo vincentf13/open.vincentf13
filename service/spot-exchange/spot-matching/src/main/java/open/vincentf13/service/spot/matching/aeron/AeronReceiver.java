@@ -65,7 +65,7 @@ public class AeronReceiver extends Worker {
 
         if (currentState == AeronState.WAITING) {
             long now = System.currentTimeMillis();
-            if (now - lastResumeSentTime > 500) {
+            if (now - lastResumeSentTime > 200) { // 縮短至 200ms
                 sendResumeSignalBlocking();
                 lastResumeSentTime = now;
             }
@@ -83,13 +83,26 @@ public class AeronReceiver extends Worker {
     private final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {
         final int msgType = buffer.getInt(offset);
         final long gwSeq = buffer.getLong(offset + 4);
+        final long lastSeq = progress.getLastProcessedSeq();
         
-        if (currentState == AeronState.WAITING && gwSeq > progress.getLastProcessedSeq()) {
-            currentState = AeronState.SENDING;
-            log.info("已與發送端對齊進度，握手成功");
+        // 1. 握手與自愈邏輯
+        if (currentState == AeronState.WAITING) {
+            // 判定為對端重置 (序號從 0 開始且當前進度較大) 或 正常銜接
+            if (gwSeq == 0 && lastSeq > 1000) {
+                log.warn("檢測到發送端 WAL 重置 (gwSeq=0, lastProcessed={})，執行進度重置", lastSeq);
+                progress.setLastProcessedSeq(-1L);
+            } else if (gwSeq > lastSeq) {
+                currentState = AeronState.SENDING;
+                log.info("已與發送端對齊進度 (gwSeq: {})，握手成功", gwSeq);
+            }
         }
 
+        // 2. 冪等與連續性檢查
         if (gwSeq <= progress.getLastProcessedSeq()) return;
+        
+        if (currentState == AeronState.SENDING && gwSeq != lastSeq + 1 && lastSeq != -1) {
+            log.error("指令鏈路跳號！期望: {}, 實際: {}。將強制對齊位點。", lastSeq + 1, gwSeq);
+        }
 
         final long messageAddress = buffer.addressOffset() + offset;
         

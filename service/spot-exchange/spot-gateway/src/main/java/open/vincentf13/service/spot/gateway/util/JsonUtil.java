@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.infra.util;
+package open.vincentf13.service.spot.gateway.util;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -33,7 +33,7 @@ public class JsonUtil {
     }
 
     public static JsonParser createParser(ByteBuf buf) throws IOException {
-        return FACTORY.createParser(new ByteBufInputStream(buf));
+        return FACTORY.createParser((java.io.InputStream) new ByteBufInputStream(buf));
     }
 
     /** 
@@ -41,7 +41,7 @@ public class JsonUtil {
      */
     public static void writeToByteBuf(ByteBuf buf, Object value) {
         try (ByteBufOutputStream os = new ByteBufOutputStream(buf)) {
-            MAPPER.writeValue(os, value);
+            MAPPER.writeValue((java.io.OutputStream) os, value);
         } catch (IOException e) {
             log.error("JSON 序列化失敗: {}", e.getMessage());
         }
