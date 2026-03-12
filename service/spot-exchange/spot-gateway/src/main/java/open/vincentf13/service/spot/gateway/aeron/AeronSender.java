@@ -13,13 +13,13 @@ import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.model.Progress;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 發送器 (災難恢復增強版)
  職責：從 GW WAL 讀取指令並發送至核心引擎
- 最佳化：進度由接收端 (Core) 透過控制通道決定，本地不再維護持久化位點
  */
 @Component
 public class AeronSender extends Worker {
@@ -43,10 +43,9 @@ public class AeronSender extends Worker {
         publication = aeron.addPublication(AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID);
         controlSubscription = aeron.addSubscription(AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
         
-        // 僅建立 Tailer，不執行跳轉，等待握手訊號
         tailer = Storage.self().gatewayQueue().createTailer();
         currentState = AeronState.WAITING;
-        log.info("AeronSender 啟動成功，進入靜默等待狀態...");
+        log.info("AeronSender 啟動，進入靜默等待狀態...");
     }
 
     @Override

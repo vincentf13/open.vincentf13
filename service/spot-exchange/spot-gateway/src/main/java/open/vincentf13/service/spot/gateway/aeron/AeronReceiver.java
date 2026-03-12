@@ -35,14 +35,11 @@ public class AeronReceiver extends Worker {
         this.aeron = aeron;
     }
 
-    /** 初始化並啟動工作執行緒 */
     @PostConstruct public void init() { start("gw-result-receiver"); }
 
     @Override
     protected void onStart() {
-        // 1. 建立回報接收通道
         subscription = aeron.addSubscription(AeronChannel.GATEWAY_URL, AeronChannel.DATA_STREAM_ID);
-        // 2. 建立控制訊號發送通道
         controlPublication = aeron.addPublication(AeronChannel.MATCHING_URL, AeronChannel.CONTROL_STREAM_ID);
         
         Progress saved = Storage.self().metadata().get(MetaDataKey.GW_RECEVIER_POINT);
@@ -50,14 +47,14 @@ public class AeronReceiver extends Worker {
         else progress.setLastProcessedSeq(-1L);
         
         currentState = AeronState.WAITING;
-        log.info("AeronReceiver 啟動：監聽於 {}, 當前進度: {}", AeronChannel.GATEWAY_URL, progress.getLastProcessedSeq());
+        log.info("AeronReceiver 啟動：當前進度: {}, 進入握手狀態...", progress.getLastProcessedSeq());
     }
 
     @Override
     protected int doWork() {
         if (currentState == AeronState.SENDING && !subscription.isConnected()) {
             currentState = AeronState.WAITING;
-            log.warn("檢測到核心引擎連線中斷，重新進入握手模式...");
+            log.warn("檢測到核心引擎連線中斷，回退至握手模式...");
         }
 
         if (currentState == AeronState.WAITING) {

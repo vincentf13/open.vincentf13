@@ -13,13 +13,13 @@ import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.model.Progress;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Matching Core Aeron 發送器 (災難恢復增強版)
  職責：將成交回報與行情數據發送至 Gateway
- 最佳化：移除本地 Progress 持久化，由接收端透過反向握手決定發送起點
  */
 @Component
 public class AeronSender extends Worker {
@@ -27,6 +27,7 @@ public class AeronSender extends Worker {
     private Publication publication;
     private Subscription controlSubscription;
     private ExcerptTailer tailer;
+    private final Progress progress = new Progress();
     private final BufferClaim bufferClaim = new BufferClaim();
     private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
 
@@ -82,6 +83,9 @@ public class AeronSender extends Worker {
                         buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
                     });
                 });
+                
+                progress.setLastProcessedSeq(seq);
+                Storage.self().metadata().put(MetaDataKey.PK_CORE_RESULT_SENDER, progress);
             });
             if (handled) workDone++;
         }

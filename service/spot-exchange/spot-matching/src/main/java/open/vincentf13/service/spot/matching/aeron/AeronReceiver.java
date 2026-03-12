@@ -87,13 +87,13 @@ public class AeronReceiver extends Worker {
 
         long messageAddress = buffer.addressOffset() + offset;
         Storage.self().commandQueue().acquireAppender().writeDocument(wire -> {
-            wire.write(ChronicleWireKey.msgType).int32(msgType);
-            wire.write(ChronicleWireKey.gwSeq).int64(gwSeq);
+            wire.write("msgType").int32(msgType);
+            wire.write("gwSeq").int64(gwSeq);
             if (msgType == MsgType.AUTH) {
-                wire.write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
+                wire.write("userId").int64(buffer.getLong(offset + 12));
             } else if (msgType == MsgType.ORDER_CREATE) {
                 pointerBytesStore.set(messageAddress + 12, length - 12);
-                wire.write(ChronicleWireKey.payload).bytes(pointerBytesStore);
+                wire.write("payload").bytes(pointerBytesStore);
             }
         });
         progress.setLastProcessedSeq(gwSeq);
