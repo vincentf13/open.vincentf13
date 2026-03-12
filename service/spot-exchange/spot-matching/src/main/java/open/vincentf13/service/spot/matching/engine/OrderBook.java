@@ -8,14 +8,15 @@ import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
-import java.util.*;
+
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.TreeMap;
 import java.util.function.Supplier;
 
-import static open.vincentf13.service.spot.infra.Constants.*;
-
 /** 
- 內存訂單簿 (OrderBook)
- 職責：領域狀態機，自主管理訂單生命週期、撮合流與數據持久化
+ 內存訂單簿 (OrderBook) - 終極 Zero-Allocation 版
  */
 public class OrderBook {
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
@@ -39,6 +40,7 @@ public class OrderBook {
     private final Deque<Order> orderPool = new ArrayDeque<>(POOL_MAX_SIZE);
     private final Trade reusableTrade = new Trade();
 
+    /** 跨領域協調回調 */
     @FunctionalInterface public interface TradeFinalizer {
         void onMatch(Order maker, long price, long qty);
     }
@@ -48,12 +50,9 @@ public class OrderBook {
         for (int i = 0; i < 1000; i++) orderPool.add(new Order());
     }
 
-    /** 
-      恢復模式：同樣從物件池領取實體，實現啟動期 Zero-GC 
-     */
     public void recoverOrder(Order o) {
         if (o == null || o.getStatus() >= 2) return;
-        Order recovered = borrowOrder(); // 從池中借用
+        Order recovered = borrowOrder();
         copyOrder(o, recovered);
         add(recovered);
     }
@@ -107,14 +106,14 @@ public class OrderBook {
         final long takerPrice = taker.getPrice();
 
         while (taker.getQty() > taker.getFilled()) {
-            Map.Entry<Long, Deque<Order>> bestLevelEntry = counterSide.firstEntry();
-            if (bestLevelEntry == null) break;
-
-            final Deque<Order> makers = bestLevelEntry.getValue();
-            final long bestPrice = bestLevelEntry.getKey();
+            // 性能優化：改用 firstKey() 避免 TreeMap.firstEntry() 產生的 Entry 物件分配
+            if (counterSide.isEmpty()) break;
+            final long bestPrice = counterSide.firstKey();
+            
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
-            while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
+            final Deque<Order> makers = counterSide.get(bestPrice);
+            while (makers != null && !makers.isEmpty() && taker.getQty() > taker.getFilled()) {
                 Order maker = makers.peekFirst();
                 if (!orderIndex.containsKey(maker.getOrderId())) {
                     releaseOrder(makers.pollFirst()); continue;
@@ -141,13 +140,13 @@ public class OrderBook {
                     break;
                 }
             }
-            if (makers.isEmpty()) counterSide.pollFirstEntry();
+            if (makers != null && makers.isEmpty()) counterSide.remove(bestPrice);
             else break;
         }
         if (taker.getQty() > taker.getFilled()) add(taker);
     }
 
-    private void add(Order order) {
+    public void add(Order order) {
         TreeMap<Long, Deque<Order>> levels = (order.getSide() == 0) ? bids : asks;
         levels.computeIfAbsent(order.getPrice(), k -> new ArrayDeque<>(INITIAL_DEQUE_CAPACITY)).addLast(order);
         orderIndex.put(order.getOrderId(), order);

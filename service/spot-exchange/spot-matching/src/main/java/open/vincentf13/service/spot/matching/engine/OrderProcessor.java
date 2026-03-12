@@ -15,28 +15,35 @@ import java.util.function.Supplier;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 訂單處理核心 (Order Processor)
- 職責：領域編排者，協調風控、訂單簿狀態機與外部回報發送
+ 訂單處理核心 (Order Processor) - 終極 Zero-Allocation 版
+ 職責：領域編排者，透過實作 Finalizer 接口徹底消除 Lambda 對象分配
  */
 @Slf4j
 @Component
-public class OrderProcessor {
+public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
+    // --- 預分配組件 ---
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
     private final Order reusableOrder = new Order();
     private final CidKey reusableCidKey = new CidKey();
+
+    // --- 執行上下文 (用於消除 Lambda 捕獲) ---
+    private long ctxGwSeq;
+    private long ctxTimestamp;
+    private long ctxUserId;
+    private long ctxPrice;
+    private byte ctxSide;
 
     public OrderProcessor(Ledger ledger, ExecutionReporter reporter) {
         this.ledger = ledger;
         this.reporter = reporter;
     }
 
-    /** 啟動恢復：委派領域內部的全局重建 (Zero-GC) */
     public void rebuildState() {
         log.info("OrderProcessor 正在恢復領域模型狀態...");
         OrderBook.rebuildAll();
@@ -48,11 +55,7 @@ public class OrderProcessor {
         final long cid = decoder.clientOrderId();
         reusableCidKey.set(decoder.userId(), cid);
         
-        // 冪等過濾：零分配檢查
-        if (clientOrderIdDiskMap.containsKey(reusableCidKey)) {
-            // 實時模式下嘗試補發最後一次回報 (可選)
-            return;
-        }
+        if (clientOrderIdDiskMap.containsKey(reusableCidKey)) return;
         
         handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), tradeIdSupplier);
     }
@@ -62,33 +65,45 @@ public class OrderProcessor {
         final boolean isBuy = sbe.side() == Side.BUY;
         final long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
-        // 1. 風控校驗
         if (!ledger.freezeBalance(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, cost, gwSeq)) {
             reporter.sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             reporter.flushBatch(gwSeq);
             return;
         }
 
-        // 2. 領域處理：從池中借用、撮合、同步、資源回收判定
-        OrderBook book = OrderBook.get(sbe.symbolId());
-        Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, (maker, p, q) -> {
-            ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
-            reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
-                    maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
-                    p, q, maker.getFilled(), maker.getPrice(), sbe.timestamp());
-        });
+        // --- 設置執行上下文，供 onMatch 回調使用 (消除 Lambda 分配) ---
+        this.ctxGwSeq = gwSeq;
+        this.ctxTimestamp = sbe.timestamp();
+        this.ctxUserId = sbe.userId();
+        this.ctxPrice = sbe.price();
+        this.ctxSide = (byte)(isBuy ? 0 : 1);
 
-        // 3. 最終回報
+        OrderBook book = OrderBook.get(sbe.symbolId());
+        Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, this);
+
+        // 最終回報
         reporter.sendReport(taker.getUserId(), orderId, cid, 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
-                0, 0, taker.getFilled(), 0, sbe.timestamp());
+                0, 0, taker.getFilled(), 0, ctxTimestamp);
         
-        // 4. 批量寫入與最終冪等存檔 (使用復用 Key)
         reporter.flushBatch(gwSeq);
         reusableCidKey.set(taker.getUserId(), cid);
         clientOrderIdDiskMap.put(reusableCidKey, orderId);
 
-        // 5. 資源安全釋放：僅在完全成交且未入簿時回收
         if (taker.getStatus() == 2) book.releaseOrder(taker);
+    }
+
+    /** 
+      成交回調實作：直接讀取 ctx 欄位，徹底消除每筆成交建立 Lambda 的開銷
+     */
+    @Override
+    public void onMatch(Order maker, long price, long qty) {
+        // 執行帳務結算
+        ledger.settleTrade(maker.getUserId(), ctxUserId, price, qty, ctxSide, ctxPrice, ctxGwSeq);
+        
+        // 產生 Maker 成交回報
+        reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
+                maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
+                price, qty, maker.getFilled(), maker.getPrice(), ctxTimestamp);
     }
 }
