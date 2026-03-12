@@ -5,8 +5,11 @@ import org.agrona.collections.Long2ObjectHashMap;
 import java.util.*;
 
 /** 
- 內存訂單簿 (OrderBook)
- 職責：執行撮合算法，透過連續內存佈局（Cache-friendly）優化 L2 盤口處理性能
+ 內存訂單簿 (OrderBook) - $O(1)$ 撤單優化版
+ 
+ 優化點：
+ 1. 延遲刪除 (Lazy Deletion)：撤單時僅移除索引，不遍歷隊列。在撮合掃描時自動剔除失效訂單。
+ 2. 撤單效能：將撤單複雜度從 $O(N)$ 降至 $O(1)$。
  */
 public class OrderBook {
     private static final int INITIAL_DEQUE_CAPACITY = 1024;
@@ -14,21 +17,14 @@ public class OrderBook {
     private static final float LOAD_FACTOR = 0.5f;
 
     private final int symbolId;
-    
-    /** 買單層級：TreeMap 提供價格排序，Deque (循環數組) 提供 O(1) 插入與 CPU 友善的連續掃描 */
     private final TreeMap<Long, Deque<Order>> bids = new TreeMap<>(Collections.reverseOrder());
-    
-    /** 賣單層級：升序排列 */
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
-    
-    /** 快速查找索引：OrderId -> Order 指標，採用 Agrona 原始類型映射，徹底消除 Long 裝箱開銷 */
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(INITIAL_ORDER_MAP_CAPACITY, LOAD_FACTOR); 
 
     public OrderBook(int symbolId) {
         this.symbolId = symbolId;
     }
 
-    /** 成交處理回調：消除 List<TradeEvent> 分配，實現撮合即結算 */
     @FunctionalInterface
     public interface TradeHandler {
         void onTrade(long makerUserId, long takerUserId, long price, long qty, long makerOrderId);
@@ -50,8 +46,15 @@ public class OrderBook {
             
             while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
                 Order maker = makers.peekFirst();
-                long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
+                
+                // --- 延遲刪除清理邏輯 ---
+                // 如果 Maker 已經不在索引中，代表該訂單已被撤單或已無效，直接跳過
+                if (!orderIndex.containsKey(maker.getOrderId())) {
+                    makers.pollFirst();
+                    continue;
+                }
 
+                long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
                 handler.onTrade(maker.getUserId(), taker.getUserId(), bestPrice, matchQty, maker.getOrderId());
 
                 taker.setFilled(taker.getFilled() + matchQty);
@@ -63,9 +66,8 @@ public class OrderBook {
                 }
             }
             
-            if (makers.isEmpty()) {
-                counterSide.pollFirstEntry();
-            } else break;
+            if (makers.isEmpty()) counterSide.pollFirstEntry();
+            else break;
         }
 
         if (taker.getQty() > taker.getFilled()) add(taker);
@@ -77,15 +79,11 @@ public class OrderBook {
         orderIndex.put(order.getOrderId(), order);
     }
 
+    /** 
+      撤單操作：$O(1)$ 
+      僅移除索引指標，具體內存隊列的清理交由 match 循環或背景任務處理
+     */
     public void remove(long orderId) {
-        Order o = orderIndex.remove(orderId);
-        if (o != null) {
-            TreeMap<Long, Deque<Order>> levels = (o.getSide() == 0) ? bids : asks;
-            Deque<Order> list = levels.get(o.getPrice());
-            if (list != null) {
-                list.remove(o);
-                if (list.isEmpty()) levels.remove(o.getPrice());
-            }
-        }
+        orderIndex.remove(orderId);
     }
 }
