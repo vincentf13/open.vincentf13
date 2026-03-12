@@ -5,15 +5,18 @@ import org.agrona.collections.Long2ObjectHashMap;
 import java.util.*;
 
 /** 
- 內存訂單簿 (OrderBook) - $O(1)$ 撤單優化版
+ 內存訂單簿 (OrderBook) - 性能預分配增強版
  
  優化點：
- 1. 延遲刪除 (Lazy Deletion)：撤單時僅移除索引，不遍歷隊列。在撮合掃描時自動剔除失效訂單。
- 2. 撤單效能：將撤單複雜度從 $O(N)$ 降至 $O(1)$。
+ 1. 擴大初始容量：INITIAL_DEQUE_CAPACITY 設為 4096，減少高深度價位的擴容頻率。
+ 2. 緩存友善：4096 個指標約佔 32KB，完美契合現代 CPU L1 Cache 大小，最大化遍歷速度。
  */
 public class OrderBook {
-    private static final int INITIAL_DEQUE_CAPACITY = 1024;
-    private static final int INITIAL_ORDER_MAP_CAPACITY = 100_000;
+    // --- 預分配空間優化 ---
+    /** 每個價格位準預計掛單數：4096 確保主流交易對在熱點價位無需頻繁擴容 */
+    private static final int INITIAL_DEQUE_CAPACITY = 4096;
+    /** 單個 Symbol 全局掛單數預估：提高至 200,000 以應對高併發盤口 */
+    private static final int INITIAL_ORDER_MAP_CAPACITY = 200_000;
     private static final float LOAD_FACTOR = 0.5f;
 
     private final int symbolId;
@@ -47,8 +50,6 @@ public class OrderBook {
             while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
                 Order maker = makers.peekFirst();
                 
-                // --- 延遲刪除清理邏輯 ---
-                // 如果 Maker 已經不在索引中，代表該訂單已被撤單或已無效，直接跳過
                 if (!orderIndex.containsKey(maker.getOrderId())) {
                     makers.pollFirst();
                     continue;
@@ -79,10 +80,6 @@ public class OrderBook {
         orderIndex.put(order.getOrderId(), order);
     }
 
-    /** 
-      撤單操作：$O(1)$ 
-      僅移除索引指標，具體內存隊列的清理交由 match 循環或背景任務處理
-     */
     public void remove(long orderId) {
         orderIndex.remove(orderId);
     }
