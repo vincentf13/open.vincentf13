@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.matching.engine;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -11,14 +12,10 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class AuthProcessor {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
-
-    public AuthProcessor(Ledger ledger, ExecutionReporter reporter) {
-        this.ledger = ledger;
-        this.reporter = reporter;
-    }
 
     /** 
       處理用戶認證 

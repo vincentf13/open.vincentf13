@@ -9,15 +9,14 @@ import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import org.agrona.concurrent.UnsafeBuffer;
-import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.gateway.util.JsonUtil;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.util.DecimalUtil;
+import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.model.Progress;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.springframework.stereotype.Component;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
@@ -81,41 +80,14 @@ public class PushWorker extends Worker {
         for (int i = 0; i < 100; i++) {
             boolean handled = tailer.readDocument(wire -> {
                 long seq = tailer.index();
+                int msgType = wire.read(ChronicleWireKey.msgType).int32();
                 reusableBytes.clear(); 
                 wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
-                
-                long address = reusableBytes.addressForRead(reusableBytes.readPosition());
-                int totalLen = (int) reusableBytes.readRemaining();
-                int offset = 0;
 
-                while (offset < totalLen) {
-                    payloadBuffer.wrap(address + offset, totalLen - offset);
-                    SbeCodec.decode(payloadBuffer, 0, executionDecoder);
-                    int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
-
-                    // 1. 提取資料
-                    final long orderId = executionDecoder.orderId();
-                    final int statusOrdinal = executionDecoder.status().value();
-                    final long cid = executionDecoder.clientOrderId();
-                    final long userId = executionDecoder.userId();
-
-                    // 2. 關鍵修正：按 userId 取模分發，保證單用戶有序性
-                    stripedPool[(int)(userId % threadCount)].execute(() -> {
-                        PushEvent event = new PushEvent();
-                        event.setOrderId(orderId);
-                        event.setStatus(statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length ? 
-                                ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN");
-                        event.setCid(cid);
-                        event.setUserId(userId);
-
-                        JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);
-                        ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(512);
-                        JsonUtil.writeToByteBuf(outBuf, env);
-
-                        wsHandler.sendMessage(userId, outBuf);
-                    });
-
-                    offset += currentMsgLen;
+                if (msgType == MsgType.EXECUTION_REPORT) {
+                    handleExecutionReport(reusableBytes);
+                } else if (msgType == MsgType.AUTH_REPORT) {
+                    handleAuthReport(reusableBytes);
                 }
 
                 progress.setLastProcessedSeq(seq);
@@ -128,6 +100,51 @@ public class PushWorker extends Worker {
             else break;
         }
         return workCount;
+    }
+
+    private void handleExecutionReport(Bytes<?> bytes) {
+        long address = bytes.addressForRead(bytes.readPosition());
+        int totalLen = (int) bytes.readRemaining();
+        int offset = 0;
+
+        while (offset < totalLen) {
+            payloadBuffer.wrap(address + offset, totalLen - offset);
+            SbeCodec.decode(payloadBuffer, 0, executionDecoder);
+            int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
+
+            final long orderId = executionDecoder.orderId();
+            final int statusOrdinal = executionDecoder.status().value();
+            final long cid = executionDecoder.clientOrderId();
+            final long userId = executionDecoder.userId();
+
+            stripedPool[(int)(userId % threadCount)].execute(() -> {
+                PushEvent event = new PushEvent();
+                event.setOrderId(orderId);
+                event.setStatus(statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length ? 
+                        ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN");
+                event.setCid(cid);
+                event.setUserId(userId);
+
+                JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);
+                ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(512);
+                JsonUtil.writeToByteBuf(outBuf, env);
+                wsHandler.sendMessage(userId, outBuf);
+            });
+
+            offset += currentMsgLen;
+        }
+    }
+
+    private void handleAuthReport(Bytes<?> bytes) {
+        if (bytes.readRemaining() < 8) return;
+        final long userId = bytes.readLong();
+        
+        stripedPool[(int)(userId % threadCount)].execute(() -> {
+            JsonUtil.Envelope env = new JsonUtil.Envelope("auth", "success");
+            ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(128);
+            JsonUtil.writeToByteBuf(outBuf, env);
+            wsHandler.sendMessage(userId, outBuf);
+        });
     }
 
     @Override

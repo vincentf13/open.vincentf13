@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.map.ChronicleMap;
@@ -24,6 +25,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class Engine extends Worker implements ReadMarshallable {
     private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
@@ -39,13 +41,6 @@ public class Engine extends Worker implements ReadMarshallable {
 
     private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
     private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
-
-    public Engine(OrderProcessor orderProcessor, AuthProcessor authProcessor, DepositProcessor depositProcessor, ExecutionReporter reporter) {
-        this.orderProcessor = orderProcessor;
-        this.authProcessor = authProcessor;
-        this.depositProcessor = depositProcessor;
-        this.reporter = reporter;
-    }
 
     @PostConstruct public void init() { start("core-matching-engine"); }
 

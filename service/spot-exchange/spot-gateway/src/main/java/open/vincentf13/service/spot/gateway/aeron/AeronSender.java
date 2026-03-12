@@ -6,6 +6,8 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
@@ -24,7 +26,9 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  Gateway Aeron 發送器
  職責：讀取客戶端指令流並發送至 Matching Core，實現熱點路徑零物件分配
  */
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class AeronSender extends Worker implements net.openhft.chronicle.wire.ReadMarshallable {
     private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
 
@@ -42,10 +46,6 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     // 執行上下文：消除 Lambda 捕獲
     private int ctxMsgType;
     private long ctxSeq;
-
-    public AeronSender(Aeron aeron) {
-        this.aeron = aeron;
-    }
 
     @PostConstruct public void init() { start("gw-command-sender"); }
 

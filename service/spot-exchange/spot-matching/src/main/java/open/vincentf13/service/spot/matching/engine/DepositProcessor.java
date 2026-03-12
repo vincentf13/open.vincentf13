@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.matching.engine;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
@@ -15,14 +16,10 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class DepositProcessor {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
-
-    public DepositProcessor(Ledger ledger, ExecutionReporter reporter) {
-        this.ledger = ledger;
-        this.reporter = reporter;
-    }
 
     /** 
       處理充值指令
