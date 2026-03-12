@@ -28,7 +28,6 @@ public class OrderBook {
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(200_000, 0.5f); 
 
-    /** 物件池：循環利用 Order 實體 */
     private final Deque<Order> orderPool = new ArrayDeque<>(POOL_MAX_SIZE);
     private final Trade reusableTrade = new Trade();
 
@@ -38,11 +37,9 @@ public class OrderBook {
 
     public OrderBook(int symbolId) {
         this.symbolId = symbolId;
-        // 初始預分配 1000 個，應對大多數交易對的啟動需求
         for (int i = 0; i < 1000; i++) orderPool.add(new Order());
     }
 
-    /** 恢復模式專用：將磁碟數據掛回內存 */
     public void recoverOrder(Order o) {
         if (o == null || o.getStatus() >= 2) return;
         Order recovered = new Order();
@@ -59,19 +56,21 @@ public class OrderBook {
         dst.setClientOrderId(src.getClientOrderId());
     }
 
-    public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
-
     /** 
       處理 Taker 指令門面
-      封裝了 Admission -> 撮合 -> 最終狀態同步 的完整生命週期
+      封裝了 Admission -> 撮合 -> 最終狀態同步 -> 資源回收 的完整閉環
      */
     public Order processTaker(long orderId, OrderCreateDecoder sbe, long gwSeq, 
                              Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
         Order taker = borrowAndFill(orderId, sbe, gwSeq);
+        
         match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
         
-        // 關鍵：在此處執行 Taker 的結案同步
         syncOrder(taker, gwSeq);
+        
+        // --- 資源自動回收：若 Taker 已結案且不在簿中，則歸還池中 ---
+        if (taker.getStatus() == 2) releaseOrder(taker);
+        
         return taker;
     }
 
@@ -85,6 +84,8 @@ public class OrderBook {
         o.setClientOrderId(sbe.clientOrderId());
         return o;
     }
+
+    private void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
     public static void rebuildAll(IntFunction<OrderBook> bookFinder) {
         Storage.self().activeOrders().forEach((id, active) -> {
@@ -125,11 +126,11 @@ public class OrderBook {
                 finalizer.onMatch(maker, bestPrice, matchQty);
 
                 if (maker.getFilled() == maker.getQty()) {
-                    syncOrder(maker, gwSeq); // Maker 結案
+                    syncOrder(maker, gwSeq);
                     orderIndex.remove(maker.getOrderId());
                     releaseOrder(makers.pollFirst()); 
                 } else {
-                    syncOrder(maker, gwSeq); // Maker 部分成交同步
+                    syncOrder(maker, gwSeq);
                     break;
                 }
             }
@@ -145,16 +146,11 @@ public class OrderBook {
         orderIndex.put(order.getOrderId(), order);
     }
 
-    /** 
-      狀態同步：修正了活躍狀態移除邏輯，防止 Map 洩漏
-     */
     public void syncOrder(Order o, long gwSeq) {
         if (o.getFilled() == o.getQty()) o.setStatus((byte) 2);
         else if (o.getFilled() > 0) o.setStatus((byte) 1);
         o.setVersion(o.getVersion() + 1); o.setLastSeq(gwSeq);
-        
         allOrdersDiskMap.put(o.getOrderId(), o);
-        // 修正點：若訂單已結案 (Status=2)，必須從活躍 ID 映射中徹底移除
         if (o.getStatus() < 2) activeOrderIdDiskMap.put(o.getOrderId(), true);
         else activeOrderIdDiskMap.remove(o.getOrderId());
     }

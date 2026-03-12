@@ -23,14 +23,12 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 public class OrderProcessor {
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
-    private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     private final Int2ObjectHashMap<OrderBook> symbolOrderBookMap = new Int2ObjectHashMap<>();
     
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
-    private final Order reusableOrder = new Order();
     private final CidKey reusableCidKey = new CidKey();
     private final byte[] tempCidBytes = new byte[32];
 
@@ -64,25 +62,20 @@ public class OrderProcessor {
             return;
         }
 
-        // 2. 領域處理：Admission -> 撮合 -> 結案同步 (Book 自主處理)
+        // 2. 領域處理：Admission -> 撮合 -> 結案同步 -> 資源回收 (Book 自主處理)
         OrderBook book = getOrAddBook(sbe.symbolId());
         Order taker = book.processTaker(orderId, sbe, gwSeq, tradeIdSupplier, (maker, p, q) -> {
-            // 3. 執行帳務結算
             ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
-            // 4. 處理 Maker 回報
             reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", OrderStatus.PARTIALLY_FILLED, p, q, 0, 0, sbe.timestamp());
         });
 
-        // 5. 處理 Taker 最終回報
+        // 3. 最終回報
         reporter.sendReport(taker.getUserId(), orderId, taker.getClientOrderId(), 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, sbe.timestamp());
         
         reporter.flushBatch(gwSeq);
         clientOrderIdDiskMap.put(new CidKey(taker.getUserId(), tempCidBytes), orderId);
-
-        // 安全釋放：結案後回收
-        if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 
     private OrderBook getOrAddBook(int symbolId) {
