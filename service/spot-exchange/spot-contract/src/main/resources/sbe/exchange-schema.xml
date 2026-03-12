@@ -23,7 +23,7 @@
             <validValue name="FILLED">2</validValue>
             <validValue name="REJECTED">4</validValue>
         </enum>
-        <type name="ClientOrderId" primitiveType="char" length="32"/>
+        <type name="ClientOrderId" primitiveType="int64"/>
     </types>
 
     <sbe:message name="OrderCreate" id="100" description="建立限價單">

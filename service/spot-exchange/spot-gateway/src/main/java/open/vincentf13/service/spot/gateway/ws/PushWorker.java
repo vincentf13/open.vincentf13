@@ -21,8 +21,8 @@ import java.util.Map;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 推送背景執行緒 (PushWorker) - 批量解碼優化版
- 職責：讀取核心回報流 (Matching -> Gateway)，解析單個 Payload 中的多筆 SBE 訊息並推送
+ WebSocket 推送背景執行緒 (PushWorker) - 數值化優化版
+ 職責：解析單個 Payload 中的多筆 SBE 訊息，並推送數值型 clientOrderId
  */
 @Slf4j
 @Component
@@ -58,8 +58,6 @@ public class PushWorker extends Worker {
     protected int doWork() {
         boolean handled = tailer.readDocument(wire -> {
             long seq = tailer.index();
-            
-            // 讀取 Payload 至緩衝區
             reusableBytes.clear(); 
             wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
             
@@ -67,27 +65,19 @@ public class PushWorker extends Worker {
             int totalLen = (int) reusableBytes.readRemaining();
             int offset = 0;
 
-            // --- 核心優化：批量解碼循環 ---
-            // 由於一個 Payload 包含多個 SBE 封包，我們需按長度位移連續解碼
             while (offset < totalLen) {
                 payloadBuffer.wrap(address + offset, totalLen - offset);
-                
-                // 執行 SBE 解碼
                 SbeCodec.decode(payloadBuffer, 0, executionDecoder);
-                
-                // 獲取目前封包的長度 (BlockLength + HeaderSize)
                 int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
 
-                // 推送邏輯
                 Map<String, Object> data = Map.of(
                     "orderId", executionDecoder.orderId(),
                     "status", executionDecoder.status().toString(),
-                    "cid", executionDecoder.clientOrderId(),
+                    "cid", executionDecoder.clientOrderId(), // 這裡現在是 Long
                     "userId", executionDecoder.userId()
                 );
                 wsHandler.sendMessage(String.valueOf(executionDecoder.userId()), JsonUtil.toJson("execution", data));
 
-                // 指標位移至下一個封包
                 offset += currentMsgLen;
             }
 

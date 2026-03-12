@@ -27,10 +27,9 @@ public class OrderProcessor {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
-    // --- 預分配組件 ---
+    // --- 預分配組件 (完全消除 String 分配) ---
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
     private final CidKey reusableCidKey = new CidKey();
-    private final byte[] tempCidBytes = new byte[32];
 
     public OrderProcessor(Ledger ledger, ExecutionReporter reporter) {
         this.ledger = ledger;
@@ -45,10 +44,11 @@ public class OrderProcessor {
 
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
         SbeCodec.decode(payload, 0, decoder);
-        decoder.getClientOrderId(tempCidBytes, 0);
-        reusableCidKey.set(decoder.userId(), tempCidBytes, 0, 32);
         
-        // 冪等過濾
+        // --- 終極優化：使用 Long 型 ClientOrderId 進行冪等檢查 ---
+        final long cid = decoder.clientOrderId();
+        reusableCidKey.set(decoder.userId(), cid);
+        
         if (clientOrderIdDiskMap.containsKey(reusableCidKey)) return;
         
         handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), tradeIdSupplier);
@@ -60,33 +60,33 @@ public class OrderProcessor {
 
         // 1. 風控校驗
         if (!ledger.freezeBalance(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, cost, gwSeq)) {
-            reporter.sendReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
+            reporter.sendReport(sbe.userId(), 0, sbe.clientOrderId(), OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp(), gwSeq);
             reporter.flushBatch(gwSeq);
             return;
         }
 
-        String cidStr = sbe.clientOrderId();
+        final long cid = sbe.clientOrderId();
 
         // 2. 領域執行：Book 自主負責 Admission -> Match -> Sync 閉環
         OrderBook book = OrderBook.get(sbe.symbolId());
-        Order taker = book.handleCreate(orderId, sbe, cidStr, gwSeq, tradeIdSupplier, (maker, p, q) -> {
-            // 3. 跨領域協調：帳務結算 (下沉至 Ledger)
+        Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, (maker, p, q) -> {
+            // 3. 跨領域協調：帳務結算
             ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
             
             // 4. 產生 Maker 成交回報
-            reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", 
+            reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
                     maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
-                    p, q, maker.getFilled(), maker.getPrice(), sbe.timestamp());
+                    p, q, maker.getFilled(), maker.getPrice(), sbe.timestamp(), gwSeq);
         });
 
         // 5. 產生 Taker 最終回報
-        reporter.sendReport(taker.getUserId(), orderId, cidStr, 
+        reporter.sendReport(taker.getUserId(), orderId, cid, 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
-                0, 0, taker.getFilled(), 0, sbe.timestamp());
+                0, 0, taker.getFilled(), 0, sbe.timestamp(), gwSeq);
         
         // 6. 批量落地與最終冪等存檔
         reporter.flushBatch(gwSeq);
-        reusableCidKey.set(taker.getUserId(), tempCidBytes, 0, 32);
+        reusableCidKey.set(taker.getUserId(), cid);
         clientOrderIdDiskMap.put(reusableCidKey, orderId);
 
         // 7. 資源安全歸還

@@ -29,7 +29,7 @@ public class ExecutionReporter {
 
     @Setter private boolean replaying = false;
 
-    public void sendReport(long uid, long oid, String cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts) {
+    public void sendReport(long uid, long oid, long cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts) {
         if (replaying) return;
         
         int pos = (int) batchBytes.writePosition();
@@ -38,7 +38,7 @@ public class ExecutionReporter {
         int sbeLen = SbeCodec.encode(sbeWrapBuffer, 0, executionEncoder
                 .timestamp(ts).userId(uid).orderId(oid).status(s)
                 .lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap)
-                .clientOrderId(cid == null ? "" : cid));
+                .clientOrderId(cid));
         
         batchBytes.writePosition(pos + sbeLen);
     }

@@ -6,7 +6,7 @@ import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 
 /**
- 活躍掛單數據結構
+ 活躍掛單數據結構 - 數值優化版
  */
 @Data
 public class Order implements BytesMarshallable {
@@ -15,11 +15,11 @@ public class Order implements BytesMarshallable {
     private long price;
     private long qty;
     private long filled;
-    private long version; // 樂觀鎖版本
+    private long version;
     private long timestamp;
-    private long lastSeq; // 建立/更新此訂單的 WAL Sequence ID
+    private long lastSeq;
     private int symbolId;
-    private String clientOrderId;
+    private long clientOrderId;
     private byte side; // 0=BUY, 1=SELL
     private byte status; // 0=NEW, 1=PARTIAL, 2=FILLED, 3=CANCELED
     
@@ -34,7 +34,7 @@ public class Order implements BytesMarshallable {
         bytes.writeLong(timestamp);
         bytes.writeLong(lastSeq);
         bytes.writeInt(symbolId);
-        bytes.writeUtf8(clientOrderId);
+        bytes.writeLong(clientOrderId);
         bytes.writeByte(side);
         bytes.writeByte(status);
     }
@@ -50,7 +50,7 @@ public class Order implements BytesMarshallable {
         timestamp = bytes.readLong();
         lastSeq = bytes.readLong();
         symbolId = bytes.readInt();
-        clientOrderId = bytes.readUtf8();
+        clientOrderId = bytes.readLong();
         side = bytes.readByte();
         status = bytes.readByte();
     }

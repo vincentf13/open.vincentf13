@@ -8,10 +8,9 @@ import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
+
 import java.util.*;
 import java.util.function.Supplier;
-
-import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  內存訂單簿 (OrderBook)
@@ -50,11 +49,11 @@ public class OrderBook {
 
     /** 
       指令入口：封裝 Admission -> 撮合 -> 狀態落地 
-      接收 cidStr 以避免重複分配
+      使用數值化 clientOrderId 達成 Zero-GC
      */
-    public Order handleCreate(long orderId, OrderCreateDecoder sbe, String cidStr, long gwSeq, 
+    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
                              Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        Order taker = borrowAndFill(orderId, sbe, cidStr, gwSeq);
+        Order taker = borrowAndFill(orderId, sbe, clientOrderId, gwSeq);
         match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
         syncOrder(taker, gwSeq);
         return taker;
@@ -76,22 +75,19 @@ public class OrderBook {
         dst.setClientOrderId(src.getClientOrderId());
     }
 
-    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, String cidStr, long gwSeq) {
+    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq) {
         Order o = orderPool.pollFirst();
         if (o == null) o = new Order();
         o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
         o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
         o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
         o.setVersion(1); o.setLastSeq(gwSeq);
-        o.setClientOrderId(cidStr);
+        o.setClientOrderId(clientOrderId);
         return o;
     }
 
     public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
-    /** 
-      全局啟動恢復：優化為單個復用對象掃描，實現啟動期 Zero-GC
-     */
     public static void rebuildAll() {
         ChronicleMap<Long, Order> allOrders = Storage.self().orders();
         Order scanReusable = new Order();

@@ -44,8 +44,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     @Data
     private static class RequestHolder {
-        String op; long userId; int symbolId; long price; long qty; String side; String cid;
-        void reset() { op = null; userId = 0; symbolId = 0; price = 0; qty = 0; side = null; cid = null; }
+        String op; long userId; int symbolId; long price; long qty; String side; long cid;
+        void reset() { op = null; userId = 0; symbolId = 0; price = 0; qty = 0; side = null; cid = 0; }
     }
 
     private final ThreadLocal<RequestHolder> holderPool = ThreadLocal.withInitial(RequestHolder::new);
@@ -72,7 +72,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
                     case Ws.PRICE -> holder.price = parser.getLongValue();
                     case Ws.QTY -> holder.qty = parser.getLongValue();
                     case Ws.SIDE -> holder.side = parser.getText();
-                    case Ws.CID -> holder.cid = parser.getText();
+                    case Ws.CID -> holder.cid = parser.getLongValue();
                 }
             }
 
@@ -90,8 +90,6 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     private void handleAuth(Channel channel, RequestHolder holder) {
         sessionToUser.put(channel.id().asLongText(), String.valueOf(holder.userId));
-        
-        // 使用 DocumentContext 執行事務寫入
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
             dc.wire().write(ChronicleWireKey.userId).int64(holder.userId);
