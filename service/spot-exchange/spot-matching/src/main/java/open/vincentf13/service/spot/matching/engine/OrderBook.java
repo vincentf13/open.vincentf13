@@ -9,7 +9,6 @@ import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import java.util.*;
-import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -49,13 +48,15 @@ public class OrderBook {
         for (int i = 0; i < 1000; i++) orderPool.add(new Order());
     }
 
-    /** 指令入口：封裝 Admission -> 撮合 -> 狀態落地 */
-    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long gwSeq, 
+    /** 
+      指令入口：封裝 Admission -> 撮合 -> 狀態落地 
+      接收 cidStr 以避免重複分配
+     */
+    public Order handleCreate(long orderId, OrderCreateDecoder sbe, String cidStr, long gwSeq, 
                              Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        Order taker = borrowAndFill(orderId, sbe, gwSeq);
+        Order taker = borrowAndFill(orderId, sbe, cidStr, gwSeq);
         match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
         syncOrder(taker, gwSeq);
-        // 注意：不再此處 release Taker，由 Processor 控制以確保回報發送安全
         return taker;
     }
 
@@ -75,22 +76,27 @@ public class OrderBook {
         dst.setClientOrderId(src.getClientOrderId());
     }
 
-    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long gwSeq) {
+    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, String cidStr, long gwSeq) {
         Order o = orderPool.pollFirst();
         if (o == null) o = new Order();
         o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
         o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
         o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
         o.setVersion(1); o.setLastSeq(gwSeq);
-        o.setClientOrderId(sbe.clientOrderId());
+        o.setClientOrderId(cidStr);
         return o;
     }
 
     public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
+    /** 
+      全局啟動恢復：優化為單個復用對象掃描，實現啟動期 Zero-GC
+     */
     public static void rebuildAll() {
+        ChronicleMap<Long, Order> allOrders = Storage.self().orders();
+        Order scanReusable = new Order();
         Storage.self().activeOrders().forEach((id, active) -> {
-            Order o = Storage.self().orders().getUsing(id, new Order());
+            Order o = allOrders.getUsing(id, scanReusable);
             if (o != null && o.getStatus() < 2) OrderBook.get(o.getSymbolId()).recoverOrder(o);
         });
     }
@@ -124,7 +130,6 @@ public class OrderBook {
 
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
-                
                 finalizer.onMatch(maker, bestPrice, matchQty);
 
                 if (maker.getFilled() == maker.getQty()) {

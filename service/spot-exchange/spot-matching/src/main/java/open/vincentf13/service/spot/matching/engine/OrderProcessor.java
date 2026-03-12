@@ -27,7 +27,6 @@ public class OrderProcessor {
     private final ExecutionReporter reporter;
     
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
-    private final Order reusableOrder = new Order();
     private final CidKey reusableCidKey = new CidKey();
     private final byte[] tempCidBytes = new byte[32];
 
@@ -62,27 +61,29 @@ public class OrderProcessor {
             return;
         }
 
-        // 2. 領域處理：Admission -> 撮合 -> 結案同步
+        // --- 優化點：僅建立一次 String ---
+        String cidStr = sbe.clientOrderId();
+
+        // 2. 領域處理：Admission -> 撮合 -> 結案同步 一口氣完成
         OrderBook book = OrderBook.get(sbe.symbolId());
-        Order taker = book.handleCreate(orderId, sbe, gwSeq, tradeIdSupplier, (maker, p, q) -> {
+        Order taker = book.handleCreate(orderId, sbe, cidStr, gwSeq, tradeIdSupplier, (maker, p, q) -> {
             // 3. 執行帳務結算
             ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
-            
-            // 4. 處理 Maker 回報：補全累計成交量 (cumQty) 與成交價 (avgPrice)
+            // 4. 處理 Maker 回報
             reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", 
                     maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
                     p, q, maker.getFilled(), maker.getPrice(), sbe.timestamp());
         });
 
-        // 5. 處理 Taker 最終回報
-        reporter.sendReport(taker.getUserId(), orderId, taker.getClientOrderId(), 
+        // 5. 最終回報
+        reporter.sendReport(taker.getUserId(), orderId, cidStr, 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, sbe.timestamp());
         
         reporter.flushBatch(gwSeq);
         clientOrderIdDiskMap.put(new CidKey(taker.getUserId(), tempCidBytes), orderId);
 
-        // --- 資源安全釋放點：在所有回報發送完成後才歸還 Taker 到物件池 ---
+        // 安全釋放：結案後回收
         if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 }
