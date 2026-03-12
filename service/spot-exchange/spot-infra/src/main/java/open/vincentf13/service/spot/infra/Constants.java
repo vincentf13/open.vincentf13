@@ -18,6 +18,18 @@ public class Constants {
     /** 
       進度位點元數據 Key (MetaDataKey)
      */
+    public static class OrderSide {
+        public static final byte BUY = 0;
+        public static final byte SELL = 1;
+    }
+
+    public static class MatchingConfig {
+        public static final int INITIAL_BOOK_ORDER_COUNT = 200_000;
+        public static final int INITIAL_BOOK_LEVEL_CAPACITY = 4096;
+        public static final int INITIAL_POOL_SIZE = 100_000;
+        public static final int STARTUP_PRE_ALLOCATE_COUNT = 1000;
+    }
+
     public static class MetaDataKey {
         public static final byte MACHING_RECEVIER_POINT = 1;
         public static final byte MACHING_ENGINE_POINT = 2;

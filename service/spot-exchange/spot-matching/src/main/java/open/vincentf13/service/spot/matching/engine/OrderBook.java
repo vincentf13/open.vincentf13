@@ -8,15 +8,14 @@ import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
-
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Supplier;
 
+import static open.vincentf13.service.spot.infra.Constants.*;
+
 /** 
- 內存訂單簿 (OrderBook) - 終極 Zero-Allocation 版
+ 內存訂單簿 (OrderBook)
+ 職責：領域狀態機，自主管理訂單生命週期、撮合流與數據持久化
  */
 public class OrderBook {
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
@@ -25,9 +24,6 @@ public class OrderBook {
         return INSTANCES.computeIfAbsent(symbolId, OrderBook::new);
     }
 
-    private static final int INITIAL_DEQUE_CAPACITY = 4096;
-    private static final int POOL_MAX_SIZE = 100_000;
-
     private final int symbolId;
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
     private final ChronicleMap<Long, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
@@ -35,19 +31,28 @@ public class OrderBook {
 
     private final TreeMap<Long, Deque<Order>> bids = new TreeMap<>(Collections.reverseOrder());
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
-    private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(200_000, 0.5f); 
+    private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
 
-    private final Deque<Order> orderPool = new ArrayDeque<>(POOL_MAX_SIZE);
+    private final Deque<Order> orderPool = new ArrayDeque<>(MatchingConfig.INITIAL_POOL_SIZE);
     private final Trade reusableTrade = new Trade();
+    
+    private static final Order SCAN_REUSABLE = new Order();
 
-    /** 跨領域協調回調 */
     @FunctionalInterface public interface TradeFinalizer {
         void onMatch(Order maker, long price, long qty);
     }
 
     private OrderBook(int symbolId) {
         this.symbolId = symbolId;
-        for (int i = 0; i < 1000; i++) orderPool.add(new Order());
+        for (int i = 0; i < MatchingConfig.STARTUP_PRE_ALLOCATE_COUNT; i++) orderPool.add(new Order());
+    }
+
+    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
+                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
+        Order taker = borrowAndFill(orderId, sbe, clientOrderId, gwSeq);
+        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
+        syncOrder(taker, gwSeq);
+        return taker;
     }
 
     public void recoverOrder(Order o) {
@@ -73,43 +78,22 @@ public class OrderBook {
 
     public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
-    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
-                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        Order taker = borrowAndFill(orderId, sbe, clientOrderId, gwSeq);
-        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
-        syncOrder(taker, gwSeq);
-        return taker;
-    }
-
-    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq) {
-        Order o = borrowOrder();
-        o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
-        o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
-        o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
-        o.setVersion(1); o.setLastSeq(gwSeq);
-        o.setClientOrderId(clientOrderId);
-        return o;
-    }
-
     public static void rebuildAll() {
         ChronicleMap<Long, Order> allOrders = Storage.self().orders();
-        Order scanReusable = new Order();
         Storage.self().activeOrders().forEach((id, active) -> {
-            Order o = allOrders.getUsing(id, scanReusable);
+            Order o = allOrders.getUsing(id, SCAN_REUSABLE);
             if (o != null && o.getStatus() < 2) OrderBook.get(o.getSymbolId()).recoverOrder(o);
         });
     }
 
     private void match(Order taker, long gwSeq, long timestamp, Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        final boolean isBuy = taker.getSide() == 0;
+        final boolean isBuy = taker.getSide() == OrderSide.BUY;
         final TreeMap<Long, Deque<Order>> counterSide = isBuy ? asks : bids;
         final long takerPrice = taker.getPrice();
 
         while (taker.getQty() > taker.getFilled()) {
-            // 性能優化：改用 firstKey() 避免 TreeMap.firstEntry() 產生的 Entry 物件分配
             if (counterSide.isEmpty()) break;
             final long bestPrice = counterSide.firstKey();
-            
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
             final Deque<Order> makers = counterSide.get(bestPrice);
@@ -147,8 +131,8 @@ public class OrderBook {
     }
 
     public void add(Order order) {
-        TreeMap<Long, Deque<Order>> levels = (order.getSide() == 0) ? bids : asks;
-        levels.computeIfAbsent(order.getPrice(), k -> new ArrayDeque<>(INITIAL_DEQUE_CAPACITY)).addLast(order);
+        TreeMap<Long, Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
+        levels.computeIfAbsent(order.getPrice(), k -> new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY)).addLast(order);
         orderIndex.put(order.getOrderId(), order);
     }
 

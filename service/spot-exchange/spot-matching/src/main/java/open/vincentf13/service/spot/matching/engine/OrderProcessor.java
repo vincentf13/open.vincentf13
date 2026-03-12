@@ -15,8 +15,8 @@ import java.util.function.Supplier;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 訂單處理核心 (Order Processor) - 終極 Zero-Allocation 版
- 職責：領域編排者，透過實作 Finalizer 接口徹底消除 Lambda 對象分配
+ 訂單處理核心 (Order Processor)
+ 職責：領域編排者，協調風控、訂單簿狀態機與外部回報發送
  */
 @Slf4j
 @Component
@@ -65,18 +65,19 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         final boolean isBuy = sbe.side() == Side.BUY;
         final long cost = isBuy ? DecimalUtil.mulCeil(sbe.price(), sbe.qty()) : sbe.qty();
 
+        // 1. 風控校驗
         if (!ledger.freezeBalance(sbe.userId(), isBuy ? Asset.USDT : Asset.BTC, cost, gwSeq)) {
             reporter.sendReport(sbe.userId(), 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
             reporter.flushBatch(gwSeq);
             return;
         }
 
-        // --- 設置執行上下文，供 onMatch 回調使用 (消除 Lambda 分配) ---
+        // --- 設置執行上下文 ---
         this.ctxGwSeq = gwSeq;
         this.ctxTimestamp = sbe.timestamp();
         this.ctxUserId = sbe.userId();
         this.ctxPrice = sbe.price();
-        this.ctxSide = (byte)(isBuy ? 0 : 1);
+        this.ctxSide = (byte)(isBuy ? OrderSide.BUY : OrderSide.SELL);
 
         OrderBook book = OrderBook.get(sbe.symbolId());
         Order taker = book.handleCreate(orderId, sbe, cid, gwSeq, tradeIdSupplier, this);
@@ -93,15 +94,10 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 
-    /** 
-      成交回調實作：直接讀取 ctx 欄位，徹底消除每筆成交建立 Lambda 的開銷
-     */
     @Override
     public void onMatch(Order maker, long price, long qty) {
-        // 執行帳務結算
         ledger.settleTrade(maker.getUserId(), ctxUserId, price, qty, ctxSide, ctxPrice, ctxGwSeq);
         
-        // 產生 Maker 成交回報
         reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
                 maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
                 price, qty, maker.getFilled(), maker.getPrice(), ctxTimestamp);

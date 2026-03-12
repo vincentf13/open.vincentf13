@@ -20,7 +20,10 @@ public class Ledger {
     private final ChronicleMap<Long, Long> userAssetBitmaskDiskMap = Storage.self().userAssets();
     
     /** 預分配位圖快取：避免 Rehashing 分配 */
-    private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
+    private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(
+            MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 
+            0.5f, 
+            0L);
 
     private final Balance reusableBalance = new Balance();
     private final BalanceKey reusableKey = new BalanceKey();
@@ -32,7 +35,7 @@ public class Ledger {
     public void settleTrade(long mUid, long tUid, long tradePrice, long tradeQty, byte takerSide, long takerPrice, long seq) {
         final long floor = DecimalUtil.mulFloor(tradePrice, tradeQty), ceil = DecimalUtil.mulCeil(tradePrice, tradeQty);
 
-        if (takerSide == 0) { // Taker BUY
+        if (takerSide == OrderSide.BUY) { // Taker BUY
             final long takerFrozenTotal = DecimalUtil.mulCeil(takerPrice, tradeQty);
             access(tUid, Asset.USDT, takerFrozenTotal - ceil, -takerFrozenTotal, seq);
             access(tUid, Asset.BTC, tradeQty, 0, seq);
@@ -55,7 +58,6 @@ public class Ledger {
         reusableKey.set(userId, assetId);
         Balance b = balancesDiskMap.getUsing(reusableKey, reusableBalance);
         
-        // 優化：使用 coldStartReusable 代替 new Balance()
         if (b == null) b = prepareNewAccount();
         
         if (b.getAvailable() >= amount) {
@@ -78,7 +80,6 @@ public class Ledger {
         reusableKey.set(userId, assetId);
         Balance b = balancesDiskMap.getUsing(reusableKey, reusableBalance);
         
-        // 優化：使用 coldStartReusable 代替 new Balance()
         if (b == null) b = prepareNewAccount();
         
         b.setAvailable(b.getAvailable() + availDelta);
@@ -90,7 +91,6 @@ public class Ledger {
         updateAssetIndex(userId, assetId);
     }
 
-    /** 零分配初始化新帳戶數據 */
     private Balance prepareNewAccount() {
         coldStartReusable.setAvailable(0);
         coldStartReusable.setFrozen(0);
