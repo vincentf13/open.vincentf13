@@ -8,9 +8,10 @@ import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
-
 import java.util.*;
 import java.util.function.Supplier;
+
+import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  內存訂單簿 (OrderBook)
@@ -48,20 +49,11 @@ public class OrderBook {
     }
 
     /** 
-      指令入口：封裝 Admission -> 撮合 -> 狀態落地 
-      使用數值化 clientOrderId 達成 Zero-GC
+      恢復模式：同樣從物件池領取實體，實現啟動期 Zero-GC 
      */
-    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
-                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        Order taker = borrowAndFill(orderId, sbe, clientOrderId, gwSeq);
-        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
-        syncOrder(taker, gwSeq);
-        return taker;
-    }
-
     public void recoverOrder(Order o) {
         if (o == null || o.getStatus() >= 2) return;
-        Order recovered = new Order();
+        Order recovered = borrowOrder(); // 從池中借用
         copyOrder(o, recovered);
         add(recovered);
     }
@@ -75,9 +67,23 @@ public class OrderBook {
         dst.setClientOrderId(src.getClientOrderId());
     }
 
-    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq) {
+    private Order borrowOrder() {
         Order o = orderPool.pollFirst();
-        if (o == null) o = new Order();
+        return (o == null) ? new Order() : o;
+    }
+
+    public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
+
+    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
+                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
+        Order taker = borrowAndFill(orderId, sbe, clientOrderId, gwSeq);
+        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
+        syncOrder(taker, gwSeq);
+        return taker;
+    }
+
+    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq) {
+        Order o = borrowOrder();
         o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
         o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
         o.setSide((byte)(sbe.side() == Side.BUY ? 0 : 1)); o.setStatus((byte)0);
@@ -85,8 +91,6 @@ public class OrderBook {
         o.setClientOrderId(clientOrderId);
         return o;
     }
-
-    public void releaseOrder(Order o) { if (o != null) orderPool.addLast(o); }
 
     public static void rebuildAll() {
         ChronicleMap<Long, Order> allOrders = Storage.self().orders();
@@ -143,7 +147,7 @@ public class OrderBook {
         if (taker.getQty() > taker.getFilled()) add(taker);
     }
 
-    public void add(Order order) {
+    private void add(Order order) {
         TreeMap<Long, Deque<Order>> levels = (order.getSide() == 0) ? bids : asks;
         levels.computeIfAbsent(order.getPrice(), k -> new ArrayDeque<>(INITIAL_DEQUE_CAPACITY)).addLast(order);
         orderIndex.put(order.getOrderId(), order);
