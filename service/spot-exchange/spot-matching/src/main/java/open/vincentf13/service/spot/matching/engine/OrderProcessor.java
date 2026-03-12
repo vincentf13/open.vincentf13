@@ -21,11 +21,13 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Slf4j
 @Component
 public class OrderProcessor {
+    /** 僅保留全系統唯一的冪等性索引 */
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().cids();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
+    // --- 預分配組件 ---
     private final OrderCreateDecoder decoder = new OrderCreateDecoder();
     private final CidKey reusableCidKey = new CidKey();
     private final byte[] tempCidBytes = new byte[32];
@@ -35,6 +37,7 @@ public class OrderProcessor {
         this.reporter = reporter;
     }
 
+    /** 啟動恢復：委派領域內部的全局重建 */
     public void rebuildState() {
         log.info("OrderProcessor 正在恢復領域模型狀態...");
         OrderBook.rebuildAll();
@@ -45,6 +48,7 @@ public class OrderProcessor {
         decoder.getClientOrderId(tempCidBytes, 0);
         reusableCidKey.set(decoder.userId(), tempCidBytes, 0, 32);
         
+        // 冪等過濾
         if (clientOrderIdDiskMap.containsKey(reusableCidKey)) return;
         
         handleOrderCreate(decoder, gwSeq, orderIdSupplier.get(), tradeIdSupplier);
@@ -61,29 +65,30 @@ public class OrderProcessor {
             return;
         }
 
-        // --- 優化點：僅建立一次 String ---
         String cidStr = sbe.clientOrderId();
 
-        // 2. 領域處理：Admission -> 撮合 -> 結案同步 一口氣完成
+        // 2. 領域執行：Book 自主負責 Admission -> Match -> Sync 閉環
         OrderBook book = OrderBook.get(sbe.symbolId());
         Order taker = book.handleCreate(orderId, sbe, cidStr, gwSeq, tradeIdSupplier, (maker, p, q) -> {
-            // 3. 執行帳務結算
+            // 3. 跨領域協調：帳務結算 (下沉至 Ledger)
             ledger.settleTrade(maker.getUserId(), sbe.userId(), p, q, (sbe.side() == Side.BUY ? (byte)0 : (byte)1), sbe.price(), gwSeq);
-            // 4. 處理 Maker 回報
+            
+            // 4. 產生 Maker 成交回報
             reporter.sendReport(maker.getUserId(), maker.getOrderId(), "", 
                     maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
                     p, q, maker.getFilled(), maker.getPrice(), sbe.timestamp());
         });
 
-        // 5. 最終回報
+        // 5. 產生 Taker 最終回報
         reporter.sendReport(taker.getUserId(), orderId, cidStr, 
                 taker.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.NEW, 
                 0, 0, taker.getFilled(), 0, sbe.timestamp());
         
+        // 6. 批量落地與最終冪等存檔
         reporter.flushBatch(gwSeq);
         clientOrderIdDiskMap.put(new CidKey(taker.getUserId(), tempCidBytes), orderId);
 
-        // 安全釋放：結案後回收
+        // 7. 資源安全歸還
         if (taker.getStatus() == 2) book.releaseOrder(taker);
     }
 }
