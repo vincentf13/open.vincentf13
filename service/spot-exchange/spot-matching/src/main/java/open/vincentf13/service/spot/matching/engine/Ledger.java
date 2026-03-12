@@ -8,17 +8,20 @@ import org.springframework.stereotype.Service;
 
 import java.util.function.Consumer;
 
+import static open.vincentf13.service.spot.infra.Constants.*;
+
 /** 
- 內存帳務處理器 (Ledger)
- 職責：管理全系統資產的一致性，處理凍結、結算與退款
+ 內存帳務處理器 (Ledger) - Zero-GC 優化版
+ 職責：管理全系統資產的一致性，透過物件復用降低 GC 壓力
  */
 @Service
 public class Ledger {
-    /** 餘額主表：持久化存儲用戶各幣種的餘額狀態 (可用、凍結) */
     private final ChronicleMap<BalanceKey, Balance> balances = Storage.self().balances();
-    
-    /** 持倉索引：採用 Bitmask 記錄用戶擁有的資產類型，用於 Query 模組快速篩選非零帳戶 */
     private final ChronicleMap<Long, Long> userAssets = Storage.self().userAssets();
+
+    // 物件復用池
+    private final Balance reusableBalance = new Balance();
+    private final BalanceKey reusableKey = new BalanceKey();
 
     public void tradeSettle(long userId, int assetOut, long amountOut, int assetIn, long amountIn, long seq) {
         updateBalance(userId, assetOut, seq, b -> b.setFrozen(Math.max(0, b.getFrozen() - amountOut)));
@@ -55,12 +58,18 @@ public class Ledger {
         updateBalance(userId, assetId, seq, b -> {});
     }
 
+    /** 
+      核心更新邏輯：採用 getUsing 實現零分配
+     */
     private void updateBalance(long userId, int assetId, long seq, Consumer<Balance> action) {
-        BalanceKey key = new BalanceKey(userId, assetId);
-        Balance balance = balances.get(key);
+        reusableKey.setUserId(userId);
+        reusableKey.setAssetId(assetId);
+        
+        // 使用 getUsing 進行零分配讀取
+        Balance balance = balances.getUsing(reusableKey, reusableBalance);
         
         if (balance == null) {
-            balance = new Balance();
+            balance = new Balance(); // 首次初始化允許一次性分配
             balance.setAvailable(0); balance.setFrozen(0); balance.setVersion(0);
         }
         
@@ -68,7 +77,7 @@ public class Ledger {
         balance.setVersion(balance.getVersion() + 1);
         balance.setLastSeq(seq);
         
-        balances.put(key, balance);
+        balances.put(reusableKey, balance);
         updateUserAssetIndex(userId, assetId);
     }
 
