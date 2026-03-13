@@ -8,7 +8,6 @@ import io.aeron.logbuffer.FragmentHandler;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import net.openhft.chronicle.wire.ReadMarshallable;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import org.agrona.concurrent.BackoffIdleStrategy;
@@ -21,7 +20,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  職責：管理 Aeron 連線生命週期，並提供基於接收端反饋的 WAL 指令流發送機制
  */
 @Slf4j
-public abstract class AbstractAeronSender extends Worker implements ReadMarshallable {
+public abstract class AbstractAeronSender extends Worker {
     protected final Aeron aeron;
     protected final ChronicleQueue wal;
     
@@ -39,6 +38,9 @@ public abstract class AbstractAeronSender extends Worker implements ReadMarshall
     protected ExcerptTailer tailer;
     protected AeronState currentState = AeronState.WAITING;
     protected long backPressureCount = 0;
+
+    // 預先定義 Reader 以避免在 doWork 中產生 Lambda 分配
+    private final net.openhft.chronicle.wire.ReadMarshallable walReader = this::onWalMessage;
 
     public AbstractAeronSender(Aeron aeron, ChronicleQueue wal,
                                String dataUrl, int dataStreamId, String controlUrl, int controlStreamId) {
@@ -80,7 +82,7 @@ public abstract class AbstractAeronSender extends Worker implements ReadMarshall
 
         // 3. 處理 WAL 指令流發送 (批量優化)
         for (int i = 0; i < 100; i++) {
-            if (tailer.readDocument(this)) {
+            if (tailer.readDocument(walReader)) {
                 workDone++;
             } else {
                 break;
@@ -109,6 +111,11 @@ public abstract class AbstractAeronSender extends Worker implements ReadMarshall
             currentState = AeronState.SENDING;
         }
     };
+
+    /**
+     * 子類實現具體的 WAL 指令讀取與 Aeron 發送邏輯
+     */
+    protected abstract void onWalMessage(net.openhft.chronicle.wire.WireIn wire);
 
     @Override
     protected void onStop() {

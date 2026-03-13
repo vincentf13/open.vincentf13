@@ -26,7 +26,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class Engine extends Worker implements ReadMarshallable {
+public class Engine extends Worker {
     private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
     private final ChronicleMap<Byte, WalProgress> metadata = Storage.self().walMetadata();
 
@@ -40,6 +40,9 @@ public class Engine extends Worker implements ReadMarshallable {
     private ExcerptTailer tailer;
     private boolean isReplaying = false;
     private long lastSnapshotSeq = MSG_SEQ_NONE;
+
+    // 預先定義 Reader 以避免在 doWork 中產生 Lambda 分配
+    private final net.openhft.chronicle.wire.ReadMarshallable walReader = this::onWalMessage;
 
     @PostConstruct public void init() { start("core-matching-engine"); }
 
@@ -94,15 +97,14 @@ public class Engine extends Worker implements ReadMarshallable {
 
     @Override
     protected int doWork() {
-        // 優化：直接傳遞 this，消除 readDocument 的 Lambda 分配
-        return tailer.readDocument(this) ? 1 : 0;
+        // 優化：直接傳遞預定義的 reader，消除 Lambda 分配
+        return tailer.readDocument(walReader) ? 1 : 0;
     }
 
     /** 
       指令處理回調：實現熱點路徑 Zero-Allocation 
      */
-    @Override
-    public void readMarshallable(WireIn wire) {
+    private void onWalMessage(net.openhft.chronicle.wire.WireIn wire) {
         final long index = tailer.index();
         final int msgType = wire.read(ChronicleWireKey.msgType).int32();
         ThreadContext ctx = ThreadContext.get();

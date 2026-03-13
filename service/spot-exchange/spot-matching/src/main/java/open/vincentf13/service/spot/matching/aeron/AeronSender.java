@@ -39,7 +39,7 @@ public class AeronSender extends AbstractAeronSender {
       指令讀取回調：以統一格式發送回報「信封」
      */
     @Override
-    public void readMarshallable(WireIn wire) {
+    public void onWalMessage(WireIn wire) {
         final int ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
         long mSeq = wire.read(ChronicleWireKey.matchingSeq).int64();
         final long ctxMatchingSeq = (mSeq == 0) ? tailer.index() : mSeq;

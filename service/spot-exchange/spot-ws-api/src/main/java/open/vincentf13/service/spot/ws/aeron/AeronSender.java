@@ -41,7 +41,7 @@ public class AeronSender extends AbstractAeronSender {
 
     /** 指令讀取回調：零分配處理 */
     @Override
-    public void readMarshallable(WireIn wire) {
+    public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();
         final int ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
         final ThreadContext ctx = ThreadContext.get();
