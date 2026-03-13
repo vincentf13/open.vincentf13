@@ -13,6 +13,7 @@ import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.model.command.AuthReport;
+import open.vincentf13.service.spot.model.command.DepositReport;
 import open.vincentf13.service.spot.model.command.OrderMatchReport;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
@@ -74,6 +75,11 @@ public class PushWorker extends Worker {
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 handleAuthReport(report.getUserId());
             }
+            case MsgType.DEPOSIT_REPORT -> {
+                DepositReport report = ctx.getDepositReport();
+                wire.read(ChronicleWireKey.payload).bytes(report);
+                handleDepositReport(report);
+            }
             case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
                 OrderMatchReport report = ctx.getOrderMatchReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
@@ -86,6 +92,26 @@ public class PushWorker extends Worker {
 
     private void handleAuthReport(long userId) {
         log.info("用戶認證成功回報: {}", userId);
+    }
+
+    private void handleDepositReport(DepositReport report) {
+        final long userId = report.getUserId();
+        final int assetId = report.getAssetId();
+        final long amount = report.getAmount();
+
+        stripedPool[(int)(userId % threadCount)].execute(() -> {
+            PushEvent event = new PushEvent();
+            event.setUserId(userId);
+            event.setStatus("DEPOSIT_SUCCESS");
+            // 擴展 PushEvent 以包含資產訊息
+            
+            JsonUtil.Envelope env = new JsonUtil.Envelope("deposit", event);
+            String json = JsonUtil.toJson(env);
+            
+            final ByteBuf nettyBuf = PooledByteBufAllocator.DEFAULT.directBuffer();
+            nettyBuf.writeBytes(json.getBytes());
+            sessionManager.sendMessage(userId, nettyBuf);
+        });
     }
 
     private void handleExecutionReport(ExecutionReportDecoder decoder) {

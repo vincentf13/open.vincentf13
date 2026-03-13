@@ -70,7 +70,12 @@ public class AeronReceiver extends AbstractAeronReceiver {
                     report.fillFrom(aeron);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(report);
                 }
-            }
+                case MsgType.DEPOSIT_REPORT -> {
+                    DepositReport report = ctx.getDepositReport();
+                    report.fillFrom(aeron);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(report);
+                }
+                }
         }
     }
 }

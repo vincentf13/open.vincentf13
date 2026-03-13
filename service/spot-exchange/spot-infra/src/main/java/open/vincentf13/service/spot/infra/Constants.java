@@ -67,6 +67,7 @@ public class Constants {
         public static final int ORDER_REJECTED = 108;
         public static final int ORDER_CANCELED = 109;
         public static final int ORDER_MATCHED = 110;
+        public static final int DEPOSIT_REPORT = 111;
         public static final int RESUME = 200;
     }
 

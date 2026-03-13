@@ -86,6 +86,18 @@ public class ExecutionReporter {
         writeWal(MsgType.AUTH_REPORT, report);
     }
 
+    /** 回報：充值成功 */
+    public void reportDeposit(long userId, int assetId, long amount, long gatewaySequence) {
+        if (isReplaying) return;
+        DepositReport report = ThreadContext.get().getDepositReport();
+        report.setGatewaySeq(gatewaySequence);
+        report.setUserId(userId);
+        report.setAssetId(assetId);
+        report.setAmount(amount);
+
+        writeWal(MsgType.DEPOSIT_REPORT, report);
+    }
+
     private void writeWal(int msgType, BytesMarshallable model) {
         try (DocumentContext dc = engineSenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);

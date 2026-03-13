@@ -37,8 +37,9 @@ public class ThreadContext {
     private OrderCreateCommand orderCreateCommand;
     private OrderCancelCommand orderCancelCommand;
     private DepositCommand depositCommand;
-    
+
     private AuthReport authReport;
+    private DepositReport depositReport;
     private OrderAcceptedReport orderAcceptedReport;
     private OrderRejectedReport orderRejectedReport;
     private OrderCanceledReport orderCanceledReport;
@@ -48,8 +49,9 @@ public class ThreadContext {
     public OrderCreateCommand getOrderCreateCommand() { if (orderCreateCommand == null) orderCreateCommand = new OrderCreateCommand(); return orderCreateCommand; }
     public OrderCancelCommand getOrderCancelCommand() { if (orderCancelCommand == null) orderCancelCommand = new OrderCancelCommand(); return orderCancelCommand; }
     public DepositCommand getDepositCommand() { if (depositCommand == null) depositCommand = new DepositCommand(); return depositCommand; }
-    
+
     public AuthReport getAuthReport() { if (authReport == null) authReport = new AuthReport(); return authReport; }
+    public DepositReport getDepositReport() { if (depositReport == null) depositReport = new DepositReport(); return depositReport; }
     public OrderAcceptedReport getOrderAcceptedReport() { if (orderAcceptedReport == null) orderAcceptedReport = new OrderAcceptedReport(); return orderAcceptedReport; }
     public OrderRejectedReport getOrderRejectedReport() { if (orderRejectedReport == null) orderRejectedReport = new OrderRejectedReport(); return orderRejectedReport; }
     public OrderCanceledReport getOrderCanceledReport() { if (orderCanceledReport == null) orderCanceledReport = new OrderCanceledReport(); return orderCanceledReport; }

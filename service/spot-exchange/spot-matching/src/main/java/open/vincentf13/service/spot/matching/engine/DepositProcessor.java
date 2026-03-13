@@ -28,9 +28,7 @@ public class DepositProcessor {
         ledger.increaseAvailable(userId, assetId, amount, gwSeq);
         
         // 2. 發送執行回報 (充值成功)
-        // 此處目前 SBE 暫無 Deposit 回報，沿用 ExecutionReport 
-        // 價格填 0, 數量填充值額
-        reporter.reportMatched(userId, 0, 0, OrderStatus.FILLED, 0, amount, amount, 0, System.currentTimeMillis(), gwSeq);
+        reporter.reportDeposit(userId, assetId, amount, gwSeq);
         
         log.info("用戶 {} 充值成功：資產={}, 數量={}, gwSeq={}", userId, assetId, amount, gwSeq);
     }
