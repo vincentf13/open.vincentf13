@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.model;
+package open.vincentf13.service.spot.model.Progress;
 
 import lombok.Data;
 import net.openhft.chronicle.bytes.BytesIn;

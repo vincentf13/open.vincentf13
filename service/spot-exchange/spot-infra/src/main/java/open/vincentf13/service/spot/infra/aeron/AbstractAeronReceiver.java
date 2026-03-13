@@ -10,7 +10,7 @@ import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.model.MsgProgress;
+import open.vincentf13.service.spot.model.Progress.MsgProgress;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 

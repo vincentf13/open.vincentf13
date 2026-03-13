@@ -2,10 +2,9 @@ package open.vincentf13.service.spot.matching.engine;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.bytes.MappedBytes;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.WalProgress;
+import open.vincentf13.service.spot.model.Progress.WalProgress;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
