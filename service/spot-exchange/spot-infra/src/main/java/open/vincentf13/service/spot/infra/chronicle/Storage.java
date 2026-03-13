@@ -156,6 +156,7 @@ public class Storage {
     public ChronicleMap<Long, String> userActiveOrders() { return userActiveOrders; }
     public ChronicleMap<Long, Trade> trades() { return trades; }
     public ChronicleMap<CidKey, Long> cids() { return cids; }
+    public ChronicleMap<CidKey, Long> clientOrderIdMap() { return cids; }
     public ChronicleMap<Byte, MsgProgress> msgMetadata() { return msgMetadata; }
     public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
 

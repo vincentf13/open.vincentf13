@@ -11,7 +11,6 @@ import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.ReadMarshallable;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.Worker;
-import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.SbeCodec;
@@ -35,25 +34,33 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class PushWorker extends Worker implements ReadMarshallable {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
     private final WsSessionManager sessionManager;
-    private final int threadCount = Runtime.getRuntime().availableProcessors();
-    private final ExecutorService[] stripedPool = new ExecutorService[threadCount];
+    private final int threadCount;
+    private final ExecutorService[] stripedPool;
     
-    private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
+    private ExcerptTailer tailer;
 
     private static final String[] ORDER_STATUS_STRINGS = {"NEW", "FILLED", "PARTIALLY_FILLED", "CANCELED", "REJECTED"};
 
     public PushWorker(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;
-        for (int i = 0; i < threadCount; i++) {
-            stripedPool[i] = Executors.newSingleThreadExecutor();
-        }
+        this.threadCount = Runtime.getRuntime().availableProcessors();
+        this.stripedPool = new ExecutorService[threadCount];
     }
 
     @PostConstruct public void init() { start("push-worker"); }
 
     @Override
+    protected void onStart() {
+        this.tailer = matchingToGwWal.createTailer();
+        for (int i = 0; i < threadCount; i++) {
+            final int poolIndex = i;
+            stripedPool[i] = Executors.newSingleThreadExecutor(r -> new Thread(r, "push-pool-" + poolIndex));
+        }
+        log.info("PushWorker 啟動，執行緒池數量: {}", threadCount);
+    }
+
+    @Override
     protected int doWork() {
-        ExcerptTailer tailer = matchingToGwWal.createTailer(); 
         return tailer.readDocument(this) ? 1 : 0;
     }
 
@@ -87,21 +94,25 @@ public class PushWorker extends Worker implements ReadMarshallable {
         final long userId = decoder.userId();
         final int statusOrdinal = decoder.status().ordinal();
         final long cid = decoder.clientOrderId();
+        final String statusStr = (statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length) ? 
+                ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN";
 
-        stripedPool[(int)(userId % threadCount)].execute(() -> {
+        final int tc = threadCount;
+        final ExecutorService[] pools = stripedPool;
+
+        pools[(int)(userId % tc)].execute(() -> {
             PushEvent event = new PushEvent();
             event.setOrderId(orderId);
-            event.setStatus(statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length ? 
-                    ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN");
+            event.setStatus(statusStr);
             event.setCid(cid);
             event.setUserId(userId);
 
             JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);
             String json = JsonUtil.toJson(env);
             
-            ByteBuf nettyBuf = PooledByteBufAllocator.DEFAULT.directBuffer();
+            final ByteBuf nettyBuf = PooledByteBufAllocator.DEFAULT.directBuffer();
             nettyBuf.writeBytes(json.getBytes());
-            sessionManager.broadcast(userId, nettyBuf);
+            sessionManager.sendMessage(userId, nettyBuf);
         });
     }
 
@@ -114,8 +125,10 @@ public class PushWorker extends Worker implements ReadMarshallable {
     @Override
     protected void onStop() { 
         for (ExecutorService pool : stripedPool) {
-            pool.execute(ThreadContext::cleanup);
-            pool.shutdown();
+            if (pool != null) {
+                pool.execute(ThreadContext::cleanup);
+                pool.shutdown();
+            }
         }
         ThreadContext.cleanup();
     }

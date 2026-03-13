@@ -14,6 +14,7 @@ import open.vincentf13.service.spot.model.WalProgress;
 import open.vincentf13.service.spot.model.command.*;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
+import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 
 import static open.vincentf13.service.spot.infra.Constants.*;

@@ -33,7 +33,7 @@ public class NativeUnsafeBuffer {
     public Bytes<ByteBuffer> bytes() { return bytes; }
     public UnsafeBuffer buffer() { return buffer; }
 
-    private void clear() {
+    public void clear() {
         bytes.clear();
     }
 

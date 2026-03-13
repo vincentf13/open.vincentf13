@@ -5,7 +5,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
+import open.vincentf13.service.spot.infra.alloc.*;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.*;
 import org.springframework.stereotype.Component;
@@ -47,31 +47,28 @@ public class AeronReceiver extends AbstractAeronReceiver {
                     AeronAuth aeron = ctx.getAeronAuth();
                     AuthCommand cmd = ctx.getAuthCommand();
                     cmd.setSeq(aeron.getSeq(buffer, offset));
-                    cmd.setUserId(aeron.getUserId(buffer, offset));
+                    cmd.fillFrom(buffer, offset, length);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.ORDER_CREATE -> {
                     AeronOrderCreate aeron = ctx.getAeronOrderCreate();
                     OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                     cmd.setSeq(aeron.getSeq(buffer, offset));
-                    cmd.fillFrom(buffer, aeron.getPayloadOffset(offset), length - (aeron.getPayloadOffset(0)));
+                    cmd.fillFrom(buffer, offset, length);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.ORDER_CANCEL -> {
                     AeronOrderCancel aeron = ctx.getAeronOrderCancel();
                     OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                     cmd.setSeq(aeron.getSeq(buffer, offset));
-                    cmd.setUserId(aeron.getUserId(buffer, offset));
-                    cmd.setOrderId(aeron.getOrderId(buffer, offset));
+                    cmd.fillFrom(buffer, offset, length);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.DEPOSIT -> {
                     AeronDeposit aeron = ctx.getAeronDeposit();
                     DepositCommand cmd = ctx.getDepositCommand();
                     cmd.setSeq(aeron.getSeq(buffer, offset));
-                    cmd.setUserId(aeron.getUserId(buffer, offset));
-                    cmd.setAssetId(aeron.getAssetId(buffer, offset));
-                    cmd.setAmount(aeron.getAmount(buffer, offset));
+                    cmd.fillFrom(buffer, offset, length);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.SNAPSHOT -> {

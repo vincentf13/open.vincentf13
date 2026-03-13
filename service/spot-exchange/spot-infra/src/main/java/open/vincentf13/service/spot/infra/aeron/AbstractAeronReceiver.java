@@ -11,6 +11,8 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.model.MsgProgress;
+import org.agrona.concurrent.BackoffIdleStrategy;
+import org.agrona.concurrent.IdleStrategy;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -32,10 +34,12 @@ public abstract class AbstractAeronReceiver extends Worker {
     protected Subscription subscription;
     protected Publication controlPublication;
     protected final BufferClaim bufferClaim = new BufferClaim();
+    protected final IdleStrategy idleStrategy = new BackoffIdleStrategy();
     protected final MsgProgress progress = new MsgProgress();
     
     // 使用 FragmentAssembler 確保跨 MTU 訊息的完整性 (處理網路分片)
     protected FragmentAssembler assembler;
+    protected AeronClient controlClient;
     
     protected AeronState currentState = AeronState.WAITING;
     protected long lastResumeSentTime = 0;
@@ -62,6 +66,9 @@ public abstract class AbstractAeronReceiver extends Worker {
     protected void onStart() {
         subscription = aeron.addSubscription(subscriptionChannel, subscriptionStreamId);
         controlPublication = aeron.addPublication(controlChannel, controlStreamId);
+        
+        // 初始化控制端客戶端 (用於發送 RESUME 信號)
+        this.controlClient = new AeronClient(controlPublication, bufferClaim, idleStrategy, running);
         
         // 初始化重組器：包裝原始 handler
         this.assembler = new FragmentAssembler(this::fragmentHandler);
@@ -93,7 +100,7 @@ public abstract class AbstractAeronReceiver extends Worker {
     }
 
     protected void sendResumeSignalBlocking() {
-        AeronUtil.claimAndSend(controlPublication, bufferClaim, 12, idleStrategy, running, (buffer, offset) -> {
+        controlClient.send(12, (buffer, offset) -> {
             buffer.putInt(offset, MsgType.RESUME);
             buffer.putLong(offset + 4, progress.getLastProcessedSeq());
         });
