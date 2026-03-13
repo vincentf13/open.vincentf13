@@ -14,6 +14,10 @@ public class Constants {
     public static final long PLATFORM_USER_ID = 0L;
     /** 無效或拒絕標識 ID */
     public static final long ID_REJECTED = 0L;
+    /** Chronicle Queue 的無效/初始索引 */
+    public static final long WAL_INDEX_NONE = -1L;
+    /** Aeron 消息流的無效/初始序號 */
+    public static final long MSG_SEQ_NONE = -1L;
 
     /** 
       進度位點元數據 Key (MetaDataKey)
@@ -33,11 +37,18 @@ public class Constants {
     }
 
     public static class MetaDataKey {
-        public static final byte MACHING_RECEVIER_POINT = 1;
-        public static final byte MACHING_ENGINE_POINT = 2;
-        public static final byte GW_RECEVIER_POINT = 3;
-        public static final byte WS_PUSH_TO_CLIENT_POINT = 4;
-        public static final byte LAST_SNAPSHOT_INFO = 5; // 新增：最後一次成功快照的元數據
+        /** 網路消息進度 (MsgProgress) 的 Key */
+        public static class Msg {
+            public static final byte MACHING_RECEVIER_POINT = 1;
+            public static final byte GW_RECEVIER_POINT = 2;
+        }
+
+        /** WAL 索引與狀態進度 (WalProgress) 的 Key */
+        public static class Wal {
+            public static final byte MACHING_ENGINE_POINT = 1;
+            public static final byte WS_PUSH_TO_CLIENT_POINT = 2;
+            public static final byte LAST_SNAPSHOT_INFO = 3;
+        }
     }
 
     /** 

@@ -15,7 +15,7 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
-import open.vincentf13.service.spot.model.Progress;
+import open.vincentf13.service.spot.model.WalProgress;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
 import org.springframework.stereotype.Component;
 
@@ -32,13 +32,11 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 public class PushWorker extends Worker {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
-    private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
+    private final ChronicleMap<Byte, WalProgress> metadata = Storage.self().walMetadata();
 
     private final WsSessionManager sessionManager;
     private ExcerptTailer tailer;
-    private final Progress progress = new Progress();
-
-    private final NativeUnsafeBuffer nativeUnsafeBuffer = new NativeUnsafeBuffer(4096);
+    private final WalProgress progress = new WalProgress();
 
     // 引入並發推送池：使用按 userId 分發的執行緒陣列，確保同一個用戶的回報有序發送
     private final int threadCount = Runtime.getRuntime().availableProcessors() * 2;
@@ -56,11 +54,11 @@ public class PushWorker extends Worker {
     @Override
     protected void onStart() {
         this.tailer = matchingToGwWal.createTailer();
-        Progress saved = metadata.get(MetaDataKey.WS_PUSH_TO_CLIENT_POINT);
+        WalProgress saved = metadata.get(MetaDataKey.Wal.WS_PUSH_TO_CLIENT_POINT);
         if (saved != null) {
-            progress.setLastProcessedSeq(saved.getLastProcessedSeq());
-            tailer.moveToIndex(progress.getLastProcessedSeq());
-        } else progress.setLastProcessedSeq(-1L);
+            progress.setLastProcessedIndex(saved.getLastProcessedIndex());
+            tailer.moveToIndex(progress.getLastProcessedIndex());
+        } else progress.setLastProcessedIndex(WAL_INDEX_NONE);
     }
 
     @Data
@@ -77,20 +75,21 @@ public class PushWorker extends Worker {
         // 批量讀取優化：一次最多處理 100 筆
         for (int i = 0; i < 100; i++) {
             boolean handled = tailer.readDocument(wire -> {
-                long seq = tailer.index();
+                long index = tailer.index();
                 int msgType = wire.read(ChronicleWireKey.msgType).int32();
-                nativeUnsafeBuffer.clear(); 
-                wire.read(ChronicleWireKey.payload).bytes(nativeUnsafeBuffer.bytes());
+                NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
+                scratchBuffer.clear(); 
+                wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
 
                 if (msgType == MsgType.EXECUTION_REPORT) {
-                    handleExecutionReport(nativeUnsafeBuffer.bytes());
+                    handleExecutionReport(scratchBuffer.bytes());
                 } else if (msgType == MsgType.AUTH_REPORT) {
-                    handleAuthReport(nativeUnsafeBuffer.bytes());
+                    handleAuthReport(scratchBuffer.bytes());
                 }
 
-                progress.setLastProcessedSeq(seq);
-                if (seq % 100 == 0) {
-                    metadata.put(MetaDataKey.WS_PUSH_TO_CLIENT_POINT, progress);
+                progress.setLastProcessedIndex(index);
+                if (index % 100 == 0) {
+                    metadata.put(MetaDataKey.Wal.WS_PUSH_TO_CLIENT_POINT, progress);
                 }
             });
             
@@ -106,9 +105,10 @@ public class PushWorker extends Worker {
         int offset = 0;
 
         while (offset < totalLen) {
-            nativeUnsafeBuffer.wrap(address + offset, totalLen - offset);
+            NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
+            scratchBuffer.wrap(address + offset, totalLen - offset);
             ExecutionReportDecoder executionDecoder = ThreadContext.get().getExecutionReportDecoder();
-            SbeCodec.decode(nativeUnsafeBuffer.buffer(), 0, executionDecoder);
+            SbeCodec.decode(scratchBuffer.buffer(), 0, executionDecoder);
             int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
 
             final long orderId = executionDecoder.orderId();

@@ -1,24 +1,15 @@
 package open.vincentf13.service.spot.ws.aeron;
 
 import io.aeron.Aeron;
-import io.aeron.Publication;
-import io.aeron.Subscription;
-import io.aeron.logbuffer.BufferClaim;
-import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.queue.ChronicleQueue;
-import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.WireIn;
+import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
+import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.Worker;
-import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-
-import java.nio.ByteBuffer;
+import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -28,69 +19,27 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class AeronSender extends Worker implements net.openhft.chronicle.wire.ReadMarshallable {
-    private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
+public class AeronSender extends AbstractAeronSender {
 
-    private final Aeron aeron;
-    private Publication publication;
-    private Subscription controlSubscription;
-    private ExcerptTailer tailer;
-    private final BufferClaim bufferClaim = new BufferClaim();
-
-    private AeronState currentState = AeronState.WAITING;
-    private long backPressureCount = 0;
-
-    // 執行上下文：消除 Lambda 捕獲
-    private int ctxMsgType;
-    private long ctxSeq;
+    public AeronSender(Aeron aeron) {
+        super(aeron, Storage.self().clientToGwWal(), 
+              AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID,
+              AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
+    }
 
     @PostConstruct public void init() { start("gw-command-sender"); }
 
     @Override
     protected void onStart() {
-        publication = aeron.addPublication(AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID);
-        controlSubscription = aeron.addSubscription(AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
-        tailer = clientToGwWal.createTailer();
-        currentState = AeronState.WAITING;
+        super.onStart();
         log.info("AeronSender (Gateway) 啟動成功...");
-    }
-
-    @Override
-    protected int doWork() {
-        if (currentState == AeronState.SENDING && !publication.isConnected()) {
-            currentState = AeronState.WAITING;
-            log.warn("檢測到核心引擎斷開，回退至靜默等待模式...");
-        }
-
-        int workDone = 0;
-        if (currentState == AeronState.WAITING) {
-            workDone = controlSubscription.poll(resumeHandler, 1);
-        }
-
-        if (currentState == AeronState.SENDING) {
-            // 批量發送優化：一次工作周期處理最多 100 條指令
-            for (int i = 0; i < 100; i++) {
-                if (tailer.readDocument(this)) {
-                    workDone++;
-                } else {
-                    break;
-                }
-            }
-            
-            if (workDone > 0 && backPressureCount > 1000) {
-                log.warn("警告：指令鏈路偵測到嚴重背壓，核心引擎可能處理過慢或 GC 中！");
-                backPressureCount = 0;
-            }
-        }
-        return workDone;
     }
 
     /** 指令讀取回調：零分配處理 */
     @Override
     public void readMarshallable(WireIn wire) {
-        this.ctxSeq = tailer.index();
-        this.ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
+        final long ctxSeq = tailer.index();
+        final int ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
         
         switch (ctxMsgType) {
             case MsgType.AUTH -> {
@@ -136,22 +85,5 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
                 });
             }
         }
-    }
-
-    private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
-        if (buffer.getInt(offset) == MsgType.RESUME) {
-            long lastProcessedIndex = buffer.getLong(offset + 4);
-            log.info("收到 Core 握手訊號，執行跳轉至: {}", lastProcessedIndex);
-            if (lastProcessedIndex == -1) tailer.toStart();
-            else tailer.moveToIndex(lastProcessedIndex);
-            currentState = AeronState.SENDING;
-        }
-    };
-
-    @Override
-    protected void onStop() { 
-        if (publication != null) publication.close();
-        if (controlSubscription != null) controlSubscription.close();
-        ThreadContext.cleanup();
     }
 }

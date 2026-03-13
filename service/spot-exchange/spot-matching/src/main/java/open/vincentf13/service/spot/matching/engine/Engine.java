@@ -30,7 +30,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @RequiredArgsConstructor
 public class Engine extends Worker implements ReadMarshallable {
     private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
-    private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
+    private final ChronicleMap<Byte, WalProgress> metadata = Storage.self().walMetadata();
 
     private final OrderProcessor orderProcessor;
     private final AuthProcessor authProcessor;
@@ -38,12 +38,10 @@ public class Engine extends Worker implements ReadMarshallable {
     private final ExecutionReporter reporter;
     private final SnapshotService snapshotService;
     
-    private final Progress progress = new Progress();
+    private final WalProgress progress = new WalProgress();
     private ExcerptTailer tailer;
     private boolean isReplaying = false;
-    private long lastSnapshotSeq = -1;
-
-    private final NativeUnsafeBuffer nativeUnsafeBuffer = new NativeUnsafeBuffer(512);
+    private long lastSnapshotSeq = MSG_SEQ_NONE;
 
     @PostConstruct public void init() { start("core-matching-engine"); }
 
@@ -63,21 +61,21 @@ public class Engine extends Worker implements ReadMarshallable {
 
         this.tailer = gwToMatchingWal.createTailer();
         
-        Progress saved = metadata.get(MetaDataKey.MACHING_ENGINE_POINT);
+        WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
         if (saved != null) {
-            progress.setLastProcessedSeq(saved.getLastProcessedSeq());
-            progress.setLastProcessedGwSeq(saved.getLastProcessedGwSeq());
+            progress.setLastProcessedIndex(saved.getLastProcessedIndex());
+            progress.setLastProcessedMsgSeq(saved.getLastProcessedMsgSeq());
             progress.setOrderIdCounter(saved.getOrderIdCounter());
             progress.setTradeIdCounter(saved.getTradeIdCounter());
-            lastSnapshotSeq = progress.getLastProcessedGwSeq();
-            log.info("從元數據恢復位點: WAL={}, gwSeq={}, OrderId={}, TradeId={}", 
-                progress.getLastProcessedSeq(), progress.getLastProcessedGwSeq(),
+            lastSnapshotSeq = progress.getLastProcessedMsgSeq();
+            log.info("從元數據恢復位點: Index={}, MsgSeq={}, OrderId={}, TradeId={}", 
+                progress.getLastProcessedIndex(), progress.getLastProcessedMsgSeq(),
                 progress.getOrderIdCounter(), progress.getTradeIdCounter());
         } else {
             log.warn("元數據不存在，執行冷啟動...");
             progress.setOrderIdCounter(1); progress.setTradeIdCounter(1);
-            progress.setLastProcessedSeq(-1L);
-            progress.setLastProcessedGwSeq(-1L);
+            progress.setLastProcessedIndex(WAL_INDEX_NONE);
+            progress.setLastProcessedMsgSeq(MSG_SEQ_NONE);
         }
 
         // 如果不是從快照恢復的，才需要掃描 ChronicleMap 重建
@@ -86,9 +84,9 @@ public class Engine extends Worker implements ReadMarshallable {
         }
 
         // 自愈機制
-        if (progress.getLastProcessedSeq() > 0) {
+        if (progress.getLastProcessedIndex() != WAL_INDEX_NONE) {
             setReplaying(true); 
-            tailer.moveToIndex(progress.getLastProcessedSeq());
+            tailer.moveToIndex(progress.getLastProcessedIndex());
             log.info("✅ 引擎狀態自愈啟動：正在重播增量 WAL 以校準記憶體狀態...");
         } else {
             setReplaying(false);
@@ -107,19 +105,19 @@ public class Engine extends Worker implements ReadMarshallable {
      */
     @Override
     public void readMarshallable(WireIn wire) {
-        final long seq = tailer.index();
+        final long index = tailer.index();
         final int msgType = wire.read(ChronicleWireKey.msgType).int32();
         final long gwSeq = wire.read(ChronicleWireKey.gwSeq).int64();
         
         // 狀態切換
-        if (isReplaying && seq >= tailer.queue().lastIndex()) {
+        if (isReplaying && index >= tailer.queue().lastIndex()) {
             setReplaying(false);
             log.info("重播完成，切換至實時模式 (gwSeq: {})", gwSeq);
         }
 
         // 連續性斷言
-        final long lastSeq = progress.getLastProcessedGwSeq();
-        if (lastSeq != -1) {
+        final long lastSeq = progress.getLastProcessedMsgSeq();
+        if (lastSeq != MSG_SEQ_NONE) {
             if (gwSeq == lastSeq) return; 
             if (gwSeq != lastSeq + 1) {
                 log.error("指令跳號！期望: {}, 實際: {}。請檢查 WAL 連續性或使用 ENGINE_FORCE_START=true 強制啟動。", lastSeq + 1, gwSeq);
@@ -133,9 +131,10 @@ public class Engine extends Worker implements ReadMarshallable {
         switch (msgType) {
             case MsgType.AUTH -> authProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
             case MsgType.ORDER_CREATE -> {
-                nativeUnsafeBuffer.clear(); 
-                wire.read(ChronicleWireKey.payload).bytes(nativeUnsafeBuffer.bytes());
-                orderProcessor.processCreateCommand(nativeUnsafeBuffer.wrapForRead(), gwSeq, this::nextOrderId, this::nextTradeId);
+                NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
+                scratchBuffer.clear(); 
+                wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
+                orderProcessor.processCreateCommand(scratchBuffer.wrapForRead(), gwSeq, this::nextOrderId, this::nextTradeId);
             }
             case MsgType.ORDER_CANCEL -> {
                 long uid = wire.read(ChronicleWireKey.userId).int64();
@@ -157,13 +156,13 @@ public class Engine extends Worker implements ReadMarshallable {
         }
 
         // 進度存檔
-        progress.setLastProcessedSeq(seq);
-        progress.setLastProcessedGwSeq(gwSeq);
+        progress.setLastProcessedIndex(index);
+        progress.setLastProcessedMsgSeq(gwSeq);
 
         // --- 核心改進：自動快照策略 ---
         // 每 100 條存檔元數據位點 (Checkpoint)
-        if (seq % 100 == 0) {
-            metadata.put(MetaDataKey.MACHING_ENGINE_POINT, progress);
+        if (index % 100 == 0) {
+            metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
         }
 
         // 每 100,000 條執行完整磁碟快照 (Snapshot)

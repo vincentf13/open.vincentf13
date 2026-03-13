@@ -5,12 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.bytes.MappedBytes;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.Progress;
+import open.vincentf13.service.spot.model.WalProgress;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
@@ -27,8 +26,8 @@ public class SnapshotService {
     private final String snapshotDir = ChronicleMapEnum.SNAPSHOT_BASE_DIR;
     private static final String BOOK_SNAPSHOT_FILE = "order-book.bin";
 
-    public void createSnapshot(Progress currentProgress) {
-        long seq = currentProgress.getLastProcessedGwSeq();
+    public void createSnapshot(WalProgress currentProgress) {
+        long seq = currentProgress.getLastProcessedMsgSeq();
         log.info("--- 開始執行系統快照 (Sequence: {}) ---", seq);
         
         try {
@@ -38,7 +37,7 @@ public class SnapshotService {
             }
 
             // 1. 備份元數據
-            Storage.self().metadata().put(MetaDataKey.LAST_SNAPSHOT_INFO, currentProgress);
+            Storage.self().walMetadata().put(MetaDataKey.Wal.LAST_SNAPSHOT_INFO, currentProgress);
             
             // 2. 備份 Chronicle Map 文件
             backupMap(ChronicleMapEnum.BALANCES, dir);
@@ -46,7 +45,8 @@ public class SnapshotService {
             backupMap(ChronicleMapEnum.USER_ASSETS, dir);
             backupMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, dir);
             backupMap(ChronicleMapEnum.ACTIVE_ORDERS, dir);
-            backupMap(ChronicleMapEnum.METADATA, dir);
+            backupMap("msg-" + ChronicleMapEnum.METADATA, dir);
+            backupMap("wal-" + ChronicleMapEnum.METADATA, dir);
 
             // 3. 備份內存 OrderBook 狀態 (二進制快照)
             saveOrderBookSnapshot(new File(dir, BOOK_SNAPSHOT_FILE));

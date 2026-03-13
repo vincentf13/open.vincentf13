@@ -32,7 +32,8 @@ public class Storage {
     private ChronicleMap<Long, String> userActiveOrders; 
     private ChronicleMap<Long, Trade> trades;
     private ChronicleMap<CidKey, Long> cids;
-    private ChronicleMap<Byte, Progress> metadata;
+    private ChronicleMap<Byte, MsgProgress> msgMetadata;
+    private ChronicleMap<Byte, WalProgress> walMetadata;
 
     // --- Chronicle Queues (數據流 WAL) ---
     private ChronicleQueue clientToGwWal;    // Client -> Gateway
@@ -82,10 +83,15 @@ public class Storage {
                     .entries(1_000_000)
                     .averageValue(1L), new File(mapDir + ChronicleMapEnum.CIDS));
 
-            metadata = buildMap(ChronicleMap.of(Byte.class, Progress.class)
-                    .name(ChronicleMapEnum.METADATA)
+            msgMetadata = buildMap(ChronicleMap.of(Byte.class, MsgProgress.class)
+                    .name("msg-metadata")
                     .entries(100)
-                    .averageValue(new Progress()), new File(mapDir + ChronicleMapEnum.METADATA));
+                    .averageValue(new MsgProgress()), new File(mapDir + "msg-" + ChronicleMapEnum.METADATA));
+
+            walMetadata = buildMap(ChronicleMap.of(Byte.class, WalProgress.class)
+                    .name("wal-metadata")
+                    .entries(100)
+                    .averageValue(new WalProgress()), new File(mapDir + "wal-" + ChronicleMapEnum.METADATA));
 
             // 2. 初始化 Queues (優化：使用 HOURLY 分卷，方便磁碟空間管理)
             clientToGwWal = SingleChronicleQueueBuilder.binary(walDir + ChronicleQueueEnum.CLIENT_TO_GW.getPath())
@@ -150,7 +156,8 @@ public class Storage {
     public ChronicleMap<Long, String> userActiveOrders() { return userActiveOrders; }
     public ChronicleMap<Long, Trade> trades() { return trades; }
     public ChronicleMap<CidKey, Long> cids() { return cids; }
-    public ChronicleMap<Byte, Progress> metadata() { return metadata; }
+    public ChronicleMap<Byte, MsgProgress> msgMetadata() { return msgMetadata; }
+    public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
 
     public ChronicleQueue clientToGwWal() { return clientToGwWal; }
     public ChronicleQueue gwToMatchingWal() { return gwToMatchingWal; }
@@ -164,7 +171,8 @@ public class Storage {
         if (userActiveOrders != null) userActiveOrders.close();
         if (trades != null) trades.close();
         if (cids != null) cids.close();
-        if (metadata != null) metadata.close();
+        if (msgMetadata != null) msgMetadata.close();
+        if (walMetadata != null) walMetadata.close();
         
         if (clientToGwWal != null) clientToGwWal.close();
         if (gwToMatchingWal != null) gwToMatchingWal.close();
