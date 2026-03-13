@@ -24,11 +24,11 @@ public class NettyServer {
     @Value("${server.port:8081}")
     private int port;
 
-    private final WsHandler wsHandler;
+    private final WsCommandInboundHandler wsHandler;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
 
-    public NettyServer(WsHandler wsHandler) {
+    public NettyServer(WsCommandInboundHandler wsHandler) {
         this.wsHandler = wsHandler;
     }
 

@@ -34,7 +34,7 @@ public class PushWorker extends Worker {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
     private final ChronicleMap<Byte, Progress> metadata = Storage.self().metadata();
 
-    private final WsHandler wsHandler;
+    private final WsSessionManager sessionManager;
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
 
@@ -44,8 +44,8 @@ public class PushWorker extends Worker {
     private final int threadCount = Runtime.getRuntime().availableProcessors() * 2;
     private final ExecutorService[] stripedPool = new ExecutorService[threadCount];
 
-    public PushWorker(WsHandler wsHandler) {
-        this.wsHandler = wsHandler;
+    public PushWorker(WsSessionManager sessionManager) {
+        this.sessionManager = sessionManager;
         for (int i = 0; i < threadCount; i++) {
             stripedPool[i] = Executors.newSingleThreadExecutor();
         }
@@ -127,7 +127,7 @@ public class PushWorker extends Worker {
                 JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);
                 ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(512);
                 JsonUtil.writeToByteBuf(outBuf, env);
-                wsHandler.sendMessage(userId, outBuf);
+                sessionManager.sendMessage(userId, outBuf);
             });
 
             offset += currentMsgLen;
@@ -142,7 +142,7 @@ public class PushWorker extends Worker {
             JsonUtil.Envelope env = new JsonUtil.Envelope("auth", "success");
             ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(128);
             JsonUtil.writeToByteBuf(outBuf, env);
-            wsHandler.sendMessage(userId, outBuf);
+            sessionManager.sendMessage(userId, outBuf);
         });
     }
 
