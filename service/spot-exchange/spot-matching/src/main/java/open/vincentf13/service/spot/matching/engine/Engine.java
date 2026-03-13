@@ -112,34 +112,34 @@ public class Engine extends Worker implements ReadMarshallable {
         switch (msgType) {
             case MsgType.AUTH -> {
                 AuthCommand cmd = ctx.getAuthCommand();
-                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                authProcessor.handleAuth(cmd.getUserId(), gwSeq);
+                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getAuthDecoder());
+                authProcessor.handleAuth(ctx.getAuthDecoder().userId(), gwSeq);
             }
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
-                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                NativeUnsafeBuffer scratchBuffer = ctx.getScratchBuffer();
-                scratchBuffer.clear(); 
-                wire.read(ChronicleWireKey.data).bytes(scratchBuffer.bytes());
-                orderProcessor.processCreateCommand(scratchBuffer.wrapForRead(), gwSeq, this::nextOrderId, this::nextTradeId);
+                orderProcessor.processCreateCommand(cmd.getSbePayload().bytesForRead(), gwSeq, this::nextOrderId, this::nextTradeId);
             }
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
-                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                orderProcessor.processCancelCommand(cmd.getUserId(), cmd.getOrderId(), gwSeq);
+                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getOrderCancelDecoder());
+                orderProcessor.processCancelCommand(ctx.getOrderCancelDecoder().userId(), ctx.getOrderCancelDecoder().orderId(), gwSeq);
             }
             case MsgType.DEPOSIT -> {
                 DepositCommand cmd = ctx.getDepositCommand();
-                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                depositProcessor.handleDeposit(cmd.getUserId(), cmd.getAssetId(), cmd.getAmount(), gwSeq);
+                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getDepositDecoder());
+                depositProcessor.handleDeposit(ctx.getDepositDecoder().userId(), ctx.getDepositDecoder().assetId(), ctx.getDepositDecoder().amount(), gwSeq);
             }
             case MsgType.SNAPSHOT -> {
                 SnapshotCommand cmd = ctx.getSnapshotCommand();
-                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
                 if (!isReplaying) {
                     snapshotService.createSnapshot(progress);

@@ -40,10 +40,17 @@ public class AeronSender extends AbstractAeronSender {
     public void readMarshallable(WireIn wire) {
         final long ctxSeq = tailer.index();
         final int ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
+        final ThreadContext ctx = ThreadContext.get();
         
         switch (ctxMsgType) {
             case MsgType.AUTH -> {
-                final long userId = wire.read(ChronicleWireKey.userId).int64();
+                AuthCommand cmd = ctx.getAuthCommand();
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
+                
+                // 使用 SBE Decoder 解析
+                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getAuthDecoder());
+                final long userId = ctx.getAuthDecoder().userId();
+                
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.AUTH);
                     buffer.putLong(offset + 4, ctxSeq);
@@ -51,37 +58,46 @@ public class AeronSender extends AbstractAeronSender {
                 });
             }
             case MsgType.ORDER_CREATE -> {
-                final NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
-                scratchBuffer.clear();
-                wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
-                final int payloadLength = (int) scratchBuffer.bytes().readRemaining();
+                OrderCreateCommand cmd = ctx.getOrderCreateCommand();
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
+                final int payloadLength = (int) cmd.getSbePayload().readRemaining();
                 
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CREATE);
                     buffer.putLong(offset + 4, ctxSeq);
-                    buffer.putBytes(offset + 12, scratchBuffer.wrapForRead(), 0, payloadLength);
+                    buffer.putBytes(offset + 12, cmd.getSbePayload().bytesForRead(), 0, payloadLength);
                 });
             }
             case MsgType.ORDER_CANCEL -> {
-                final long uid = wire.read(ChronicleWireKey.userId).int64();
-                final long oid = wire.read(ChronicleWireKey.data).int64();
+                OrderCancelCommand cmd = ctx.getOrderCancelCommand();
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
+                
+                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getOrderCancelDecoder());
+                final long userId = ctx.getOrderCancelDecoder().userId();
+                final long orderId = ctx.getOrderCancelDecoder().orderId();
+                
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 28, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CANCEL);
                     buffer.putLong(offset + 4, ctxSeq);
-                    buffer.putLong(offset + 12, uid);
-                    buffer.putLong(offset + 20, oid);
+                    buffer.putLong(offset + 12, userId);
+                    buffer.putLong(offset + 20, orderId);
                 });
             }
             case MsgType.DEPOSIT -> {
-                final long uid = wire.read(ChronicleWireKey.userId).int64();
-                final int aid = wire.read(ChronicleWireKey.assetId).int32();
-                final long amt = wire.read(ChronicleWireKey.data).int64();
+                DepositCommand cmd = ctx.getDepositCommand();
+                wire.read(ChronicleWireKey.payload).bytes(cmd);
+                
+                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getDepositDecoder());
+                final long userId = ctx.getDepositDecoder().userId();
+                final int assetId = ctx.getDepositDecoder().assetId();
+                final long amount = ctx.getDepositDecoder().amount();
+                
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 32, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.DEPOSIT);
                     buffer.putLong(offset + 4, ctxSeq);
-                    buffer.putLong(offset + 12, uid);
-                    buffer.putInt(offset + 20, aid);
-                    buffer.putLong(offset + 24, amt);
+                    buffer.putLong(offset + 12, userId);
+                    buffer.putInt(offset + 20, assetId);
+                    buffer.putLong(offset + 24, amount);
                 });
             }
         }

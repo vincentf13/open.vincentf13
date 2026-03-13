@@ -48,7 +48,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
         OrderCreateDecoder decoder = ThreadContext.get().getOrderCreateDecoder();
-        SbeCodec.decode(payload, 0, decoder);
+        SbeCodec.decode(payload, decoder);
         decoder.clientOrderId(); // 此處 decoder 內置 long 讀取
         reusableCidKey.set(decoder.userId(), decoder.clientOrderId());
 

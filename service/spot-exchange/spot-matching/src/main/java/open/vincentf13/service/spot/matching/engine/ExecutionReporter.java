@@ -2,9 +2,9 @@ package open.vincentf13.service.spot.matching.engine;
 
 import lombok.Setter;
 import net.openhft.chronicle.bytes.Bytes;
+import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
-import net.openhft.chronicle.wire.Marshallable;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
@@ -38,12 +38,17 @@ public class ExecutionReporter {
         
         ThreadContext ctx = ThreadContext.get();
         NativeUnsafeBuffer scratchBuffer = ctx.getScratchBuffer();
-        scratchBuffer.clear();
         
         // 1. SBE 編碼回報主體
-        int sbeLen = SbeCodec.encode(scratchBuffer.wrapForWrite(), 0, ctx.getExecutionReportEncoder()
-                .timestamp(ts).userId(uid).orderId(oid).status(s)
-                .lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap)
+        int sbeLen = SbeCodec.encode(scratchBuffer.wrapForWrite(), ctx.getExecutionReportEncoder()
+                .timestamp(ts)
+                .userId(uid)
+                .orderId(oid)
+                .status(s)
+                .lastPrice(lp)
+                .lastQty(lq)
+                .cumQty(cq)
+                .avgPrice(ap)
                 .clientOrderId(cid));
         scratchBuffer.bytes().writePosition(sbeLen);
 
@@ -53,31 +58,35 @@ public class ExecutionReporter {
             case NEW -> {
                 msgType = MsgType.ORDER_ACCEPTED;
                 OrderAcceptedWal model = ctx.getOrderAcceptedWal();
-                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen, matchingSeq);
+                model.setMatchingSeq(matchingSeq);
+                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen);
                 writeWal(msgType, model);
             }
             case REJECTED -> {
                 msgType = MsgType.ORDER_REJECTED;
                 OrderRejectedWal model = ctx.getOrderRejectedWal();
-                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen, matchingSeq);
+                model.setMatchingSeq(matchingSeq);
+                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen);
                 writeWal(msgType, model);
             }
             case CANCELED -> {
                 msgType = MsgType.ORDER_CANCELED;
                 OrderCanceledWal model = ctx.getOrderCanceledWal();
-                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen, matchingSeq);
+                model.setMatchingSeq(matchingSeq);
+                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen);
                 writeWal(msgType, model);
             }
             default -> {
                 msgType = MsgType.ORDER_MATCHED;
                 OrderMatchWal model = ctx.getOrderMatchWal();
-                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen, matchingSeq);
+                model.setMatchingSeq(matchingSeq);
+                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen);
                 writeWal(msgType, model);
             }
         }
     }
 
-    private void writeWal(int msgType, Marshallable model) {
+    private void writeWal(int msgType, BytesMarshallable model) {
         try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
             dc.wire().write(ChronicleWireKey.payload).marshallable(model);
@@ -95,10 +104,7 @@ public class ExecutionReporter {
         walModel.setMatchingSeq(matchingSeq);
         walModel.setUserId(userId);
 
-        try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
-            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH_REPORT);
-            dc.wire().write(ChronicleWireKey.payload).marshallable(walModel);
-        }
+        writeWal(MsgType.AUTH_REPORT, walModel);
     }
 
     public void close() {

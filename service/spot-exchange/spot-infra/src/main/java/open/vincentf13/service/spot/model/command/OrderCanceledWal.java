@@ -1,34 +1,41 @@
 package open.vincentf13.service.spot.model.command;
 
 import lombok.Data;
+import net.openhft.chronicle.bytes.BytesIn;
+import net.openhft.chronicle.bytes.BytesMarshallable;
+import net.openhft.chronicle.bytes.BytesOut;
 import net.openhft.chronicle.bytes.PointerBytesStore;
-import net.openhft.chronicle.wire.Marshallable;
-import net.openhft.chronicle.wire.WireIn;
-import net.openhft.chronicle.wire.WireOut;
 import org.agrona.DirectBuffer;
 
 @Data
-public class OrderCanceledWal implements Marshallable {
+public class OrderCanceledWal implements BytesMarshallable {
     private long matchingSeq;
     private final PointerBytesStore sbePayload = new PointerBytesStore();
 
     @Override
-    public void writeMarshallable(WireOut wire) {
-        wire.write("matchingSeq").int64(matchingSeq);
-        wire.write("data").bytes((net.openhft.chronicle.bytes.BytesStore) sbePayload);
-    }
-
-    @Override
-    public void readMarshallable(WireIn wire) {
-        matchingSeq = wire.read("matchingSeq").int64();
-        net.openhft.chronicle.bytes.BytesStore bs = wire.read("data").bytesStore();
-        if (bs != null) {
-            sbePayload.set(bs.addressForRead(0), (int) bs.readRemaining());
+    public void writeMarshallable(BytesOut<?> bytes) {
+        bytes.writeLong(matchingSeq);
+        long len = sbePayload.readRemaining();
+        bytes.writeStopBit(len);
+        if (len > 0) {
+            bytes.write(sbePayload);
         }
     }
 
-    public void fillFrom(DirectBuffer buffer, int offset, int length, long seq) {
-        this.matchingSeq = seq;
+    @Override
+    public void readMarshallable(BytesIn<?> bytes) {
+        matchingSeq = bytes.readLong();
+        int len = (int) bytes.readStopBit();
+        if (len > 0) {
+            long address = bytes.addressForRead(bytes.readPosition());
+            sbePayload.set(address, len);
+            bytes.readSkip(len);
+        } else {
+            sbePayload.set(0, 0);
+        }
+    }
+
+    public void fillFrom(DirectBuffer buffer, int offset, int length) {
         this.sbePayload.set(buffer.addressOffset() + offset, length);
     }
 }

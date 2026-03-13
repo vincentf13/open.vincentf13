@@ -46,22 +46,26 @@ public class AeronReceiver extends AbstractAeronReceiver {
             switch (msgType) {
                 case MsgType.ORDER_ACCEPTED -> {
                     OrderAcceptedWal model = ctx.getOrderAcceptedWal();
-                    model.fillFrom(buffer, offset + 12, length - 12, seq);
+                    model.setMatchingSeq(seq);
+                    model.fillFrom(buffer, offset + 12, length - 12);
                     dc.wire().write(ChronicleWireKey.payload).marshallable(model);
                 }
                 case MsgType.ORDER_REJECTED -> {
                     OrderRejectedWal model = ctx.getOrderRejectedWal();
-                    model.fillFrom(buffer, offset + 12, length - 12, seq);
+                    model.setMatchingSeq(seq);
+                    model.fillFrom(buffer, offset + 12, length - 12);
                     dc.wire().write(ChronicleWireKey.payload).marshallable(model);
                 }
                 case MsgType.ORDER_CANCELED -> {
                     OrderCanceledWal model = ctx.getOrderCanceledWal();
-                    model.fillFrom(buffer, offset + 12, length - 12, seq);
+                    model.setMatchingSeq(seq);
+                    model.fillFrom(buffer, offset + 12, length - 12);
                     dc.wire().write(ChronicleWireKey.payload).marshallable(model);
                 }
                 case MsgType.ORDER_MATCHED  -> {
                     OrderMatchWal model = ctx.getOrderMatchWal();
-                    model.fillFrom(buffer, offset + 12, length - 12, seq);
+                    model.setMatchingSeq(seq);
+                    model.fillFrom(buffer, offset + 12, length - 12);
                     dc.wire().write(ChronicleWireKey.payload).marshallable(model);
                 }
                 case MsgType.AUTH_REPORT -> {

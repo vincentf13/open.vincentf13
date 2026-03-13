@@ -33,12 +33,13 @@ public class NativeUnsafeBuffer {
     public Bytes<ByteBuffer> bytes() { return bytes; }
     public UnsafeBuffer buffer() { return buffer; }
 
-    public void clear() {
+    private void clear() {
         bytes.clear();
     }
 
-    /** 準備寫入：將 UnsafeBuffer 包裝在堆外內存的當前寫入位址 */
+    /** 準備寫入：自動重置位點並將 UnsafeBuffer 包裝在堆外內存的寫入位址 */
     public UnsafeBuffer wrapForWrite() {
+        bytes.clear(); // 整合：自動重置位點，確保從頭寫入
         buffer.wrap(bytes.addressForWrite(0), (int) bytes.realCapacity());
         return buffer;
     }

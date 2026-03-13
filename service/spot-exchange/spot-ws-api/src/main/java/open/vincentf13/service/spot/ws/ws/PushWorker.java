@@ -84,14 +84,12 @@ public class PushWorker extends Worker {
                 switch (msgType) {
                     case MsgType.AUTH_REPORT -> {
                         AuthReportWal report = ctx.getAuthReportWal();
-                        wire.read(ChronicleWireKey.payload).marshallable(report);
+                        wire.read(ChronicleWireKey.payload).bytes(report);
                         handleAuthReport(report.getUserId());
                     }
                     case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
-                        // 雖然場景不同，但它們目前都共享相同的 SBE 解析結構 (ExecutionReportDecoder)
-                        // 我們可以統一取其中一個模型實例來讀取 payload 指針
                         OrderMatchWal report = ctx.getOrderMatchWal();
-                        wire.read(ChronicleWireKey.payload).marshallable(report);
+                        wire.read(ChronicleWireKey.payload).bytes(report);
                         handleExecutionReport(report.getSbePayload().bytesForRead());
                     }
                 }
@@ -118,7 +116,7 @@ public class PushWorker extends Worker {
         while (offset < totalLen) {
             scratchBuffer.wrap(address + offset, totalLen - offset);
             ExecutionReportDecoder executionDecoder = ThreadContext.get().getExecutionReportDecoder();
-            SbeCodec.decode(scratchBuffer.buffer(), 0, executionDecoder);
+            SbeCodec.decode(scratchBuffer.buffer(), executionDecoder);
             int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
 
             final long orderId = executionDecoder.orderId();
