@@ -9,11 +9,13 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.util.AttributeKey;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
+import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.gateway.util.JsonUtil;
@@ -24,7 +26,6 @@ import open.vincentf13.service.spot.sbe.Side;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Collections;
@@ -41,10 +42,11 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
     
-    /** SessionID -> UserID 映射 (用於斷線清理) */
-    private final Map<String, Long> sessionToUser = new ConcurrentHashMap<>();
-    /** UserID -> Channels 映射：支援同一用戶多設備同時在線 */
-    private final Map<Long, Set<Channel>> userToSessions = new ConcurrentHashMap<>();
+    /** Netty Channel 屬性：直接綁定 UserID，規避 SessionToUser Map */
+    private static final AttributeKey<Long> USER_ID_KEY = AttributeKey.valueOf("userId");
+    
+    /** UserID -> Channels 映射：支援同一用戶多設備同時在線 (採用 Agrona 高性能原始型別 Map) */
+    private final Long2ObjectHashMap<Set<Channel>> userToSessions = new Long2ObjectHashMap<>();
     
     private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
     
@@ -109,12 +111,13 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleAuth(Channel channel, RequestHolder holder) {
-        String sid = channel.id().asLongText();
-        sessionToUser.put(sid, holder.userId);
+        // 直接將 UserID 綁定到 Channel 屬性，消除 SessionToUser Map
+        channel.attr(USER_ID_KEY).set(holder.userId);
         
-        // 支援多設備在線：將新連線加入該用戶的連線集合中
-        userToSessions.computeIfAbsent(holder.userId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
-                .add(channel);
+        synchronized (userToSessions) {
+            userToSessions.computeIfAbsent(holder.userId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
+                    .add(channel);
+        }
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
@@ -123,8 +126,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleOrderCancel(Channel channel, RequestHolder holder) {
-        long uid = sessionToUser.getOrDefault(channel.id().asLongText(), -1L);
-        if (uid == -1L) return;
+        Long uid = channel.attr(USER_ID_KEY).get();
+        if (uid == null) return;
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
@@ -134,8 +137,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleDeposit(Channel channel, RequestHolder holder) {
-        long uid = sessionToUser.getOrDefault(channel.id().asLongText(), -1L);
-        if (uid == -1L) return;
+        Long uid = channel.attr(USER_ID_KEY).get();
+        if (uid == null) return;
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);
@@ -146,8 +149,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleOrderCreate(Channel channel, RequestHolder holder) {
-        long uid = sessionToUser.getOrDefault(channel.id().asLongText(), -1L);
-        if (uid == -1L) return;
+        Long uid = channel.attr(USER_ID_KEY).get();
+        if (uid == null) return;
 
         Bytes<ByteBuffer> sbeBytes = SBE_BYTES_THREAD_LOCAL.get();
         UnsafeBuffer sbeBuffer = SBE_BUFFER_THREAD_LOCAL.get();
@@ -167,38 +170,40 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     /** 
-      精準推送：向該用戶的所有活躍設備推送訊息，並確保記憶體安全釋放 
+      精準推送：向該用戶的所有活躍設備推送訊息
      */
     public void sendMessage(long userId, ByteBuf data) {
-        Set<Channel> channels = userToSessions.get(userId);
+        Set<Channel> channels;
+        synchronized (userToSessions) {
+            channels = userToSessions.get(userId);
+        }
+        
         if (channels == null || channels.isEmpty()) {
-            data.release(); // 沒人在線，直接釋放
+            data.release();
             return;
         }
 
         try {
             for (Channel c : channels) {
                 if (c.isActive()) {
-                    // 每向一個設備發送，引用計數 +1 (Netty flush 後會自動 -1)
                     c.writeAndFlush(new TextWebSocketFrame(data.retain()));
                 }
             }
         } finally {
-            // 釋放原始引用
             data.release();
         }
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        String sid = ctx.channel().id().asLongText();
-        long uid = sessionToUser.getOrDefault(sid, -1L);
-        if (uid != -1L) {
-            sessionToUser.remove(sid);
-            Set<Channel> channels = userToSessions.get(uid);
-            if (channels != null) {
-                channels.remove(ctx.channel());
-                if (channels.isEmpty()) userToSessions.remove(uid);
+        Long uid = ctx.channel().attr(USER_ID_KEY).get();
+        if (uid != null) {
+            synchronized (userToSessions) {
+                Set<Channel> channels = userToSessions.get(uid);
+                if (channels != null) {
+                    channels.remove(ctx.channel());
+                    if (channels.isEmpty()) userToSessions.remove(uid);
+                }
             }
         }
     }
