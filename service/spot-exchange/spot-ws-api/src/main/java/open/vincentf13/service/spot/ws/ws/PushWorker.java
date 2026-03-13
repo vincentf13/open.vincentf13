@@ -5,10 +5,8 @@ import io.netty.buffer.PooledByteBufAllocator;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import net.openhft.chronicle.wire.ReadMarshallable;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
@@ -31,7 +29,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 @Component
-public class PushWorker extends Worker implements ReadMarshallable {
+public class PushWorker extends Worker {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
     private final WsSessionManager sessionManager;
     private final int threadCount;
@@ -40,6 +38,8 @@ public class PushWorker extends Worker implements ReadMarshallable {
     private ExcerptTailer tailer;
 
     private static final String[] ORDER_STATUS_STRINGS = {"NEW", "FILLED", "PARTIALLY_FILLED", "CANCELED", "REJECTED"};
+
+    private final net.openhft.chronicle.wire.ReadMarshallable walReader = this::onWalMessage;
 
     public PushWorker(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;
@@ -61,11 +61,10 @@ public class PushWorker extends Worker implements ReadMarshallable {
 
     @Override
     protected int doWork() {
-        return tailer.readDocument(this) ? 1 : 0;
+        return tailer.readDocument(walReader) ? 1 : 0;
     }
 
-    @Override
-    public void readMarshallable(WireIn wire) {
+    private void onWalMessage(WireIn wire) {
         final int msgType = wire.read(ChronicleWireKey.msgType).int32();
         ThreadContext ctx = ThreadContext.get();
 
@@ -78,7 +77,10 @@ public class PushWorker extends Worker implements ReadMarshallable {
             case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
                 OrderMatchWal report = ctx.getOrderMatchWal();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                handleExecutionReport(report.getPointBytesStore());
+                
+                // 統一在入口處解碼 SBE
+                final ExecutionReportDecoder decoder = SbeCodec.decodeExecutionReport(report.getPointBytesStore());
+                handleExecutionReport(decoder);
             }
         }
     }
@@ -87,9 +89,7 @@ public class PushWorker extends Worker implements ReadMarshallable {
         log.info("用戶認證成功回報: {}", userId);
     }
 
-    private void handleExecutionReport(PointerBytesStore pointBytesStore) {
-        ExecutionReportDecoder decoder = SbeCodec.decodeExecutionReport(pointBytesStore);
-        
+    private void handleExecutionReport(ExecutionReportDecoder decoder) {
         final long orderId = decoder.orderId();
         final long userId = decoder.userId();
         final int statusOrdinal = decoder.status().ordinal();

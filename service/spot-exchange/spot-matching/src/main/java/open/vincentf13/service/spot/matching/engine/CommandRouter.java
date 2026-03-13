@@ -33,7 +33,6 @@ public class CommandRouter {
             case MsgType.ORDER_CREATE  -> handleOrderCreate(wire, orderIdSupplier, tradeIdSupplier);
             case MsgType.ORDER_CANCEL  -> handleOrderCancel(wire);
             case MsgType.DEPOSIT      -> handleDeposit(wire);
-            case MsgType.SNAPSHOT     -> handleSnapshot(wire, progress, isReplaying);
             default -> MSG_SEQ_NONE;
         };
     }
@@ -75,15 +74,6 @@ public class CommandRouter {
         final var decoder = SbeCodec.decodeDeposit(cmd.getPointBytesStore());
         depositProcessor.handleDeposit(decoder.userId(), decoder.assetId(), decoder.amount(), cmd.getSeq());
         
-        return cmd.getSeq();
-    }
-
-    private long handleSnapshot(net.openhft.chronicle.wire.WireIn wire, WalProgress progress, boolean isReplaying) {
-        SnapshotCommand cmd = ThreadContext.get().getSnapshotCommand();
-        wire.read(ChronicleWireKey.payload).bytes(cmd);
-        if (!isReplaying) {
-            snapshotService.createSnapshot(progress);
-        }
         return cmd.getSeq();
     }
 }

@@ -63,7 +63,6 @@ public class Constants {
         public static final int AUTH = 103;
         public static final int EXECUTION_REPORT = 104;
         public static final int AUTH_REPORT = 105; // 新增：認證結果回報
-        public static final int SNAPSHOT = 106; // 新增：快照指令 (內部觸發)
         public static final int ORDER_ACCEPTED = 107;
         public static final int ORDER_REJECTED = 108;
         public static final int ORDER_CANCELED = 109;

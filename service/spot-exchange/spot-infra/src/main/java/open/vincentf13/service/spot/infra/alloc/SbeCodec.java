@@ -93,22 +93,6 @@ public class SbeCodec {
         return HEADER_SIZE + encoder.encodedLength();
     }
 
-    public static int encodeSnapshot(long timestamp) {
-        ThreadContext ctx = ThreadContext.get();
-        MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
-        SnapshotEncoder encoder = ctx.getSnapshotEncoder();
-
-        ctx.getHeaderEncoder().wrap(buffer, 0)
-                .blockLength(SnapshotEncoder.BLOCK_LENGTH)
-                .templateId(SnapshotEncoder.TEMPLATE_ID)
-                .schemaId(SnapshotEncoder.SCHEMA_ID)
-                .version(SnapshotEncoder.SCHEMA_VERSION);
-
-        encoder.wrap(buffer, HEADER_SIZE)
-                .timestamp(timestamp);
-        return HEADER_SIZE + encoder.encodedLength();
-    }
-
     public static int encodeExecutionReport(long timestamp, long userId, long orderId, OrderStatus status, long lastPrice, long lastQty, long cumQty, long avgPrice, long clientOrderId) {
         ThreadContext ctx = ThreadContext.get();
         MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
@@ -171,16 +155,6 @@ public class SbeCodec {
         MessageHeaderDecoder header = ctx.getHeaderDecoder();
         header.wrap(buffer, 0);
         DepositDecoder decoder = ctx.getDepositDecoder();
-        decoder.wrap(buffer, HEADER_SIZE, header.blockLength(), header.version());
-        return decoder;
-    }
-
-    public static SnapshotDecoder decodeSnapshot(PointerBytesStore store) {
-        ThreadContext ctx = ThreadContext.get();
-        DirectBuffer buffer = wrap(store);
-        MessageHeaderDecoder header = ctx.getHeaderDecoder();
-        header.wrap(buffer, 0);
-        SnapshotDecoder decoder = ctx.getSnapshotDecoder();
         decoder.wrap(buffer, HEADER_SIZE, header.blockLength(), header.version());
         return decoder;
     }

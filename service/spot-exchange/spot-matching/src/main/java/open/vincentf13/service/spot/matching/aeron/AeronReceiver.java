@@ -68,12 +68,6 @@ public class AeronReceiver extends AbstractAeronReceiver {
                     cmd.fillFrom(aeron);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
-                case MsgType.SNAPSHOT -> {
-                    final long seq = buffer.getLong(offset + 4);
-                    SnapshotCommand cmd = ctx.getSnapshotCommand();
-                    cmd.setSeq(seq);
-                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
-                }
             }
         }
     }

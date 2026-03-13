@@ -37,7 +37,6 @@ public class ThreadContext {
     private OrderCreateCommand orderCreateCommand;
     private OrderCancelCommand orderCancelCommand;
     private DepositCommand depositCommand;
-    private SnapshotCommand snapshotCommand;
     private AuthReportWal authReportWal;
     private OrderAcceptedWal orderAcceptedWal;
     private OrderRejectedWal orderRejectedWal;
@@ -48,7 +47,6 @@ public class ThreadContext {
     public OrderCreateCommand getOrderCreateCommand() { if (orderCreateCommand == null) orderCreateCommand = new OrderCreateCommand(); return orderCreateCommand; }
     public OrderCancelCommand getOrderCancelCommand() { if (orderCancelCommand == null) orderCancelCommand = new OrderCancelCommand(); return orderCancelCommand; }
     public DepositCommand getDepositCommand() { if (depositCommand == null) depositCommand = new DepositCommand(); return depositCommand; }
-    public SnapshotCommand getSnapshotCommand() { if (snapshotCommand == null) snapshotCommand = new SnapshotCommand(); return snapshotCommand; }
     public AuthReportWal getAuthReportWal() { if (authReportWal == null) authReportWal = new AuthReportWal(); return authReportWal; }
     public OrderAcceptedWal getOrderAcceptedWal() { if (orderAcceptedWal == null) orderAcceptedWal = new OrderAcceptedWal(); return orderAcceptedWal; }
     public OrderRejectedWal getOrderRejectedWal() { if (orderRejectedWal == null) orderRejectedWal = new OrderRejectedWal(); return orderRejectedWal; }
@@ -66,8 +64,6 @@ public class ThreadContext {
     private AuthDecoder authDecoder;
     private DepositEncoder depositEncoder;
     private DepositDecoder depositDecoder;
-    private SnapshotEncoder snapshotEncoder;
-    private SnapshotDecoder snapshotDecoder;
     private ExecutionReportEncoder executionReportEncoder;
     private ExecutionReportDecoder executionReportDecoder;
 
@@ -81,8 +77,6 @@ public class ThreadContext {
     public AuthDecoder getAuthDecoder() { if (authDecoder == null) authDecoder = new AuthDecoder(); return authDecoder; }
     public DepositEncoder getDepositEncoder() { if (depositEncoder == null) depositEncoder = new DepositEncoder(); return depositEncoder; }
     public DepositDecoder getDepositDecoder() { if (depositDecoder == null) depositDecoder = new DepositDecoder(); return depositDecoder; }
-    public SnapshotEncoder getSnapshotEncoder() { if (snapshotEncoder == null) snapshotEncoder = new SnapshotEncoder(); return snapshotEncoder; }
-    public SnapshotDecoder getSnapshotDecoder() { if (snapshotDecoder == null) snapshotDecoder = new SnapshotDecoder(); return snapshotDecoder; }
     public ExecutionReportEncoder getExecutionReportEncoder() { if (executionReportEncoder == null) executionReportEncoder = new ExecutionReportEncoder(); return executionReportEncoder; }
     public ExecutionReportDecoder getExecutionReportDecoder() { if (executionReportDecoder == null) executionReportDecoder = new ExecutionReportDecoder(); return executionReportDecoder; }
 
