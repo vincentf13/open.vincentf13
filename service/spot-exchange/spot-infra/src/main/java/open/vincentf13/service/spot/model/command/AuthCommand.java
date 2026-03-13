@@ -15,7 +15,7 @@ import org.agrona.DirectBuffer;
 @Data
 public class AuthCommand implements BytesMarshallable {
     private long seq;
-    private final PointerBytesStore sbePayload = new PointerBytesStore();
+    private final PointerBytesStore pointBytesStore = new PointerBytesStore();
 
     /** 編碼並填充 SBE 載體 */
     public void encode(long seq, long timestamp, long userId) {
@@ -27,10 +27,10 @@ public class AuthCommand implements BytesMarshallable {
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
         bytes.writeLong(seq);
-        long len = sbePayload.readRemaining();
+        long len = pointBytesStore.readRemaining();
         bytes.writeStopBit(len);
         if (len > 0) {
-            bytes.write(sbePayload);
+            bytes.write(pointBytesStore);
         }
     }
 
@@ -40,14 +40,14 @@ public class AuthCommand implements BytesMarshallable {
         int len = (int) bytes.readStopBit();
         if (len > 0) {
             long address = bytes.addressForRead(bytes.readPosition());
-            sbePayload.set(address, len);
+            pointBytesStore.set(address, len);
             bytes.readSkip(len);
         } else {
-            sbePayload.set(0, 0);
+            pointBytesStore.set(0, 0);
         }
     }
 
     public void fillFrom(DirectBuffer buffer, int offset, int length) {
-        this.sbePayload.set(buffer.addressOffset() + offset, length);
+        this.pointBytesStore.set(buffer.addressOffset() + offset, length);
     }
 }

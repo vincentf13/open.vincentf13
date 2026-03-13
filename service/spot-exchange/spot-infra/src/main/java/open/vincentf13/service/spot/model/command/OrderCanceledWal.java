@@ -10,15 +10,15 @@ import org.agrona.DirectBuffer;
 @Data
 public class OrderCanceledWal implements BytesMarshallable {
     private long matchingSeq;
-    private final PointerBytesStore sbePayload = new PointerBytesStore();
+    private final PointerBytesStore pointBytesStore = new PointerBytesStore();
 
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
         bytes.writeLong(matchingSeq);
-        long len = sbePayload.readRemaining();
+        long len = pointBytesStore.readRemaining();
         bytes.writeStopBit(len);
         if (len > 0) {
-            bytes.write(sbePayload);
+            bytes.write(pointBytesStore);
         }
     }
 
@@ -28,14 +28,14 @@ public class OrderCanceledWal implements BytesMarshallable {
         int len = (int) bytes.readStopBit();
         if (len > 0) {
             long address = bytes.addressForRead(bytes.readPosition());
-            sbePayload.set(address, len);
+            pointBytesStore.set(address, len);
             bytes.readSkip(len);
         } else {
-            sbePayload.set(0, 0);
+            pointBytesStore.set(0, 0);
         }
     }
 
     public void fillFrom(DirectBuffer buffer, int offset, int length) {
-        this.sbePayload.set(buffer.addressOffset() + offset, length);
+        this.pointBytesStore.set(buffer.addressOffset() + offset, length);
     }
 }

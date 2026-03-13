@@ -52,7 +52,7 @@ public class AeronSender extends AbstractAeronSender {
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
                 // 使用 SBE Decoder 解析
-                final long userId = SbeCodec.decodeAuth(cmd.getSbePayload()).userId();
+                final long userId = SbeCodec.decodeAuth(cmd.getPointBytesStore()).userId();
                 
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.AUTH);
@@ -63,19 +63,19 @@ public class AeronSender extends AbstractAeronSender {
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                final int payloadLength = (int) cmd.getSbePayload().readRemaining();
+                final int payloadLength = (int) cmd.getPointBytesStore().readRemaining();
                 
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CREATE);
                     buffer.putLong(offset + 4, ctxSeq);
-                    buffer.putBytes(offset + 12, cmd.getSbePayload().bytesForRead(), 0, payloadLength);
+                    buffer.putBytes(offset + 12, cmd.getPointBytesStore().bytesForRead(), 0, payloadLength);
                 });
             }
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
-                var decoder = SbeCodec.decodeOrderCancel(cmd.getSbePayload());
+                var decoder = SbeCodec.decodeOrderCancel(cmd.getPointBytesStore());
                 final long userId = decoder.userId();
                 final long orderId = decoder.orderId();
                 
@@ -90,7 +90,7 @@ public class AeronSender extends AbstractAeronSender {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
-                var decoder = SbeCodec.decodeDeposit(cmd.getSbePayload());
+                var decoder = SbeCodec.decodeDeposit(cmd.getPointBytesStore());
                 final long userId = decoder.userId();
                 final int assetId = decoder.assetId();
                 final long amount = decoder.amount();

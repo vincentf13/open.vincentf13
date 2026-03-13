@@ -71,7 +71,7 @@ public class PushWorker extends Worker implements ReadMarshallable {
             case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
                 OrderMatchWal report = ctx.getOrderMatchWal();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                handleExecutionReport(report.getSbePayload());
+                handleExecutionReport(report.getPointBytesStore());
             }
         }
     }
@@ -80,8 +80,8 @@ public class PushWorker extends Worker implements ReadMarshallable {
         log.info("用戶認證成功回報: {}", userId);
     }
 
-    private void handleExecutionReport(PointerBytesStore sbePayload) {
-        ExecutionReportDecoder decoder = SbeCodec.decodeExecutionReport(sbePayload);
+    private void handleExecutionReport(PointerBytesStore pointBytesStore) {
+        ExecutionReportDecoder decoder = SbeCodec.decodeExecutionReport(pointBytesStore);
         
         final long orderId = decoder.orderId();
         final long userId = decoder.userId();

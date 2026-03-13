@@ -114,26 +114,26 @@ public class Engine extends Worker implements ReadMarshallable {
                 AuthCommand cmd = ctx.getAuthCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                authProcessor.handleAuth(SbeCodec.decodeAuth(cmd.getSbePayload()).userId(), gwSeq);
+                authProcessor.handleAuth(SbeCodec.decodeAuth(cmd.getPointBytesStore()).userId(), gwSeq);
             }
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                orderProcessor.processCreateCommand(cmd.getSbePayload(), gwSeq, this::nextOrderId, this::nextTradeId);
+                orderProcessor.processCreateCommand(cmd.getPointBytesStore(), gwSeq, this::nextOrderId, this::nextTradeId);
             }
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                var decoder = SbeCodec.decodeOrderCancel(cmd.getSbePayload());
+                var decoder = SbeCodec.decodeOrderCancel(cmd.getPointBytesStore());
                 orderProcessor.processCancelCommand(decoder.userId(), decoder.orderId(), gwSeq);
             }
             case MsgType.DEPOSIT -> {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                var decoder = SbeCodec.decodeDeposit(cmd.getSbePayload());
+                var decoder = SbeCodec.decodeDeposit(cmd.getPointBytesStore());
                 depositProcessor.handleDeposit(decoder.userId(), decoder.assetId(), decoder.amount(), gwSeq);
             }
             case MsgType.SNAPSHOT -> {
