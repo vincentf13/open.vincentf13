@@ -122,7 +122,9 @@ public class Engine extends Worker implements ReadMarshallable {
                 gwSeq = cmd.getSeq();
                 NativeUnsafeBuffer scratchBuffer = ctx.getScratchBuffer();
                 scratchBuffer.clear(); 
-                wire.read(ChronicleWireKey.data).bytes(scratchBuffer.bytes());
+                // Copy SBE payload to scratchBuffer for decoding
+                long bytesLen = cmd.getSbePayload().capacity();
+                cmd.getSbePayload().bytesForRead().read(scratchBuffer.buffer().byteArray(), 0, (int) bytesLen);
                 orderProcessor.processCreateCommand(scratchBuffer.wrapForRead(), gwSeq, this::nextOrderId, this::nextTradeId);
             }
             case MsgType.ORDER_CANCEL -> {

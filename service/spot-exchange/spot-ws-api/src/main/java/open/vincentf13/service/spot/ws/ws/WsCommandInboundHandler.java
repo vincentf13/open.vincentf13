@@ -87,9 +87,13 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     private void handleAuth(Channel channel, ThreadContext.RequestHolder holder) {
         sessionManager.addSession(holder.getUserId(), channel);
 
+        open.vincentf13.service.spot.model.command.AuthCommand cmd = ThreadContext.get().getAuthCommand();
+        cmd.setUserId(holder.getUserId());
+        cmd.setSeq(0); // Sequence is assigned by Aeron Receiver later
+
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
-            dc.wire().write(ChronicleWireKey.userId).int64(holder.getUserId());
+            dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
         }
     }
 
@@ -98,10 +102,14 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         if (uid == null)
             return;
 
+        open.vincentf13.service.spot.model.command.OrderCancelCommand cmd = ThreadContext.get().getOrderCancelCommand();
+        cmd.setUserId(uid);
+        cmd.setOrderId(holder.getOrderId());
+        cmd.setSeq(0);
+
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
-            dc.wire().write(ChronicleWireKey.userId).int64(uid);
-            dc.wire().write(ChronicleWireKey.data).int64(holder.getOrderId());
+            dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
         }
     }
 
@@ -110,11 +118,15 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         if (uid == null)
             return;
 
+        open.vincentf13.service.spot.model.command.DepositCommand cmd = ThreadContext.get().getDepositCommand();
+        cmd.setUserId(uid);
+        cmd.setAssetId(holder.getAssetId());
+        cmd.setAmount(holder.getAmount());
+        cmd.setSeq(0);
+
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);
-            dc.wire().write(ChronicleWireKey.userId).int64(uid);
-            dc.wire().write(ChronicleWireKey.assetId).int32(holder.getAssetId());
-            dc.wire().write(ChronicleWireKey.data).int64(holder.getAmount());
+            dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
         }
     }
 
@@ -131,11 +143,13 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 .userId(uid).symbolId(holder.getSymbolId()).price(holder.getPrice())
                 .qty(holder.getQty()).side(Side.valueOf(holder.getSide())).clientOrderId(holder.getCid())
                 .timestamp(System.currentTimeMillis()));
-        scratchBuffer.bytes().writePosition(sbeLen);
+
+        open.vincentf13.service.spot.model.command.OrderCreateCommand cmd = ThreadContext.get().getOrderCreateCommand();
+        cmd.fillFrom(sbeBuffer, 0, sbeLen, 0);
 
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
-            dc.wire().write(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
+            dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
         }
     }
 

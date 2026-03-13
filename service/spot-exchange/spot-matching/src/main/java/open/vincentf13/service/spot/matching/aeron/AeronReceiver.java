@@ -52,9 +52,8 @@ public class AeronReceiver extends AbstractAeronReceiver {
                 }
                 case MsgType.ORDER_CREATE -> {
                     OrderCreateCommand cmd = ctx.getOrderCreateCommand();
-                    cmd.setSeq(seq);
+                    cmd.fillFrom(buffer, offset + 12, length - 12, seq);
                     dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
-                    dc.wire().write(ChronicleWireKey.data).bytes(ctx.getPointerMapper().wrap(buffer, offset + 12, length - 12));
                 }
                 case MsgType.ORDER_CANCEL -> {
                     OrderCancelCommand cmd = ctx.getOrderCancelCommand();
