@@ -32,26 +32,28 @@ public class ThreadContext {
     @Getter private final AeronDeposit aeronDeposit = new AeronDeposit();
     @Getter private final AeronEnvelope aeronEnvelope = new AeronEnvelope();
 
-    // --- 指令數據載體 (SBE 封裝版) ---
+    // --- 業務指令與回報模型 (Flyweight) ---
     private AuthCommand authCommand;
     private OrderCreateCommand orderCreateCommand;
     private OrderCancelCommand orderCancelCommand;
     private DepositCommand depositCommand;
-    private AuthReportWal authReportWal;
-    private OrderAcceptedWal orderAcceptedWal;
-    private OrderRejectedWal orderRejectedWal;
-    private OrderCanceledWal orderCanceledWal;
-    private OrderMatchWal orderMatchWal;
+    
+    private AuthReport authReport;
+    private OrderAcceptedReport orderAcceptedReport;
+    private OrderRejectedReport orderRejectedReport;
+    private OrderCanceledReport orderCanceledReport;
+    private OrderMatchReport orderMatchReport;
 
     public AuthCommand getAuthCommand() { if (authCommand == null) authCommand = new AuthCommand(); return authCommand; }
     public OrderCreateCommand getOrderCreateCommand() { if (orderCreateCommand == null) orderCreateCommand = new OrderCreateCommand(); return orderCreateCommand; }
     public OrderCancelCommand getOrderCancelCommand() { if (orderCancelCommand == null) orderCancelCommand = new OrderCancelCommand(); return orderCancelCommand; }
     public DepositCommand getDepositCommand() { if (depositCommand == null) depositCommand = new DepositCommand(); return depositCommand; }
-    public AuthReportWal getAuthReportWal() { if (authReportWal == null) authReportWal = new AuthReportWal(); return authReportWal; }
-    public OrderAcceptedWal getOrderAcceptedWal() { if (orderAcceptedWal == null) orderAcceptedWal = new OrderAcceptedWal(); return orderAcceptedWal; }
-    public OrderRejectedWal getOrderRejectedWal() { if (orderRejectedWal == null) orderRejectedWal = new OrderRejectedWal(); return orderRejectedWal; }
-    public OrderCanceledWal getOrderCanceledWal() { if (orderCanceledWal == null) orderCanceledWal = new OrderCanceledWal(); return orderCanceledWal; }
-    public OrderMatchWal getOrderMatchWal() { if (orderMatchWal == null) orderMatchWal = new OrderMatchWal(); return orderMatchWal; }
+    
+    public AuthReport getAuthReport() { if (authReport == null) authReport = new AuthReport(); return authReport; }
+    public OrderAcceptedReport getOrderAcceptedReport() { if (orderAcceptedReport == null) orderAcceptedReport = new OrderAcceptedReport(); return orderAcceptedReport; }
+    public OrderRejectedReport getOrderRejectedReport() { if (orderRejectedReport == null) orderRejectedReport = new OrderRejectedReport(); return orderRejectedReport; }
+    public OrderCanceledReport getOrderCanceledReport() { if (orderCanceledReport == null) orderCanceledReport = new OrderCanceledReport(); return orderCanceledReport; }
+    public OrderMatchReport getOrderMatchReport() { if (orderMatchReport == null) orderMatchReport = new OrderMatchReport(); return orderMatchReport; }
 
     // --- SBE 工具 (Lazy) ---
     private MessageHeaderEncoder headerEncoder;

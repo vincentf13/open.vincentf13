@@ -23,7 +23,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @RequiredArgsConstructor
 public class Engine extends Worker {
-    private final ChronicleQueue gwToMatchingWal = Storage.self().gwToMatchingWal();
+    private final ChronicleQueue engineReceiverWal = Storage.self().engineReceiverWal();
     private final ChronicleMap<Byte, WalProgress> metadata = Storage.self().walMetadata();
 
     private final CommandRouter router;
@@ -47,7 +47,7 @@ public class Engine extends Worker {
         loadMetadata(recoveredFromSnapshot);
 
         // 2. 位點對齊與自愈模式設定
-        this.tailer = gwToMatchingWal.createTailer();
+        this.tailer = engineReceiverWal.createTailer();
         alignTailer();
         
         log.info("Engine 啟動完成，當前模式: {}", isReplaying ? "REPLAYING" : "REAL-TIME");

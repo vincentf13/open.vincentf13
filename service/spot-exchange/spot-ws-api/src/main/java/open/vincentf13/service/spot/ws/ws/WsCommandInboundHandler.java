@@ -31,7 +31,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
+    private final ChronicleQueue gatewaySenderWal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
     
     private static final ByteBuf PONG_BUF = Unpooled.unreleasableBuffer(
@@ -88,7 +88,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         AuthCommand cmd = ThreadContext.get().getAuthCommand();
         cmd.encode(0, System.currentTimeMillis(), holder.getUserId());
         
-        try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
+        try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
             dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
         }
@@ -101,7 +101,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         OrderCancelCommand cmd = ThreadContext.get().getOrderCancelCommand();
         cmd.encode(0, System.currentTimeMillis(), uid, holder.getOrderId());
         
-        try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
+        try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
             dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
         }
@@ -114,7 +114,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         DepositCommand cmd = ThreadContext.get().getDepositCommand();
         cmd.encode(0, System.currentTimeMillis(), uid, holder.getAssetId(), holder.getAmount());
         
-        try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
+        try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);
             dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
         }
@@ -128,7 +128,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         cmd.encode(0, System.currentTimeMillis(), uid, holder.getSymbolId(), 
                    holder.getPrice(), holder.getQty(), Side.valueOf(holder.getSide()), holder.getCid());
         
-        try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
+        try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
             dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
         }

@@ -12,8 +12,8 @@ import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.SbeCodec;
-import open.vincentf13.service.spot.model.command.AuthReportWal;
-import open.vincentf13.service.spot.model.command.OrderMatchWal;
+import open.vincentf13.service.spot.model.command.AuthReport;
+import open.vincentf13.service.spot.model.command.OrderMatchReport;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
 import org.springframework.stereotype.Component;
@@ -30,7 +30,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Slf4j
 @Component
 public class PushWorker extends Worker {
-    private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
+    private final ChronicleQueue gatewayReceiverWal = Storage.self().gatewayReceiverWal();
     private final WsSessionManager sessionManager;
     private final int threadCount;
     private final ExecutorService[] stripedPool;
@@ -51,7 +51,7 @@ public class PushWorker extends Worker {
 
     @Override
     protected void onStart() {
-        this.tailer = matchingToGwWal.createTailer();
+        this.tailer = gatewayReceiverWal.createTailer();
         for (int i = 0; i < threadCount; i++) {
             final int poolIndex = i;
             stripedPool[i] = Executors.newSingleThreadExecutor(r -> new Thread(r, "push-pool-" + poolIndex));
@@ -70,15 +70,14 @@ public class PushWorker extends Worker {
 
         switch (msgType) {
             case MsgType.AUTH_REPORT -> {
-                AuthReportWal report = ctx.getAuthReportWal();
+                AuthReport report = ctx.getAuthReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 handleAuthReport(report.getUserId());
             }
             case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
-                OrderMatchWal report = ctx.getOrderMatchWal();
+                OrderMatchReport report = ctx.getOrderMatchReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 
-                // 統一在入口處解碼 SBE
                 final ExecutionReportDecoder decoder = SbeCodec.decodeExecutionReport(report.getPointBytesStore());
                 handleExecutionReport(decoder);
             }
@@ -93,7 +92,7 @@ public class PushWorker extends Worker {
         final long orderId = decoder.orderId();
         final long userId = decoder.userId();
         final int statusOrdinal = decoder.status().ordinal();
-        final long cid = decoder.clientOrderId();
+        final long clientOrderId = decoder.clientOrderId();
         final String statusStr = (statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length) ? 
                 ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN";
 
@@ -104,7 +103,7 @@ public class PushWorker extends Worker {
             PushEvent event = new PushEvent();
             event.setOrderId(orderId);
             event.setStatus(statusStr);
-            event.setCid(cid);
+            event.setCid(clientOrderId);
             event.setUserId(userId);
 
             JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);

@@ -17,7 +17,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  * 職責：封裝各類成交/指令狀態回報邏輯，寫入回報 WAL
  */
 public class ExecutionReporter {
-    private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
+    private final ChronicleQueue engineSenderWal = Storage.self().engineSenderWal();
     
     @Setter private boolean isReplaying = false;
 
@@ -27,11 +27,11 @@ public class ExecutionReporter {
         ThreadContext context = ThreadContext.get();
         int sbeLength = SbeCodec.encodeAcceptedReport(timestamp, userId, orderId, clientOrderId);
         
-        OrderAcceptedWal wal = context.getOrderAcceptedWal();
-        wal.setMatchingSeq(gatewaySequence);
-        wal.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        OrderAcceptedReport report = context.getOrderAcceptedReport();
+        report.setGatewaySeq(gatewaySequence);
+        report.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
         
-        writeWal(MsgType.ORDER_ACCEPTED, wal);
+        writeWal(MsgType.ORDER_ACCEPTED, report);
     }
 
     /** 回報：訂單被拒絕 (Rejected) */
@@ -40,11 +40,11 @@ public class ExecutionReporter {
         ThreadContext context = ThreadContext.get();
         int sbeLength = SbeCodec.encodeRejectedReport(timestamp, userId, clientOrderId);
         
-        OrderRejectedWal wal = context.getOrderRejectedWal();
-        wal.setMatchingSeq(gatewaySequence);
-        wal.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        OrderRejectedReport report = context.getOrderRejectedReport();
+        report.setGatewaySeq(gatewaySequence);
+        report.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
         
-        writeWal(MsgType.ORDER_REJECTED, wal);
+        writeWal(MsgType.ORDER_REJECTED, report);
     }
 
     /** 回報：訂單已撤單 (Canceled) */
@@ -53,11 +53,11 @@ public class ExecutionReporter {
         ThreadContext context = ThreadContext.get();
         int sbeLength = SbeCodec.encodeCanceledReport(timestamp, userId, orderId, filledQuantity, clientOrderId);
         
-        OrderCanceledWal wal = context.getOrderCanceledWal();
-        wal.setMatchingSeq(gatewaySequence);
-        wal.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        OrderCanceledReport report = context.getOrderCanceledReport();
+        report.setGatewaySeq(gatewaySequence);
+        report.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
         
-        writeWal(MsgType.ORDER_CANCELED, wal);
+        writeWal(MsgType.ORDER_CANCELED, report);
     }
 
     /** 回報：訂單成交 (Trade / Matched) */
@@ -69,25 +69,25 @@ public class ExecutionReporter {
         int sbeLength = SbeCodec.encodeMatchedReport(timestamp, userId, orderId, orderStatus, 
                 lastPrice, lastQuantity, cumulativeQuantity, averagePrice, clientOrderId);
         
-        OrderMatchWal wal = context.getOrderMatchWal();
-        wal.setMatchingSeq(gatewaySequence);
-        wal.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        OrderMatchReport report = context.getOrderMatchReport();
+        report.setGatewaySeq(gatewaySequence);
+        report.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
         
-        writeWal(MsgType.ORDER_MATCHED, wal);
+        writeWal(MsgType.ORDER_MATCHED, report);
     }
 
     /** 回報：用戶認證結果 */
-    public void reportAuth(long userId, long matchingSequence) {
+    public void reportAuth(long userId, long gatewaySequence) {
         if (isReplaying) return;
-        AuthReportWal wal = ThreadContext.get().getAuthReportWal();
-        wal.setMatchingSeq(matchingSequence);
-        wal.setUserId(userId);
+        AuthReport report = ThreadContext.get().getAuthReport();
+        report.setGatewaySeq(gatewaySequence);
+        report.setUserId(userId);
 
-        writeWal(MsgType.AUTH_REPORT, wal);
+        writeWal(MsgType.AUTH_REPORT, report);
     }
 
     private void writeWal(int msgType, BytesMarshallable model) {
-        try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
+        try (DocumentContext dc = engineSenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
             dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
         }

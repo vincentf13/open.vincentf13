@@ -114,7 +114,8 @@ public class Constants {
     public enum ChronicleQueueEnum {
         CLIENT_TO_GW("client-to-gw-wal"),
         GW_TO_MATCHING("gw-to-matching-wal"),
-        MATCHING_TO_GW("matching-to-gw-wal");
+        MATCHING_TO_ENGINE_SENDER("matching-to-gw-wal"),
+        ENGINE_TO_GATEWAY_RECEIVER("engine-to-gw-report-wal");
 
         private final String path;
     }

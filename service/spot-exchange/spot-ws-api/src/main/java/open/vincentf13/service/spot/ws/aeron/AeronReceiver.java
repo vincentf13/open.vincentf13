@@ -22,7 +22,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class AeronReceiver extends AbstractAeronReceiver {
 
     public AeronReceiver(Aeron aeron) {
-        super(aeron, Storage.self().matchingToGwWal(), Storage.self().msgMetadata(),
+        super(aeron, Storage.self().gatewayReceiverWal(), Storage.self().msgMetadata(),
               MetaDataKey.Msg.GW_RECEVIER_POINT, AeronChannel.GATEWAY_URL, AeronChannel.DATA_STREAM_ID,
               AeronChannel.MATCHING_URL, AeronChannel.CONTROL_STREAM_ID);
     }
@@ -46,29 +46,29 @@ public class AeronReceiver extends AbstractAeronReceiver {
             
             switch (msgType) {
                 case MsgType.ORDER_ACCEPTED -> {
-                    OrderAcceptedWal model = ctx.getOrderAcceptedWal();
-                    model.fillFrom(aeron);
-                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
+                    OrderAcceptedReport report = ctx.getOrderAcceptedReport();
+                    report.fillFrom(aeron);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(report);
                 }
                 case MsgType.ORDER_REJECTED -> {
-                    OrderRejectedWal model = ctx.getOrderRejectedWal();
-                    model.fillFrom(aeron);
-                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
+                    OrderRejectedReport report = ctx.getOrderRejectedReport();
+                    report.fillFrom(aeron);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(report);
                 }
                 case MsgType.ORDER_CANCELED -> {
-                    OrderCanceledWal model = ctx.getOrderCanceledWal();
-                    model.fillFrom(aeron);
-                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
+                    OrderCanceledReport report = ctx.getOrderCanceledReport();
+                    report.fillFrom(aeron);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(report);
                 }
                 case MsgType.ORDER_MATCHED  -> {
-                    OrderMatchWal model = ctx.getOrderMatchWal();
-                    model.fillFrom(aeron);
-                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
+                    OrderMatchReport report = ctx.getOrderMatchReport();
+                    report.fillFrom(aeron);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(report);
                 }
                 case MsgType.AUTH_REPORT -> {
-                    AuthReportWal authReport = ctx.getAuthReportWal();
-                    authReport.fillFrom(aeron);
-                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(authReport);
+                    AuthReport report = ctx.getAuthReport();
+                    report.fillFrom(aeron);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(report);
                 }
             }
         }
