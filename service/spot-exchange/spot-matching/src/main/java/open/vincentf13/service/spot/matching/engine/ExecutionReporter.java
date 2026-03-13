@@ -1,81 +1,89 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import lombok.Setter;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
-import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
-import org.agrona.concurrent.UnsafeBuffer;
-import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.model.Order;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.*;
-import open.vincentf13.service.spot.sbe.ExecutionReportEncoder;
 import open.vincentf13.service.spot.sbe.OrderStatus;
-
-import java.nio.ByteBuffer;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
-/** 
- 執行回報發送器 (Execution Reporter)
- 職責：將撮合結果（成交、撤單、認證成功等）即時寫入回報 WAL
+/**
+ * 執行回報器 (Execution Reporter)
+ * 職責：封裝各類成交/指令狀態回報邏輯，寫入回報 WAL
  */
-@Component
 public class ExecutionReporter {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
     
-    @Setter private boolean replaying = false;
+    @Setter private boolean isReplaying = false;
 
-    /**
-     * 發送單筆成交回報
-     */
-    public void sendReport(long uid, long oid, long cid, OrderStatus s, long lp, long lq, long cq, long ap, long ts, long matchingSeq) {
-        if (replaying) return;
+    /** 回報：訂單已接受 (Accepted / New) */
+    public void reportAccepted(long userId, long orderId, long clientOrderId, long timestamp, long gatewaySequence) {
+        if (isReplaying) return;
+        ThreadContext context = ThreadContext.get();
+        int sbeLength = SbeCodec.encodeAcceptedReport(timestamp, userId, orderId, clientOrderId);
         
-        ThreadContext ctx = ThreadContext.get();
+        OrderAcceptedWal wal = context.getOrderAcceptedWal();
+        wal.setMatchingSeq(gatewaySequence);
+        wal.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
         
-        // 1. SBE 編碼回報主體 (Buffer 與 Encoder 已下沉)
-        int sbeLen = SbeCodec.encodeExecutionReport(ts, uid, oid, s, lp, lq, cq, ap, cid);
-        
-        NativeUnsafeBuffer scratchBuffer = ctx.getScratchBuffer();
-        scratchBuffer.bytes().writePosition(sbeLen);
+        writeWal(MsgType.ORDER_ACCEPTED, wal);
+    }
 
-        // 2. 根據狀態決定場景化模型與 MsgType
-        int msgType;
-        switch (s) {
-            case NEW -> {
-                msgType = MsgType.ORDER_ACCEPTED;
-                OrderAcceptedWal model = ctx.getOrderAcceptedWal();
-                model.setMatchingSeq(matchingSeq);
-                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen);
-                writeWal(msgType, model);
-            }
-            case REJECTED -> {
-                msgType = MsgType.ORDER_REJECTED;
-                OrderRejectedWal model = ctx.getOrderRejectedWal();
-                model.setMatchingSeq(matchingSeq);
-                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen);
-                writeWal(msgType, model);
-            }
-            case CANCELED -> {
-                msgType = MsgType.ORDER_CANCELED;
-                OrderCanceledWal model = ctx.getOrderCanceledWal();
-                model.setMatchingSeq(matchingSeq);
-                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen);
-                writeWal(msgType, model);
-            }
-            default -> {
-                msgType = MsgType.ORDER_MATCHED;
-                OrderMatchWal model = ctx.getOrderMatchWal();
-                model.setMatchingSeq(matchingSeq);
-                model.fillFrom(scratchBuffer.buffer(), 0, sbeLen);
-                writeWal(msgType, model);
-            }
-        }
+    /** 回報：訂單被拒絕 (Rejected) */
+    public void reportRejected(long userId, long clientOrderId, long timestamp, long gatewaySequence) {
+        if (isReplaying) return;
+        ThreadContext context = ThreadContext.get();
+        int sbeLength = SbeCodec.encodeRejectedReport(timestamp, userId, clientOrderId);
+        
+        OrderRejectedWal wal = context.getOrderRejectedWal();
+        wal.setMatchingSeq(gatewaySequence);
+        wal.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        
+        writeWal(MsgType.ORDER_REJECTED, wal);
+    }
+
+    /** 回報：訂單已撤單 (Canceled) */
+    public void reportCanceled(long userId, long orderId, long clientOrderId, long filledQuantity, long timestamp, long gatewaySequence) {
+        if (isReplaying) return;
+        ThreadContext context = ThreadContext.get();
+        int sbeLength = SbeCodec.encodeCanceledReport(timestamp, userId, orderId, filledQuantity, clientOrderId);
+        
+        OrderCanceledWal wal = context.getOrderCanceledWal();
+        wal.setMatchingSeq(gatewaySequence);
+        wal.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        
+        writeWal(MsgType.ORDER_CANCELED, wal);
+    }
+
+    /** 回報：訂單成交 (Trade / Matched) */
+    public void reportMatched(long userId, long orderId, long clientOrderId, OrderStatus orderStatus, 
+                              long lastPrice, long lastQuantity, long cumulativeQuantity, long averagePrice, 
+                              long timestamp, long gatewaySequence) {
+        if (isReplaying) return;
+        ThreadContext context = ThreadContext.get();
+        int sbeLength = SbeCodec.encodeMatchedReport(timestamp, userId, orderId, orderStatus, 
+                lastPrice, lastQuantity, cumulativeQuantity, averagePrice, clientOrderId);
+        
+        OrderMatchWal wal = context.getOrderMatchWal();
+        wal.setMatchingSeq(gatewaySequence);
+        wal.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        
+        writeWal(MsgType.ORDER_MATCHED, wal);
+    }
+
+    /** 回報：用戶認證結果 */
+    public void reportAuth(long userId, long matchingSequence) {
+        if (isReplaying) return;
+        AuthReportWal wal = ThreadContext.get().getAuthReportWal();
+        wal.setMatchingSeq(matchingSequence);
+        wal.setUserId(userId);
+
+        writeWal(MsgType.AUTH_REPORT, wal);
     }
 
     private void writeWal(int msgType, BytesMarshallable model) {
@@ -85,21 +93,7 @@ public class ExecutionReporter {
         }
     }
 
-    /**
-     * 認證成功回報
-     */
-    public void sendAuthSuccess(long userId, long matchingSeq) {
-        if (replaying) return;
-        
-        ThreadContext ctx = ThreadContext.get();
-        AuthReportWal walModel = ctx.getAuthReportWal();
-        walModel.setMatchingSeq(matchingSeq);
-        walModel.setUserId(userId);
-
-        writeWal(MsgType.AUTH_REPORT, walModel);
-    }
-
     public void close() {
-        // 現在資源由 ThreadContext 統一管理，此處僅保留簽章
+        // 資源由 ThreadContext 統一管理
     }
 }
