@@ -12,17 +12,11 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
-import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
-import open.vincentf13.service.spot.model.command.AuthCommand;
-import open.vincentf13.service.spot.model.command.DepositCommand;
-import open.vincentf13.service.spot.model.command.OrderCancelCommand;
-import open.vincentf13.service.spot.model.command.OrderCreateCommand;
+import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.Side;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
-import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -56,8 +50,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         try (JsonParser parser = JsonUtil.createParser(frame.content())) {
             while (parser.nextToken() != JsonToken.END_OBJECT) {
                 String field = parser.getCurrentName();
-                if (field == null)
-                    continue;
+                if (field == null) continue;
                 parser.nextToken();
                 switch (field) {
                     case Ws.OP -> holder.setOp(parser.getText());
@@ -89,8 +82,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         }
     }
     
-    private void handleAuth(Channel channel,
-                            ThreadContext.RequestHolder holder) {
+    private void handleAuth(Channel channel, ThreadContext.RequestHolder holder) {
         sessionManager.addSession(holder.getUserId(), channel);
         
         AuthCommand cmd = ThreadContext.get().getAuthCommand();
@@ -98,53 +90,47 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
-            dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
         }
     }
     
-    private void handleOrderCancel(Channel channel,
-                                   ThreadContext.RequestHolder holder) {
+    private void handleOrderCancel(Channel channel, ThreadContext.RequestHolder holder) {
         Long uid = channel.attr(WsSessionManager.USER_ID_KEY).get();
-        if (uid == null)
-            return;
+        if (uid == null) return;
         
         OrderCancelCommand cmd = ThreadContext.get().getOrderCancelCommand();
         cmd.encode(0, System.currentTimeMillis(), uid, holder.getOrderId());
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
-            dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
         }
     }
     
-    private void handleDeposit(Channel channel,
-                               ThreadContext.RequestHolder holder) {
+    private void handleDeposit(Channel channel, ThreadContext.RequestHolder holder) {
         Long uid = channel.attr(WsSessionManager.USER_ID_KEY).get();
-        if (uid == null)
-            return;
+        if (uid == null) return;
         
         DepositCommand cmd = ThreadContext.get().getDepositCommand();
         cmd.encode(0, System.currentTimeMillis(), uid, holder.getAssetId(), holder.getAmount());
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);
-            dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
         }
     }
     
-    private void handleOrderCreate(Channel channel,
-                                   ThreadContext.RequestHolder holder) {
+    private void handleOrderCreate(Channel channel, ThreadContext.RequestHolder holder) {
         Long uid = channel.attr(WsSessionManager.USER_ID_KEY).get();
-        if (uid == null)
-            return;
+        if (uid == null) return;
         
         OrderCreateCommand cmd = ThreadContext.get().getOrderCreateCommand();
-        cmd.encode(0, System.currentTimeMillis(), uid, holder.getSymbolId(), holder.getPrice(), holder.getQty(), 
-                   Side.valueOf(holder.getSide()), holder.getCid());
+        cmd.encode(0, System.currentTimeMillis(), uid, holder.getSymbolId(), 
+                   holder.getPrice(), holder.getQty(), Side.valueOf(holder.getSide()), holder.getCid());
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
-            dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
         }
     }
     

@@ -48,31 +48,31 @@ public class AeronReceiver extends AbstractAeronReceiver {
                     OrderAcceptedWal model = ctx.getOrderAcceptedWal();
                     model.setMatchingSeq(seq);
                     model.fillFrom(buffer, offset + 12, length - 12);
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_REJECTED -> {
                     OrderRejectedWal model = ctx.getOrderRejectedWal();
                     model.setMatchingSeq(seq);
                     model.fillFrom(buffer, offset + 12, length - 12);
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_CANCELED -> {
                     OrderCanceledWal model = ctx.getOrderCanceledWal();
                     model.setMatchingSeq(seq);
                     model.fillFrom(buffer, offset + 12, length - 12);
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_MATCHED  -> {
                     OrderMatchWal model = ctx.getOrderMatchWal();
                     model.setMatchingSeq(seq);
                     model.fillFrom(buffer, offset + 12, length - 12);
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.AUTH_REPORT -> {
                     AuthReportWal authReport = ctx.getAuthReportWal();
                     authReport.setMatchingSeq(seq);
                     authReport.setUserId(buffer.getLong(offset + 12));
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(authReport);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(authReport);
                 }
             }
         }

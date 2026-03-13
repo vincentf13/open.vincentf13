@@ -89,7 +89,7 @@ public class ExecutionReporter {
     private void writeWal(int msgType, BytesMarshallable model) {
         try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
-            dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
         }
     }
 

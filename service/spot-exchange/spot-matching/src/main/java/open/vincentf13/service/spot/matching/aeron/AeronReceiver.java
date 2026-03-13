@@ -48,20 +48,20 @@ public class AeronReceiver extends AbstractAeronReceiver {
                     AuthCommand cmd = ctx.getAuthCommand();
                     cmd.setSeq(seq);
                     cmd.setUserId(buffer.getLong(offset + 12));
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.ORDER_CREATE -> {
                     OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                     cmd.setSeq(seq);
                     cmd.fillFrom(buffer, offset + 12, length - 12);
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.ORDER_CANCEL -> {
                     OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                     cmd.setSeq(seq);
                     cmd.setUserId(buffer.getLong(offset + 12));
                     cmd.setOrderId(buffer.getLong(offset + 20));
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.DEPOSIT -> {
                     DepositCommand cmd = ctx.getDepositCommand();
@@ -69,12 +69,12 @@ public class AeronReceiver extends AbstractAeronReceiver {
                     cmd.setUserId(buffer.getLong(offset + 12));
                     cmd.setAssetId(buffer.getInt(offset + 20));
                     cmd.setAmount(buffer.getLong(offset + 24));
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.SNAPSHOT -> {
                     SnapshotCommand cmd = ctx.getSnapshotCommand();
                     cmd.setSeq(seq);
-                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                    dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
             }
         }

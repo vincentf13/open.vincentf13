@@ -5,28 +5,26 @@ import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.*;
 
 /**
- * 執行緒上下文總管 (Thread-Local Context Hub) - 懶加載優化版
+ * 執行緒上下文總管 (Thread-Local Context Hub)
  */
 public class ThreadContext {
     private static final ThreadLocal<ThreadContext> INSTANCE = ThreadLocal.withInitial(ThreadContext::new);
 
-    public static ThreadContext get() {
-        return INSTANCE.get();
-    }
+    public static ThreadContext get() { return INSTANCE.get(); }
 
     public static void cleanup() {
         ThreadContext ctx = INSTANCE.get();
         if (ctx != null) {
-            ctx.scratchBuffer.release(); // 必須手動釋放堆外內存
-            INSTANCE.remove(); // 切斷引用，其餘 POJO 由 GC 回收
+            ctx.scratchBuffer.release();
+            INSTANCE.remove();
         }
     }
 
-    // --- 核心資源：預分配 (Hot) ---
+    // --- 核心資源 ---
     @Getter private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
     @Getter private final RequestHolder requestHolder = new RequestHolder();
 
-    // --- 指令數據載體：懶加載 (Lazy) ---
+    // --- 指令數據載體 (SBE 封裝版) ---
     private AuthCommand authCommand;
     private OrderCreateCommand orderCreateCommand;
     private OrderCancelCommand orderCancelCommand;
@@ -49,7 +47,7 @@ public class ThreadContext {
     public OrderCanceledWal getOrderCanceledWal() { if (orderCanceledWal == null) orderCanceledWal = new OrderCanceledWal(); return orderCanceledWal; }
     public OrderMatchWal getOrderMatchWal() { if (orderMatchWal == null) orderMatchWal = new OrderMatchWal(); return orderMatchWal; }
 
-    // --- SBE 工具：懶加載 (Lazy) ---
+    // --- SBE 工具 (Lazy) ---
     private MessageHeaderEncoder headerEncoder;
     private MessageHeaderDecoder headerDecoder;
     private OrderCreateEncoder orderCreateEncoder;
@@ -82,6 +80,7 @@ public class ThreadContext {
 
     private ThreadContext() {}
 
+    /** 統一指令解析載體 (God Object for Performance) */
     @lombok.Data
     public static class RequestHolder {
         private String op;
