@@ -23,6 +23,12 @@ public class ThreadContext {
     // --- 核心資源 ---
     @Getter private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
     @Getter private final RequestHolder requestHolder = new RequestHolder();
+    
+    // --- Aeron 傳輸模型 (Fixed Layout) ---
+    @Getter private final AeronAuth aeronAuth = new AeronAuth();
+    @Getter private final AeronOrderCreate aeronOrderCreate = new AeronOrderCreate();
+    @Getter private final AeronOrderCancel aeronOrderCancel = new AeronOrderCancel();
+    @Getter private final AeronDeposit aeronDeposit = new AeronDeposit();
 
     // --- 指令數據載體 (SBE 封裝版) ---
     private AuthCommand authCommand;

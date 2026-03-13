@@ -37,7 +37,6 @@ public class AeronReceiver extends AbstractAeronReceiver {
     @Override
     protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length) {
         final int msgType = buffer.getInt(offset);
-        final long seq = buffer.getLong(offset + 4);
         ThreadContext ctx = ThreadContext.get();
         
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
@@ -45,33 +44,38 @@ public class AeronReceiver extends AbstractAeronReceiver {
             
             switch (msgType) {
                 case MsgType.AUTH -> {
+                    AeronAuth aeron = ctx.getAeronAuth();
                     AuthCommand cmd = ctx.getAuthCommand();
-                    cmd.setSeq(seq);
-                    cmd.setUserId(buffer.getLong(offset + 12));
+                    cmd.setSeq(aeron.getSeq(buffer, offset));
+                    cmd.setUserId(aeron.getUserId(buffer, offset));
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.ORDER_CREATE -> {
+                    AeronOrderCreate aeron = ctx.getAeronOrderCreate();
                     OrderCreateCommand cmd = ctx.getOrderCreateCommand();
-                    cmd.setSeq(seq);
-                    cmd.fillFrom(buffer, offset + 12, length - 12);
+                    cmd.setSeq(aeron.getSeq(buffer, offset));
+                    cmd.fillFrom(buffer, aeron.getPayloadOffset(offset), length - (aeron.getPayloadOffset(0)));
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.ORDER_CANCEL -> {
+                    AeronOrderCancel aeron = ctx.getAeronOrderCancel();
                     OrderCancelCommand cmd = ctx.getOrderCancelCommand();
-                    cmd.setSeq(seq);
-                    cmd.setUserId(buffer.getLong(offset + 12));
-                    cmd.setOrderId(buffer.getLong(offset + 20));
+                    cmd.setSeq(aeron.getSeq(buffer, offset));
+                    cmd.setUserId(aeron.getUserId(buffer, offset));
+                    cmd.setOrderId(aeron.getOrderId(buffer, offset));
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.DEPOSIT -> {
+                    AeronDeposit aeron = ctx.getAeronDeposit();
                     DepositCommand cmd = ctx.getDepositCommand();
-                    cmd.setSeq(seq);
-                    cmd.setUserId(buffer.getLong(offset + 12));
-                    cmd.setAssetId(buffer.getInt(offset + 20));
-                    cmd.setAmount(buffer.getLong(offset + 24));
+                    cmd.setSeq(aeron.getSeq(buffer, offset));
+                    cmd.setUserId(aeron.getUserId(buffer, offset));
+                    cmd.setAssetId(aeron.getAssetId(buffer, offset));
+                    cmd.setAmount(aeron.getAmount(buffer, offset));
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
                 }
                 case MsgType.SNAPSHOT -> {
+                    final long seq = buffer.getLong(offset + 4);
                     SnapshotCommand cmd = ctx.getSnapshotCommand();
                     cmd.setSeq(seq);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
