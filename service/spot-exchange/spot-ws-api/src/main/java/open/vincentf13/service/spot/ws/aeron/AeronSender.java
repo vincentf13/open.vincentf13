@@ -6,14 +6,17 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
-import open.vincentf13.service.spot.infra.alloc.*;
-import open.vincentf13.service.spot.infra.alloc.aeron.*;
+import open.vincentf13.service.spot.infra.alloc.SbeCodec;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
+import open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc;
+import open.vincentf13.service.spot.infra.alloc.aeron.AeronAuth;
+import open.vincentf13.service.spot.infra.alloc.aeron.AeronDeposit;
+import open.vincentf13.service.spot.infra.alloc.aeron.AeronOrderCancel;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.AuthCommand;
 import open.vincentf13.service.spot.model.command.DepositCommand;
 import open.vincentf13.service.spot.model.command.OrderCancelCommand;
 import open.vincentf13.service.spot.model.command.OrderCreateCommand;
-import org.agrona.DirectBuffer;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -61,11 +64,9 @@ public class AeronSender extends AbstractAeronSender {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 final PointerBytesStore store = cmd.getPointBytesStore();
-                final int payloadLength = (int) store.readRemaining();
                 
-                this.backPressureCount += aeronClient.send(AbstractAeronAlloc.HEADER_LENGTH + payloadLength, (buffer, offset) -> {
-                    DirectBuffer sbeBuffer = ctx.getScratchBuffer().wrap(store.addressForRead(0), payloadLength);
-                    ctx.getAeronOrderCreate().wrap(buffer, offset).write(ctxSeq, sbeBuffer);
+                this.backPressureCount += aeronClient.send(AbstractAeronAlloc.HEADER_LENGTH + (int) store.readRemaining(), (buffer, offset) -> {
+                    ctx.getAeronOrderCreate().wrap(buffer, offset).write(ctxSeq, ctx.getScratchBuffer().wrap(store));
                 });
             }
             case MsgType.ORDER_CANCEL -> {

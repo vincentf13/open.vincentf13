@@ -56,6 +56,12 @@ public class NativeUnsafeBuffer {
         return buffer;
     }
 
+    /** 將 Chronicle 的 PointerBytesStore 包裝為 Agrona Buffer (不發生拷貝) */
+    public UnsafeBuffer wrap(net.openhft.chronicle.bytes.PointerBytesStore store) {
+        buffer.wrap(store.addressForRead(0), (int) store.readRemaining());
+        return buffer;
+    }
+
     /** 釋放堆外內存資源 (防止 Direct Memory 洩漏) */
     public void release() {
         bytes.releaseLast();
