@@ -127,7 +127,7 @@ public class AeronReceiver extends Worker {
                 dc.wire().write(ChronicleWireKey.data).int64(buffer.getLong(offset + 20));
             } else if (msgType == MsgType.DEPOSIT) {
                 dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
-                dc.wire().write(ChronicleWireKey.topic).int32(buffer.getInt(offset + 20));
+                dc.wire().write(ChronicleWireKey.assetId).int32(buffer.getInt(offset + 20));
                 dc.wire().write(ChronicleWireKey.data).int64(buffer.getLong(offset + 24));
             }
         }

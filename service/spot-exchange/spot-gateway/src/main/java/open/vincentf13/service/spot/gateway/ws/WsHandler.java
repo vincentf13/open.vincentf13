@@ -66,7 +66,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         return (int) ((userId ^ (userId >>> 32)) & STRIPE_MASK);
     }
     
-    private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
+    private final OrderCreateEncoder orderCreateEncoder = new OrderCreateEncoder();
     
     /** ThreadLocal 緩衝區：消除 synchronized 競爭，實現全並發 SBE 編碼 */
     private static final ThreadLocal<Bytes<ByteBuffer>> SBE_BYTES_THREAD_LOCAL = ThreadLocal.withInitial(() -> Bytes.elasticByteBuffer(512));
@@ -162,7 +162,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);
             dc.wire().write(ChronicleWireKey.userId).int64(uid);
-            dc.wire().write(ChronicleWireKey.topic).int32(holder.assetId);
+            dc.wire().write(ChronicleWireKey.assetId).int32(holder.assetId);
             dc.wire().write(ChronicleWireKey.data).int64(holder.amount);
         }
     }
@@ -176,7 +176,7 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         
         sbeBytes.clear();
         sbeBuffer.wrap(sbeBytes.addressForWrite(0), (int) sbeBytes.realCapacity());
-        int sbeLen = SbeCodec.encode(sbeBuffer, 0, createEncoder
+        int sbeLen = SbeCodec.encode(sbeBuffer, 0, orderCreateEncoder
             .userId(uid).symbolId(holder.symbolId).price(holder.price)
             .qty(holder.qty).side(Side.valueOf(holder.side)).clientOrderId(holder.cid)
             .timestamp(System.currentTimeMillis()));
@@ -216,8 +216,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        Long uid = ctx.channel().attr(USER_ID_KEY).get();
-        if (uid != null) {
+        long uid = ctx.channel().attr(USER_ID_KEY).getOrDefault(-1L);
+        if (uid != -1L) {
             int idx = getStripeIndex(uid);
             synchronized (locks[idx]) {
                 Set<Channel> channels = userToSessionsStripes[idx].get(uid);

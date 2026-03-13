@@ -144,8 +144,8 @@ public class Engine extends Worker implements ReadMarshallable {
             }
             case MsgType.DEPOSIT -> {
                 long uid = wire.read(ChronicleWireKey.userId).int64();
-                int assetId = wire.read(ChronicleWireKey.topic).int32(); // 借用 topic 傳遞 assetId
-                long amount = wire.read(ChronicleWireKey.data).int64(); // 借用 data 傳遞 amount
+                int assetId = wire.read(ChronicleWireKey.assetId).int32(); 
+                long amount = wire.read(ChronicleWireKey.data).int64(); 
                 depositProcessor.handleDeposit(uid, assetId, amount, gwSeq);
             }
             case MsgType.SNAPSHOT -> {
