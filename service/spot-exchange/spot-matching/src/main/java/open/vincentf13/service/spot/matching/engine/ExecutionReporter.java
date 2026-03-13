@@ -15,69 +15,60 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /**
  * 執行回報器 (Execution Reporter)
- * 職責：封裝各類成交/指令狀態回報邏輯，寫入回報 WAL
+ * 職責：封裝各類成交/指令狀態回報邏輯，實現業務物件到 SBE/WAL 的自動轉換
  */
 public class ExecutionReporter {
     private final ChronicleQueue engineSenderWal = Storage.self().engineSenderWal();
     
     @Setter private boolean isReplaying = false;
 
+    /** 
+     * 自動回報 Taker 的最終狀態
+     * 判定邏輯：New -> reportAccepted, Else -> reportMatched
+     */
+    public void reportTakerFinalState(Order taker) {
+        if (taker.getStatus() == OrderStatus.NEW.ordinal()) {
+            reportAccepted(taker);
+        } else {
+            reportMatched(taker, 0, 0); 
+        }
+    }
+
     /** 回報：訂單已接受 (Accepted / New) */
     public void reportAccepted(Order order) {
         if (isReplaying) return;
-        ThreadContext context = ThreadContext.get();
         int sbeLength = SbeCodec.encodeToScratchAcceptedReport(
                 order.getTimestamp(), order.getUserId(), order.getOrderId(), order.getClientOrderId());
         
-        OrderAcceptedReport report = context.getOrderAcceptedReport();
-        report.setGatewaySeq(order.getLastSeq());
-        report.fillFromScratch(sbeLength);
-        
-        writeWal(MsgType.ORDER_ACCEPTED, report);
+        writeReport(MsgType.ORDER_ACCEPTED, order.getLastSeq(), sbeLength);
     }
 
     /** 回報：訂單被拒絕 (Rejected) */
     public void reportRejected(long userId, long clientOrderId, long timestamp, long gatewaySequence) {
         if (isReplaying) return;
-        ThreadContext context = ThreadContext.get();
         int sbeLength = SbeCodec.encodeToScratchRejectedReport(timestamp, userId, clientOrderId);
-        
-        OrderRejectedReport report = context.getOrderRejectedReport();
-        report.setGatewaySeq(gatewaySequence);
-        report.fillFromScratch(sbeLength);
-        
-        writeWal(MsgType.ORDER_REJECTED, report);
+        writeReport(MsgType.ORDER_REJECTED, gatewaySequence, sbeLength);
     }
 
     /** 回報：訂單已撤單 (Canceled) */
     public void reportCanceled(Order order) {
         if (isReplaying) return;
-        ThreadContext context = ThreadContext.get();
         int sbeLength = SbeCodec.encodeToScratchCanceledReport(
                 System.currentTimeMillis(), order.getUserId(), order.getOrderId(), order.getFilled(), order.getClientOrderId());
         
-        OrderCanceledReport report = context.getOrderCanceledReport();
-        report.setGatewaySeq(order.getLastSeq());
-        report.fillFromScratch(sbeLength);
-        
-        writeWal(MsgType.ORDER_CANCELED, report);
+        writeReport(MsgType.ORDER_CANCELED, order.getLastSeq(), sbeLength);
     }
 
     /** 回報：訂單成交 (Trade / Matched) */
     public void reportMatched(Order order, long lastPrice, long lastQuantity) {
         if (isReplaying) return;
-        ThreadContext context = ThreadContext.get();
         OrderStatus status = order.getQty() == 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
         
         int sbeLength = SbeCodec.encodeToScratchMatchedReport(
                 order.getTimestamp(), order.getUserId(), order.getOrderId(), status, 
                 lastPrice, lastQuantity, order.getFilled(), 0, order.getClientOrderId());
         
-        OrderMatchReport report = context.getOrderMatchReport();
-        report.setGatewaySeq(order.getLastSeq());
-        report.fillFromScratch(sbeLength);
-        
-        writeWal(MsgType.ORDER_MATCHED, report);
+        writeReport(MsgType.ORDER_MATCHED, order.getLastSeq(), sbeLength);
     }
 
     /** 回報：用戶認證結果 */
@@ -102,6 +93,27 @@ public class ExecutionReporter {
         writeWal(MsgType.DEPOSIT_REPORT, report);
     }
 
+    /** 內部工具：將 ScratchBuffer 內容包裝成 Report 並寫入 WAL */
+    private void writeReport(int msgType, long gatewaySequence, int sbeLength) {
+        ThreadContext context = ThreadContext.get();
+        // 這裡利用了 fillFromScratch 的自動封裝
+        BytesMarshallable report = switch (msgType) {
+            case MsgType.ORDER_ACCEPTED -> context.getOrderAcceptedReport();
+            case MsgType.ORDER_REJECTED -> context.getOrderRejectedReport();
+            case MsgType.ORDER_CANCELED -> context.getOrderCanceledReport();
+            case MsgType.ORDER_MATCHED  -> context.getOrderMatchReport();
+            default -> throw new IllegalArgumentException("Unknown msgType: " + msgType);
+        };
+        
+        // 統一設值邏輯，消除重複代碼
+        if (report instanceof OrderAcceptedReport r) { r.setGatewaySeq(gatewaySequence); r.fillFromScratch(sbeLength); }
+        else if (report instanceof OrderRejectedReport r) { r.setGatewaySeq(gatewaySequence); r.fillFromScratch(sbeLength); }
+        else if (report instanceof OrderCanceledReport r) { r.setGatewaySeq(gatewaySequence); r.fillFromScratch(sbeLength); }
+        else if (report instanceof OrderMatchReport r) { r.setGatewaySeq(gatewaySequence); r.fillFromScratch(sbeLength); }
+
+        writeWal(msgType, report);
+    }
+
     private void writeWal(int msgType, BytesMarshallable model) {
         try (DocumentContext dc = engineSenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
@@ -109,7 +121,5 @@ public class ExecutionReporter {
         }
     }
 
-    public void close() {
-        // 資源由 ThreadContext 統一管理
-    }
+    public void close() {}
 }

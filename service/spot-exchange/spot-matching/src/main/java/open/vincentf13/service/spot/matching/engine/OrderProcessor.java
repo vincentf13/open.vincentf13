@@ -36,7 +36,7 @@ public class OrderProcessor {
     /** 核心入口：處理下單指令 */
     public void processCreateCommand(OrderCreateDecoder decoder, long gatewaySequence, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
         final ThreadContext context = ThreadContext.get();
-        final CidKey cidKey = context.getRequestHolder().getCidKey(); // 使用 RequestHolder 內部的 CidKey
+        final CidKey cidKey = context.getRequestHolder().getCidKey(); 
         cidKey.set(decoder.userId(), decoder.clientOrderId());
 
         if (clientOrderIdDiskMap.containsKey(cidKey)) return;
@@ -47,7 +47,6 @@ public class OrderProcessor {
     /** 處理撤單指令 */
     public void processCancelCommand(long userId, long orderId, long gatewaySequence) {
         final ThreadContext context = ThreadContext.get();
-        // 優化：使用 getUsing 實現零分配讀取
         Order order = orders.getUsing(orderId, context.getReusableOrder());
         
         // 1. 基礎校驗
@@ -55,13 +54,11 @@ public class OrderProcessor {
             return;
         }
 
-        // 2. 從 OrderBook 移除
+        // 2. 從 OrderBook 移除 (內部會釋放物件)
         OrderBook.get(order.getSymbolId()).remove(orderId);
 
         // 3. 資產解凍
-        long freezeQuantity = (order.getSide() == OrderSide.BUY) 
-                ? order.getQty() * order.getPrice() 
-                : order.getQty();
+        long freezeQuantity = (order.getSide() == OrderSide.BUY) ? order.getQty() * order.getPrice() : order.getQty();
         ledger.unfreezeBalance(order.getUserId(), (order.getSide() == OrderSide.BUY) ? (order.getSymbolId() / 1000) : (order.getSymbolId() % 100), freezeQuantity, gatewaySequence);
 
         // 4. 更新狀態
@@ -69,7 +66,7 @@ public class OrderProcessor {
         order.setLastSeq(gatewaySequence);
         orders.put(orderId, order);
 
-        // 5. 發送回報
+        // 5. 發送回報 (自動從物件提取狀態)
         reporter.reportCanceled(order);
     }
 
@@ -100,7 +97,7 @@ public class OrderProcessor {
                 ledger.settleTrade(maker.getUserId(), userId, price, quantity, 
                         (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), price, gatewaySequence, baseAsset, quoteAsset, tradeId);
                 
-                // 發送 Maker 回報
+                // 發送 Maker 回報 (自動提取狀態)
                 reporter.reportMatched(maker, price, quantity);
             }
 
@@ -118,15 +115,11 @@ public class OrderProcessor {
             }
         });
 
-        // 3. 獲取 Taker 最終狀態並發報 (使用 getUsing)
+        // 3. 獲取 Taker 最終狀態並發報 (極簡化：委託給 Reporter 判定分支)
         final ThreadContext context = ThreadContext.get();
         Order taker = orders.getUsing(orderId, context.getReusableOrder());
         if (taker != null) {
-            if (taker.getStatus() == OrderStatus.NEW.ordinal()) {
-                reporter.reportAccepted(taker);
-            } else {
-                reporter.reportMatched(taker, 0, 0);
-            }
+            reporter.reportTakerFinalState(taker);
         }
     }
 
