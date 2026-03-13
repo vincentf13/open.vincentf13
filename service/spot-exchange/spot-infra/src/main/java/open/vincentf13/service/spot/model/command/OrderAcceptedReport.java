@@ -24,6 +24,10 @@ public class OrderAcceptedReport implements BytesMarshallable {
         this.pointBytesStore.set(buffer.addressOffset() + offset, length);
     }
 
+    public void fillFromScratch(int length) {
+        fillFrom(open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getScratchBuffer().buffer(), 0, length);
+    }
+
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
         bytes.writeLong(gatewaySeq);

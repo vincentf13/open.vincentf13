@@ -29,7 +29,7 @@ public class ExecutionReporter {
         
         OrderAcceptedReport report = context.getOrderAcceptedReport();
         report.setGatewaySeq(gatewaySequence);
-        report.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        report.fillFromScratch(sbeLength);
         
         writeWal(MsgType.ORDER_ACCEPTED, report);
     }
@@ -42,7 +42,7 @@ public class ExecutionReporter {
         
         OrderRejectedReport report = context.getOrderRejectedReport();
         report.setGatewaySeq(gatewaySequence);
-        report.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        report.fillFromScratch(sbeLength);
         
         writeWal(MsgType.ORDER_REJECTED, report);
     }
@@ -55,7 +55,7 @@ public class ExecutionReporter {
         
         OrderCanceledReport report = context.getOrderCanceledReport();
         report.setGatewaySeq(gatewaySequence);
-        report.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        report.fillFromScratch(sbeLength);
         
         writeWal(MsgType.ORDER_CANCELED, report);
     }
@@ -71,7 +71,7 @@ public class ExecutionReporter {
         
         OrderMatchReport report = context.getOrderMatchReport();
         report.setGatewaySeq(gatewaySequence);
-        report.fillFrom(context.getScratchBuffer().buffer(), 0, sbeLength);
+        report.fillFromScratch(sbeLength);
         
         writeWal(MsgType.ORDER_MATCHED, report);
     }
