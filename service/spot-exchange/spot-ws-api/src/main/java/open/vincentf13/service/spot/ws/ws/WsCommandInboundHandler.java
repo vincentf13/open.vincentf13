@@ -48,7 +48,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         ThreadContext.RequestHolder holder = ThreadContext.get().getRequestHolder();
         holder.reset();
 
-        try (JsonParser parser = JsonUtil.MAPPER.getFactory().createParser(Unpooled.copiedBuffer(content).array())) {
+        try (JsonParser parser = JsonUtil.createParser(content)) {
             while (parser.nextToken() != JsonToken.END_OBJECT) {
                 String field = parser.getCurrentName();
                 if (field == null) continue;

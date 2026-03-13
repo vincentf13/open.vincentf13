@@ -73,6 +73,10 @@ public class WsSessionManager {
         }
     }
 
+    public Long getUserIdByChannel(Channel channel) {
+        return channel.attr(USER_ID_KEY).get();
+    }
+
     /**
      * 精準推送：向該用戶的所有活躍設備推送訊息
      */

@@ -54,11 +54,6 @@ public abstract class AbstractAeronAlloc<T extends AbstractAeronAlloc<T>> {
         return buffer.getLong(getPayloadOffset() + internalOffset);
     }
 
-    /** 從 ThreadContext 的 scratchBuffer 自動填充 Payload */
-    public void fillFromScratch(int length) {
-        this.fillFrom(open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getScratchBuffer().buffer(), 0, length);
-    }
-
     /** 寫入共有頭部 */
     protected void writeHeader(int msgType, long seq) {
         mutableBuffer.putInt(offset + MSG_TYPE_OFF, msgType);
