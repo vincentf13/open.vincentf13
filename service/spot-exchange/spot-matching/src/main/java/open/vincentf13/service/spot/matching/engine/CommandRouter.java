@@ -23,7 +23,6 @@ public class CommandRouter {
     private final OrderProcessor orderProcessor;
     private final AuthProcessor authProcessor;
     private final DepositProcessor depositProcessor;
-    private final SnapshotService snapshotService;
 
     public long route(int msgType, net.openhft.chronicle.wire.WireIn wire, WalProgress progress, 
                       boolean isReplaying, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
@@ -38,9 +37,11 @@ public class CommandRouter {
     }
 
     private long handleAuth(net.openhft.chronicle.wire.WireIn wire) {
-        AuthCommand cmd = ThreadContext.get().getAuthCommand();
+        ThreadContext context = ThreadContext.get();
+        AuthCommand cmd = context.getAuthCommand();
         wire.read(ChronicleWireKey.payload).bytes(cmd);
         
+        context.setCurrentGatewaySequence(cmd.getSeq());
         final long userId = SbeCodec.decodeAuth(cmd.getPointBytesStore()).userId();
         authProcessor.handleAuth(userId, cmd.getSeq());
         
@@ -48,9 +49,11 @@ public class CommandRouter {
     }
 
     private long handleOrderCreate(net.openhft.chronicle.wire.WireIn wire, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
-        OrderCreateCommand cmd = ThreadContext.get().getOrderCreateCommand();
+        ThreadContext context = ThreadContext.get();
+        OrderCreateCommand cmd = context.getOrderCreateCommand();
         wire.read(ChronicleWireKey.payload).bytes(cmd);
         
+        context.setCurrentGatewaySequence(cmd.getSeq());
         final OrderCreateDecoder decoder = SbeCodec.decodeOrderCreate(cmd.getPointBytesStore());
         orderProcessor.processCreateCommand(decoder, cmd.getSeq(), orderIdSupplier, tradeIdSupplier);
         
@@ -58,9 +61,11 @@ public class CommandRouter {
     }
 
     private long handleOrderCancel(net.openhft.chronicle.wire.WireIn wire) {
-        OrderCancelCommand cmd = ThreadContext.get().getOrderCancelCommand();
+        ThreadContext context = ThreadContext.get();
+        OrderCancelCommand cmd = context.getOrderCancelCommand();
         wire.read(ChronicleWireKey.payload).bytes(cmd);
         
+        context.setCurrentGatewaySequence(cmd.getSeq());
         final var decoder = SbeCodec.decodeOrderCancel(cmd.getPointBytesStore());
         orderProcessor.processCancelCommand(decoder.userId(), decoder.orderId(), cmd.getSeq());
         
@@ -68,9 +73,11 @@ public class CommandRouter {
     }
 
     private long handleDeposit(net.openhft.chronicle.wire.WireIn wire) {
-        DepositCommand cmd = ThreadContext.get().getDepositCommand();
+        ThreadContext context = ThreadContext.get();
+        DepositCommand cmd = context.getDepositCommand();
         wire.read(ChronicleWireKey.payload).bytes(cmd);
         
+        context.setCurrentGatewaySequence(cmd.getSeq());
         final var decoder = SbeCodec.decodeDeposit(cmd.getPointBytesStore());
         depositProcessor.handleDeposit(decoder.userId(), decoder.assetId(), decoder.amount(), cmd.getSeq());
         

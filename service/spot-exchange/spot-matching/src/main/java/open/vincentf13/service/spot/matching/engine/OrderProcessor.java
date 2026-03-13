@@ -54,7 +54,7 @@ public class OrderProcessor {
             return;
         }
 
-        // 2. 從 OrderBook 移除 (內部會釋放物件)
+        // 2. 從 OrderBook 移除
         OrderBook.get(order.getSymbolId()).remove(orderId);
 
         // 3. 資產解凍
@@ -66,7 +66,7 @@ public class OrderProcessor {
         order.setLastSeq(gatewaySequence);
         orders.put(orderId, order);
 
-        // 5. 發送回報 (自動從物件提取狀態)
+        // 5. 發送回報
         reporter.reportCanceled(order);
     }
 
@@ -84,7 +84,7 @@ public class OrderProcessor {
         long freezeAmount = (side == Side.BUY) ? price * quantity : quantity;
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
-            reporter.reportRejected(userId, clientOrderId, timestamp, gatewaySequence);
+            reporter.reportRejected(userId, clientOrderId);
             return;
         }
 
@@ -97,8 +97,8 @@ public class OrderProcessor {
                 ledger.settleTrade(maker.getUserId(), userId, price, quantity, 
                         (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), price, gatewaySequence, baseAsset, quoteAsset, tradeId);
                 
-                // 發送 Maker 回報 (自動提取狀態)
-                reporter.reportMatched(maker, price, quantity);
+                // 發送 Maker 回報 (成交)
+                reporter.reportTrade(maker, price, quantity);
             }
 
             @Override
@@ -115,11 +115,16 @@ public class OrderProcessor {
             }
         });
 
-        // 3. 獲取 Taker 最終狀態並發報 (極簡化：委託給 Reporter 判定分支)
+        // 3. 獲取 Taker 最終狀態並發報
         final ThreadContext context = ThreadContext.get();
         Order taker = orders.getUsing(orderId, context.getReusableOrder());
         if (taker != null) {
-            reporter.reportTakerFinalState(taker);
+            if (taker.getStatus() == OrderStatus.NEW.ordinal()) {
+                reporter.reportAccepted(taker);
+            } else {
+                // Taker 的成交回報在撮合回調中會觸發，此處僅處理最終可能的掛單或結尾報告
+                reporter.reportTrade(taker, 0, 0);
+            }
         }
     }
 

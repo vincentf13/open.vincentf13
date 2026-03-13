@@ -23,6 +23,8 @@ public class ThreadContext {
         }
     }
 
+    @Getter @lombok.Setter private long currentGatewaySequence = -1L;
+
     // --- 核心資源 ---
     @Getter private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
     @Getter private final RequestHolder requestHolder = new RequestHolder();
