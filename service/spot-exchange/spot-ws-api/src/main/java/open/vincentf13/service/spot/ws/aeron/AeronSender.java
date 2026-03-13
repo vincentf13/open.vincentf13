@@ -43,7 +43,9 @@ public class AeronSender extends AbstractAeronSender {
         
         switch (ctxMsgType) {
             case MsgType.AUTH -> {
-                final long userId = wire.read(ChronicleWireKey.userId).int64();
+                open.vincentf13.service.spot.model.command.AuthCommand cmd = ThreadContext.get().getAuthCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                final long userId = cmd.getUserId();
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.AUTH);
                     buffer.putLong(offset + 4, ctxSeq);
@@ -53,8 +55,12 @@ public class AeronSender extends AbstractAeronSender {
             case MsgType.ORDER_CREATE -> {
                 final NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
                 scratchBuffer.clear();
-                wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
-                final int payloadLength = (int) scratchBuffer.bytes().readRemaining();
+
+                open.vincentf13.service.spot.model.command.OrderCreateCommand cmd = ThreadContext.get().getOrderCreateCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+
+                final int payloadLength = (int) cmd.getSbePayload().capacity();
+                cmd.getSbePayload().bytesForRead().read(scratchBuffer.buffer().byteArray(), 0, payloadLength);
                 
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CREATE);
@@ -63,8 +69,11 @@ public class AeronSender extends AbstractAeronSender {
                 });
             }
             case MsgType.ORDER_CANCEL -> {
-                final long uid = wire.read(ChronicleWireKey.userId).int64();
-                final long oid = wire.read(ChronicleWireKey.data).int64();
+                open.vincentf13.service.spot.model.command.OrderCancelCommand cmd = ThreadContext.get().getOrderCancelCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+
+                final long uid = cmd.getUserId();
+                final long oid = cmd.getOrderId();
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 28, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CANCEL);
                     buffer.putLong(offset + 4, ctxSeq);
@@ -73,9 +82,12 @@ public class AeronSender extends AbstractAeronSender {
                 });
             }
             case MsgType.DEPOSIT -> {
-                final long uid = wire.read(ChronicleWireKey.userId).int64();
-                final int aid = wire.read(ChronicleWireKey.assetId).int32();
-                final long amt = wire.read(ChronicleWireKey.data).int64();
+                open.vincentf13.service.spot.model.command.DepositCommand cmd = ThreadContext.get().getDepositCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+
+                final long uid = cmd.getUserId();
+                final int aid = cmd.getAssetId();
+                final long amt = cmd.getAmount();
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 32, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.DEPOSIT);
                     buffer.putLong(offset + 4, ctxSeq);
