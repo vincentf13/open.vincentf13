@@ -45,8 +45,26 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     /** Netty Channel 屬性：直接綁定 UserID，規避 SessionToUser Map */
     private static final AttributeKey<Long> USER_ID_KEY = AttributeKey.valueOf("userId");
     
-    /** UserID -> Channels 映射：支援同一用戶多設備同時在線 (採用 Agrona 高性能原始型別 Map) */
-    private final Long2ObjectHashMap<Set<Channel>> userToSessions = new Long2ObjectHashMap<>();
+    /** 條帶數量 (必須為 2 的冪次以優化取模運算) */
+    private static final int STRIPE_COUNT = 64;
+    private static final int STRIPE_MASK = STRIPE_COUNT - 1;
+    
+    /** 條帶化存儲：將用戶分佈在多個獨立的 Map 中以降低鎖競爭 */
+    @SuppressWarnings("unchecked")
+    private final Long2ObjectHashMap<Set<Channel>>[] userToSessionsStripes = new Long2ObjectHashMap[STRIPE_COUNT];
+    private final Object[] locks = new Object[STRIPE_COUNT];
+
+    public WsHandler() {
+        for (int i = 0; i < STRIPE_COUNT; i++) {
+            userToSessionsStripes[i] = new Long2ObjectHashMap<>(32, 0.6f);
+            locks[i] = new Object();
+        }
+    }
+    
+    /** 高效 Hash 算法：混合 userId 高低位以確保分佈均勻 */
+    private int getStripeIndex(long userId) {
+        return (int) ((userId ^ (userId >>> 32)) & STRIPE_MASK);
+    }
     
     private final OrderCreateEncoder createEncoder = new OrderCreateEncoder();
     
@@ -114,8 +132,9 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
         // 直接將 UserID 綁定到 Channel 屬性，消除 SessionToUser Map
         channel.attr(USER_ID_KEY).set(holder.userId);
         
-        synchronized (userToSessions) {
-            userToSessions.computeIfAbsent(holder.userId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
+        int idx = getStripeIndex(holder.userId);
+        synchronized (locks[idx]) {
+            userToSessionsStripes[idx].computeIfAbsent(holder.userId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
                     .add(channel);
         }
         
@@ -174,8 +193,9 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
      */
     public void sendMessage(long userId, ByteBuf data) {
         Set<Channel> channels;
-        synchronized (userToSessions) {
-            channels = userToSessions.get(userId);
+        int idx = getStripeIndex(userId);
+        synchronized (locks[idx]) {
+            channels = userToSessionsStripes[idx].get(userId);
         }
         
         if (channels == null || channels.isEmpty()) {
@@ -198,11 +218,12 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     public void channelInactive(ChannelHandlerContext ctx) {
         Long uid = ctx.channel().attr(USER_ID_KEY).get();
         if (uid != null) {
-            synchronized (userToSessions) {
-                Set<Channel> channels = userToSessions.get(uid);
+            int idx = getStripeIndex(uid);
+            synchronized (locks[idx]) {
+                Set<Channel> channels = userToSessionsStripes[idx].get(uid);
                 if (channels != null) {
                     channels.remove(ctx.channel());
-                    if (channels.isEmpty()) userToSessions.remove(uid);
+                    if (channels.isEmpty()) userToSessionsStripes[idx].remove(uid);
                 }
             }
         }
