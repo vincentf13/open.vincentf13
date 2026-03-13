@@ -10,13 +10,25 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spot-matching</artifactId>
+    <artifactId>spot-ws-api</artifactId>
 
     <dependencies>
         <dependency>
             <groupId>open.vincentf13.spot</groupId>
             <artifactId>spot-infra</artifactId>
         </dependency>
+        
+        <!-- Netty for High Performance WebSocket -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
