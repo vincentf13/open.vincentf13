@@ -100,7 +100,6 @@ public abstract class AbstractAeronReceiver extends Worker {
     }
 
     private void fragmentHandler(org.agrona.DirectBuffer buffer, int offset, int length, io.aeron.logbuffer.Header header) {
-        final int msgType = buffer.getInt(offset);
         final long seq = buffer.getLong(offset + 4);
         final long lastSeq = progress.getLastProcessedSeq();
         
@@ -123,7 +122,7 @@ public abstract class AbstractAeronReceiver extends Worker {
         }
 
         // 3. 業務處理與落地 (由子類實作)
-        onMessage(buffer, offset, length, msgType, seq);
+        onMessage(buffer, offset, length);
         
         progress.setLastProcessedSeq(seq);
         metadata.put(metadataKey, progress);
@@ -132,7 +131,7 @@ public abstract class AbstractAeronReceiver extends Worker {
     /**
      * 子類實現具體的訊息處理與 WAL 落地
      */
-    protected abstract void onMessage(org.agrona.DirectBuffer buffer, int offset, int length, int msgType, long seq);
+    protected abstract void onMessage(org.agrona.DirectBuffer buffer, int offset, int length);
 
     @Override
     protected void onStop() { 

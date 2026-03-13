@@ -29,9 +29,6 @@ public class AuthProcessor {
         // 2. 發送認證成功回報
         reporter.sendAuthSuccess(userId, gwSeq);
         
-        // 3. 關鍵修正：立即沖刷回報流，確保客戶端即時收到結果
-        reporter.flushBatch(gwSeq);
-        
         log.debug("用戶 {} 認證處理完成 (gwSeq: {})", userId, gwSeq);
     }
 }

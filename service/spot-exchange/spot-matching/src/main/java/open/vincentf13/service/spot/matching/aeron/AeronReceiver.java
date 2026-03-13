@@ -35,7 +35,9 @@ public class AeronReceiver extends AbstractAeronReceiver {
     }
 
     @Override
-    protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length, int msgType, long seq) {
+    protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length) {
+        final int msgType = buffer.getInt(offset);
+        final long seq = buffer.getLong(offset + 4);
         ThreadContext ctx = ThreadContext.get();
         
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {

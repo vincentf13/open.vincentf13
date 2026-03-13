@@ -89,8 +89,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
         // 4. 發送回報
         reporter.sendReport(userId, orderId, o.getClientOrderId(), OrderStatus.CANCELED, 
-                0, 0, o.getFilled(), 0, System.currentTimeMillis());
-        reporter.flushBatch(gwSeq);
+                0, 0, o.getFilled(), 0, System.currentTimeMillis(), gwSeq);
 
         log.info("訂單 {} 撤單成功 (userId: {}, gwSeq: {})", orderId, userId, gwSeq);
     }
@@ -103,8 +102,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
         // 1. 參數合法性校驗 (Risk Check)
         if (price <= 0 || qty <= 0) {
-            reporter.sendReport(userId, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
-            reporter.flushBatch(gwSeq);
+            reporter.sendReport(userId, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp(), gwSeq);
             reusableCidKey.set(userId, cid);
             clientOrderIdDiskMap.put(reusableCidKey, ID_REJECTED);
             log.warn("拒絕非法指令：UserId={}, Price={}, Qty={}", userId, price, qty);
@@ -118,8 +116,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
         // 2. 風控校驗 (餘額檢查)
         if (!ledger.freezeBalance(userId, assetId, cost, gwSeq)) {
-            reporter.sendReport(userId, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp());
-            reporter.flushBatch(gwSeq);
+            reporter.sendReport(userId, 0, cid, OrderStatus.REJECTED, 0, 0, 0, 0, sbe.timestamp(), gwSeq);
             reusableCidKey.set(userId, cid);
             clientOrderIdDiskMap.put(reusableCidKey, ID_REJECTED);
             return;
@@ -137,9 +134,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         // 4. Taker 最終回報
         reporter.sendReport(taker.getUserId(), orderId, cid, 
                 toSbeStatus(taker.getStatus()), 
-                0, 0, taker.getFilled(), 0, ctxTimestamp);
+                0, 0, taker.getFilled(), 0, ctxTimestamp, gwSeq);
 
-        reporter.flushBatch(gwSeq);
         reusableCidKey.set(taker.getUserId(), cid);
         clientOrderIdDiskMap.put(reusableCidKey, orderId);
 
@@ -162,12 +158,12 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         // 1. Maker 回報
         reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
                 maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED, 
-                price, qty, maker.getFilled(), price, ctxTimestamp);
+                price, qty, maker.getFilled(), price, ctxTimestamp, ctxGwSeq);
 
         // 2. Taker 回報 (針對此筆成交)
         reporter.sendReport(ctxUserId, 0, reusableCidKey.getClientOrderId(),
                 OrderStatus.PARTIALLY_FILLED, 
-                price, qty, 0, price, ctxTimestamp);
+                price, qty, 0, price, ctxTimestamp, ctxGwSeq);
     }
 
     @Override
@@ -186,7 +182,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         OrderBook.get(maker.getSymbolId()).syncOrder(maker, gwSeq);
 
         reporter.sendReport(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(), 
-                OrderStatus.CANCELED, 0, 0, maker.getFilled(), 0, ctxTimestamp);
+                OrderStatus.CANCELED, 0, 0, maker.getFilled(), 0, ctxTimestamp, gwSeq);
 
         log.info("STP 撤單處理完成: OrderId={}, UserId={}", maker.getOrderId(), maker.getUserId());
     }

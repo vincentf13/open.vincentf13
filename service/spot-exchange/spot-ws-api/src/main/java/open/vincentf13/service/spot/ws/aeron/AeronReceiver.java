@@ -7,6 +7,7 @@ import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.model.command.*;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -34,14 +35,42 @@ public class AeronReceiver extends AbstractAeronReceiver {
     }
 
     @Override
-    protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length, int msgType, long seq) {
-        // 事務落地：對齊核心引擎的寫入格式，將純 SBE 資料放入 payload 欄位
+    protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length) {
+        final int msgType = buffer.getInt(offset);
+        final long seq = buffer.getLong(offset + 4);
+        ThreadContext ctx = ThreadContext.get();
+
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
-            dc.wire().write(ChronicleWireKey.matchingSeq).int64(seq);
             
-            // 跳過前 12 位元組 (Aeron Header)，提取純 SBE Payload
-            dc.wire().write(ChronicleWireKey.payload).bytes(ThreadContext.get().getPointerMapper().wrap(buffer, offset + 12, length - 12));
+            switch (msgType) {
+                case MsgType.ORDER_ACCEPTED -> {
+                    OrderAcceptedWal model = ctx.getOrderAcceptedWal();
+                    model.fillFrom(buffer, offset + 12, length - 12, seq);
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+                }
+                case MsgType.ORDER_REJECTED -> {
+                    OrderRejectedWal model = ctx.getOrderRejectedWal();
+                    model.fillFrom(buffer, offset + 12, length - 12, seq);
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+                }
+                case MsgType.ORDER_CANCELED -> {
+                    OrderCanceledWal model = ctx.getOrderCanceledWal();
+                    model.fillFrom(buffer, offset + 12, length - 12, seq);
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+                }
+                case MsgType.ORDER_MATCHED  -> {
+                    OrderMatchWal model = ctx.getOrderMatchWal();
+                    model.fillFrom(buffer, offset + 12, length - 12, seq);
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(model);
+                }
+                case MsgType.AUTH_REPORT -> {
+                    AuthReportWal authReport = ctx.getAuthReportWal();
+                    authReport.setMatchingSeq(seq);
+                    authReport.setUserId(buffer.getLong(offset + 12));
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(authReport);
+                }
+            }
         }
     }
 }

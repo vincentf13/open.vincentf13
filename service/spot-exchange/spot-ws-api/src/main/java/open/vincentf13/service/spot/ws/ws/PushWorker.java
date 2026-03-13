@@ -9,14 +9,15 @@ import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import open.vincentf13.service.spot.ws.util.JsonUtil;
 import open.vincentf13.service.spot.infra.Worker;
+import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.model.WalProgress;
+import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
+import open.vincentf13.service.spot.ws.util.JsonUtil;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ExecutorService;
@@ -72,19 +73,27 @@ public class PushWorker extends Worker {
     @Override
     protected int doWork() {
         int workCount = 0;
-        // 批量讀取優化：一次最多處理 100 筆
+        ThreadContext ctx = ThreadContext.get();
+        
+        // 批量讀取優化
         for (int i = 0; i < 100; i++) {
             boolean handled = tailer.readDocument(wire -> {
                 long index = tailer.index();
                 int msgType = wire.read(ChronicleWireKey.msgType).int32();
-                NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
-                scratchBuffer.clear(); 
-                wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
-
-                if (msgType == MsgType.EXECUTION_REPORT) {
-                    handleExecutionReport(scratchBuffer.bytes());
-                } else if (msgType == MsgType.AUTH_REPORT) {
-                    handleAuthReport(scratchBuffer.bytes());
+                
+                switch (msgType) {
+                    case MsgType.AUTH_REPORT -> {
+                        AuthReportWal report = ctx.getAuthReportWal();
+                        wire.read(ChronicleWireKey.payload).marshallable(report);
+                        handleAuthReport(report.getUserId());
+                    }
+                    case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
+                        // 雖然場景不同，但它們目前都共享相同的 SBE 解析結構 (ExecutionReportDecoder)
+                        // 我們可以統一取其中一個模型實例來讀取 payload 指針
+                        OrderMatchWal report = ctx.getOrderMatchWal();
+                        wire.read(ChronicleWireKey.payload).marshallable(report);
+                        handleExecutionReport(report.getSbePayload().bytesForRead());
+                    }
                 }
 
                 progress.setLastProcessedIndex(index);
@@ -100,12 +109,13 @@ public class PushWorker extends Worker {
     }
 
     private void handleExecutionReport(Bytes<?> bytes) {
+        // 重用 scratchBuffer 進行 SBE 解碼
+        NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
         long address = bytes.addressForRead(bytes.readPosition());
         int totalLen = (int) bytes.readRemaining();
         int offset = 0;
 
         while (offset < totalLen) {
-            NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
             scratchBuffer.wrap(address + offset, totalLen - offset);
             ExecutionReportDecoder executionDecoder = ThreadContext.get().getExecutionReportDecoder();
             SbeCodec.decode(scratchBuffer.buffer(), 0, executionDecoder);
@@ -134,10 +144,7 @@ public class PushWorker extends Worker {
         }
     }
 
-    private void handleAuthReport(Bytes<?> bytes) {
-        if (bytes.readRemaining() < 8) return;
-        final long userId = bytes.readLong();
-        
+    private void handleAuthReport(long userId) {
         stripedPool[(int)(userId % threadCount)].execute(() -> {
             JsonUtil.Envelope env = new JsonUtil.Envelope("auth", "success");
             ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(128);

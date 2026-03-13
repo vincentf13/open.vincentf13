@@ -60,6 +60,11 @@ public class ThreadContext {
     private final OrderCancelCommand orderCancelCommand = new OrderCancelCommand();
     private final DepositCommand depositCommand = new DepositCommand();
     private final SnapshotCommand snapshotCommand = new SnapshotCommand();
+    private final AuthReportWal authReportWal = new AuthReportWal();
+    private final OrderAcceptedWal orderAcceptedWal = new OrderAcceptedWal();
+    private final OrderRejectedWal orderRejectedWal = new OrderRejectedWal();
+    private final OrderCanceledWal orderCanceledWal = new OrderCanceledWal();
+    private final OrderMatchWal orderMatchWal = new OrderMatchWal();
 
     // --- SBE 編解碼器 (無狀態，Wrap 後即可使用) ---
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
