@@ -7,6 +7,7 @@ import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.model.command.*;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -35,21 +36,44 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length, int msgType, long seq) {
-        // 事務寫入：消除 Lambda
+        ThreadContext ctx = ThreadContext.get();
+        
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
-            dc.wire().write(ChronicleWireKey.gwSeq).int64(seq);
-            if (msgType == MsgType.AUTH) {
-                dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
-            } else if (msgType == MsgType.ORDER_CREATE) {
-                dc.wire().write(ChronicleWireKey.payload).bytes(ThreadContext.get().getPointerMapper().wrap(buffer, offset + 12, length - 12));
-            } else if (msgType == MsgType.ORDER_CANCEL) {
-                dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
-                dc.wire().write(ChronicleWireKey.data).int64(buffer.getLong(offset + 20));
-            } else if (msgType == MsgType.DEPOSIT) {
-                dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
-                dc.wire().write(ChronicleWireKey.assetId).int32(buffer.getInt(offset + 20));
-                dc.wire().write(ChronicleWireKey.data).int64(buffer.getLong(offset + 24));
+            
+            switch (msgType) {
+                case MsgType.AUTH -> {
+                    AuthCommand cmd = ctx.getAuthCommand();
+                    cmd.setSeq(seq);
+                    cmd.setUserId(buffer.getLong(offset + 12));
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                }
+                case MsgType.ORDER_CREATE -> {
+                    OrderCreateCommand cmd = ctx.getOrderCreateCommand();
+                    cmd.setSeq(seq);
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                    dc.wire().write(ChronicleWireKey.data).bytes(ctx.getPointerMapper().wrap(buffer, offset + 12, length - 12));
+                }
+                case MsgType.ORDER_CANCEL -> {
+                    OrderCancelCommand cmd = ctx.getOrderCancelCommand();
+                    cmd.setSeq(seq);
+                    cmd.setUserId(buffer.getLong(offset + 12));
+                    cmd.setOrderId(buffer.getLong(offset + 20));
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                }
+                case MsgType.DEPOSIT -> {
+                    DepositCommand cmd = ctx.getDepositCommand();
+                    cmd.setSeq(seq);
+                    cmd.setUserId(buffer.getLong(offset + 12));
+                    cmd.setAssetId(buffer.getInt(offset + 20));
+                    cmd.setAmount(buffer.getLong(offset + 24));
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                }
+                case MsgType.SNAPSHOT -> {
+                    SnapshotCommand cmd = ctx.getSnapshotCommand();
+                    cmd.setSeq(seq);
+                    dc.wire().write(ChronicleWireKey.payload).marshallable(cmd);
+                }
             }
         }
     }

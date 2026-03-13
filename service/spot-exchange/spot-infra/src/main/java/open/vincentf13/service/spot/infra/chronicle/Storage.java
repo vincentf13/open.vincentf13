@@ -6,8 +6,6 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.RollCycles;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import open.vincentf13.service.spot.model.*;
-import open.vincentf13.service.spot.model.Progress.MsgProgress;
-import open.vincentf13.service.spot.model.Progress.WalProgress;
 
 import java.io.File;
 import java.io.IOException;

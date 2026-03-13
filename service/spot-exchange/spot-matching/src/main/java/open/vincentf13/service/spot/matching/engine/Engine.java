@@ -10,7 +10,8 @@ import net.openhft.chronicle.wire.ReadMarshallable;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.model.Progress.WalProgress;
+import open.vincentf13.service.spot.model.WalProgress;
+import open.vincentf13.service.spot.model.command.*;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
@@ -103,47 +104,43 @@ public class Engine extends Worker implements ReadMarshallable {
     public void readMarshallable(WireIn wire) {
         final long index = tailer.index();
         final int msgType = wire.read(ChronicleWireKey.msgType).int32();
-        final long gwSeq = wire.read(ChronicleWireKey.gwSeq).int64();
+        ThreadContext ctx = ThreadContext.get();
         
-        // 狀態切換
-        if (isReplaying && index >= tailer.queue().lastIndex()) {
-            setReplaying(false);
-            log.info("重播完成，切換至實時模式 (gwSeq: {})", gwSeq);
-        }
+        long gwSeq = MSG_SEQ_NONE;
 
-        // 連續性斷言
-        final long lastSeq = progress.getLastProcessedMsgSeq();
-        if (lastSeq != MSG_SEQ_NONE) {
-            if (gwSeq == lastSeq) return; 
-            if (gwSeq != lastSeq + 1) {
-                log.error("指令跳號！期望: {}, 實際: {}。請檢查 WAL 連續性或使用 ENGINE_FORCE_START=true 強制啟動。", lastSeq + 1, gwSeq);
-                if (!"true".equalsIgnoreCase(System.getProperty("ENGINE_FORCE_START"))) {
-                    System.exit(1); 
-                }
-            }
-        }
-
-        // 路由分發 (補全 DEPOSIT 與 ORDER_CANCEL)
+        // 1. 根據類型讀取結構化數據
         switch (msgType) {
-            case MsgType.AUTH -> authProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
+            case MsgType.AUTH -> {
+                AuthCommand cmd = ctx.getAuthCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                gwSeq = cmd.getSeq();
+                authProcessor.handleAuth(cmd.getUserId(), gwSeq);
+            }
             case MsgType.ORDER_CREATE -> {
-                NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
+                OrderCreateCommand cmd = ctx.getOrderCreateCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                gwSeq = cmd.getSeq();
+                NativeUnsafeBuffer scratchBuffer = ctx.getScratchBuffer();
                 scratchBuffer.clear(); 
-                wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
+                wire.read(ChronicleWireKey.data).bytes(scratchBuffer.bytes());
                 orderProcessor.processCreateCommand(scratchBuffer.wrapForRead(), gwSeq, this::nextOrderId, this::nextTradeId);
             }
             case MsgType.ORDER_CANCEL -> {
-                long uid = wire.read(ChronicleWireKey.userId).int64();
-                long oid = wire.read(ChronicleWireKey.data).int64(); // 借用 data 傳遞 orderId
-                orderProcessor.processCancelCommand(uid, oid, gwSeq);
+                OrderCancelCommand cmd = ctx.getOrderCancelCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                gwSeq = cmd.getSeq();
+                orderProcessor.processCancelCommand(cmd.getUserId(), cmd.getOrderId(), gwSeq);
             }
             case MsgType.DEPOSIT -> {
-                long uid = wire.read(ChronicleWireKey.userId).int64();
-                int assetId = wire.read(ChronicleWireKey.assetId).int32(); 
-                long amount = wire.read(ChronicleWireKey.data).int64(); 
-                depositProcessor.handleDeposit(uid, assetId, amount, gwSeq);
+                DepositCommand cmd = ctx.getDepositCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                gwSeq = cmd.getSeq();
+                depositProcessor.handleDeposit(cmd.getUserId(), cmd.getAssetId(), cmd.getAmount(), gwSeq);
             }
             case MsgType.SNAPSHOT -> {
+                SnapshotCommand cmd = ctx.getSnapshotCommand();
+                wire.read(ChronicleWireKey.payload).marshallable(cmd);
+                gwSeq = cmd.getSeq();
                 if (!isReplaying) {
                     snapshotService.createSnapshot(progress);
                     lastSnapshotSeq = gwSeq;
@@ -151,17 +148,28 @@ public class Engine extends Worker implements ReadMarshallable {
             }
         }
 
-        // 進度存檔
+        // 2. 狀態與冪等檢查 (使用 gwSeq)
+        if (isReplaying && index >= tailer.queue().lastIndex()) {
+            setReplaying(false);
+            log.info("重播完成，切換至實時模式 (gwSeq: {})", gwSeq);
+        }
+
+        final long lastSeq = progress.getLastProcessedMsgSeq();
+        if (lastSeq != MSG_SEQ_NONE && gwSeq != MSG_SEQ_NONE) {
+            if (gwSeq == lastSeq) return; 
+            if (gwSeq != lastSeq + 1) {
+                log.error("指令跳號！期望: {}, 實際: {}。請檢查 WAL 連續性。", lastSeq + 1, gwSeq);
+            }
+        }
+
+        // 3. 進度存檔
         progress.setLastProcessedIndex(index);
         progress.setLastProcessedMsgSeq(gwSeq);
 
-        // --- 核心改進：自動快照策略 ---
-        // 每 100 條存檔元數據位點 (Checkpoint)
         if (index % 100 == 0) {
             metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
         }
 
-        // 每 100,000 條執行完整磁碟快照 (Snapshot)
         if (!isReplaying && gwSeq - lastSnapshotSeq >= 100_000) {
             snapshotService.createSnapshot(progress);
             lastSnapshotSeq = gwSeq;

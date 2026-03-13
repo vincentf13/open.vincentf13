@@ -2,6 +2,9 @@ package open.vincentf13.service.spot.infra.alloc;
 
 import lombok.Getter;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
+import open.vincentf13.service.spot.model.MsgProgress;
+import open.vincentf13.service.spot.model.WalProgress;
+import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.MessageHeaderDecoder;
 import open.vincentf13.service.spot.sbe.MessageHeaderEncoder;
 import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
@@ -50,6 +53,13 @@ public class ThreadContext {
 
     /** Chronicle 指針映射器 (用於零拷貝 WAL 寫入) */
     private final ChroniclePointerMapper pointerMapper = new ChroniclePointerMapper();
+
+    // --- 指令數據載體 (用於零物件分配數據交換) ---
+    private final AuthCommand authCommand = new AuthCommand();
+    private final OrderCreateCommand orderCreateCommand = new OrderCreateCommand();
+    private final OrderCancelCommand orderCancelCommand = new OrderCancelCommand();
+    private final DepositCommand depositCommand = new DepositCommand();
+    private final SnapshotCommand snapshotCommand = new SnapshotCommand();
 
     // --- SBE 編解碼器 (無狀態，Wrap 後即可使用) ---
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();

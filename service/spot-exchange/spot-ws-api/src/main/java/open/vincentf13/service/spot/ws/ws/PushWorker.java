@@ -15,7 +15,7 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
-import open.vincentf13.service.spot.model.Progress.WalProgress;
+import open.vincentf13.service.spot.model.WalProgress;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
 import org.springframework.stereotype.Component;
 
