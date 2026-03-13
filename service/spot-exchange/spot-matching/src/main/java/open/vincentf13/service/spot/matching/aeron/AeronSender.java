@@ -5,7 +5,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
-import open.vincentf13.service.spot.infra.aeron.AeronUtil;
+import open.vincentf13.service.spot.infra.alloc.aeron.AeronEnvelope;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
@@ -45,19 +45,17 @@ public class AeronSender extends AbstractAeronSender {
         final long ctxMatchingSeq = (mSeq == 0) ? tailer.index() : mSeq;
         
         // 提取 Body：統一使用 payload 欄位
-        final NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
+        final ThreadContext ctx = ThreadContext.get();
+        final NativeUnsafeBuffer scratchBuffer = ctx.getScratchBuffer();
         scratchBuffer.clear();
         wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
         
         final int payloadLength = (int) scratchBuffer.bytes().readRemaining();
         
-        // 發送：累加背壓重試次數
-        this.backPressureCount += aeronClient.send(12 + payloadLength, (buffer, offset) -> {
-            buffer.putInt(offset, ctxMsgType);
-            buffer.putLong(offset + 4, ctxMatchingSeq);
-            if (payloadLength > 0) {
-                buffer.putBytes(offset + 12, scratchBuffer.wrapForRead(), 0, payloadLength);
-            }
+        // 發送：使用通用封包打包
+        this.backPressureCount += aeronClient.send(AeronEnvelope.HEADER_LENGTH + payloadLength, (buffer, offset) -> {
+            ctx.getAeronEnvelope().wrap(buffer, offset).write(ctxMsgType, ctxMatchingSeq, 
+                    scratchBuffer.buffer(), 0, payloadLength);
         });
     }
 }

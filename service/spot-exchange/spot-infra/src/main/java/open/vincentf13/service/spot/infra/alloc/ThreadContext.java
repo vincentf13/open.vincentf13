@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.infra.alloc;
 
 import lombok.Getter;
+import open.vincentf13.service.spot.infra.alloc.aeron.*;
 import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.*;
 
@@ -29,6 +30,7 @@ public class ThreadContext {
     @Getter private final AeronOrderCreate aeronOrderCreate = new AeronOrderCreate();
     @Getter private final AeronOrderCancel aeronOrderCancel = new AeronOrderCancel();
     @Getter private final AeronDeposit aeronDeposit = new AeronDeposit();
+    @Getter private final AeronEnvelope aeronEnvelope = new AeronEnvelope();
 
     // --- 指令數據載體 (SBE 封裝版) ---
     private AuthCommand authCommand;

@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
+import open.vincentf13.service.spot.infra.alloc.aeron.AeronEnvelope;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.*;
@@ -36,9 +37,13 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length) {
-        final int msgType = buffer.getInt(offset);
-        final long seq = buffer.getLong(offset + 4);
-        ThreadContext ctx = ThreadContext.get();
+        final ThreadContext ctx = ThreadContext.get();
+        final AeronEnvelope aeron = (AeronEnvelope) ctx.getAeronEnvelope().wrap(buffer, offset);
+        
+        final int msgType = aeron.readMsgType();
+        final long seq = aeron.readSeq();
+        final int pOffset = aeron.getPayloadOffset();
+        final int pLength = aeron.getPayloadLength(length);
 
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
@@ -47,31 +52,31 @@ public class AeronReceiver extends AbstractAeronReceiver {
                 case MsgType.ORDER_ACCEPTED -> {
                     OrderAcceptedWal model = ctx.getOrderAcceptedWal();
                     model.setMatchingSeq(seq);
-                    model.fillFrom(buffer, offset + 12, length - 12);
+                    model.fillFrom(buffer, pOffset, pLength);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_REJECTED -> {
                     OrderRejectedWal model = ctx.getOrderRejectedWal();
                     model.setMatchingSeq(seq);
-                    model.fillFrom(buffer, offset + 12, length - 12);
+                    model.fillFrom(buffer, pOffset, pLength);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_CANCELED -> {
                     OrderCanceledWal model = ctx.getOrderCanceledWal();
                     model.setMatchingSeq(seq);
-                    model.fillFrom(buffer, offset + 12, length - 12);
+                    model.fillFrom(buffer, pOffset, pLength);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_MATCHED  -> {
                     OrderMatchWal model = ctx.getOrderMatchWal();
                     model.setMatchingSeq(seq);
-                    model.fillFrom(buffer, offset + 12, length - 12);
+                    model.fillFrom(buffer, pOffset, pLength);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.AUTH_REPORT -> {
                     AuthReportWal authReport = ctx.getAuthReportWal();
                     authReport.setMatchingSeq(seq);
-                    authReport.setUserId(buffer.getLong(offset + 12));
+                    authReport.setUserId(buffer.getLong(pOffset));
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(authReport);
                 }
             }
