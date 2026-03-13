@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
-import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.alloc.*;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.AuthCommand;
@@ -53,7 +52,7 @@ public class AeronSender extends AbstractAeronSender {
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 final long userId = SbeCodec.decodeAuth(cmd.getPointBytesStore()).userId();
                 
-                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, AeronAuth.LENGTH, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(AeronAuth.LENGTH, (buffer, offset) -> {
                     ctx.getAeronAuth().pack(buffer, offset, ctxSeq, userId);
                 });
             }
@@ -63,8 +62,7 @@ public class AeronSender extends AbstractAeronSender {
                 final PointerBytesStore store = cmd.getPointBytesStore();
                 final int payloadLength = (int) store.readRemaining();
                 
-                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, AeronOrderCreate.HEADER_LENGTH + payloadLength, idleStrategy, running, (buffer, offset) -> {
-                    // 將 Chronicle Pointer 轉換為 Agrona DirectBuffer 視圖
+                this.backPressureCount += aeronClient.send(AeronOrderCreate.HEADER_LENGTH + payloadLength, (buffer, offset) -> {
                     DirectBuffer sbeBuffer = ctx.getScratchBuffer().wrap(store.addressForRead(0), payloadLength);
                     ctx.getAeronOrderCreate().pack(buffer, offset, ctxSeq, sbeBuffer, 0, payloadLength);
                 });
@@ -77,7 +75,7 @@ public class AeronSender extends AbstractAeronSender {
                 final long userId = decoder.userId();
                 final long orderId = decoder.orderId();
                 
-                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, AeronOrderCancel.LENGTH, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(AeronOrderCancel.LENGTH, (buffer, offset) -> {
                     ctx.getAeronOrderCancel().pack(buffer, offset, ctxSeq, userId, orderId);
                 });
             }
@@ -90,7 +88,7 @@ public class AeronSender extends AbstractAeronSender {
                 final int assetId = decoder.assetId();
                 final long amount = decoder.amount();
                 
-                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, AeronDeposit.LENGTH, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(AeronDeposit.LENGTH, (buffer, offset) -> {
                     ctx.getAeronDeposit().pack(buffer, offset, ctxSeq, userId, assetId, amount);
                 });
             }
