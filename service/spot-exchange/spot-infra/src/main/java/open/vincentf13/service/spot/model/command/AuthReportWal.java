@@ -13,6 +13,11 @@ public class AuthReportWal implements BytesMarshallable {
     private long matchingSeq;
     private long userId;
 
+    public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
+        this.matchingSeq = aeron.readSeq();
+        this.userId = aeron.buffer.getLong(aeron.getPayloadOffset());
+    }
+
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
         bytes.writeLong(matchingSeq);

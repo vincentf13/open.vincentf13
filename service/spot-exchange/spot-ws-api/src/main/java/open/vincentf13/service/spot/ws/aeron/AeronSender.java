@@ -7,10 +7,7 @@ import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.alloc.*;
-import open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc;
-import open.vincentf13.service.spot.infra.alloc.aeron.AeronAuth;
-import open.vincentf13.service.spot.infra.alloc.aeron.AeronDeposit;
-import open.vincentf13.service.spot.infra.alloc.aeron.AeronOrderCancel;
+import open.vincentf13.service.spot.infra.alloc.aeron.*;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.AuthCommand;
 import open.vincentf13.service.spot.model.command.DepositCommand;
@@ -68,7 +65,7 @@ public class AeronSender extends AbstractAeronSender {
                 
                 this.backPressureCount += aeronClient.send(AbstractAeronAlloc.HEADER_LENGTH + payloadLength, (buffer, offset) -> {
                     DirectBuffer sbeBuffer = ctx.getScratchBuffer().wrap(store.addressForRead(0), payloadLength);
-                    ctx.getAeronOrderCreate().wrap(buffer, offset).write(ctxSeq, sbeBuffer, 0, payloadLength);
+                    ctx.getAeronOrderCreate().wrap(buffer, offset).write(ctxSeq, sbeBuffer);
                 });
             }
             case MsgType.ORDER_CANCEL -> {

@@ -47,6 +47,10 @@ public class SnapshotCommand implements BytesMarshallable {
         }
     }
 
+    public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
+        this.seq = aeron.readSeq();
+    }
+
     public void fillFrom(DirectBuffer buffer, int offset, int length) {
         this.pointBytesStore.set(buffer.addressOffset() + offset, length);
     }

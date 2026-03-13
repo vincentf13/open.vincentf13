@@ -35,6 +35,11 @@ public class OrderRejectedWal implements BytesMarshallable {
         }
     }
 
+    public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
+        this.matchingSeq = aeron.readSeq();
+        this.pointBytesStore.set(aeron.getBufferAddress() + aeron.getPayloadOffset(), aeron.getPayloadLength());
+    }
+
     public void fillFrom(DirectBuffer buffer, int offset, int length) {
         this.pointBytesStore.set(buffer.addressOffset() + offset, length);
     }

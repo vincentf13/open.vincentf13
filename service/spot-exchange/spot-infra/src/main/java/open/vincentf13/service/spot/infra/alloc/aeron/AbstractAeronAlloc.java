@@ -4,8 +4,8 @@ import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 
 /**
- * Aeron 訊息佈局抽象基類
- * 統一管理狀態綁定與共有頭部 [Int: MsgType] [Long: Sequence]
+ * Aeron 訊息佈局抽象基類 (優化版)
+ * 封裝了 Buffer, Offset 與 Length，提供更簡潔的數據訪問 API
  */
 @SuppressWarnings("unchecked")
 public abstract class AbstractAeronAlloc<T extends AbstractAeronAlloc<T>> {
@@ -16,21 +16,26 @@ public abstract class AbstractAeronAlloc<T extends AbstractAeronAlloc<T>> {
     protected DirectBuffer buffer;
     protected MutableDirectBuffer mutableBuffer;
     protected int offset;
+    protected int totalLength;
 
-    /** 綁定唯讀 Buffer */
-    public T wrap(DirectBuffer buffer, int offset) {
+    /** 綁定唯讀 Buffer 並指定總長度 */
+    public T wrap(DirectBuffer buffer, int offset, int totalLength) {
         this.buffer = buffer;
         this.offset = offset;
+        this.totalLength = totalLength;
         return (T) this;
     }
 
-    /** 綁定可寫 Buffer */
+    /** 綁定可寫 Buffer (長度可選) */
     public T wrap(MutableDirectBuffer buffer, int offset) {
         this.mutableBuffer = buffer;
         this.buffer = buffer;
         this.offset = offset;
         return (T) this;
     }
+
+    /** 獲取基礎地址 (用於低階拷貝) */
+    public long getBufferAddress() { return buffer.addressOffset(); }
 
     /** 獲取消息類型 */
     public int readMsgType() { return buffer.getInt(offset + MSG_TYPE_OFF); }
@@ -41,8 +46,8 @@ public abstract class AbstractAeronAlloc<T extends AbstractAeronAlloc<T>> {
     /** 獲取 Payload 起始偏移量 */
     public int getPayloadOffset() { return offset + HEADER_LENGTH; }
 
-    /** 根據總長度獲取 Payload 長度 */
-    public int getPayloadLength(int totalLength) { return totalLength - HEADER_LENGTH; }
+    /** 獲取 Payload 長度 */
+    public int getPayloadLength() { return totalLength - HEADER_LENGTH; }
 
     /** 寫入共有頭部 */
     protected void writeHeader(int msgType, long seq) {

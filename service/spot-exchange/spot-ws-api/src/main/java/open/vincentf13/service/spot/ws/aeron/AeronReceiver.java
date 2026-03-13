@@ -38,12 +38,8 @@ public class AeronReceiver extends AbstractAeronReceiver {
     @Override
     protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length) {
         final ThreadContext ctx = ThreadContext.get();
-        final AeronEnvelope aeron = (AeronEnvelope) ctx.getAeronEnvelope().wrap(buffer, offset);
-        
+        final AeronEnvelope aeron = ctx.getAeronEnvelope().wrap(buffer, offset, length);
         final int msgType = aeron.readMsgType();
-        final long seq = aeron.readSeq();
-        final int pOffset = aeron.getPayloadOffset();
-        final int pLength = aeron.getPayloadLength(length);
 
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
@@ -51,32 +47,27 @@ public class AeronReceiver extends AbstractAeronReceiver {
             switch (msgType) {
                 case MsgType.ORDER_ACCEPTED -> {
                     OrderAcceptedWal model = ctx.getOrderAcceptedWal();
-                    model.setMatchingSeq(seq);
-                    model.fillFrom(buffer, pOffset, pLength);
+                    model.fillFrom(aeron);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_REJECTED -> {
                     OrderRejectedWal model = ctx.getOrderRejectedWal();
-                    model.setMatchingSeq(seq);
-                    model.fillFrom(buffer, pOffset, pLength);
+                    model.fillFrom(aeron);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_CANCELED -> {
                     OrderCanceledWal model = ctx.getOrderCanceledWal();
-                    model.setMatchingSeq(seq);
-                    model.fillFrom(buffer, pOffset, pLength);
+                    model.fillFrom(aeron);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.ORDER_MATCHED  -> {
                     OrderMatchWal model = ctx.getOrderMatchWal();
-                    model.setMatchingSeq(seq);
-                    model.fillFrom(buffer, pOffset, pLength);
+                    model.fillFrom(aeron);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
                 }
                 case MsgType.AUTH_REPORT -> {
                     AuthReportWal authReport = ctx.getAuthReportWal();
-                    authReport.setMatchingSeq(seq);
-                    authReport.setUserId(buffer.getLong(pOffset));
+                    authReport.fillFrom(aeron);
                     dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(authReport);
                 }
             }
