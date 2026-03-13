@@ -62,7 +62,7 @@ public class OrderBook {
     private final Trade reusableTrade = new Trade();
     private static final Order SCAN_REUSABLE = new Order();
 
-    @FunctionalInterface public interface TradeFinalizer {
+    public interface TradeFinalizer {
         void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset);
         /** 新增：自成交預防回調 */
         void onSTP(Order maker, long gwSeq);

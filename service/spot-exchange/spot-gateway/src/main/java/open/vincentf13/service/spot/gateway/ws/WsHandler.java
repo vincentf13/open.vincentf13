@@ -126,8 +126,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleOrderCancel(Channel channel, RequestHolder holder) {
-        Long uid = sessionToUser.get(channel.id().asLongText());
-        if (uid == null) return;
+        long uid = sessionToUser.getOrDefault(channel.id().asLongText(), -1L);
+        if (uid == -1L) return;
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
@@ -137,8 +137,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleDeposit(Channel channel, RequestHolder holder) {
-        Long uid = sessionToUser.get(channel.id().asLongText());
-        if (uid == null) return;
+        long uid = sessionToUser.getOrDefault(channel.id().asLongText(), -1L);
+        if (uid == -1L) return;
         
         try (DocumentContext dc = clientToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);
@@ -149,8 +149,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     }
 
     private void handleOrderCreate(Channel channel, RequestHolder holder) {
-        Long uid = sessionToUser.get(channel.id().asLongText());
-        if (uid == null) return;
+        long uid = sessionToUser.getOrDefault(channel.id().asLongText(), -1L);
+        if (uid == -1L) return;
 
         Bytes<ByteBuffer> sbeBytes = SBE_BYTES_THREAD_LOCAL.get();
         UnsafeBuffer sbeBuffer = SBE_BUFFER_THREAD_LOCAL.get();
