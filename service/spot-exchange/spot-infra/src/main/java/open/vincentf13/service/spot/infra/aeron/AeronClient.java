@@ -41,7 +41,7 @@ public class AeronClient {
                 backPressureCount++;
                 idleStrategy.idle();
             } else if (result == Publication.NOT_CONNECTED) {
-                throw new RuntimeException("Aeron Publication not connected!");
+                return backPressureCount;
             } else {
                 idleStrategy.idle();
             }

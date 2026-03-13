@@ -41,6 +41,8 @@ public class Constants {
         public static class Msg {
             public static final byte MACHING_RECEVIER_POINT = 1;
             public static final byte GW_RECEVIER_POINT = 2;
+            public static final byte GATEWAY_SENDER_POINT = 3;
+            public static final byte MATCHING_SENDER_POINT = 4;
         }
 
         /** WAL 索引與狀態進度 (WalProgress) 的 Key */
