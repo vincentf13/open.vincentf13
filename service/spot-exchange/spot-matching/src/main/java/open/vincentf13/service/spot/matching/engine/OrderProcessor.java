@@ -38,9 +38,7 @@ public class OrderProcessor {
     public void init() { log.info("OrderProcessor 初始化完成..."); }
 
     /** 核心入口：處理下單指令 */
-    public void processCreateCommand(PointerBytesStore payload, long gwSeq, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
-        OrderCreateDecoder decoder = SbeCodec.decodeOrderCreate(payload);
-        
+    public void processCreateCommand(OrderCreateDecoder decoder, long gwSeq, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
         // 1. 冪等性檢查 (Client Order ID)
         reusableCidKey.set(decoder.userId(), decoder.clientOrderId());
 
