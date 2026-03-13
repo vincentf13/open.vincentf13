@@ -11,139 +11,199 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * 系統存儲中心 (Storage Hub)
+ * 系統存儲中心 (Storage Hub) - 懶加載版
  * 管理所有 Chronicle Map 與 Chronicle Queue 實例的生命週期
  */
 @Slf4j
 public class Storage {
     private static final Storage INSTANCE = new Storage();
-
     public static Storage self() { return INSTANCE; }
 
-    // --- Chronicle Map 實例 ---
-    private ChronicleMap<Long, Order> orders;
-    private ChronicleMap<Long, Trade> trades;
-    private ChronicleMap<BalanceKey, Balance> balances;
-    private ChronicleMap<Long, Long> userAssets; // 用戶資產位元遮罩索引
-    private ChronicleMap<Long, Boolean> activeOrders; // 活躍訂單
-    private ChronicleMap<Long, String> userActiveOrders; // 用戶活躍訂單 (ID 列表字串)
-    private ChronicleMap<CidKey, Long> cids;
-    private ChronicleMap<Byte, MsgProgress> msgMetadata;
-    private ChronicleMap<Byte, WalProgress> walMetadata;
+    private Storage() {}
 
-    // --- Chronicle Queue 實例 ---
-    private ChronicleQueue gatewaySenderWal;
-    private ChronicleQueue engineReceiverWal;
-    private ChronicleQueue engineSenderWal;
-    private ChronicleQueue gatewayReceiverWal;
+    // --- Chronicle Map 實例 (Lazy) ---
+    private volatile ChronicleMap<Long, Order> orders;
+    private volatile ChronicleMap<Long, Trade> trades;
+    private volatile ChronicleMap<BalanceKey, Balance> balances;
+    private volatile ChronicleMap<Long, Long> userAssets;
+    private volatile ChronicleMap<Long, Boolean> activeOrders;
+    private volatile ChronicleMap<Long, String> userActiveOrders;
+    private volatile ChronicleMap<CidKey, Long> cids;
+    private volatile ChronicleMap<Byte, MsgProgress> msgMetadata;
+    private volatile ChronicleMap<Byte, WalProgress> walMetadata;
 
-    private Storage() {
+    // --- Chronicle Queue 實例 (Lazy) ---
+    private volatile ChronicleQueue gatewaySenderWal;
+    private volatile ChronicleQueue engineReceiverWal;
+    private volatile ChronicleQueue engineSenderWal;
+    private volatile ChronicleQueue gatewayReceiverWal;
+
+    // --- Map Getters with Lazy Init ---
+
+    public ChronicleMap<Long, Order> orders() {
+        if (orders == null) {
+            synchronized (this) {
+                if (orders == null) orders = createMap(ChronicleMapEnum.ORDERS, Long.class, Order.class, 1_000_000, 128);
+            }
+        }
+        return orders;
+    }
+
+    public ChronicleMap<Long, Trade> trades() {
+        if (trades == null) {
+            synchronized (this) {
+                if (trades == null) trades = createMap(ChronicleMapEnum.TRADES, Long.class, Trade.class, 1_000_000, 64);
+            }
+        }
+        return trades;
+    }
+
+    public ChronicleMap<BalanceKey, Balance> balances() {
+        if (balances == null) {
+            synchronized (this) {
+                if (balances == null) balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 1_000_000, 16, 64);
+            }
+        }
+        return balances;
+    }
+
+    public ChronicleMap<Long, Long> userAssets() {
+        if (userAssets == null) {
+            synchronized (this) {
+                if (userAssets == null) userAssets = createMap(ChronicleMapEnum.USER_ASSETS, Long.class, Long.class, 100_000, 0);
+            }
+        }
+        return userAssets;
+    }
+
+    public ChronicleMap<Long, Boolean> activeOrders() {
+        if (activeOrders == null) {
+            synchronized (this) {
+                if (activeOrders == null) activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, Long.class, Boolean.class, 1_000_000, 0);
+            }
+        }
+        return activeOrders;
+    }
+
+    public ChronicleMap<Long, String> userActiveOrders() {
+        if (userActiveOrders == null) {
+            synchronized (this) {
+                if (userActiveOrders == null) userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, Long.class, String.class, 100_000, 256);
+            }
+        }
+        return userActiveOrders;
+    }
+
+    public ChronicleMap<CidKey, Long> cids() {
+        if (cids == null) {
+            synchronized (this) {
+                if (cids == null) cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, Long.class, 1_000_000, 16, 0);
+            }
+        }
+        return cids;
+    }
+
+    public ChronicleMap<CidKey, Long> clientOrderIdMap() { return cids(); }
+
+    public ChronicleMap<Byte, MsgProgress> msgMetadata() {
+        if (msgMetadata == null) {
+            synchronized (this) {
+                if (msgMetadata == null) msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 0);
+            }
+        }
+        return msgMetadata;
+    }
+
+    public ChronicleMap<Byte, WalProgress> walMetadata() {
+        if (walMetadata == null) {
+            synchronized (this) {
+                if (walMetadata == null) walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 0);
+            }
+        }
+        return walMetadata;
+    }
+
+    // --- Queue Getters with Lazy Init ---
+
+    public ChronicleQueue gatewaySenderWal() {
+        if (gatewaySenderWal == null) {
+            synchronized (this) {
+                if (gatewaySenderWal == null) gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
+            }
+        }
+        return gatewaySenderWal;
+    }
+
+    public ChronicleQueue engineReceiverWal() {
+        if (engineReceiverWal == null) {
+            synchronized (this) {
+                if (engineReceiverWal == null) engineReceiverWal = createQueue(ChronicleQueueEnum.GW_TO_MATCHING);
+            }
+        }
+        return engineReceiverWal;
+    }
+
+    public ChronicleQueue engineSenderWal() {
+        if (engineSenderWal == null) {
+            synchronized (this) {
+                if (engineSenderWal == null) engineSenderWal = createQueue(ChronicleQueueEnum.MATCHING_TO_ENGINE_SENDER);
+            }
+        }
+        return engineSenderWal;
+    }
+
+    public ChronicleQueue gatewayReceiverWal() {
+        if (gatewayReceiverWal == null) {
+            synchronized (this) {
+                if (gatewayReceiverWal == null) gatewayReceiverWal = createQueue(ChronicleQueueEnum.ENGINE_TO_GATEWAY_RECEIVER);
+            }
+        }
+        return gatewayReceiverWal;
+    }
+
+    // --- Private Helpers ---
+
+    private <K, V> ChronicleMap<K, V> createMap(String name, Class<K> keyCls, Class<V> valCls, int entries, int valSize) {
+        return createMap(name, keyCls, valCls, entries, 0, valSize);
+    }
+
+    private <K, V> ChronicleMap<K, V> createMap(String name, Class<K> keyCls, Class<V> valCls, int entries, int keySize, int valSize) {
         try {
-            initMaps();
-            initQueues();
+            String base = ChronicleMapEnum.DEFAULT_BASE_DIR;
+            new File(base).mkdirs();
+            var builder = ChronicleMap.of(keyCls, valCls).name(name).entries(entries);
+            if (keySize > 0) builder.averageKeySize(keySize);
+            if (valSize > 0) builder.averageValueSize(valSize);
+            log.info("初始化 Chronicle Map: {}", name);
+            return builder.createPersistedTo(new File(base + name));
         } catch (IOException e) {
-            log.error("Chronicle Storage 初始化失敗: {}", e.getMessage());
-            throw new RuntimeException(e);
+            throw new RuntimeException("無法建立 Chronicle Map: " + name, e);
         }
     }
 
-    private void initMaps() throws IOException {
-        String base = ChronicleMapEnum.DEFAULT_BASE_DIR;
-        new File(base).mkdirs();
-
-        orders = ChronicleMap.of(Long.class, Order.class)
-                .name(ChronicleMapEnum.ORDERS)
-                .entries(1_000_000)
-                .averageValueSize(128)
-                .createPersistedTo(new File(base + ChronicleMapEnum.ORDERS));
-
-        trades = ChronicleMap.of(Long.class, Trade.class)
-                .name(ChronicleMapEnum.TRADES)
-                .entries(1_000_000)
-                .averageValueSize(64)
-                .createPersistedTo(new File(base + ChronicleMapEnum.TRADES));
-
-        balances = ChronicleMap.of(BalanceKey.class, Balance.class)
-                .name(ChronicleMapEnum.BALANCES)
-                .entries(1_000_000)
-                .averageKeySize(16)
-                .averageValueSize(64)
-                .createPersistedTo(new File(base + ChronicleMapEnum.BALANCES));
-
-        userAssets = ChronicleMap.of(Long.class, Long.class)
-                .name(ChronicleMapEnum.USER_ASSETS)
-                .entries(100_000)
-                .createPersistedTo(new File(base + ChronicleMapEnum.USER_ASSETS));
-
-        activeOrders = ChronicleMap.of(Long.class, Boolean.class)
-                .name(ChronicleMapEnum.ACTIVE_ORDERS)
-                .entries(1_000_000)
-                .createPersistedTo(new File(base + ChronicleMapEnum.ACTIVE_ORDERS));
-
-        userActiveOrders = ChronicleMap.of(Long.class, String.class)
-                .name(ChronicleMapEnum.USER_ACTIVE_ORDERS)
-                .entries(100_000)
-                .averageValueSize(256)
-                .createPersistedTo(new File(base + ChronicleMapEnum.USER_ACTIVE_ORDERS));
-
-        cids = ChronicleMap.of(CidKey.class, Long.class)
-                .name(ChronicleMapEnum.CIDS)
-                .entries(1_000_000)
-                .averageKeySize(16)
-                .createPersistedTo(new File(base + ChronicleMapEnum.CIDS));
-
-        msgMetadata = ChronicleMap.of(Byte.class, MsgProgress.class)
-                .name(ChronicleMapEnum.METADATA)
-                .entries(10)
-                .createPersistedTo(new File(base + "msg-" + ChronicleMapEnum.METADATA));
-
-        walMetadata = ChronicleMap.of(Byte.class, WalProgress.class)
-                .name(ChronicleMapEnum.METADATA)
-                .entries(10)
-                .createPersistedTo(new File(base + "wal-" + ChronicleMapEnum.METADATA));
-    }
-
-    private void initQueues() {
+    private ChronicleQueue createQueue(ChronicleQueueEnum qEnum) {
         String base = ChronicleMapEnum.WAL_BASE_DIR;
         new File(base).mkdirs();
-
-        gatewaySenderWal = ChronicleQueue.single(base + ChronicleQueueEnum.CLIENT_TO_GW.getPath());
-        engineReceiverWal = ChronicleQueue.single(base + ChronicleQueueEnum.GW_TO_MATCHING.getPath());
-        engineSenderWal = ChronicleQueue.single(base + ChronicleQueueEnum.MATCHING_TO_ENGINE_SENDER.getPath());
-        gatewayReceiverWal = ChronicleQueue.single(base + ChronicleQueueEnum.ENGINE_TO_GATEWAY_RECEIVER.getPath());
+        log.info("初始化 Chronicle Queue: {}", qEnum.getPath());
+        return ChronicleQueue.single(base + qEnum.getPath());
     }
 
-    // --- Getters ---
-    public ChronicleMap<Long, Order> orders() { return orders; }
-    public ChronicleMap<Long, Trade> trades() { return trades; }
-    public ChronicleMap<BalanceKey, Balance> balances() { return balances; }
-    public ChronicleMap<Long, Long> userAssets() { return userAssets; }
-    public ChronicleMap<Long, Boolean> activeOrders() { return activeOrders; }
-    public ChronicleMap<Long, String> userActiveOrders() { return userActiveOrders; }
-    public ChronicleMap<CidKey, Long> cids() { return cids; }
-    public ChronicleMap<CidKey, Long> clientOrderIdMap() { return cids; }
-    public ChronicleMap<Byte, MsgProgress> msgMetadata() { return msgMetadata; }
-    public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
-
-    public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
-    public ChronicleQueue engineReceiverWal() { return engineReceiverWal; }
-    public ChronicleQueue engineSenderWal() { return engineSenderWal; }
-    public ChronicleQueue gatewayReceiverWal() { return gatewayReceiverWal; }
-
     public void close() {
-        if (orders != null) orders.close();
-        if (trades != null) trades.close();
-        if (balances != null) balances.close();
-        if (userAssets != null) userAssets.close();
-        if (activeOrders != null) activeOrders.close();
-        if (userActiveOrders != null) userActiveOrders.close();
-        if (cids != null) cids.close();
-        if (msgMetadata != null) msgMetadata.close();
-        if (walMetadata != null) walMetadata.close();
-        
-        if (gatewaySenderWal != null) gatewaySenderWal.close();
-        if (engineReceiverWal != null) engineReceiverWal.close();
-        if (engineSenderWal != null) engineSenderWal.close();
-        if (gatewayReceiverWal != null) gatewayReceiverWal.close();
+        synchronized (this) {
+            if (orders != null) { orders.close(); orders = null; }
+            if (trades != null) { trades.close(); trades = null; }
+            if (balances != null) { balances.close(); balances = null; }
+            if (userAssets != null) { userAssets.close(); userAssets = null; }
+            if (activeOrders != null) { activeOrders.close(); activeOrders = null; }
+            if (userActiveOrders != null) { userActiveOrders.close(); userActiveOrders = null; }
+            if (cids != null) { cids.close(); cids = null; }
+            if (msgMetadata != null) { msgMetadata.close(); msgMetadata = null; }
+            if (walMetadata != null) { walMetadata.close(); walMetadata = null; }
+            
+            if (gatewaySenderWal != null) { gatewaySenderWal.close(); gatewaySenderWal = null; }
+            if (engineReceiverWal != null) { engineReceiverWal.close(); engineReceiverWal = null; }
+            if (engineSenderWal != null) { engineSenderWal.close(); engineSenderWal = null; }
+            if (gatewayReceiverWal != null) { gatewayReceiverWal.close(); gatewayReceiverWal = null; }
+        }
     }
 }
