@@ -22,7 +22,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class AeronSender extends AbstractAeronSender {
 
     public AeronSender(Aeron aeron) {
-        super(aeron, Storage.self().matchingToGwWal(), 
+        super(aeron, Storage.self().matchingToGwWal(), Storage.self().msgMetadata(),
+              MetaDataKey.Msg.MATCHING_SENDER_POINT,
               AeronChannel.GATEWAY_URL, AeronChannel.DATA_STREAM_ID,
               AeronChannel.MATCHING_URL, AeronChannel.CONTROL_STREAM_ID);
     }
@@ -52,7 +53,7 @@ public class AeronSender extends AbstractAeronSender {
         final int payloadLength = (int) scratchBuffer.bytes().readRemaining();
         
         // 發送：累加背壓重試次數
-        this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+        this.backPressureCount += aeronClient.send(12 + payloadLength, (buffer, offset) -> {
             buffer.putInt(offset, ctxMsgType);
             buffer.putLong(offset + 4, ctxMatchingSeq);
             if (payloadLength > 0) {

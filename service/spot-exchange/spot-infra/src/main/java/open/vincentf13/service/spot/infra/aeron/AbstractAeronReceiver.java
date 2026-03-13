@@ -125,7 +125,11 @@ public abstract class AbstractAeronReceiver extends Worker {
         onMessage(buffer, offset, length);
         
         progress.setLastProcessedSeq(seq);
-        metadata.put(metadataKey, progress);
+        
+        // 定期存檔進度 (每 100 筆)
+        if (seq % 100 == 0) {
+            metadata.put(metadataKey, progress);
+        }
     }
 
     /**

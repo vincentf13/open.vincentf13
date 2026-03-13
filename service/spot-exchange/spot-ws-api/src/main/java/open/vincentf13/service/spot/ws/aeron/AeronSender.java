@@ -26,7 +26,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class AeronSender extends AbstractAeronSender {
 
     public AeronSender(Aeron aeron) {
-        super(aeron, Storage.self().clientToGwWal(), 
+        super(aeron, Storage.self().clientToGwWal(), Storage.self().msgMetadata(),
+              MetaDataKey.Msg.GATEWAY_SENDER_POINT,
               AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID,
               AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
     }
@@ -62,6 +63,7 @@ public class AeronSender extends AbstractAeronSender {
                 final PointerBytesStore store = cmd.getPointBytesStore();
                 final int payloadLength = (int) store.readRemaining();
                 
+                // 高頻熱點，極致優化
                 this.backPressureCount += aeronClient.send(AeronOrderCreate.HEADER_LENGTH + payloadLength, (buffer, offset) -> {
                     DirectBuffer sbeBuffer = ctx.getScratchBuffer().wrap(store.addressForRead(0), payloadLength);
                     ctx.getAeronOrderCreate().pack(buffer, offset, ctxSeq, sbeBuffer, 0, payloadLength);
