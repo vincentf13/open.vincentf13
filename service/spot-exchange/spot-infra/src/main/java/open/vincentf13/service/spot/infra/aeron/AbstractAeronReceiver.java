@@ -107,34 +107,37 @@ public abstract class AbstractAeronReceiver extends Worker {
     }
 
     private void fragmentHandler(org.agrona.DirectBuffer buffer, int offset, int length, io.aeron.logbuffer.Header header) {
-        final long seq = buffer.getLong(offset + 4);
+        final long msgSeq = buffer.getLong(offset + 4);
         final long lastSeq = progress.getLastProcessedSeq();
         
         // 1. 握手與自愈邏輯
         if (currentState == AeronState.WAITING) {
-            if (seq == 0 && lastSeq > 1000) {
-                log.warn("檢測到發送端 WAL 重置 (seq=0, lastProcessed={})，執行進度重置", lastSeq);
+            if (msgSeq == 0 && lastSeq > 1000) {
+                log.warn("檢測到發送端 WAL 重置 (msgSeq=0, lastProcessed={})，執行進度重置", lastSeq);
                 progress.setLastProcessedSeq(MSG_SEQ_NONE);
-            } else if (seq > lastSeq) {
+            } else if (msgSeq > lastSeq) {
                 currentState = AeronState.SENDING;
-                log.info("已與發送端對齊進度 (seq: {})，握手成功", seq);
+                log.info("已與發送端對齊進度 (msgSeq: {})，握手成功", msgSeq);
             }
         }
 
         // 2. 冪等與連續性檢查
-        if (seq <= progress.getLastProcessedSeq()) return;
+        if (msgSeq <= progress.getLastProcessedSeq()) return;
         
-        if (currentState == AeronState.SENDING && seq != lastSeq + 1 && lastSeq != MSG_SEQ_NONE) {
-            log.error("鏈路跳號！期望: {}, 實際: {}。將強制對齊位點。", lastSeq + 1, seq);
+        if (currentState == AeronState.SENDING && msgSeq != lastSeq + 1 && lastSeq != MSG_SEQ_NONE) {
+            log.error("鏈路跳號！期望: {}, 實際: {}。將強制進入 WAITING 模式並重新握手。", lastSeq + 1, msgSeq);
+            currentState = AeronState.WAITING;
+            sendResumeSignalBlocking();
+            return;
         }
 
         // 3. 業務處理與落地 (由子類實作)
         onMessage(buffer, offset, length);
         
-        progress.setLastProcessedSeq(seq);
+        progress.setLastProcessedSeq(msgSeq);
         
         // 定期存檔進度 (每 100 筆)
-        if (seq % 100 == 0) {
+        if (msgSeq % 100 == 0) {
             metadata.put(metadataKey, progress);
         }
     }
