@@ -216,8 +216,8 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        long uid = ctx.channel().attr(USER_ID_KEY).getOrDefault(-1L);
-        if (uid != -1L) {
+        Long uid = ctx.channel().attr(USER_ID_KEY).get();
+        if (uid != null) {
             int idx = getStripeIndex(uid);
             synchronized (locks[idx]) {
                 Set<Channel> channels = userToSessionsStripes[idx].get(uid);

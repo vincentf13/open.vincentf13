@@ -131,7 +131,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
                 final long amt = wire.read(ChronicleWireKey.data).int64();
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 32, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.DEPOSIT);
-                    buffer.putLong(offset + 4, gwSeq);
+                    buffer.putLong(offset + 4, ctxSeq);
                     buffer.putLong(offset + 12, uid);
                     buffer.putInt(offset + 20, aid);
                     buffer.putLong(offset + 24, amt);
