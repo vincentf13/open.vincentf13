@@ -8,7 +8,6 @@ import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import open.vincentf13.service.spot.infra.Worker;
-import open.vincentf13.service.spot.infra.alloc.AeronBufferHandler;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
@@ -32,7 +31,7 @@ public class AeronReceiver extends Worker {
     private final Aeron aeron;
     private Subscription subscription;
     private Publication controlPublication;
-    private final AeronBufferHandler bufferHandler = new AeronBufferHandler();
+    private final BufferClaim bufferClaim = new BufferClaim();
     private final Progress progress = new Progress();
     
     // 使用 FragmentAssembler 確保跨 MTU 訊息的完整性 (處理網路分片)
@@ -82,7 +81,7 @@ public class AeronReceiver extends Worker {
     }
 
     private void sendResumeSignalBlocking() {
-        AeronUtil.claimAndSend(controlPublication, bufferHandler.bufferClaim(), 12, idleStrategy, running, (buffer, offset) -> {
+        AeronUtil.claimAndSend(controlPublication, bufferClaim, 12, idleStrategy, running, (buffer, offset) -> {
             buffer.putInt(offset, MsgType.RESUME);
             buffer.putLong(offset + 4, progress.getLastProcessedSeq());
         });
@@ -118,7 +117,7 @@ public class AeronReceiver extends Worker {
             if (msgType == MsgType.AUTH) {
                 dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
             } else if (msgType == MsgType.ORDER_CREATE) {
-                dc.wire().write(ChronicleWireKey.payload).bytes(bufferHandler.wrap(buffer, offset + 12, length - 12));
+                dc.wire().write(ChronicleWireKey.payload).bytes(ThreadContext.get().getPointerMapper().wrap(buffer, offset + 12, length - 12));
             } else if (msgType == MsgType.ORDER_CANCEL) {
                 dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
                 dc.wire().write(ChronicleWireKey.data).int64(buffer.getLong(offset + 20));

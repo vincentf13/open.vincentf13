@@ -48,6 +48,9 @@ public class ThreadContext {
     /** 通用請求暫存器 (用於解析 JSON 指令) */
     private final RequestHolder requestHolder = new RequestHolder();
 
+    /** Chronicle 指針映射器 (用於零拷貝 WAL 寫入) */
+    private final ChroniclePointerMapper pointerMapper = new ChroniclePointerMapper();
+
     // --- SBE 編解碼器 (無狀態，Wrap 後即可使用) ---
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();

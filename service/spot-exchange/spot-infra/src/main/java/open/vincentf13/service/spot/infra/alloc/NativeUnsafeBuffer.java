@@ -16,9 +16,9 @@ import java.nio.ByteBuffer;
  *   <li>3. <b>零分配 (Zero-GC)</b>：設計用於熱點路徑的物件復用，配合 {@link ThreadContext} 達成運行時零垃圾產生。</li>
  * </ul>
  * 
- * <p>【與 AeronBufferHandler 的區別】</p>
+ * <p>【設計說明】</p>
  * {@code NativeUnsafeBuffer} 擁有並管理自己的堆外內存空間；
- * 而 {@link AeronBufferHandler} 僅作為映射外部（如 Aeron Media Driver）內存位址的橋樑。
+ * 配合 {@link ThreadContext} 達成運行時零垃圾產生。
  */
 public class NativeUnsafeBuffer {
     private final Bytes<ByteBuffer> bytes;

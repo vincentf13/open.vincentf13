@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.WireIn;
-import open.vincentf13.service.spot.infra.alloc.AeronBufferHandler;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import org.springframework.stereotype.Component;
@@ -37,7 +36,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     private Publication publication;
     private Subscription controlSubscription;
     private ExcerptTailer tailer;
-    private final AeronBufferHandler bufferHandler = new AeronBufferHandler();
+    private final BufferClaim bufferClaim = new BufferClaim();
 
     private AeronState currentState = AeronState.WAITING;
 
@@ -106,7 +105,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         final int payloadLength = (int) scratchBuffer.bytes().readRemaining();
         
         // 發送：累加背壓重試次數
-        this.backPressureCount += AeronUtil.claimAndSend(publication, bufferHandler.bufferClaim(), 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+        this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
             buffer.putInt(offset, ctxMsgType);
             buffer.putLong(offset + 4, ctxMatchingSeq);
             if (payloadLength > 0) {
