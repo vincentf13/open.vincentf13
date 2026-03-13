@@ -9,6 +9,8 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.ReadMarshallable;
 import net.openhft.chronicle.wire.WireIn;
+import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
@@ -41,8 +43,7 @@ public class Engine extends Worker implements ReadMarshallable {
     private boolean isReplaying = false;
     private long lastSnapshotSeq = -1;
 
-    private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
-    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(512);
+    private final NativeUnsafeBuffer nativeUnsafeBuffer = new NativeUnsafeBuffer(512);
 
     @PostConstruct public void init() { start("core-matching-engine"); }
 
@@ -132,10 +133,9 @@ public class Engine extends Worker implements ReadMarshallable {
         switch (msgType) {
             case MsgType.AUTH -> authProcessor.handleAuth(wire.read(ChronicleWireKey.userId).int64(), gwSeq);
             case MsgType.ORDER_CREATE -> {
-                reusableBytes.clear(); 
-                wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
-                payloadBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), (int)reusableBytes.readRemaining());
-                orderProcessor.processCreateCommand(payloadBuffer, gwSeq, this::nextOrderId, this::nextTradeId);
+                nativeUnsafeBuffer.clear(); 
+                wire.read(ChronicleWireKey.payload).bytes(nativeUnsafeBuffer.bytes());
+                orderProcessor.processCreateCommand(nativeUnsafeBuffer.wrapForRead(), gwSeq, this::nextOrderId, this::nextTradeId);
             }
             case MsgType.ORDER_CANCEL -> {
                 long uid = wire.read(ChronicleWireKey.userId).int64();
@@ -186,7 +186,7 @@ public class Engine extends Worker implements ReadMarshallable {
     }
 
     @Override protected void onStop() { 
-        reusableBytes.releaseLast(); 
         reporter.close();
+        ThreadContext.cleanup();
     }
 }

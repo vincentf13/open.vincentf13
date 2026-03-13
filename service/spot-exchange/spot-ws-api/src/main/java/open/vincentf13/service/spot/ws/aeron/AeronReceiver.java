@@ -8,11 +8,12 @@ import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import open.vincentf13.service.spot.infra.Worker;
+import open.vincentf13.service.spot.infra.alloc.AeronBufferHandler;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
 import org.springframework.stereotype.Component;
-import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
@@ -31,9 +32,8 @@ public class AeronReceiver extends Worker {
     private final Aeron aeron;
     private Subscription subscription;
     private Publication controlPublication;
-    private final BufferClaim bufferClaim = new BufferClaim();
+    private final AeronBufferHandler bufferHandler = new AeronBufferHandler();
     private final Progress progress = new Progress();
-    private final PointerBytesStore pointerBytesStore = new PointerBytesStore();
     
     // 支援網路分片訊息重組
     private FragmentAssembler assembler;
@@ -79,7 +79,7 @@ public class AeronReceiver extends Worker {
     }
 
     private void sendResumeSignalBlocking() {
-        AeronUtil.claimAndSend(controlPublication, bufferClaim, 12, idleStrategy, running, (buffer, offset) -> {
+        AeronUtil.claimAndSend(controlPublication, bufferHandler.bufferClaim(), 12, idleStrategy, running, (buffer, offset) -> {
             buffer.putInt(offset, MsgType.RESUME);
             buffer.putLong(offset + 4, progress.getLastProcessedSeq());
         });
@@ -107,16 +107,13 @@ public class AeronReceiver extends Worker {
             log.error("回報鏈路跳號！期望: {}, 實際: {}。將強制對齊位點。", lastSeq + 1, matchingSeq);
         }
 
-        final long messageAddress = buffer.addressOffset() + offset;
-        
         // 事務落地：對齊核心引擎的寫入格式，將純 SBE 資料放入 payload 欄位
         try (DocumentContext dc = matchingToGwWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
             dc.wire().write(ChronicleWireKey.matchingSeq).int64(matchingSeq);
             
             // 跳過前 12 位元組 (Aeron Header)，提取純 SBE Payload
-            pointerBytesStore.set(messageAddress + 12, length - 12);
-            dc.wire().write(ChronicleWireKey.payload).bytes(pointerBytesStore);
+            dc.wire().write(ChronicleWireKey.payload).bytes(bufferHandler.wrap(buffer, offset + 12, length - 12));
         }
 
         progress.setLastProcessedSeq(matchingSeq);
@@ -127,5 +124,6 @@ public class AeronReceiver extends Worker {
     protected void onStop() { 
         if (subscription != null) subscription.close();
         if (controlPublication != null) controlPublication.close();
+        ThreadContext.cleanup();
     }
 }

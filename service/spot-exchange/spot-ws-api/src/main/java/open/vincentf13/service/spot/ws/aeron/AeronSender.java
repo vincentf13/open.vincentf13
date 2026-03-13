@@ -8,11 +8,12 @@ import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.WireIn;
-import org.agrona.concurrent.UnsafeBuffer;
+import open.vincentf13.service.spot.infra.alloc.AeronBufferHandler;
+import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
@@ -36,9 +37,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     private Publication publication;
     private Subscription controlSubscription;
     private ExcerptTailer tailer;
-    private final BufferClaim bufferClaim = new BufferClaim();
-    private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
-    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
+    private final AeronBufferHandler bufferHandler = new AeronBufferHandler();
 
     private AeronState currentState = AeronState.WAITING;
     private long backPressureCount = 0;
@@ -97,28 +96,28 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         switch (ctxMsgType) {
             case MsgType.AUTH -> {
                 final long userId = wire.read(ChronicleWireKey.userId).int64();
-                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferHandler.bufferClaim(), 20, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.AUTH);
                     buffer.putLong(offset + 4, ctxSeq);
                     buffer.putLong(offset + 12, userId);
                 });
             }
             case MsgType.ORDER_CREATE -> {
-                reusableBytes.clear();
-                wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
-                final int payloadLength = (int) reusableBytes.readRemaining();
+                final NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
+                scratchBuffer.clear();
+                wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
+                final int payloadLength = (int) scratchBuffer.bytes().readRemaining();
                 
-                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferHandler.bufferClaim(), 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CREATE);
                     buffer.putLong(offset + 4, ctxSeq);
-                    payloadWrapBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), payloadLength);
-                    buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
+                    buffer.putBytes(offset + 12, scratchBuffer.wrapForRead(), 0, payloadLength);
                 });
             }
             case MsgType.ORDER_CANCEL -> {
                 final long uid = wire.read(ChronicleWireKey.userId).int64();
                 final long oid = wire.read(ChronicleWireKey.data).int64();
-                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 28, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferHandler.bufferClaim(), 28, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CANCEL);
                     buffer.putLong(offset + 4, ctxSeq);
                     buffer.putLong(offset + 12, uid);
@@ -129,7 +128,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
                 final long uid = wire.read(ChronicleWireKey.userId).int64();
                 final int aid = wire.read(ChronicleWireKey.assetId).int32();
                 final long amt = wire.read(ChronicleWireKey.data).int64();
-                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 32, idleStrategy, running, (buffer, offset) -> {
+                this.backPressureCount += AeronUtil.claimAndSend(publication, bufferHandler.bufferClaim(), 32, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.DEPOSIT);
                     buffer.putLong(offset + 4, ctxSeq);
                     buffer.putLong(offset + 12, uid);
@@ -154,6 +153,6 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     protected void onStop() { 
         if (publication != null) publication.close();
         if (controlSubscription != null) controlSubscription.close();
-        reusableBytes.releaseLast();
+        ThreadContext.cleanup();
     }
 }

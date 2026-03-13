@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.model.*;
 import open.vincentf13.service.spot.sbe.*;
@@ -26,7 +27,6 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     
-    private final OrderCreateDecoder decoder = new OrderCreateDecoder();
     private final CidKey reusableCidKey = new CidKey();
 
     // 執行上下文
@@ -47,6 +47,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     }
 
     public void processCreateCommand(UnsafeBuffer payload, long gwSeq, Supplier<Long> orderIdSupplier, Supplier<Long> tradeIdSupplier) {
+        OrderCreateDecoder decoder = ThreadContext.get().getOrderCreateDecoder();
         SbeCodec.decode(payload, 0, decoder);
         decoder.clientOrderId(); // 此處 decoder 內置 long 讀取
         reusableCidKey.set(decoder.userId(), decoder.clientOrderId());

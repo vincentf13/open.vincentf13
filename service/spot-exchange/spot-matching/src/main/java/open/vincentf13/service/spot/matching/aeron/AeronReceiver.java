@@ -8,11 +8,12 @@ import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import open.vincentf13.service.spot.infra.Worker;
+import open.vincentf13.service.spot.infra.alloc.AeronBufferHandler;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Progress;
 import org.springframework.stereotype.Component;
-import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
@@ -31,9 +32,8 @@ public class AeronReceiver extends Worker {
     private final Aeron aeron;
     private Subscription subscription;
     private Publication controlPublication;
-    private final BufferClaim bufferClaim = new BufferClaim();
+    private final AeronBufferHandler bufferHandler = new AeronBufferHandler();
     private final Progress progress = new Progress();
-    private final PointerBytesStore pointerBytesStore = new PointerBytesStore();
     
     // 使用 FragmentAssembler 確保跨 MTU 訊息的完整性 (處理網路分片)
     private FragmentAssembler assembler;
@@ -82,7 +82,7 @@ public class AeronReceiver extends Worker {
     }
 
     private void sendResumeSignalBlocking() {
-        AeronUtil.claimAndSend(controlPublication, bufferClaim, 12, idleStrategy, running, (buffer, offset) -> {
+        AeronUtil.claimAndSend(controlPublication, bufferHandler.bufferClaim(), 12, idleStrategy, running, (buffer, offset) -> {
             buffer.putInt(offset, MsgType.RESUME);
             buffer.putLong(offset + 4, progress.getLastProcessedSeq());
         });
@@ -111,8 +111,6 @@ public class AeronReceiver extends Worker {
             log.error("指令鏈路跳號！期望: {}, 實際: {}。將強制對齊位點。", lastSeq + 1, gwSeq);
         }
 
-        final long messageAddress = buffer.addressOffset() + offset;
-        
         // 事務寫入：消除 Lambda
         try (DocumentContext dc = gwToMatchingWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
@@ -120,8 +118,7 @@ public class AeronReceiver extends Worker {
             if (msgType == MsgType.AUTH) {
                 dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
             } else if (msgType == MsgType.ORDER_CREATE) {
-                pointerBytesStore.set(messageAddress + 12, length - 12);
-                dc.wire().write(ChronicleWireKey.payload).bytes(pointerBytesStore);
+                dc.wire().write(ChronicleWireKey.payload).bytes(bufferHandler.wrap(buffer, offset + 12, length - 12));
             } else if (msgType == MsgType.ORDER_CANCEL) {
                 dc.wire().write(ChronicleWireKey.userId).int64(buffer.getLong(offset + 12));
                 dc.wire().write(ChronicleWireKey.data).int64(buffer.getLong(offset + 20));
@@ -140,5 +137,6 @@ public class AeronReceiver extends Worker {
     protected void onStop() { 
         if (subscription != null) subscription.close();
         if (controlPublication != null) controlPublication.close();
+        ThreadContext.cleanup();
     }
 }

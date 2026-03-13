@@ -13,12 +13,12 @@ import open.vincentf13.service.spot.ws.util.JsonUtil;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
+import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.model.Progress;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
-import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 
-import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -38,9 +38,7 @@ public class PushWorker extends Worker {
     private ExcerptTailer tailer;
     private final Progress progress = new Progress();
 
-    private final ExecutionReportDecoder executionDecoder = new ExecutionReportDecoder();
-    private final UnsafeBuffer payloadBuffer = new UnsafeBuffer(0, 0);
-    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(4096);
+    private final NativeUnsafeBuffer nativeUnsafeBuffer = new NativeUnsafeBuffer(4096);
 
     // 引入並發推送池：使用按 userId 分發的執行緒陣列，確保同一個用戶的回報有序發送
     private final int threadCount = Runtime.getRuntime().availableProcessors() * 2;
@@ -81,13 +79,13 @@ public class PushWorker extends Worker {
             boolean handled = tailer.readDocument(wire -> {
                 long seq = tailer.index();
                 int msgType = wire.read(ChronicleWireKey.msgType).int32();
-                reusableBytes.clear(); 
-                wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
+                nativeUnsafeBuffer.clear(); 
+                wire.read(ChronicleWireKey.payload).bytes(nativeUnsafeBuffer.bytes());
 
                 if (msgType == MsgType.EXECUTION_REPORT) {
-                    handleExecutionReport(reusableBytes);
+                    handleExecutionReport(nativeUnsafeBuffer.bytes());
                 } else if (msgType == MsgType.AUTH_REPORT) {
-                    handleAuthReport(reusableBytes);
+                    handleAuthReport(nativeUnsafeBuffer.bytes());
                 }
 
                 progress.setLastProcessedSeq(seq);
@@ -108,8 +106,9 @@ public class PushWorker extends Worker {
         int offset = 0;
 
         while (offset < totalLen) {
-            payloadBuffer.wrap(address + offset, totalLen - offset);
-            SbeCodec.decode(payloadBuffer, 0, executionDecoder);
+            nativeUnsafeBuffer.wrap(address + offset, totalLen - offset);
+            ExecutionReportDecoder executionDecoder = ThreadContext.get().getExecutionReportDecoder();
+            SbeCodec.decode(nativeUnsafeBuffer.buffer(), 0, executionDecoder);
             int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
 
             final long orderId = executionDecoder.orderId();
@@ -149,7 +148,10 @@ public class PushWorker extends Worker {
 
     @Override
     protected void onStop() { 
-        reusableBytes.releaseLast(); 
-        for (ExecutorService pool : stripedPool) pool.shutdown();
+        for (ExecutorService pool : stripedPool) {
+            pool.execute(ThreadContext::cleanup);
+            pool.shutdown();
+        }
+        ThreadContext.cleanup(); // 清理 Worker 自身執行緒
     }
 }

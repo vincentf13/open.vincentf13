@@ -8,11 +8,12 @@ import io.aeron.logbuffer.FragmentHandler;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.WireIn;
-import org.agrona.concurrent.UnsafeBuffer;
+import open.vincentf13.service.spot.infra.alloc.AeronBufferHandler;
+import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
@@ -36,9 +37,7 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     private Publication publication;
     private Subscription controlSubscription;
     private ExcerptTailer tailer;
-    private final BufferClaim bufferClaim = new BufferClaim();
-    private final UnsafeBuffer payloadWrapBuffer = new UnsafeBuffer(0, 0);
-    private final Bytes<ByteBuffer> reusableBytes = Bytes.elasticByteBuffer(1024);
+    private final AeronBufferHandler bufferHandler = new AeronBufferHandler();
 
     private AeronState currentState = AeronState.WAITING;
 
@@ -100,18 +99,18 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
         this.ctxMatchingSeq = (mSeq == 0) ? tailer.index() : mSeq;
         
         // 提取 Body：統一使用 payload 欄位
-        reusableBytes.clear();
-        wire.read(ChronicleWireKey.payload).bytes(reusableBytes);
+        final NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
+        scratchBuffer.clear();
+        wire.read(ChronicleWireKey.payload).bytes(scratchBuffer.bytes());
         
-        final int payloadLength = (int) reusableBytes.readRemaining();
+        final int payloadLength = (int) scratchBuffer.bytes().readRemaining();
         
         // 發送：累加背壓重試次數
-        this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
+        this.backPressureCount += AeronUtil.claimAndSend(publication, bufferHandler.bufferClaim(), 12 + payloadLength, idleStrategy, running, (buffer, offset) -> {
             buffer.putInt(offset, ctxMsgType);
             buffer.putLong(offset + 4, ctxMatchingSeq);
             if (payloadLength > 0) {
-                payloadWrapBuffer.wrap(reusableBytes.addressForRead(reusableBytes.readPosition()), payloadLength);
-                buffer.putBytes(offset + 12, payloadWrapBuffer, 0, payloadLength);
+                buffer.putBytes(offset + 12, scratchBuffer.wrapForRead(), 0, payloadLength);
             }
         });
     }
@@ -130,6 +129,6 @@ public class AeronSender extends Worker implements net.openhft.chronicle.wire.Re
     protected void onStop() { 
         if (publication != null) publication.close();
         if (controlSubscription != null) controlSubscription.close();
-        reusableBytes.releaseLast();
+        ThreadContext.cleanup();
     }
 }
