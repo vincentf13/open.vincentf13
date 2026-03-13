@@ -6,13 +6,11 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.FragmentHandler;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.ReadMarshallable;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.model.WalProgress;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 
@@ -20,14 +18,12 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Aeron 發送器抽象基類 (Abstract Aeron Sender)
- 職責：管理 Aeron 連線生命週期，並提供 WAL 指令流的讀取、發送與進度追蹤機制
+ 職責：管理 Aeron 連線生命週期，並提供基於接收端反饋的 WAL 指令流發送機制
  */
 @Slf4j
 public abstract class AbstractAeronSender extends Worker implements ReadMarshallable {
     protected final Aeron aeron;
     protected final ChronicleQueue wal;
-    protected final ChronicleMap<Byte, WalProgress> metadata;
-    protected final byte metadataKey;
     
     protected final String dataUrl;
     protected final int dataStreamId;
@@ -41,16 +37,13 @@ public abstract class AbstractAeronSender extends Worker implements ReadMarshall
     
     protected AeronClient aeronClient;
     protected ExcerptTailer tailer;
-    protected final WalProgress progress = new WalProgress();
     protected AeronState currentState = AeronState.WAITING;
     protected long backPressureCount = 0;
 
-    public AbstractAeronSender(Aeron aeron, ChronicleQueue wal, ChronicleMap<Byte, WalProgress> metadata, byte metadataKey,
+    public AbstractAeronSender(Aeron aeron, ChronicleQueue wal,
                                String dataUrl, int dataStreamId, String controlUrl, int controlStreamId) {
         this.aeron = aeron;
         this.wal = wal;
-        this.metadata = metadata;
-        this.metadataKey = metadataKey;
         this.dataUrl = dataUrl;
         this.dataStreamId = dataStreamId;
         this.controlUrl = controlUrl;
@@ -64,18 +57,9 @@ public abstract class AbstractAeronSender extends Worker implements ReadMarshall
         this.tailer = wal.createTailer();
         this.aeronClient = new AeronClient(publication, bufferClaim, idleStrategy, running);
 
-        // 恢復上次處理進度 (作為參考)
-        WalProgress saved = metadata.get(metadataKey);
-        if (saved != null) {
-            progress.setLastProcessedIndex(saved.getLastProcessedIndex());
-            tailer.moveToIndex(progress.getLastProcessedIndex());
-            log.info("{} 恢復本地位點: Index={}，等待 RESUME 信號...", getClass().getSimpleName(), progress.getLastProcessedIndex());
-        } else {
-            tailer.toStart();
-        }
-
+        // 強制進入等待握手模式，完全依賴接收端的 RESUME 信號
         currentState = AeronState.WAITING;
-        log.info("{} 啟動成功，DataUrl={}, ControlUrl={}", getClass().getSimpleName(), dataUrl, controlUrl);
+        log.info("{} 啟動成功，等待 RESUME 信號以同步位點...", getClass().getSimpleName());
     }
 
     @Override
@@ -87,24 +71,17 @@ public abstract class AbstractAeronSender extends Worker implements ReadMarshall
         }
 
         int workDone = 0;
-        // 2. 處理控制流 (握手與實時控制回報)
+        // 2. 處理控制流 (優先處理握手與控制指令)
         workDone += controlSubscription.poll(resumeHandler, 10);
         
         if (currentState == AeronState.WAITING) {
             return workDone;
         }
 
-        // 3. 處理 WAL 指令流 (批量發送優化)
+        // 3. 處理 WAL 指令流發送 (批量優化)
         for (int i = 0; i < 100; i++) {
             if (tailer.readDocument(this)) {
                 workDone++;
-                
-                // 每 100 筆存檔位點
-                if (tailer.index() % 100 == 0) {
-                    final long index = tailer.index();
-                    progress.setLastProcessedIndex(index);
-                    metadata.put(metadataKey, progress);
-                }
             } else {
                 break;
             }
@@ -121,7 +98,7 @@ public abstract class AbstractAeronSender extends Worker implements ReadMarshall
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
         if (buffer.getInt(offset) == MsgType.RESUME) {
             long lastProcessedIndex = buffer.getLong(offset + 4);
-            log.info("收到 RESUME 握手訊號，執行跳轉至: {}", lastProcessedIndex);
+            log.info("收到對端 RESUME 握手訊號，執行位點跳轉: {}", lastProcessedIndex);
             
             if (lastProcessedIndex == WAL_INDEX_NONE) {
                 tailer.toStart();
