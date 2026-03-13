@@ -6,9 +6,8 @@ import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import org.agrona.DirectBuffer;
-import org.agrona.concurrent.UnsafeBuffer;
 
 /**
  * 快照指令 (SBE 封裝版)
@@ -18,13 +17,11 @@ public class SnapshotCommand implements BytesMarshallable {
     private long seq;
     private final PointerBytesStore sbePayload = new PointerBytesStore();
 
+    /** 編碼並填充 SBE 載體 */
     public void encode(long seq, long timestamp) {
         this.seq = seq;
-        ThreadContext ctx = ThreadContext.get();
-        UnsafeBuffer sbeBuffer = ctx.getScratchBuffer().wrapForWrite();
-        int sbeLen = SbeCodec.encode(sbeBuffer, ctx.getSnapshotEncoder()
-                .timestamp(timestamp));
-        this.fillFrom(sbeBuffer, 0, sbeLen);
+        int sbeLen = SbeCodec.encodeSnapshot(timestamp);
+        this.fillFrom(ThreadContext.get().getScratchBuffer().buffer(), 0, sbeLen);
     }
 
     @Override

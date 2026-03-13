@@ -6,9 +6,13 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
-import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.alloc.SbeCodec;
+import open.vincentf13.service.spot.model.command.AuthCommand;
+import open.vincentf13.service.spot.model.command.DepositCommand;
+import open.vincentf13.service.spot.model.command.OrderCancelCommand;
+import open.vincentf13.service.spot.model.command.OrderCreateCommand;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -48,8 +52,7 @@ public class AeronSender extends AbstractAeronSender {
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
                 // 使用 SBE Decoder 解析
-                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getAuthDecoder());
-                final long userId = ctx.getAuthDecoder().userId();
+                final long userId = SbeCodec.decodeAuth(cmd.getSbePayload()).userId();
                 
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 20, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.AUTH);
@@ -72,9 +75,9 @@ public class AeronSender extends AbstractAeronSender {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
-                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getOrderCancelDecoder());
-                final long userId = ctx.getOrderCancelDecoder().userId();
-                final long orderId = ctx.getOrderCancelDecoder().orderId();
+                var decoder = SbeCodec.decodeOrderCancel(cmd.getSbePayload());
+                final long userId = decoder.userId();
+                final long orderId = decoder.orderId();
                 
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 28, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.ORDER_CANCEL);
@@ -87,10 +90,10 @@ public class AeronSender extends AbstractAeronSender {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
-                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getDepositDecoder());
-                final long userId = ctx.getDepositDecoder().userId();
-                final int assetId = ctx.getDepositDecoder().assetId();
-                final long amount = ctx.getDepositDecoder().amount();
+                var decoder = SbeCodec.decodeDeposit(cmd.getSbePayload());
+                final long userId = decoder.userId();
+                final int assetId = decoder.assetId();
+                final long amount = decoder.amount();
                 
                 this.backPressureCount += AeronUtil.claimAndSend(publication, bufferClaim, 32, idleStrategy, running, (buffer, offset) -> {
                     buffer.putInt(offset, MsgType.DEPOSIT);

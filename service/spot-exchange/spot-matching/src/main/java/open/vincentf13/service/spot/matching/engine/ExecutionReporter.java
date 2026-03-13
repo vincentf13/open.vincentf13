@@ -9,7 +9,7 @@ import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.command.*;
@@ -37,19 +37,11 @@ public class ExecutionReporter {
         if (replaying) return;
         
         ThreadContext ctx = ThreadContext.get();
-        NativeUnsafeBuffer scratchBuffer = ctx.getScratchBuffer();
         
-        // 1. SBE 編碼回報主體
-        int sbeLen = SbeCodec.encode(scratchBuffer.wrapForWrite(), ctx.getExecutionReportEncoder()
-                .timestamp(ts)
-                .userId(uid)
-                .orderId(oid)
-                .status(s)
-                .lastPrice(lp)
-                .lastQty(lq)
-                .cumQty(cq)
-                .avgPrice(ap)
-                .clientOrderId(cid));
+        // 1. SBE 編碼回報主體 (Buffer 與 Encoder 已下沉)
+        int sbeLen = SbeCodec.encodeExecutionReport(ts, uid, oid, s, lp, lq, cq, ap, cid);
+        
+        NativeUnsafeBuffer scratchBuffer = ctx.getScratchBuffer();
         scratchBuffer.bytes().writePosition(sbeLen);
 
         // 2. 根據狀態決定場景化模型與 MsgType

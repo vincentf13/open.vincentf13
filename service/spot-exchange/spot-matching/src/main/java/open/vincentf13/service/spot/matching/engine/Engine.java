@@ -114,28 +114,27 @@ public class Engine extends Worker implements ReadMarshallable {
                 AuthCommand cmd = ctx.getAuthCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getAuthDecoder());
-                authProcessor.handleAuth(ctx.getAuthDecoder().userId(), gwSeq);
+                authProcessor.handleAuth(SbeCodec.decodeAuth(cmd.getSbePayload()).userId(), gwSeq);
             }
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                orderProcessor.processCreateCommand(cmd.getSbePayload().bytesForRead(), gwSeq, this::nextOrderId, this::nextTradeId);
+                orderProcessor.processCreateCommand(cmd.getSbePayload(), gwSeq, this::nextOrderId, this::nextTradeId);
             }
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getOrderCancelDecoder());
-                orderProcessor.processCancelCommand(ctx.getOrderCancelDecoder().userId(), ctx.getOrderCancelDecoder().orderId(), gwSeq);
+                var decoder = SbeCodec.decodeOrderCancel(cmd.getSbePayload());
+                orderProcessor.processCancelCommand(decoder.userId(), decoder.orderId(), gwSeq);
             }
             case MsgType.DEPOSIT -> {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 gwSeq = cmd.getSeq();
-                SbeCodec.decode(cmd.getSbePayload().bytesForRead(), ctx.getDepositDecoder());
-                depositProcessor.handleDeposit(ctx.getDepositDecoder().userId(), ctx.getDepositDecoder().assetId(), ctx.getDepositDecoder().amount(), gwSeq);
+                var decoder = SbeCodec.decodeDeposit(cmd.getSbePayload());
+                depositProcessor.handleDeposit(decoder.userId(), decoder.assetId(), decoder.amount(), gwSeq);
             }
             case MsgType.SNAPSHOT -> {
                 SnapshotCommand cmd = ctx.getSnapshotCommand();

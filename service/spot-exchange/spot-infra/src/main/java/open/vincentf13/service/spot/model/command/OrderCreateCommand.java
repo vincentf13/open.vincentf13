@@ -6,10 +6,9 @@ import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
+import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.DirectBuffer;
-import org.agrona.concurrent.UnsafeBuffer;
 
 /**
  * 下單指令 (完全封裝版)
@@ -19,19 +18,11 @@ public class OrderCreateCommand implements BytesMarshallable {
     private long seq;
     private final PointerBytesStore sbePayload = new PointerBytesStore();
 
+    /** 編碼並填充 SBE 載體 */
     public void encode(long seq, long timestamp, long userId, int symbolId, long price, long qty, Side side, long clientOrderId) {
         this.seq = seq;
-        ThreadContext ctx = ThreadContext.get();
-        UnsafeBuffer sbeBuffer = ctx.getScratchBuffer().wrapForWrite();
-        int sbeLen = SbeCodec.encode(sbeBuffer, ctx.getOrderCreateEncoder()
-                .timestamp(timestamp)
-                .userId(userId)
-                .symbolId(symbolId)
-                .price(price)
-                .qty(qty)
-                .side(side)
-                .clientOrderId(clientOrderId));
-        this.fillFrom(sbeBuffer, 0, sbeLen);
+        int sbeLen = SbeCodec.encodeOrderCreate(timestamp, userId, symbolId, price, qty, side, clientOrderId);
+        this.fillFrom(ThreadContext.get().getScratchBuffer().buffer(), 0, sbeLen);
     }
 
     @Override

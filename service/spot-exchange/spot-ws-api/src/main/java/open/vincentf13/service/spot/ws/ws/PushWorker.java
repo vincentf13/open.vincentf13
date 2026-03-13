@@ -5,17 +5,18 @@ import io.netty.buffer.PooledByteBufAllocator;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.Bytes;
-import net.openhft.chronicle.map.ChronicleMap;
+import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import net.openhft.chronicle.wire.ReadMarshallable;
+import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.sbe.SbeCodec;
-import open.vincentf13.service.spot.model.WalProgress;
-import open.vincentf13.service.spot.model.command.*;
+import open.vincentf13.service.spot.infra.alloc.SbeCodec;
+import open.vincentf13.service.spot.model.command.AuthReportWal;
+import open.vincentf13.service.spot.model.command.OrderMatchWal;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
 import org.springframework.stereotype.Component;
@@ -26,22 +27,20 @@ import java.util.concurrent.Executors;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 推送背景執行緒 (PushWorker) - 並發優化版
- 職責：讀取回報流並分發至並發執行緒池進行序列化與推送，提升大行情下的吞吐量
+ 訊息推送器 (Push Worker)
+ 職責：讀取回報 WAL 並異步推送到客戶端 WebSocket
  */
 @Slf4j
 @Component
-public class PushWorker extends Worker {
+public class PushWorker extends Worker implements ReadMarshallable {
     private final ChronicleQueue matchingToGwWal = Storage.self().matchingToGwWal();
-    private final ChronicleMap<Byte, WalProgress> metadata = Storage.self().walMetadata();
-
     private final WsSessionManager sessionManager;
-    private ExcerptTailer tailer;
-    private final WalProgress progress = new WalProgress();
-
-    // 引入並發推送池：使用按 userId 分發的執行緒陣列，確保同一個用戶的回報有序發送
-    private final int threadCount = Runtime.getRuntime().availableProcessors() * 2;
+    private final int threadCount = Runtime.getRuntime().availableProcessors();
     private final ExecutorService[] stripedPool = new ExecutorService[threadCount];
+    
+    private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
+
+    private static final String[] ORDER_STATUS_STRINGS = {"NEW", "FILLED", "PARTIALLY_FILLED", "CANCELED", "REJECTED"};
 
     public PushWorker(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;
@@ -50,105 +49,66 @@ public class PushWorker extends Worker {
         }
     }
 
-    @PostConstruct public void init() { start("gw-push-worker"); }
-    
-    @Override
-    protected void onStart() {
-        this.tailer = matchingToGwWal.createTailer();
-        WalProgress saved = metadata.get(MetaDataKey.Wal.WS_PUSH_TO_CLIENT_POINT);
-        if (saved != null) {
-            progress.setLastProcessedIndex(saved.getLastProcessedIndex());
-            tailer.moveToIndex(progress.getLastProcessedIndex());
-        } else progress.setLastProcessedIndex(WAL_INDEX_NONE);
-    }
-
-    @Data
-    private static class PushEvent {
-        long orderId;
-        String status;
-        long cid;
-        long userId;
-    }
+    @PostConstruct public void init() { start("push-worker"); }
 
     @Override
     protected int doWork() {
-        int workCount = 0;
-        ThreadContext ctx = ThreadContext.get();
-        
-        // 批量讀取優化
-        for (int i = 0; i < 100; i++) {
-            boolean handled = tailer.readDocument(wire -> {
-                long index = tailer.index();
-                int msgType = wire.read(ChronicleWireKey.msgType).int32();
-                
-                switch (msgType) {
-                    case MsgType.AUTH_REPORT -> {
-                        AuthReportWal report = ctx.getAuthReportWal();
-                        wire.read(ChronicleWireKey.payload).bytes(report);
-                        handleAuthReport(report.getUserId());
-                    }
-                    case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
-                        OrderMatchWal report = ctx.getOrderMatchWal();
-                        wire.read(ChronicleWireKey.payload).bytes(report);
-                        handleExecutionReport(report.getSbePayload().bytesForRead());
-                    }
-                }
-
-                progress.setLastProcessedIndex(index);
-                if (index % 100 == 0) {
-                    metadata.put(MetaDataKey.Wal.WS_PUSH_TO_CLIENT_POINT, progress);
-                }
-            });
-            
-            if (handled) workCount++;
-            else break;
-        }
-        return workCount;
+        ExcerptTailer tailer = matchingToGwWal.createTailer(); 
+        return tailer.readDocument(this) ? 1 : 0;
     }
 
-    private void handleExecutionReport(Bytes<?> bytes) {
-        // 重用 scratchBuffer 進行 SBE 解碼
-        NativeUnsafeBuffer scratchBuffer = ThreadContext.get().getScratchBuffer();
-        long address = bytes.addressForRead(bytes.readPosition());
-        int totalLen = (int) bytes.readRemaining();
-        int offset = 0;
+    @Override
+    public void readMarshallable(WireIn wire) {
+        final int msgType = wire.read(ChronicleWireKey.msgType).int32();
+        ThreadContext ctx = ThreadContext.get();
 
-        while (offset < totalLen) {
-            scratchBuffer.wrap(address + offset, totalLen - offset);
-            ExecutionReportDecoder executionDecoder = ThreadContext.get().getExecutionReportDecoder();
-            SbeCodec.decode(scratchBuffer.buffer(), executionDecoder);
-            int currentMsgLen = SbeCodec.BLOCK_AND_VERSION_HEADER_SIZE + executionDecoder.encodedLength();
-
-            final long orderId = executionDecoder.orderId();
-            final int statusOrdinal = executionDecoder.status().value();
-            final long cid = executionDecoder.clientOrderId();
-            final long userId = executionDecoder.userId();
-
-            stripedPool[(int)(userId % threadCount)].execute(() -> {
-                PushEvent event = new PushEvent();
-                event.setOrderId(orderId);
-                event.setStatus(statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length ? 
-                        ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN");
-                event.setCid(cid);
-                event.setUserId(userId);
-
-                JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);
-                ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(512);
-                JsonUtil.writeToByteBuf(outBuf, env);
-                sessionManager.sendMessage(userId, outBuf);
-            });
-
-            offset += currentMsgLen;
+        switch (msgType) {
+            case MsgType.AUTH_REPORT -> {
+                AuthReportWal report = ctx.getAuthReportWal();
+                wire.read(ChronicleWireKey.payload).bytes(report);
+                handleAuthReport(report.getUserId());
+            }
+            case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
+                OrderMatchWal report = ctx.getOrderMatchWal();
+                wire.read(ChronicleWireKey.payload).bytes(report);
+                handleExecutionReport(report.getSbePayload());
+            }
         }
     }
 
     private void handleAuthReport(long userId) {
+        log.info("用戶認證成功回報: {}", userId);
+    }
+
+    private void handleExecutionReport(PointerBytesStore sbePayload) {
+        ExecutionReportDecoder decoder = SbeCodec.decodeExecutionReport(sbePayload);
+        
+        final long orderId = decoder.orderId();
+        final long userId = decoder.userId();
+        final int statusOrdinal = decoder.status().ordinal();
+        final long cid = decoder.clientOrderId();
+
         stripedPool[(int)(userId % threadCount)].execute(() -> {
-            JsonUtil.Envelope env = new JsonUtil.Envelope("auth", "success");
-            ByteBuf outBuf = PooledByteBufAllocator.DEFAULT.buffer(128);
-            JsonUtil.writeToByteBuf(outBuf, env);
-            sessionManager.sendMessage(userId, outBuf);
+            PushEvent event = new PushEvent();
+            event.setOrderId(orderId);
+            event.setStatus(statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length ? 
+                    ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN");
+            event.setCid(cid);
+            event.setUserId(userId);
+
+            JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);
+            String json = JsonUtil.toJson(env);
+            
+            ByteBuf nettyBuf = PooledByteBufAllocator.DEFAULT.directBuffer();
+            nettyBuf.writeBytes(json.getBytes());
+            sessionManager.broadcast(userId, nettyBuf);
         });
+    }
+
+    @Data
+    public static class PushEvent {
+        private long userId, orderId, cid;
+        private String status;
     }
 
     @Override
@@ -157,6 +117,6 @@ public class PushWorker extends Worker {
             pool.execute(ThreadContext::cleanup);
             pool.shutdown();
         }
-        ThreadContext.cleanup(); // 清理 Worker 自身執行緒
+        ThreadContext.cleanup();
     }
 }
