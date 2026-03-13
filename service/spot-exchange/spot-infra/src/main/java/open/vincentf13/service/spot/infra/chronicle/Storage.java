@@ -3,13 +3,9 @@ package open.vincentf13.service.spot.infra.chronicle;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
-import net.openhft.chronicle.queue.ExcerptAppender;
 import open.vincentf13.service.spot.infra.Constants.ChronicleMapEnum;
 import open.vincentf13.service.spot.infra.Constants.ChronicleQueueEnum;
-import open.vincentf13.service.spot.model.command.CidKey;
-import open.vincentf13.service.spot.model.Order;
-import open.vincentf13.service.spot.model.MsgProgress;
-import open.vincentf13.service.spot.model.WalProgress;
+import open.vincentf13.service.spot.model.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +22,11 @@ public class Storage {
 
     // --- Chronicle Map 實例 ---
     private ChronicleMap<Long, Order> orders;
+    private ChronicleMap<Long, Trade> trades;
+    private ChronicleMap<BalanceKey, Balance> balances;
+    private ChronicleMap<Long, Long> userAssets; // 用戶資產位元遮罩索引
+    private ChronicleMap<Long, Boolean> activeOrders; // 活躍訂單
+    private ChronicleMap<Long, String> userActiveOrders; // 用戶活躍訂單 (ID 列表字串)
     private ChronicleMap<CidKey, Long> cids;
     private ChronicleMap<Byte, MsgProgress> msgMetadata;
     private ChronicleMap<Byte, WalProgress> walMetadata;
@@ -56,6 +57,35 @@ public class Storage {
                 .averageValueSize(128)
                 .createPersistedTo(new File(base + ChronicleMapEnum.ORDERS));
 
+        trades = ChronicleMap.of(Long.class, Trade.class)
+                .name(ChronicleMapEnum.TRADES)
+                .entries(1_000_000)
+                .averageValueSize(64)
+                .createPersistedTo(new File(base + ChronicleMapEnum.TRADES));
+
+        balances = ChronicleMap.of(BalanceKey.class, Balance.class)
+                .name(ChronicleMapEnum.BALANCES)
+                .entries(1_000_000)
+                .averageKeySize(16)
+                .averageValueSize(64)
+                .createPersistedTo(new File(base + ChronicleMapEnum.BALANCES));
+
+        userAssets = ChronicleMap.of(Long.class, Long.class)
+                .name(ChronicleMapEnum.USER_ASSETS)
+                .entries(100_000)
+                .createPersistedTo(new File(base + ChronicleMapEnum.USER_ASSETS));
+
+        activeOrders = ChronicleMap.of(Long.class, Boolean.class)
+                .name(ChronicleMapEnum.ACTIVE_ORDERS)
+                .entries(1_000_000)
+                .createPersistedTo(new File(base + ChronicleMapEnum.ACTIVE_ORDERS));
+
+        userActiveOrders = ChronicleMap.of(Long.class, String.class)
+                .name(ChronicleMapEnum.USER_ACTIVE_ORDERS)
+                .entries(100_000)
+                .averageValueSize(256)
+                .createPersistedTo(new File(base + ChronicleMapEnum.USER_ACTIVE_ORDERS));
+
         cids = ChronicleMap.of(CidKey.class, Long.class)
                 .name(ChronicleMapEnum.CIDS)
                 .entries(1_000_000)
@@ -85,6 +115,11 @@ public class Storage {
 
     // --- Getters ---
     public ChronicleMap<Long, Order> orders() { return orders; }
+    public ChronicleMap<Long, Trade> trades() { return trades; }
+    public ChronicleMap<BalanceKey, Balance> balances() { return balances; }
+    public ChronicleMap<Long, Long> userAssets() { return userAssets; }
+    public ChronicleMap<Long, Boolean> activeOrders() { return activeOrders; }
+    public ChronicleMap<Long, String> userActiveOrders() { return userActiveOrders; }
     public ChronicleMap<CidKey, Long> cids() { return cids; }
     public ChronicleMap<CidKey, Long> clientOrderIdMap() { return cids; }
     public ChronicleMap<Byte, MsgProgress> msgMetadata() { return msgMetadata; }
@@ -97,6 +132,11 @@ public class Storage {
 
     public void close() {
         if (orders != null) orders.close();
+        if (trades != null) trades.close();
+        if (balances != null) balances.close();
+        if (userAssets != null) userAssets.close();
+        if (activeOrders != null) activeOrders.close();
+        if (userActiveOrders != null) userActiveOrders.close();
         if (cids != null) cids.close();
         if (msgMetadata != null) msgMetadata.close();
         if (walMetadata != null) walMetadata.close();

@@ -15,7 +15,7 @@ public class AuthReport implements BytesMarshallable {
 
     public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
         this.gatewaySeq = aeron.readSeq();
-        this.userId = aeron.buffer.getLong(aeron.getPayloadOffset());
+        this.userId = aeron.readPayloadLong(0);
     }
 
     @Override

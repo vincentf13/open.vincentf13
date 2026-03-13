@@ -63,7 +63,7 @@ public class OrderProcessor {
         ledger.unfreezeBalance(order.getUserId(), (order.getSide() == OrderSide.BUY) ? (order.getSymbolId() / 1000) : (order.getSymbolId() % 100), freezeQuantity, gatewaySequence);
 
         // 4. 更新狀態
-        order.setStatus((byte) OrderStatus.CANCELLED.ordinal());
+        order.setStatus((byte) OrderStatus.CANCELED.ordinal());
         order.setLastSeq(gatewaySequence);
         orders.put(orderId, order);
 
@@ -112,7 +112,7 @@ public class OrderProcessor {
                 int makerAssetId = (maker.getSide() == OrderSide.BUY) ? (maker.getSymbolId() / 1000) : (maker.getSymbolId() % 100);
                 ledger.unfreezeBalance(maker.getUserId(), makerAssetId, makerFreezeQuantity, gatewaySequence);
                 
-                maker.setStatus((byte) OrderStatus.CANCELLED.ordinal());
+                maker.setStatus((byte) OrderStatus.CANCELED.ordinal());
                 orders.put(maker.getOrderId(), maker);
                 
                 reporter.reportCanceled(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(),

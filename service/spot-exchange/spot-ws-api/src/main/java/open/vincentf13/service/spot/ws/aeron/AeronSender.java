@@ -30,7 +30,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class AeronSender extends AbstractAeronSender {
 
     public AeronSender(Aeron aeron) {
-        super(aeron, Storage.self().clientToGwWal(), 
+        super(aeron, Storage.self().gatewaySenderWal(), 
               AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID,
               AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
     }

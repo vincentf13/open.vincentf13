@@ -60,7 +60,7 @@ public class SbeCodec {
     }
 
     public static int encodeCanceledReport(long timestamp, long userId, long orderId, long filledQuantity, long clientOrderId) {
-        return encodeReport(timestamp, userId, orderId, OrderStatus.CANCELLED, 0, 0, filledQuantity, 0, clientOrderId);
+        return encodeReport(timestamp, userId, orderId, OrderStatus.CANCELED, 0, 0, filledQuantity, 0, clientOrderId);
     }
 
     public static int encodeMatchedReport(long timestamp, long userId, long orderId, OrderStatus status, long lastPrice, long lastQty, long cumQty, long avgPrice, long clientOrderId) {

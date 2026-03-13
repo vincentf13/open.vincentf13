@@ -54,8 +54,7 @@ public class AeronSender extends AbstractAeronSender {
         
         // 發送：使用通用封包打包
         this.backPressureCount += aeronClient.send(AeronEnvelope.HEADER_LENGTH + payloadLength, (buffer, offset) -> {
-            ctx.getAeronEnvelope().wrap(buffer, offset).write(ctxMsgType, ctxMatchingSeq, 
-                    scratchBuffer.buffer(), 0, payloadLength);
+            ctx.getAeronEnvelope().wrap(buffer, offset).write(ctxMsgType, ctxMatchingSeq, scratchBuffer.buffer());
         });
     }
 }
