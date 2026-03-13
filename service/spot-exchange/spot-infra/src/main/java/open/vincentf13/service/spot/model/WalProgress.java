@@ -39,4 +39,18 @@ public class WalProgress implements BytesMarshallable {
         orderIdCounter = bytes.readLong();
         tradeIdCounter = bytes.readLong();
     }
+
+    public void copyFrom(WalProgress other) {
+        this.lastProcessedIndex = other.lastProcessedIndex;
+        this.lastProcessedMsgSeq = other.lastProcessedMsgSeq;
+        this.orderIdCounter = other.orderIdCounter;
+        this.tradeIdCounter = other.tradeIdCounter;
+    }
+
+    public void reset() {
+        this.lastProcessedIndex = WAL_INDEX_NONE;
+        this.lastProcessedMsgSeq = MSG_SEQ_NONE;
+        this.orderIdCounter = 1L;
+        this.tradeIdCounter = 1L;
+    }
 }
