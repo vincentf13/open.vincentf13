@@ -25,7 +25,7 @@ public class ExecutionReporter {
     public void reportAccepted(long userId, long orderId, long clientOrderId, long timestamp, long gatewaySequence) {
         if (isReplaying) return;
         ThreadContext context = ThreadContext.get();
-        int sbeLength = SbeCodec.encodeAcceptedReport(timestamp, userId, orderId, clientOrderId);
+        int sbeLength = SbeCodec.encodeToScratchAcceptedReport(timestamp, userId, orderId, clientOrderId);
         
         OrderAcceptedReport report = context.getOrderAcceptedReport();
         report.setGatewaySeq(gatewaySequence);
@@ -38,7 +38,7 @@ public class ExecutionReporter {
     public void reportRejected(long userId, long clientOrderId, long timestamp, long gatewaySequence) {
         if (isReplaying) return;
         ThreadContext context = ThreadContext.get();
-        int sbeLength = SbeCodec.encodeRejectedReport(timestamp, userId, clientOrderId);
+        int sbeLength = SbeCodec.encodeToScratchRejectedReport(timestamp, userId, clientOrderId);
         
         OrderRejectedReport report = context.getOrderRejectedReport();
         report.setGatewaySeq(gatewaySequence);
@@ -51,7 +51,7 @@ public class ExecutionReporter {
     public void reportCanceled(long userId, long orderId, long clientOrderId, long filledQuantity, long timestamp, long gatewaySequence) {
         if (isReplaying) return;
         ThreadContext context = ThreadContext.get();
-        int sbeLength = SbeCodec.encodeCanceledReport(timestamp, userId, orderId, filledQuantity, clientOrderId);
+        int sbeLength = SbeCodec.encodeToScratchCanceledReport(timestamp, userId, orderId, filledQuantity, clientOrderId);
         
         OrderCanceledReport report = context.getOrderCanceledReport();
         report.setGatewaySeq(gatewaySequence);
@@ -66,7 +66,7 @@ public class ExecutionReporter {
                               long timestamp, long gatewaySequence) {
         if (isReplaying) return;
         ThreadContext context = ThreadContext.get();
-        int sbeLength = SbeCodec.encodeMatchedReport(timestamp, userId, orderId, orderStatus, 
+        int sbeLength = SbeCodec.encodeToScratchMatchedReport(timestamp, userId, orderId, orderStatus, 
                 lastPrice, lastQuantity, cumulativeQuantity, averagePrice, clientOrderId);
         
         OrderMatchReport report = context.getOrderMatchReport();

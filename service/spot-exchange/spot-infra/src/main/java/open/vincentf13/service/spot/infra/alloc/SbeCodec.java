@@ -11,9 +11,10 @@ import org.agrona.MutableDirectBuffer;
 public class SbeCodec {
     public static final int HEADER_SIZE = 8;
 
-    // --- 指令編碼 (Encoding) ---
+    // --- 指令編碼 (Encoding to ScratchBuffer) ---
 
-    public static int encodeAuth(long timestamp, long userId) {
+    /** 編碼認證指令，結果存儲於 ThreadContext.scratchBuffer */
+    public static int encodeToScratchAuth(long timestamp, long userId) {
         ThreadContext ctx = ThreadContext.get();
         MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
         AuthEncoder encoder = ctx.getAuthEncoder();
@@ -22,7 +23,8 @@ public class SbeCodec {
         return HEADER_SIZE + encoder.encodedLength();
     }
 
-    public static int encodeOrderCreate(long timestamp, long userId, int symbolId, long price, long qty, Side side, long clientOrderId) {
+    /** 編碼下單指令，結果存儲於 ThreadContext.scratchBuffer */
+    public static int encodeToScratchOrderCreate(long timestamp, long userId, int symbolId, long price, long qty, Side side, long clientOrderId) {
         ThreadContext ctx = ThreadContext.get();
         MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
         OrderCreateEncoder encoder = ctx.getOrderCreateEncoder();
@@ -31,7 +33,8 @@ public class SbeCodec {
         return HEADER_SIZE + encoder.encodedLength();
     }
 
-    public static int encodeOrderCancel(long timestamp, long userId, long orderId) {
+    /** 編碼撤單指令，結果存儲於 ThreadContext.scratchBuffer */
+    public static int encodeToScratchOrderCancel(long timestamp, long userId, long orderId) {
         ThreadContext ctx = ThreadContext.get();
         MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
         OrderCancelEncoder encoder = ctx.getOrderCancelEncoder();
@@ -40,7 +43,8 @@ public class SbeCodec {
         return HEADER_SIZE + encoder.encodedLength();
     }
 
-    public static int encodeDeposit(long timestamp, long userId, int assetId, long amount) {
+    /** 編碼充值指令，結果存儲於 ThreadContext.scratchBuffer */
+    public static int encodeToScratchDeposit(long timestamp, long userId, int assetId, long amount) {
         ThreadContext ctx = ThreadContext.get();
         MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
         DepositEncoder encoder = ctx.getDepositEncoder();
@@ -49,25 +53,29 @@ public class SbeCodec {
         return HEADER_SIZE + encoder.encodedLength();
     }
 
-    // --- 執行回報編碼 (Execution Report Specialized API) ---
+    // --- 執行回報編碼 (Encoding to ScratchBuffer Specialized API) ---
 
-    public static int encodeAcceptedReport(long timestamp, long userId, long orderId, long clientOrderId) {
-        return encodeReport(timestamp, userId, orderId, OrderStatus.NEW, 0, 0, 0, 0, clientOrderId);
+    /** 編碼接受回報，結果存儲於 ThreadContext.scratchBuffer */
+    public static int encodeToScratchAcceptedReport(long timestamp, long userId, long orderId, long clientOrderId) {
+        return encodeToScratchReport(timestamp, userId, orderId, OrderStatus.NEW, 0, 0, 0, 0, clientOrderId);
     }
 
-    public static int encodeRejectedReport(long timestamp, long userId, long clientOrderId) {
-        return encodeReport(timestamp, userId, 0, OrderStatus.REJECTED, 0, 0, 0, 0, clientOrderId);
+    /** 編碼拒絕回報，結果存儲於 ThreadContext.scratchBuffer */
+    public static int encodeToScratchRejectedReport(long timestamp, long userId, long clientOrderId) {
+        return encodeToScratchReport(timestamp, userId, 0, OrderStatus.REJECTED, 0, 0, 0, 0, clientOrderId);
     }
 
-    public static int encodeCanceledReport(long timestamp, long userId, long orderId, long filledQuantity, long clientOrderId) {
-        return encodeReport(timestamp, userId, orderId, OrderStatus.CANCELED, 0, 0, filledQuantity, 0, clientOrderId);
+    /** 編碼撤單回報，結果存儲於 ThreadContext.scratchBuffer */
+    public static int encodeToScratchCanceledReport(long timestamp, long userId, long orderId, long filledQuantity, long clientOrderId) {
+        return encodeToScratchReport(timestamp, userId, orderId, OrderStatus.CANCELED, 0, 0, filledQuantity, 0, clientOrderId);
     }
 
-    public static int encodeMatchedReport(long timestamp, long userId, long orderId, OrderStatus status, long lastPrice, long lastQty, long cumQty, long avgPrice, long clientOrderId) {
-        return encodeReport(timestamp, userId, orderId, status, lastPrice, lastQty, cumQty, avgPrice, clientOrderId);
+    /** 編碼成交回報，結果存儲於 ThreadContext.scratchBuffer */
+    public static int encodeToScratchMatchedReport(long timestamp, long userId, long orderId, OrderStatus status, long lastPrice, long lastQty, long cumQty, long avgPrice, long clientOrderId) {
+        return encodeToScratchReport(timestamp, userId, orderId, status, lastPrice, lastQty, cumQty, avgPrice, clientOrderId);
     }
 
-    private static int encodeReport(long ts, long uid, long oid, OrderStatus st, long lp, long lq, long cq, long ap, long cid) {
+    private static int encodeToScratchReport(long ts, long uid, long oid, OrderStatus st, long lp, long lq, long cq, long ap, long cid) {
         ThreadContext ctx = ThreadContext.get();
         MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
         ExecutionReportEncoder encoder = ctx.getExecutionReportEncoder();
