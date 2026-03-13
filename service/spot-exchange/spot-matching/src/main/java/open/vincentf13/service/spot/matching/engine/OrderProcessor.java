@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.*;
 import open.vincentf13.service.spot.sbe.*;
@@ -29,31 +30,32 @@ public class OrderProcessor {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
 
-    private final CidKey reusableCidKey = new CidKey();
-
     @PostConstruct
     public void init() { log.info("OrderProcessor 初始化完成..."); }
 
     /** 核心入口：處理下單指令 */
     public void processCreateCommand(OrderCreateDecoder decoder, long gatewaySequence, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
-        // 1. 冪等性檢查 (Client Order ID)
-        reusableCidKey.set(decoder.userId(), decoder.clientOrderId());
+        final ThreadContext context = ThreadContext.get();
+        final CidKey cidKey = context.getRequestHolder().getCidKey(); // 使用 RequestHolder 內部的 CidKey
+        cidKey.set(decoder.userId(), decoder.clientOrderId());
 
-        if (clientOrderIdDiskMap.containsKey(reusableCidKey)) return;
+        if (clientOrderIdDiskMap.containsKey(cidKey)) return;
 
         handleOrderCreate(decoder, gatewaySequence, orderIdSupplier.get(), tradeIdSupplier);
     }
 
     /** 處理撤單指令 */
     public void processCancelCommand(long userId, long orderId, long gatewaySequence) {
-        Order order = orders.get(orderId);
+        final ThreadContext context = ThreadContext.get();
+        // 優化：使用 getUsing 實現零分配讀取
+        Order order = orders.getUsing(orderId, context.getReusableOrder());
         
         // 1. 基礎校驗
         if (order == null || order.getUserId() != userId || order.getStatus() >= OrderStatus.FILLED.ordinal()) {
             return;
         }
 
-        // 2. 從 OrderBook 移除 (內部會釋放物件)
+        // 2. 從 OrderBook 移除
         OrderBook.get(order.getSymbolId()).remove(orderId);
 
         // 3. 資產解凍
@@ -68,8 +70,7 @@ public class OrderProcessor {
         orders.put(orderId, order);
 
         // 5. 發送回報
-        reporter.reportCanceled(order.getUserId(), order.getOrderId(), order.getClientOrderId(), 
-                order.getFilled(), System.currentTimeMillis(), gatewaySequence);
+        reporter.reportCanceled(order);
     }
 
     private void handleOrderCreate(OrderCreateDecoder decoder, long gatewaySequence, long orderId, LongSupplier tradeIdSupplier) {
@@ -100,14 +101,12 @@ public class OrderProcessor {
                         (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), price, gatewaySequence, baseAsset, quoteAsset, tradeId);
                 
                 // 發送 Maker 回報
-                reporter.reportMatched(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(),
-                        maker.getFilled() == maker.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED,
-                        price, quantity, maker.getFilled(), 0, timestamp, gatewaySequence);
+                reporter.reportMatched(maker, price, quantity);
             }
 
             @Override
             public void onSTP(Order maker, long gatewaySequence) {
-                // 自成交預防：解凍 Maker 並發送撤單回報
+                // 自成交預防
                 long makerFreezeQuantity = (maker.getSide() == OrderSide.BUY) ? maker.getQty() * maker.getPrice() : maker.getQty();
                 int makerAssetId = (maker.getSide() == OrderSide.BUY) ? (maker.getSymbolId() / 1000) : (maker.getSymbolId() % 100);
                 ledger.unfreezeBalance(maker.getUserId(), makerAssetId, makerFreezeQuantity, gatewaySequence);
@@ -115,21 +114,18 @@ public class OrderProcessor {
                 maker.setStatus((byte) OrderStatus.CANCELED.ordinal());
                 orders.put(maker.getOrderId(), maker);
                 
-                reporter.reportCanceled(maker.getUserId(), maker.getOrderId(), maker.getClientOrderId(),
-                        maker.getFilled(), timestamp, gatewaySequence);
+                reporter.reportCanceled(maker);
             }
         });
 
-        // 3. 獲取 Taker 最終狀態並發報
-        Order taker = orders.get(orderId);
+        // 3. 獲取 Taker 最終狀態並發報 (使用 getUsing)
+        final ThreadContext context = ThreadContext.get();
+        Order taker = orders.getUsing(orderId, context.getReusableOrder());
         if (taker != null) {
-            reporter.reportMatched(userId, orderId, clientOrderId, 
-                    OrderStatus.values()[taker.getStatus()], 0, 0, taker.getFilled(), 0, timestamp, gatewaySequence);
-        } else {
-            // 掛單成功但物件已被回收 (通常由 handleCreate 內部回調處理，此處為嚴謹性補充)
-            Order savedTaker = orders.get(orderId);
-            if (savedTaker != null && savedTaker.getStatus() == OrderStatus.NEW.ordinal()) {
-                reporter.reportAccepted(userId, orderId, clientOrderId, timestamp, gatewaySequence);
+            if (taker.getStatus() == OrderStatus.NEW.ordinal()) {
+                reporter.reportAccepted(taker);
+            } else {
+                reporter.reportMatched(taker, 0, 0);
             }
         }
     }

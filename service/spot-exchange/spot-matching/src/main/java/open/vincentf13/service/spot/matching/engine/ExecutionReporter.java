@@ -7,6 +7,7 @@ import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.OrderStatus;
 
@@ -22,13 +23,14 @@ public class ExecutionReporter {
     @Setter private boolean isReplaying = false;
 
     /** 回報：訂單已接受 (Accepted / New) */
-    public void reportAccepted(long userId, long orderId, long clientOrderId, long timestamp, long gatewaySequence) {
+    public void reportAccepted(Order order) {
         if (isReplaying) return;
         ThreadContext context = ThreadContext.get();
-        int sbeLength = SbeCodec.encodeToScratchAcceptedReport(timestamp, userId, orderId, clientOrderId);
+        int sbeLength = SbeCodec.encodeToScratchAcceptedReport(
+                order.getTimestamp(), order.getUserId(), order.getOrderId(), order.getClientOrderId());
         
         OrderAcceptedReport report = context.getOrderAcceptedReport();
-        report.setGatewaySeq(gatewaySequence);
+        report.setGatewaySeq(order.getLastSeq());
         report.fillFromScratch(sbeLength);
         
         writeWal(MsgType.ORDER_ACCEPTED, report);
@@ -48,29 +50,31 @@ public class ExecutionReporter {
     }
 
     /** 回報：訂單已撤單 (Canceled) */
-    public void reportCanceled(long userId, long orderId, long clientOrderId, long filledQuantity, long timestamp, long gatewaySequence) {
+    public void reportCanceled(Order order) {
         if (isReplaying) return;
         ThreadContext context = ThreadContext.get();
-        int sbeLength = SbeCodec.encodeToScratchCanceledReport(timestamp, userId, orderId, filledQuantity, clientOrderId);
+        int sbeLength = SbeCodec.encodeToScratchCanceledReport(
+                System.currentTimeMillis(), order.getUserId(), order.getOrderId(), order.getFilled(), order.getClientOrderId());
         
         OrderCanceledReport report = context.getOrderCanceledReport();
-        report.setGatewaySeq(gatewaySequence);
+        report.setGatewaySeq(order.getLastSeq());
         report.fillFromScratch(sbeLength);
         
         writeWal(MsgType.ORDER_CANCELED, report);
     }
 
     /** 回報：訂單成交 (Trade / Matched) */
-    public void reportMatched(long userId, long orderId, long clientOrderId, OrderStatus orderStatus, 
-                              long lastPrice, long lastQuantity, long cumulativeQuantity, long averagePrice, 
-                              long timestamp, long gatewaySequence) {
+    public void reportMatched(Order order, long lastPrice, long lastQuantity) {
         if (isReplaying) return;
         ThreadContext context = ThreadContext.get();
-        int sbeLength = SbeCodec.encodeToScratchMatchedReport(timestamp, userId, orderId, orderStatus, 
-                lastPrice, lastQuantity, cumulativeQuantity, averagePrice, clientOrderId);
+        OrderStatus status = order.getQty() == 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
+        
+        int sbeLength = SbeCodec.encodeToScratchMatchedReport(
+                order.getTimestamp(), order.getUserId(), order.getOrderId(), status, 
+                lastPrice, lastQuantity, order.getFilled(), 0, order.getClientOrderId());
         
         OrderMatchReport report = context.getOrderMatchReport();
-        report.setGatewaySeq(gatewaySequence);
+        report.setGatewaySeq(order.getLastSeq());
         report.fillFromScratch(sbeLength);
         
         writeWal(MsgType.ORDER_MATCHED, report);

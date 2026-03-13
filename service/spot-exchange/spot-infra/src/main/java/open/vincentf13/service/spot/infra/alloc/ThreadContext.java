@@ -2,6 +2,8 @@ package open.vincentf13.service.spot.infra.alloc;
 
 import lombok.Getter;
 import open.vincentf13.service.spot.infra.alloc.aeron.*;
+import open.vincentf13.service.spot.model.Order;
+import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.*;
 
@@ -24,6 +26,9 @@ public class ThreadContext {
     // --- 核心資源 ---
     @Getter private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
     @Getter private final RequestHolder requestHolder = new RequestHolder();
+    
+    // --- 緩衝物件 (用於零分配讀取) ---
+    @Getter private final Order reusableOrder = new Order();
     
     // --- Aeron 傳輸模型 (Fixed Layout) ---
     @Getter private final AeronAuth aeronAuth = new AeronAuth();
@@ -93,6 +98,7 @@ public class ThreadContext {
         private long userId, orderId, price, qty, cid, amount;
         private int symbolId, assetId;
         private String side;
+        private final CidKey cidKey = new CidKey();
         public void reset() { op = null; userId = orderId = price = qty = cid = amount = 0; symbolId = assetId = 0; side = null; }
     }
 }
