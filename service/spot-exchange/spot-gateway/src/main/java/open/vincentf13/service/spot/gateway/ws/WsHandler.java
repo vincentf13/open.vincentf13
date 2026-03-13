@@ -41,8 +41,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChronicleQueue clientToGwWal = Storage.self().clientToGwWal();
     
-    /** SessionID -> Channel 映射 */
-    private final Map<String, Channel> sessions = new ConcurrentHashMap<>();
     /** SessionID -> UserID 映射 (用於斷線清理) */
     private final Map<String, Long> sessionToUser = new ConcurrentHashMap<>();
     /** UserID -> Channels 映射：支援同一用戶多設備同時在線 */
@@ -68,7 +66,6 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        sessions.put(ctx.channel().id().asLongText(), ctx.channel());
     }
 
     @Override
@@ -195,9 +192,9 @@ public class WsHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         String sid = ctx.channel().id().asLongText();
-        sessions.remove(sid);
-        Long uid = sessionToUser.remove(sid);
-        if (uid != null) {
+        long uid = sessionToUser.getOrDefault(sid, -1L);
+        if (uid != -1L) {
+            sessionToUser.remove(sid);
             Set<Channel> channels = userToSessions.get(uid);
             if (channels != null) {
                 channels.remove(ctx.channel());
