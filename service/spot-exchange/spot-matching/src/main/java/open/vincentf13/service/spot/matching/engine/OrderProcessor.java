@@ -33,15 +33,20 @@ public class OrderProcessor {
     @PostConstruct
     public void init() { log.info("OrderProcessor 初始化完成..."); }
 
+    public void coldStartRebuild() {
+        log.warn("未檢測到有效內存快照，正在執行耗時的全量磁碟掃描以恢復狀態...");
+        OrderBook.rebuildAll();
+    }
+
     /** 核心入口：處理下單指令 */
-    public void processCreateCommand(OrderCreateDecoder decoder, long gatewaySequence, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
+    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
         final ThreadContext context = ThreadContext.get();
         final CidKey cidKey = context.getRequestHolder().getCidKey(); 
-        cidKey.set(decoder.userId(), decoder.clientOrderId());
+        cidKey.set(userId, clientOrderId);
 
         if (clientOrderIdDiskMap.containsKey(cidKey)) return;
 
-        handleOrderCreate(decoder, gatewaySequence, orderIdSupplier.get(), tradeIdSupplier);
+        handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, orderIdSupplier.get(), tradeIdSupplier);
     }
 
     /** 處理撤單指令 */
@@ -73,15 +78,7 @@ public class OrderProcessor {
         reporter.reportCanceled(order);
     }
 
-    private void handleOrderCreate(OrderCreateDecoder decoder, long gatewaySequence, long orderId, LongSupplier tradeIdSupplier) {
-        final long userId = decoder.userId();
-        final int symbolId = decoder.symbolId();
-        final long price = decoder.price();
-        final long quantity = decoder.qty();
-        final Side side = decoder.side();
-        final long clientOrderId = decoder.clientOrderId();
-        final long timestamp = decoder.timestamp();
-
+    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long orderId, LongSupplier tradeIdSupplier) {
         // 1. 凍結資產
         OrderBook book = OrderBook.get(symbolId);
         int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId(); 
@@ -93,38 +90,29 @@ public class OrderProcessor {
         }
 
         // 2. 進入 OrderBook 撮合
-        book.handleCreate(orderId, decoder, clientOrderId, gatewaySequence, tradeIdSupplier::getAsLong, new OrderBook.TradeFinalizer() {
+        final byte takerSide = (byte) (side == Side.BUY ? OrderSide.BUY : OrderSide.SELL);
+        book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, System.currentTimeMillis(), gatewaySequence, tradeIdSupplier::getAsLong, new OrderBook.TradeFinalizer() {
             @Override
-            public void onMatch(long tradeId, Order maker, long price, long quantity, int baseAsset, int quoteAsset) {
+            public void onMatch(long tradeId, Order maker, long tradePrice, long tradeQty, int baseAsset, int quoteAsset) {
                 // 成交結算
-                ledger.settleTrade(maker.getUserId(), userId, price, quantity, 
-                        (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), price, gatewaySequence, baseAsset, quoteAsset, tradeId);
+                ledger.settleTrade(maker.getUserId(), userId, tradePrice, tradeQty, takerSide, price, gatewaySequence, baseAsset, quoteAsset, tradeId);
                 
-                // 發送 Maker 回報 (成交)
-                reporter.reportTrade(maker, price, quantity);
+                // 寫入客戶端訂單 ID 映射 (持久化)
+                CidKey makerCid = new CidKey();
+                makerCid.set(maker.getUserId(), maker.getClientOrderId());
+                clientOrderIdDiskMap.put(makerCid, maker.getOrderId());
             }
         });
 
-        // 3. 獲取 Taker 最終狀態並發報
-        final ThreadContext context = ThreadContext.get();
-        Order taker = orders.getUsing(orderId, context.getReusableOrder());
+        // 3. 寫入客戶端訂單 ID 映射 (持久化 taker)
+        CidKey takerCid = new CidKey();
+        takerCid.set(userId, clientOrderId);
+        clientOrderIdDiskMap.put(takerCid, orderId);
+
+        // 4. 發送回報 (Accepted)
+        Order taker = orders.get(orderId);
         if (taker != null) {
-            if (taker.getStatus() == OrderStatus.NEW.ordinal()) {
-                reporter.reportAccepted(taker);
-            } else {
-                // Taker 的成交回報在撮合回調中會觸發，此處僅處理最終可能的掛單或結尾報告
-                reporter.reportTrade(taker, 0, 0);
-            }
+            reporter.reportAccepted(taker);
         }
-    }
-
-    public void coldStartRebuild() {
-        log.info("正在從 Chronicle Map 恢復 OrderBook 狀態...");
-        orders.forEach((id, order) -> {
-            if (order.getStatus() < OrderStatus.FILLED.ordinal()) {
-                OrderBook.get(order.getSymbolId()).recoverOrder(order);
-            }
-        });
-        log.info("OrderBook 狀態恢復完成。");
     }
 }

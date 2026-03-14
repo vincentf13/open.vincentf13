@@ -6,26 +6,22 @@ import open.vincentf13.service.spot.sbe.DepositDecoder;
 import open.vincentf13.service.spot.sbe.DepositEncoder;
 import org.agrona.DirectBuffer;
 
-/**
- * 充值指令 (實例私有編解碼器)
- */
+/** 充值指令 */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class DepositCommand extends AbstractSbeModel {
     private final DepositEncoder encoder = new DepositEncoder();
     private final DepositDecoder decoder = new DepositDecoder();
 
-    public DepositDecoder decode() {
-        DirectBuffer buffer = wrapStore();
-        headerDecoder.wrap(buffer, 0);
-        return decoder.wrap(buffer, HEADER_SIZE, headerDecoder.blockLength(), headerDecoder.version());
+    @Override
+    protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) {
+        decoder.wrap(buffer, offset, blockLength, version);
     }
 
     public void encode(long timestamp, long userId, int assetId, long amount) {
-        wrapHeader(DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
-        encoder.wrap(selfBuffer, HEADER_SIZE).timestamp(timestamp).userId(userId).assetId(assetId).amount(amount);
-        int totalLength = HEADER_SIZE + encoder.encodedLength();
-        this.pointBytesStore.set(selfBuffer.addressOffset(), totalLength);
+        encoder.wrap(preEncode(DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION), HEADER_SIZE)
+                .timestamp(timestamp).userId(userId).assetId(assetId).amount(amount);
+        postEncode(encoder.encodedLength());
     }
 
     public long getTimestamp() { return decoder.timestamp(); }

@@ -99,24 +99,23 @@ public class OrderBook {
 
     public void releaseOrder(Order o) { if (o != null) GLOBAL_ORDER_POOL.addLast(o); }
 
-    public Order handleCreate(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq, 
+    public Order handleCreate(long orderId, long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long timestamp, long gwSeq,
                              Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
-        Order taker = borrowAndFill(orderId, sbe, clientOrderId, gwSeq);
-        match(taker, gwSeq, sbe.timestamp(), tradeIdSupplier, finalizer);
+        Order taker = borrowAndFill(orderId, userId, symbolId, price, qty, side, clientOrderId, gwSeq);
+        match(taker, gwSeq, timestamp, tradeIdSupplier, finalizer);
         syncOrder(taker, gwSeq);
         return taker;
     }
 
-    private Order borrowAndFill(long orderId, OrderCreateDecoder sbe, long clientOrderId, long gwSeq) {
+    private Order borrowAndFill(long orderId, long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gwSeq) {
         Order o = borrowOrder();
-        o.setOrderId(orderId); o.setUserId(sbe.userId()); o.setSymbolId(sbe.symbolId());
-        o.setPrice(sbe.price()); o.setQty(sbe.qty()); o.setFilled(0);
-        o.setSide((byte)(sbe.side() == Side.BUY ? OrderSide.BUY : OrderSide.SELL));
+        o.setOrderId(orderId); o.setUserId(userId); o.setSymbolId(symbolId);
+        o.setPrice(price); o.setQty(qty); o.setFilled(0);
+        o.setSide((byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL));
         o.setStatus((byte)0); o.setVersion(1); o.setLastSeq(gwSeq);
         o.setClientOrderId(clientOrderId);
         return o;
     }
-
     public static Collection<OrderBook> getInstances() {
         return INSTANCES.values();
     }

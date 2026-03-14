@@ -6,26 +6,22 @@ import open.vincentf13.service.spot.sbe.AuthDecoder;
 import open.vincentf13.service.spot.sbe.AuthEncoder;
 import org.agrona.DirectBuffer;
 
-/**
- * 用戶認證指令 (實例私有編解碼器)
- */
+/** 用戶認證指令 */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class AuthCommand extends AbstractSbeModel {
     private final AuthEncoder encoder = new AuthEncoder();
     private final AuthDecoder decoder = new AuthDecoder();
 
-    public AuthDecoder decode() {
-        DirectBuffer buffer = wrapStore();
-        headerDecoder.wrap(buffer, 0);
-        return decoder.wrap(buffer, HEADER_SIZE, headerDecoder.blockLength(), headerDecoder.version());
+    @Override
+    protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) {
+        decoder.wrap(buffer, offset, blockLength, version);
     }
 
     public void encode(long timestamp, long userId) {
-        wrapHeader(AuthEncoder.TEMPLATE_ID, AuthEncoder.BLOCK_LENGTH, AuthEncoder.SCHEMA_ID, AuthEncoder.SCHEMA_VERSION);
-        encoder.wrap(selfBuffer, HEADER_SIZE).timestamp(timestamp).userId(userId);
-        int totalLength = HEADER_SIZE + encoder.encodedLength();
-        this.pointBytesStore.set(selfBuffer.addressOffset(), totalLength);
+        encoder.wrap(preEncode(AuthEncoder.TEMPLATE_ID, AuthEncoder.BLOCK_LENGTH, AuthEncoder.SCHEMA_ID, AuthEncoder.SCHEMA_VERSION), HEADER_SIZE)
+                .timestamp(timestamp).userId(userId);
+        postEncode(encoder.encodedLength());
     }
 
     public long getTimestamp() { return decoder.timestamp(); }

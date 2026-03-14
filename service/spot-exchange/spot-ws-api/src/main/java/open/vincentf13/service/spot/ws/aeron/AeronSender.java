@@ -53,7 +53,7 @@ public class AeronSender extends AbstractAeronSender {
             case MsgType.AUTH -> {
                 AuthCommand cmd = ctx.getAuthCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                final long userId = cmd.decode().userId();
+                final long userId = cmd.getUserId();
                 
                 this.backPressureCount += aeronClient.send(AeronAuth.LENGTH, (buffer, offset) -> {
                     ctx.getAeronAuth().wrap(buffer, offset).write(ctxSeq, userId);
@@ -72,9 +72,8 @@ public class AeronSender extends AbstractAeronSender {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
-                var decoder = cmd.decode();
-                final long userId = decoder.userId();
-                final long orderId = decoder.orderId();
+                final long userId = cmd.getUserId();
+                final long orderId = cmd.getOrderId();
                 
                 this.backPressureCount += aeronClient.send(AeronOrderCancel.LENGTH, (buffer, offset) -> {
                     ctx.getAeronOrderCancel().wrap(buffer, offset).write(ctxSeq, userId, orderId);
@@ -84,10 +83,9 @@ public class AeronSender extends AbstractAeronSender {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
-                var decoder = cmd.decode();
-                final long userId = decoder.userId();
-                final int assetId = decoder.assetId();
-                final long amount = decoder.amount();
+                final long userId = cmd.getUserId();
+                final int assetId = cmd.getAssetId();
+                final long amount = cmd.getAmount();
                 
                 this.backPressureCount += aeronClient.send(AeronDeposit.LENGTH, (buffer, offset) -> {
                     ctx.getAeronDeposit().wrap(buffer, offset).write(ctxSeq, userId, assetId, amount);

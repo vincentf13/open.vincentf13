@@ -6,26 +6,22 @@ import open.vincentf13.service.spot.sbe.OrderCancelDecoder;
 import open.vincentf13.service.spot.sbe.OrderCancelEncoder;
 import org.agrona.DirectBuffer;
 
-/**
- * 撤單指令 (實例私有編解碼器)
- */
+/** 撤單指令 */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class OrderCancelCommand extends AbstractSbeModel {
     private final OrderCancelEncoder encoder = new OrderCancelEncoder();
     private final OrderCancelDecoder decoder = new OrderCancelDecoder();
 
-    public OrderCancelDecoder decode() {
-        DirectBuffer buffer = wrapStore();
-        headerDecoder.wrap(buffer, 0);
-        return decoder.wrap(buffer, HEADER_SIZE, headerDecoder.blockLength(), headerDecoder.version());
+    @Override
+    protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) {
+        decoder.wrap(buffer, offset, blockLength, version);
     }
 
     public void encode(long timestamp, long userId, long orderId) {
-        wrapHeader(OrderCancelEncoder.TEMPLATE_ID, OrderCancelEncoder.BLOCK_LENGTH, OrderCancelEncoder.SCHEMA_ID, OrderCancelEncoder.SCHEMA_VERSION);
-        encoder.wrap(selfBuffer, HEADER_SIZE).timestamp(timestamp).userId(userId).orderId(orderId);
-        int totalLength = HEADER_SIZE + encoder.encodedLength();
-        this.pointBytesStore.set(selfBuffer.addressOffset(), totalLength);
+        encoder.wrap(preEncode(OrderCancelEncoder.TEMPLATE_ID, OrderCancelEncoder.BLOCK_LENGTH, OrderCancelEncoder.SCHEMA_ID, OrderCancelEncoder.SCHEMA_VERSION), HEADER_SIZE)
+                .timestamp(timestamp).userId(userId).orderId(orderId);
+        postEncode(encoder.encodedLength());
     }
 
     public long getTimestamp() { return decoder.timestamp(); }

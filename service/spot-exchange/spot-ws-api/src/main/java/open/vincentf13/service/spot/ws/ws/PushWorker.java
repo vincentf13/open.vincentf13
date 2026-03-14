@@ -83,8 +83,7 @@ public class PushWorker extends Worker {
                 OrderMatchReport report = ctx.getOrderMatchReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 
-                final ExecutionReportDecoder decoder = report.decode();
-                handleExecutionReport(decoder);
+                handleExecutionReport(report);
             }
         }
     }
@@ -113,11 +112,11 @@ public class PushWorker extends Worker {
         });
     }
 
-    private void handleExecutionReport(ExecutionReportDecoder decoder) {
-        final long orderId = decoder.orderId();
-        final long userId = decoder.userId();
-        final int statusOrdinal = decoder.status().ordinal();
-        final long clientOrderId = decoder.clientOrderId();
+    private void handleExecutionReport(open.vincentf13.service.spot.model.command.AbstractExecutionReport report) {
+        final long orderId = report.getOrderId();
+        final long userId = report.getUserId();
+        final int statusOrdinal = report.getStatus().ordinal();
+        final long clientOrderId = report.getClientOrderId();
         final String statusStr = (statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length) ? 
                 ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN";
 
