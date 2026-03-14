@@ -18,6 +18,15 @@ public class OrderCreateCommand implements BytesMarshallable {
     private long seq;
     private final PointerBytesStore pointBytesStore = new PointerBytesStore();
 
+    public open.vincentf13.service.spot.sbe.OrderCreateDecoder decode() {
+        return SbeCodec.decodeOrderCreate(pointBytesStore);
+    }
+
+    public void encode(long timestamp, long userId, int symbolId, long price, long qty, Side side, long clientOrderId) {
+        int length = SbeCodec.encodeToScratchOrderCreate(timestamp, userId, symbolId, price, qty, side, clientOrderId);
+        fillFromScratch(length);
+    }
+
     public void fillFromScratch(int length) {
         fillFrom(open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getScratchBuffer().buffer(), 0, length);
     }

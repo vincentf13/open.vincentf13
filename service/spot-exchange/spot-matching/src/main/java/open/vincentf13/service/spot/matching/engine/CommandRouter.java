@@ -42,7 +42,7 @@ public class CommandRouter {
         wire.read(ChronicleWireKey.payload).bytes(cmd);
         
         context.setCurrentGatewaySequence(cmd.getSeq());
-        final long userId = SbeCodec.decodeAuth(cmd.getPointBytesStore()).userId();
+        final long userId = cmd.decode().userId();
         authProcessor.handleAuth(userId, cmd.getSeq());
         
         return cmd.getSeq();
@@ -54,8 +54,7 @@ public class CommandRouter {
         wire.read(ChronicleWireKey.payload).bytes(cmd);
         
         context.setCurrentGatewaySequence(cmd.getSeq());
-        final OrderCreateDecoder decoder = SbeCodec.decodeOrderCreate(cmd.getPointBytesStore());
-        orderProcessor.processCreateCommand(decoder, cmd.getSeq(), orderIdSupplier, tradeIdSupplier);
+        orderProcessor.processCreateCommand(cmd.decode(), cmd.getSeq(), orderIdSupplier, tradeIdSupplier);
         
         return cmd.getSeq();
     }
@@ -66,7 +65,7 @@ public class CommandRouter {
         wire.read(ChronicleWireKey.payload).bytes(cmd);
         
         context.setCurrentGatewaySequence(cmd.getSeq());
-        final var decoder = SbeCodec.decodeOrderCancel(cmd.getPointBytesStore());
+        final var decoder = cmd.decode();
         orderProcessor.processCancelCommand(decoder.userId(), decoder.orderId(), cmd.getSeq());
         
         return cmd.getSeq();
@@ -78,7 +77,7 @@ public class CommandRouter {
         wire.read(ChronicleWireKey.payload).bytes(cmd);
         
         context.setCurrentGatewaySequence(cmd.getSeq());
-        final var decoder = SbeCodec.decodeDeposit(cmd.getPointBytesStore());
+        final var decoder = cmd.decode();
         depositProcessor.handleDeposit(decoder.userId(), decoder.assetId(), decoder.amount(), cmd.getSeq());
         
         return cmd.getSeq();

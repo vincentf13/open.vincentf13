@@ -25,12 +25,9 @@ public class ExecutionReporter {
     /** 訂單已接受 (掛單成功) */
     public void reportAccepted(Order order) {
         if (isReplaying) return;
-        int sbeLength = SbeCodec.encodeToScratchAcceptedReport(
-                order.getTimestamp(), order.getUserId(), order.getOrderId(), order.getClientOrderId());
-        
         OrderAcceptedReport report = ThreadContext.get().getOrderAcceptedReport();
         report.setGatewaySeq(order.getLastSeq());
-        report.fillFromScratch(sbeLength);
+        report.encode(order.getTimestamp(), order.getUserId(), order.getOrderId(), order.getClientOrderId());
         writeWal(MsgType.ORDER_ACCEPTED, report);
     }
 
@@ -38,23 +35,18 @@ public class ExecutionReporter {
     public void reportRejected(long userId, long clientOrderId) {
         if (isReplaying) return;
         ThreadContext context = ThreadContext.get();
-        int sbeLength = SbeCodec.encodeToScratchRejectedReport(System.currentTimeMillis(), userId, clientOrderId);
-        
         OrderRejectedReport report = context.getOrderRejectedReport();
         report.setGatewaySeq(context.getCurrentGatewaySequence());
-        report.fillFromScratch(sbeLength);
+        report.encode(System.currentTimeMillis(), userId, clientOrderId);
         writeWal(MsgType.ORDER_REJECTED, report);
     }
 
     /** 訂單已撤單 */
     public void reportCanceled(Order order) {
         if (isReplaying) return;
-        int sbeLength = SbeCodec.encodeToScratchCanceledReport(
-                System.currentTimeMillis(), order.getUserId(), order.getOrderId(), order.getFilled(), order.getClientOrderId());
-        
         OrderCanceledReport report = ThreadContext.get().getOrderCanceledReport();
         report.setGatewaySeq(order.getLastSeq());
-        report.fillFromScratch(sbeLength);
+        report.encode(System.currentTimeMillis(), order.getUserId(), order.getOrderId(), order.getFilled(), order.getClientOrderId());
         writeWal(MsgType.ORDER_CANCELED, report);
     }
 
@@ -63,13 +55,11 @@ public class ExecutionReporter {
         if (isReplaying) return;
         OrderStatus status = order.getFilled() == order.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
         
-        int sbeLength = SbeCodec.encodeToScratchMatchedReport(
-                order.getTimestamp(), order.getUserId(), order.getOrderId(), status, 
-                lastPrice, lastQuantity, order.getFilled(), 0, order.getClientOrderId());
-        
         OrderMatchReport report = ThreadContext.get().getOrderMatchReport();
         report.setGatewaySeq(order.getLastSeq());
-        report.fillFromScratch(sbeLength);
+        report.encode(order.getTimestamp(), order.getUserId(), order.getOrderId(), status, 
+                lastPrice, lastQuantity, order.getFilled(), 0, order.getClientOrderId());
+        
         writeWal(MsgType.ORDER_MATCHED, report);
     }
 

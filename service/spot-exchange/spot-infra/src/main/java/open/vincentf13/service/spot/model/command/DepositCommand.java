@@ -17,6 +17,15 @@ public class DepositCommand implements BytesMarshallable {
     private long seq;
     private final PointerBytesStore pointBytesStore = new PointerBytesStore();
 
+    public open.vincentf13.service.spot.sbe.DepositDecoder decode() {
+        return SbeCodec.decodeDeposit(pointBytesStore);
+    }
+
+    public void encode(long timestamp, long userId, int assetId, long amount) {
+        int length = SbeCodec.encodeToScratchDeposit(timestamp, userId, assetId, amount);
+        fillFromScratch(length);
+    }
+
     public void fillFromScratch(int length) {
         fillFrom(open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getScratchBuffer().buffer(), 0, length);
     }

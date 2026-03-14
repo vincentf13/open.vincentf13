@@ -17,6 +17,15 @@ public class AuthCommand implements BytesMarshallable {
     private long seq;
     private final PointerBytesStore pointBytesStore = new PointerBytesStore();
 
+    public open.vincentf13.service.spot.sbe.AuthDecoder decode() {
+        return SbeCodec.decodeAuth(pointBytesStore);
+    }
+
+    public void encode(long timestamp, long userId) {
+        int length = SbeCodec.encodeToScratchAuth(timestamp, userId);
+        fillFromScratch(length);
+    }
+
     public void fillFromScratch(int length) {
         fillFrom(open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getScratchBuffer().buffer(), 0, length);
     }

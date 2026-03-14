@@ -85,8 +85,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         sessionManager.addSession(holder.getUserId(), channel);
         
         AuthCommand cmd = ThreadContext.get().getAuthCommand();
-        int sbeLen = SbeCodec.encodeToScratchAuth(System.currentTimeMillis(), holder.getUserId());
-        cmd.fillFromScratch(sbeLen);
+        cmd.encode(System.currentTimeMillis(), holder.getUserId());
         
         try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
@@ -96,8 +95,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     
     private void handleOrderCancel(Channel channel, ThreadContext.RequestHolder holder) {
         OrderCancelCommand cmd = ThreadContext.get().getOrderCancelCommand();
-        int sbeLen = SbeCodec.encodeToScratchOrderCancel(System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
-        cmd.fillFromScratch(sbeLen);
+        cmd.encode(System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
 
         try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
@@ -109,9 +107,8 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         OrderCreateCommand cmd = ThreadContext.get().getOrderCreateCommand();
         Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? Side.BUY : Side.SELL;
         
-        int sbeLen = SbeCodec.encodeToScratchOrderCreate(System.currentTimeMillis(), holder.getUserId(), 
+        cmd.encode(System.currentTimeMillis(), holder.getUserId(), 
                 holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
-        cmd.fillFromScratch(sbeLen);
 
         try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
@@ -121,9 +118,8 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
     private void handleDeposit(Channel channel, ThreadContext.RequestHolder holder) {
         DepositCommand cmd = ThreadContext.get().getDepositCommand();
-        int sbeLen = SbeCodec.encodeToScratchDeposit(System.currentTimeMillis(), holder.getUserId(), 
+        cmd.encode(System.currentTimeMillis(), holder.getUserId(), 
                 holder.getAssetId(), holder.getAmount());
-        cmd.fillFromScratch(sbeLen);
 
         try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);

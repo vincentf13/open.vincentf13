@@ -17,6 +17,15 @@ public class OrderCancelCommand implements BytesMarshallable {
     private long seq;
     private final PointerBytesStore pointBytesStore = new PointerBytesStore();
 
+    public open.vincentf13.service.spot.sbe.OrderCancelDecoder decode() {
+        return SbeCodec.decodeOrderCancel(pointBytesStore);
+    }
+
+    public void encode(long timestamp, long userId, long orderId) {
+        int length = SbeCodec.encodeToScratchOrderCancel(timestamp, userId, orderId);
+        fillFromScratch(length);
+    }
+
     public void fillFromScratch(int length) {
         fillFrom(open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getScratchBuffer().buffer(), 0, length);
     }

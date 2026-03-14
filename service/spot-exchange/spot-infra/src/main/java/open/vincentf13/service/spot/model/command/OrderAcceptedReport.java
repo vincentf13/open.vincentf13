@@ -5,6 +5,7 @@ import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 import net.openhft.chronicle.bytes.PointerBytesStore;
+import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import org.agrona.DirectBuffer;
 
 /**
@@ -14,6 +15,15 @@ import org.agrona.DirectBuffer;
 public class OrderAcceptedReport implements BytesMarshallable {
     private long gatewaySeq;
     private final PointerBytesStore pointBytesStore = new PointerBytesStore();
+
+    public open.vincentf13.service.spot.sbe.ExecutionReportDecoder decode() {
+        return SbeCodec.decodeExecutionReport(pointBytesStore);
+    }
+
+    public void encode(long timestamp, long userId, long orderId, long clientOrderId) {
+        int length = SbeCodec.encodeToScratchAcceptedReport(timestamp, userId, orderId, clientOrderId);
+        fillFromScratch(length);
+    }
 
     public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
         this.gatewaySeq = aeron.readSeq();
