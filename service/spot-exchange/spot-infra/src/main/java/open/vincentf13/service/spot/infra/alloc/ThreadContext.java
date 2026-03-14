@@ -1,13 +1,14 @@
 package open.vincentf13.service.spot.infra.alloc;
 
 import lombok.Getter;
+import net.openhft.chronicle.bytes.PointerBytesStore;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.command.*;
 
 /**
  * 執行緒上下文總管 (Thread-Local Context Hub)
- * 職責：維護執行緒專屬的資源與 Flyweight 模型對象池
+ * 職責：維護執行緒專屬的資源與 指令模型池 (回報類已移除，改為日誌輸出)
  */
 public class ThreadContext {
     private static final ThreadLocal<ThreadContext> INSTANCE = ThreadLocal.withInitial(ThreadContext::new);
@@ -26,35 +27,20 @@ public class ThreadContext {
     @Getter private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
     @Getter private final RequestHolder requestHolder = new RequestHolder();
     
-    // --- 業務模型 (Flyweight / 池化物件) ---
+    // --- 指令模型 (Flyweight / 池化物件) ---
     private AuthCommand authCommand;
     private OrderCreateCommand orderCreateCommand;
     private OrderCancelCommand orderCancelCommand;
     private DepositCommand depositCommand;
 
-    private AuthReport authReport;
-    private DepositReport depositReport;
-    
-    private OrderAcceptedReport orderAcceptedReport;
-    private OrderRejectedReport orderRejectedReport;
-    private OrderCanceledReport orderCanceledReport;
-    private OrderMatchReport orderMatchReport;
-
-    // --- 緩衝物件 ---
+    // --- 基礎組件 (Flyweight) ---
     @Getter private final Order reusableOrder = new Order();
+    @Getter private final PointerBytesStore reusablePointer = new PointerBytesStore();
 
     public AuthCommand getAuthCommand() { if (authCommand == null) authCommand = new AuthCommand(); return authCommand; }
     public OrderCreateCommand getOrderCreateCommand() { if (orderCreateCommand == null) orderCreateCommand = new OrderCreateCommand(); return orderCreateCommand; }
     public OrderCancelCommand getOrderCancelCommand() { if (orderCancelCommand == null) orderCancelCommand = new OrderCancelCommand(); return orderCancelCommand; }
     public DepositCommand getDepositCommand() { if (depositCommand == null) depositCommand = new DepositCommand(); return depositCommand; }
-
-    public AuthReport getAuthReport() { if (authReport == null) authReport = new AuthReport(); return authReport; }
-    public DepositReport getDepositReport() { if (depositReport == null) depositReport = new DepositReport(); return depositReport; }
-    
-    public OrderAcceptedReport getOrderAcceptedReport() { if (orderAcceptedReport == null) orderAcceptedReport = new OrderAcceptedReport(); return orderAcceptedReport; }
-    public OrderRejectedReport getOrderRejectedReport() { if (orderRejectedReport == null) orderRejectedReport = new OrderRejectedReport(); return orderRejectedReport; }
-    public OrderCanceledReport getOrderCanceledReport() { if (orderCanceledReport == null) orderCanceledReport = new OrderCanceledReport(); return orderCanceledReport; }
-    public OrderMatchReport getOrderMatchReport() { if (orderMatchReport == null) orderMatchReport = new OrderMatchReport(); return orderMatchReport; }
 
     private ThreadContext() {}
 

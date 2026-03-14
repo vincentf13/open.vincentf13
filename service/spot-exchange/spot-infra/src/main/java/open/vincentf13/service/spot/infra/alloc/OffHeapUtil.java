@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.infra.util;
+package open.vincentf13.service.spot.infra.alloc;
 
 import org.agrona.DirectBuffer;
 import static org.agrona.UnsafeAccess.UNSAFE;

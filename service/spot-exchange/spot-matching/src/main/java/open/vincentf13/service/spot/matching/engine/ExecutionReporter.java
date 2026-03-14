@@ -3,12 +3,10 @@ package open.vincentf13.service.spot.matching.engine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.model.Order;
-import open.vincentf13.service.spot.sbe.OrderStatus;
 import org.springframework.stereotype.Component;
 
 /** 
  * 核心回報器 (TPS 測試專用 - 僅日誌輸出)
- * 職責：僅用於調試觀察撮合結果，不進行任何 I/O 或網絡傳輸
  */
 @Slf4j
 @Component

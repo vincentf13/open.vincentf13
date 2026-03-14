@@ -8,7 +8,7 @@ import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.util.OffHeapUtil;
+import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import org.agrona.DirectBuffer;
 import org.springframework.stereotype.Component;
 
