@@ -1,14 +1,13 @@
 package open.vincentf13.service.spot.infra.alloc;
 
 import lombok.Getter;
-import open.vincentf13.service.spot.infra.alloc.aeron.*;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.command.*;
 
 /**
  * 執行緒上下文總管 (Thread-Local Context Hub)
- * 職責：維護執行緒專屬的資源與 Flyweight 物件池
+ * 職責：維護執行緒專屬的資源與 Flyweight 模型對象池
  */
 public class ThreadContext {
     private static final ThreadLocal<ThreadContext> INSTANCE = ThreadLocal.withInitial(ThreadContext::new);
@@ -29,18 +28,8 @@ public class ThreadContext {
     @Getter private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
     @Getter private final RequestHolder requestHolder = new RequestHolder();
     
-    // --- 緩衝物件 (用於零分配讀取) ---
-    @Getter private final Order reusableOrder = new Order();
-    
-    // --- Aeron 傳輸模型 (Fixed Layout) ---
-    @Getter private final AeronAuth aeronAuth = new AeronAuth();
-    @Getter private final AeronOrderCreate aeronOrderCreate = new AeronOrderCreate();
-    @Getter private final AeronOrderCancel aeronOrderCancel = new AeronOrderCancel();
-    @Getter private final AeronDeposit aeronDeposit = new AeronDeposit();
-    @Getter private final AeronEnvelope aeronEnvelope = new AeronEnvelope();
-
-    // --- 業務指令與回報模型 (Flyweight / 池化物件) ---
-    // 這些物件內部封裝了自身的 SBE Encoder/Decoder，不再依賴 ThreadContext 全局變量
+    // --- 業務模型 (Flyweight / 池化物件) ---
+    // 這些模型不再依賴內部的 SBE 工具，而是直接作為內存視圖使用
     private AuthCommand authCommand;
     private OrderCreateCommand orderCreateCommand;
     private OrderCancelCommand orderCancelCommand;
@@ -52,6 +41,9 @@ public class ThreadContext {
     private OrderRejectedReport orderRejectedReport;
     private OrderCanceledReport orderCanceledReport;
     private OrderMatchReport orderMatchReport;
+
+    // --- 緩衝物件 ---
+    @Getter private final Order reusableOrder = new Order();
 
     public AuthCommand getAuthCommand() { if (authCommand == null) authCommand = new AuthCommand(); return authCommand; }
     public OrderCreateCommand getOrderCreateCommand() { if (orderCreateCommand == null) orderCreateCommand = new OrderCreateCommand(); return orderCreateCommand; }

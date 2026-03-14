@@ -38,9 +38,9 @@ public class Constants {
 
     public static class MetaDataKey {
         /** 網路消息進度 (MsgProgress) 的 Key */
-        public static class Msg {
-            public static final byte MACHING_RECEVIER_POINT = 1;
-            public static final byte GW_RECEVIER_POINT = 2;
+        public static class MsgProgress {
+            public static final byte MATCHING_ENGINE_RECEIVE = 1;
+            public static final byte GATEWAY_RECEIVE = 2;
             public static final byte GATEWAY_SENDER_POINT = 3;
             public static final byte MATCHING_SENDER_POINT = 4;
         }

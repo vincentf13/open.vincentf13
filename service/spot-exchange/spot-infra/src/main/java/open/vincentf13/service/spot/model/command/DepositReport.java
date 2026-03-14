@@ -2,40 +2,31 @@ package open.vincentf13.service.spot.model.command;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import net.openhft.chronicle.bytes.BytesIn;
-import net.openhft.chronicle.bytes.BytesOut;
+import open.vincentf13.service.spot.sbe.DepositDecoder;
+import open.vincentf13.service.spot.sbe.DepositEncoder;
+import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 
-/**
- * 充值回報
- */
+import static open.vincentf13.service.spot.infra.Constants.MsgType;
+
+/** 統一格式充值回報 (使用 Deposit SBE 消息) */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class DepositReport extends AbstractMarshallableModel {
-    private long userId;
-    private int assetId;
-    private long amount;
+public class DepositReport extends AbstractSbeModel {
+    private final DepositEncoder encoder = new DepositEncoder();
+    private final DepositDecoder decoder = new DepositDecoder();
 
-    @Override
-    public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
-        super.fillFrom(aeron);
-        this.userId = aeron.readPayloadLong(0);
-        this.assetId = aeron.readPayloadInt(8);
-        this.amount = aeron.readPayloadLong(12);
+    @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
+
+    public DepositEncoder write(MutableDirectBuffer dstBuffer, int offset, long seq) {
+        this.buffer.wrap(dstBuffer, offset, BODY_OFFSET + DepositEncoder.BLOCK_LENGTH);
+        preEncode(dstBuffer, offset, MsgType.DEPOSIT_REPORT, seq, DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
+        return encoder.wrap(dstBuffer, offset + BODY_OFFSET);
     }
 
-    @Override
-    public void writeMarshallable(BytesOut<?> bytes) {
-        bytes.writeLong(seq);
-        bytes.writeLong(userId);
-        bytes.writeInt(assetId);
-        bytes.writeLong(amount);
-    }
-
-    @Override
-    public void readMarshallable(BytesIn<?> bytes) {
-        seq = bytes.readLong();
-        userId = bytes.readLong();
-        assetId = bytes.readInt();
-        amount = bytes.readLong();
-    }
+    @Override public int encodedLength() { return BODY_OFFSET + DepositEncoder.BLOCK_LENGTH; }
+    public long getUserId() { return decoder.userId(); }
+    public int getAssetId() { return decoder.assetId(); }
+    public long getAmount() { return decoder.amount(); }
+    public long getTimestamp() { return decoder.timestamp(); }
 }

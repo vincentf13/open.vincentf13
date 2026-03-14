@@ -105,7 +105,7 @@ public class Storage {
 
     public ChronicleMap<CidKey, Long> clientOrderIdMap() { return cids(); }
 
-    public ChronicleMap<Byte, MsgProgress> msgMetadata() {
+    public ChronicleMap<Byte, MsgProgress> msgProgressMetadata() {
         if (msgMetadata == null) {
             synchronized (this) {
                 if (msgMetadata == null) msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 0);

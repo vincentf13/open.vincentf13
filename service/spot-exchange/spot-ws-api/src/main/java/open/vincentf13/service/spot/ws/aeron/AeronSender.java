@@ -3,26 +3,18 @@ package open.vincentf13.service.spot.ws.aeron;
 import io.aeron.Aeron;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc;
-import open.vincentf13.service.spot.infra.alloc.aeron.AeronAuth;
-import open.vincentf13.service.spot.infra.alloc.aeron.AeronDeposit;
-import open.vincentf13.service.spot.infra.alloc.aeron.AeronOrderCancel;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.command.AuthCommand;
-import open.vincentf13.service.spot.model.command.DepositCommand;
-import open.vincentf13.service.spot.model.command.OrderCancelCommand;
-import open.vincentf13.service.spot.model.command.OrderCreateCommand;
+import open.vincentf13.service.spot.model.command.*;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- Gateway Aeron 發送器
- 職責：讀取客戶端指令流並發送至 Matching Core，實現熱點路徑零物件分配
+ Gateway Aeron 發送器 (Unified Model Edition)
+ 職責：直接將 SBE 模型寫入 Aeron Buffer，零物件分配
  */
 @Slf4j
 @Component
@@ -37,13 +29,6 @@ public class AeronSender extends AbstractAeronSender {
     @PostConstruct public void init() { start("gw-command-sender"); }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        log.info("AeronSender (Gateway) 啟動成功...");
-    }
-
-    /** 指令讀取回調：零分配處理 */
-    @Override
     public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();
         final int ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
@@ -53,42 +38,36 @@ public class AeronSender extends AbstractAeronSender {
             case MsgType.AUTH -> {
                 AuthCommand cmd = ctx.getAuthCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                final long userId = cmd.getUserId();
-                
-                this.backPressureCount += aeronClient.send(AeronAuth.LENGTH, (buffer, offset) -> {
-                    ctx.getAeronAuth().wrap(buffer, offset).write(ctxSeq, userId);
+                this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
+                    cmd.write(buffer, offset, ctxSeq).userId(cmd.getUserId()).timestamp(cmd.getTimestamp());
                 });
             }
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                final PointerBytesStore store = cmd.getPointBytesStore();
-                
-                this.backPressureCount += aeronClient.send(AbstractAeronAlloc.HEADER_LENGTH + (int) store.readRemaining(), (buffer, offset) -> {
-                    ctx.getAeronOrderCreate().wrap(buffer, offset).write(ctxSeq, ctx.getScratchBuffer().wrap(store));
+                this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
+                    cmd.write(buffer, offset, ctxSeq)
+                       .userId(cmd.getUserId())
+                       .symbolId(cmd.getSymbolId())
+                       .price(cmd.getPrice())
+                       .qty(cmd.getQty())
+                       .side(cmd.getSide())
+                       .clientOrderId(cmd.getClientOrderId())
+                       .timestamp(cmd.getTimestamp());
                 });
             }
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                
-                final long userId = cmd.getUserId();
-                final long orderId = cmd.getOrderId();
-                
-                this.backPressureCount += aeronClient.send(AeronOrderCancel.LENGTH, (buffer, offset) -> {
-                    ctx.getAeronOrderCancel().wrap(buffer, offset).write(ctxSeq, userId, orderId);
+                this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
+                    cmd.write(buffer, offset, ctxSeq).userId(cmd.getUserId()).orderId(cmd.getOrderId()).timestamp(cmd.getTimestamp());
                 });
             }
             case MsgType.DEPOSIT -> {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                
-                final long userId = cmd.getUserId();
-                final int assetId = cmd.getAssetId();
-                final long amount = cmd.getAmount();
-                
-                this.backPressureCount += aeronClient.send(AeronDeposit.LENGTH, (buffer, offset) -> {
-                    ctx.getAeronDeposit().wrap(buffer, offset).write(ctxSeq, userId, assetId, amount);
+                this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
+                    cmd.write(buffer, offset, ctxSeq).userId(cmd.getUserId()).assetId(cmd.getAssetId()).amount(cmd.getAmount()).timestamp(cmd.getTimestamp());
                 });
             }
         }

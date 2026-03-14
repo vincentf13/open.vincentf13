@@ -2,10 +2,6 @@ package open.vincentf13.service.spot.ws.ws;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -14,26 +10,21 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.command.AuthCommand;
-import open.vincentf13.service.spot.model.command.DepositCommand;
-import open.vincentf13.service.spot.model.command.OrderCancelCommand;
-import open.vincentf13.service.spot.model.command.OrderCreateCommand;
+import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.Side;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
-import org.springframework.stereotype.Component;
+import org.agrona.concurrent.UnsafeBuffer;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- WebSocket 指令入口處理器 (Ws Command Inbound Handler)
- 職責：解析 JSON 指令、編碼 SBE 並原子化地寫入 GatewaySenderWal
+ 網關 WebSocket 指令處理器 (Unified Model Edition)
  */
 @Slf4j
-@Component
-@ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChronicleQueue gatewaySenderWal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
+    private final UnsafeBuffer scratch = new UnsafeBuffer(new byte[256]); // 用於暫存編碼結果
 
     public WsCommandInboundHandler(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;
@@ -41,102 +32,68 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {
-        ByteBuf content = frame.content();
-        if (!content.isReadable()) return;
-
-        ThreadContext.RequestHolder holder = ThreadContext.get().getRequestHolder();
+        final ThreadContext context = ThreadContext.get();
+        final ThreadContext.RequestHolder holder = context.getRequestHolder();
         holder.reset();
 
-        try (JsonParser parser = JsonUtil.createParser(content)) {
-            while (parser.nextToken() != JsonToken.END_OBJECT) {
-                String field = parser.getCurrentName();
-                if (field == null) continue;
-                parser.nextToken();
-                switch (field) {
-                    case Ws.OP -> holder.setOp(parser.getText());
-                    case Ws.USER_ID -> holder.setUserId(parser.getLongValue());
-                    case Ws.ORDER_ID -> holder.setOrderId(parser.getLongValue());
-                    case Ws.SYMBOL_ID -> holder.setSymbolId(parser.getIntValue());
-                    case Ws.ASSET_ID -> holder.setAssetId(parser.getIntValue());
-                    case Ws.PRICE -> holder.setPrice(parser.getLongValue());
-                    case Ws.QTY -> holder.setQty(parser.getLongValue());
-                    case Ws.SIDE -> holder.setSide(parser.getText());
-                    case Ws.CID -> holder.setCid(parser.getLongValue());
-                    case Ws.AMOUNT -> holder.setAmount(parser.getLongValue());
-                }
+        try (JsonParser parser = JsonUtil.toMap(frame.text()).entrySet().iterator().next().getValue().toString().isEmpty() ? null : null) {
+            // 簡化：這裡我們直接用 JsonUtil.toMap，雖然稍微慢一點但 API 穩定
+            java.util.Map<String, Object> map = JsonUtil.toMap(frame.text());
+            holder.setOp((String) map.get("op"));
+            if (map.get("uid") != null) holder.setUserId(((Number) map.get("uid")).longValue());
+            if (map.get("oid") != null) holder.setOrderId(((Number) map.get("oid")).longValue());
+            if (map.get("sid") != null) holder.setSymbolId(((Number) map.get("sid")).intValue());
+            if (map.get("p") != null) holder.setPrice(((Number) map.get("p")).longValue());
+            if (map.get("q") != null) holder.setQty(((Number) map.get("q")).longValue());
+            holder.setSide((String) map.get("side"));
+            if (map.get("cid") != null) holder.setCid(((Number) map.get("cid")).longValue());
+            if (map.get("amt") != null) holder.setAmount(((Number) map.get("amt")).longValue());
+            if (map.get("aid") != null) holder.setAssetId(((Number) map.get("aid")).intValue());
+        } catch (Exception e) {
+            log.warn("JSON 解析失敗: {}", e.getMessage());
+        }
+
+        if (holder.getOp() == null) return;
+
+        switch (holder.getOp()) {
+            case "auth" -> {
+                sessionManager.addSession(holder.getUserId(), ctx.channel());
+                AuthCommand cmd = context.getAuthCommand();
+                cmd.write(scratch, 0, MSG_SEQ_NONE).userId(holder.getUserId()).timestamp(System.currentTimeMillis());
+                writeCommand(MsgType.AUTH, cmd);
             }
-
-            if (Ws.PING.equals(holder.getOp())) {
-                ctx.writeAndFlush(new TextWebSocketFrame("{\"op\":\"pong\"}"));
-            } else if (Ws.AUTH.equals(holder.getOp())) {
-                handleAuth(ctx.channel(), holder);
-            } else if (Ws.CREATE.equals(holder.getOp())) {
-                handleOrderCreate(ctx.channel(), holder);
-            } else if (Ws.CANCEL.equals(holder.getOp())) {
-                handleOrderCancel(ctx.channel(), holder);
-            } else if (Ws.DEPOSIT.equals(holder.getOp())) {
-                handleDeposit(ctx.channel(), holder);
+            case "order_create" -> {
+                Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? Side.BUY : Side.SELL;
+                OrderCreateCommand cmd = context.getOrderCreateCommand();
+                cmd.write(scratch, 0, MSG_SEQ_NONE)
+                    .userId(holder.getUserId()).symbolId(holder.getSymbolId())
+                    .price(holder.getPrice()).qty(holder.getQty()).side(side)
+                    .clientOrderId(holder.getCid()).timestamp(System.currentTimeMillis());
+                writeCommand(MsgType.ORDER_CREATE, cmd);
+            }
+            case "order_cancel" -> {
+                OrderCancelCommand cmd = context.getOrderCancelCommand();
+                cmd.write(scratch, 0, MSG_SEQ_NONE).userId(holder.getUserId()).orderId(holder.getOrderId()).timestamp(System.currentTimeMillis());
+                writeCommand(MsgType.ORDER_CANCEL, cmd);
+            }
+            case "deposit" -> {
+                DepositCommand cmd = context.getDepositCommand();
+                cmd.write(scratch, 0, MSG_SEQ_NONE).userId(holder.getUserId()).assetId(holder.getAssetId()).amount(holder.getAmount()).timestamp(System.currentTimeMillis());
+                writeCommand(MsgType.DEPOSIT, cmd);
             }
         }
     }
 
-    private void handleAuth(Channel channel, ThreadContext.RequestHolder holder) {
-        sessionManager.addSession(holder.getUserId(), channel);
-        
-        AuthCommand cmd = ThreadContext.get().getAuthCommand();
-        cmd.encode(System.currentTimeMillis(), holder.getUserId());
-        
+    private void writeCommand(int msgType, AbstractSbeModel model) {
         try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
-            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.AUTH);
-            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
-        }
-    }
-    
-    private void handleOrderCancel(Channel channel, ThreadContext.RequestHolder holder) {
-        OrderCancelCommand cmd = ThreadContext.get().getOrderCancelCommand();
-        cmd.encode(System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
-
-        try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
-            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CANCEL);
-            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
-        }
-    }
-
-    private void handleOrderCreate(Channel channel, ThreadContext.RequestHolder holder) {
-        OrderCreateCommand cmd = ThreadContext.get().getOrderCreateCommand();
-        Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? Side.BUY : Side.SELL;
-        
-        cmd.encode(System.currentTimeMillis(), holder.getUserId(), 
-                holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
-
-        try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
-            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.ORDER_CREATE);
-            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
-        }
-    }
-
-    private void handleDeposit(Channel channel, ThreadContext.RequestHolder holder) {
-        DepositCommand cmd = ThreadContext.get().getDepositCommand();
-        cmd.encode(System.currentTimeMillis(), holder.getUserId(), 
-                holder.getAssetId(), holder.getAmount());
-
-        try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
-            dc.wire().write(ChronicleWireKey.msgType).int32(MsgType.DEPOSIT);
-            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(cmd);
+            dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
+            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
         }
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         Long uid = sessionManager.getUserIdByChannel(ctx.channel());
-        if (uid != null) {
-            sessionManager.removeSession(uid, ctx.channel());
-        }
-    }
-    
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx,
-                                Throwable cause) {
-        ctx.close();
+        if (uid != null) sessionManager.removeSession(uid, ctx.channel());
     }
 }

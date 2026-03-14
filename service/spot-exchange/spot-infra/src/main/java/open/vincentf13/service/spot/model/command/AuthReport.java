@@ -2,32 +2,29 @@ package open.vincentf13.service.spot.model.command;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import net.openhft.chronicle.bytes.BytesIn;
-import net.openhft.chronicle.bytes.BytesOut;
+import open.vincentf13.service.spot.sbe.AuthDecoder;
+import open.vincentf13.service.spot.sbe.AuthEncoder;
+import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 
-/**
- * 用戶認證回報
- */
+import static open.vincentf13.service.spot.infra.Constants.MsgType;
+
+/** 統一格式認證回報 (使用 Auth SBE 消息) */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class AuthReport extends AbstractMarshallableModel {
-    private long userId;
+public class AuthReport extends AbstractSbeModel {
+    private final AuthEncoder encoder = new AuthEncoder();
+    private final AuthDecoder decoder = new AuthDecoder();
 
-    @Override
-    public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
-        super.fillFrom(aeron);
-        this.userId = aeron.readPayloadLong(0);
+    @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
+
+    public AuthEncoder write(MutableDirectBuffer dstBuffer, int offset, long seq) {
+        this.buffer.wrap(dstBuffer, offset, BODY_OFFSET + AuthEncoder.BLOCK_LENGTH);
+        preEncode(dstBuffer, offset, MsgType.AUTH_REPORT, seq, AuthEncoder.TEMPLATE_ID, AuthEncoder.BLOCK_LENGTH, AuthEncoder.SCHEMA_ID, AuthEncoder.SCHEMA_VERSION);
+        return encoder.wrap(dstBuffer, offset + BODY_OFFSET);
     }
 
-    @Override
-    public void writeMarshallable(BytesOut<?> bytes) {
-        bytes.writeLong(seq);
-        bytes.writeLong(userId);
-    }
-
-    @Override
-    public void readMarshallable(BytesIn<?> bytes) {
-        seq = bytes.readLong();
-        userId = bytes.readLong();
-    }
+    @Override public int encodedLength() { return BODY_OFFSET + AuthEncoder.BLOCK_LENGTH; }
+    public long getUserId() { return decoder.userId(); }
+    public long getTimestamp() { return decoder.timestamp(); }
 }
