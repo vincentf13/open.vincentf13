@@ -11,8 +11,8 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * 系統存儲中心 (Storage Hub) - 懶加載版
- * 管理所有 Chronicle Map 與 Chronicle Queue 實例的生命週期
+ * 系統存儲中心 (Storage Hub) - TPS 測試簡化版
+ * 保留所有業務所需的 Maps，僅移除回報鏈路的 Queues 以提升性能。
  */
 @Slf4j
 public class Storage {
@@ -21,171 +21,123 @@ public class Storage {
 
     private Storage() {}
 
-    // --- Chronicle Map 實例 (Lazy) ---
+    // --- 持久化 Maps (Lazy Init) ---
     private volatile ChronicleMap<Long, Order> orders;
     private volatile ChronicleMap<Long, Trade> trades;
     private volatile ChronicleMap<BalanceKey, Balance> balances;
     private volatile ChronicleMap<Long, Long> userAssets;
     private volatile ChronicleMap<Long, Boolean> activeOrders;
-    private volatile ChronicleMap<Long, byte[]> userActiveOrders;
     private volatile ChronicleMap<CidKey, Long> cids;
+    private volatile ChronicleMap<Long, byte[]> userActiveOrders;
     private volatile ChronicleMap<Byte, MsgProgress> msgMetadata;
     private volatile ChronicleMap<Byte, WalProgress> walMetadata;
 
-    // --- Chronicle Queue 實例 (Lazy) ---
-    private volatile ChronicleQueue gatewaySenderWal;
-    private volatile ChronicleQueue engineReceiverWal;
-    private volatile ChronicleQueue engineSenderWal;
-    private volatile ChronicleQueue gatewayReceiverWal;
-
-    // --- Map Getters with Lazy Init ---
+    // --- 持久化 Queues (WAL) ---
+    private volatile ChronicleQueue gatewaySenderWal;    // 網關 -> Aeron
+    private volatile ChronicleQueue engineReceiverWal;   // Aeron -> 引擎
 
     public ChronicleMap<Long, Order> orders() {
-        if (orders == null) {
-            synchronized (this) {
-                if (orders == null) orders = createMap(ChronicleMapEnum.ORDERS, Long.class, Order.class, 1_000_000, 128);
-            }
+        if (orders == null) synchronized (this) {
+            if (orders == null) orders = createMap(ChronicleMapEnum.ORDERS, Long.class, Order.class, 1_000_000, 128);
         }
         return orders;
     }
 
     public ChronicleMap<Long, Trade> trades() {
-        if (trades == null) {
-            synchronized (this) {
-                if (trades == null) trades = createMap(ChronicleMapEnum.TRADES, Long.class, Trade.class, 1_000_000, 64);
-            }
+        if (trades == null) synchronized (this) {
+            if (trades == null) trades = createMap(ChronicleMapEnum.TRADES, Long.class, Trade.class, 1_000_000, 64);
         }
         return trades;
     }
 
     public ChronicleMap<BalanceKey, Balance> balances() {
-        if (balances == null) {
-            synchronized (this) {
-                if (balances == null) balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 1_000_000, 16, 64);
-            }
+        if (balances == null) synchronized (this) {
+            if (balances == null) balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 1_000_000, 16, 64);
         }
         return balances;
     }
 
     public ChronicleMap<Long, Long> userAssets() {
-        if (userAssets == null) {
-            synchronized (this) {
-                if (userAssets == null) userAssets = createMap(ChronicleMapEnum.USER_ASSETS, Long.class, Long.class, 100_000, 0);
-            }
+        if (userAssets == null) synchronized (this) {
+            if (userAssets == null) userAssets = createMap(ChronicleMapEnum.USER_ASSETS, Long.class, Long.class, 100_000, 8);
         }
         return userAssets;
     }
 
     public ChronicleMap<Long, Boolean> activeOrders() {
-        if (activeOrders == null) {
-            synchronized (this) {
-                if (activeOrders == null) activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, Long.class, Boolean.class, 1_000_000, 0);
-            }
+        if (activeOrders == null) synchronized (this) {
+            if (activeOrders == null) activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, Long.class, Boolean.class, 1_000_000, 1);
         }
         return activeOrders;
     }
 
-    public ChronicleMap<Long, byte[]> userActiveOrders() {
-        if (userActiveOrders == null) {
-            synchronized (this) {
-                if (userActiveOrders == null) userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, Long.class, byte[].class, 100_000, 256);
-            }
-        }
-        return userActiveOrders;
-    }
-
-    public ChronicleMap<CidKey, Long> cids() {
-        if (cids == null) {
-            synchronized (this) {
-                if (cids == null) cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, Long.class, 1_000_000, 16, 0);
-            }
+    public ChronicleMap<CidKey, Long> clientOrderIdMap() {
+        if (cids == null) synchronized (this) {
+            if (cids == null) cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, Long.class, 1_000_000, 16, 0);
         }
         return cids;
     }
 
-    public ChronicleMap<CidKey, Long> clientOrderIdMap() { return cids(); }
+    public ChronicleMap<Long, byte[]> userActiveOrders() {
+        if (userActiveOrders == null) synchronized (this) {
+            if (userActiveOrders == null) userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, Long.class, byte[].class, 100_000, 256);
+        }
+        return userActiveOrders;
+    }
 
     public ChronicleMap<Byte, MsgProgress> msgProgressMetadata() {
-        if (msgMetadata == null) {
-            synchronized (this) {
-                if (msgMetadata == null) msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 0);
-            }
+        if (msgMetadata == null) synchronized (this) {
+            if (msgMetadata == null) msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 0);
         }
         return msgMetadata;
     }
 
     public ChronicleMap<Byte, WalProgress> walMetadata() {
-        if (walMetadata == null) {
-            synchronized (this) {
-                if (walMetadata == null) walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 0);
-            }
+        if (walMetadata == null) synchronized (this) {
+            if (walMetadata == null) walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 0);
         }
         return walMetadata;
     }
 
-    // --- Queue Getters with Lazy Init ---
+    // --- WAL Queues ---
 
     public ChronicleQueue gatewaySenderWal() {
-        if (gatewaySenderWal == null) {
-            synchronized (this) {
-                if (gatewaySenderWal == null) gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
-            }
+        if (gatewaySenderWal == null) synchronized (this) {
+            if (gatewaySenderWal == null) gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
         }
         return gatewaySenderWal;
     }
 
     public ChronicleQueue engineReceiverWal() {
-        if (engineReceiverWal == null) {
-            synchronized (this) {
-                if (engineReceiverWal == null) engineReceiverWal = createQueue(ChronicleQueueEnum.GW_TO_MATCHING);
-            }
+        if (engineReceiverWal == null) synchronized (this) {
+            if (engineReceiverWal == null) engineReceiverWal = createQueue(ChronicleQueueEnum.GW_TO_MATCHING);
         }
         return engineReceiverWal;
     }
 
-    public ChronicleQueue engineSenderWal() {
-        if (engineSenderWal == null) {
-            synchronized (this) {
-                if (engineSenderWal == null) engineSenderWal = createQueue(ChronicleQueueEnum.MATCHING_TO_ENGINE_SENDER);
-            }
-        }
-        return engineSenderWal;
+    // --- Helpers ---
+
+    private <K, V> ChronicleMap<K, V> createMap(Object name, Class<K> keyCls, Class<V> valCls, int entries, int valSize) {
+        return createMap(name.toString(), keyCls, valCls, entries, 0, valSize);
     }
 
-    public ChronicleQueue gatewayReceiverWal() {
-        if (gatewayReceiverWal == null) {
-            synchronized (this) {
-                if (gatewayReceiverWal == null) gatewayReceiverWal = createQueue(ChronicleQueueEnum.ENGINE_TO_GATEWAY_RECEIVER);
-            }
-        }
-        return gatewayReceiverWal;
-    }
-
-    // --- Private Helpers ---
-
-    private <K, V> ChronicleMap<K, V> createMap(String name, Class<K> keyCls, Class<V> valCls, int entries, int valSize) {
-        return createMap(name, keyCls, valCls, entries, 0, valSize);
-    }
-
-    private <K, V> ChronicleMap<K, V> createMap(String name, Class<K> keyCls, Class<V> valCls, int entries, int keySize, int valSize) {
+    private <K, V> ChronicleMap<K, V> createMap(Object name, Class<K> keyCls, Class<V> valCls, int entries, int keySize, int valSize) {
         try {
-            String base = ChronicleMapEnum.DEFAULT_BASE_DIR;
-            new File(base).mkdirs();
-            var builder = ChronicleMap.of(keyCls, valCls).name(name).entries(entries);
+            String dir = ChronicleMapEnum.DEFAULT_BASE_DIR;
+            new File(dir).mkdirs();
+            var builder = ChronicleMap.of(keyCls, valCls).name(name.toString()).entries(entries);
             if (keySize > 0) builder.averageKeySize(keySize);
             if (valSize > 0) builder.averageValueSize(valSize);
-            log.info("初始化 Chronicle Map: {}", name);
-            return builder.createPersistedTo(new File(base + name));
+            return builder.createPersistedTo(new File(dir + name));
         } catch (IOException e) {
-            throw new RuntimeException("無法建立 Chronicle Map: " + name, e);
+            throw new RuntimeException("ChronicleMap 建立失敗: " + name, e);
         }
     }
 
-    private ChronicleQueue createQueue(ChronicleQueueEnum qEnum) {
-        String base = ChronicleMapEnum.WAL_BASE_DIR;
-        new File(base).mkdirs();
-        log.info("初始化 Chronicle Queue: {}", qEnum.getPath());
-        return ChronicleQueue.single(base + qEnum.getPath());
+    private ChronicleQueue createQueue(ChronicleQueueEnum q) {
+        String dir = ChronicleMapEnum.WAL_BASE_DIR;
+        new File(dir).mkdirs();
+        return ChronicleQueue.single(dir + q.getPath());
     }
 
     public void close() {
@@ -195,15 +147,12 @@ public class Storage {
             if (balances != null) { balances.close(); balances = null; }
             if (userAssets != null) { userAssets.close(); userAssets = null; }
             if (activeOrders != null) { activeOrders.close(); activeOrders = null; }
-            if (userActiveOrders != null) { userActiveOrders.close(); userActiveOrders = null; }
             if (cids != null) { cids.close(); cids = null; }
+            if (userActiveOrders != null) { userActiveOrders.close(); userActiveOrders = null; }
             if (msgMetadata != null) { msgMetadata.close(); msgMetadata = null; }
             if (walMetadata != null) { walMetadata.close(); walMetadata = null; }
-            
             if (gatewaySenderWal != null) { gatewaySenderWal.close(); gatewaySenderWal = null; }
             if (engineReceiverWal != null) { engineReceiverWal.close(); engineReceiverWal = null; }
-            if (engineSenderWal != null) { engineSenderWal.close(); engineSenderWal = null; }
-            if (gatewayReceiverWal != null) { gatewayReceiverWal.close(); gatewayReceiverWal = null; }
         }
     }
 }
