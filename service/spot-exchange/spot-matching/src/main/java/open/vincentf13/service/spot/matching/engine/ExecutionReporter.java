@@ -61,7 +61,7 @@ public class ExecutionReporter {
     /** 訂單成交 (Trade Event) */
     public void reportTrade(Order order, long lastPrice, long lastQuantity) {
         if (isReplaying) return;
-        OrderStatus status = order.getQty() == 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
+        OrderStatus status = order.getFilled() == order.getQty() ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
         
         int sbeLength = SbeCodec.encodeToScratchMatchedReport(
                 order.getTimestamp(), order.getUserId(), order.getOrderId(), status, 

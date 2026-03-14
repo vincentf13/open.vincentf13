@@ -60,8 +60,9 @@ public class OrderProcessor {
 
         // 3. 資產解凍
         int assetId = (order.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
-        long freezeQuantity = (order.getSide() == OrderSide.BUY) ? order.getQty() * order.getPrice() : order.getQty();
-        ledger.unfreezeBalance(order.getUserId(), assetId, freezeQuantity, gatewaySequence);
+        long remainingQty = order.getQty() - order.getFilled();
+        long unfreezeAmount = (order.getSide() == OrderSide.BUY) ? remainingQty * order.getPrice() : remainingQty;
+        ledger.unfreezeBalance(order.getUserId(), assetId, unfreezeAmount, gatewaySequence);
 
         // 4. 更新狀態
         order.setStatus((byte) OrderStatus.CANCELED.ordinal());
@@ -105,10 +106,11 @@ public class OrderProcessor {
 
             @Override
             public void onSTP(Order maker, long gatewaySequence) {
-                // 自成交預防
-                long makerFreezeQuantity = (maker.getSide() == OrderSide.BUY) ? maker.getQty() * maker.getPrice() : maker.getQty();
+                // 自成交預防：計算剩餘量解凍
+                long makerRemainingQty = maker.getQty() - maker.getFilled();
+                long makerUnfreezeAmount = (maker.getSide() == OrderSide.BUY) ? makerRemainingQty * maker.getPrice() : makerRemainingQty;
                 int makerAssetId = (maker.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
-                ledger.unfreezeBalance(maker.getUserId(), makerAssetId, makerFreezeQuantity, gatewaySequence);
+                ledger.unfreezeBalance(maker.getUserId(), makerAssetId, makerUnfreezeAmount, gatewaySequence);
                 
                 maker.setStatus((byte) OrderStatus.CANCELED.ordinal());
                 orders.put(maker.getOrderId(), maker);
