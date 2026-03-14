@@ -9,18 +9,29 @@
 
 ## 2. 壓力測試計畫 (Stress Test Plan)
 
+### 本機設備基準 (Acer Swift Go 16 SFG16-73)
+*   **CPU**: Intel Core Ultra 9 285H (16 Cores / 16 Threads, Arrow Lake)
+*   **RAM**: 32GB LPDDR5X (High-Speed Memory)
+*   **SSD**: PCIe Gen4 NVMe (Ultra-fast Persistence)
+*   **壓測目標 (單機理論極限)**:
+    - **P-core 單核 TPS**: > 800,000 / sec (受惠於 Arrow Lake 無超執行緒設計，L2 快取專屬化)。
+    - **端對端 WS 延遲**: < 5ms (P-core 間數據交換，跳過 E-core)。
+
 ### 目的
 測出內存撮合引擎 (Matching Engine) 的最大處理極限 (L1/L2 Cache 飽和點)。
 
 ### 具體測試方法 (MVP)
 由於目前無外部指標，採用 **「內存計數器 + Admin 接口」** 模式：
-1. **埋點實施**：
+1. **核心分離策略 (Intel Arrow Lake)**：
+   - **P-core 鎖定**: 透過 PowerShell Affinity 將 `spot-matching` 與 `spot-ws-api` 鎖定在不同的物理 P-cores (0-5)，徹底消除線程競爭。
+   - **E-core 卸載**: 將 k6 與系統負擔卸載至 E-cores (6-15)。
+2. **埋點實施**：
    - 在 `spot-matching` 的 `OrderBook.java` 中添加 `match_count` 原子計數器。
    - 每發生一次 `onMatch`，計數器遞增。
-2. **暴露接口**：
-   - 暴露一個 HTTP 監控端點，定時回傳累計成交數。
-3. **執行測量**：
-   - 使用 k6 通過 WS 進行「下單地毯式壓測」。
+3. **暴露接口**：
+   - 暴露一個 HTTP 監控端點 `/metrics/tps`，回傳累積成交數與時間戳。
+4. **執行測量**：
+   - 使用 k6 通過 WS 進行「地毯式壓測」。
    - **TPS 計算**：`(T1 時刻的累計成交數 - T0 時刻的累計成交數) / (T1 - T0)`。
 
 ### 監控判定

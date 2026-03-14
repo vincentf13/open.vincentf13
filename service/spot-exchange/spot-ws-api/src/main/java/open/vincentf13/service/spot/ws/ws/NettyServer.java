@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import static open.vincentf13.service.spot.infra.Constants.Ws;
 
 @Slf4j
@@ -23,6 +25,9 @@ import static open.vincentf13.service.spot.infra.Constants.Ws;
 public class NettyServer {
     @Value("${server.port:8081}")
     private int port;
+
+    @Value("${netty.worker.count:2}")
+    private int workerCount;
 
     private final WsCommandInboundHandler wsHandler;
     private EventLoopGroup bossGroup;
@@ -35,8 +40,8 @@ public class NettyServer {
     @PostConstruct
     public void start() {
         new Thread(() -> {
-            bossGroup = new NioEventLoopGroup(1);
-            workerGroup = new NioEventLoopGroup();
+            bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("netty-boss"));
+            workerGroup = new NioEventLoopGroup(workerCount, new DefaultThreadFactory("netty-worker"));
             try {
                 ServerBootstrap b = new ServerBootstrap();
                 b.group(bossGroup, workerGroup)
@@ -52,14 +57,14 @@ public class NettyServer {
                      }
                  });
 
-                log.info("Netty WebSocket Server started on port {}", port);
+                log.info("Netty WebSocket Server started on port {} with {} workers", port, workerCount);
                 b.bind(port).sync().channel().closeFuture().sync();
             } catch (Exception e) {
                 log.error("Netty Server Error", e);
             } finally {
                 stop();
             }
-        }, "netty-server").start();
+        }, "netty-server-starter").start();
     }
 
     @PreDestroy

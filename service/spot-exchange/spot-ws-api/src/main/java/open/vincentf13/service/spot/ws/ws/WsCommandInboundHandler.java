@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.ws.ws;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -13,6 +14,7 @@ import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.Side;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
 import org.agrona.MutableDirectBuffer;
+import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -20,6 +22,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  網關 WebSocket 指令處理器 (TPS 性能極限版)
  */
 @Slf4j
+@Component
+@ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChronicleQueue gatewaySenderWal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
