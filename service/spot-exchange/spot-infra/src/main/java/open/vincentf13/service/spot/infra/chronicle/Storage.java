@@ -27,7 +27,7 @@ public class Storage {
     private volatile ChronicleMap<BalanceKey, Balance> balances;
     private volatile ChronicleMap<Long, Long> userAssets;
     private volatile ChronicleMap<Long, Boolean> activeOrders;
-    private volatile ChronicleMap<Long, String> userActiveOrders;
+    private volatile ChronicleMap<Long, byte[]> userActiveOrders;
     private volatile ChronicleMap<CidKey, Long> cids;
     private volatile ChronicleMap<Byte, MsgProgress> msgMetadata;
     private volatile ChronicleMap<Byte, WalProgress> walMetadata;
@@ -85,10 +85,10 @@ public class Storage {
         return activeOrders;
     }
 
-    public ChronicleMap<Long, String> userActiveOrders() {
+    public ChronicleMap<Long, byte[]> userActiveOrders() {
         if (userActiveOrders == null) {
             synchronized (this) {
-                if (userActiveOrders == null) userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, Long.class, String.class, 100_000, 256);
+                if (userActiveOrders == null) userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, Long.class, byte[].class, 100_000, 256);
             }
         }
         return userActiveOrders;

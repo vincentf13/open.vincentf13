@@ -46,8 +46,11 @@ public class OrderBook {
     
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
     private final ChronicleMap<Long, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
-    private final ChronicleMap<Long, String> userActiveOrdersDiskMap = Storage.self().userActiveOrders();
+    private final ChronicleMap<Long, byte[]> userActiveOrdersDiskMap = Storage.self().userActiveOrders();
     private final ChronicleMap<Long, Trade> tradeHistoryDiskMap = Storage.self().trades();
+    
+    // 預分配 ByteBuffer 以減少 GC
+    private final java.nio.ByteBuffer idBuffer = java.nio.ByteBuffer.allocate(1024);
 
     /** 
       雙索引結構優化：
@@ -282,28 +285,51 @@ public class OrderBook {
         
         allOrdersDiskMap.put(o.getOrderId(), o);
         
-        // --- 核心修正：正確維護活躍訂單 ID 清單與用戶二級索引 ---
+        // --- 核心修正：使用二進制結構維護活躍訂單 ID 清單 ---
         final long uid = o.getUserId();
-        final String oidStr = o.getOrderId() + ",";
+        final long oid = o.getOrderId();
         
         if (o.getStatus() < 2) {
-            activeOrderIdDiskMap.put(o.getOrderId(), Boolean.TRUE);
-            String current = userActiveOrdersDiskMap.get(uid);
-            if (current == null) {
-                userActiveOrdersDiskMap.put(uid, oidStr);
-            } else if (!current.contains(oidStr)) {
-                userActiveOrdersDiskMap.put(uid, current + oidStr);
+            activeOrderIdDiskMap.put(oid, Boolean.TRUE);
+            byte[] currentBytes = userActiveOrdersDiskMap.get(uid);
+            if (currentBytes == null) {
+                byte[] newBytes = new byte[8];
+                java.nio.ByteBuffer.wrap(newBytes).putLong(oid);
+                userActiveOrdersDiskMap.put(uid, newBytes);
+            } else {
+                // 檢查是否已存在 (避免重複)
+                boolean exists = false;
+                for (int i = 0; i < currentBytes.length; i += 8) {
+                    if (java.nio.ByteBuffer.wrap(currentBytes, i, 8).getLong() == oid) {
+                        exists = true; break;
+                    }
+                }
+                if (!exists) {
+                    byte[] updatedBytes = new byte[currentBytes.length + 8];
+                    System.arraycopy(currentBytes, 0, updatedBytes, 0, currentBytes.length);
+                    java.nio.ByteBuffer.wrap(updatedBytes, currentBytes.length, 8).putLong(oid);
+                    userActiveOrdersDiskMap.put(uid, updatedBytes);
+                }
             }
         } else {
-            activeOrderIdDiskMap.remove(o.getOrderId());
-            String current = userActiveOrdersDiskMap.get(uid);
-            if (current != null) {
-                int start = current.indexOf(oidStr);
-                if (start != -1) {
-                    // 優化：精準切割，僅拼接一次
-                    String updated = current.substring(0, start) + current.substring(start + oidStr.length());
-                    if (updated.isEmpty()) userActiveOrdersDiskMap.remove(uid);
-                    else userActiveOrdersDiskMap.put(uid, updated);
+            activeOrderIdDiskMap.remove(oid);
+            byte[] currentBytes = userActiveOrdersDiskMap.get(uid);
+            if (currentBytes != null) {
+                int targetIndex = -1;
+                for (int i = 0; i < currentBytes.length; i += 8) {
+                    if (java.nio.ByteBuffer.wrap(currentBytes, i, 8).getLong() == oid) {
+                        targetIndex = i; break;
+                    }
+                }
+                if (targetIndex != -1) {
+                    if (currentBytes.length == 8) {
+                        userActiveOrdersDiskMap.remove(uid);
+                    } else {
+                        byte[] updatedBytes = new byte[currentBytes.length - 8];
+                        System.arraycopy(currentBytes, 0, updatedBytes, 0, targetIndex);
+                        System.arraycopy(currentBytes, targetIndex + 8, updatedBytes, targetIndex, currentBytes.length - targetIndex - 8);
+                        userActiveOrdersDiskMap.put(uid, updatedBytes);
+                    }
                 }
             }
         }

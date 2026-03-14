@@ -29,33 +29,38 @@ public class SnapshotService {
         long seq = currentProgress.getLastProcessedMsgSeq();
         log.info("--- 開始執行系統快照 (Sequence: {}) ---", seq);
         
+        File finalDir = new File(snapshotDir + seq);
+        File tmpDir = new File(snapshotDir + seq + "_tmp");
+        
         try {
-            File dir = new File(snapshotDir + seq);
-            if (!dir.exists() && !dir.mkdirs()) {
-                throw new IOException("無法創建快照目錄: " + dir.getAbsolutePath());
-            }
+            if (tmpDir.exists()) deleteDir(tmpDir);
+            if (!tmpDir.mkdirs()) throw new IOException("無法創建臨時快照目錄: " + tmpDir.getAbsolutePath());
 
             // 1. 備份元數據
             Storage.self().walMetadata().put(MetaDataKey.Wal.LAST_SNAPSHOT_INFO, currentProgress);
             
-            // 2. 備份 Chronicle Map 文件
-            backupMap(ChronicleMapEnum.BALANCES, dir);
-            backupMap(ChronicleMapEnum.ORDERS, dir);
-            backupMap(ChronicleMapEnum.USER_ASSETS, dir);
-            backupMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, dir);
-            backupMap(ChronicleMapEnum.ACTIVE_ORDERS, dir);
-            backupMap("msg-" + ChronicleMapEnum.METADATA, dir);
-            backupMap("wal-" + ChronicleMapEnum.METADATA, dir);
+            // 2. 備份 Chronicle Map 文件至臨時目錄
+            backupMap(ChronicleMapEnum.BALANCES, tmpDir);
+            backupMap(ChronicleMapEnum.ORDERS, tmpDir);
+            backupMap(ChronicleMapEnum.USER_ASSETS, tmpDir);
+            backupMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, tmpDir);
+            backupMap(ChronicleMapEnum.ACTIVE_ORDERS, tmpDir);
+            backupMap("msg-" + ChronicleMapEnum.METADATA, tmpDir);
+            backupMap("wal-" + ChronicleMapEnum.METADATA, tmpDir);
 
-            // 3. 備份內存 OrderBook 狀態 (二進制快照)
-            saveOrderBookSnapshot(new File(dir, BOOK_SNAPSHOT_FILE));
+            // 3. 備份內存 OrderBook 狀態至臨時目錄
+            saveOrderBookSnapshot(new File(tmpDir, BOOK_SNAPSHOT_FILE));
 
-            log.info("✅ 快照創建成功，存儲路徑: {}", dir.getAbsolutePath());
-            
-            cleanupOldSnapshots(dir.getParentFile());
+            // 4. 原子重命名：利用文件系統保證快照完整性
+            if (finalDir.exists()) deleteDir(finalDir);
+            Files.move(tmpDir.toPath(), finalDir.toPath(), StandardCopyOption.ATOMIC_MOVE);
+
+            log.info("✅ 快照創建成功，存儲路徑: {}", finalDir.getAbsolutePath());
+            cleanupOldSnapshots(finalDir.getParentFile());
 
         } catch (Exception e) {
             log.error("❌ 快照創建失敗: {}", e.getMessage(), e);
+            if (tmpDir.exists()) deleteDir(tmpDir);
         }
     }
 
