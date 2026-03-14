@@ -27,7 +27,7 @@ public class AuthProcessor {
         }
         
         // 2. 發送認證成功回報
-        reporter.reportAuth(userId, gwSeq);
+        reporter.reportAuth(userId);
         
         log.debug("用戶 {} 認證處理完成 (gwSeq: {})", userId, gwSeq);
     }

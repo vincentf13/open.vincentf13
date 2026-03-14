@@ -34,8 +34,9 @@ public class OrderBook {
 
     public static OrderBook get(int symbolId) {
         return INSTANCES.computeIfAbsent(symbolId, id -> {
-            // 依照 symbolId 配置動態的 base，quote 統一為 USDT (2)
-            return new OrderBook(id, id, Asset.USDT);
+            Symbol s = Symbol.of(id);
+            if (s == null) throw new IllegalArgumentException("未知的交易對 ID: " + id);
+            return new OrderBook(id, s.getBaseAssetId(), s.getQuoteAssetId());
         });
     }
 

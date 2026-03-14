@@ -80,6 +80,26 @@ public class Constants {
     }
 
     /** 
+      交易對 ID (Symbol) 與其對應資產
+     */
+    @Getter
+    @RequiredArgsConstructor
+    public enum Symbol {
+        BTCUSDT(1001, Asset.BTC, Asset.USDT);
+        
+        private final int id;
+        private final int baseAssetId;
+        private final int quoteAssetId;
+        
+        public static Symbol of(int id) {
+            for (Symbol s : values()) {
+                if (s.id == id) return s;
+            }
+            return null;
+        }
+    }
+
+    /** 
       Aeron 通訊組件工作狀態 (AeronState)
      */
     public enum AeronState {

@@ -28,7 +28,7 @@ public class DepositProcessor {
         ledger.increaseAvailable(userId, assetId, amount, gwSeq);
         
         // 2. 發送執行回報 (充值成功)
-        reporter.reportDeposit(userId, assetId, amount, gwSeq);
+        reporter.reportDeposit(userId, assetId, amount);
         
         log.info("用戶 {} 充值成功：資產={}, 數量={}, gwSeq={}", userId, assetId, amount, gwSeq);
     }

@@ -134,7 +134,10 @@ public class Ledger {
     }
 
     private void updateAssetIndex(long userId, int assetId) {
-        if (assetId < 0 || assetId >= 64) return;
+        if (assetId < 0 || assetId >= 64) {
+            log.warn("AssetId {} 超出位元遮罩範圍 (0-63)，該資產將不會出現在用戶資產索引中。", assetId);
+            return;
+        }
         long mask = bitmaskCache.get(userId);
         if (mask == 0) {
             Long diskMask = userAssetBitmaskDiskMap.get(userId);

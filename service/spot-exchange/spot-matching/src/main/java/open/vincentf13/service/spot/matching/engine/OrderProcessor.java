@@ -55,11 +55,13 @@ public class OrderProcessor {
         }
 
         // 2. 從 OrderBook 移除
-        OrderBook.get(order.getSymbolId()).remove(orderId);
+        OrderBook book = OrderBook.get(order.getSymbolId());
+        book.remove(orderId);
 
         // 3. 資產解凍
+        int assetId = (order.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
         long freezeQuantity = (order.getSide() == OrderSide.BUY) ? order.getQty() * order.getPrice() : order.getQty();
-        ledger.unfreezeBalance(order.getUserId(), (order.getSide() == OrderSide.BUY) ? (order.getSymbolId() / 1000) : (order.getSymbolId() % 100), freezeQuantity, gatewaySequence);
+        ledger.unfreezeBalance(order.getUserId(), assetId, freezeQuantity, gatewaySequence);
 
         // 4. 更新狀態
         order.setStatus((byte) OrderStatus.CANCELED.ordinal());
@@ -80,7 +82,8 @@ public class OrderProcessor {
         final long timestamp = decoder.timestamp();
 
         // 1. 凍結資產
-        int assetId = (side == Side.BUY) ? (symbolId / 1000) : (symbolId % 100); 
+        OrderBook book = OrderBook.get(symbolId);
+        int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId(); 
         long freezeAmount = (side == Side.BUY) ? price * quantity : quantity;
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
@@ -89,7 +92,6 @@ public class OrderProcessor {
         }
 
         // 2. 進入 OrderBook 撮合
-        OrderBook book = OrderBook.get(symbolId);
         book.handleCreate(orderId, decoder, clientOrderId, gatewaySequence, tradeIdSupplier::getAsLong, new OrderBook.TradeFinalizer() {
             @Override
             public void onMatch(long tradeId, Order maker, long price, long quantity, int baseAsset, int quoteAsset) {
@@ -105,7 +107,7 @@ public class OrderProcessor {
             public void onSTP(Order maker, long gatewaySequence) {
                 // 自成交預防
                 long makerFreezeQuantity = (maker.getSide() == OrderSide.BUY) ? maker.getQty() * maker.getPrice() : maker.getQty();
-                int makerAssetId = (maker.getSide() == OrderSide.BUY) ? (maker.getSymbolId() / 1000) : (maker.getSymbolId() % 100);
+                int makerAssetId = (maker.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
                 ledger.unfreezeBalance(maker.getUserId(), makerAssetId, makerFreezeQuantity, gatewaySequence);
                 
                 maker.setStatus((byte) OrderStatus.CANCELED.ordinal());

@@ -87,9 +87,11 @@ public class SnapshotService {
         File src = new File(ChronicleMapEnum.DEFAULT_BASE_DIR + mapName);
         File dst = new File(targetDir, mapName);
         
-        // 核心：使用 Chronicle Map 的持久化機制 (雖然 Map 正在使用，但 copyTo 會盡力保證數據一致性)
-        // 註：在極端併發下，配合 Engine 暫停 (Barrier) 會更安全
-        Files.copy(src.toPath(), dst.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        if (src.exists()) {
+            Files.copy(src.toPath(), dst.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } else {
+            log.warn("無法備份不存在的 Map 文件: {}", src.getAbsolutePath());
+        }
     }
 
     private void cleanupOldSnapshots(File parent) {
