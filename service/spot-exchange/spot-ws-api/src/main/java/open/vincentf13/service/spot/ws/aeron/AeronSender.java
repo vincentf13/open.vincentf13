@@ -14,7 +14,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Gateway Aeron 發送器 (Unified Model Edition)
- 職責：直接將 SBE 模型寫入 Aeron Buffer，零物件分配
  */
 @Slf4j
 @Component
@@ -39,35 +38,28 @@ public class AeronSender extends AbstractAeronSender {
                 AuthCommand cmd = ctx.getAuthCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
-                    cmd.write(buffer, offset, ctxSeq).userId(cmd.getUserId()).timestamp(cmd.getTimestamp());
+                    cmd.write(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId());
                 });
             }
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
-                    cmd.write(buffer, offset, ctxSeq)
-                       .userId(cmd.getUserId())
-                       .symbolId(cmd.getSymbolId())
-                       .price(cmd.getPrice())
-                       .qty(cmd.getQty())
-                       .side(cmd.getSide())
-                       .clientOrderId(cmd.getClientOrderId())
-                       .timestamp(cmd.getTimestamp());
+                    cmd.write(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getSymbolId(), cmd.getPrice(), cmd.getQty(), cmd.getSide(), cmd.getClientOrderId());
                 });
             }
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
-                    cmd.write(buffer, offset, ctxSeq).userId(cmd.getUserId()).orderId(cmd.getOrderId()).timestamp(cmd.getTimestamp());
+                    cmd.write(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getOrderId());       
                 });
             }
             case MsgType.DEPOSIT -> {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
-                    cmd.write(buffer, offset, ctxSeq).userId(cmd.getUserId()).assetId(cmd.getAssetId()).amount(cmd.getAmount()).timestamp(cmd.getTimestamp());
+                    cmd.write(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getAssetId(), cmd.getAmount());
                 });
             }
         }

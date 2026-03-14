@@ -11,8 +11,6 @@ import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 
-import java.nio.ByteBuffer;
-
 /**
  * 統一 SBE 模型基類 (Unified Off-Heap View)
  * 佈局：[4 bytes MsgType] + [8 bytes Sequence] + [8 bytes SBE Header] + [SBE Body]
@@ -33,8 +31,8 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     protected final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     protected final PointerBytesStore pointer = new PointerBytesStore();
 
-    /** 包裝既有內存 */
-    public void wrap(DirectBuffer srcBuffer, int offset, int length) {
+    /** 包裝既有內存 (讀取模式) */
+    public void wrapAeronBuffer(DirectBuffer srcBuffer, int offset, int length) {
         this.buffer.wrap(srcBuffer, offset, length);
         refreshDecoder();
     }
@@ -45,10 +43,7 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     }
 
     public int getMsgType() { return buffer.getInt(TYPE_OFFSET); }
-    public void setMsgType(int type) { buffer.putInt(TYPE_OFFSET, type); }
-
     public long getSeq() { return buffer.getLong(SEQ_OFFSET); }
-    public void setSeq(long seq) { buffer.putLong(SEQ_OFFSET, seq); }
 
     protected void refreshDecoder() {
         if (buffer.capacity() >= BODY_OFFSET) {
@@ -57,13 +52,12 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
         }
     }
 
-    /** 編碼準備 */
-    protected MutableDirectBuffer preEncode(MutableDirectBuffer dstBuffer, int offset, int msgType, long seq, int tid, int bl, int sid, int ver) {
-        dstBuffer.putInt(offset + TYPE_OFFSET, msgType);
-        dstBuffer.putLong(offset + SEQ_OFFSET, seq);
-        headerEncoder.wrap(dstBuffer, offset + SBE_HEADER_OFFSET)
+    /** 編碼準備：寫入通用的 MsgType, Seq 與 SBE Header */
+    protected void fillCommonHeader(int msgType, long seq, int tid, int bl, int sid, int ver) {
+        buffer.putInt(TYPE_OFFSET, msgType);
+        buffer.putLong(SEQ_OFFSET, seq);
+        headerEncoder.wrap(buffer, SBE_HEADER_OFFSET)
                 .templateId(tid).blockLength(bl).schemaId(sid).version(ver);
-        return dstBuffer;
     }
 
     protected abstract void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version);
@@ -77,8 +71,6 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
 
     @Override
     public void readMarshallable(BytesIn<?> bytes) {
-        // 從 Chronicle 讀取時，需要外部告知長度（或利用讀取上下文）
-        // 這裡暫定一個簡單實現，具體依調用方 dc.wire().read(Key).bytes(model) 為準
         long addr = bytes.addressForRead(bytes.readPosition());
         int len = (int) bytes.readRemaining(); 
         wrap(addr, len);

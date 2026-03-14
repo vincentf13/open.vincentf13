@@ -19,10 +19,15 @@ public class OrderMatchReport extends AbstractSbeModel {
 
     @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public OrderMatchedEncoder write(MutableDirectBuffer dstBuffer, int offset, long seq) {
-        this.buffer.wrap(dstBuffer, offset, BODY_OFFSET + OrderMatchedEncoder.BLOCK_LENGTH);
-        preEncode(dstBuffer, offset, MsgType.ORDER_MATCHED, seq, OrderMatchedEncoder.TEMPLATE_ID, OrderMatchedEncoder.BLOCK_LENGTH, OrderMatchedEncoder.SCHEMA_ID, OrderMatchedEncoder.SCHEMA_VERSION);
-        return encoder.wrap(dstBuffer, offset + BODY_OFFSET);
+    public OrderMatchReport write(MutableDirectBuffer dstBuffer, int offset) {
+        this.buffer.wrap(dstBuffer, offset, encodedLength());
+        return this;
+    }
+
+    public void set(long seq, long timestamp, long userId, long orderId, OrderStatus status, long lastPrice, long lastQty, long cumQty, long avgPrice, long clientOrderId) {
+        fillCommonHeader(MsgType.ORDER_MATCHED, seq, OrderMatchedEncoder.TEMPLATE_ID, OrderMatchedEncoder.BLOCK_LENGTH, OrderMatchedEncoder.SCHEMA_ID, OrderMatchedEncoder.SCHEMA_VERSION);
+        encoder.wrap(buffer, BODY_OFFSET).timestamp(timestamp).userId(userId).orderId(orderId).status(status).lastPrice(lastPrice).lastQty(lastQty).cumQty(cumQty).avgPrice(avgPrice).clientOrderId(clientOrderId);
+        refreshDecoder();
     }
 
     @Override public int encodedLength() { return BODY_OFFSET + OrderMatchedEncoder.BLOCK_LENGTH; }

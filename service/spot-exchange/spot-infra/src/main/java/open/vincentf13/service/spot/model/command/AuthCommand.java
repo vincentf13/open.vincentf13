@@ -18,10 +18,15 @@ public class AuthCommand extends AbstractSbeModel {
 
     @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public AuthEncoder write(MutableDirectBuffer dstBuffer, int offset, long seq) {
-        this.buffer.wrap(dstBuffer, offset, BODY_OFFSET + AuthEncoder.BLOCK_LENGTH);
-        preEncode(dstBuffer, offset, MsgType.AUTH, seq, AuthEncoder.TEMPLATE_ID, AuthEncoder.BLOCK_LENGTH, AuthEncoder.SCHEMA_ID, AuthEncoder.SCHEMA_VERSION);
-        return encoder.wrap(dstBuffer, offset + BODY_OFFSET);
+    public AuthCommand write(MutableDirectBuffer dstBuffer, int offset) {
+        this.buffer.wrap(dstBuffer, offset, encodedLength());
+        return this;
+    }
+
+    public void set(long seq, long timestamp, long userId) {
+        fillCommonHeader(MsgType.AUTH, seq, AuthEncoder.TEMPLATE_ID, AuthEncoder.BLOCK_LENGTH, AuthEncoder.SCHEMA_ID, AuthEncoder.SCHEMA_VERSION);
+        encoder.wrap(buffer, BODY_OFFSET).timestamp(timestamp).userId(userId);
+        refreshDecoder();
     }
 
     @Override public int encodedLength() { return BODY_OFFSET + AuthEncoder.BLOCK_LENGTH; }

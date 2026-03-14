@@ -10,10 +10,7 @@ import org.agrona.MutableDirectBuffer;
 
 import static open.vincentf13.service.spot.infra.Constants.MsgType;
 
-/** 
- * 統一格式下單指令
- * 佈局：[Type:4] + [Seq:8] + [SbeHeader:8] + [Body:...]
- */
+/** 統一格式下單指令 */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class OrderCreateCommand extends AbstractSbeModel {
@@ -22,10 +19,16 @@ public class OrderCreateCommand extends AbstractSbeModel {
 
     @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public OrderCreateEncoder write(MutableDirectBuffer dstBuffer, int offset, long seq) {
-        this.buffer.wrap(dstBuffer, offset, BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH);
-        preEncode(dstBuffer, offset, MsgType.ORDER_CREATE, seq, OrderCreateEncoder.TEMPLATE_ID, OrderCreateEncoder.BLOCK_LENGTH, OrderCreateEncoder.SCHEMA_ID, OrderCreateEncoder.SCHEMA_VERSION);
-        return encoder.wrap(dstBuffer, offset + BODY_OFFSET);
+    public OrderCreateCommand write(MutableDirectBuffer dstBuffer, int offset) {
+        this.buffer.wrap(dstBuffer, offset, encodedLength());
+        return this;
+    }
+
+    public void set(long seq, long timestamp, long userId, int symbolId, long price, long qty, Side side, long clientOrderId) {
+        fillCommonHeader(MsgType.ORDER_CREATE, seq, OrderCreateEncoder.TEMPLATE_ID, OrderCreateEncoder.BLOCK_LENGTH, OrderCreateEncoder.SCHEMA_ID, OrderCreateEncoder.SCHEMA_VERSION);
+        encoder.wrap(buffer, BODY_OFFSET)
+                .timestamp(timestamp).userId(userId).symbolId(symbolId).price(price).qty(qty).side(side).clientOrderId(clientOrderId);
+        refreshDecoder();
     }
 
     @Override public int encodedLength() { return BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH; }

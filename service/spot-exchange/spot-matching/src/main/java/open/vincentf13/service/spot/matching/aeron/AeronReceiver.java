@@ -42,7 +42,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
         };
 
         if (model != null) {
-            model.wrap(buffer, offset, length);
+            model.wrapAeronBuffer(buffer, offset, length);
             try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
                 dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
                 dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);

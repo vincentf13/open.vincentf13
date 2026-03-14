@@ -38,42 +38,42 @@ public class AeronSender extends AbstractAeronSender {
                 AuthReport report = ctx.getAuthReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
-                    report.write(buffer, offset, ctxSeq).userId(report.getUserId()).timestamp(report.getTimestamp());
+                    report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId());
                 });
             }
             case MsgType.DEPOSIT_REPORT -> {
                 DepositReport report = ctx.getDepositReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
-                    report.write(buffer, offset, ctxSeq).userId(report.getUserId()).assetId(report.getAssetId()).amount(report.getAmount()).timestamp(report.getTimestamp());
+                    report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getAssetId(), report.getAmount());
                 });
             }
             case MsgType.ORDER_ACCEPTED -> {
                 OrderAcceptedReport report = ctx.getOrderAcceptedReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
-                    report.write(buffer, offset, ctxSeq).timestamp(report.getTimestamp()).userId(report.getUserId()).orderId(report.getOrderId()).clientOrderId(report.getClientOrderId());
+                    report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getOrderId(), report.getClientOrderId());
                 });
             }
             case MsgType.ORDER_REJECTED -> {
                 OrderRejectedReport report = ctx.getOrderRejectedReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
-                    report.write(buffer, offset, ctxSeq).timestamp(report.getTimestamp()).userId(report.getUserId()).clientOrderId(report.getClientOrderId());
+                    report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getClientOrderId());
                 });
             }
             case MsgType.ORDER_CANCELED -> {
                 OrderCanceledReport report = ctx.getOrderCanceledReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
-                    report.write(buffer, offset, ctxSeq).timestamp(report.getTimestamp()).userId(report.getUserId()).orderId(report.getOrderId()).filledQty(report.getCumQty()).clientOrderId(report.getClientOrderId());
+                    report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getOrderId(), report.getFilledQty(), report.getClientOrderId());
                 });
             }
             case MsgType.ORDER_MATCHED -> {
                 OrderMatchReport report = ctx.getOrderMatchReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
-                    report.write(buffer, offset, ctxSeq).timestamp(report.getTimestamp()).userId(report.getUserId()).orderId(report.getOrderId()).status(report.getStatus()).lastPrice(report.getLastPrice()).lastQty(report.getLastQty()).cumQty(report.getCumQty()).avgPrice(report.getAvgPrice()).clientOrderId(report.getClientOrderId());
+                    report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getOrderId(), report.getStatus(), report.getLastPrice(), report.getLastQty(), report.getCumQty(), report.getAvgPrice(), report.getClientOrderId());
                 });
             }
         }

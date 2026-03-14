@@ -19,10 +19,15 @@ public class OrderRejectedReport extends AbstractSbeModel {
 
     @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public OrderRejectedEncoder write(MutableDirectBuffer dstBuffer, int offset, long seq) {
-        this.buffer.wrap(dstBuffer, offset, BODY_OFFSET + OrderRejectedEncoder.BLOCK_LENGTH);
-        preEncode(dstBuffer, offset, MsgType.ORDER_REJECTED, seq, OrderRejectedEncoder.TEMPLATE_ID, OrderRejectedEncoder.BLOCK_LENGTH, OrderRejectedEncoder.SCHEMA_ID, OrderRejectedEncoder.SCHEMA_VERSION);
-        return encoder.wrap(dstBuffer, offset + BODY_OFFSET);
+    public OrderRejectedReport write(MutableDirectBuffer dstBuffer, int offset) {
+        this.buffer.wrap(dstBuffer, offset, encodedLength());
+        return this;
+    }
+
+    public void set(long seq, long timestamp, long userId, long clientOrderId) {
+        fillCommonHeader(MsgType.ORDER_REJECTED, seq, OrderRejectedEncoder.TEMPLATE_ID, OrderRejectedEncoder.BLOCK_LENGTH, OrderRejectedEncoder.SCHEMA_ID, OrderRejectedEncoder.SCHEMA_VERSION);
+        encoder.wrap(buffer, BODY_OFFSET).timestamp(timestamp).userId(userId).clientOrderId(clientOrderId);
+        refreshDecoder();
     }
 
     @Override public int encodedLength() { return BODY_OFFSET + OrderRejectedEncoder.BLOCK_LENGTH; }

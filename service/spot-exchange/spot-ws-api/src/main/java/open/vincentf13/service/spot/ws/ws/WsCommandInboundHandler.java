@@ -36,8 +36,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         final ThreadContext.RequestHolder holder = context.getRequestHolder();
         holder.reset();
 
-        try (JsonParser parser = JsonUtil.toMap(frame.text()).entrySet().iterator().next().getValue().toString().isEmpty() ? null : null) {
-            // 簡化：這裡我們直接用 JsonUtil.toMap，雖然稍微慢一點但 API 穩定
+        try {
             java.util.Map<String, Object> map = JsonUtil.toMap(frame.text());
             holder.setOp((String) map.get("op"));
             if (map.get("uid") != null) holder.setUserId(((Number) map.get("uid")).longValue());
@@ -59,26 +58,23 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             case "auth" -> {
                 sessionManager.addSession(holder.getUserId(), ctx.channel());
                 AuthCommand cmd = context.getAuthCommand();
-                cmd.write(scratch, 0, MSG_SEQ_NONE).userId(holder.getUserId()).timestamp(System.currentTimeMillis());
+                cmd.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
                 writeCommand(MsgType.AUTH, cmd);
             }
             case "order_create" -> {
                 Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? Side.BUY : Side.SELL;
                 OrderCreateCommand cmd = context.getOrderCreateCommand();
-                cmd.write(scratch, 0, MSG_SEQ_NONE)
-                    .userId(holder.getUserId()).symbolId(holder.getSymbolId())
-                    .price(holder.getPrice()).qty(holder.getQty()).side(side)
-                    .clientOrderId(holder.getCid()).timestamp(System.currentTimeMillis());
+                cmd.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
                 writeCommand(MsgType.ORDER_CREATE, cmd);
             }
             case "order_cancel" -> {
                 OrderCancelCommand cmd = context.getOrderCancelCommand();
-                cmd.write(scratch, 0, MSG_SEQ_NONE).userId(holder.getUserId()).orderId(holder.getOrderId()).timestamp(System.currentTimeMillis());
+                cmd.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
                 writeCommand(MsgType.ORDER_CANCEL, cmd);
             }
             case "deposit" -> {
                 DepositCommand cmd = context.getDepositCommand();
-                cmd.write(scratch, 0, MSG_SEQ_NONE).userId(holder.getUserId()).assetId(holder.getAssetId()).amount(holder.getAmount()).timestamp(System.currentTimeMillis());
+                cmd.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
                 writeCommand(MsgType.DEPOSIT, cmd);
             }
         }
