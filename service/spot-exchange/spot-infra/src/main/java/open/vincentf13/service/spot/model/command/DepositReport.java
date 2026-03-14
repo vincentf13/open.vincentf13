@@ -19,17 +19,17 @@ public class DepositReport extends AbstractSbeModel {
     @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
     public DepositReport write(MutableDirectBuffer dstBuffer, int offset) {
-        this.buffer.wrap(dstBuffer, offset, encodedLength());
+        this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, int assetId, long amount) {
         fillCommonHeader(MsgType.DEPOSIT_REPORT, seq, DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
-        encoder.wrap(buffer, BODY_OFFSET).timestamp(timestamp).userId(userId).assetId(assetId).amount(amount);
+        encoder.wrap(unsafeBuffer, BODY_OFFSET).timestamp(timestamp).userId(userId).assetId(assetId).amount(amount);
         refreshDecoder();
     }
 
-    @Override public int encodedLength() { return BODY_OFFSET + DepositEncoder.BLOCK_LENGTH; }
+    @Override public int totalByteLength() { return BODY_OFFSET + DepositEncoder.BLOCK_LENGTH; }
     public long getUserId() { return decoder.userId(); }
     public int getAssetId() { return decoder.assetId(); }
     public long getAmount() { return decoder.amount(); }

@@ -37,28 +37,28 @@ public class AeronSender extends AbstractAeronSender {
             case MsgType.AUTH -> {
                 AuthCommand cmd = ctx.getAuthCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(cmd.totalByteLength(), (buffer, offset) -> {
                     cmd.write(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId());
                 });
             }
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(cmd.totalByteLength(), (buffer, offset) -> {
                     cmd.write(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getSymbolId(), cmd.getPrice(), cmd.getQty(), cmd.getSide(), cmd.getClientOrderId());
                 });
             }
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(cmd.totalByteLength(), (buffer, offset) -> {
                     cmd.write(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getOrderId());       
                 });
             }
             case MsgType.DEPOSIT -> {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                this.backPressureCount += aeronClient.send(cmd.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(cmd.totalByteLength(), (buffer, offset) -> {
                     cmd.write(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getAssetId(), cmd.getAmount());
                 });
             }

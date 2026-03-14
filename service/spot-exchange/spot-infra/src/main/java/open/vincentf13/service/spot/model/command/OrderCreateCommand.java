@@ -20,18 +20,18 @@ public class OrderCreateCommand extends AbstractSbeModel {
     @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
     public OrderCreateCommand write(MutableDirectBuffer dstBuffer, int offset) {
-        this.buffer.wrap(dstBuffer, offset, encodedLength());
+        this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, int symbolId, long price, long qty, Side side, long clientOrderId) {
         fillCommonHeader(MsgType.ORDER_CREATE, seq, OrderCreateEncoder.TEMPLATE_ID, OrderCreateEncoder.BLOCK_LENGTH, OrderCreateEncoder.SCHEMA_ID, OrderCreateEncoder.SCHEMA_VERSION);
-        encoder.wrap(buffer, BODY_OFFSET)
-                .timestamp(timestamp).userId(userId).symbolId(symbolId).price(price).qty(qty).side(side).clientOrderId(clientOrderId);
+        encoder.wrap(unsafeBuffer, BODY_OFFSET)
+                .timestamp(timestamp).userId(userId).symbolId(symbolId).price(price).qty(qty).side(side).clientOrderId(clientOrderId);       
         refreshDecoder();
     }
 
-    @Override public int encodedLength() { return BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH; }
+    @Override public int totalByteLength() { return BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH; }
 
     public long getUserId() { return decoder.userId(); }
     public int getSymbolId() { return decoder.symbolId(); }

@@ -37,42 +37,42 @@ public class AeronSender extends AbstractAeronSender {
             case MsgType.AUTH_REPORT -> {
                 AuthReport report = ctx.getAuthReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(report.totalByteLength(), (buffer, offset) -> {
                     report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId());
                 });
             }
             case MsgType.DEPOSIT_REPORT -> {
                 DepositReport report = ctx.getDepositReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(report.totalByteLength(), (buffer, offset) -> {
                     report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getAssetId(), report.getAmount());
                 });
             }
             case MsgType.ORDER_ACCEPTED -> {
                 OrderAcceptedReport report = ctx.getOrderAcceptedReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(report.totalByteLength(), (buffer, offset) -> {
                     report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getOrderId(), report.getClientOrderId());
                 });
             }
             case MsgType.ORDER_REJECTED -> {
                 OrderRejectedReport report = ctx.getOrderRejectedReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(report.totalByteLength(), (buffer, offset) -> {
                     report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getClientOrderId());
                 });
             }
             case MsgType.ORDER_CANCELED -> {
                 OrderCanceledReport report = ctx.getOrderCanceledReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(report.totalByteLength(), (buffer, offset) -> {
                     report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getOrderId(), report.getFilledQty(), report.getClientOrderId());
                 });
             }
             case MsgType.ORDER_MATCHED -> {
                 OrderMatchReport report = ctx.getOrderMatchReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
+                this.backPressureCount += aeronClient.send(report.totalByteLength(), (buffer, offset) -> {
                     report.write(buffer, offset).set(ctxSeq, report.getTimestamp(), report.getUserId(), report.getOrderId(), report.getStatus(), report.getLastPrice(), report.getLastQty(), report.getCumQty(), report.getAvgPrice(), report.getClientOrderId());
                 });
             }

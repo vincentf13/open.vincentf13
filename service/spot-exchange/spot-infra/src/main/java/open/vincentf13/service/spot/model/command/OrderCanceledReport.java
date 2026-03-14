@@ -20,17 +20,17 @@ public class OrderCanceledReport extends AbstractSbeModel {
     @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
     public OrderCanceledReport write(MutableDirectBuffer dstBuffer, int offset) {
-        this.buffer.wrap(dstBuffer, offset, encodedLength());
+        this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, long orderId, long filledQty, long clientOrderId) {
         fillCommonHeader(MsgType.ORDER_CANCELED, seq, OrderCanceledEncoder.TEMPLATE_ID, OrderCanceledEncoder.BLOCK_LENGTH, OrderCanceledEncoder.SCHEMA_ID, OrderCanceledEncoder.SCHEMA_VERSION);
-        encoder.wrap(buffer, BODY_OFFSET).timestamp(timestamp).userId(userId).orderId(orderId).filledQty(filledQty).clientOrderId(clientOrderId);
+        encoder.wrap(unsafeBuffer, BODY_OFFSET).timestamp(timestamp).userId(userId).orderId(orderId).filledQty(filledQty).clientOrderId(clientOrderId);
         refreshDecoder();
     }
 
-    @Override public int encodedLength() { return BODY_OFFSET + OrderCanceledEncoder.BLOCK_LENGTH; }
+    @Override public int totalByteLength() { return BODY_OFFSET + OrderCanceledEncoder.BLOCK_LENGTH; }
     public long getTimestamp() { return decoder.timestamp(); }
     public long getUserId() { return decoder.userId(); }
     public long getOrderId() { return decoder.orderId(); }

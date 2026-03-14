@@ -68,7 +68,7 @@ public class ExecutionReporter implements AutoCloseable {
         sendReport(MsgType.DEPOSIT_REPORT, report);
     }
 
-    private void sendReport(int msgType, net.openhft.chronicle.bytes.BytesMarshallable model) {
+    private void sendReport(int msgType, AbstractSbeModel model) {
         try (DocumentContext dc = engineSenderWal.acquireAppender().writingDocument()) {
             dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
             dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);

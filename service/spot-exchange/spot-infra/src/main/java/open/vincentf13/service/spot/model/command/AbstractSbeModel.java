@@ -1,6 +1,9 @@
 package open.vincentf13.service.spot.model.command;
 
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
@@ -17,56 +20,60 @@ import org.agrona.concurrent.UnsafeBuffer;
  */
 @Data
 public abstract class AbstractSbeModel implements BytesMarshallable {
-    public static final int TYPE_SIZE = 4;
-    public static final int SEQ_SIZE = 8;
-    public static final int SBE_HEADER_SIZE = 8;
+    protected static final int TYPE_SIZE = 4;
+    protected static final int SEQ_SIZE = 8;
+    protected static final int SBE_HEADER_SIZE = 8;
     
-    public static final int TYPE_OFFSET = 0;
-    public static final int SEQ_OFFSET = TYPE_OFFSET + TYPE_SIZE;
-    public static final int SBE_HEADER_OFFSET = SEQ_OFFSET + SEQ_SIZE;
-    public static final int BODY_OFFSET = SBE_HEADER_OFFSET + SBE_HEADER_SIZE;
+    protected static final int TYPE_OFFSET = 0;
+    protected static final int SEQ_OFFSET = TYPE_OFFSET + TYPE_SIZE;
+    protected static final int SBE_HEADER_OFFSET = SEQ_OFFSET + SEQ_SIZE;
+    protected static final int BODY_OFFSET = SBE_HEADER_OFFSET + SBE_HEADER_SIZE;
 
-    protected final UnsafeBuffer buffer = new UnsafeBuffer(0, 0);
+    @Getter(AccessLevel.PROTECTED)
+    protected final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(0, 0);
+    
     protected final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     protected final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
-    protected final PointerBytesStore pointer = new PointerBytesStore();
+    protected final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
     /** 包裝既有內存 (讀取模式) */
     public void wrapAeronBuffer(DirectBuffer srcBuffer, int offset, int length) {
-        this.buffer.wrap(srcBuffer, offset, length);
+        this.unsafeBuffer.wrap(srcBuffer, offset, length);
         refreshDecoder();
     }
 
     public void wrap(long address, int length) {
-        this.buffer.wrap(address, length);
+        this.unsafeBuffer.wrap(address, length);
         refreshDecoder();
     }
 
-    public int getMsgType() { return buffer.getInt(TYPE_OFFSET); }
-    public long getSeq() { return buffer.getLong(SEQ_OFFSET); }
+    public int getMsgType() { return unsafeBuffer.getInt(TYPE_OFFSET); }
+    public long getSeq() { return unsafeBuffer.getLong(SEQ_OFFSET); }
 
     protected void refreshDecoder() {
-        if (buffer.capacity() >= BODY_OFFSET) {
-            headerDecoder.wrap(buffer, SBE_HEADER_OFFSET);
-            wrapDecoder(buffer, BODY_OFFSET, headerDecoder.blockLength(), headerDecoder.version());
+        if (unsafeBuffer.capacity() >= BODY_OFFSET) {
+            headerDecoder.wrap(unsafeBuffer, SBE_HEADER_OFFSET);
+            wrapDecoder(unsafeBuffer, BODY_OFFSET, headerDecoder.blockLength(), headerDecoder.version());
         }
     }
 
-    /** 編碼準備：寫入通用的 MsgType, Seq 與 SBE Header */
+    /** 寫入通用的 MsgType, Seq 與 SBE Header */
     protected void fillCommonHeader(int msgType, long seq, int tid, int bl, int sid, int ver) {
-        buffer.putInt(TYPE_OFFSET, msgType);
-        buffer.putLong(SEQ_OFFSET, seq);
-        headerEncoder.wrap(buffer, SBE_HEADER_OFFSET)
+        unsafeBuffer.putInt(TYPE_OFFSET, msgType);
+        unsafeBuffer.putLong(SEQ_OFFSET, seq);
+        headerEncoder.wrap(unsafeBuffer, SBE_HEADER_OFFSET)
                 .templateId(tid).blockLength(bl).schemaId(sid).version(ver);
     }
 
     protected abstract void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version);
-    public abstract int encodedLength();
+    
+    /** 返回模型在內存中的總長度 (含 Header) */
+    public abstract int totalByteLength();
 
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {
-        pointer.set(buffer.addressOffset(), buffer.capacity());
-        bytes.write(pointer);
+        pointerBytesStore.set(unsafeBuffer.addressOffset(), unsafeBuffer.capacity());
+        bytes.write(pointerBytesStore);
     }
 
     @Override
@@ -77,8 +84,9 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
         bytes.readSkip(len);
     }
     
+    /** 僅供兼容舊代碼，後續建議直接使用 unsafeBuffer 或 pointerBytesStore */
     public PointerBytesStore getPointBytesStore() {
-        pointer.set(buffer.addressOffset(), buffer.capacity());
-        return pointer;
+        pointerBytesStore.set(unsafeBuffer.addressOffset(), unsafeBuffer.capacity());
+        return pointerBytesStore;
     }
 }
