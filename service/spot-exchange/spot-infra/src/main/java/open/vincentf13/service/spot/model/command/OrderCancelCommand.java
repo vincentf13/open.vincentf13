@@ -2,7 +2,6 @@ package open.vincentf13.service.spot.model.command;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.sbe.OrderCancelDecoder;
 import open.vincentf13.service.spot.sbe.OrderCancelEncoder;
 import org.agrona.DirectBuffer;
@@ -24,9 +23,9 @@ public class OrderCancelCommand extends AbstractSbeModel {
     }
 
     public void encode(long timestamp, long userId, long orderId) {
-        MutableDirectBuffer buffer = ThreadContext.get().getScratchBuffer().wrapForWrite();
+        MutableDirectBuffer buffer = encodeBuffer.wrapForWrite();
         wrapHeader(buffer, OrderCancelEncoder.TEMPLATE_ID, OrderCancelEncoder.BLOCK_LENGTH, OrderCancelEncoder.SCHEMA_ID, OrderCancelEncoder.SCHEMA_VERSION);
         encoder.wrap(buffer, HEADER_SIZE).timestamp(timestamp).userId(userId).orderId(orderId);
-        fillFromScratch(HEADER_SIZE + encoder.encodedLength());
+        fillFromEncodeBuffer(HEADER_SIZE + encoder.encodedLength());
     }
 }

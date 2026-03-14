@@ -3,8 +3,10 @@ package open.vincentf13.service.spot.model.command;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
+import open.vincentf13.service.spot.sbe.ExecutionReportEncoder;
 import open.vincentf13.service.spot.sbe.OrderStatus;
 import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 
 /**
  * 訂單拒絕回報
@@ -12,6 +14,7 @@ import org.agrona.DirectBuffer;
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class OrderRejectedReport extends AbstractSbeModel {
+    private final ExecutionReportEncoder encoder = new ExecutionReportEncoder();
     private final ExecutionReportDecoder decoder = new ExecutionReportDecoder();
 
     public ExecutionReportDecoder decode() {
@@ -22,5 +25,12 @@ public class OrderRejectedReport extends AbstractSbeModel {
 
     public void encode(long timestamp, long userId, long clientOrderId) {
         encodeReport(timestamp, userId, 0, OrderStatus.REJECTED, 0, 0, 0, 0, clientOrderId);
+    }
+
+    private void encodeReport(long timestamp, long userId, long orderId, OrderStatus status, long lastPrice, long lastQty, long cumQty, long avgPrice, long clientOrderId) {
+        MutableDirectBuffer buffer = encodeBuffer.wrapForWrite();
+        wrapHeader(buffer, ExecutionReportEncoder.TEMPLATE_ID, ExecutionReportEncoder.BLOCK_LENGTH, ExecutionReportEncoder.SCHEMA_ID, ExecutionReportEncoder.SCHEMA_VERSION);
+        encoder.wrap(buffer, HEADER_SIZE).timestamp(timestamp).userId(userId).orderId(orderId).status(status).lastPrice(lastPrice).lastQty(lastQty).cumQty(cumQty).avgPrice(avgPrice).clientOrderId(clientOrderId);
+        fillFromEncodeBuffer(HEADER_SIZE + encoder.encodedLength());
     }
 }

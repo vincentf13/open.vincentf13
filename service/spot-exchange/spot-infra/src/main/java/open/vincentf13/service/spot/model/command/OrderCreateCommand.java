@@ -2,7 +2,6 @@ package open.vincentf13.service.spot.model.command;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot.sbe.Side;
@@ -25,9 +24,9 @@ public class OrderCreateCommand extends AbstractSbeModel {
     }
 
     public void encode(long timestamp, long userId, int symbolId, long price, long qty, Side side, long clientOrderId) {
-        MutableDirectBuffer buffer = ThreadContext.get().getScratchBuffer().wrapForWrite();
+        MutableDirectBuffer buffer = encodeBuffer.wrapForWrite();
         wrapHeader(buffer, OrderCreateEncoder.TEMPLATE_ID, OrderCreateEncoder.BLOCK_LENGTH, OrderCreateEncoder.SCHEMA_ID, OrderCreateEncoder.SCHEMA_VERSION);
         encoder.wrap(buffer, HEADER_SIZE).timestamp(timestamp).userId(userId).symbolId(symbolId).price(price).qty(qty).side(side).clientOrderId(clientOrderId);
-        fillFromScratch(HEADER_SIZE + encoder.encodedLength());
+        fillFromEncodeBuffer(HEADER_SIZE + encoder.encodedLength());
     }
 }

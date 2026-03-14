@@ -5,7 +5,7 @@ import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 import net.openhft.chronicle.bytes.PointerBytesStore;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
+import open.vincentf13.service.spot.infra.alloc.NativeUnsafeBuffer;
 import open.vincentf13.service.spot.sbe.MessageHeaderDecoder;
 import open.vincentf13.service.spot.sbe.MessageHeaderEncoder;
 import org.agrona.DirectBuffer;
@@ -27,6 +27,7 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     protected final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     protected final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     protected final UnsafeBuffer internalBuffer = new UnsafeBuffer(0, 0);
+    protected final NativeUnsafeBuffer encodeBuffer = new NativeUnsafeBuffer(256);
 
     public void setGatewaySeq(long val) { this.seq = val; }
     public long getGatewaySeq() { return this.seq; }
@@ -40,8 +41,8 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
         return internalBuffer;
     }
 
-    public void fillFromScratch(int length) {
-        fillFrom(ThreadContext.get().getScratchBuffer().buffer(), 0, length);
+    public void fillFromEncodeBuffer(int length) {
+        fillFrom(encodeBuffer.buffer(), 0, length);
     }
 
     public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
