@@ -12,6 +12,7 @@ import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.*;
+import open.vincentf13.service.spot.sbe.OrderStatus;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
 import org.springframework.stereotype.Component;
 
@@ -73,17 +74,32 @@ public class PushWorker extends Worker {
             case MsgType.DEPOSIT_REPORT -> {
                 DepositReport report = ctx.getDepositReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                handleDepositReport(report);
+                handleDepositPush(report);
             }
-            case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
-                ExecutionReport report = ctx.getExecutionReport();
+            case MsgType.ORDER_ACCEPTED -> {
+                OrderAcceptedReport report = ctx.getOrderAcceptedReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                handleExecutionReport(report);
+                pushExecutionEvent(report.getUserId(), report.getOrderId(), report.getStatus(), report.getClientOrderId());
+            }
+            case MsgType.ORDER_REJECTED -> {
+                OrderRejectedReport report = ctx.getOrderRejectedReport();
+                wire.read(ChronicleWireKey.payload).bytes(report);
+                pushExecutionEvent(report.getUserId(), report.getOrderId(), report.getStatus(), report.getClientOrderId());
+            }
+            case MsgType.ORDER_CANCELED -> {
+                OrderCanceledReport report = ctx.getOrderCanceledReport();
+                wire.read(ChronicleWireKey.payload).bytes(report);
+                pushExecutionEvent(report.getUserId(), report.getOrderId(), report.getStatus(), report.getClientOrderId());
+            }
+            case MsgType.ORDER_MATCHED -> {
+                OrderMatchReport report = ctx.getOrderMatchReport();
+                wire.read(ChronicleWireKey.payload).bytes(report);
+                pushExecutionEvent(report.getUserId(), report.getOrderId(), report.getStatus(), report.getClientOrderId());
             }
         }
     }
 
-    private void handleDepositReport(DepositReport report) {
+    private void handleDepositPush(DepositReport report) {
         final long userId = report.getUserId();
         stripedPool[(int)(userId % threadCount)].execute(() -> {
             PushEvent event = new PushEvent();
@@ -97,17 +113,16 @@ public class PushWorker extends Worker {
         });
     }
 
-    private void handleExecutionReport(ExecutionReport report) {
-        final long userId = report.getUserId();
-        final int statusOrdinal = report.getStatus().ordinal();
+    private void pushExecutionEvent(long userId, long orderId, OrderStatus status, long clientOrderId) {
+        final int statusOrdinal = status.ordinal();
         final String statusStr = (statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length) ? 
                 ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN";
 
         stripedPool[(int)(userId % threadCount)].execute(() -> {
             PushEvent event = new PushEvent();
-            event.setOrderId(report.getOrderId());
+            event.setOrderId(orderId);
             event.setStatus(statusStr);
-            event.setCid(report.getClientOrderId());
+            event.setCid(clientOrderId);
             event.setUserId(userId);
             JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);
             String json = JsonUtil.toJson(env);

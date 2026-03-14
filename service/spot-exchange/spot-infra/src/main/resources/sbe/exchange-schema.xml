@@ -27,7 +27,8 @@
         <type name="ClientOrderId" primitiveType="int64"/>
     </types>
 
-    <sbe:message name="OrderCreate" id="100" description="建立限價單">
+    <!-- 指令集 (100-199) -->
+    <sbe:message name="OrderCreate" id="100">
         <field name="timestamp" id="1" type="int64"/>
         <field name="userId" id="2" type="int64"/>
         <field name="symbolId" id="3" type="int32"/>
@@ -37,38 +38,56 @@
         <field name="clientOrderId" id="7" type="ClientOrderId"/>
     </sbe:message>
 
-    <sbe:message name="OrderCancel" id="101" description="撤單指令">
+    <sbe:message name="OrderCancel" id="101">
         <field name="timestamp" id="1" type="int64"/>
         <field name="userId" id="2" type="int64"/>
         <field name="orderId" id="3" type="int64"/>
     </sbe:message>
 
-    <sbe:message name="Deposit" id="102" description="充值指令">
+    <sbe:message name="Deposit" id="102">
         <field name="timestamp" id="1" type="int64"/>
         <field name="userId" id="2" type="int64"/>
         <field name="assetId" id="3" type="int32"/>
         <field name="amount" id="4" type="int64"/>
     </sbe:message>
 
-    <sbe:message name="Auth" id="103" description="用戶認證">
+    <sbe:message name="Auth" id="103">
         <field name="timestamp" id="1" type="int64"/>
         <field name="userId" id="2" type="int64"/>
     </sbe:message>
 
-    <sbe:message name="Snapshot" id="106" description="快照指令">
-        <field name="timestamp" id="1" type="int64"/>
-    </sbe:message>
-
-    <sbe:message name="ExecutionReport" id="200" description="成交回報">
+    <!-- 回報集 (200-299) -->
+    <sbe:message name="OrderAccepted" id="201">
         <field name="timestamp" id="1" type="int64"/>
         <field name="userId" id="2" type="int64"/>
         <field name="orderId" id="3" type="int64"/>
         <field name="clientOrderId" id="4" type="ClientOrderId"/>
-        <field name="status" id="5" type="OrderStatus"/>
-        <field name="lastPrice" id="6" type="int64"/>
-        <field name="lastQty" id="7" type="int64"/>
-        <field name="cumQty" id="8" type="int64"/>
-        <field name="avgPrice" id="9" type="int64"/>
+    </sbe:message>
+
+    <sbe:message name="OrderRejected" id="202">
+        <field name="timestamp" id="1" type="int64"/>
+        <field name="userId" id="2" type="int64"/>
+        <field name="clientOrderId" id="3" type="ClientOrderId"/>
+    </sbe:message>
+
+    <sbe:message name="OrderCanceled" id="203">
+        <field name="timestamp" id="1" type="int64"/>
+        <field name="userId" id="2" type="int64"/>
+        <field name="orderId" id="3" type="int64"/>
+        <field name="filledQty" id="4" type="int64"/>
+        <field name="clientOrderId" id="5" type="ClientOrderId"/>
+    </sbe:message>
+
+    <sbe:message name="OrderMatched" id="204">
+        <field name="timestamp" id="1" type="int64"/>
+        <field name="userId" id="2" type="int64"/>
+        <field name="orderId" id="3" type="int64"/>
+        <field name="status" id="4" type="OrderStatus"/>
+        <field name="lastPrice" id="5" type="int64"/>
+        <field name="lastQty" id="6" type="int64"/>
+        <field name="cumQty" id="7" type="int64"/>
+        <field name="avgPrice" id="8" type="int64"/>
+        <field name="clientOrderId" id="9" type="ClientOrderId"/>
     </sbe:message>
 
 </sbe:messageSchema>

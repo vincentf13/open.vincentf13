@@ -35,7 +35,11 @@ public class ThreadContext {
 
     private AuthReport authReport;
     private DepositReport depositReport;
-    private ExecutionReport executionReport; // 統一回報對象
+    
+    private OrderAcceptedReport orderAcceptedReport;
+    private OrderRejectedReport orderRejectedReport;
+    private OrderCanceledReport orderCanceledReport;
+    private OrderMatchReport orderMatchReport;
 
     // --- 緩衝物件 ---
     @Getter private final Order reusableOrder = new Order();
@@ -47,7 +51,11 @@ public class ThreadContext {
 
     public AuthReport getAuthReport() { if (authReport == null) authReport = new AuthReport(); return authReport; }
     public DepositReport getDepositReport() { if (depositReport == null) depositReport = new DepositReport(); return depositReport; }
-    public ExecutionReport getExecutionReport() { if (executionReport == null) executionReport = new ExecutionReport(); return executionReport; }
+    
+    public OrderAcceptedReport getOrderAcceptedReport() { if (orderAcceptedReport == null) orderAcceptedReport = new OrderAcceptedReport(); return orderAcceptedReport; }
+    public OrderRejectedReport getOrderRejectedReport() { if (orderRejectedReport == null) orderRejectedReport = new OrderRejectedReport(); return orderRejectedReport; }
+    public OrderCanceledReport getOrderCanceledReport() { if (orderCanceledReport == null) orderCanceledReport = new OrderCanceledReport(); return orderCanceledReport; }
+    public OrderMatchReport getOrderMatchReport() { if (orderMatchReport == null) orderMatchReport = new OrderMatchReport(); return orderMatchReport; }
 
     private ThreadContext() {}
 

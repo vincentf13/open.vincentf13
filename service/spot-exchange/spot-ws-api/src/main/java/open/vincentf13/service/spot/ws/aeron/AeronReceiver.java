@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 網關 Aeron 接收器 (Unified Model Edition)
+ 網關 Aeron 接收器 (Scenario-Specific Edition)
  */
 @Slf4j
 @Component
@@ -45,8 +45,23 @@ public class AeronReceiver extends AbstractAeronReceiver {
                 report.wrap(buffer, offset, length);
                 writeReport(msgType, report);
             }
-            case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
-                ExecutionReport report = ctx.getExecutionReport();
+            case MsgType.ORDER_ACCEPTED -> {
+                OrderAcceptedReport report = ctx.getOrderAcceptedReport();
+                report.wrap(buffer, offset, length);
+                writeReport(msgType, report);
+            }
+            case MsgType.ORDER_REJECTED -> {
+                OrderRejectedReport report = ctx.getOrderRejectedReport();
+                report.wrap(buffer, offset, length);
+                writeReport(msgType, report);
+            }
+            case MsgType.ORDER_CANCELED -> {
+                OrderCanceledReport report = ctx.getOrderCanceledReport();
+                report.wrap(buffer, offset, length);
+                writeReport(msgType, report);
+            }
+            case MsgType.ORDER_MATCHED -> {
+                OrderMatchReport report = ctx.getOrderMatchReport();
                 report.wrap(buffer, offset, length);
                 writeReport(msgType, report);
             }

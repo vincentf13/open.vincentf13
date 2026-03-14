@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 核心回報器 (Unified Model Edition)
+ 核心回報器 (Scenario-Specific Edition)
  */
 @Component
 @RequiredArgsConstructor
@@ -27,30 +27,34 @@ public class ExecutionReporter implements AutoCloseable {
 
     public void reportAccepted(Order taker) {
         if (isReplaying) return;
-        final ExecutionReport report = ThreadContext.get().getExecutionReport();
-        report.encode(scratch, 0, MsgType.ORDER_ACCEPTED, taker.getLastSeq(), System.currentTimeMillis(), taker.getUserId(), taker.getOrderId(), OrderStatus.NEW, 0, 0, 0, 0, taker.getClientOrderId());
+        final OrderAcceptedReport report = ThreadContext.get().getOrderAcceptedReport();
+        report.write(scratch, 0, taker.getLastSeq())
+              .timestamp(System.currentTimeMillis()).userId(taker.getUserId()).orderId(taker.getOrderId()).clientOrderId(taker.getClientOrderId());
         sendReport(MsgType.ORDER_ACCEPTED, report);
     }
 
     public void reportRejected(long userId, long clientOrderId) {
         if (isReplaying) return;
-        final ExecutionReport report = ThreadContext.get().getExecutionReport();
-        report.encode(scratch, 0, MsgType.ORDER_REJECTED, MSG_SEQ_NONE, System.currentTimeMillis(), userId, 0, OrderStatus.REJECTED, 0, 0, 0, 0, clientOrderId);
+        final OrderRejectedReport report = ThreadContext.get().getOrderRejectedReport();
+        report.write(scratch, 0, MSG_SEQ_NONE)
+              .timestamp(System.currentTimeMillis()).userId(userId).clientOrderId(clientOrderId);
         sendReport(MsgType.ORDER_REJECTED, report);
     }
 
     public void reportCanceled(Order order) {
         if (isReplaying) return;
-        final ExecutionReport report = ThreadContext.get().getExecutionReport();
-        report.encode(scratch, 0, MsgType.ORDER_CANCELED, order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), OrderStatus.CANCELED, 0, 0, order.getFilled(), 0, order.getClientOrderId());
+        final OrderCanceledReport report = ThreadContext.get().getOrderCanceledReport();
+        report.write(scratch, 0, order.getLastSeq())
+              .timestamp(System.currentTimeMillis()).userId(order.getUserId()).orderId(order.getOrderId()).filledQty(order.getFilled()).clientOrderId(order.getClientOrderId());
         sendReport(MsgType.ORDER_CANCELED, report);
     }
 
     public void reportTrade(Order order, long price, long qty) {
         if (isReplaying) return;
-        final ExecutionReport report = ThreadContext.get().getExecutionReport();
+        final OrderMatchReport report = ThreadContext.get().getOrderMatchReport();
         OrderStatus st = order.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
-        report.encode(scratch, 0, MsgType.ORDER_MATCHED, order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), st, price, qty, order.getFilled(), price, order.getClientOrderId());
+        report.write(scratch, 0, order.getLastSeq())
+              .timestamp(System.currentTimeMillis()).userId(order.getUserId()).orderId(order.getOrderId()).status(st).lastPrice(price).lastQty(qty).cumQty(order.getFilled()).avgPrice(price).clientOrderId(order.getClientOrderId());
         sendReport(MsgType.ORDER_MATCHED, report);
     }
 
