@@ -22,7 +22,6 @@
         <module>spot-infra</module>
         <module>spot-matching</module>
         <module>spot-ws-api</module>
-        <module>spot-web-api</module>
     </modules>
 
     <properties>
