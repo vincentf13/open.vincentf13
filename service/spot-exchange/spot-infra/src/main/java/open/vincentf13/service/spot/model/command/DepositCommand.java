@@ -2,7 +2,6 @@ package open.vincentf13.service.spot.model.command;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.sbe.DepositDecoder;
 import open.vincentf13.service.spot.sbe.DepositEncoder;
 import org.agrona.DirectBuffer;
@@ -24,9 +23,9 @@ public class DepositCommand extends AbstractSbeModel {
     }
 
     public void encode(long timestamp, long userId, int assetId, long amount) {
-        MutableDirectBuffer buffer = ThreadContext.get().getScratchBuffer().wrapForWrite();
+        MutableDirectBuffer buffer = encodeBuffer.wrapForWrite();
         wrapHeader(buffer, DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
         encoder.wrap(buffer, HEADER_SIZE).timestamp(timestamp).userId(userId).assetId(assetId).amount(amount);
-        fillFromScratch(HEADER_SIZE + encoder.encodedLength());
+        fillFromEncodeBuffer(HEADER_SIZE + encoder.encodedLength());
     }
 }
