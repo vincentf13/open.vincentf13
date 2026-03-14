@@ -1,64 +1,34 @@
 package open.vincentf13.service.spot.model.command;
 
 import lombok.Data;
-import net.openhft.chronicle.bytes.BytesIn;
-import net.openhft.chronicle.bytes.BytesMarshallable;
-import net.openhft.chronicle.bytes.BytesOut;
-import net.openhft.chronicle.bytes.PointerBytesStore;
+import lombok.EqualsAndHashCode;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.infra.alloc.SbeCodec;
+import open.vincentf13.service.spot.sbe.DepositDecoder;
+import open.vincentf13.service.spot.sbe.DepositEncoder;
+import open.vincentf13.service.spot.sbe.MessageHeaderDecoder;
 import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 
 /**
- * 充值指令 (SBE 封裝版)
+ * 充值指令
  */
 @Data
-public class DepositCommand implements BytesMarshallable {
-    private long seq;
-    private final PointerBytesStore pointBytesStore = new PointerBytesStore();
-
-    public open.vincentf13.service.spot.sbe.DepositDecoder decode() {
-        return SbeCodec.decodeDeposit(pointBytesStore);
+@EqualsAndHashCode(callSuper = true)
+public class DepositCommand extends AbstractSbeModel {
+    public DepositDecoder decode() {
+        ThreadContext ctx = ThreadContext.get();
+        DirectBuffer buffer = wrapStore(pointBytesStore);
+        ctx.getHeaderDecoder().wrap(buffer, 0);
+        MessageHeaderDecoder header = ctx.getHeaderDecoder();
+        return ctx.getDepositDecoder().wrap(buffer, HEADER_SIZE, header.blockLength(), header.version());
     }
 
     public void encode(long timestamp, long userId, int assetId, long amount) {
-        int length = SbeCodec.encodeToScratchDeposit(timestamp, userId, assetId, amount);
-        fillFromScratch(length);
-    }
-
-    public void fillFromScratch(int length) {
-        fillFrom(open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getScratchBuffer().buffer(), 0, length);
-    }
-
-    @Override
-    public void writeMarshallable(BytesOut<?> bytes) {
-        bytes.writeLong(seq);
-        long len = pointBytesStore.readRemaining();
-        bytes.writeStopBit(len);
-        if (len > 0) {
-            bytes.write(pointBytesStore);
-        }
-    }
-
-    @Override
-    public void readMarshallable(BytesIn<?> bytes) {
-        seq = bytes.readLong();
-        int len = (int) bytes.readStopBit();
-        if (len > 0) {
-            long address = bytes.addressForRead(bytes.readPosition());
-            pointBytesStore.set(address, len);
-            bytes.readSkip(len);
-        } else {
-            pointBytesStore.set(0, 0);
-        }
-    }
-
-    public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
-        this.seq = aeron.readSeq();
-        this.pointBytesStore.set(aeron.getBufferAddress() + aeron.getPayloadOffset(), aeron.getPayloadLength());
-    }
-
-    public void fillFrom(DirectBuffer buffer, int offset, int length) {
-        this.pointBytesStore.set(buffer.addressOffset() + offset, length);
+        ThreadContext ctx = ThreadContext.get();
+        MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
+        DepositEncoder encoder = ctx.getDepositEncoder();
+        wrapHeader(buffer, DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
+        encoder.wrap(buffer, HEADER_SIZE).timestamp(timestamp).userId(userId).assetId(assetId).amount(amount);
+        fillFromScratch(HEADER_SIZE + encoder.encodedLength());
     }
 }

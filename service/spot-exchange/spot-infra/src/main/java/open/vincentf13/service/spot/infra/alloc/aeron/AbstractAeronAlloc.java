@@ -54,6 +54,16 @@ public abstract class AbstractAeronAlloc<T extends AbstractAeronAlloc<T>> {
         return buffer.getLong(getPayloadOffset() + internalOffset);
     }
 
+    /** 從指定偏移量讀取 Payload 中的 Int */
+    public int readPayloadInt(int internalOffset) {
+        return buffer.getInt(getPayloadOffset() + internalOffset);
+    }
+
+    /** 從指定偏移量讀取 Payload 中的 Byte */
+    public byte readPayloadByte(int internalOffset) {
+        return buffer.getByte(getPayloadOffset() + internalOffset);
+    }
+
     /** 寫入共有頭部 */
     protected void writeHeader(int msgType, long seq) {
         mutableBuffer.putInt(offset + MSG_TYPE_OFF, msgType);

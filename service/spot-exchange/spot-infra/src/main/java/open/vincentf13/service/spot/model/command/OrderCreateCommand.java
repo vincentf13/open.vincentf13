@@ -1,65 +1,35 @@
 package open.vincentf13.service.spot.model.command;
 
 import lombok.Data;
-import net.openhft.chronicle.bytes.BytesIn;
-import net.openhft.chronicle.bytes.BytesMarshallable;
-import net.openhft.chronicle.bytes.BytesOut;
-import net.openhft.chronicle.bytes.PointerBytesStore;
+import lombok.EqualsAndHashCode;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
-import open.vincentf13.service.spot.infra.alloc.SbeCodec;
+import open.vincentf13.service.spot.sbe.MessageHeaderDecoder;
+import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
+import open.vincentf13.service.spot.sbe.OrderCreateEncoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
 
 /**
- * 下單指令 (完全封裝版)
+ * 下單指令
  */
 @Data
-public class OrderCreateCommand implements BytesMarshallable {
-    private long seq;
-    private final PointerBytesStore pointBytesStore = new PointerBytesStore();
-
-    public open.vincentf13.service.spot.sbe.OrderCreateDecoder decode() {
-        return SbeCodec.decodeOrderCreate(pointBytesStore);
+@EqualsAndHashCode(callSuper = true)
+public class OrderCreateCommand extends AbstractSbeModel {
+    public OrderCreateDecoder decode() {
+        ThreadContext ctx = ThreadContext.get();
+        DirectBuffer buffer = wrapStore(pointBytesStore);
+        ctx.getHeaderDecoder().wrap(buffer, 0);
+        MessageHeaderDecoder header = ctx.getHeaderDecoder();
+        return ctx.getOrderCreateDecoder().wrap(buffer, HEADER_SIZE, header.blockLength(), header.version());
     }
 
     public void encode(long timestamp, long userId, int symbolId, long price, long qty, Side side, long clientOrderId) {
-        int length = SbeCodec.encodeToScratchOrderCreate(timestamp, userId, symbolId, price, qty, side, clientOrderId);
-        fillFromScratch(length);
-    }
-
-    public void fillFromScratch(int length) {
-        fillFrom(open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getScratchBuffer().buffer(), 0, length);
-    }
-
-    @Override
-    public void writeMarshallable(BytesOut<?> bytes) {
-        bytes.writeLong(seq);
-        long len = pointBytesStore.readRemaining();
-        bytes.writeStopBit(len);
-        if (len > 0) {
-            bytes.write(pointBytesStore);
-        }
-    }
-
-    @Override
-    public void readMarshallable(BytesIn<?> bytes) {
-        seq = bytes.readLong();
-        int len = (int) bytes.readStopBit();
-        if (len > 0) {
-            long address = bytes.addressForRead(bytes.readPosition());
-            pointBytesStore.set(address, len);
-            bytes.readSkip(len);
-        } else {
-            pointBytesStore.set(0, 0);
-        }
-    }
-
-    public void fillFrom(open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc<?> aeron) {
-        this.seq = aeron.readSeq();
-        this.pointBytesStore.set(aeron.getBufferAddress() + aeron.getPayloadOffset(), aeron.getPayloadLength());
-    }
-
-    public void fillFrom(DirectBuffer buffer, int offset, int length) {
-        this.pointBytesStore.set(buffer.addressOffset() + offset, length);
+        ThreadContext ctx = ThreadContext.get();
+        MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
+        OrderCreateEncoder encoder = ctx.getOrderCreateEncoder();
+        wrapHeader(buffer, OrderCreateEncoder.TEMPLATE_ID, OrderCreateEncoder.BLOCK_LENGTH, OrderCreateEncoder.SCHEMA_ID, OrderCreateEncoder.SCHEMA_VERSION);
+        encoder.wrap(buffer, HEADER_SIZE).timestamp(timestamp).userId(userId).symbolId(symbolId).price(price).qty(qty).side(side).clientOrderId(clientOrderId);
+        fillFromScratch(HEADER_SIZE + encoder.encodedLength());
     }
 }
