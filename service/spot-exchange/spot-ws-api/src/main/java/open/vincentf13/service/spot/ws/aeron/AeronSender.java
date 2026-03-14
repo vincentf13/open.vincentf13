@@ -3,6 +3,7 @@ package open.vincentf13.service.spot.ws.aeron;
 import io.aeron.Aeron;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
@@ -11,9 +12,10 @@ import open.vincentf13.service.spot.model.command.*;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
+import static org.agrona.UnsafeAccess.UNSAFE;
 
 /** 
- Gateway Aeron 發送器 (Unified Model Edition)
+ 網關 Aeron 發送器 (Raw WAL 讀取版)
  */
 @Slf4j
 @Component
@@ -30,38 +32,29 @@ public class AeronSender extends AbstractAeronSender {
     @Override
     public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();
-        final int ctxMsgType = wire.read(ChronicleWireKey.msgType).int32();
+        final Bytes<?> bytes = wire.bytes();
+        if (bytes.readRemaining() < (long) AbstractSbeModel.BODY_OFFSET) return;
+
+        final long addr = bytes.addressForRead(bytes.readPosition());
+        final int msgType = UNSAFE.getInt(addr); // 正確讀取 MsgType
+        
         final ThreadContext ctx = ThreadContext.get();
         
-        switch (ctxMsgType) {
-            case MsgType.AUTH -> {
-                AuthCommand cmd = ctx.getAuthCommand();
-                wire.read(ChronicleWireKey.payload).bytes(cmd);
-                this.backPressureCount += aeronClient.send(cmd.totalByteLength(), (buffer, offset) -> {
-                    cmd.wrapWriteBuffer(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId());
-                });
-            }
-            case MsgType.ORDER_CREATE -> {
-                OrderCreateCommand cmd = ctx.getOrderCreateCommand();
-                wire.read(ChronicleWireKey.payload).bytes(cmd);
-                this.backPressureCount += aeronClient.send(cmd.totalByteLength(), (buffer, offset) -> {
-                    cmd.wrapWriteBuffer(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getSymbolId(), cmd.getPrice(), cmd.getQty(), cmd.getSide(), cmd.getClientOrderId());
-                });
-            }
-            case MsgType.ORDER_CANCEL -> {
-                OrderCancelCommand cmd = ctx.getOrderCancelCommand();
-                wire.read(ChronicleWireKey.payload).bytes(cmd);
-                this.backPressureCount += aeronClient.send(cmd.totalByteLength(), (buffer, offset) -> {
-                    cmd.wrapWriteBuffer(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getOrderId());
-                });
-            }
-            case MsgType.DEPOSIT -> {
-                DepositCommand cmd = ctx.getDepositCommand();
-                wire.read(ChronicleWireKey.payload).bytes(cmd);
-                this.backPressureCount += aeronClient.send(cmd.totalByteLength(), (buffer, offset) -> {
-                    cmd.wrapWriteBuffer(buffer, offset).set(ctxSeq, cmd.getTimestamp(), cmd.getUserId(), cmd.getAssetId(), cmd.getAmount());
-                });
-            }
+        AbstractSbeModel cmd = switch (msgType) {
+            case MsgType.AUTH         -> ctx.getAuthCommand();
+            case MsgType.ORDER_CREATE  -> ctx.getOrderCreateCommand();
+            case MsgType.ORDER_CANCEL  -> ctx.getOrderCancelCommand();
+            case MsgType.DEPOSIT      -> ctx.getDepositCommand();
+            default -> null;
+        };
+
+        if (cmd != null) {
+            final int payloadLen = cmd.totalByteLength();
+            this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
+                UNSAFE.copyMemory(addr, buffer.addressOffset() + offset, (long) payloadLen);
+                buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
+            });
+            bytes.readSkip((long) payloadLen);
         }
     }
 }

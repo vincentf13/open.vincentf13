@@ -14,18 +14,17 @@ import org.agrona.concurrent.UnsafeBuffer;
 
 /**
  * 統一 SBE 模型基類 (Unified Off-Heap View)
- * 職責：作為堆外內存的 Flyweight 視圖，提供零拷貝的編解碼與序列化能力。
  */
 @Data
 public abstract class AbstractSbeModel implements BytesMarshallable {
-    protected static final int TYPE_SIZE = 4;
-    protected static final int SEQ_SIZE = 8;
-    protected static final int SBE_HEADER_SIZE = 8;
+    public static final int TYPE_SIZE = 4;
+    public static final int SEQ_SIZE = 8;
+    public static final int SBE_HEADER_SIZE = 8;
     
-    protected static final int TYPE_OFFSET = 0;
-    protected static final int SEQ_OFFSET = TYPE_OFFSET + TYPE_SIZE;
-    protected static final int SBE_HEADER_OFFSET = SEQ_OFFSET + SEQ_SIZE;
-    protected static final int BODY_OFFSET = SBE_HEADER_OFFSET + SBE_HEADER_SIZE;
+    public static final int TYPE_OFFSET = 0;
+    public static final int SEQ_OFFSET = TYPE_OFFSET + TYPE_SIZE;
+    public static final int SBE_HEADER_OFFSET = SEQ_OFFSET + SEQ_SIZE;
+    public static final int BODY_OFFSET = SBE_HEADER_OFFSET + SBE_HEADER_SIZE;
 
     @Getter(AccessLevel.PROTECTED)
     protected final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(0, 0);
@@ -34,24 +33,31 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     protected final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     protected final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
-    /**
-     * 包裝來自 Aeron 的數據緩衝區 (讀取模式)
-     * 
-     * @param srcBuffer Aeron 傳入的原始緩衝區
-     * @param offset    起始偏移量
-     * @param length    消息總長度
+    /** 
+     * 包裝來自 Aeron 的數據緩衝區 
      */
     public void wrapAeronReadBuffer(DirectBuffer srcBuffer, int offset, int length) {
         this.unsafeBuffer.wrap(srcBuffer, offset, length);
         refreshDecoder();
     }
 
-    /** 獲取消息類型 */
+    /** 
+     * 安全包裝堆外地址
+     * 將模型視圖對準指定的內存地址，並自動處理 long 到 int 的邊界縮放與解碼器重包裝。
+     * 
+     * @param address 堆外內存絕對地址
+     * @param length  消息長度 (long)，內部會安全轉為 int
+     */
+    public void wrap(long address, long length) {
+        // 安全強轉：確保長度不會超過 UnsafeBuffer 的 int 限制
+        int safeLength = (int) Math.min(length, Integer.MAX_VALUE);
+        this.unsafeBuffer.wrap(address, safeLength);
+        refreshDecoder();
+    }
+
     public int getMsgType() { return unsafeBuffer.getInt(TYPE_OFFSET); }
-    /** 獲取序列號 */
     public long getSeq() { return unsafeBuffer.getLong(SEQ_OFFSET); }
 
-    /** 刷新內部解碼器狀態 */
     protected void refreshDecoder() {
         if (unsafeBuffer.capacity() >= BODY_OFFSET) {
             headerDecoder.wrap(unsafeBuffer, SBE_HEADER_OFFSET);
@@ -59,7 +65,6 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
         }
     }
 
-    /** 填充消息頭部 (MsgType + Seq + SBE Header) */
     protected void fillHeader(int msgType, long sequence, int templateId, int blockLength, int schemaId, int version) {
         unsafeBuffer.putInt(TYPE_OFFSET, msgType);
         unsafeBuffer.putLong(SEQ_OFFSET, sequence);
@@ -67,10 +72,7 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
                 .templateId(templateId).blockLength(blockLength).schemaId(schemaId).version(version);
     }
 
-    /** 安裝（重新包裝）具體的業務 SBE 解碼器 */
     protected abstract void decoderReWrap(DirectBuffer buffer, int offset, int blockLength, int version);
-    
-    /** 內存總長度 */
     public abstract int totalByteLength();
 
     @Override
@@ -82,9 +84,8 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     @Override
     public void readMarshallable(BytesIn<?> bytes) {
         long addr = bytes.addressForRead(bytes.readPosition());
-        int len = (int) bytes.readRemaining(); 
-        this.unsafeBuffer.wrap(addr, len);
-        refreshDecoder();
+        long len = bytes.readRemaining(); 
+        wrap(addr, len);
         bytes.readSkip(len);
     }
 }

@@ -4,6 +4,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import lombok.extern.slf4j.Slf4j;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
@@ -16,7 +17,7 @@ import org.agrona.MutableDirectBuffer;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 網關 WebSocket 指令處理器 (Unified Model Edition)
+ 網關 WebSocket 指令處理器 (TPS 性能極限版)
  */
 @Slf4j
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
@@ -51,39 +52,42 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
         if (holder.getOp() == null) return;
 
-        // 使用執行緒私有的 scratchBuffer 解決併發問題
         final MutableDirectBuffer scratch = context.getScratchBuffer().wrapForWrite();
 
         switch (holder.getOp()) {
             case "auth" -> {
                 sessionManager.addSession(holder.getUserId(), ctx.channel());
                 AuthCommand cmd = context.getAuthCommand();
-                cmd.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
-                writeCommand(MsgType.AUTH, cmd);
+                cmd.wrapWriteBuffer(scratch, 0);
+                cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
+                writeRaw(cmd);
             }
             case "order_create" -> {
                 Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? Side.BUY : Side.SELL;
                 OrderCreateCommand cmd = context.getOrderCreateCommand();
-                cmd.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
-                writeCommand(MsgType.ORDER_CREATE, cmd);
+                cmd.wrapWriteBuffer(scratch, 0);
+                cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
+                writeRaw(cmd);
             }
             case "order_cancel" -> {
                 OrderCancelCommand cmd = context.getOrderCancelCommand();
-                cmd.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
-                writeCommand(MsgType.ORDER_CANCEL, cmd);
+                cmd.wrapWriteBuffer(scratch, 0);
+                cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
+                writeRaw(cmd);
             }
             case "deposit" -> {
                 DepositCommand cmd = context.getDepositCommand();
-                cmd.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
-                writeCommand(MsgType.DEPOSIT, cmd);
+                cmd.wrapWriteBuffer(scratch, 0);
+                cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
+                writeRaw(cmd);
             }
         }
     }
 
-    private void writeCommand(int msgType, AbstractSbeModel model) {
+    private void writeRaw(AbstractSbeModel model) {
         try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
-            dc.wire().write(ChronicleWireKey.msgType).int32(msgType);
-            dc.wire().write(ChronicleWireKey.payload).bytesMarshallable(model);
+            Bytes<?> bytes = dc.wire().bytes();
+            bytes.write(model.getPointerBytesStore());
         }
     }
 

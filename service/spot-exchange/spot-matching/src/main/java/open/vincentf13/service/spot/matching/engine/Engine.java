@@ -17,7 +17,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎執行緒 (Engine Orchestrator)
- 職責：管理引擎生命週期、進度追蹤與一致性檢查
  */
 @Slf4j
 @Component
@@ -43,23 +42,16 @@ public class Engine extends Worker {
 
     @Override
     protected void onStart() {
-        // 1. 恢復系統狀態 (快照 + 元數據)
         final boolean recoveredFromSnapshot = snapshotService.recoverFromLatestSnapshot();
-        
-        // 2. 校準與元數據載入
         if (!recoveredFromSnapshot) {
             log.info("未發現有效快照，執行全量數據校準與索引重建...");
             ledger.rebuildAssetIndexes();
             OrderBook.rebuildActiveOrdersIndexes();
             orderProcessor.coldStartRebuild();
         }
-        
         loadMetadata();
-
-        // 3. 位點對齊與自愈模式設定
         this.tailer = engineReceiverWal.createTailer();
         alignTailer();
-        
         log.info("Engine 啟動完成，當前模式: {}", isReplaying ? "REPLAYING" : "REAL-TIME");
     }
 
@@ -70,10 +62,9 @@ public class Engine extends Worker {
 
     private void onWalMessage(WireIn wire) {
         final long index = tailer.index();
-        final int msgType = wire.read(ChronicleWireKey.msgType).int32();
         
-        // 1. 指令路由 (核心業務執行)
-        final long gwSeq = router.route(msgType, wire, progress, isReplaying, this::nextOrderId, this::nextTradeId);
+        // 1. 指令路由 (核心業務執行) - 改為 Raw 模式
+        final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
 
         // 2. 引擎狀態演進與連續性檢查
         updateMode(index, gwSeq);
@@ -123,9 +114,7 @@ public class Engine extends Worker {
     private void handlePersistence(long index, long gwSeq) {
         progress.setLastProcessedIndex(index);
         progress.setLastProcessedMsgSeq(gwSeq);
-
         if (index % 100 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
-
         if (!isReplaying && gwSeq != MSG_SEQ_NONE && gwSeq - lastSnapshotSeq >= 100_000) {
             snapshotService.createSnapshot(progress);
             lastSnapshotSeq = gwSeq;
