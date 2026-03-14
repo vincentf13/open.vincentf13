@@ -9,6 +9,7 @@ import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.*;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -35,8 +36,8 @@ public class AeronSender extends AbstractAeronSender {
         final Bytes<?> bytes = wire.bytes();
         if (bytes.readRemaining() < (long) AbstractSbeModel.BODY_OFFSET) return;
 
-        final long addr = bytes.addressForRead(bytes.readPosition());
-        final int msgType = UNSAFE.getInt(addr); // 正確讀取 MsgType
+        final long addressForRead = bytes.addressForRead(bytes.readPosition());
+        final int msgType = UNSAFE.getInt(addressForRead);
         
         final ThreadContext ctx = ThreadContext.get();
         
@@ -51,7 +52,7 @@ public class AeronSender extends AbstractAeronSender {
         if (cmd != null) {
             final int payloadLen = cmd.totalByteLength();
             this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
-                UNSAFE.copyMemory(addr, buffer.addressOffset() + offset, (long) payloadLen);
+                UNSAFE.copyMemory(addressForRead, buffer.addressOffset() + offset, (long) payloadLen);
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
             bytes.readSkip((long) payloadLen);

@@ -33,23 +33,17 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     protected final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     protected final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
-    /** 
-     * 包裝來自 Aeron 的數據緩衝區 
-     */
+    /** 包裝來自 Aeron 的數據緩衝區 */
     public void wrapAeronReadBuffer(DirectBuffer srcBuffer, int offset, int length) {
         this.unsafeBuffer.wrap(srcBuffer, offset, length);
         refreshDecoder();
     }
 
     /** 
-     * 安全包裝堆外地址
-     * 將模型視圖對準指定的內存地址，並自動處理 long 到 int 的邊界縮放與解碼器重包裝。
-     * 
-     * @param address 堆外內存絕對地址
-     * @param length  消息長度 (long)，內部會安全轉為 int
+     * 通用包裝：對準某個堆外地址
+     * 內部自動處理解碼器狀態更新。
      */
     public void wrap(long address, long length) {
-        // 安全強轉：確保長度不會超過 UnsafeBuffer 的 int 限制
         int safeLength = (int) Math.min(length, Integer.MAX_VALUE);
         this.unsafeBuffer.wrap(address, safeLength);
         refreshDecoder();
