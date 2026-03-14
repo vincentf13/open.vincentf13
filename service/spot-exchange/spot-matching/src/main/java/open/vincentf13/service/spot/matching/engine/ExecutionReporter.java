@@ -27,30 +27,30 @@ public class ExecutionReporter implements AutoCloseable {
 
     public void reportAccepted(Order taker) {
         if (isReplaying) return;
-        final OrderAcceptedReport report = ThreadContext.get().getOrderAcceptedReport();
-        report.encode(scratch, 0, taker.getLastSeq(), System.currentTimeMillis(), taker.getUserId(), taker.getOrderId(), taker.getClientOrderId());
+        final ExecutionReport report = ThreadContext.get().getExecutionReport();
+        report.encode(scratch, 0, MsgType.ORDER_ACCEPTED, taker.getLastSeq(), System.currentTimeMillis(), taker.getUserId(), taker.getOrderId(), OrderStatus.NEW, 0, 0, 0, 0, taker.getClientOrderId());
         sendReport(MsgType.ORDER_ACCEPTED, report);
     }
 
     public void reportRejected(long userId, long clientOrderId) {
         if (isReplaying) return;
-        final OrderRejectedReport report = ThreadContext.get().getOrderRejectedReport();
-        report.encode(scratch, 0, MSG_SEQ_NONE, System.currentTimeMillis(), userId, clientOrderId);
+        final ExecutionReport report = ThreadContext.get().getExecutionReport();
+        report.encode(scratch, 0, MsgType.ORDER_REJECTED, MSG_SEQ_NONE, System.currentTimeMillis(), userId, 0, OrderStatus.REJECTED, 0, 0, 0, 0, clientOrderId);
         sendReport(MsgType.ORDER_REJECTED, report);
     }
 
     public void reportCanceled(Order order) {
         if (isReplaying) return;
-        final OrderCanceledReport report = ThreadContext.get().getOrderCanceledReport();
-        report.encode(scratch, 0, order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), order.getFilled(), order.getClientOrderId());
+        final ExecutionReport report = ThreadContext.get().getExecutionReport();
+        report.encode(scratch, 0, MsgType.ORDER_CANCELED, order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), OrderStatus.CANCELED, 0, 0, order.getFilled(), 0, order.getClientOrderId());
         sendReport(MsgType.ORDER_CANCELED, report);
     }
 
     public void reportTrade(Order order, long price, long qty) {
         if (isReplaying) return;
-        final OrderMatchReport report = ThreadContext.get().getOrderMatchReport();
+        final ExecutionReport report = ThreadContext.get().getExecutionReport();
         OrderStatus st = order.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
-        report.encode(scratch, 0, order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), st, price, qty, order.getFilled(), price, order.getClientOrderId());
+        report.encode(scratch, 0, MsgType.ORDER_MATCHED, order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), st, price, qty, order.getFilled(), price, order.getClientOrderId());
         sendReport(MsgType.ORDER_MATCHED, report);
     }
 

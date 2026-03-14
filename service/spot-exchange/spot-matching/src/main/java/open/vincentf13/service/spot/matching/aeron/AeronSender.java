@@ -49,10 +49,10 @@ public class AeronSender extends AbstractAeronSender {
                 });
             }
             case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
-                OrderMatchReport report = ctx.getOrderMatchReport();
+                ExecutionReport report = ctx.getExecutionReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 this.backPressureCount += aeronClient.send(report.encodedLength(), (buffer, offset) -> {
-                    report.encode(buffer, offset, ctxSeq, report.getTimestamp(), report.getUserId(), report.getOrderId(), 
+                    report.encode(buffer, offset, ctxMsgType, ctxSeq, report.getTimestamp(), report.getUserId(), report.getOrderId(), 
                                   report.getStatus(), report.getLastPrice(), report.getLastQty(), report.getCumQty(), report.getAvgPrice(), report.getClientOrderId());
                 });
             }

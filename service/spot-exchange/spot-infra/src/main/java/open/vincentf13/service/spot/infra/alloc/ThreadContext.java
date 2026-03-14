@@ -7,7 +7,6 @@ import open.vincentf13.service.spot.model.command.*;
 
 /**
  * 執行緒上下文總管 (Thread-Local Context Hub)
- * 職責：維護執行緒專屬的資源與 Flyweight 模型對象池
  */
 public class ThreadContext {
     private static final ThreadLocal<ThreadContext> INSTANCE = ThreadLocal.withInitial(ThreadContext::new);
@@ -29,7 +28,6 @@ public class ThreadContext {
     @Getter private final RequestHolder requestHolder = new RequestHolder();
     
     // --- 業務模型 (Flyweight / 池化物件) ---
-    // 這些模型不再依賴內部的 SBE 工具，而是直接作為內存視圖使用
     private AuthCommand authCommand;
     private OrderCreateCommand orderCreateCommand;
     private OrderCancelCommand orderCancelCommand;
@@ -37,10 +35,7 @@ public class ThreadContext {
 
     private AuthReport authReport;
     private DepositReport depositReport;
-    private OrderAcceptedReport orderAcceptedReport;
-    private OrderRejectedReport orderRejectedReport;
-    private OrderCanceledReport orderCanceledReport;
-    private OrderMatchReport orderMatchReport;
+    private ExecutionReport executionReport; // 統一回報對象
 
     // --- 緩衝物件 ---
     @Getter private final Order reusableOrder = new Order();
@@ -52,10 +47,7 @@ public class ThreadContext {
 
     public AuthReport getAuthReport() { if (authReport == null) authReport = new AuthReport(); return authReport; }
     public DepositReport getDepositReport() { if (depositReport == null) depositReport = new DepositReport(); return depositReport; }
-    public OrderAcceptedReport getOrderAcceptedReport() { if (orderAcceptedReport == null) orderAcceptedReport = new OrderAcceptedReport(); return orderAcceptedReport; }
-    public OrderRejectedReport getOrderRejectedReport() { if (orderRejectedReport == null) orderRejectedReport = new OrderRejectedReport(); return orderRejectedReport; }
-    public OrderCanceledReport getOrderCanceledReport() { if (orderCanceledReport == null) orderCanceledReport = new OrderCanceledReport(); return orderCanceledReport; }
-    public OrderMatchReport getOrderMatchReport() { if (orderMatchReport == null) orderMatchReport = new OrderMatchReport(); return orderMatchReport; }
+    public ExecutionReport getExecutionReport() { if (executionReport == null) executionReport = new ExecutionReport(); return executionReport; }
 
     private ThreadContext() {}
 

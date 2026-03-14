@@ -11,10 +11,7 @@ import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.model.command.AuthReport;
-import open.vincentf13.service.spot.model.command.DepositReport;
-import open.vincentf13.service.spot.model.command.OrderMatchReport;
-import open.vincentf13.service.spot.sbe.ExecutionReportDecoder;
+import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +22,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  訊息推送器 (Push Worker)
- 職責：讀取回報 WAL 並異步推送到客戶端 WebSocket
  */
 @Slf4j
 @Component
@@ -37,7 +33,7 @@ public class PushWorker extends Worker {
     
     private ExcerptTailer tailer;
 
-    private static final String[] ORDER_STATUS_STRINGS = {"NEW", "FILLED", "PARTIALLY_FILLED", "CANCELED", "REJECTED"};
+    private static final String[] ORDER_STATUS_STRINGS = {"NEW", "PARTIALLY_FILLED", "FILLED", "CANCELED", "REJECTED"};
 
     private final net.openhft.chronicle.wire.ReadMarshallable walReader = this::onWalMessage;
 
@@ -72,7 +68,7 @@ public class PushWorker extends Worker {
             case MsgType.AUTH_REPORT -> {
                 AuthReport report = ctx.getAuthReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                handleAuthReport(report.getUserId());
+                log.info("用戶認證成功回報: {}", report.getUserId());
             }
             case MsgType.DEPOSIT_REPORT -> {
                 DepositReport report = ctx.getDepositReport();
@@ -80,59 +76,41 @@ public class PushWorker extends Worker {
                 handleDepositReport(report);
             }
             case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
-                OrderMatchReport report = ctx.getOrderMatchReport();
+                ExecutionReport report = ctx.getExecutionReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
-                
                 handleExecutionReport(report);
             }
         }
     }
 
-    private void handleAuthReport(long userId) {
-        log.info("用戶認證成功回報: {}", userId);
-    }
-
     private void handleDepositReport(DepositReport report) {
         final long userId = report.getUserId();
-        final int assetId = report.getAssetId();
-        final long amount = report.getAmount();
-
         stripedPool[(int)(userId % threadCount)].execute(() -> {
             PushEvent event = new PushEvent();
             event.setUserId(userId);
             event.setStatus("DEPOSIT_SUCCESS");
-            // 擴展 PushEvent 以包含資產訊息
-            
             JsonUtil.Envelope env = new JsonUtil.Envelope("deposit", event);
             String json = JsonUtil.toJson(env);
-            
             final ByteBuf nettyBuf = PooledByteBufAllocator.DEFAULT.directBuffer();
             nettyBuf.writeBytes(json.getBytes());
             sessionManager.sendMessage(userId, nettyBuf);
         });
     }
 
-    private void handleExecutionReport(open.vincentf13.service.spot.model.command.AbstractExecutionReport report) {
-        final long orderId = report.getOrderId();
+    private void handleExecutionReport(ExecutionReport report) {
         final long userId = report.getUserId();
         final int statusOrdinal = report.getStatus().ordinal();
-        final long clientOrderId = report.getClientOrderId();
         final String statusStr = (statusOrdinal >= 0 && statusOrdinal < ORDER_STATUS_STRINGS.length) ? 
                 ORDER_STATUS_STRINGS[statusOrdinal] : "UNKNOWN";
 
-        final int tc = threadCount;
-        final ExecutorService[] pools = stripedPool;
-
-        pools[(int)(userId % tc)].execute(() -> {
+        stripedPool[(int)(userId % threadCount)].execute(() -> {
             PushEvent event = new PushEvent();
-            event.setOrderId(orderId);
+            event.setOrderId(report.getOrderId());
             event.setStatus(statusStr);
-            event.setCid(clientOrderId);
+            event.setCid(report.getClientOrderId());
             event.setUserId(userId);
-
             JsonUtil.Envelope env = new JsonUtil.Envelope("execution", event);
             String json = JsonUtil.toJson(env);
-            
             final ByteBuf nettyBuf = PooledByteBufAllocator.DEFAULT.directBuffer();
             nettyBuf.writeBytes(json.getBytes());
             sessionManager.sendMessage(userId, nettyBuf);

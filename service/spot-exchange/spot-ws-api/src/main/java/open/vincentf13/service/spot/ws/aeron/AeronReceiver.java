@@ -46,7 +46,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
                 writeReport(msgType, report);
             }
             case MsgType.ORDER_ACCEPTED, MsgType.ORDER_REJECTED, MsgType.ORDER_CANCELED, MsgType.ORDER_MATCHED -> {
-                OrderMatchReport report = ctx.getOrderMatchReport();
+                ExecutionReport report = ctx.getExecutionReport();
                 report.wrap(buffer, offset, length);
                 writeReport(msgType, report);
             }
