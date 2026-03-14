@@ -103,20 +103,6 @@ public class OrderProcessor {
                 // 發送 Maker 回報 (成交)
                 reporter.reportTrade(maker, price, quantity);
             }
-
-            @Override
-            public void onSTP(Order maker, long gatewaySequence) {
-                // 自成交預防：計算剩餘量解凍
-                long makerRemainingQty = maker.getQty() - maker.getFilled();
-                long makerUnfreezeAmount = (maker.getSide() == OrderSide.BUY) ? makerRemainingQty * maker.getPrice() : makerRemainingQty;
-                int makerAssetId = (maker.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
-                ledger.unfreezeBalance(maker.getUserId(), makerAssetId, makerUnfreezeAmount, gatewaySequence);
-                
-                maker.setStatus((byte) OrderStatus.CANCELED.ordinal());
-                orders.put(maker.getOrderId(), maker);
-                
-                reporter.reportCanceled(maker);
-            }
         });
 
         // 3. 獲取 Taker 最終狀態並發報

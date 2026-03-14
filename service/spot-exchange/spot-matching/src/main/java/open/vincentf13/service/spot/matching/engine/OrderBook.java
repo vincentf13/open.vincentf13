@@ -68,8 +68,6 @@ public class OrderBook {
 
     public interface TradeFinalizer {
         void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset);
-        /** 新增：自成交預防回調 */
-        void onSTP(Order maker, long gwSeq);
     }
 
     private OrderBook(int symbolId, int baseAssetId, int quoteAssetId) {
@@ -218,18 +216,6 @@ public class OrderBook {
                 Order maker = makers.peekFirst();
                 if (!orderIndex.containsKey(maker.getOrderId())) {
                     releaseOrder(makers.pollFirst()); continue;
-                }
-
-                // --- 核心修正：自成交預防 (STP) ---
-                if (maker.getUserId() == takerUserId) {
-                    log.info("觸發 STP：用戶 {} 嘗試與自己的訂單 {} 成交。執行「取消舊單」策略。", takerUserId, maker.getOrderId());
-                    // 1. 從索引中移除
-                    orderIndex.remove(maker.getOrderId());
-                    // 2. 從佇列中移除
-                    makers.pollFirst();
-                    // 3. 觸發外部撤單邏輯 (資金解凍與回報)
-                    finalizer.onSTP(maker, gwSeq);
-                    continue; // 繼續嘗試與下一個 maker 撮合
                 }
 
                 long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
