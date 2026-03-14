@@ -16,15 +16,15 @@ public class OrderCancelCommand extends AbstractSbeModel {
     private final OrderCancelEncoder encoder = new OrderCancelEncoder();
     private final OrderCancelDecoder decoder = new OrderCancelDecoder();
 
-    @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
+    @Override protected void decoderReWrap(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public OrderCancelCommand write(MutableDirectBuffer dstBuffer, int offset) {
+    public OrderCancelCommand wrapWriteBuffer(MutableDirectBuffer dstBuffer, int offset) {
         this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, long orderId) {
-        fillCommonHeader(MsgType.ORDER_CANCEL, seq, OrderCancelEncoder.TEMPLATE_ID, OrderCancelEncoder.BLOCK_LENGTH, OrderCancelEncoder.SCHEMA_ID, OrderCancelEncoder.SCHEMA_VERSION);
+        fillHeader(MsgType.ORDER_CANCEL, seq, OrderCancelEncoder.TEMPLATE_ID, OrderCancelEncoder.BLOCK_LENGTH, OrderCancelEncoder.SCHEMA_ID, OrderCancelEncoder.SCHEMA_VERSION);
         encoder.wrap(unsafeBuffer, BODY_OFFSET).timestamp(timestamp).userId(userId).orderId(orderId);
         refreshDecoder();
     }

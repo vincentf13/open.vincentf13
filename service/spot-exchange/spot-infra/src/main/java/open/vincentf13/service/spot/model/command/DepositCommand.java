@@ -16,15 +16,15 @@ public class DepositCommand extends AbstractSbeModel {
     private final DepositEncoder encoder = new DepositEncoder();
     private final DepositDecoder decoder = new DepositDecoder();
 
-    @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
+    @Override protected void decoderReWrap(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public DepositCommand write(MutableDirectBuffer dstBuffer, int offset) {
+    public DepositCommand wrapWriteBuffer(MutableDirectBuffer dstBuffer, int offset) {
         this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, int assetId, long amount) {
-        fillCommonHeader(MsgType.DEPOSIT, seq, DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
+        fillHeader(MsgType.DEPOSIT, seq, DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
         encoder.wrap(unsafeBuffer, BODY_OFFSET).timestamp(timestamp).userId(userId).assetId(assetId).amount(amount);
         refreshDecoder();
     }

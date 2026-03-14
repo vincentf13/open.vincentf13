@@ -56,23 +56,23 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             case "auth" -> {
                 sessionManager.addSession(holder.getUserId(), ctx.channel());
                 AuthCommand cmd = context.getAuthCommand();
-                cmd.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
+                cmd.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
                 writeCommand(MsgType.AUTH, cmd);
             }
             case "order_create" -> {
                 Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? Side.BUY : Side.SELL;
                 OrderCreateCommand cmd = context.getOrderCreateCommand();
-                cmd.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
+                cmd.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
                 writeCommand(MsgType.ORDER_CREATE, cmd);
             }
             case "order_cancel" -> {
                 OrderCancelCommand cmd = context.getOrderCancelCommand();
-                cmd.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
+                cmd.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
                 writeCommand(MsgType.ORDER_CANCEL, cmd);
             }
             case "deposit" -> {
                 DepositCommand cmd = context.getDepositCommand();
-                cmd.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
+                cmd.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
                 writeCommand(MsgType.DEPOSIT, cmd);
             }
         }

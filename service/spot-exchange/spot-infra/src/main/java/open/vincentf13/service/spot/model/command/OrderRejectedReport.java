@@ -17,15 +17,15 @@ public class OrderRejectedReport extends AbstractSbeModel {
     private final OrderRejectedEncoder encoder = new OrderRejectedEncoder();
     private final OrderRejectedDecoder decoder = new OrderRejectedDecoder();
 
-    @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
+    @Override protected void decoderReWrap(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public OrderRejectedReport write(MutableDirectBuffer dstBuffer, int offset) {
+    public OrderRejectedReport wrapWriteBuffer(MutableDirectBuffer dstBuffer, int offset) {
         this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, long clientOrderId) {
-        fillCommonHeader(MsgType.ORDER_REJECTED, seq, OrderRejectedEncoder.TEMPLATE_ID, OrderRejectedEncoder.BLOCK_LENGTH, OrderRejectedEncoder.SCHEMA_ID, OrderRejectedEncoder.SCHEMA_VERSION);
+        fillHeader(MsgType.ORDER_REJECTED, seq, OrderRejectedEncoder.TEMPLATE_ID, OrderRejectedEncoder.BLOCK_LENGTH, OrderRejectedEncoder.SCHEMA_ID, OrderRejectedEncoder.SCHEMA_VERSION);
         encoder.wrap(unsafeBuffer, BODY_OFFSET).timestamp(timestamp).userId(userId).clientOrderId(clientOrderId);
         refreshDecoder();
     }

@@ -17,15 +17,15 @@ public class OrderMatchReport extends AbstractSbeModel {
     private final OrderMatchedEncoder encoder = new OrderMatchedEncoder();
     private final OrderMatchedDecoder decoder = new OrderMatchedDecoder();
 
-    @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
+    @Override protected void decoderReWrap(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public OrderMatchReport write(MutableDirectBuffer dstBuffer, int offset) {
+    public OrderMatchReport wrapWriteBuffer(MutableDirectBuffer dstBuffer, int offset) {
         this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, long orderId, OrderStatus status, long lastPrice, long lastQty, long cumQty, long avgPrice, long clientOrderId) {
-        fillCommonHeader(MsgType.ORDER_MATCHED, seq, OrderMatchedEncoder.TEMPLATE_ID, OrderMatchedEncoder.BLOCK_LENGTH, OrderMatchedEncoder.SCHEMA_ID, OrderMatchedEncoder.SCHEMA_VERSION);
+        fillHeader(MsgType.ORDER_MATCHED, seq, OrderMatchedEncoder.TEMPLATE_ID, OrderMatchedEncoder.BLOCK_LENGTH, OrderMatchedEncoder.SCHEMA_ID, OrderMatchedEncoder.SCHEMA_VERSION);
         encoder.wrap(unsafeBuffer, BODY_OFFSET).timestamp(timestamp).userId(userId).orderId(orderId).status(status).lastPrice(lastPrice).lastQty(lastQty).cumQty(cumQty).avgPrice(avgPrice).clientOrderId(clientOrderId);
         refreshDecoder();
     }

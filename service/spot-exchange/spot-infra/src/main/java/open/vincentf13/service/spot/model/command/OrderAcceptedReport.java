@@ -17,15 +17,15 @@ public class OrderAcceptedReport extends AbstractSbeModel {
     private final OrderAcceptedEncoder encoder = new OrderAcceptedEncoder();
     private final OrderAcceptedDecoder decoder = new OrderAcceptedDecoder();
 
-    @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
+    @Override protected void decoderReWrap(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public OrderAcceptedReport write(MutableDirectBuffer dstBuffer, int offset) {
+    public OrderAcceptedReport wrapWriteBuffer(MutableDirectBuffer dstBuffer, int offset) {
         this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, long orderId, long clientOrderId) {
-        fillCommonHeader(MsgType.ORDER_ACCEPTED, seq, OrderAcceptedEncoder.TEMPLATE_ID, OrderAcceptedEncoder.BLOCK_LENGTH, OrderAcceptedEncoder.SCHEMA_ID, OrderAcceptedEncoder.SCHEMA_VERSION);
+        fillHeader(MsgType.ORDER_ACCEPTED, seq, OrderAcceptedEncoder.TEMPLATE_ID, OrderAcceptedEncoder.BLOCK_LENGTH, OrderAcceptedEncoder.SCHEMA_ID, OrderAcceptedEncoder.SCHEMA_VERSION);
         encoder.wrap(unsafeBuffer, BODY_OFFSET).timestamp(timestamp).userId(userId).orderId(orderId).clientOrderId(clientOrderId);
         refreshDecoder();
     }

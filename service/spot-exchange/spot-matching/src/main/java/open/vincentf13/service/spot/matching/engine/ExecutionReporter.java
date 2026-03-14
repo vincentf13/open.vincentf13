@@ -28,21 +28,21 @@ public class ExecutionReporter implements AutoCloseable {
     public void reportAccepted(Order taker) {
         if (isReplaying) return;
         final OrderAcceptedReport report = ThreadContext.get().getOrderAcceptedReport();
-        report.write(scratch, 0).set(taker.getLastSeq(), System.currentTimeMillis(), taker.getUserId(), taker.getOrderId(), taker.getClientOrderId());
+        report.wrapWriteBuffer(scratch, 0).set(taker.getLastSeq(), System.currentTimeMillis(), taker.getUserId(), taker.getOrderId(), taker.getClientOrderId());
         sendReport(MsgType.ORDER_ACCEPTED, report);
     }
 
     public void reportRejected(long userId, long clientOrderId) {
         if (isReplaying) return;
         final OrderRejectedReport report = ThreadContext.get().getOrderRejectedReport();
-        report.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), userId, clientOrderId);
+        report.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), userId, clientOrderId);
         sendReport(MsgType.ORDER_REJECTED, report);
     }
 
     public void reportCanceled(Order order) {
         if (isReplaying) return;
         final OrderCanceledReport report = ThreadContext.get().getOrderCanceledReport();
-        report.write(scratch, 0).set(order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), order.getFilled(), order.getClientOrderId());
+        report.wrapWriteBuffer(scratch, 0).set(order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), order.getFilled(), order.getClientOrderId());
         sendReport(MsgType.ORDER_CANCELED, report);
     }
 
@@ -50,21 +50,21 @@ public class ExecutionReporter implements AutoCloseable {
         if (isReplaying) return;
         final OrderMatchReport report = ThreadContext.get().getOrderMatchReport();
         OrderStatus st = order.getStatus() == 2 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
-        report.write(scratch, 0).set(order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), st, price, qty, order.getFilled(), price, order.getClientOrderId());
+        report.wrapWriteBuffer(scratch, 0).set(order.getLastSeq(), System.currentTimeMillis(), order.getUserId(), order.getOrderId(), st, price, qty, order.getFilled(), price, order.getClientOrderId());
         sendReport(MsgType.ORDER_MATCHED, report);
     }
 
     public void reportAuth(long userId) {
         if (isReplaying) return;
         final AuthReport report = ThreadContext.get().getAuthReport();
-        report.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), userId);
+        report.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), userId);
         sendReport(MsgType.AUTH_REPORT, report);
     }
 
     public void reportDeposit(long userId, int assetId, long amount) {
         if (isReplaying) return;
         final DepositReport report = ThreadContext.get().getDepositReport();
-        report.write(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), userId, assetId, amount);
+        report.wrapWriteBuffer(scratch, 0).set(MSG_SEQ_NONE, System.currentTimeMillis(), userId, assetId, amount);
         sendReport(MsgType.DEPOSIT_REPORT, report);
     }
 

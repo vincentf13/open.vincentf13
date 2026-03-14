@@ -9,22 +9,22 @@ import org.agrona.MutableDirectBuffer;
 
 import static open.vincentf13.service.spot.infra.Constants.MsgType;
 
-/** 統一格式充值回報 (使用 Deposit SBE 消息) */
+/** 統一格式充值回報 */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class DepositReport extends AbstractSbeModel {
     private final DepositEncoder encoder = new DepositEncoder();
     private final DepositDecoder decoder = new DepositDecoder();
 
-    @Override protected void wrapDecoder(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
+    @Override protected void decoderReWrap(DirectBuffer buffer, int offset, int blockLength, int version) { decoder.wrap(buffer, offset, blockLength, version); }
 
-    public DepositReport write(MutableDirectBuffer dstBuffer, int offset) {
+    public DepositReport wrapWriteBuffer(MutableDirectBuffer dstBuffer, int offset) {
         this.unsafeBuffer.wrap(dstBuffer, offset, totalByteLength());
         return this;
     }
 
     public void set(long seq, long timestamp, long userId, int assetId, long amount) {
-        fillCommonHeader(MsgType.DEPOSIT_REPORT, seq, DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
+        fillHeader(MsgType.DEPOSIT_REPORT, seq, DepositEncoder.TEMPLATE_ID, DepositEncoder.BLOCK_LENGTH, DepositEncoder.SCHEMA_ID, DepositEncoder.SCHEMA_VERSION);
         encoder.wrap(unsafeBuffer, BODY_OFFSET).timestamp(timestamp).userId(userId).assetId(assetId).amount(amount);
         refreshDecoder();
     }
