@@ -8,6 +8,7 @@ import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.util.OffHeapUtil;
 import org.agrona.DirectBuffer;
 import org.springframework.stereotype.Component;
 
@@ -36,8 +37,8 @@ public class AeronReceiver extends AbstractAeronReceiver {
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             Bytes<?> bytes = dc.wire().bytes();
             
-            // 來自 Aeron 的原始數據物理地址
-            final long aeronSrcAddress = buffer.addressOffset() + offset;
+            // 使用工具類獲取 Aeron 來源物理地址
+            final long aeronSrcAddress = OffHeapUtil.getAddress(buffer, offset);
             
             pointer.set(aeronSrcAddress, length);
             bytes.write(pointer);

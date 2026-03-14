@@ -8,6 +8,7 @@ import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.util.OffHeapUtil;
 import open.vincentf13.service.spot.model.command.*;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.springframework.stereotype.Component;
@@ -52,13 +53,10 @@ public class AeronSender extends AbstractAeronSender {
         if (cmd != null) {
             final int payloadLen = cmd.totalByteLength();
             this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
-                // Aeron 賦予的待寫入目標內存地址
-                final long aeronDstAddress = buffer.addressOffset() + offset;
+                // 使用工具類獲取目標地址並執行拷貝
+                final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
+                OffHeapUtil.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
                 
-                // 執行零拷貝物理內存轉移
-                UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
-                
-                // 在目標地址上更新 Sequence (網關序號)
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
             bytes.readSkip((long) payloadLen);
