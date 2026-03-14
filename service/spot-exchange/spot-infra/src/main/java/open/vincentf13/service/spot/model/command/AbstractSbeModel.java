@@ -14,6 +14,39 @@ import org.agrona.concurrent.UnsafeBuffer;
 
 /**
  * 統一 SBE 模型基類 (Unified Off-Heap View)
+ * <p>
+ * 本類別採用 Flyweight 模式，作為堆外內存的「視圖」。它不擁有內存，而是通過包裝既有內存地址來實現零拷貝編解碼。
+ * </p>
+ * 
+ * <h3>使用範例：</h3>
+ * 
+ * <b>1. 寫入模式 (Write Mode):</b>
+ * <pre>{@code
+ *     // 從池中獲取模型與緩衝區
+ *     OrderCreateCommand cmd = ctx.getOrderCreateCommand();
+ *     MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
+ *     
+ *     // 安裝目標緩衝區並鏈式賦值 (自動編碼 SBE)
+ *     cmd.wrapWriteBuffer(buffer, 0)
+ *        .set(sequence, timestamp, userId, symbolId, price, qty, side, clientOrderId);
+ *     
+ *     // 隨後可將 cmd 直接寫入 WAL (透過 writeMarshallable)
+ *     wal.acquireAppender().writeDocument(cmd);
+ * }</pre>
+ * 
+ * <b>2. 讀取模式 (Read Mode):</b>
+ * <pre>{@code
+ *     // 接收端拿到內存地址後
+ *     AbstractSbeModel model = ctx.getCommand(msgType);
+ *     model.wrap(address, length); // 對準地址，內部自動觸發 SBE 解碼
+ *     
+ *     // 直接透過模型 Getter 訪問字段
+ *     long userId = model.getUserId();
+ *     long price = model.getPrice();
+ * }</pre>
+ * 
+ * 內存佈局 (20 bytes Header):
+ * [0-3]   MsgType | [4-11]  Seq | [12-19] SBE Header | [20-...] Body
  */
 @Data
 public abstract class AbstractSbeModel implements BytesMarshallable {
@@ -33,15 +66,15 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     protected final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     protected final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
-    /** 包裝來自 Aeron 的數據緩衝區 */
+    /** 包裝來自 Aeron 的數據緩衝區 (讀取模式) */
     public void wrapAeronReadBuffer(DirectBuffer srcBuffer, int offset, int length) {
         this.unsafeBuffer.wrap(srcBuffer, offset, length);
         refreshDecoder();
     }
 
     /** 
-     * 通用包裝：對準某個堆外地址
-     * 內部自動處理解碼器狀態更新。
+     * 通用包裝：將模型視圖對準指定的堆外地址 (讀取模式) 
+     * 內部自動處理解碼器狀態刷新。
      */
     public void wrap(long address, long length) {
         int safeLength = (int) Math.min(length, Integer.MAX_VALUE);
