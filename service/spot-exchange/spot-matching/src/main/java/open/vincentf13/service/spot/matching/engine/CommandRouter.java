@@ -36,7 +36,6 @@ public class CommandRouter {
             case MsgType.AUTH -> {
                 AuthCommand cmd = ctx.getAuthCommand();
                 cmd.wrap(addressForRead, bytes.readRemaining());
-                ctx.setCurrentGatewaySequence(cmd.getSeq());
                 authProcessor.handleAuth(cmd.getUserId(), cmd.getSeq());
                 bytes.readSkip((long) cmd.totalByteLength());
                 yield cmd.getSeq();
@@ -44,7 +43,6 @@ public class CommandRouter {
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 cmd.wrap(addressForRead, bytes.readRemaining());
-                ctx.setCurrentGatewaySequence(cmd.getSeq());
                 orderProcessor.processCreateCommand(cmd.getUserId(), cmd.getSymbolId(), cmd.getPrice(), cmd.getQty(), cmd.getSide(), cmd.getClientOrderId(), cmd.getSeq(), orderIdSupplier, tradeIdSupplier);
                 bytes.readSkip((long) cmd.totalByteLength());
                 yield cmd.getSeq();
@@ -52,7 +50,6 @@ public class CommandRouter {
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 cmd.wrap(addressForRead, bytes.readRemaining());
-                ctx.setCurrentGatewaySequence(cmd.getSeq());
                 orderProcessor.processCancelCommand(cmd.getUserId(), cmd.getOrderId(), cmd.getSeq());
                 bytes.readSkip((long) cmd.totalByteLength());
                 yield cmd.getSeq();
@@ -60,7 +57,6 @@ public class CommandRouter {
             case MsgType.DEPOSIT -> {
                 DepositCommand cmd = ctx.getDepositCommand();
                 cmd.wrap(addressForRead, bytes.readRemaining());
-                ctx.setCurrentGatewaySequence(cmd.getSeq());
                 depositProcessor.handleDeposit(cmd.getUserId(), cmd.getAssetId(), cmd.getAmount(), cmd.getSeq());
                 bytes.readSkip((long) cmd.totalByteLength());
                 yield cmd.getSeq();

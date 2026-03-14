@@ -7,6 +7,7 @@ import open.vincentf13.service.spot.model.command.*;
 
 /**
  * 執行緒上下文總管 (Thread-Local Context Hub)
+ * 職責：維護執行緒專屬的資源與 Flyweight 模型對象池
  */
 public class ThreadContext {
     private static final ThreadLocal<ThreadContext> INSTANCE = ThreadLocal.withInitial(ThreadContext::new);
@@ -20,8 +21,6 @@ public class ThreadContext {
             INSTANCE.remove();
         }
     }
-
-    @Getter @lombok.Setter private long currentGatewaySequence = -1L;
 
     // --- 核心資源 ---
     @Getter private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
