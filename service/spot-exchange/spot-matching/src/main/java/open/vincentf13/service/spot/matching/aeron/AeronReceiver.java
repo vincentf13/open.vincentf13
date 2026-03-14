@@ -7,6 +7,7 @@ import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import org.agrona.DirectBuffer;
@@ -16,11 +17,11 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎 Aeron 接收器 (Raw WAL 寫入版)
+ 繼承自基類以獲得 RESUME 信號發送、Sequence 冪等檢查與連續性校驗能力
  */
 @Slf4j
 @Component
 public class AeronReceiver extends AbstractAeronReceiver {
-    private final PointerBytesStore pointer = new PointerBytesStore();
 
     public AeronReceiver(Aeron aeron) {
         super(aeron, Storage.self().engineReceiverWal(), Storage.self().msgProgressMetadata(),
@@ -33,13 +34,13 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     public void onMessage(DirectBuffer buffer, int offset, int length) {
-        // 直接寫入原始字節到 WAL，無 Wire Key
+        final ThreadContext ctx = ThreadContext.get();
+        final PointerBytesStore pointer = ctx.getReusablePointer();
+        
+        // 直接寫入原始字節到 WAL，無 Wire Key 開銷
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             Bytes<?> bytes = dc.wire().bytes();
-            
-            // 使用工具類獲取 Aeron 來源物理地址
             final long aeronSrcAddress = OffHeapUtil.getAddress(buffer, offset);
-            
             pointer.set(aeronSrcAddress, length);
             bytes.write(pointer);
         }

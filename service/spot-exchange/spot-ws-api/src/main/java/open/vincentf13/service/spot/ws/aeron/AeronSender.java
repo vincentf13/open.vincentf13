@@ -17,6 +17,7 @@ import static org.agrona.UnsafeAccess.UNSAFE;
 
 /** 
  網關 Aeron 發送器 (Raw WAL 讀取版)
+ 整合了基類的握手與位點跳轉能力
  */
 @Slf4j
 @Component
@@ -52,10 +53,10 @@ public class AeronSender extends AbstractAeronSender {
         if (cmd != null) {
             final int payloadLen = cmd.totalByteLength();
             this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
-                // 使用工具類獲取目標地址並執行拷貝
                 final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
-                OffHeapUtil.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
-                
+                // 零拷貝轉移
+                UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
+                // 覆蓋 Sequence，確保與 WAL Index 同步 (保證數據完備性)
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
             bytes.readSkip((long) payloadLen);
