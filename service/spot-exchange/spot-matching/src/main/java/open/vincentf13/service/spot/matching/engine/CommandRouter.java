@@ -1,7 +1,6 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import lombok.RequiredArgsConstructor;
-import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.model.WalProgress;
 import open.vincentf13.service.spot.model.command.*;

@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
-import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.alloc.aeron.AbstractAeronAlloc;
 import open.vincentf13.service.spot.infra.alloc.aeron.AeronAuth;
@@ -54,7 +53,7 @@ public class AeronSender extends AbstractAeronSender {
             case MsgType.AUTH -> {
                 AuthCommand cmd = ctx.getAuthCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
-                final long userId = SbeCodec.decodeAuth(cmd.getPointBytesStore()).userId();
+                final long userId = cmd.decode().userId();
                 
                 this.backPressureCount += aeronClient.send(AeronAuth.LENGTH, (buffer, offset) -> {
                     ctx.getAeronAuth().wrap(buffer, offset).write(ctxSeq, userId);
@@ -73,7 +72,7 @@ public class AeronSender extends AbstractAeronSender {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
-                var decoder = SbeCodec.decodeOrderCancel(cmd.getPointBytesStore());
+                var decoder = cmd.decode();
                 final long userId = decoder.userId();
                 final long orderId = decoder.orderId();
                 
@@ -85,7 +84,7 @@ public class AeronSender extends AbstractAeronSender {
                 DepositCommand cmd = ctx.getDepositCommand();
                 wire.read(ChronicleWireKey.payload).bytes(cmd);
                 
-                var decoder = SbeCodec.decodeDeposit(cmd.getPointBytesStore());
+                var decoder = cmd.decode();
                 final long userId = decoder.userId();
                 final int assetId = decoder.assetId();
                 final long amount = decoder.amount();

@@ -34,12 +34,13 @@ public class DataService {
     
     public List<Order> getOrders(long userId) {
         List<Order> results = new ArrayList<>();
-        String activeOrderIdsStr = Storage.self().userActiveOrders().get(userId);
+        byte[] activeOrderIdsBytes = Storage.self().userActiveOrders().get(userId);
         
-        if (activeOrderIdsStr == null || activeOrderIdsStr.isEmpty()) {
+        if (activeOrderIdsBytes == null || activeOrderIdsBytes.length == 0) {
             return results;
         }
 
+        String activeOrderIdsStr = new String(activeOrderIdsBytes, java.nio.charset.StandardCharsets.UTF_8);
         String[] orderIds = activeOrderIdsStr.split(",");
         for (String idStr : orderIds) {
             if (idStr.isEmpty()) continue;

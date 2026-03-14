@@ -15,7 +15,7 @@ public class OrderMatchReport extends AbstractSbeModel {
     private final ExecutionReportDecoder decoder = new ExecutionReportDecoder();
 
     public ExecutionReportDecoder decode() {
-        DirectBuffer buffer = wrapStore(pointBytesStore);
+        DirectBuffer buffer = wrapStore();
         headerDecoder.wrap(buffer, 0);
         return decoder.wrap(buffer, HEADER_SIZE, headerDecoder.blockLength(), headerDecoder.version());
     }
@@ -23,4 +23,14 @@ public class OrderMatchReport extends AbstractSbeModel {
     public void encode(long timestamp, long userId, long orderId, OrderStatus status, long lastPrice, long lastQty, long cumQty, long avgPrice, long clientOrderId) {
         encodeReport(timestamp, userId, orderId, status, lastPrice, lastQty, cumQty, avgPrice, clientOrderId);
     }
+
+    public long getTimestamp() { return decoder.timestamp(); }
+    public long getUserId() { return decoder.userId(); }
+    public long getOrderId() { return decoder.orderId(); }
+    public OrderStatus getStatus() { return decoder.status(); }
+    public long getLastPrice() { return decoder.lastPrice(); }
+    public long getLastQty() { return decoder.lastQty(); }
+    public long getCumQty() { return decoder.cumQty(); }
+    public long getAvgPrice() { return decoder.avgPrice(); }
+    public long getClientOrderId() { return decoder.clientOrderId(); }
 }

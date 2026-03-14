@@ -15,7 +15,7 @@ public class OrderRejectedReport extends AbstractSbeModel {
     private final ExecutionReportDecoder decoder = new ExecutionReportDecoder();
 
     public ExecutionReportDecoder decode() {
-        DirectBuffer buffer = wrapStore(pointBytesStore);
+        DirectBuffer buffer = wrapStore();
         headerDecoder.wrap(buffer, 0);
         return decoder.wrap(buffer, HEADER_SIZE, headerDecoder.blockLength(), headerDecoder.version());
     }
@@ -23,4 +23,9 @@ public class OrderRejectedReport extends AbstractSbeModel {
     public void encode(long timestamp, long userId, long clientOrderId) {
         encodeReport(timestamp, userId, 0, OrderStatus.REJECTED, 0, 0, 0, 0, clientOrderId);
     }
+
+    public long getTimestamp() { return decoder.timestamp(); }
+    public long getUserId() { return decoder.userId(); }
+    public OrderStatus getStatus() { return decoder.status(); }
+    public long getClientOrderId() { return decoder.clientOrderId(); }
 }

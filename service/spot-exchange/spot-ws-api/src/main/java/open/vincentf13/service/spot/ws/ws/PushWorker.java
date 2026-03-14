@@ -11,7 +11,6 @@ import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.alloc.SbeCodec;
 import open.vincentf13.service.spot.model.command.AuthReport;
 import open.vincentf13.service.spot.model.command.DepositReport;
 import open.vincentf13.service.spot.model.command.OrderMatchReport;
@@ -84,7 +83,7 @@ public class PushWorker extends Worker {
                 OrderMatchReport report = ctx.getOrderMatchReport();
                 wire.read(ChronicleWireKey.payload).bytes(report);
                 
-                final ExecutionReportDecoder decoder = SbeCodec.decodeExecutionReport(report.getPointBytesStore());
+                final ExecutionReportDecoder decoder = report.decode();
                 handleExecutionReport(decoder);
             }
         }
