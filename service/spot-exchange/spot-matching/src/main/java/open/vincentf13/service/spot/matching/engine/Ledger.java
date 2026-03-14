@@ -133,6 +133,34 @@ public class Ledger {
         updateAssetIndex(key.getUserId(), key.getAssetId());
     }
 
+    /** 
+      資產索引重建 (校準機制)
+      遍歷所有餘額表，重新計算並更新用戶的資產遮罩 (Bitmask)
+     */
+    public void rebuildAssetIndexes() {
+        log.info("--- 開始重建帳本資產索引 (Bitmask) ---");
+        // 1. 清理本地緩存
+        bitmaskCache.clear();
+        
+        // 2. 遍歷餘額表 (Chronicle Map)
+        balancesDiskMap.forEach((key, balance) -> {
+            if (balance.getAvailable() > 0 || balance.getFrozen() > 0) {
+                long userId = key.getUserId();
+                int assetId = key.getAssetId();
+                
+                if (assetId >= 0 && assetId < 64) {
+                    long mask = bitmaskCache.get(userId);
+                    long newMask = mask | (1L << assetId);
+                    if (mask != newMask) {
+                        bitmaskCache.put(userId, newMask);
+                        userAssetBitmaskDiskMap.put(userId, newMask);
+                    }
+                }
+            }
+        });
+        log.info("✅ 帳本資產索引重建完成。");
+    }
+
     private void updateAssetIndex(long userId, int assetId) {
         if (assetId < 0 || assetId >= 64) {
             log.warn("AssetId {} 超出位元遮罩範圍 (0-63)，該資產將不會出現在用戶資產索引中。", assetId);

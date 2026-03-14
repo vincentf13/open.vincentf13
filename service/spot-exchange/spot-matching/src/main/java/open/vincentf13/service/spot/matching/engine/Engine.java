@@ -28,6 +28,7 @@ public class Engine extends Worker {
 
     private final CommandRouter router;
     private final OrderProcessor orderProcessor;
+    private final Ledger ledger;
     private final ExecutionReporter reporter;
     private final SnapshotService snapshotService;
     
@@ -44,9 +45,18 @@ public class Engine extends Worker {
     protected void onStart() {
         // 1. 恢復系統狀態 (快照 + 元數據)
         final boolean recoveredFromSnapshot = snapshotService.recoverFromLatestSnapshot();
-        loadMetadata(recoveredFromSnapshot);
+        
+        // 2. 校準與元數據載入
+        if (!recoveredFromSnapshot) {
+            log.info("未發現有效快照，執行全量數據校準與索引重建...");
+            ledger.rebuildAssetIndexes();
+            OrderBook.rebuildActiveOrdersIndexes();
+            orderProcessor.coldStartRebuild();
+        }
+        
+        loadMetadata();
 
-        // 2. 位點對齊與自愈模式設定
+        // 3. 位點對齊與自愈模式設定
         this.tailer = engineReceiverWal.createTailer();
         alignTailer();
         
@@ -73,17 +83,16 @@ public class Engine extends Worker {
         handlePersistence(index, gwSeq);
     }
 
-    private void loadMetadata(boolean recoveredFromSnapshot) {
+    private void loadMetadata() {
         WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
         if (saved != null) {
             progress.copyFrom(saved);
             lastSnapshotSeq = progress.getLastProcessedMsgSeq();
             log.info("已加載元數據位點: Index={}, MsgSeq={}", progress.getLastProcessedIndex(), progress.getLastProcessedMsgSeq());
         } else {
-            log.warn("元數據不存在，執行冷啟動...");
+            log.warn("元數據不存在，重置進度位點。");
             progress.reset();
         }
-        if (!recoveredFromSnapshot) orderProcessor.coldStartRebuild();
     }
 
     private void alignTailer() {

@@ -200,6 +200,42 @@ public class OrderBook {
         });
     }
 
+    /**
+      活躍訂單索引重建 (校準機制)
+      遍歷所有訂單表，重新計算並更新 activeOrders 與 userActiveOrders
+     */
+    public static void rebuildActiveOrdersIndexes() {
+        log.info("--- 開始重建活躍訂單索引 ---");
+        ChronicleMap<Long, Order> allOrders = Storage.self().orders();
+        ChronicleMap<Long, Boolean> activeIds = Storage.self().activeOrders();
+        ChronicleMap<Long, byte[]> userActive = Storage.self().userActiveOrders();
+        
+        // 1. 清理舊索引
+        activeIds.clear();
+        userActive.clear();
+        
+        // 2. 遍歷訂單表
+        allOrders.forEach((id, order) -> {
+            if (order.getStatus() < 2) { // NEW 或 PARTIALLY_FILLED
+                activeIds.put(id, Boolean.TRUE);
+                
+                long uid = order.getUserId();
+                byte[] current = userActive.get(uid);
+                if (current == null) {
+                    byte[] newBytes = new byte[8];
+                    java.nio.ByteBuffer.wrap(newBytes).putLong(id);
+                    userActive.put(uid, newBytes);
+                } else {
+                    byte[] updated = new byte[current.length + 8];
+                    System.arraycopy(current, 0, updated, 0, current.length);
+                    java.nio.ByteBuffer.wrap(updated, current.length, 8).putLong(id);
+                    userActive.put(uid, updated);
+                }
+            }
+        });
+        log.info("✅ 活躍訂單索引重建完成。");
+    }
+
     private void match(Order taker, long gwSeq, long timestamp, Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
         final boolean isBuy = taker.getSide() == OrderSide.BUY;
         final TreeMap<Long, Deque<Order>> counterSide = isBuy ? asks : bids;
