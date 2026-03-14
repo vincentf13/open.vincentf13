@@ -21,9 +21,11 @@ public class AuthProcessor {
       處理用戶認證 
      */
     public void handleAuth(long userId, long gwSeq) {
-        // 1. 初始化核心資產帳戶 (擴展支援動態幣對，預先初始化 1-10 號資產)
-        for (int i = 1; i <= 10; i++) {
-            ledger.initAccount(userId, i, gwSeq);
+        // 1. 初始化核心資產帳戶 (依照 Asset enum 遍歷，且僅在不存在時創建)
+        for (Asset asset : Asset.values()) {
+            if (!ledger.hasAsset(userId, asset.getId())) {
+                ledger.initAccount(userId, asset.getId(), gwSeq);
+            }
         }
         
         // 2. 發送認證成功回報

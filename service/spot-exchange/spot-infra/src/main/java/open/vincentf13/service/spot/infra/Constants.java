@@ -74,9 +74,20 @@ public class Constants {
     /** 
       資產 ID (Asset)
      */
-    public static class Asset {
-        public static final int BTC = 1;
-        public static final int USDT = 2;
+    @Getter
+    @RequiredArgsConstructor
+    public enum Asset {
+        BTC(1),
+        USDT(2);
+        
+        private final int id;
+        
+        public static Asset of(int id) {
+            for (Asset a : values()) {
+                if (a.id == id) return a;
+            }
+            return null;
+        }
     }
 
     /** 
@@ -85,7 +96,7 @@ public class Constants {
     @Getter
     @RequiredArgsConstructor
     public enum Symbol {
-        BTCUSDT(1001, Asset.BTC, Asset.USDT);
+        BTCUSDT(1001, Asset.BTC.getId(), Asset.USDT.getId());
         
         private final int id;
         private final int baseAssetId;

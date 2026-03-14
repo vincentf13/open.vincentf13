@@ -99,6 +99,17 @@ public class Ledger {
         access(userId, assetId, 0, 0, seq, 0);
     }
 
+    public boolean hasAsset(long userId, int assetId) {
+        if (assetId < 0 || assetId >= 64) return false;
+        long mask = bitmaskCache.get(userId);
+        if (mask == 0) {
+            Long diskMask = userAssetBitmaskDiskMap.get(userId);
+            mask = (diskMask == null) ? 0L : diskMask;
+            if (mask != 0) bitmaskCache.put(userId, mask);
+        }
+        return (mask & (1L << assetId)) != 0;
+    }
+
     private void access(long userId, int assetId, long availDelta, long frozenDelta, long seq, long tradeId) {
         reusableKey.set(userId, assetId);
         Balance b = balancesDiskMap.getUsing(reusableKey, reusableBalance);
