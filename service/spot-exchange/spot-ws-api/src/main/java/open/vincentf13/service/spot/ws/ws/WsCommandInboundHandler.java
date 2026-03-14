@@ -11,7 +11,7 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.Side;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
-import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.MutableDirectBuffer;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -22,7 +22,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private final ChronicleQueue gatewaySenderWal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
-    private final UnsafeBuffer scratch = new UnsafeBuffer(new byte[256]); // 用於暫存編碼結果
 
     public WsCommandInboundHandler(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;
@@ -51,6 +50,9 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         }
 
         if (holder.getOp() == null) return;
+
+        // 使用執行緒私有的 scratchBuffer 解決併發問題
+        final MutableDirectBuffer scratch = context.getScratchBuffer().wrapForWrite();
 
         switch (holder.getOp()) {
             case "auth" -> {

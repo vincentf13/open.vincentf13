@@ -34,8 +34,14 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     protected final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     protected final PointerBytesStore pointerBytesStore = new PointerBytesStore();
 
-    /** 包裝來自 Aeron 的數據緩衝區 */
-    public void wrapAeronBuffer(DirectBuffer srcBuffer, int offset, int length) {
+    /**
+     * 包裝來自 Aeron 的數據緩衝區 (讀取模式)
+     * 
+     * @param srcBuffer Aeron 傳入的原始緩衝區
+     * @param offset    起始偏移量
+     * @param length    消息總長度
+     */
+    public void wrapAeronReadBuffer(DirectBuffer srcBuffer, int offset, int length) {
         this.unsafeBuffer.wrap(srcBuffer, offset, length);
         refreshDecoder();
     }

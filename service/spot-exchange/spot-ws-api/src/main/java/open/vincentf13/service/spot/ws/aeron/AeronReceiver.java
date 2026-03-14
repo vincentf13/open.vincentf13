@@ -37,32 +37,32 @@ public class AeronReceiver extends AbstractAeronReceiver {
         switch (msgType) {
             case MsgType.AUTH_REPORT -> {
                 AuthReport report = ctx.getAuthReport();
-                report.wrapAeronBuffer(buffer, offset, length);
+                report.wrapAeronReadBuffer(buffer, offset, length);
                 writeReport(msgType, report);
             }
             case MsgType.DEPOSIT_REPORT -> {
                 DepositReport report = ctx.getDepositReport();
-                report.wrapAeronBuffer(buffer, offset, length);
+                report.wrapAeronReadBuffer(buffer, offset, length);
                 writeReport(msgType, report);
             }
             case MsgType.ORDER_ACCEPTED -> {
                 OrderAcceptedReport report = ctx.getOrderAcceptedReport();
-                report.wrapAeronBuffer(buffer, offset, length);
+                report.wrapAeronReadBuffer(buffer, offset, length);
                 writeReport(msgType, report);
             }
             case MsgType.ORDER_REJECTED -> {
                 OrderRejectedReport report = ctx.getOrderRejectedReport();
-                report.wrapAeronBuffer(buffer, offset, length);
+                report.wrapAeronReadBuffer(buffer, offset, length);
                 writeReport(msgType, report);
             }
             case MsgType.ORDER_CANCELED -> {
                 OrderCanceledReport report = ctx.getOrderCanceledReport();
-                report.wrapAeronBuffer(buffer, offset, length);
+                report.wrapAeronReadBuffer(buffer, offset, length);
                 writeReport(msgType, report);
             }
             case MsgType.ORDER_MATCHED -> {
                 OrderMatchReport report = ctx.getOrderMatchReport();
-                report.wrapAeronBuffer(buffer, offset, length);
+                report.wrapAeronReadBuffer(buffer, offset, length);
                 writeReport(msgType, report);
             }
         }
