@@ -32,9 +32,14 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     public void onMessage(DirectBuffer buffer, int offset, int length) {
+        // 直接寫入原始字節到 WAL，無 Wire Key
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             Bytes<?> bytes = dc.wire().bytes();
-            pointer.set(buffer.addressOffset() + offset, length);
+            
+            // 來自 Aeron 的原始數據物理地址
+            final long aeronSrcAddress = buffer.addressOffset() + offset;
+            
+            pointer.set(aeronSrcAddress, length);
             bytes.write(pointer);
         }
     }

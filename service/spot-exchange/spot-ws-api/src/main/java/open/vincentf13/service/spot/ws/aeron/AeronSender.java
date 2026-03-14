@@ -52,7 +52,13 @@ public class AeronSender extends AbstractAeronSender {
         if (cmd != null) {
             final int payloadLen = cmd.totalByteLength();
             this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
-                UNSAFE.copyMemory(addressForRead, buffer.addressOffset() + offset, (long) payloadLen);
+                // Aeron 賦予的待寫入目標內存地址
+                final long aeronDstAddress = buffer.addressOffset() + offset;
+                
+                // 執行零拷貝物理內存轉移
+                UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
+                
+                // 在目標地址上更新 Sequence (網關序號)
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
             bytes.readSkip((long) payloadLen);
