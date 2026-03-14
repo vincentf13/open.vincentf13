@@ -5,10 +5,10 @@ import open.vincentf13.service.spot.infra.alloc.aeron.*;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.command.*;
-import open.vincentf13.service.spot.sbe.*;
 
 /**
  * 執行緒上下文總管 (Thread-Local Context Hub)
+ * 職責：維護執行緒專屬的資源與 Flyweight 物件池
  */
 public class ThreadContext {
     private static final ThreadLocal<ThreadContext> INSTANCE = ThreadLocal.withInitial(ThreadContext::new);
@@ -39,7 +39,8 @@ public class ThreadContext {
     @Getter private final AeronDeposit aeronDeposit = new AeronDeposit();
     @Getter private final AeronEnvelope aeronEnvelope = new AeronEnvelope();
 
-    // --- 業務指令與回報模型 (Flyweight) ---
+    // --- 業務指令與回報模型 (Flyweight / 池化物件) ---
+    // 這些物件內部封裝了自身的 SBE Encoder/Decoder，不再依賴 ThreadContext 全局變量
     private AuthCommand authCommand;
     private OrderCreateCommand orderCreateCommand;
     private OrderCancelCommand orderCancelCommand;
@@ -63,33 +64,6 @@ public class ThreadContext {
     public OrderRejectedReport getOrderRejectedReport() { if (orderRejectedReport == null) orderRejectedReport = new OrderRejectedReport(); return orderRejectedReport; }
     public OrderCanceledReport getOrderCanceledReport() { if (orderCanceledReport == null) orderCanceledReport = new OrderCanceledReport(); return orderCanceledReport; }
     public OrderMatchReport getOrderMatchReport() { if (orderMatchReport == null) orderMatchReport = new OrderMatchReport(); return orderMatchReport; }
-
-    // --- SBE 工具 (Lazy) ---
-    private MessageHeaderEncoder headerEncoder;
-    private MessageHeaderDecoder headerDecoder;
-    private OrderCreateEncoder orderCreateEncoder;
-    private OrderCreateDecoder orderCreateDecoder;
-    private OrderCancelEncoder orderCancelEncoder;
-    private OrderCancelDecoder orderCancelDecoder;
-    private AuthEncoder authEncoder;
-    private AuthDecoder authDecoder;
-    private DepositEncoder depositEncoder;
-    private DepositDecoder depositDecoder;
-    private ExecutionReportEncoder executionReportEncoder;
-    private ExecutionReportDecoder executionReportDecoder;
-
-    public MessageHeaderEncoder getHeaderEncoder() { if (headerEncoder == null) headerEncoder = new MessageHeaderEncoder(); return headerEncoder; }
-    public MessageHeaderDecoder getHeaderDecoder() { if (headerDecoder == null) headerDecoder = new MessageHeaderDecoder(); return headerDecoder; }
-    public OrderCreateEncoder getOrderCreateEncoder() { if (orderCreateEncoder == null) orderCreateEncoder = new OrderCreateEncoder(); return orderCreateEncoder; }
-    public OrderCreateDecoder getOrderCreateDecoder() { if (orderCreateDecoder == null) orderCreateDecoder = new OrderCreateDecoder(); return orderCreateDecoder; }
-    public OrderCancelEncoder getOrderCancelEncoder() { if (orderCancelEncoder == null) orderCancelEncoder = new OrderCancelEncoder(); return orderCancelEncoder; }
-    public OrderCancelDecoder getOrderCancelDecoder() { if (orderCancelDecoder == null) orderCancelDecoder = new OrderCancelDecoder(); return orderCancelDecoder; }
-    public AuthEncoder getAuthEncoder() { if (authEncoder == null) authEncoder = new AuthEncoder(); return authEncoder; }
-    public AuthDecoder getAuthDecoder() { if (authDecoder == null) authDecoder = new AuthDecoder(); return authDecoder; }
-    public DepositEncoder getDepositEncoder() { if (depositEncoder == null) depositEncoder = new DepositEncoder(); return depositEncoder; }
-    public DepositDecoder getDepositDecoder() { if (depositDecoder == null) depositDecoder = new DepositDecoder(); return depositDecoder; }
-    public ExecutionReportEncoder getExecutionReportEncoder() { if (executionReportEncoder == null) executionReportEncoder = new ExecutionReportEncoder(); return executionReportEncoder; }
-    public ExecutionReportDecoder getExecutionReportDecoder() { if (executionReportDecoder == null) executionReportDecoder = new ExecutionReportDecoder(); return executionReportDecoder; }
 
     private ThreadContext() {}
 

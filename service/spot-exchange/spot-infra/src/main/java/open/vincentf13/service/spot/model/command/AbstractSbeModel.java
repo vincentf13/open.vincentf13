@@ -6,11 +6,15 @@ import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
+import open.vincentf13.service.spot.sbe.MessageHeaderDecoder;
+import open.vincentf13.service.spot.sbe.MessageHeaderEncoder;
 import org.agrona.DirectBuffer;
+import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 
 /**
  * SBE 指令與回報模型的抽象基類
- * 封裝了 Sequence 管理與 PointerBytesStore 的二進制序列化邏輯
+ * 封裝了實例層級的 SBE 工具與二進制序列化邏輯，擺脫對 ThreadLocal 的依賴
  */
 @Data
 public abstract class AbstractSbeModel implements BytesMarshallable {
@@ -19,24 +23,21 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     protected long seq;
     protected final PointerBytesStore pointBytesStore = new PointerBytesStore();
 
+    // 實例化編解碼工具，提升可讀性與性能 (避免 ThreadLocal 查找)
+    protected final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
+    protected final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+    protected final UnsafeBuffer internalBuffer = new UnsafeBuffer(0, 0);
+
     public void setGatewaySeq(long val) { this.seq = val; }
     public long getGatewaySeq() { return this.seq; }
 
-    protected static void wrapHeader(org.agrona.MutableDirectBuffer buffer, int tid, int bl, int sid, int ver) {
-        ThreadContext.get().getHeaderEncoder().wrap(buffer, 0).templateId(tid).blockLength(bl).schemaId(sid).version(ver);
+    protected void wrapHeader(MutableDirectBuffer buffer, int tid, int bl, int sid, int ver) {
+        headerEncoder.wrap(buffer, 0).templateId(tid).blockLength(bl).schemaId(sid).version(ver);
     }
 
-    protected static org.agrona.DirectBuffer wrapStore(PointerBytesStore store) {
-        return ThreadContext.get().getScratchBuffer().wrap(store.addressForRead(0), (int) store.readRemaining());
-    }
-
-    protected void encodeReport(long ts, long uid, long oid, open.vincentf13.service.spot.sbe.OrderStatus st, long lp, long lq, long cq, long ap, long cid) {
-        ThreadContext ctx = ThreadContext.get();
-        org.agrona.MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
-        open.vincentf13.service.spot.sbe.ExecutionReportEncoder encoder = ctx.getExecutionReportEncoder();
-        wrapHeader(buffer, open.vincentf13.service.spot.sbe.ExecutionReportEncoder.TEMPLATE_ID, open.vincentf13.service.spot.sbe.ExecutionReportEncoder.BLOCK_LENGTH, open.vincentf13.service.spot.sbe.ExecutionReportEncoder.SCHEMA_ID, open.vincentf13.service.spot.sbe.ExecutionReportEncoder.SCHEMA_VERSION);
-        encoder.wrap(buffer, HEADER_SIZE).timestamp(ts).userId(uid).orderId(oid).status(st).lastPrice(lp).lastQty(lq).cumQty(cq).avgPrice(ap).clientOrderId(cid);
-        fillFromScratch(HEADER_SIZE + encoder.encodedLength());
+    protected DirectBuffer wrapStore(PointerBytesStore store) {
+        internalBuffer.wrap(store.addressForRead(0), (int) store.readRemaining());
+        return internalBuffer;
     }
 
     public void fillFromScratch(int length) {
@@ -57,9 +58,7 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
         bytes.writeLong(seq);
         long len = pointBytesStore.readRemaining();
         bytes.writeStopBit(len);
-        if (len > 0) {
-            bytes.write(pointBytesStore);
-        }
+        if (len > 0) bytes.write(pointBytesStore);
     }
 
     @Override
