@@ -11,27 +11,35 @@
 --add-opens=java.base/java.util.zip=ALL-UNNAMED
 
 # === 記憶體優化 (注重 Direct Memory) ===
--Xms2g
--Xmx2g
--XX:MaxDirectMemorySize=8g                # Aeron 需要巨大的堆外記憶體作為 Buffer
+-Xms4g
+-Xmx4g
+-XX:MaxDirectMemorySize=12g               # 提升 Direct Memory 支撐大規模 Aeron Buffer
 -XX:+AlwaysPreTouch
 -XX:+UseLargePages
 
 # === 垃圾回收 (G1 激進吞吐量模式) ===
 -XX:+UseG1GC
--XX:MaxGCPauseMillis=10                   # 設定極短暫停目標
+-XX:MaxGCPauseMillis=10
 -XX:G1HeapRegionSize=16m
--XX:G1NewSizePercent=40                   # 讓 Young Gen 盡可能大，減少對 Old Gen 的壓力
--XX:ActiveProcessorCount=4                # 分配 4 核：3 核心用於業務(Aeron/Netty)，1 核心用於 JVM 管理(GC/JIT)
--XX:ParallelGCThreads=2                   # 減少 GC 線程，避免搶佔 Aeron/Netty 核心
+-XX:G1NewSizePercent=50                   # 網關物件壽命短，擴大年輕代
+-XX:G1ReservePercent=15                   # 增加保留空間，防止在高壓下 Promotion Failure
+-XX:ActiveProcessorCount=4
+-XX:ParallelGCThreads=2
 -XX:ConcGCThreads=1
--XX:CICompilerCount=2                       # 限制 JIT 線程數
+-XX:CICompilerCount=2
 
 # === I/O 與 網絡優化 ===
--Djdk.nio.maxCachedBufferSize=2097152     # 2MB Cache，優化大規模消息傳輸
+-Djdk.nio.maxCachedBufferSize=2097152
 -Djava.net.preferIPv4Stack=true
--Dnetty.worker.count=2                    # 限制 Netty Worker 數，匹配分配給網關的 P-Core 數量
--Dio.netty.leakDetection.level=disabled   # 禁用 Netty 洩漏檢測以換取極限性能
+-Dnetty.worker.count=2
+-Dio.netty.leakDetection.level=disabled
+
+# === Aeron 系統屬性 (優化吞吐) ===
+-Daeron.threading.mode=DEDICATED
+-Daeron.publication.term.buffer.length=67108864
+-Daeron.socket.so_sndbuf=2097152          # 2MB Socket Buffer
+-Daeron.socket.so_rcvbuf=2097152
+-Daeron.rcv.initial.window.length=2097152
 
 # === 診斷 ===
 -XX:+ShowCodeDetailsInExceptionMessages

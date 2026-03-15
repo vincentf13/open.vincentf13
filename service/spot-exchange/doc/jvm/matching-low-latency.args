@@ -1,7 +1,7 @@
 # MatchingApp (spot-matching) - 釋放硬體極限 (Ultra 9 / Arrow Lake 深度調優)
 # 核心目標：Zero-Interruption, Zero-GC, Thread-to-Core Alignment
 
-# === 基礎與模組開放 (Aeron/Agrona 運作基礎) ===
+# === 基礎與模組開放 ===
 -Dfile.encoding=UTF-8
 --add-opens=java.base/java.lang=ALL-UNNAMED
 --add-opens=java.base/java.util=ALL-UNNAMED
@@ -10,36 +10,45 @@
 --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
 --add-opens=java.base/java.util.zip=ALL-UNNAMED
 
-# === 記憶體極限優化 (降低延遲核心) ===
--Xms12g                                   # 匹配調優指南，給予充足堆空間減少 GC 機會
--Xmx12g                                   # 固定堆大小，防止運行時伸縮導致的暫停
--XX:MaxDirectMemorySize=12g               # 供 Aeron 與 Chronicle Map 使用的巨大堆外記憶體
--XX:+AlwaysPreTouch                       # 啟動時即物理分配所有記憶體並清零，避免交易中發生 Page Fault
--XX:+UseLargePages                        # 使用 2MB 大頁記憶體，減少 TLB Miss，提升共享記憶體訪問速度
--XX:+UseNUMA                              # 現代處理器必開，確保線程優先訪問靠近其核心的本地記憶體
+# === 記憶體極限優化 ===
+-Xms12g
+-Xmx12g
+-XX:MaxDirectMemorySize=12g
+-XX:+AlwaysPreTouch
+-XX:+UseLargePages
+-XX:+UseNUMA
 
-# === 垃圾回收 (極致被動模式，將干擾降至零) ===
--XX:+UseZGC                               # 使用低延遲 ZGC
--XX:-ZProactive                           # 嚴禁 ZGC 主動發起回收週期，僅在堆滿時介入
--XX:ZUncommitDelay=3600                   # 禁止將空閒記憶體歸還 OS，保持實體記憶體佔用
--XX:ReservedCodeCacheSize=512m            # 擴大代碼緩存，避免 JIT 編譯後的代碼被卸載
+# === 垃圾回收 (極致被動模式) ===
+-XX:+UseZGC
+-XX:-ZProactive
+-XX:ZUncommitDelay=3600
+-XX:ReservedCodeCacheSize=512m
+-XX:ParallelGCThreads=1                   # 強制 GC 只使用我們分配的管理核心
+-XX:ConcGCThreads=1
 
-# === JIT 編譯與核心路徑優化 ===
+# === JIT 編譯與核心路徑 (進取型) ===
 -XX:+UnlockExperimentalVMOptions
--XX:+TrustFinalNonStaticFields            # 提升對 final 欄位的優化層級
--XX:InlineSmallCode=3000                  # 進取型內聯，將撮合邏輯盡可能編譯為連續機器碼
--XX:+LoopVectorize                        # 開啟 SIMD 向量化優化
--XX:-UseCounterDecay                      # 禁止熱度計數器衰減，確保核心撮合循環永遠維持 C2 最高優化
--XX:TieredStopAtLevel=4                   # 強制執行最高等級編譯
+-XX:+TrustFinalNonStaticFields
+-XX:InlineSmallCode=4000                  # 進一步增加內聯大小
+-XX:MaxInlineLevel=15                     # 增加內聯深度
+-XX:MaxNodeLimit=80000                    # 提升 C2 編譯圖節點上限
+-XX:+LoopVectorize
+-XX:-UseCounterDecay
+-XX:TieredStopAtLevel=4
 
 # === 核心親和性與並發優化 ===
--XX:ActiveProcessorCount=3                # 分配 3 核：2 核心用於業務(Matching/Aeron)，1 核心用於 JVM 管理(GC/JIT)
--XX:CICompilerCount=2                       # 限制 JIT 線程數，防止搶佔業務核心
--XX:ConcGCThreads=1                       # 限制並發 GC 線程
--Dchronicle.column.padding=64             # 防止多核間的 False Sharing (偽共享)
--Djava.util.concurrent.ForkJoinPool.common.parallelism=1 # 限制背景線程，避免與撮合主循環爭搶 L2 Cache
+-XX:ActiveProcessorCount=3
+-XX:CICompilerCount=2
+-Dchronicle.column.padding=64
+-Djava.util.concurrent.ForkJoinPool.common.parallelism=1
 
-# === 診斷與容錯 ===
+# === Aeron 系統屬性 (強制 Busy-Spin) ===
+-Daeron.threading.mode=DEDICATED
+-Daeron.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy
+-Daeron.term.buffer.length=67108864       # 64MB
+-Daeron.pre.touch.mapped.memory=true
+
+# === 診斷 ===
 -ea
 -XX:+ShowCodeDetailsInExceptionMessages
 -XX:+UnlockDiagnosticVMOptions
