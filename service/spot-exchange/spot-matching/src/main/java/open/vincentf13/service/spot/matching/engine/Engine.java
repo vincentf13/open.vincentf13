@@ -57,7 +57,15 @@ public class Engine extends Worker {
 
     @Override
     protected int doWork() {
-        return tailer.readDocument(walReader) ? 1 : 0;
+        boolean success = tailer.readDocument(walReader);
+        
+        // 業務飽和度統計 (真正反映撮合引擎是否在忙碌處理業務)
+        Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
+        if (success) {
+            Storage.self().metricsHistory().compute(Storage.KEY_WORK_COUNT, (k, v) -> v == null ? 1L : v + 1);
+        }
+
+        return success ? 1 : 0;
     }
 
     private void onWalMessage(WireIn wire) {
