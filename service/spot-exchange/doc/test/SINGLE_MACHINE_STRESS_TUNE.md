@@ -6,19 +6,19 @@
 ### 精準綁核啟動指令 (PowerShell)：
 
 #### A. 撮合引擎端 (spot-matching)
-分配 3 個獨立 P-core 給撮合主循環、接收器以及 JVM 管理線程。
+分配 3 個獨立 P-core。引用 `matching-low-latency.args` 配置。
 ```powershell
-# 鎖定 Core 0 (JVM/GC), Core 1 (Matching), Core 2 (Aeron)
-$Engine = Start-Process java -ArgumentList "-Xms12g -Xmx12g -XX:+UseZGC -XX:+AlwaysPreTouch -jar spot-matching.jar" -PassThru
-$Engine.ProcessorAffinity = 7  # (1 + 2 + 4 = 7)
+# 鎖定 Core 0 (Management), Core 1 (Matching), Core 2 (Aeron)
+$Engine = Start-Process java -ArgumentList "@../jvm/matching-low-latency.args -jar spot-matching.jar" -PassThru
+$Engine.ProcessorAffinity = 7  # (Mask: 1+2+4)
 ```
 
 #### B. 網關端 (spot-ws-api)
-分配 4 個 P-core 給 Aeron 發送器、Netty Worker 以及 JVM 管理線程。
+分配 4 個 P-core。引用 `ws-api-throughput.args` 配置。
 ```powershell
-# 鎖定 Core 3 (Aeron), Core 4-5 (Netty), Core 6 (JVM/GC)
-$GW = Start-Process java -ArgumentList "-Xms8g -Xmx8g -XX:+UseZGC -XX:+AlwaysPreTouch -jar spot-ws-api.jar" -PassThru
-$GW.ProcessorAffinity = 120 # (8 + 16 + 32 + 64 = 120)
+# 鎖定 Core 3 (Aeron), Core 4-5 (Netty), Core 6 (Management)
+$GW = Start-Process java -ArgumentList "@../jvm/ws-api-throughput.args -jar spot-ws-api.jar" -PassThru
+$GW.ProcessorAffinity = 120 # (Mask: 8+16+32+64)
 ```
 
 #### C. 壓測工具 (k6)
