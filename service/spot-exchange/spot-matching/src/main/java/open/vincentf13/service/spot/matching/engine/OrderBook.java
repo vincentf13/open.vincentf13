@@ -267,7 +267,8 @@ public class OrderBook {
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
                 
-                Storage.self().metrics().compute(METRIC_TOTAL_MATCHES, (k, v) -> v == null ? 1L : v + 1);
+                Long total = Storage.self().metrics().compute(METRIC_TOTAL_MATCHES, (k, v) -> v == null ? 1L : v + 1);
+                Storage.self().metricsHistory().put(timestamp / 1000, total);
                 
                 finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
 

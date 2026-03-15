@@ -32,6 +32,7 @@ public class Storage {
     private volatile ChronicleMap<Byte, MsgProgress> msgMetadata;
     private volatile ChronicleMap<Byte, WalProgress> walMetadata;
     private volatile ChronicleMap<String, Long> metrics;
+    private volatile ChronicleMap<Long, Long> metricsHistory;
 
     // --- 持久化 Queues (WAL) ---
     private volatile ChronicleQueue gatewaySenderWal;    // 網關 -> Aeron
@@ -107,6 +108,13 @@ public class Storage {
         return metrics;
     }
 
+    public ChronicleMap<Long, Long> metricsHistory() {
+        if (metricsHistory == null) synchronized (this) {
+            if (metricsHistory == null) metricsHistory = createMap("metrics-history", Long.class, Long.class, 86400, 8, 8);
+        }
+        return metricsHistory;
+    }
+
     // --- WAL Queues ---
 
     public ChronicleQueue gatewaySenderWal() {
@@ -160,6 +168,7 @@ public class Storage {
             if (msgMetadata != null) { msgMetadata.close(); msgMetadata = null; }
             if (walMetadata != null) { walMetadata.close(); walMetadata = null; }
             if (metrics != null) { metrics.close(); metrics = null; }
+            if (metricsHistory != null) { metricsHistory.close(); metricsHistory = null; }
             if (gatewaySenderWal != null) { gatewaySenderWal.close(); gatewaySenderWal = null; }
             if (engineReceiverWal != null) { engineReceiverWal.close(); engineReceiverWal = null; }
         }
