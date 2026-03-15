@@ -39,6 +39,14 @@ $K6.ProcessorAffinity = 65472
 *   **Aeron 隔離**：
     目前的 `Worker` 類別會自動佔用單核，配合 `ProcessorAffinity` 設定，OS 將確保它們在正確的 P-core 上全速運轉。
 
-## 3. 性能解讀
-*   **若 TPS 上不去且 Core 1 (Matching Engine) 負載不到 100%**：說明瓶頸在 **Core 4-5 (Netty JSON 解析)** 或 **Core 2 (WAL 寫入速度)**。
-*   **若 Core 1 滿載且延遲穩定**：這就是 **Ultra 9 285H 的業務邏輯處理極限**。
+## 3. 性能瓶頸判定 (Bottleneck Analysis)
+由於系統採用 **Busy-Spin (忙等)** 策略以獲取最低延遲，核心 1-2 (Matching) 的 OS 佔用率通常會穩定在 100%，需結合 TPS 表現判定：
+
+*   **TPS 飽和但網關核心 (Core 4-5) 未滿載**：
+    *   說明 **Core 1 (Matching Engine)** 已達邏輯處理上限。
+    *   或者 **Core 2 (WAL/Aeron 接收)** 的 I/O 吞吐已達實體 SSD/記憶體頻寬極限。
+*   **TPS 飽和且網關核心 (Core 4-5) 接近 100%**：
+    *   說明瓶頸在 **Netty JSON 解析** 或 WebSocket 流量處理。
+    *   優化建議：增加網關核心分配，或改用更高效的二進制序列化。
+*   **TPS 隨 k6 壓力增加而線性上升**：
+    *   代表系統尚未觸達硬體極限，可繼續增加壓力測試。
