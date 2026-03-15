@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching;
 
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.matching.engine.OrderBook;
 import open.vincentf13.service.spot.model.Balance;
 import open.vincentf13.service.spot.model.BalanceKey;
 import open.vincentf13.service.spot.model.Order;
@@ -52,5 +53,13 @@ public class TestVerificationController {
             return Map.of("error", "Order not found");
         }
         return getOrder(orderId);
+    }
+
+    @GetMapping("/metrics/tps")
+    public Map<String, Object> getTps() {
+        return Map.of(
+            "total_matches", OrderBook.TOTAL_MATCH_COUNT.get(),
+            "timestamp", System.currentTimeMillis()
+        );
     }
 }
