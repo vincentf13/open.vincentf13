@@ -1,8 +1,9 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: spot-matching
-  main:
-    web-application-type: none
 
 aeron:
   dir: data/spot-exchange/aeron
