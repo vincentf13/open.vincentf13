@@ -33,7 +33,7 @@
 -XX:TieredStopAtLevel=4                   # 強制執行最高等級編譯
 
 # === 核心親和性與並發優化 ===
-# 註：ProcessorAffinity 建議透過啟動腳本 (PowerShell) 指定，確保 Matching 佔用 P-Core 1-2
+-XX:ActiveProcessorCount=2                # 強制 JVM 僅感知 2 個核心，減少 GC/JIT 線程對主循環的干擾
 -Dchronicle.column.padding=64             # 防止多核間的 False Sharing (偽共享)
 -Djava.util.concurrent.ForkJoinPool.common.parallelism=1 # 限制背景線程，避免與撮合主循環爭搶 L2 Cache
 
