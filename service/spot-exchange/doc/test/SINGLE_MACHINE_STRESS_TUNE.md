@@ -5,20 +5,23 @@
 
 ### 精準綁核啟動指令 (PowerShell)：
 
+> **提示**：執行前請先進入測試腳本目錄：
+> `cd service/spot-exchange/doc/test`
+
 #### A. 撮合引擎端 (spot-matching)
 分配 3 個獨立 P-core。引用 `matching-low-latency.args` 配置。
 ```powershell
 # 鎖定 Core 0 (Management), Core 1 (Matching), Core 2 (Aeron)
-$Engine = Start-Process java -ArgumentList "@../jvm/matching-low-latency.args -jar spot-matching.jar" -PassThru
-$Engine.ProcessorAffinity = 7  # (Mask: 1+2+4)
+$Engine = Start-Process java -ArgumentList "@../jvm/matching-low-latency.args -jar ../../spot-matching/target/spot-matching.jar" -PassThru
+$Engine.ProcessorAffinity = 7 
 ```
 
 #### B. 網關端 (spot-ws-api)
 分配 4 個 P-core。引用 `ws-api-throughput.args` 配置。
 ```powershell
 # 鎖定 Core 3 (Aeron), Core 4-5 (Netty), Core 6 (Management)
-$GW = Start-Process java -ArgumentList "@../jvm/ws-api-throughput.args -jar spot-ws-api.jar" -PassThru
-$GW.ProcessorAffinity = 120 # (Mask: 8+16+32+64)
+$GW = Start-Process java -ArgumentList "@../jvm/ws-api-throughput.args -jar ../../spot-ws-api/target/spot-ws-api.jar" -PassThru
+$GW.ProcessorAffinity = 120
 ```
 
 #### C. 壓測工具 (k6)
