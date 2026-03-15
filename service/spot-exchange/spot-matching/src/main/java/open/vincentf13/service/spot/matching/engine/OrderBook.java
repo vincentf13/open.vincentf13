@@ -23,7 +23,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 public class OrderBook {
-    private static final String METRIC_TOTAL_MATCHES = "total_matches";
+    private static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
     // 全域共享物件池：加固為執行緒安全容器
@@ -267,7 +267,7 @@ public class OrderBook {
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
                 
-                Long total = Storage.self().metrics().compute(METRIC_TOTAL_MATCHES, (k, v) -> v == null ? 1L : v + 1);
+                long total = TOTAL_MATCH_COUNT.incrementAndGet();
                 Storage.self().metricsHistory().put(timestamp / 1000, total);
                 
                 finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * 異步驗證控制器：
@@ -59,11 +60,9 @@ public class TestVerificationController {
     }
 
     @GetMapping("/metrics/tps")
-    public Map<String, Object> getTps() {
-        Long totalMatches = Storage.self().metrics().get("total_matches");
-        return Map.of(
-            "total_matches", totalMatches == null ? 0L : totalMatches,
-            "timestamp", System.currentTimeMillis()
-        );
+    public Map<Long, Long> getTpsHistory() {
+        Map<Long, Long> history = new TreeMap<>();
+        Storage.self().metricsHistory().forEach(history::put);
+        return history;
     }
 }
