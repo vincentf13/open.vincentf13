@@ -31,7 +31,7 @@
 ### 步驟 2：準備 Node.js 環境
 開啟命令列終端機，切換到存放測試腳本的目錄：
 ```bash
-cd service/spot-exchange/doc
+cd service/spot-exchange/doc/test
 ```
 
 安裝腳本所需的 `ws` (WebSocket) 依賴：
