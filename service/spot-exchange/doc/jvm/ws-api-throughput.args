@@ -22,9 +22,10 @@
 -XX:MaxGCPauseMillis=10                   # 設定極短暫停目標
 -XX:G1HeapRegionSize=16m
 -XX:G1NewSizePercent=40                   # 讓 Young Gen 盡可能大，減少對 Old Gen 的壓力
--XX:ActiveProcessorCount=3                # 強制 JVM 僅感知 3 個核心，對齊 Affinity 分配
+-XX:ActiveProcessorCount=4                # 分配 4 核：3 核心用於業務(Aeron/Netty)，1 核心用於 JVM 管理(GC/JIT)
 -XX:ParallelGCThreads=2                   # 減少 GC 線程，避免搶佔 Aeron/Netty 核心
 -XX:ConcGCThreads=1
+-XX:CICompilerCount=2                       # 限制 JIT 線程數
 
 # === I/O 與 網絡優化 ===
 -Djdk.nio.maxCachedBufferSize=2097152     # 2MB Cache，優化大規模消息傳輸

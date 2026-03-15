@@ -6,19 +6,19 @@
 ### 精準綁核啟動指令 (PowerShell)：
 
 #### A. 撮合引擎端 (spot-matching)
-分配 2 個獨立 P-core 給撮合主循環與接收器。
+分配 3 個獨立 P-core 給撮合主循環、接收器以及 JVM 管理線程。
 ```powershell
-# 鎖定 Core 1 (Affinity 2) 用於撮合引擎，Core 2 (Affinity 4) 用於 Aeron 接收
+# 鎖定 Core 0 (JVM/GC), Core 1 (Matching), Core 2 (Aeron)
 $Engine = Start-Process java -ArgumentList "-Xms12g -Xmx12g -XX:+UseZGC -XX:+AlwaysPreTouch -jar spot-matching.jar" -PassThru
-$Engine.ProcessorAffinity = 6  # (2 + 4 = 6, 涵蓋兩個核心，內部會依序分配)
+$Engine.ProcessorAffinity = 7  # (1 + 2 + 4 = 7)
 ```
 
 #### B. 網關端 (spot-ws-api)
-分配 3 個 P-core 給 Aeron 發送器與 Netty Worker 組（負責 JSON 解析）。
+分配 4 個 P-core 給 Aeron 發送器、Netty Worker 以及 JVM 管理線程。
 ```powershell
-# 鎖定 Core 3 (Affinity 8) 用於 Aeron 發送，Core 4-5 (Affinity 48) 用於 Netty Worker
+# 鎖定 Core 3 (Aeron), Core 4-5 (Netty), Core 6 (JVM/GC)
 $GW = Start-Process java -ArgumentList "-Xms8g -Xmx8g -XX:+UseZGC -XX:+AlwaysPreTouch -jar spot-ws-api.jar" -PassThru
-$GW.ProcessorAffinity = 56 # (8 + 16 + 32 = 56)
+$GW.ProcessorAffinity = 120 # (8 + 16 + 32 + 64 = 120)
 ```
 
 #### C. 壓測工具 (k6)
