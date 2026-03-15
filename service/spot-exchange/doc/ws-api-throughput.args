@@ -1,0 +1,31 @@
+# WsApiApp (spot-ws-api) - 高吞吐 Web 網關優化
+# 使用方式：java @service/spot-exchange/doc/ws-api-throughput.args -jar ws-api-app.jar
+
+# === 基礎與模組開放 (Aeron/Agrona 必須) ===
+-Dfile.encoding=UTF-8
+--add-opens=java.base/java.lang=ALL-UNNAMED
+--add-opens=java.base/java.util=ALL-UNNAMED
+--add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+--add-opens=java.base/java.nio=ALL-UNNAMED
+--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens=java.base/java.util.zip=ALL-UNNAMED
+
+# === 記憶體優化 ===
+-Xms1g
+-Xmx2g
+-XX:MaxDirectMemorySize=1g                # 網關大量使用 Direct Memory 進行 Aeron 傳輸
+
+# === 垃圾回收 (G1 適合吞吐量平衡) ===
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=50                   # 目標：50ms 內的短暫暫停
+-XX:G1NewSizePercent=25
+-XX:InitiatingHeapOccupancyPercent=45     # 提前觸發並行回收週期
+
+# === 網路與 Web 優化 ===
+-Djdk.http.auth.tunneling.disabledSchemes="" # 開放網路穿透 (如有代理需求)
+-Djdk.nio.maxCachedBufferSize=1048576       # 適度快取提升 Web 性能
+
+# === 診斷與日誌 ===
+-ea
+-XX:+ShowCodeDetailsInExceptionMessages
+-Xlog:gc*:file=./logs/ws-api-gc.log:time,uptime,level,tags

@@ -1,0 +1,35 @@
+# MatchingApp (spot-matching) - 極致低延遲撮合優化
+# 使用方式：java @service/spot-exchange/doc/matching-low-latency.args -jar matching-app.jar
+
+# === 基礎與模組開放 (Aeron/Agrona 必須) ===
+-Dfile.encoding=UTF-8
+--add-opens=java.base/java.lang=ALL-UNNAMED
+--add-opens=java.base/java.util=ALL-UNNAMED
+--add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+--add-opens=java.base/java.nio=ALL-UNNAMED
+--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens=java.base/java.util.zip=ALL-UNNAMED
+
+# === 記憶體優化 ===
+-Xms2g
+-Xmx2g
+-XX:+AlwaysPreTouch                       # 啟動時預分配所有記憶體，避免運行中 Page Fault
+-XX:+UseTransparentHugePages              # 使用大頁記憶體降低 TLB miss (需 OS 支援)
+
+# === 垃圾回收 (ZGC 適合超低延遲) ===
+-XX:+UseZGC
+-XX:ZCollectionInterval=120               # 強制固定間隔 GC，避免堆積
+-XX:+UnlockDiagnosticVMOptions
+-XX:-ZProactive                           # 關閉主動 GC，減少不必要的抖動
+
+# === JIT 與 線程優化 ===
+-XX:+TieredCompilation
+-XX:CICompilerCount=4
+-XX:+UnlockExperimentalVMOptions
+-XX:+TrustFinalNonStaticFields            # 信任 final 欄位以優化代碼生成
+-Djdk.nio.maxCachedBufferSize=262144      # 限制 NIO 快取，減少 Direct Memory 碎片
+
+# === 診斷與日誌 ===
+-ea
+-XX:+ShowCodeDetailsInExceptionMessages
+-Xlog:gc*:file=./logs/matching-gc.log:time,uptime,level,tags
