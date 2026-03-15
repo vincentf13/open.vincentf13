@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.matching;
+package open.vincentf13.service.spot.ws.controller;
 
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.matching.engine.OrderBook;
@@ -13,6 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * 異步驗證控制器：
+ * 運行於 spot-ws-api 進程中，通過共享記憶體 (Chronicle Map) 讀取撮合引擎的即時狀態。
+ * 避免了 Web 線程與撮合核心線程的 context switch 競爭。
+ */
 @RestController
 @RequestMapping("/api/test")
 public class TestVerificationController {
@@ -20,7 +25,6 @@ public class TestVerificationController {
     @GetMapping("/balance")
     public Map<String, Object> getBalance(@RequestParam long userId, @RequestParam int assetId) {
         BalanceKey key = new BalanceKey(userId, assetId);
-        // 使用新的物件以確保在 Spring Web 多執行緒環境下的安全
         Balance balance = Storage.self().balances().getUsing(key, new Balance());
         if (balance == null) {
             return Map.of("available", 0L, "frozen", 0L);
@@ -37,7 +41,7 @@ public class TestVerificationController {
         return Map.of(
             "orderId", order.getOrderId(),
             "userId", order.getUserId(),
-            "status", order.getStatus(), // 0=NEW, 1=PARTIAL, 2=FILLED, 3=CANCELED
+            "status", order.getStatus(),
             "price", order.getPrice(),
             "qty", order.getQty(),
             "filled", order.getFilled()

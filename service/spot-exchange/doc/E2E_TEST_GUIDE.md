@@ -15,8 +15,8 @@
 
 ## 2. 測試環境要求
 *   **Java 服務**：必須同時啟動 `spot-matching` 與 `spot-ws-api` 兩個 Spring Boot 應用程式。
-    *   `spot-ws-api` 預設監聽 WebSocket 端口：`8080`
-    *   `spot-matching` 預設監聽 HTTP 端口：`8081`
+    *   `spot-ws-api` 提供 WebSocket 與 HTTP 監控端口：`8081`
+    *   `spot-matching` 專注於高效能撮合（無 Web 端口）
 *   **Node.js 環境**：需要安裝 Node.js (建議 v18+) 用於執行測試腳本。
 
 ---
