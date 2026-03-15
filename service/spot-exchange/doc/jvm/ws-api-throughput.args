@@ -28,6 +28,7 @@
 # === I/O 與 網絡優化 ===
 -Djdk.nio.maxCachedBufferSize=2097152     # 2MB Cache，優化大規模消息傳輸
 -Djava.net.preferIPv4Stack=true
+-Dnetty.worker.count=2                    # 限制 Netty Worker 數，匹配分配給網關的 P-Core 數量
 -Dio.netty.leakDetection.level=disabled   # 禁用 Netty 洩漏檢測以換取極限性能
 
 # === 診斷 ===

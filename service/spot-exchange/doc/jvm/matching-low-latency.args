@@ -36,7 +36,6 @@
 # 註：ProcessorAffinity 建議透過啟動腳本 (PowerShell) 指定，確保 Matching 佔用 P-Core 1-2
 -Dchronicle.column.padding=64             # 防止多核間的 False Sharing (偽共享)
 -Djava.util.concurrent.ForkJoinPool.common.parallelism=1 # 限制背景線程，避免與撮合主循環爭搶 L2 Cache
--Dnetty.worker.count=2                    # 限制 Netty 線程數，匹配物理核心分配
 
 # === 診斷與容錯 ===
 -ea
