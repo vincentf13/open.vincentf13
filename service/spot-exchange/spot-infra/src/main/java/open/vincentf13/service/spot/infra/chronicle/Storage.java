@@ -100,6 +100,9 @@ public class Storage {
         return walMetadata;
     }
 
+    public static final long KEY_POLL_COUNT = -1L;
+    public static final long KEY_WORK_COUNT = -2L;
+
     public ChronicleMap<Long, Long> metricsHistory() {
         if (metricsHistory == null) synchronized (this) {
             if (metricsHistory == null) metricsHistory = createMap("metrics-history", Long.class, Long.class, 86400, 8, 8);

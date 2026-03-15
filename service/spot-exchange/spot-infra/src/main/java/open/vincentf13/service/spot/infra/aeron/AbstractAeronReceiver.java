@@ -95,8 +95,19 @@ public abstract class AbstractAeronReceiver extends Worker {
                 lastResumeSentTime = now;
             }
         }
-        // 關鍵：傳遞 assembler 而非直接傳遞 fragmentHandler
-        return subscription.poll(assembler, 10);
+        
+        // 飽和度統計
+        int fragments = subscription.poll(assembler, 10);
+        
+        // 更新共享記憶體中的計數器 (每 1000 次 Poll 採樣一次以減少開銷，或直接寫入)
+        // 為了極致性能，我們可以直接對 Map 進行 compute
+        open.vincentf13.service.spot.infra.chronicle.Storage storage = open.vincentf13.service.spot.infra.chronicle.Storage.self();
+        storage.metricsHistory().compute(open.vincentf13.service.spot.infra.chronicle.Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
+        if (fragments > 0) {
+            storage.metricsHistory().compute(open.vincentf13.service.spot.infra.chronicle.Storage.KEY_WORK_COUNT, (k, v) -> v == null ? 1L : v + 1);
+        }
+
+        return fragments;
     }
 
     protected void sendResumeSignalBlocking() {
