@@ -1,7 +1,7 @@
-# MatchingApp (spot-matching) - 極致低延遲撮合優化
-# 使用方式：java @service/spot-exchange/doc/matching-low-latency.args -jar matching-app.jar
+# MatchingApp (spot-matching) - 釋放硬體極限 (Ultra 9 / High-Core Tune)
+# 核心目標：Zero-Interruption, Zero-GC Hot Path
 
-# === 基礎與模組開放 (Aeron/Agrona 必須) ===
+# === 基礎與模組開放 ===
 -Dfile.encoding=UTF-8
 --add-opens=java.base/java.lang=ALL-UNNAMED
 --add-opens=java.base/java.util=ALL-UNNAMED
@@ -10,26 +10,33 @@
 --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
 --add-opens=java.base/java.util.zip=ALL-UNNAMED
 
-# === 記憶體優化 ===
--Xms2g
--Xmx2g
--XX:+AlwaysPreTouch                       # 啟動時預分配所有記憶體，避免運行中 Page Fault
--XX:+UseTransparentHugePages              # 使用大頁記憶體降低 TLB miss (需 OS 支援)
+# === 記憶體極限優化 ===
+-Xms4g
+-Xmx4g
+-XX:MaxDirectMemorySize=8g                # 放大 Direct Memory 供 Aeron/Chronicle 使用
+-XX:+AlwaysPreTouch                       # 啟動時強制填零，避免運行中 Page Fault
+-XX:+UseLargePages                        # 必須開啟大頁記憶體 (OS 需配置)
+-XX:+UseNUMA                              # 現代多核架構必開，優化內存訪問延遲
 
-# === 垃圾回收 (ZGC 適合超低延遲) ===
+# === 垃圾回收 (極致被動模式) ===
 -XX:+UseZGC
--XX:ZCollectionInterval=120               # 強制固定間隔 GC，避免堆積
--XX:+UnlockDiagnosticVMOptions
--XX:-ZProactive                           # 關閉主動 GC，減少不必要的抖動
+-XX:-ZProactive                           # 絕對禁止主動 GC
+-XX:ZUncommitDelay=3600                   # 禁止將記憶體還給 OS
+-XX:ReservedCodeCacheSize=512m            # 確保 JIT 代碼緩存充足
 
-# === JIT 與 線程優化 ===
--XX:+TieredCompilation
--XX:CICompilerCount=4
+# === JIT 編譯與內聯優化 ===
 -XX:+UnlockExperimentalVMOptions
--XX:+TrustFinalNonStaticFields            # 信任 final 欄位以優化代碼生成
--Djdk.nio.maxCachedBufferSize=262144      # 限制 NIO 快取，減少 Direct Memory 碎片
+-XX:+TrustFinalNonStaticFields
+-XX:InlineSmallCode=2000                  # 增加內聯機會，減少函數調用開銷
+-XX:+LoopVectorize                        # 開啟循環向量化 (SIMD)
+-XX:-UseCounterDecay                      # 禁止計數器衰減，保持熱點代碼永遠是熱的
+-XX:TieredStopAtLevel=4                   # 確保進入最高級 C2 編譯
 
-# === 診斷與日誌 ===
--ea
+# === 系統干擾消除 ===
+-XX:+DisableExplicitGC                    # 禁用 System.gc()
+-Djava.net.preferIPv4Stack=true
+-Dchronicle.column.padding=64             # 防止 Chronicle Map 的 False Sharing (偽共享)
+-Djava.util.concurrent.ForkJoinPool.common.parallelism=1 # 限制公共池，防止搶佔核心
+
+# === 診斷 ===
 -XX:+ShowCodeDetailsInExceptionMessages
--Xlog:gc*:file=./logs/matching-gc.log:time,uptime,level,tags

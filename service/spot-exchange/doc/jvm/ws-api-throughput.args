@@ -1,7 +1,7 @@
-# WsApiApp (spot-ws-api) - 高吞吐 Web 網關優化
-# 使用方式：java @service/spot-exchange/doc/ws-api-throughput.args -jar ws-api-app.jar
+# WsApiApp (spot-ws-api) - 極致吞吐網關優化
+# 核心目標：Max I/O Throughput & Low Network Jitter
 
-# === 基礎與模組開放 (Aeron/Agrona 必須) ===
+# === 基礎與模組開放 ===
 -Dfile.encoding=UTF-8
 --add-opens=java.base/java.lang=ALL-UNNAMED
 --add-opens=java.base/java.util=ALL-UNNAMED
@@ -10,22 +10,25 @@
 --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
 --add-opens=java.base/java.util.zip=ALL-UNNAMED
 
-# === 記憶體優化 ===
--Xms1g
+# === 記憶體優化 (注重 Direct Memory) ===
+-Xms2g
 -Xmx2g
--XX:MaxDirectMemorySize=1g                # 網關大量使用 Direct Memory 進行 Aeron 傳輸
+-XX:MaxDirectMemorySize=8g                # Aeron 需要巨大的堆外記憶體作為 Buffer
+-XX:+AlwaysPreTouch
+-XX:+UseLargePages
 
-# === 垃圾回收 (G1 適合吞吐量平衡) ===
+# === 垃圾回收 (G1 激進吞吐量模式) ===
 -XX:+UseG1GC
--XX:MaxGCPauseMillis=50                   # 目標：50ms 內的短暫暫停
--XX:G1NewSizePercent=25
--XX:InitiatingHeapOccupancyPercent=45     # 提前觸發並行回收週期
+-XX:MaxGCPauseMillis=10                   # 設定極短暫停目標
+-XX:G1HeapRegionSize=16m
+-XX:G1NewSizePercent=40                   # 讓 Young Gen 盡可能大，減少對 Old Gen 的壓力
+-XX:ParallelGCThreads=8                   # 根據 Ultra 9 核心數調整
+-XX:ConcGCThreads=4
 
-# === 網路與 Web 優化 ===
--Djdk.http.auth.tunneling.disabledSchemes="" # 開放網路穿透 (如有代理需求)
--Djdk.nio.maxCachedBufferSize=1048576       # 適度快取提升 Web 性能
+# === I/O 與 網絡優化 ===
+-Djdk.nio.maxCachedBufferSize=2097152     # 2MB Cache，優化大規模消息傳輸
+-Djava.net.preferIPv4Stack=true
+-Dio.netty.leakDetection.level=disabled   # 禁用 Netty 洩漏檢測以換取極限性能
 
-# === 診斷與日誌 ===
--ea
+# === 診斷 ===
 -XX:+ShowCodeDetailsInExceptionMessages
--Xlog:gc*:file=./logs/ws-api-gc.log:time,uptime,level,tags
