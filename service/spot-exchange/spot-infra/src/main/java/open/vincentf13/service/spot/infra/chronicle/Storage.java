@@ -137,13 +137,35 @@ public class Storage {
             String dir = ChronicleMapEnum.DEFAULT_BASE_DIR;
             new File(dir).mkdirs();
             var builder = ChronicleMap.of(keyCls, valCls).name(name.toString()).entries(entries);
-            if (keySize > 0) builder.averageKeySize(keySize);
-            if (valSize > 0) builder.averageValueSize(valSize);
+            
+            // 針對新版 Chronicle Map 的嚴格檢查：
+            // 嘗試設定 Key 大小，如果該類別是靜態已知大小 (如 Long, Boolean)，Chronicle 會噴 IllegalStateException，我們直接忽略。
+            try {
+                if (keySize > 0) builder.averageKeySize(keySize);
+                else if (keyCls == String.class) builder.averageKeySize(32);
+                else builder.averageKeySize(16);
+            } catch (IllegalStateException e) {
+                // Skip: Size is statically known
+            }
+
+            try {
+                if (valSize > 0) builder.averageValueSize(valSize);
+                else if (valCls.isInterface()) builder.averageValueSize(32);
+                else if (valCls == byte[].class) builder.averageValueSize(256);
+                else builder.averageValueSize(64);
+            } catch (IllegalStateException e) {
+                // Skip: Size is statically known
+            }
+            
             return builder.createPersistedTo(new File(dir + name));
         } catch (IOException e) {
             throw new RuntimeException("ChronicleMap 建立失敗: " + name, e);
         }
     }
+
+    // 移除不再需要的輔助方法
+
+    // 移除不再需要的 isStaticSize 輔助方法
 
     private ChronicleQueue createQueue(ChronicleQueueEnum q) {
         String dir = ChronicleMapEnum.WAL_BASE_DIR;

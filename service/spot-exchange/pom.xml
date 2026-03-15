@@ -26,8 +26,8 @@
 
     <properties>
         <sbe.version>1.30.0</sbe.version>
-        <chronicle.queue.version>5.24ea10</chronicle.queue.version>
-        <chronicle.map.version>3.24ea4</chronicle.map.version>
+        <chronicle.queue.version>5.25ea12</chronicle.queue.version>
+        <chronicle.map.version>3.25ea5</chronicle.map.version>
         <aeron.version>1.44.0</aeron.version>
     </properties>
 

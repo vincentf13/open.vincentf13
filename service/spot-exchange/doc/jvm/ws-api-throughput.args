@@ -1,45 +1,28 @@
-# WsApiApp (spot-ws-api) - 極致吞吐網關優化
-# 核心目標：最大 I/O 吞吐 (Max Throughput), 低網路抖動 (Low Jitter)
-
-# === 1. 基礎與模組開放 (Aeron/Netty 必須) ===
 -Dfile.encoding=UTF-8
---add-opens=java.base/java.lang=ALL-UNNAMED
---add-opens=java.base/java.util=ALL-UNNAMED
---add-opens=java.base/java.util.concurrent=ALL-UNNAMED
---add-opens=java.base/java.nio=ALL-UNNAMED
---add-opens=java.base/sun.nio.ch=ALL-UNNAMED
---add-opens=java.base/java.util.zip=ALL-UNNAMED
-
-# === 2. 記憶體優化 (注重堆外 Buffer) ===
+-XX:+UnlockDiagnosticVMOptions
+-XX:+UnlockExperimentalVMOptions
 -Xms4g
 -Xmx4g
--XX:MaxDirectMemorySize=12g               # 網關的核心瓶頸，需巨大的堆外記憶體作為 Aeron 與 Netty 的傳輸 Buffer
--XX:+AlwaysPreTouch                       # 預先熱身實體記憶體，防止壓測初始階段的延遲尖峰
--XX:+UseLargePages                        # 提升記憶體映射檔案 (Shared Memory) 的 IO 效率
-
-# === 3. 垃圾回收 (G1 激進吞吐量模式) ===
--XX:+UseG1GC                              # 網關物件多且壽命短，適合 G1GC
--XX:MaxGCPauseMillis=10                   # 目標：將暫停時間壓在 10ms 內，保持 WebSocket 連線穩定
--XX:G1HeapRegionSize=16m                  # 適度增加 Region 大小，減少大規模 JSON 物件造成的 Humongous Allocations
--XX:G1NewSizePercent=50                   # 大幅度擴大年輕代，讓短命的 Request/Response 物件在 Young GC 階段就被回收
--XX:G1ReservePercent=15                   # 預留更多空間防止高併發下的晉升失敗 (Promotion Failure)
--XX:ActiveProcessorCount=4                # 對齊 OS 的 Affinity 分配 (3 業務 + 1 管理)
--XX:ParallelGCThreads=2                   # 限制並行 GC 線程，留出空間給 Aeron 搬運工
--XX:ConcGCThreads=1                       # 最小化背景 GC 掃描頻率
--XX:CICompilerCount=2                     # 防止 JIT 背景編譯搶佔網關轉發線程
-
-# === 4. I/O 與 網路棧優化 ===
--Djdk.nio.maxCachedBufferSize=2097152     # 2MB Cache，優化 Netty 處理大規模消息時的 ByteBuffer 重用率
--Djava.net.preferIPv4Stack=true           # 固定 IPv4 以減少網絡協定解析開銷
--Dnetty.worker.count=2                    # 限制 Netty Worker，精確匹配分配給網關的 2 個 P-Core
--Dio.netty.leakDetection.level=disabled   # 關閉 Netty 洩漏檢查，這在高頻下會消耗顯著的 CPU 週期
-
-# === 5. Aeron 系統屬性 (極速數據搬運) ===
--Daeron.threading.mode=DEDICATED          # 獨立 Sender/Receiver 線程
--Daeron.publication.term.buffer.length=67108864 # 大容量 Term Buffer 緩解背壓 (Backpressure)
--Daeron.socket.so_sndbuf=2097152          # 擴大系統 Socket 發送緩衝
--Daeron.socket.so_rcvbuf=2097152          # 擴大系統 Socket 接收緩衝
--Daeron.rcv.initial.window.length=2097152 # 增加初始滑動窗口，優化 UDP 傳輸吞吐量
-
-# === 6. 診斷 ===
+-XX:MaxDirectMemorySize=12g
+-XX:+AlwaysPreTouch
+-XX:+UseLargePages
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=10
+-XX:G1HeapRegionSize=16m
+-XX:G1NewSizePercent=50
+-XX:G1ReservePercent=15
+-XX:ActiveProcessorCount=4
+-XX:ParallelGCThreads=2
+-XX:ConcGCThreads=1
+-XX:CICompilerCount=2
+-Djdk.nio.maxCachedBufferSize=2097152
+-Djava.net.preferIPv4Stack=true
+-Dnetty.worker.count=2
+-Dio.netty.leakDetection.level=disabled
+-Daeron.threading.mode=DEDICATED
+-Daeron.publication.term.buffer.length=67108864
+-Daeron.socket.so_sndbuf=2097152
+-Daeron.socket.so_rcvbuf=2097152
+-Daeron.rcv.initial.window.length=2097152
+-ea
 -XX:+ShowCodeDetailsInExceptionMessages

@@ -26,7 +26,6 @@ public class OrderProcessor {
     private final ChronicleMap<Long, Order> orders = Storage.self().orders();
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
     
-    private final OrderBook orderBook;
     private final Ledger ledger;
     private final ExecutionReporter reporter;
 

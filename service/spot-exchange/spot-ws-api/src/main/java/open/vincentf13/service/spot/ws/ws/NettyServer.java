@@ -23,7 +23,7 @@ import static open.vincentf13.service.spot.infra.Constants.Ws;
 @Slf4j
 @Component
 public class NettyServer {
-    @Value("${server.port:8081}")
+    @Value("${websocket.port:8080}")
     private int port;
 
     @Value("${netty.worker.count:2}")

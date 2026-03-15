@@ -9,8 +9,8 @@
 const WebSocket = require('ws');
 
 // 根據你的環境調整端口
-const WS_URL = 'ws://localhost:8081/ws'; 
-const API_URL = 'http://localhost:8081/api/test';
+const WS_URL = 'ws://localhost:8080/ws'; 
+const API_URL = 'http://localhost:8082/api/test';
 
 // 測試用常數
 const USER_A = 1001; // 買家
