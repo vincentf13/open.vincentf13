@@ -164,9 +164,9 @@ public class Constants {
      */
     public static class AeronChannel {
         /** 發送至 Matching Core 的通道 */
-        public static final String MATCHING_URL = System.getProperty("AERON_MATCHING_URL", "aeron:udp?endpoint=localhost:40444");
+        public static final String MATCHING_URL = System.getProperty("AERON_MATCHING_URL", "aeron:ipc");
         /** 發送至 Gateway 的通道 */
-        public static final String GATEWAY_URL = System.getProperty("AERON_GATEWAY_URL", "aeron:udp?endpoint=localhost:40445");
+        public static final String GATEWAY_URL = System.getProperty("AERON_GATEWAY_URL", "aeron:ipc");
         
         /** 統一數據流 ID */
         public static final int DATA_STREAM_ID = 10;
