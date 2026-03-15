@@ -69,3 +69,13 @@ node e2e-integration-test.js
 🎉 所有 E2E 整合測試情境通過！
 ```
 若有任何階段的斷言 (Assert) 失敗，腳本會拋出錯誤並中斷，提示你具體是哪個資產數字或訂單狀態不符合預期。
+
+---
+
+## 5. 性能與監控介面 (Sidecar API)
+測試期間或結束後，您可以透過 `spot-ws-api` 提供的介面分析系統表現：
+
+*   **TPS 完整歷史**：`GET /api/test/metrics/tps` (返回每一秒的累計成交數)
+*   **引擎飽和度證明**：`GET /api/test/metrics/saturation` (證明引擎是否 100% 處理數據)
+*   **資產驗證**：`GET /api/test/balance?userId={id}&assetId={id}`
+*   **訂單驗證**：`GET /api/test/order?orderId={id}`
