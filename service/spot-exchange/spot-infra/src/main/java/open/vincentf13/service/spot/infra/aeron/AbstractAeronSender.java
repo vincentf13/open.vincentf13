@@ -100,10 +100,10 @@ public abstract class AbstractAeronSender extends Worker {
         if (buffer.getInt(offset) == MsgType.RESUME) {
             if (currentState == AeronState.WAITING) {
                 long resumeSeq = buffer.getLong(offset + 4);
-                // 解碼 WAL Index：對於批次發送模式，Index 在高 48 位
-                long walIndex = (resumeSeq == MSG_SEQ_NONE) ? WAL_INDEX_NONE : (resumeSeq >> 16);
+                // 直接映射：Sequence 就是實體 WAL Index
+                long walIndex = (resumeSeq == MSG_SEQ_NONE) ? WAL_INDEX_NONE : resumeSeq;
                 
-                log.info("✅ 握手成功！收到對端 RESUME 訊號，Sequence: {}, 執行位點跳轉 Index: {}", resumeSeq, walIndex);
+                log.info("✅ 握手成功！收到對端 RESUME 訊號，Sequence/Index: {}", walIndex);
                 
                 if (walIndex == WAL_INDEX_NONE) {
                     tailer.toStart();

@@ -41,16 +41,17 @@ public class AsyncWalWriter extends Worker {
 
     @Override
     protected int doWork() {
-        // 批次寫入優化：開啟一個 DocumentContext 寫入多條訊息
-        try (DocumentContext dc = appender.writingDocument()) {
-            net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-            final net.openhft.chronicle.bytes.PointerBytesStore pointer = open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getReusablePointer();
-            
-            int workDone = queue.read((msgTypeId, buffer, offset, length) -> {
-                // 寫入長度前綴與數據 (零拷貝)
-                bytes.writeInt(length);
+        // 批量從 RingBuffer 讀取，但每一筆訊息都開啟獨立的 WAL Document 以獲得唯一索引
+        final net.openhft.chronicle.bytes.PointerBytesStore pointer = open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getReusablePointer();
+        
+        return queue.read((msgTypeId, buffer, offset, length) -> {
+            try (DocumentContext dc = appender.writingDocument()) {
                 pointer.set(buffer.addressOffset() + offset, length);
+                // 直接寫入數據，每一筆訊息都會獲得一個唯一的 dc.index()
+                net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
                 bytes.write(pointer);
+                // 強制同步刷盤 (fsync)
+                bytes.force();
 
                 localWalWriteCount++;
                 if (localWalWriteCount >= METRICS_BATCH_SIZE) {
@@ -58,14 +59,9 @@ public class AsyncWalWriter extends Worker {
                     Storage.self().metricsHistory().compute(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, (k, v) -> v == null ? batch : v + batch);
                     localWalWriteCount = 0;
                 }
-                log.debug("[ASYNC-WAL] 訊息已加入批次, len={}", length);
-            }, 100);
-
-            if (workDone == 0) {
-                dc.rollbackOnClose();
+                log.debug("[ASYNC-WAL] 訊息已持久化, index={}", dc.index());
             }
-            return workDone;
-        }
+        }, 100);
     }
 
     @Override
