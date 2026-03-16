@@ -55,5 +55,6 @@
 -Daeron.socket.so_sndbuf=2097152
 -Daeron.socket.so_rcvbuf=2097152
 -Daeron.rcv.initial.window.length=2097152
+-Dlogging.level.net.openhft=WARN
 -ea
 -XX:+ShowCodeDetailsInExceptionMessages

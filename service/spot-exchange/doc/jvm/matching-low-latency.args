@@ -63,5 +63,6 @@
 -Daeron.publication.unblock.timeout.ns=10000000
 -Daeron.pre.touch.mapped.memory=true
 -Daeron.mtu.length=8192
+-Dlogging.level.net.openhft=WARN
 -ea
 -XX:+ShowCodeDetailsInExceptionMessages
