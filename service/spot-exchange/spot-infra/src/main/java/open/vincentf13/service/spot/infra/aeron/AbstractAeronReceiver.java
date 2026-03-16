@@ -98,7 +98,7 @@ public abstract class AbstractAeronReceiver extends Worker {
         // 關鍵：傳遞 assembler 而非直接傳遞 fragmentHandler
         int fragments = subscription.poll(assembler, 10);
         if (fragments > 0) {
-            log.info("[AERON-RECEIVER] 成功 Poll 到 {} 個數據片段，狀態: {}", fragments, currentState);
+            log.debug("[AERON-RECEIVER] 成功 Poll 到 {} 個數據片段，狀態: {}", fragments, currentState);
         }
         return fragments;
     }

@@ -39,11 +39,11 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {     
         // 增加 Netty 接收指標
         Storage.self().metricsHistory().compute(Storage.KEY_NETTY_RECV_COUNT, (k, v) -> v == null ? 1L : v + 1);
-        
-        log.info("[GATEWAY-WS] 收到訊息: {}", frame.text()); // 將 debug 改為 info 確保能看到
+
+        log.debug("[GATEWAY-WS] 收到訊息: {}", frame.text()); // 降級為 debug 避免 I/O 阻塞
         final ThreadContext context = ThreadContext.get();
         final ThreadContext.RequestHolder holder = context.getRequestHolder();
         holder.reset();
@@ -70,7 +70,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
         switch (holder.getOp()) {
             case "auth" -> {
-                log.info("[GATEWAY] 處理 AUTH: uid={}", holder.getUserId());
+                log.info("[GATEWAY] 處理 AUTH: uid={}", holder.getUserId()); // Auth 次數少，可保留 info
                 sessionManager.addSession(holder.getUserId(), ctx.channel());
                 AuthCommand cmd = context.getAuthCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
@@ -78,7 +78,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 writeRaw(cmd);
             }
             case "order_create" -> {
-                log.info("[GATEWAY] 處理 ORDER_CREATE: uid={}, sid={}, p={}, q={}, side={}, cid={}", 
+                log.debug("[GATEWAY] 處理 ORDER_CREATE: uid={}, sid={}, p={}, q={}, side={}, cid={}", 
                     holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), holder.getSide(), holder.getCid());
                 Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? Side.BUY : Side.SELL;
                 OrderCreateCommand cmd = context.getOrderCreateCommand();
@@ -87,14 +87,14 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 writeRaw(cmd);
             }
             case "order_cancel" -> {
-                log.info("[GATEWAY] 處理 ORDER_CANCEL: uid={}, oid={}", holder.getUserId(), holder.getOrderId());
+                log.debug("[GATEWAY] 處理 ORDER_CANCEL: uid={}, oid={}", holder.getUserId(), holder.getOrderId());
                 OrderCancelCommand cmd = context.getOrderCancelCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
                 writeRaw(cmd);
             }
             case "deposit" -> {
-                log.info("[GATEWAY] 處理 DEPOSIT: uid={}, aid={}, amt={}", holder.getUserId(), holder.getAssetId(), holder.getAmount());
+                log.debug("[GATEWAY] 處理 DEPOSIT: uid={}, aid={}, amt={}", holder.getUserId(), holder.getAssetId(), holder.getAmount());
                 DepositCommand cmd = context.getDepositCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
@@ -110,10 +110,9 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             bytes.writeInt(len); // 手動寫入長度 (與 AeronSender 解析匹配)
             // 修正：調用模型的 writeMarshallable，它會自動處理 PointerBytesStore 的刷新並寫入內容
             model.writeMarshallable(bytes);
-            log.info("[GATEWAY-WAL] 訊息已持久化至 WAL, index={}, len={}", dc.index(), len);
+            log.debug("[GATEWAY-WAL] 訊息已持久化至 WAL, index={}, len={}", dc.index(), len);
         }
     }
-
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         Long uid = sessionManager.getUserIdByChannel(ctx.channel());

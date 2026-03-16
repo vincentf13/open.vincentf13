@@ -94,7 +94,7 @@ public class Engine extends Worker {
                 updateMode(index, gwSeq);
                 checkSequence(gwSeq);
                 handlePersistence(index, gwSeq);
-                log.info("[ENGINE] 業務處理完成: index={}, gwSeq={}", index, gwSeq);
+                log.debug("[ENGINE] 業務處理完成: index={}, gwSeq={}", index, gwSeq);
             }
             
             return 1;

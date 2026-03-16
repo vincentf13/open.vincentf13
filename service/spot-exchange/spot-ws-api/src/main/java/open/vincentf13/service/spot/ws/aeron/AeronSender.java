@@ -53,7 +53,7 @@ public class AeronSender extends AbstractAeronSender {
         };
 
         if (cmd != null) {
-            log.info("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}", msgType, ctxSeq);
+            log.debug("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}", msgType, ctxSeq);
             this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
                 final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
                 // 零拷貝轉移

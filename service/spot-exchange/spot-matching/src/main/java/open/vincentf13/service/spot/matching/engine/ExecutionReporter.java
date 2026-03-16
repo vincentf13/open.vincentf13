@@ -18,7 +18,7 @@ public class ExecutionReporter implements AutoCloseable {
 
     public void reportAccepted(Order taker) {
         if (isReplaying) return;
-        log.info("[Accepted] OrderId: {}, UserId: {}, ClientOrderId: {}", 
+        log.debug("[Accepted] OrderId: {}, UserId: {}, ClientOrderId: {}",
                 taker.getOrderId(), taker.getUserId(), taker.getClientOrderId());
     }
 
@@ -29,26 +29,25 @@ public class ExecutionReporter implements AutoCloseable {
 
     public void reportCanceled(Order order) {
         if (isReplaying) return;
-        log.info("[Canceled] OrderId: {}, UserId: {}, Filled: {}", 
+        log.debug("[Canceled] OrderId: {}, UserId: {}, Filled: {}",
                 order.getOrderId(), order.getUserId(), order.getFilled());
     }
 
     public void reportTrade(Order order, long price, long qty) {
         if (isReplaying) return;
-        log.info("[Trade] OrderId: {}, UserId: {}, Price: {}, Qty: {}, Status: {}", 
-                order.getOrderId(), order.getUserId(), price, qty, 
+        log.debug("[Trade] OrderId: {}, UserId: {}, Price: {}, Qty: {}, Status: {}",
+                order.getOrderId(), order.getUserId(), price, qty,
                 order.getStatus() == 2 ? "FILLED" : "PARTIALLY_FILLED");
     }
 
     public void reportAuth(long userId) {
         if (isReplaying) return;
-        log.info("[Auth] UserId: {} Success", userId);
+        log.info("[Auth] UserId: {} Success", userId); // 驗證次數少，保留 info
     }
 
     public void reportDeposit(long userId, int assetId, long amount) {
         if (isReplaying) return;
-        log.info("[Deposit] UserId: {}, AssetId: {}, Amount: {}", userId, assetId, amount);
+        log.info("[Deposit] UserId: {}, AssetId: {}, Amount: {}", userId, assetId, amount); // 充值次數少，保留 info
     }
-
     @Override public void close() {}
 }
