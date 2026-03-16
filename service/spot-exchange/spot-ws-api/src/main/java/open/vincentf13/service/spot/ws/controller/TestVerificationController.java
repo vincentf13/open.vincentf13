@@ -87,7 +87,11 @@ public class TestVerificationController {
         long pollCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_POLL_COUNT, 0L);
         long workCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_WORK_COUNT, 0L);
         double ratio = pollCount == 0 ? 0 : (double) workCount / pollCount * 100.0;
-        
+
+        // 全鏈路瓶頸指標
+        long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_NETTY_RECV_COUNT, 0L);
+        long aeronBackpressure = Storage.self().metricsHistory().getOrDefault(Storage.KEY_AERON_BACKPRESSURE, 0L);
+
         // JVM 與 OS 資源指標
         Runtime runtime = Runtime.getRuntime();
         long maxMemory = runtime.maxMemory();
@@ -103,19 +107,20 @@ public class TestVerificationController {
         }
 
         Map<String, Object> metrics = new java.util.LinkedHashMap<>();
+        metrics.put("netty_recv_count", nettyRecvCount);
+        metrics.put("aeron_backpressure_count", aeronBackpressure);
         metrics.put("engine_work_count", workCount);
         metrics.put("engine_poll_count", pollCount);
         metrics.put("engine_saturation", String.format("%.2f%%", ratio));
-        
+
         metrics.put("jvm_memory_used_mb", usedMemory / (1024 * 1024));
         metrics.put("jvm_memory_max_mb", maxMemory / (1024 * 1024));
         metrics.put("jvm_memory_usage", String.format("%.2f%%", memoryUsageRatio));
-        
+
         metrics.put("os_cpu_load", sysLoad >= 0 ? String.format("%.2f%%", sysLoad) : "N/A");
-        
+
         return metrics;
     }
-
     @GetMapping("/dump_wal")
     public List<String> dumpWal() {
         List<String> logs = new ArrayList<>();

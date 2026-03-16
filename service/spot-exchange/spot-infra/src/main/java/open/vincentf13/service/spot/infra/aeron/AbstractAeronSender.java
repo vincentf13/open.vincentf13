@@ -90,6 +90,7 @@ public abstract class AbstractAeronSender extends Worker {
 
         if (workDone > 0 && backPressureCount > 1000) {
             log.warn("警告：偵測到嚴重背壓，請檢查接收端效能！");
+            Storage.self().metricsHistory().compute(Storage.KEY_AERON_BACKPRESSURE, (k, v) -> v == null ? backPressureCount : v + backPressureCount);
             backPressureCount = 0;
         }
 

@@ -40,6 +40,9 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {
+        // 增加 Netty 接收指標
+        Storage.self().metricsHistory().compute(Storage.KEY_NETTY_RECV_COUNT, (k, v) -> v == null ? 1L : v + 1);
+        
         log.info("[GATEWAY-WS] 收到訊息: {}", frame.text()); // 將 debug 改為 info 確保能看到
         final ThreadContext context = ThreadContext.get();
         final ThreadContext.RequestHolder holder = context.getRequestHolder();
