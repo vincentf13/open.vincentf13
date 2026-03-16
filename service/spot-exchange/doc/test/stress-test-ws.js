@@ -3,7 +3,7 @@ import { check } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 100, 
+    vus: 200, 
     duration: '1m', 
 };
 
@@ -75,15 +75,15 @@ export default function () {
             // 1. 發送二進制 Auth
             socket.sendBinary(createSbeAuth(uid));
 
-            // 2. 地毯式下單
+            // 2. 地毯式下單 (高壓版)
             socket.setInterval(function () {
                 const baseCid = Date.now() * 1000 + Math.floor(Math.random() * 1000);
                 
-                // 發送買單 (Side=0)
-                socket.sendBinary(createSbeOrderCreate(uid, 0, baseCid));
-
-                // 立即發送賣單 (Side=1)
-                socket.sendBinary(createSbeOrderCreate(uid, 1, baseCid + 1));
+                // 批處理：單次循環發送 10 筆 (5買 5賣)
+                for (let i = 0; i < 5; i++) {
+                    socket.sendBinary(createSbeOrderCreate(uid, 0, baseCid + i*2));
+                    socket.sendBinary(createSbeOrderCreate(uid, 1, baseCid + i*2 + 1));
+                }
             }, 1); 
         });
 
