@@ -42,10 +42,9 @@ public class AeronReceiver extends AbstractAeronReceiver {
         // 使用 writingDocument(false) 確保絕對原始寫入
         try (DocumentContext dc = wal.acquireAppender().writingDocument(false)) {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-            // 寫入數據：[Length(4)][MsgType(4)][Seq(8)][Body...]
-            // 注意：Aeron 傳過來的 buffer 已經包含這套結構了
+            // 關鍵：補回 4 字節長度頭，對齊 CommandRouter 的解析邏輯
+            bytes.writeInt(length);
             bytes.write(pointer);
-            // 由於 dc.index() 在 RAW 模式下可能不準確，我們只記錄長度
             log.debug("[AERON-RECEIVER] 數據已寫入 Engine WAL, len={}", length);
         }
     }

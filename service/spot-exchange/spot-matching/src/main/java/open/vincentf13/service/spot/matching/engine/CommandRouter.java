@@ -32,7 +32,7 @@ public class CommandRouter {
         if (bytes.readRemaining() < payloadLen) return MSG_SEQ_NONE;
 
         final long addressForRead = bytes.addressForRead(bytes.readPosition());
-        final int msgType = UNSAFE.getInt(addressForRead);
+        final int msgType = bytes.readInt(); // 改用 readInt()，它會從當前 position (Length之後) 讀取 4 字節
         
         final ThreadContext ctx = ThreadContext.get();
 
@@ -41,28 +41,28 @@ public class CommandRouter {
                 AuthCommand cmd = ctx.getAuthCommand();
                 cmd.wrap(addressForRead, (long) payloadLen);
                 authProcessor.handleAuth(cmd.getUserId(), cmd.getSeq());
-                bytes.readSkip((long) payloadLen);
+                bytes.readSkip((long) payloadLen - 4); // 扣除已經 readInt 掉的 4 字節
                 yield cmd.getSeq();
             }
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 cmd.wrap(addressForRead, (long) payloadLen);
                 orderProcessor.processCreateCommand(cmd.getUserId(), cmd.getSymbolId(), cmd.getPrice(), cmd.getQty(), cmd.getSide(), cmd.getClientOrderId(), cmd.getSeq(), orderIdSupplier, tradeIdSupplier);
-                bytes.readSkip((long) payloadLen);
+                bytes.readSkip((long) payloadLen - 4);
                 yield cmd.getSeq();
             }
             case MsgType.ORDER_CANCEL -> {
                 OrderCancelCommand cmd = ctx.getOrderCancelCommand();
                 cmd.wrap(addressForRead, (long) payloadLen);
                 orderProcessor.processCancelCommand(cmd.getUserId(), cmd.getOrderId(), cmd.getSeq());
-                bytes.readSkip((long) payloadLen);
+                bytes.readSkip((long) payloadLen - 4);
                 yield cmd.getSeq();
             }
             case MsgType.DEPOSIT -> {
                 DepositCommand cmd = ctx.getDepositCommand();
                 cmd.wrap(addressForRead, (long) payloadLen);
                 depositProcessor.handleDeposit(cmd.getUserId(), cmd.getAssetId(), cmd.getAmount(), cmd.getSeq());
-                bytes.readSkip((long) payloadLen);
+                bytes.readSkip((long) payloadLen - 4);
                 yield cmd.getSeq();
             }
             default -> {

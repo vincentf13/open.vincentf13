@@ -51,10 +51,9 @@ public class Engine extends Worker {
             orderProcessor.coldStartRebuild();
         }
         
-        // --- 壓測優化：強制初始化測試交易對 (SID=1, BTC/USDT) ---
-        // 假設 1=BTC, 2=USDT (這需與 Ledger 中的資產 ID 對應)
-        log.info("[ENGINE-INIT] 初始化測試交易對: sid=1 (BTC/USDT)");
-        OrderBook.init(1, 1, 2); 
+        // --- 壓測優化：強制初始化測試交易對 (SID=1001, BTC/USDT) ---
+        log.info("[ENGINE-INIT] 初始化測試交易對: sid=1001 (BTC/USDT)");
+        OrderBook.get(1001); 
 
         loadMetadata();
         this.tailer = engineReceiverWal.createTailer();
@@ -95,7 +94,7 @@ public class Engine extends Worker {
                 updateMode(index, gwSeq);
                 checkSequence(gwSeq);
                 handlePersistence(index, gwSeq);
-                log.debug("[ENGINE] 業務處理完成: index={}, gwSeq={}", index, gwSeq);
+                log.info("[ENGINE] 業務處理完成: index={}, gwSeq={}", index, gwSeq);
             }
             
             return 1;

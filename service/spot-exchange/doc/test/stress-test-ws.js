@@ -27,8 +27,8 @@ export default function () {
                 const price = 100; 
                 socket.send(JSON.stringify({
                     op: "order_create",
-                    uid: uid, // 補上遺漏的 uid
-                    sid: 1,
+                    uid: uid,
+                    sid: 1001, // 修正為 1001 (BTCUSDT)
                     p: price,
                     q: 1,
                     side: Math.random() > 0.5 ? "BUY" : "SELL",
