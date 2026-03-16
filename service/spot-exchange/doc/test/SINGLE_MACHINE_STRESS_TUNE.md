@@ -23,11 +23,9 @@ Start-Sleep 5
 if(!$e.HasExited){$e.ProcessorAffinity=7; "Matching Success!"}else{gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log"}
 if(!$g.HasExited){$g.ProcessorAffinity=120; "GateWay Success!"}else{gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log"}
 
-
 cd "C:\iProject\open.vincentf13\service\spot-exchange\doc\test"
-# 鎖定 Core 6-15 (Affinity 65472)
-$K6 = Start-Process k6 -ArgumentList "run stress-test-ws.js" -PassThru
-$K6.ProcessorAffinity = 65472
+# 使用原生 cmd start /affinity 強制將 k6 綁定在 E-cores (6-15)，Hex: FFC0
+cmd.exe /c "start /B /WAIT /affinity FFC0 k6 run stress-test-ws.js"
 ```
 
 壓測完成後，您可以再次訪問：
