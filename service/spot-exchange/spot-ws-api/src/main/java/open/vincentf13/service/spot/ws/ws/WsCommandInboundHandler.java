@@ -41,21 +41,75 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {     
-        // 增加 Netty 接收指標 (批量)
-        localNettyRecvCount++;
-        if (localNettyRecvCount >= METRICS_BATCH_SIZE) {
-            final long batch = localNettyRecvCount;
-            Storage.self().metricsHistory().compute(Storage.KEY_NETTY_RECV_COUNT, (k, v) -> v == null ? batch : v + batch);
-            localNettyRecvCount = 0;
-        }
+        handleTextMessage(ctx, frame.text());
+    }
 
-        log.debug("[GATEWAY-WS] 收到訊息: {}", frame.text()); // 降級為 debug 避免 I/O 阻塞
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        super.userEventTriggered(ctx, evt);
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (msg instanceof io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame frame) {
+            handleBinaryMessage(ctx, frame);
+        } else {
+            super.channelRead(ctx, msg);
+        }
+    }
+
+    private void handleBinaryMessage(ChannelHandlerContext ctx, io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame frame) {
+        // 增加 Netty 接收指標 (批量)
+        updateNettyMetrics();
+
+        io.netty.buffer.ByteBuf content = frame.content();
+        int length = content.readableBytes();
+        if (length < 4) return;
+
+        // 提取 MsgType (位於 AbstractSbeModel.TYPE_OFFSET = 0)
+        int msgType = content.getInt(content.readerIndex());
+        
+        // 直接將二進制數據推入 RingBuffer (零拷貝轉發)
+        int index = gatewayWalQueue.tryClaim(msgType, length);
+        if (index > 0) {
+            try {
+                // 使用 ByteBuffer 進行橋接拷貝
+                java.nio.ByteBuffer dst = gatewayWalQueue.buffer().byteBuffer();
+                if (dst != null) {
+                    int oldPos = dst.position();
+                    int oldLimit = dst.limit();
+                    try {
+                        dst.limit(index + length).position(index);
+                        content.readBytes(dst);
+                    } finally {
+                        dst.limit(oldLimit).position(oldPos);
+                    }
+                } else {
+                    // Fallback: 如果無法獲取 ByteBuffer，則使用 putBytes (這會發生在非 DirectBuffer 情況下)
+                    byte[] bytes = new byte[length];
+                    content.readBytes(bytes);
+                    gatewayWalQueue.buffer().putBytes(index, bytes);
+                }
+            } finally {
+                gatewayWalQueue.commit(index);
+            }
+            log.debug("[GATEWAY-WS] 二進制訊息已直接轉發, type={}, len={}", msgType, length);
+        } else {
+            log.warn("[GATEWAY-WS] RingBuffer 滿了！二進制訊息被丟棄");
+        }
+    }
+
+    private void handleTextMessage(ChannelHandlerContext ctx, String text) {
+        // 增加 Netty 接收指標 (批量)
+        updateNettyMetrics();
+
+        log.debug("[GATEWAY-WS] 收到 JSON 訊息: {}", text); 
         final ThreadContext context = ThreadContext.get();
         final ThreadContext.RequestHolder holder = context.getRequestHolder();
         holder.reset();
 
         try {
-            java.util.Map<String, Object> map = JsonUtil.toMap(frame.text());
+            java.util.Map<String, Object> map = JsonUtil.toMap(text);
             holder.setOp((String) map.get("op"));
             if (map.get("uid") != null) holder.setUserId(((Number) map.get("uid")).longValue());
             if (map.get("oid") != null) holder.setOrderId(((Number) map.get("oid")).longValue());
@@ -67,7 +121,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             if (map.get("amt") != null) holder.setAmount(((Number) map.get("amt")).longValue());
             if (map.get("aid") != null) holder.setAssetId(((Number) map.get("aid")).intValue());
         } catch (Exception e) {
-            log.warn("JSON 解析失敗: {}, raw: {}", e.getMessage(), frame.text());
+            log.warn("JSON 解析失敗: {}, raw: {}", e.getMessage(), text);
         }
 
         if (holder.getOp() == null) return;
@@ -76,9 +130,10 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
         switch (holder.getOp()) {
             case "auth" -> {
-                log.debug("[GATEWAY] 處理 AUTH: uid={}", holder.getUserId()); // 全面降級為 debug
+                log.debug("[GATEWAY] 處理 AUTH: uid={}", holder.getUserId());
                 sessionManager.addSession(holder.getUserId(), ctx.channel());
-                AuthCommand cmd = context.getAuthCommand();                cmd.wrapWriteBuffer(scratch, 0);
+                AuthCommand cmd = context.getAuthCommand();
+                cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
                 asyncWrite(cmd);
             }
@@ -105,6 +160,15 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
                 asyncWrite(cmd);
             }
+        }
+    }
+
+    private void updateNettyMetrics() {
+        localNettyRecvCount++;
+        if (localNettyRecvCount >= METRICS_BATCH_SIZE) {
+            final long batch = localNettyRecvCount;
+            Storage.self().metricsHistory().compute(Storage.KEY_NETTY_RECV_COUNT, (k, v) -> v == null ? batch : v + batch);
+            localNettyRecvCount = 0;
         }
     }
 

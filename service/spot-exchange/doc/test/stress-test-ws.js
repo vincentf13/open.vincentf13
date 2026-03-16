@@ -3,58 +3,92 @@ import { check } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 100, // 模擬 100 個併發用戶 (翻倍壓力)
-    duration: '1m', // 壓測持續 1 分鐘
+    vus: 100, 
+    duration: '1m', 
 };
 
-const WS_URL = 'ws://127.0.0.1:8080/ws/spot'; // 修正路徑為 /ws/spot
-const METRICS_URL = 'http://127.0.0.1:8081/metrics/tps';
+const WS_URL = 'ws://127.0.0.1:8080/ws/spot';
+const METRICS_URL = 'http://127.0.0.1:8082/api/test/metrics/saturation';
+
+// SBE 常數
+const MSG_TYPE_AUTH = 103;
+const MSG_TYPE_ORDER_CREATE = 100;
+const SBE_SCHEMA_ID = 1;
+const SBE_VERSION = 0;
+
+/**
+ * 構造二進制 SBE 訊息 (AbstractSbeModel 佈局)
+ * [0-3] Type | [4-11] Seq | [12-19] SBE Header | [20-...] Body
+ */
+function createSbeAuth(uid) {
+    const buffer = new ArrayBuffer(20 + 16); // Header(20) + Body(16)
+    const view = new DataView(buffer);
+    
+    // AbstractSbeModel Header
+    view.setInt32(0, MSG_TYPE_AUTH, true); // MsgType
+    view.setBigInt64(4, BigInt(-1), true); // Seq (-1)
+    
+    // SBE MessageHeader
+    view.setUint16(12, 16, true);          // BlockLength
+    view.setUint16(14, 103, true);         // TemplateId
+    view.setUint16(16, SBE_SCHEMA_ID, true);
+    view.setUint16(18, SBE_VERSION, true);
+    
+    // Auth Body
+    view.setBigInt64(20, BigInt(Date.now()), true); // Timestamp
+    view.setBigInt64(28, BigInt(uid), true);       // UserId
+    
+    return buffer;
+}
+
+function createSbeOrderCreate(uid, side, cid) {
+    const buffer = new ArrayBuffer(20 + 45); // Header(20) + Body(45)
+    const view = new DataView(buffer);
+    
+    // AbstractSbeModel Header
+    view.setInt32(0, MSG_TYPE_ORDER_CREATE, true); 
+    view.setBigInt64(4, BigInt(-1), true); 
+    
+    // SBE MessageHeader
+    view.setUint16(12, 45, true);          // BlockLength
+    view.setUint16(14, 100, true);         // TemplateId
+    view.setUint16(16, SBE_SCHEMA_ID, true);
+    view.setUint16(18, SBE_VERSION, true);
+    
+    // OrderCreate Body
+    view.setBigInt64(20, BigInt(Date.now()), true); // Timestamp
+    view.setBigInt64(28, BigInt(uid), true);       // UserId
+    view.setInt32(36, 1001, true);                 // SymbolId (BTCUSDT)
+    view.setBigInt64(40, BigInt(100), true);       // Price
+    view.setBigInt64(48, BigInt(1), true);         // Qty
+    view.setUint8(56, side);                       // Side (0=BUY, 1=SELL)
+    view.setBigInt64(57, BigInt(cid), true);       // ClientOrderId
+    
+    return buffer;
+}
 
 export default function () {
     const res = ws.connect(WS_URL, {}, function (socket) {
         socket.on('open', function () {
-            const uid = Math.floor(Math.random() * 10000) + 1; // 為每個 VU 生成固定 UID
-            console.log(`VU ${__VU} connected with UID ${uid}!`); 
+            const uid = Math.floor(Math.random() * 10000) + 1;
+            
+            // 1. 發送二進制 Auth
+            socket.sendBinary(createSbeAuth(uid));
 
-            // 1. 先發送 Auth
-            socket.send(JSON.stringify({
-                op: "auth",
-                uid: uid
-            }));
-
-            // 2. 地毯式下單 (對沖模式：一買一賣確保平衡)
+            // 2. 地毯式下單
             socket.setInterval(function () {
-                const price = 100;
-                const cid = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+                const baseCid = Date.now() * 1000 + Math.floor(Math.random() * 1000);
                 
-                // 發送買單
-                socket.send(JSON.stringify({
-                    op: "order_create",
-                    uid: uid,
-                    sid: 1001,
-                    p: price,
-                    q: 1,
-                    side: "BUY",
-                    cid: cid
-                }));
+                // 發送買單 (Side=0)
+                socket.sendBinary(createSbeOrderCreate(uid, 0, baseCid));
 
-                // 立即發送對應的賣單 (確保成交)
-                socket.send(JSON.stringify({
-                    op: "order_create",
-                    uid: uid,
-                    sid: 1001,
-                    p: price,
-                    q: 1,
-                    side: "SELL",
-                    cid: cid + 1
-                }));
+                // 立即發送賣單 (Side=1)
+                socket.sendBinary(createSbeOrderCreate(uid, 1, baseCid + 1));
             }, 1); 
         });
 
-        socket.on('close', () => console.log('WS connection closed'));
         socket.on('error', (e) => console.error('WS error: ', e.error()));
         
-        // 運行一段時間後關閉
         socket.setTimeout(function () {
             socket.close();
         }, 55000);
@@ -64,13 +98,13 @@ export default function () {
 }
 
 export function teardown() {
-    // 壓測結束後從撮合引擎獲取最終計數
     const res = http.get(METRICS_URL);
     if (res.status === 200) {
         const data = JSON.parse(res.body);
         console.log(`================================================`);
-        console.log(`最終累計成交數: ${data.total_matches}`);
-        console.log(`預期單機極限壓測完成。`);
+        console.log(`最終平均 TPS: ${data.average_tps}`);
+        console.log(`引擎飽和度: ${data.engine_saturation}`);
+        console.log(`Netty 接收數: ${data.netty_recv_count}`);
         console.log(`================================================`);
     }
 }
