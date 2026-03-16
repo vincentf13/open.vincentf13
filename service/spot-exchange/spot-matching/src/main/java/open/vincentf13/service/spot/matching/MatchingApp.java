@@ -11,13 +11,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 })
 public class MatchingApp {
     public static void main(String[] args) {
-        // 在 JVM 啟動初期為管理執行緒 (GC, JIT) 預留空間，確保它們不干擾後續啟動的 3 個核心 P-core 執行緒
-        try (AffinityLock lock = AffinityLock.acquireCore()) {
-            System.out.println(">>> [AFFINITY] JVM 管理執行緒已鎖定核心: " + lock.cpuId());
-            Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_JVM_MANAGEMENT, (long) lock.cpuId());
-            cleanDataDirectory();
-            SpringApplication.run(MatchingApp.class, args);
-        }
+        // 移除 main 執行緒的強制綁核，避免與 PowerShell 的 ProcessorAffinity 衝突導致 Error 87
+        // JVM 管理執行緒將由 OS 在進程允許的核心範圍內自動調度
+        cleanDataDirectory();
+        SpringApplication.run(MatchingApp.class, args);
     }
 
     private static void cleanDataDirectory() {

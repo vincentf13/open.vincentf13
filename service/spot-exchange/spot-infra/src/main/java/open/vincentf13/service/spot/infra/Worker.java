@@ -80,27 +80,41 @@ public abstract class Worker implements Runnable {
      */
     @Override
     public void run() {
-        // 在綁核環境下，獲取一個獨佔的 CPU Core 鎖
-        try (AffinityLock lock = AffinityLock.acquireCore()) {
+        // 在綁核環境下，嘗試獲取一個獨佔的 CPU Core 鎖
+        AffinityLock lock = null;
+        try {
+            lock = AffinityLock.acquireCore();
             onBind(lock.cpuId());
-            onStart();
+        } catch (Exception e) {
+            log.warn("無法獲取獨佔核心鎖 (可能是由於 OS 限制): {}, 將嘗試非獨佔鎖定", e.getMessage());
             try {
-                // 同時檢查運行標誌位與執行緒中斷狀態
-                while (running.get() && !Thread.currentThread().isInterrupted()) {
-                    int workDone = doWork();
-                    // 根據工作量決定等待策略：有任務時不休眠，無任務時逐步退避 (Spin -> Yield -> Park)
-                    idleStrategy.idle(workDone);
-                }
-            } catch (Exception e) {
-                // 捕獲所有異常，確保執行緒崩潰時有日誌記錄
-                if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
-                    log.warn("Worker {} 收到中斷信號，準備退出", Thread.currentThread().getName());
-                } else {
-                    log.error("Worker {} 運行時發生未預期錯誤", Thread.currentThread().getName(), e);
-                }
-            } finally {
-                // 確保循環結束，便於 stop() 中的 join() 順利返回
-                running.set(false);
+                // 降級：嘗試獲取任何可用的核心鎖，若仍失敗則不綁核
+                lock = AffinityLock.acquireLock();
+                onBind(lock.cpuId());
+            } catch (Exception e2) {
+                log.error("完全無法鎖定 CPU 核心: {}", e2.getMessage());
+            }
+        }
+
+        try {
+            onStart();
+            while (running.get() && !Thread.currentThread().isInterrupted()) {
+                int workDone = doWork();
+                // 根據工作量決定等待策略：有任務時不休眠，無任務時逐步退避 (Spin -> Yield -> Park)
+                idleStrategy.idle(workDone);
+            }
+        } catch (Exception e) {
+            // 捕獲所有異常，確保執行緒崩潰時有日誌記錄
+            if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
+                log.warn("Worker {} 收到中斷信號，準備退出", Thread.currentThread().getName());
+            } else {
+                log.error("Worker {} 運行時發生未預期錯誤", Thread.currentThread().getName(), e);
+            }
+        } finally {
+            // 確保循環結束，便於 stop() 中的 join() 順利返回
+            running.set(false);
+            if (lock != null) {
+                lock.close();
             }
         }
     }

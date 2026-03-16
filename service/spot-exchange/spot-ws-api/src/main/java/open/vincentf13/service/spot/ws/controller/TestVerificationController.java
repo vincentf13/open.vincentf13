@@ -162,7 +162,6 @@ public class TestVerificationController {
         metrics.put("engine_work_count", workCount);
         metrics.put("engine_poll_count", pollCount);
         metrics.put("engine_saturation", String.format("%.2f%%", ratio));
-        metrics.put("average_tps", String.format("%.2f", averageTps));
 
         metrics.put("jvm_memory_used_mb", usedMemory / (1024 * 1024));
         metrics.put("jvm_memory_max_mb", maxMemory / (1024 * 1024));
@@ -176,7 +175,6 @@ public class TestVerificationController {
         addCpuMetric(cpuAffinity, "async_wal_writer", Storage.KEY_CPU_ID_WAL_WRITER);
         addCpuMetric(cpuAffinity, "aeron_sender", Storage.KEY_CPU_ID_AERON_SENDER);
         addCpuMetric(cpuAffinity, "aeron_receiver", Storage.KEY_CPU_ID_AERON_RECEIVER);
-        addCpuMetric(cpuAffinity, "snapshot_worker", Storage.KEY_CPU_ID_SNAPSHOT);
         addCpuMetric(cpuAffinity, "jvm_management", Storage.KEY_CPU_ID_JVM_MANAGEMENT);
         metrics.put("cpu_affinity", cpuAffinity);
 
