@@ -169,13 +169,23 @@ public class TestVerificationController {
 
         metrics.put("os_cpu_load", sysLoad >= 0 ? String.format("%.2f%%", sysLoad) : "N/A");
 
-        // CPU Affinity 綁定資訊
+        // CPU Affinity 綁定資訊 (按服務聚合)
         Map<String, Object> cpuAffinity = new java.util.LinkedHashMap<>();
-        addCpuMetric(cpuAffinity, "matching_engine", Storage.KEY_CPU_ID_ENGINE);
-        addCpuMetric(cpuAffinity, "async_wal_writer", Storage.KEY_CPU_ID_WAL_WRITER);
-        addCpuMetric(cpuAffinity, "aeron_sender", Storage.KEY_CPU_ID_AERON_SENDER);
-        addCpuMetric(cpuAffinity, "aeron_receiver", Storage.KEY_CPU_ID_AERON_RECEIVER);
-        addCpuMetric(cpuAffinity, "jvm_management", Storage.KEY_CPU_ID_JVM_MANAGEMENT);
+        
+        // 1. Spot Matching 服務
+        Map<String, Object> matchingAffinity = new java.util.LinkedHashMap<>();
+        addCpuMetric(matchingAffinity, "engine", Storage.KEY_CPU_ID_ENGINE);
+        addCpuMetric(matchingAffinity, "aeron_receiver", Storage.KEY_CPU_ID_AERON_RECEIVER);
+        cpuAffinity.put("spot-matching", matchingAffinity);
+
+        // 2. Spot WS-API 服務
+        Map<String, Object> wsApiAffinity = new java.util.LinkedHashMap<>();
+        addCpuMetric(wsApiAffinity, "netty_worker_1", Storage.KEY_CPU_ID_NETTY_WORKER_1);
+        addCpuMetric(wsApiAffinity, "netty_worker_2", Storage.KEY_CPU_ID_NETTY_WORKER_2);
+        addCpuMetric(wsApiAffinity, "async_wal_writer", Storage.KEY_CPU_ID_WAL_WRITER);
+        addCpuMetric(wsApiAffinity, "aeron_sender", Storage.KEY_CPU_ID_AERON_SENDER);
+        cpuAffinity.put("spot-ws-api", wsApiAffinity);
+
         metrics.put("cpu_affinity", cpuAffinity);
 
         return metrics;

@@ -17,6 +17,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.util.AffinityUtil;
+
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static open.vincentf13.service.spot.infra.Constants.Ws;
 
@@ -40,8 +45,9 @@ public class NettyServer {
     @PostConstruct
     public void start() {
         new Thread(() -> {
-            bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("netty-boss"));
-            workerGroup = new NioEventLoopGroup(workerCount, new DefaultThreadFactory("netty-worker"));
+            bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss", Storage.KEY_CPU_ID_NETTY_BOSS));
+            workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker", 
+                Storage.KEY_CPU_ID_NETTY_WORKER_1, Storage.KEY_CPU_ID_NETTY_WORKER_2));
             try {
                 ServerBootstrap b = new ServerBootstrap();
                 b.group(bossGroup, workerGroup)
@@ -71,5 +77,28 @@ public class NettyServer {
     public void stop() {
         if (bossGroup != null) bossGroup.shutdownGracefully();
         if (workerGroup != null) workerGroup.shutdownGracefully();
+    }
+
+    private static class AffinityThreadFactory implements ThreadFactory {
+        private final String prefix;
+        private final long[] metricKeys;
+        private final AtomicInteger counter = new AtomicInteger(0);
+
+        public AffinityThreadFactory(String prefix, long... metricKeys) {
+            this.prefix = prefix;
+            this.metricKeys = metricKeys;
+        }
+
+        @Override
+        public Thread newThread(Runnable r) {
+            int currentIdx = counter.getAndIncrement();
+            return new Thread(() -> {
+                int cpuId = AffinityUtil.acquireAndBind();
+                if (cpuId != -1 && metricKeys != null && currentIdx < metricKeys.length) {
+                    Storage.self().metricsHistory().put(metricKeys[currentIdx], (long) cpuId);
+                }
+                r.run();
+            }, prefix + "-" + (currentIdx + 1));
+        }
     }
 }

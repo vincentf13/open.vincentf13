@@ -135,6 +135,10 @@ public class Storage {
     public static final long KEY_CPU_ID_AERON_RECEIVER = -103L;
     public static final long KEY_CPU_ID_SNAPSHOT = -104L;
     public static final long KEY_CPU_ID_JVM_MANAGEMENT = -105L;
+    public static final long KEY_CPU_ID_NETTY_BOSS = -106L;
+    public static final long KEY_CPU_ID_NETTY_WORKER_1 = -107L;
+    public static final long KEY_CPU_ID_NETTY_WORKER_2 = -108L;
+    public static final long KEY_CPU_ID_AERON_CONDUCTOR = -109L;
 
     // 雙端 JVM 與 CPU 指標 (用於跨進程彙整)
     public static final long KEY_MATCHING_JVM_USED_MB = -200L;
