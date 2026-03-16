@@ -85,15 +85,23 @@ public class OrderProcessor {
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
             // --- 壓測優化：自動充值 (10 億單位) ---
-            log.info("[TEST-FUNDING] 用戶 {} 資產不足，自動充入 1,000,000,000 單位資產 {}", userId, assetId);
+            log.info("[TEST-FUNDING] 用戶 {} 資產 {} 不足，自動充值並重試", userId, assetId);
             ledger.increaseAvailable(userId, assetId, 1_000_000_000L, gatewaySequence);
             if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
+                log.error("[ORDER-REJECT] 自動充值後凍結依然失敗: uid={}, asset={}", userId, assetId);
                 reporter.reportRejected(userId, clientOrderId);
                 return;
             }
         }
 
         // 2. 進入 OrderBook 撮合
+        if (book == null) {
+            log.error("[ORDER-REJECT] 找不到交易對: sid={}", symbolId);
+            reporter.reportRejected(userId, clientOrderId);
+            return;
+        }
+
+        log.debug("[ORDER-PROCESS] 訂單進入撮合: uid={}, side={}, p={}, q={}", userId, side, price, quantity);
         final byte takerSide = (byte) (side == Side.BUY ? OrderSide.BUY : OrderSide.SELL);
         book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, System.currentTimeMillis(), gatewaySequence, tradeIdSupplier::getAsLong, new OrderBook.TradeFinalizer() {
             @Override

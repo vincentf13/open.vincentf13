@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import net.openhft.chronicle.wire.DocumentContext;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
@@ -49,6 +50,12 @@ public class Engine extends Worker {
             OrderBook.rebuildActiveOrdersIndexes();
             orderProcessor.coldStartRebuild();
         }
+        
+        // --- 壓測優化：強制初始化測試交易對 (SID=1, BTC/USDT) ---
+        // 假設 1=BTC, 2=USDT (這需與 Ledger 中的資產 ID 對應)
+        log.info("[ENGINE-INIT] 初始化測試交易對: sid=1 (BTC/USDT)");
+        OrderBook.init(1, 1, 2); 
+
         loadMetadata();
         this.tailer = engineReceiverWal.createTailer();
         alignTailer();
@@ -59,47 +66,44 @@ public class Engine extends Worker {
 
     @Override
     protected int doWork() {
-        boolean success = tailer.readDocument(walReader);
-        
-        // 業務飽和度統計 (真正反映撮合引擎是否在忙碌處理業務)
-        Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
-        if (success) {
-            Storage.self().metricsHistory().compute(Storage.KEY_WORK_COUNT, (k, v) -> v == null ? 1L : v + 1);
-            log.info("[ENGINE] 成功處理 WAL 訊息, index={}", tailer.index());
-        }
-
-        // --- 每秒自動紀錄 TPS 總量 (即便沒有成交也能顯示位點) ---
-        long now = System.currentTimeMillis() / 1000;
-        if (now > lastMetricsTime) {
-            long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
-            Storage.self().metricsHistory().put(now, totalMatches);
-            lastMetricsTime = now;
-            if (totalMatches > 0) {
-                log.info("[ENGINE-METRICS] 當前累計成交數: {}", totalMatches);
+        // 使用原始模式讀取，排除 ReadMarshallable 的格式干擾
+        try (DocumentContext dc = tailer.readingDocument()) {
+            if (!dc.isPresent()) {
+                // --- 每秒自動紀錄 TPS 總量 (即便沒有成交也能顯示位點) ---
+                long now = System.currentTimeMillis() / 1000;
+                if (now > lastMetricsTime) {
+                    long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
+                    Storage.self().metricsHistory().put(now, totalMatches);
+                    lastMetricsTime = now;
+                }
+                Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
+                return 0;
             }
-        }
 
-        return success ? 1 : 0;
+            // 成功讀取到 Document
+            final long index = dc.index();
+            final net.openhft.chronicle.wire.WireIn wire = dc.wire();
+            
+            // 業務路由
+            final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
+            
+            // 統計與狀態演進
+            Storage.self().metricsHistory().compute(Storage.KEY_WORK_COUNT, (k, v) -> v == null ? 1L : v + 1);
+            Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
+            
+            if (gwSeq != MSG_SEQ_NONE) {
+                updateMode(index, gwSeq);
+                checkSequence(gwSeq);
+                handlePersistence(index, gwSeq);
+                log.debug("[ENGINE] 業務處理完成: index={}, gwSeq={}", index, gwSeq);
+            }
+            
+            return 1;
+        }
     }
 
     private void onWalMessage(WireIn wire) {
-        final long index = tailer.index();
-        
-        // 1. 指令路由 (核心業務執行) - 改為 Raw 模式
-        final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
-        
-        if (gwSeq != MSG_SEQ_NONE) {
-            log.info("[ENGINE] 業務處理完成: index={}, gwSeq={}", index, gwSeq);
-        } else {
-            log.warn("[ENGINE] 訊息路由失敗或類型未知: index={}", index);
-        }
-
-        // 2. 引擎狀態演進與連續性檢查
-        updateMode(index, gwSeq);
-        checkSequence(gwSeq);
-
-        // 3. 進度持久化與快照觸發
-        handlePersistence(index, gwSeq);
+        // 該方法已棄用，邏輯已移至 doWork 以支援 RAW 模式
     }
 
     private void loadMetadata() {

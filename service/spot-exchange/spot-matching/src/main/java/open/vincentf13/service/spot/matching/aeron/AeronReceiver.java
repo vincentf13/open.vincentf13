@@ -39,13 +39,14 @@ public class AeronReceiver extends AbstractAeronReceiver {
         final long aeronSrcAddress = OffHeapUtil.getAddress(buffer, offset);
         pointer.set(aeronSrcAddress, length);
 
-        // 回歸標準 Wire 模式寫入，確保與 Gateway WAL 格式完全一致
-        try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
+        // 使用 writingDocument(false) 確保絕對原始寫入
+        try (DocumentContext dc = wal.acquireAppender().writingDocument(false)) {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-            // 寫入長度 + 數據內容
-            bytes.writeInt(length);
+            // 寫入數據：[Length(4)][MsgType(4)][Seq(8)][Body...]
+            // 注意：Aeron 傳過來的 buffer 已經包含這套結構了
             bytes.write(pointer);
-            log.info("[AERON-RECEIVER] 訊息已寫入 Engine WAL, index={}, len={}", dc.index(), length);
+            // 由於 dc.index() 在 RAW 模式下可能不準確，我們只記錄長度
+            log.debug("[AERON-RECEIVER] 數據已寫入 Engine WAL, len={}", length);
         }
     }
 }
