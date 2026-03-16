@@ -53,8 +53,8 @@ public class Engine extends Worker {
     }
 
     @Override protected int doWork() {
+        pollCount++;
         int done = Storage.self().engineWorkQueue().read(handler, BATCH_SIZE);
-        pollCount += BATCH_SIZE; 
         workCount += done;
 
         long nowSec = System.currentTimeMillis() / 1000;
@@ -81,8 +81,8 @@ public class Engine extends Worker {
         MetricsCollector.set(MetricsKey.MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
         MetricsCollector.set(nowSec, OrderBook.TOTAL_MATCH_COUNT.get());
         
-        MetricsCollector.add(MetricsKey.POLL_COUNT, pollCount);
-        MetricsCollector.add(MetricsKey.WORK_COUNT, workCount);
+        MetricsCollector.set(MetricsKey.POLL_COUNT, pollCount);
+        MetricsCollector.set(MetricsKey.WORK_COUNT, workCount);
         pollCount = workCount = 0;
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {

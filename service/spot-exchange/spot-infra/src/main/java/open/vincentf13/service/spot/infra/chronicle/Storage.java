@@ -88,7 +88,7 @@ public class Storage {
     public ManyToOneRingBuffer engineWorkQueue() {
         if (engineWorkQueue == null) synchronized (this) {
             if (engineWorkQueue == null) {
-                engineWorkQueue = initRingBuffer("EngineWork", 16 * 1024 * 1024);
+                engineWorkQueue = initRingBuffer("EngineWork", 64 * 1024 * 1024);
             }
         }
         return engineWorkQueue;
