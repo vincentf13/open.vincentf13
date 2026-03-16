@@ -167,7 +167,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     private void updateNettyMetrics() {
         localNettyRecvCount++;
         if (localNettyRecvCount >= METRICS_BATCH_SIZE) {
-            MetricsCollector.add(Storage.KEY_NETTY_RECV_COUNT, localNettyRecvCount);
+            MetricsCollector.add(MetricsKey.NETTY_RECV_COUNT, localNettyRecvCount);
             localNettyRecvCount = 0;
         }
     }

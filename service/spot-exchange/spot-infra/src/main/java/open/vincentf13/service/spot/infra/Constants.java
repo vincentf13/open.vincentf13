@@ -118,10 +118,42 @@ public class Constants {
     }
 
     /**
+     * 監控指標 Key 定義 (Metrics Keys)
+     */
+    public static class MetricsKey {
+        public static final long POLL_COUNT = -1L;
+        public static final long WORK_COUNT = -2L;
+        public static final long NETTY_RECV_COUNT = -3L;
+        public static final long AERON_BACKPRESSURE = -4L;
+        public static final long GATEWAY_WAL_WRITE_COUNT = -5L;
+        public static final long AERON_SEND_COUNT = -6L;
+        public static final long AERON_RECV_COUNT = -7L;
+
+        // CPU ID 監測指標 (執行緒綁核追蹤)
+        public static final long CPU_ID_ENGINE = -100L;
+        public static final long CPU_ID_WAL_WRITER = -101L;
+        public static final long CPU_ID_AERON_SENDER = -102L;
+        public static final long CPU_ID_AERON_RECEIVER = -103L;
+        public static final long CPU_ID_JVM_MANAGEMENT = -105L;
+        public static final long CPU_ID_NETTY_BOSS = -106L;
+        public static final long CPU_ID_NETTY_WORKER_1 = -107L;
+        public static final long CPU_ID_NETTY_WORKER_2 = -108L;
+        public static final long CPU_ID_AERON_CONDUCTOR = -109L;
+
+        // JVM 與 CPU 指標
+        public static final long MATCHING_JVM_USED_MB = -200L;
+        public static final long MATCHING_JVM_MAX_MB = -201L;
+        public static final long MATCHING_CPU_LOAD = -202L;
+        
+        public static final long GATEWAY_JVM_USED_MB = -210L;
+        public static final long GATEWAY_JVM_MAX_MB = -211L;
+        public static final long GATEWAY_CPU_LOAD = -212L;
+    }
+
+    /**
       Chronicle Map 檔案與名稱列舉
      */
     public static class ChronicleMapEnum {
-        // 從系統環境變數獲取路徑，預設為 "data/spot-exchange/"
         public static final String DEFAULT_BASE_DIR = System.getProperty("SPOT_MAP_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/map/");
         public static final String WAL_BASE_DIR = System.getProperty("SPOT_WAL_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/wal/");
         
@@ -129,11 +161,11 @@ public class Constants {
         public static final String USER_ASSETS = "user-assets";
         public static final String ORDERS = "orders";
         public static final String ACTIVE_ORDERS = "active-idx";
-        // 新增二級索引：用戶的活躍訂單 (用於 Query)
         public static final String USER_ACTIVE_ORDERS = "user-active-orders";
         public static final String TRADES = "trades";
         public static final String CIDS = "cid-idx";
         public static final String METADATA = "metadata";
+        public static final String METRICS_HISTORY = "metrics-history";
     }
 
     /** 

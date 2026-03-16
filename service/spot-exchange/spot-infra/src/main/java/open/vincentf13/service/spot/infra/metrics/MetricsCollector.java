@@ -2,7 +2,6 @@ package open.vincentf13.service.spot.infra.metrics;
 
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import org.agrona.concurrent.QueuedSingleThreadExecutor;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;

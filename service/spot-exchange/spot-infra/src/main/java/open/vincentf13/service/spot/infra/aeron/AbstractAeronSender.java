@@ -11,6 +11,7 @@ import net.openhft.chronicle.queue.ExcerptTailer;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -33,7 +34,8 @@ public abstract class AbstractAeronSender extends Worker {
     protected final BufferClaim bufferClaim = new BufferClaim();
     protected final org.agrona.concurrent.IdleStrategy idleStrategy = new org.agrona.concurrent.BusySpinIdleStrategy();
 
-    protected AeronClient aeronClient;    protected ExcerptTailer tailer;
+    protected AeronClient aeronClient;
+    protected ExcerptTailer tailer;
     protected AeronState currentState = AeronState.WAITING;
     protected long backPressureCount = 0;
 
@@ -87,11 +89,9 @@ public abstract class AbstractAeronSender extends Worker {
             }
         }
 
-import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
-
         if (workDone > 0 && backPressureCount > 1000) {
             log.warn("警告：偵測到嚴重背壓，請檢查接收端效能！");
-            MetricsCollector.add(Storage.KEY_AERON_BACKPRESSURE, backPressureCount);
+            MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, backPressureCount);
             backPressureCount = 0;
         }
 

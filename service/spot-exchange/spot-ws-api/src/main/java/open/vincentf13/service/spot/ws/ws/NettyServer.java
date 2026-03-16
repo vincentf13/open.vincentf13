@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import open.vincentf13.service.spot.infra.Constants.MetricsKey;
+import open.vincentf13.service.spot.infra.Constants.Ws;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.util.AffinityUtil;
 
@@ -45,9 +47,9 @@ public class NettyServer {
     @PostConstruct
     public void start() {
         new Thread(() -> {
-            bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss", Storage.KEY_CPU_ID_NETTY_BOSS));
+            bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss", MetricsKey.CPU_ID_NETTY_BOSS));
             workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker", 
-                Storage.KEY_CPU_ID_NETTY_WORKER_1, Storage.KEY_CPU_ID_NETTY_WORKER_2));
+                MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2));
             try {
                 ServerBootstrap b = new ServerBootstrap();
                 b.group(bossGroup, workerGroup)

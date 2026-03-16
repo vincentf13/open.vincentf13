@@ -31,7 +31,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected void onBind(int cpuId) {
-        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_AERON_RECEIVER, (long) cpuId);
+        Storage.self().metricsHistory().put(MetricsKey.CPU_ID_AERON_RECEIVER, (long) cpuId);
     }
 
     @Override

@@ -1,23 +1,22 @@
 package open.vincentf13.service.spot.ws.controller;
 
-import open.vincentf13.service.spot.infra.chronicle.Storage;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.DocumentContext;
-import net.openhft.chronicle.bytes.Bytes;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Balance;
 import open.vincentf13.service.spot.model.BalanceKey;
-import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.CidKey;
+import open.vincentf13.service.spot.model.Order;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
+
+import static open.vincentf13.service.spot.infra.Constants.*;
 
 /**
  * 異步驗證控制器：
@@ -68,12 +67,12 @@ public class TestVerificationController {
     @GetMapping("/metrics/tps")
     public List<Map<String, Object>> getTpsHistory() {
         // 使用 TreeMap 進行自動倒序排序 (最新在前面)
-        TreeMap<Long, Long> sortedHistory = new TreeMap<>(java.util.Collections.reverseOrder());
+        TreeMap<Long, Long> sortedHistory = new TreeMap<>(Collections.reverseOrder());
         Storage.self().metricsHistory().forEach((timestamp, total) -> {
             if (timestamp > 0) sortedHistory.put(timestamp, total);
         });
         
-        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        List<Map<String, Object>> result = new ArrayList<>();
         
         // 遍歷排序後的歷史記錄
         sortedHistory.forEach((timestamp, total) -> {
@@ -81,7 +80,7 @@ public class TestVerificationController {
             Map.Entry<Long, Long> previousEntry = sortedHistory.higherEntry(timestamp);
             long diff = (previousEntry == null) ? total : total - previousEntry.getValue();
             
-            Map<String, Object> entry = new java.util.LinkedHashMap<>();
+            Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("time", timestamp);
             entry.put("total", total);
             entry.put("diff", diff);
@@ -93,67 +92,24 @@ public class TestVerificationController {
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
         // 引擎核心指標
-        long pollCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_POLL_COUNT, 0L);
-        long workCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_WORK_COUNT, 0L);
+        long pollCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.POLL_COUNT, 0L);
+        long workCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.WORK_COUNT, 0L);
         double ratio = pollCount == 0 ? 0 : (double) workCount / pollCount * 100.0;
 
-        // 計算平均 TPS (數據開始 10 秒後的平均值)
-        double averageTps = 0.0;
-        TreeMap<Long, Long> sortedHistory = new TreeMap<>();
-        Storage.self().metricsHistory().forEach((timestamp, total) -> {
-            if (timestamp > 0) sortedHistory.put(timestamp, total);
-        });
-
-        if (sortedHistory.size() >= 2) {
-            // 尋找第一個 TPS > 0 (即 WorkCount 開始增加) 的點
-            long actualStartTime = -1;
-            for (Map.Entry<Long, Long> entry : sortedHistory.entrySet()) {
-                if (entry.getValue() > 0) {
-                    actualStartTime = entry.getKey();
-                    break;
-                }
-            }
-
-            if (actualStartTime != -1) {
-                long lastTime = sortedHistory.lastKey();
-                long targetStartTime = actualStartTime + 10_000; // 從數據產生後 10s 開始
-
-                // 尋找大於等於 targetStartTime 的第一個點作為起始基準
-                Map.Entry<Long, Long> startEntry = sortedHistory.ceilingEntry(targetStartTime);
-                if (startEntry != null && lastTime > startEntry.getKey()) {
-                    long t1 = startEntry.getKey();
-                    long w1 = startEntry.getValue();
-                    long t2 = lastTime;
-                    long w2 = sortedHistory.get(t2);
-
-                    // (Work2 - Work1) / (Time2 - Time1) * 1000 (ms to s)
-                    averageTps = (double) (w2 - w1) / (t2 - t1) * 1000.0;
-                }
-            }
-        }
-
         // 全鏈路瓶頸指標
-        long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_NETTY_RECV_COUNT, 0L);
-        long gatewayWalWriteCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, 0L);
-        long aeronSendCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_AERON_SEND_COUNT, 0L);
-        long aeronRecvCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_AERON_RECV_COUNT, 0L);
-        long aeronBackpressure = Storage.self().metricsHistory().getOrDefault(Storage.KEY_AERON_BACKPRESSURE, 0L);
+        long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.NETTY_RECV_COUNT, 0L);
+        long gatewayWalWriteCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 0L);
+        long aeronSendCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_SEND_COUNT, 0L);
+        long aeronRecvCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_RECV_COUNT, 0L);
+        long aeronBackpressure = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_BACKPRESSURE, 0L);
 
-        // JVM 與 OS 資源指標
-        Runtime runtime = Runtime.getRuntime();
-        long maxMemory = runtime.maxMemory();
-        long allocatedMemory = runtime.totalMemory();
-        long freeMemory = runtime.freeMemory();
-        long usedMemory = allocatedMemory - freeMemory;
-        double memoryUsageRatio = maxMemory == 0 ? 0 : (double) usedMemory / maxMemory * 100.0;
+        // JVM 與 OS 資源指標 (從 MetricsHistory 獲取異步更新的數值)
+        long matchingJvmUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_JVM_USED_MB, 0L);
+        long gatewayJvmUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_JVM_USED_MB, 0L);
+        long matchingCpuLoad = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_CPU_LOAD, 0L);
+        long gatewayCpuLoad = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_CPU_LOAD, 0L);
 
-        java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
-        double sysLoad = -1.0;
-        if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
-            sysLoad = sunOsBean.getCpuLoad() * 100.0; // 系統 CPU 負載
-        }
-
-        Map<String, Object> metrics = new java.util.LinkedHashMap<>();
+        Map<String, Object> metrics = new LinkedHashMap<>();
         metrics.put("netty_recv_count", nettyRecvCount);
         metrics.put("gateway_wal_write_count", gatewayWalWriteCount);
         metrics.put("aeron_send_count", aeronSendCount);
@@ -163,27 +119,26 @@ public class TestVerificationController {
         metrics.put("engine_poll_count", pollCount);
         metrics.put("engine_saturation", String.format("%.2f%%", ratio));
 
-        metrics.put("jvm_memory_used_mb", usedMemory / (1024 * 1024));
-        metrics.put("jvm_memory_max_mb", maxMemory / (1024 * 1024));
-        metrics.put("jvm_memory_usage", String.format("%.2f%%", memoryUsageRatio));
-
-        metrics.put("os_cpu_load", sysLoad >= 0 ? String.format("%.2f%%", sysLoad) : "N/A");
+        metrics.put("matching_jvm_used_mb", matchingJvmUsed);
+        metrics.put("gateway_jvm_used_mb", gatewayJvmUsed);
+        metrics.put("matching_cpu_load", String.format("%d%%", matchingCpuLoad));
+        metrics.put("gateway_cpu_load", String.format("%d%%", gatewayCpuLoad));
 
         // CPU Affinity 綁定資訊 (按服務聚合)
-        Map<String, Object> cpuAffinity = new java.util.LinkedHashMap<>();
+        Map<String, Object> cpuAffinity = new LinkedHashMap<>();
         
         // 1. Spot Matching 服務
-        Map<String, Object> matchingAffinity = new java.util.LinkedHashMap<>();
-        addCpuMetric(matchingAffinity, "engine", Storage.KEY_CPU_ID_ENGINE);
-        addCpuMetric(matchingAffinity, "aeron_receiver", Storage.KEY_CPU_ID_AERON_RECEIVER);
+        Map<String, Object> matchingAffinity = new LinkedHashMap<>();
+        addCpuMetric(matchingAffinity, "engine", MetricsKey.CPU_ID_ENGINE);
+        addCpuMetric(matchingAffinity, "aeron_receiver", MetricsKey.CPU_ID_AERON_RECEIVER);
         cpuAffinity.put("spot-matching", matchingAffinity);
 
         // 2. Spot WS-API 服務
-        Map<String, Object> wsApiAffinity = new java.util.LinkedHashMap<>();
-        addCpuMetric(wsApiAffinity, "netty_worker_1", Storage.KEY_CPU_ID_NETTY_WORKER_1);
-        addCpuMetric(wsApiAffinity, "netty_worker_2", Storage.KEY_CPU_ID_NETTY_WORKER_2);
-        addCpuMetric(wsApiAffinity, "async_wal_writer", Storage.KEY_CPU_ID_WAL_WRITER);
-        addCpuMetric(wsApiAffinity, "aeron_sender", Storage.KEY_CPU_ID_AERON_SENDER);
+        Map<String, Object> wsApiAffinity = new LinkedHashMap<>();
+        addCpuMetric(wsApiAffinity, "netty_worker_1", MetricsKey.CPU_ID_NETTY_WORKER_1);
+        addCpuMetric(wsApiAffinity, "netty_worker_2", MetricsKey.CPU_ID_NETTY_WORKER_2);
+        addCpuMetric(wsApiAffinity, "async_wal_writer", MetricsKey.CPU_ID_WAL_WRITER);
+        addCpuMetric(wsApiAffinity, "aeron_sender", MetricsKey.CPU_ID_AERON_SENDER);
         cpuAffinity.put("spot-ws-api", wsApiAffinity);
 
         metrics.put("cpu_affinity", cpuAffinity);
@@ -196,6 +151,7 @@ public class TestVerificationController {
         if (cpuId != null) map.put(name, "Core " + cpuId);
         else map.put(name, "Not Bound");
     }
+
     @GetMapping("/dump_wal")
     public List<String> dumpWal() {
         List<String> logs = new ArrayList<>();
@@ -204,16 +160,10 @@ public class TestVerificationController {
         while (true) {
             try (DocumentContext dc = tailer.readingDocument()) {
                 if (!dc.isPresent()) break;
-                net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
+                Bytes<?> bytes = dc.wire().bytes();
                 long remaining = bytes.readRemaining();
                 if (remaining < 16) {
-                    // 診斷：輸出 Hex
-                    StringBuilder hex = new StringBuilder();
-                    long pos = bytes.readPosition();
-                    for (int i = 0; i < Math.min(remaining, 16); i++) {
-                        hex.append(String.format("%02X ", bytes.readByte(pos + i)));
-                    }
-                    logs.add(String.format("Index: %d [Invalid] Len: %d, Hex: %s", dc.index(), remaining, hex.toString().trim()));
+                    logs.add(String.format("Index: %d [Invalid] Len: %d", dc.index(), remaining));
                     continue;
                 }
                 int len = bytes.readInt();

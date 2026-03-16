@@ -34,7 +34,7 @@ public class AeronSender extends AbstractAeronSender {
 
     @Override
     protected void onBind(int cpuId) {
-        MetricsCollector.recordCpuAffinity(Storage.KEY_CPU_ID_AERON_SENDER, cpuId);
+        MetricsCollector.recordCpuAffinity(MetricsKey.CPU_ID_AERON_SENDER, cpuId);
     }
 
     private long lastMetricsTime = 0;
@@ -52,12 +52,12 @@ public class AeronSender extends AbstractAeronSender {
 
     private void updateProcessMetrics() {
         Runtime r = Runtime.getRuntime();
-        MetricsCollector.set(Storage.KEY_GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
-        MetricsCollector.set(Storage.KEY_GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
+        MetricsCollector.set(MetricsKey.GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
+        MetricsCollector.set(MetricsKey.GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
         
         java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
         if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
-            MetricsCollector.set(Storage.KEY_GATEWAY_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
+            MetricsCollector.set(MetricsKey.GATEWAY_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
         }
     }
 
@@ -97,10 +97,10 @@ public class AeronSender extends AbstractAeronSender {
             });
 
             // 異步埋點
-            MetricsCollector.increment(Storage.KEY_AERON_SEND_COUNT);
+            MetricsCollector.increment(MetricsKey.AERON_SEND_COUNT);
             long delta = this.backPressureCount - startBackpressure;
             if (delta > 0) {
-                MetricsCollector.add(Storage.KEY_AERON_BACKPRESSURE, delta);
+                MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, delta);
             }
             
             bytes.readSkip((long) payloadLen);

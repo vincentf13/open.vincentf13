@@ -10,6 +10,8 @@ import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
 import org.springframework.stereotype.Component;
 
+import static open.vincentf13.service.spot.infra.Constants.*;
+
 /**
  * 網關異步 WAL 寫入器 (Async WAL Writer)
  * 職責：從 RingBuffer 讀取數據，並獨佔式寫入 Chronicle Queue
@@ -31,7 +33,7 @@ public class AsyncWalWriter extends Worker {
 
     @Override
     protected void onBind(int cpuId) {
-        MetricsCollector.recordCpuAffinity(Storage.KEY_CPU_ID_WAL_WRITER, cpuId);
+        MetricsCollector.recordCpuAffinity(MetricsKey.CPU_ID_WAL_WRITER, cpuId);
     }
 
     @Override
@@ -53,7 +55,7 @@ public class AsyncWalWriter extends Worker {
 
                 localWalWriteCount++;
                 if (localWalWriteCount >= METRICS_BATCH_SIZE) {
-                    MetricsCollector.add(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, localWalWriteCount);
+                    MetricsCollector.add(MetricsKey.GATEWAY_WAL_WRITE_COUNT, localWalWriteCount);
                     localWalWriteCount = 0;
                 }
                 log.debug("[ASYNC-WAL] 訊息已持久化, index={}", dc.index());
