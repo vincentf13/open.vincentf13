@@ -146,7 +146,8 @@ public class Engine extends Worker {
         progress.setLastProcessedIndex(index);
         progress.setLastProcessedMsgSeq(gwSeq);
         if (index % 100 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
-        if (!isReplaying && gwSeq != MSG_SEQ_NONE && gwSeq - lastSnapshotSeq >= 100_000) {
+        // 將快照頻率大幅調低，避免壓測時瘋狂寫磁碟導致 TPS 暴跌
+        if (!isReplaying && gwSeq != MSG_SEQ_NONE && gwSeq - lastSnapshotSeq >= 100_000_000) {
             snapshotService.createSnapshot(progress);
             lastSnapshotSeq = gwSeq;
         }

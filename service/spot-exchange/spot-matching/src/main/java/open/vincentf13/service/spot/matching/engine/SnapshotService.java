@@ -27,7 +27,7 @@ public class SnapshotService {
 
     public void createSnapshot(WalProgress currentProgress) {
         long seq = currentProgress.getLastProcessedMsgSeq();
-        log.info("--- 開始執行系統快照 (Sequence: {}) ---", seq);
+        log.debug("--- 開始執行系統快照 (Sequence: {}) ---", seq);
         
         File finalDir = new File(snapshotDir + seq);
         File tmpDir = new File(snapshotDir + seq + "_tmp");
@@ -61,7 +61,7 @@ public class SnapshotService {
                 deleteDir(tmpDir);
             }
 
-            log.info("✅ 快照創建成功，存儲路徑: {}", finalDir.getAbsolutePath());
+            log.debug("✅ 快照創建成功，存儲路徑: {}", finalDir.getAbsolutePath());
             cleanupOldSnapshots(finalDir.getParentFile());
 
         } catch (Exception e) {
