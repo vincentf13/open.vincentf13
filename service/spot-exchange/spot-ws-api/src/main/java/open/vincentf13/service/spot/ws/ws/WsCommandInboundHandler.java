@@ -38,10 +38,19 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         super.channelActive(ctx);
     }
 
+    private long localNettyRecvCount = 0;
+    private long localWalWriteCount = 0;
+    private static final int METRICS_BATCH_SIZE = 10000;
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {     
-        // 增加 Netty 接收指標
-        Storage.self().metricsHistory().compute(Storage.KEY_NETTY_RECV_COUNT, (k, v) -> v == null ? 1L : v + 1);
+        // 增加 Netty 接收指標 (批量)
+        localNettyRecvCount++;
+        if (localNettyRecvCount >= METRICS_BATCH_SIZE) {
+            final long batch = localNettyRecvCount;
+            Storage.self().metricsHistory().compute(Storage.KEY_NETTY_RECV_COUNT, (k, v) -> v == null ? batch : v + batch);
+            localNettyRecvCount = 0;
+        }
 
         log.debug("[GATEWAY-WS] 收到訊息: {}", frame.text()); // 降級為 debug 避免 I/O 阻塞
         final ThreadContext context = ThreadContext.get();
@@ -107,7 +116,13 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
             // 調用模型的 writeMarshallable，它會自動處理 PointerBytesStore 並寫入內容
             model.writeMarshallable(bytes);
-            Storage.self().metricsHistory().compute(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, (k, v) -> v == null ? 1L : v + 1);
+            
+            localWalWriteCount++;
+            if (localWalWriteCount >= METRICS_BATCH_SIZE) {
+                final long batch = localWalWriteCount;
+                Storage.self().metricsHistory().compute(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, (k, v) -> v == null ? batch : v + batch);
+                localWalWriteCount = 0;
+            }
             log.debug("[GATEWAY-WAL] 訊息已持久化至 WAL, index={}", dc.index());
         }
     }

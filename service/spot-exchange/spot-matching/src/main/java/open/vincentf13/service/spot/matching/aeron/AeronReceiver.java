@@ -32,6 +32,9 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @PostConstruct public void init() { start("core-command-receiver"); }
 
+    private long localRecvCount = 0;
+    private static final int METRICS_BATCH_SIZE = 10000;
+
     @Override
     public void onMessage(DirectBuffer buffer, int offset, int length) {
         final ThreadContext ctx = ThreadContext.get();
@@ -44,7 +47,13 @@ public class AeronReceiver extends AbstractAeronReceiver {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
             // 直接寫入數據，Chronicle 會自動處理 Document 標頭與長度
             bytes.write(pointer);
-            Storage.self().metricsHistory().compute(Storage.KEY_AERON_RECV_COUNT, (k, v) -> v == null ? 1L : v + 1);
+            
+            localRecvCount++;
+            if (localRecvCount >= METRICS_BATCH_SIZE) {
+                final long batch = localRecvCount;
+                Storage.self().metricsHistory().compute(Storage.KEY_AERON_RECV_COUNT, (k, v) -> v == null ? batch : v + batch);
+                localRecvCount = 0;
+            }
             log.debug("[AERON-RECEIVER] 數據已寫入 Engine WAL, len={}", length);
         }
     }

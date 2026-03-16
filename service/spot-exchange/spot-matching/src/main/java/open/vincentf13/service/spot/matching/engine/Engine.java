@@ -64,48 +64,48 @@ public class Engine extends Worker {
     private long lastMetricsTime = 0;
     private long localPollCount = 0;
     private long localWorkCount = 0;
-    private static final int METRICS_BATCH_SIZE = 10_000;
+
+    private static final int MAX_BATCH_SIZE = 1000;
+    private static final int METRICS_BATCH_SIZE = 50000;
 
     @Override
     protected int doWork() {
-        // 使用原始模式讀取，排除 ReadMarshallable 的格式干擾
-        try (DocumentContext dc = tailer.readingDocument()) {
-            if (!dc.isPresent()) {
-                // --- 每秒自動紀錄 TPS 總量 (即便沒有成交也能顯示位點) ---
-                long now = System.currentTimeMillis() / 1000;
-                if (now > lastMetricsTime) {
-                    long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
-                    Storage.self().metricsHistory().put(now, totalMatches);
-                    lastMetricsTime = now;
-                    // 同步累積的 Poll/Work 指標
-                    flushMetrics();
+        int workDone = 0;
+        // 批次化讀取：在一個迴圈內盡量消耗當前已寫入 WAL 的數據，減少獲取 DocumentContext 的次數
+        for (int i = 0; i < MAX_BATCH_SIZE; i++) {
+            try (DocumentContext dc = tailer.readingDocument()) {
+                if (!dc.isPresent()) {
+                    break;
                 }
-                localPollCount++;
-                if (localPollCount >= METRICS_BATCH_SIZE) flushMetrics();
-                return 0;
-            }
 
-            // 成功讀取到 Document
-            final long index = dc.index();
-            final net.openhft.chronicle.wire.WireIn wire = dc.wire();
-            
-            // 業務路由
-            final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
-            
-            // 統計與狀態演進 (批量化以降低 Contention)
-            localWorkCount++;
-            localPollCount++;
-            if (localPollCount >= METRICS_BATCH_SIZE) flushMetrics();
-            
-            if (gwSeq != MSG_SEQ_NONE) {
-                updateMode(index, gwSeq);
-                checkSequence(gwSeq);
-                handlePersistence(index, gwSeq);
-                log.debug("[ENGINE] 業務處理完成: index={}, gwSeq={}", index, gwSeq);
+                final long index = dc.index();
+                final net.openhft.chronicle.wire.WireIn wire = dc.wire();
+                final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
+
+                localWorkCount++;
+                localPollCount++;
+                workDone++;
+
+                if (gwSeq != MSG_SEQ_NONE) {
+                    updateMode(index, gwSeq);
+                    checkSequence(gwSeq);
+                    handlePersistence(index, gwSeq);
+                }
             }
-            
-            return 1;
         }
+
+        // 定時/定量更新指標
+        long now = System.currentTimeMillis() / 1000;
+        if (now > lastMetricsTime || localPollCount >= METRICS_BATCH_SIZE) {
+            if (now > lastMetricsTime) {
+                long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
+                Storage.self().metricsHistory().put(now, totalMatches);
+                lastMetricsTime = now;
+            }
+            flushMetrics();
+        }
+
+        return workDone > 0 ? 1 : 0;
     }
 
     private void flushMetrics() {

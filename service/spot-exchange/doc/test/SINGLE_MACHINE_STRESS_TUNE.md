@@ -3,37 +3,50 @@
 ## 0. 一鍵編譯與綁核啟動 (Master Startup Script)
 此腳本會自動清理舊進程、Maven 編譯、Layertools 解壓並以正確的 P-core 分配啟動服務。
 ```powershell
-# 1. 強制關閉舊 Java 進程 (釋放檔案鎖定)
+# 1. 強制關閉舊 Java 進程並清理共享記憶體
 Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2
+$aeron_dir = "C:/iProject/open.vincentf13/data/spot-exchange/aeron"
+if(Test-Path $aeron_dir){ rm $aeron_dir -Recurse -Force }
 
 # 2. 編譯與打包
 mvn -f C:\iProject\open.vincentf13\pom.xml clean package -DskipTests -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
 if ($LASTEXITCODE -ne 0) { "Build Failed!"; return }
 
-# 3. 啟動 Matching
+# 3. 啟動 獨立式 Media Driver (CPU 0-1, Mask: 3)
 $m_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-matching\target"
 $m_dest = "$m_t\extracted"
 if(Test-Path $m_dest){ rm $m_dest -Recurse -Force }
 java -Djarmode=layertools -jar "$m_t\spot-matching.jar" extract --destination "$m_dest/"
 
-$e = Start-Process java -ArgumentList "@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args", "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/", "open.vincentf13.service.spot.matching.MatchingApp" -WorkingDirectory $m_dest -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru
+"Starting Standalone Media Driver on CPU 0-1..."
+# 直接定位 aeron-all jar，避免 classpath 解析問題
+$aeron_jar = (Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar").FullName
+$driver_args = "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED", "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED", "-Xms512m", "-Xmx512m", "-cp", $aeron_jar, "-Daeron.threading.mode=DEDICATED", "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy", "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy", "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy", "-Daeron.dir=$aeron_dir", "io.aeron.driver.MediaDriver"
 
-# 4. 啟動 Gateway (WS-API)
+$driver = Start-Process java -ArgumentList $driver_args -PassThru
+$driver.ProcessorAffinity = 3
+Start-Sleep 5 
+
+# 4. 啟動 Matching (CPU 2-3, Mask: 12, 禁用內部 Driver)
+# 修正：移除參數檔案前的空格，確保路徑正確
+$e = Start-Process java -ArgumentList "@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args", "-Daeron.driver.enabled=false", "-Daeron.dir=$aeron_dir", "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/", "open.vincentf13.service.spot.matching.MatchingApp" -WorkingDirectory $m_dest -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru
+
+# 5. 啟動 Gateway (WS-API) (CPU 4-7, Mask: 240, 禁用內部 Driver)
 $g_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target"
 $g_dest = "$g_t\extracted"
 if(Test-Path $g_dest){ rm $g_dest -Recurse -Force }
 java -Djarmode=layertools -jar "$g_t\spot-ws-api.jar" extract --destination "$g_dest/"
 
-$g = Start-Process java -ArgumentList "@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args", "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/", "open.vincentf13.service.spot.ws.WsApiApp" -WorkingDirectory $g_dest -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru
+$g = Start-Process java -ArgumentList "@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args", "-Daeron.driver.enabled=false", "-Daeron.dir=$aeron_dir", "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/", "open.vincentf13.service.spot.ws.WsApiApp" -WorkingDirectory $g_dest -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru
 
-# 5. 設定親和性 (避開 8-15 號核心給 k6 使用)
+# 6. 設定親和性並檢查
 Start-Sleep 5
-if(!$e.HasExited){ $e.ProcessorAffinity = 12; "Matching Success (CPU 2-3)!" }
-if(!$g.HasExited){ $g.ProcessorAffinity = 240; "GateWay Success (CPU 4-7)!" }
+if($e.HasExited){ "Matching FAILED! Error Log:"; gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" } else { $e.ProcessorAffinity = 12; "Matching Success (CPU 2-3)!" }
+if($g.HasExited){ "Gateway FAILED! Error Log:"; gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" } else { $g.ProcessorAffinity = 240; "GateWay Success (CPU 4-7)!" }
 
 CD "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\"
 
-# 6. 執行 k6 (綁定 8-15 號核心, Hex: FF00)
+# 7. 執行 k6 (綁定 8-15 號核心, Hex: FF00)
 cmd.exe /c "start /B /WAIT /affinity FF00 k6 run stress-test-ws.js"
 ```
 

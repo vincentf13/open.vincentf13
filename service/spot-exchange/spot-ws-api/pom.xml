@@ -45,6 +45,9 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>open.vincentf13.service.spot.ws.WsApiApp</mainClass>
+                </configuration>
             </plugin>
         </plugins>
     </build>
