@@ -109,6 +109,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             bytes.writeInt(len); // 手動寫入長度 (與 AeronSender 解析匹配)
             // 修正：調用模型的 writeMarshallable，它會自動處理 PointerBytesStore 的刷新並寫入內容
             model.writeMarshallable(bytes);
+            Storage.self().metricsHistory().compute(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, (k, v) -> v == null ? 1L : v + 1);
             log.debug("[GATEWAY-WAL] 訊息已持久化至 WAL, index={}, len={}", dc.index(), len);
         }
     }

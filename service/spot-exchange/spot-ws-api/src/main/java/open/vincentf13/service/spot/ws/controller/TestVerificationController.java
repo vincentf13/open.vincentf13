@@ -90,6 +90,9 @@ public class TestVerificationController {
 
         // 全鏈路瓶頸指標
         long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_NETTY_RECV_COUNT, 0L);
+        long gatewayWalWriteCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, 0L);
+        long aeronSendCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_AERON_SEND_COUNT, 0L);
+        long aeronRecvCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_AERON_RECV_COUNT, 0L);
         long aeronBackpressure = Storage.self().metricsHistory().getOrDefault(Storage.KEY_AERON_BACKPRESSURE, 0L);
 
         // JVM 與 OS 資源指標
@@ -108,6 +111,9 @@ public class TestVerificationController {
 
         Map<String, Object> metrics = new java.util.LinkedHashMap<>();
         metrics.put("netty_recv_count", nettyRecvCount);
+        metrics.put("gateway_wal_write_count", gatewayWalWriteCount);
+        metrics.put("aeron_send_count", aeronSendCount);
+        metrics.put("aeron_recv_count", aeronRecvCount);
         metrics.put("aeron_backpressure_count", aeronBackpressure);
         metrics.put("engine_work_count", workCount);
         metrics.put("engine_poll_count", pollCount);

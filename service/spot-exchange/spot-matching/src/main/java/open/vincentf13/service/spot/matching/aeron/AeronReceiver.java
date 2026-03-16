@@ -45,6 +45,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
             // 關鍵：補回 4 字節長度頭，對齊 CommandRouter 的解析邏輯
             bytes.writeInt(length);
             bytes.write(pointer);
+            Storage.self().metricsHistory().compute(Storage.KEY_AERON_RECV_COUNT, (k, v) -> v == null ? 1L : v + 1);
             log.debug("[AERON-RECEIVER] 數據已寫入 Engine WAL, len={}", length);
         }
     }

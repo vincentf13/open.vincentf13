@@ -61,6 +61,7 @@ public class AeronSender extends AbstractAeronSender {
                 // 覆蓋 Sequence，確保與 WAL Index 同步
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
+            Storage.self().metricsHistory().compute(Storage.KEY_AERON_SEND_COUNT, (k, v) -> v == null ? 1L : v + 1);
             bytes.readSkip((long) payloadLen);
         }
     }

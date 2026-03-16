@@ -104,6 +104,9 @@ public class Storage {
     public static final long KEY_WORK_COUNT = -2L;
     public static final long KEY_NETTY_RECV_COUNT = -3L;
     public static final long KEY_AERON_BACKPRESSURE = -4L;
+    public static final long KEY_GATEWAY_WAL_WRITE_COUNT = -5L;
+    public static final long KEY_AERON_SEND_COUNT = -6L;
+    public static final long KEY_AERON_RECV_COUNT = -7L;
 
     public ChronicleMap<Long, Long> metricsHistory() {
         if (metricsHistory == null) synchronized (this) {
