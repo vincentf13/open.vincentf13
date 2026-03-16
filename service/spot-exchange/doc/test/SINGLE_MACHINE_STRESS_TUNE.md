@@ -1,5 +1,29 @@
 # Swift Go 16 (SFG16-73) 極限壓測優化指南 (Arrow Lake Ultra 9 深度調優版)
 
+## 0. 一鍵編譯與綁核啟動 (Master Startup Script)
+此腳本會自動清理舊進程、Maven 編譯、Layertools 解壓並以正確的 P-core 分配啟動服務。
+```powershell
+# 1. 強制關閉舊 Java 進程 (釋放檔案鎖定)
+Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2
+
+# 2. 編譯與打包
+mvn -f C:\iProject\open.vincentf13\pom.xml clean package -DskipTests -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
+if ($LASTEXITCODE -ne 0) { "Build Failed!"; return }
+
+# 3. 啟動 Matching
+$m_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-matching\target"; if(Test-Path "$m_t\extracted"){rm "$m_t\extracted" -Recurse -Force}; java -Djarmode=layertools -jar "$m_t\spot-matching.jar" extract --destination "$m_t\extracted/"
+$e = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.matching.MatchingApp' -WorkingDirectory "$m_t\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru
+
+# 4. 啟動 GateWay
+$g_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target"; if(Test-Path "$g_t\extracted"){rm "$g_t\extracted" -Recurse -Force}; java -Djarmode=layertools -jar "$g_t\spot-ws-api.jar" extract --destination "$g_t\extracted/"
+$g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.ws.WsApiApp' -WorkingDirectory "$g_t\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru
+
+# 5. 結果檢查
+Start-Sleep 5
+if(!$e.HasExited){$e.ProcessorAffinity=7; "Matching Success!"}else{gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log"}
+if(!$g.HasExited){$g.ProcessorAffinity=120; "GateWay Success!"}else{gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log"}
+```
+
 ## 1. 核心分配矩陣 (Thread-to-Core Mapping)
 針對 Arrow Lake 物理單執行緒 (No HT) 特性，我們將核心執行緒與 P-cores 一一對應，以消除 L1/L2 Cache 競爭。
 
@@ -9,19 +33,15 @@
 > `cd service/spot-exchange/doc/test`
 
 #### A. 撮合引擎端 (spot-matching)
-分配 3 個獨立 P-core。引用 `matching-low-latency.args` 配置。
+分配 3 個獨立 P-core。
 ```powershell
-# 鎖定 Core 0 (Management), Core 1 (Matching), Core 2 (Aeron)
-$Engine = Start-Process java -ArgumentList "@../jvm/matching-low-latency.args -jar ../../spot-matching/target/spot-matching.jar" -PassThru
-$Engine.ProcessorAffinity = 7 
+$e = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.matching.MatchingApp' -WorkingDirectory "C:\iProject\open.vincentf13\service\spot-exchange\spot-matching\target\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru; Start-Sleep 5; if ($e.HasExited) { Get-Content "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" } else { $e.ProcessorAffinity = 7; "Success! PID: $($e.Id)" }
 ```
 
 #### B. 網關端 (spot-ws-api)
-分配 4 個 P-core。引用 `ws-api-throughput.args` 配置。
+分配 4 個 P-core。
 ```powershell
-# 鎖定 Core 3 (Aeron), Core 4-5 (Netty), Core 6 (Management)
-$GW = Start-Process java -ArgumentList "@../jvm/ws-api-throughput.args -jar ../../spot-ws-api/target/spot-ws-api.jar" -PassThru
-$GW.ProcessorAffinity = 120
+$g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.gw.GateWayApp' -WorkingDirectory "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru; Start-Sleep 5; if ($g.HasExited) { Get-Content "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" } else { $g.ProcessorAffinity = 120; "Success! PID: $($g.Id)" }
 ```
 
 #### C. 壓測工具 (k6)
