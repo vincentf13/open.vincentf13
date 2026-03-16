@@ -11,21 +11,30 @@ mvn -f C:\iProject\open.vincentf13\pom.xml clean package -DskipTests -pl service
 if ($LASTEXITCODE -ne 0) { "Build Failed!"; return }
 
 # 3. 啟動 Matching
-$m_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-matching\target"; if(Test-Path "$m_t\extracted"){rm "$m_t\extracted" -Recurse -Force}; java -Djarmode=layertools -jar "$m_t\spot-matching.jar" extract --destination "$m_t\extracted/"
-$e = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.matching.MatchingApp' -WorkingDirectory "$m_t\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru
+$m_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-matching\target"
+$m_dest = "$m_t\extracted"
+if(Test-Path $m_dest){ rm $m_dest -Recurse -Force }
+java -Djarmode=layertools -jar "$m_t\spot-matching.jar" extract --destination "$m_dest/"
 
-# 4. 啟動 GateWay
-$g_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target"; if(Test-Path "$g_t\extracted"){rm "$g_t\extracted" -Recurse -Force}; java -Djarmode=layertools -jar "$g_t\spot-ws-api.jar" extract --destination "$g_t\extracted/"
-$g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.ws.WsApiApp' -WorkingDirectory "$g_t\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru
+$e = Start-Process java -ArgumentList "@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args", "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/", "open.vincentf13.service.spot.matching.MatchingApp" -WorkingDirectory $m_dest -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru
 
-# 5. 結果檢查
+# 4. 啟動 Gateway (WS-API)
+$g_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target"
+$g_dest = "$g_t\extracted"
+if(Test-Path $g_dest){ rm $g_dest -Recurse -Force }
+java -Djarmode=layertools -jar "$g_t\spot-ws-api.jar" extract --destination "$g_dest/"
+
+$g = Start-Process java -ArgumentList "@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args", "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/", "open.vincentf13.service.spot.ws.WsApiApp" -WorkingDirectory $g_dest -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru
+
+# 5. 設定親和性 (避開 8-15 號核心給 k6 使用)
 Start-Sleep 5
-if(!$e.HasExited){$e.ProcessorAffinity=7; "Matching Success!"}else{gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log"}
-if(!$g.HasExited){$g.ProcessorAffinity=120; "GateWay Success!"}else{gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log"}
+if(!$e.HasExited){ $e.ProcessorAffinity = 15; "Matching Success (CPU 0-3)!" }
+if(!$g.HasExited){ $g.ProcessorAffinity = 240; "GateWay Success (CPU 4-7)!" }
 
-cd "C:\iProject\open.vincentf13\service\spot-exchange\doc\test"
-# 使用原生 cmd start /affinity 強制將 k6 綁定在 E-cores (6-15)，Hex: FFC0
-cmd.exe /c "start /B /WAIT /affinity FFC0 k6 run stress-test-ws.js"
+CD "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\"
+
+# 6. 執行 k6 (綁定 8-15 號核心, Hex: FF00)
+cmd.exe /c "start /B /WAIT /affinity FF00 k6 run stress-test-ws.js"
 ```
 
 壓測完成後，您可以再次訪問：

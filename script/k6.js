@@ -6,5 +6,5 @@ export const options = {
     duration: '10000h', // 執行到手動中斷為止
 };
 export default function () {
-    sleep(1);
+    // 移除 sleep(1) 以產生最大壓力
 }
