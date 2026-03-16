@@ -2,6 +2,7 @@ package open.vincentf13.service.spot.infra;
 
 import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
+import net.openhft.affinity.AffinityLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,26 +81,30 @@ public abstract class Worker implements Runnable {
      */
     @Override
     public void run() {
-        onStart();
-        try {
-            // 同時檢查運行標誌位與執行緒中斷狀態
-            while (running.get() && !Thread.currentThread().isInterrupted()) {
-                int workDone = doWork();
-                // 根據工作量決定等待策略：有任務時不休眠，無任務時逐步退避 (Spin -> Yield -> Park)
-                idleStrategy.idle(workDone);
+        // 在綁核環境下，獲取一個獨佔的 CPU Core 鎖，防止 OS 將多個忙等待執行緒調度到同一個核心
+        try (AffinityLock lock = AffinityLock.acquireLock()) {
+            onStart();
+            try {
+                // 同時檢查運行標誌位與執行緒中斷狀態
+                while (running.get() && !Thread.currentThread().isInterrupted()) {
+                    int workDone = doWork();
+                    // 根據工作量決定等待策略：有任務時不休眠，無任務時逐步退避 (Spin -> Yield -> Park)
+                    idleStrategy.idle(workDone);
+                }
+            } catch (Exception e) {
+                // 捕獲所有異常，確保執行緒崩潰時有日誌記錄
+                if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
+                    log.warn("Worker {} 收到中斷信號，準備退出", Thread.currentThread().getName());
+                } else {
+                    log.error("Worker {} 運行時發生未預期錯誤", Thread.currentThread().getName(), e);
+                }
+            } finally {
+                // 確保循環結束，便於 stop() 中的 join() 順利返回
+                running.set(false);
             }
-        } catch (Exception e) {
-            // 捕獲所有異常，確保執行緒崩潰時有日誌記錄
-            if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
-                log.warn("Worker {} 收到中斷信號，準備退出", Thread.currentThread().getName());
-            } else {
-                log.error("Worker {} 運行時發生未預期錯誤", Thread.currentThread().getName(), e);
-            }
-        } finally {
-            // 確保循環結束，便於 stop() 中的 join() 順利返回
-            running.set(false);
         }
     }
+
     
     /** 
       啟動時的初始化鉤子，由子類實作

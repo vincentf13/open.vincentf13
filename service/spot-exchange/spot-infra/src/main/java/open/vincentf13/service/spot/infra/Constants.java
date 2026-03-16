@@ -179,7 +179,7 @@ public class Constants {
       WebSocket 專用常數
      */
     public static class Ws {
-        public static final int WAL_RING_BUFFER_SIZE = 16 * 1024 * 1024;
+        public static final int WAL_RING_BUFFER_SIZE = 128 * 1024 * 1024;
         public static final String PATH = "/ws/spot";
         public static final String PONG = "{\"op\":\"pong\"}";
         public static final String CREATE = "order.create";
