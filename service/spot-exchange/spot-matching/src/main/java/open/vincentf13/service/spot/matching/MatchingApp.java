@@ -11,37 +11,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 })
 public class MatchingApp {
     public static void main(String[] args) {
-        cleanDataDirectory();
         SpringApplication.run(MatchingApp.class, args);
-    }
-
-    private static void cleanDataDirectory() {
-        String path = "C:/iProject/open.vincentf13/data/spot-exchange/";
-        java.io.File dir = new java.io.File(path);
-        if (dir.exists()) {
-            System.out.println(">>> [INIT] 正在清空數據目錄 (排除 aeron, logs): " + path);
-            java.io.File[] children = dir.listFiles();
-            if (children != null) {
-                for (java.io.File child : children) {
-                    String name = child.getName();
-                    if (!name.equals("aeron") && !name.equals("logs")) {
-                        deleteRecursive(child);
-                    }
-                }
-            }
-            System.out.println(">>> [INIT] 數據目錄清理完成。");
-        }
-    }
-
-    private static void deleteRecursive(java.io.File file) {
-        if (file.isDirectory()) {
-            java.io.File[] children = file.listFiles();
-            if (children != null) {
-                for (java.io.File child : children) {
-                    deleteRecursive(child);
-                }
-            }
-        }
-        file.delete();
     }
 }
