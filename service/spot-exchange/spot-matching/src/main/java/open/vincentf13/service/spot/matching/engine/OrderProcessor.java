@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.model.*;
 import open.vincentf13.service.spot.sbe.*;
 import org.springframework.stereotype.Component;
@@ -65,7 +66,7 @@ public class OrderProcessor {
         // 3. 資產解凍
         int assetId = (order.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
         long remainingQty = order.getQty() - order.getFilled();
-        long unfreezeAmount = (order.getSide() == OrderSide.BUY) ? remainingQty * order.getPrice() : remainingQty;
+        long unfreezeAmount = (order.getSide() == OrderSide.BUY) ? DecimalUtil.mulFloor(order.getPrice(), remainingQty) : remainingQty;
         ledger.unfreezeBalance(order.getUserId(), assetId, unfreezeAmount, gatewaySequence);
 
         // 4. 更新狀態
@@ -81,7 +82,7 @@ public class OrderProcessor {
         // 1. 凍結資產
         OrderBook book = OrderBook.get(symbolId);
         int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId(); 
-        long freezeAmount = (side == Side.BUY) ? price * quantity : quantity;
+        long freezeAmount = (side == Side.BUY) ? DecimalUtil.mulCeil(price, quantity) : quantity;
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
             // --- 壓測優化：自動充值 (10 億單位) ---

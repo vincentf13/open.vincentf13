@@ -52,7 +52,11 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame frame) {
-            handleBinaryMessage(ctx, frame);
+            try {
+                handleBinaryMessage(ctx, frame);
+            } finally {
+                io.netty.util.ReferenceCountUtil.release(frame);
+            }
         } else {
             super.channelRead(ctx, msg);
         }
@@ -64,36 +68,32 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
         io.netty.buffer.ByteBuf content = frame.content();
         int length = content.readableBytes();
-        if (length < 4) return;
+        if (length < 20) { // 至少要包含 Header
+            log.warn("[GATEWAY-WS] 收到無效封包，長度不足: {}", length);
+            return;
+        }
 
-        // 提取 MsgType (位於 AbstractSbeModel.TYPE_OFFSET = 0)
-        int msgType = content.getInt(content.readerIndex());
+        // 提取 MsgType (位於 AbstractSbeModel.TYPE_OFFSET = 0) - SBE 固定 Little Endian
+        int msgType = content.getIntLE(content.readerIndex());
         
+        // --- 關鍵修復：如果是 AUTH 指令，必須在網關層建立 Session ---
+        if (msgType == open.vincentf13.service.spot.infra.Constants.MsgType.AUTH) {
+            // Auth Body 位於 BODY_OFFSET = 20，其中 UserId 位於 Body 偏移 8 的位置
+            // Layout: [Header 20][Timestamp 8][UserId 8]
+            long userId = content.getLongLE(content.readerIndex() + 20 + 8);
+            log.debug("[GATEWAY] 二進制 AUTH 識別: uid={}", userId);
+            sessionManager.addSession(userId, ctx.channel());
+        }
+
         // 直接將二進制數據推入 RingBuffer (零拷貝轉發)
         int index = gatewayWalQueue.tryClaim(msgType, length);
         if (index > 0) {
             try {
-                // 使用 ByteBuffer 進行橋接拷貝
-                java.nio.ByteBuffer dst = gatewayWalQueue.buffer().byteBuffer();
-                if (dst != null) {
-                    int oldPos = dst.position();
-                    int oldLimit = dst.limit();
-                    try {
-                        dst.limit(index + length).position(index);
-                        content.readBytes(dst);
-                    } finally {
-                        dst.limit(oldLimit).position(oldPos);
-                    }
-                } else {
-                    // Fallback: 如果無法獲取 ByteBuffer，則使用 putBytes (這會發生在非 DirectBuffer 情況下)
-                    byte[] bytes = new byte[length];
-                    content.readBytes(bytes);
-                    gatewayWalQueue.buffer().putBytes(index, bytes);
-                }
+                // 使用執行緒安全的 getBytes 將數據直接拷貝到 RingBuffer 的物理地址
+                gatewayWalQueue.buffer().putBytes(index, content.nioBuffer(content.readerIndex(), length), 0, length);
             } finally {
                 gatewayWalQueue.commit(index);
             }
-            log.debug("[GATEWAY-WS] 二進制訊息已直接轉發, type={}, len={}", msgType, length);
         } else {
             log.warn("[GATEWAY-WS] RingBuffer 滿了！二進制訊息被丟棄");
         }
@@ -140,7 +140,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             case "order_create" -> {
                 log.debug("[GATEWAY] 處理 ORDER_CREATE: uid={}, sid={}, p={}, q={}, side={}, cid={}", 
                     holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), holder.getSide(), holder.getCid());
-                Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? Side.BUY : Side.SELL;
+                open.vincentf13.service.spot.sbe.Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? open.vincentf13.service.spot.sbe.Side.BUY : open.vincentf13.service.spot.sbe.Side.SELL;
                 OrderCreateCommand cmd = context.getOrderCreateCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());

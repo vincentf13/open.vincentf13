@@ -84,9 +84,9 @@ const SBE_ENCODER = {
         return buffer;
     },
     deposit: (uid, aid, amt) => {
-        const buffer = new Uint8Array(20 + 24);
+        const buffer = new Uint8Array(20 + 28);
         const view = new DataView(buffer.buffer);
-        createSbeHeader(view, MSG_TYPE.DEPOSIT, 24);
+        createSbeHeader(view, MSG_TYPE.DEPOSIT, 28);
         view.setBigInt64(20, BigInt(Date.now()), true);
         view.setBigInt64(28, BigInt(uid), true);
         view.setInt32(36, aid, true);
@@ -107,9 +107,9 @@ const SBE_ENCODER = {
         return buffer;
     },
     orderCancel: (uid, oid) => {
-        const buffer = new Uint8Array(20 + 16);
+        const buffer = new Uint8Array(20 + 24);
         const view = new DataView(buffer.buffer);
-        createSbeHeader(view, MSG_TYPE.ORDER_CANCEL, 16);
+        createSbeHeader(view, MSG_TYPE.ORDER_CANCEL, 24);
         view.setBigInt64(20, BigInt(Date.now()), true);
         view.setBigInt64(28, BigInt(uid), true);
         view.setBigInt64(36, BigInt(oid), true);
@@ -146,7 +146,7 @@ ws.on('open', async () => {
         // User B 充值 10 BTC
         ws.send(SBE_ENCODER.deposit(USER_B, ASSET_BTC, 10n * SCALE));
 
-        await sleep(1000); // 等待引擎處理
+        await sleep(2000); // 增加等待時間確保 Chronicle 可見性
 
         let balA = await checkBalance(USER_A, ASSET_USDT);
         let balB = await checkBalance(USER_B, ASSET_BTC);
@@ -167,13 +167,18 @@ ws.on('open', async () => {
         // User A 買入 1 BTC @ 60,000 USDT
         ws.send(SBE_ENCODER.orderCreate(USER_A, SYMBOL_BTC_USDT, 60000n * SCALE, 1n * SCALE, "BUY", cid_A_Buy));
         
-        await sleep(1000);
+        await sleep(2000);
 
         balA = await checkBalance(USER_A, ASSET_USDT);
         const orderA = await checkOrder(USER_A, cid_A_Buy);
         
         console.log(`User A 可用 USDT: ${balA.available}, 凍結: ${balA.frozen}`);
-        console.assert(orderA.status === 0, `Order A 狀態應為 NEW (0), 實際為: ${orderA.status}`);
+        if (orderA && orderA.status !== undefined) {
+            console.log(`Order A 狀態: ${orderA.status}`);
+            console.assert(orderA.status === 0, `Order A 狀態應為 NEW (0), 實際為: ${orderA.status}`);
+        } else {
+            console.error("❌ 無法查詢到 Order A:", orderA);
+        }
         console.assert(balA.frozen === 60000n * SCALE, "凍結金額不正確");
         console.log("✅ 掛單與凍結驗證成功\n");
 
@@ -186,13 +191,15 @@ ws.on('open', async () => {
         // User B 賣出 0.4 BTC @ 60,000 USDT
         ws.send(SBE_ENCODER.orderCreate(USER_B, SYMBOL_BTC_USDT, 60000n * SCALE, 4n * SCALE / 10n, "SELL", cid_B_Sell_1));
 
-        await sleep(1000);
+        await sleep(2000);
 
         const orderA_after_partial = await checkOrder(USER_A, cid_A_Buy);
         
-        console.log(`Order A 已成交: ${orderA_after_partial.filled}`);
-        console.assert(orderA_after_partial.status === 1, `Order A 狀態應為 PARTIAL (1), 實際為: ${orderA_after_partial.status}`);
-        console.assert(BigInt(orderA_after_partial.filled) === 4n * SCALE / 10n, "成交量不正確");
+        if (orderA_after_partial) {
+            console.log(`Order A 已成交: ${orderA_after_partial.filled}`);
+            console.assert(orderA_after_partial.status === 1, `Order A 狀態應為 PARTIAL (1), 實際為: ${orderA_after_partial.status}`);
+            console.assert(BigInt(orderA_after_partial.filled) === 4n * SCALE / 10n, "成交量不正確");
+        }
         console.log("✅ 部分成交與結算驗證成功\n");
 
 

@@ -93,8 +93,8 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     }
 
     protected void fillHeader(int msgType, long sequence, int templateId, int blockLength, int schemaId, int version) {
-        unsafeBuffer.putInt(TYPE_OFFSET, msgType);
-        unsafeBuffer.putLong(SEQ_OFFSET, sequence);
+        unsafeBuffer.putInt(TYPE_OFFSET, msgType, java.nio.ByteOrder.LITTLE_ENDIAN);
+        unsafeBuffer.putLong(SEQ_OFFSET, sequence, java.nio.ByteOrder.LITTLE_ENDIAN);
         headerEncoder.wrap(unsafeBuffer, SBE_HEADER_OFFSET)
                 .templateId(templateId).blockLength(blockLength).schemaId(schemaId).version(version);
     }
