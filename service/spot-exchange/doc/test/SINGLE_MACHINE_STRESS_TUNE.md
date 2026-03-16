@@ -5,7 +5,7 @@
 ```powershell
 # 1. 強制關閉舊 Java 進程並清理共享記憶體
 Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2
-$aeron_dir = "C:/iProject/open.vincentf13/data/spot-exchange/aeron"
+$aeron_dir = "C:/iProject/open.vincentf13/data/spot-exchange/"
 if(Test-Path $aeron_dir){ rm $aeron_dir -Recurse -Force }
 
 # 2. 編譯與打包

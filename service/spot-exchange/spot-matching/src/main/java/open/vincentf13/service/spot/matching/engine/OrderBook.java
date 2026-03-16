@@ -200,7 +200,8 @@ public class OrderBook {
                 taker.setFilled(taker.getFilled() + matchQty);
                 
                 long total = TOTAL_MATCH_COUNT.incrementAndGet();
-                Storage.self().metricsHistory().put(timestamp / 1000, total);
+                // 異步更新指標，避免阻塞撮合循環
+                open.vincentf13.service.spot.infra.metrics.MetricsCollector.set(timestamp / 1000, total);
                 
                 finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
 
@@ -249,6 +250,9 @@ public class OrderBook {
         final long uid = o.getUserId();
         final long oid = o.getOrderId();
         
+        // 使用 ThreadContext 複用 CidKey 避免分配
+        final open.vincentf13.service.spot.model.CidKey ctxCid = open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getRequestHolder().getCidKey();
+
         if (o.getStatus() < 2) {
             activeOrderIdDiskMap.put(oid, Boolean.TRUE);
             byte[] currentBytes = userActiveOrdersDiskMap.get(uid);

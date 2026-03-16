@@ -23,12 +23,16 @@ import java.util.function.Supplier;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OrderProcessor {
+public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final ChronicleMap<Long, Order> orders = Storage.self().orders();
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
     
     private final Ledger ledger;
     private final ExecutionReporter reporter;
+
+    private long currentGatewaySequence;
+    private long currentTakerUserId;
+    private byte currentTakerSide;
 
     @PostConstruct
     public void init() { log.info("OrderProcessor 初始化完成..."); }
@@ -44,6 +48,7 @@ public class OrderProcessor {
         final CidKey cidKey = context.getRequestHolder().getCidKey(); 
         cidKey.set(userId, clientOrderId);
 
+        // 磁碟 Map 查詢是耗時操作，但為了冪等必須執行
         if (clientOrderIdDiskMap.containsKey(cidKey)) return;
 
         handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, orderIdSupplier.get(), tradeIdSupplier);
@@ -78,6 +83,16 @@ public class OrderProcessor {
         reporter.reportCanceled(order);
     }
 
+    /** 實作 TradeFinalizer 接口以複用 */
+    @Override
+    public void onMatch(long tradeId, Order maker, long tradePrice, long tradeQty, int baseAsset, int quoteAsset) {
+        // 成交結算
+        ledger.settleTrade(maker.getUserId(), currentTakerUserId, tradePrice, tradeQty, currentTakerSide, tradePrice, currentGatewaySequence, baseAsset, quoteAsset, tradeId);
+        
+        // 壓測優化：延遲或異步寫入 maker 的 CidMap，或者僅在訂單結束時寫入
+        // 這裡暫時移除重複的 Maker Cid 寫入，因為 Maker 下單時已經寫過一次了
+    }
+
     private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long orderId, LongSupplier tradeIdSupplier) {
         // 1. 凍結資產
         OrderBook book = OrderBook.get(symbolId);
@@ -102,23 +117,16 @@ public class OrderProcessor {
             return;
         }
 
+        // 設置當前 Taker 上下文供 onMatch 使用
+        this.currentTakerUserId = userId;
+        this.currentTakerSide = (byte) (side == Side.BUY ? OrderSide.BUY : OrderSide.SELL);
+        this.currentGatewaySequence = gatewaySequence;
+
         log.debug("[ORDER-PROCESS] 訂單進入撮合: uid={}, side={}, p={}, q={}", userId, side, price, quantity);
-        final byte takerSide = (byte) (side == Side.BUY ? OrderSide.BUY : OrderSide.SELL);
-        book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, System.currentTimeMillis(), gatewaySequence, tradeIdSupplier::getAsLong, new OrderBook.TradeFinalizer() {
-            @Override
-            public void onMatch(long tradeId, Order maker, long tradePrice, long tradeQty, int baseAsset, int quoteAsset) {
-                // 成交結算
-                ledger.settleTrade(maker.getUserId(), userId, tradePrice, tradeQty, takerSide, price, gatewaySequence, baseAsset, quoteAsset, tradeId);
-                
-                // 寫入客戶端訂單 ID 映射 (持久化)
-                CidKey makerCid = new CidKey();
-                makerCid.set(maker.getUserId(), maker.getClientOrderId());
-                clientOrderIdDiskMap.put(makerCid, maker.getOrderId());
-            }
-        });
+        book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, System.currentTimeMillis(), gatewaySequence, tradeIdSupplier::getAsLong, this);
 
         // 3. 寫入客戶端訂單 ID 映射 (持久化 taker)
-        CidKey takerCid = new CidKey();
+        final CidKey takerCid = ThreadContext.get().getRequestHolder().getCidKey();
         takerCid.set(userId, clientOrderId);
         clientOrderIdDiskMap.put(takerCid, orderId);
 
