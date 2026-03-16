@@ -32,7 +32,7 @@ public class Engine extends Worker {
 
     private long lastMetricsSec = 0;
     private long pollCount = 0, workCount = 0;
-    private static final int BATCH_SIZE = 1000;
+    private static final int BATCH_SIZE = 200;
 
     @PostConstruct public void init() { start("core-matching-engine"); }
 

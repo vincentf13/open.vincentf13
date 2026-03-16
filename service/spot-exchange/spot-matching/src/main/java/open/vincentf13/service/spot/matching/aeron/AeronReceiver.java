@@ -51,17 +51,11 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     public void onMessage(DirectBuffer buffer, int offset, int length) {
-        // 從原始數據中提取 msgType (SBE 協議：第 0 位元組開始的 4 位元組 int)
         final int msgType = buffer.getInt(offset);
-        
-        // 直接將 Aeron 數據連同正確的類型寫入 Engine Work RingBuffer (零拷貝)
-        boolean success = Storage.self().engineWorkQueue().write(msgType, buffer, offset, length);
-        
-        if (success) {
-            log.debug("[AERON-RECEIVER] 數據已寫入 Engine RingBuffer, len={}", length);
-        } else {
-            // RingBuffer 滿了 (Backpressure)
-            log.error("[AERON-RECEIVER] Engine RingBuffer is FULL! Message dropped, len={}", length);
+
+        // 自旋寫入，直到成功為止 (產生背壓，絕不丟包)
+        while (!Storage.self().engineWorkQueue().write(msgType, buffer, offset, length)) {
+            // 在極高壓下，稍微提示但不停下
+            // Thread.onSpinWait(); // Java 9+ 提示 CPU 正在自旋
         }
-    }
-}
+    }}
