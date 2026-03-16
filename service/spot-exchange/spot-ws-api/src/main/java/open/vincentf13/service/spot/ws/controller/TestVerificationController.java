@@ -91,6 +91,41 @@ public class TestVerificationController {
         long workCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_WORK_COUNT, 0L);
         double ratio = pollCount == 0 ? 0 : (double) workCount / pollCount * 100.0;
 
+        // 計算平均 TPS (數據開始 10 秒後的平均值)
+        double averageTps = 0.0;
+        TreeMap<Long, Long> sortedHistory = new TreeMap<>();
+        Storage.self().metricsHistory().forEach((timestamp, total) -> {
+            if (timestamp > 0) sortedHistory.put(timestamp, total);
+        });
+
+        if (sortedHistory.size() >= 2) {
+            // 尋找第一個 TPS > 0 (即 WorkCount 開始增加) 的點
+            long actualStartTime = -1;
+            for (Map.Entry<Long, Long> entry : sortedHistory.entrySet()) {
+                if (entry.getValue() > 0) {
+                    actualStartTime = entry.getKey();
+                    break;
+                }
+            }
+
+            if (actualStartTime != -1) {
+                long lastTime = sortedHistory.lastKey();
+                long targetStartTime = actualStartTime + 10_000; // 從數據產生後 10s 開始
+
+                // 尋找大於等於 targetStartTime 的第一個點作為起始基準
+                Map.Entry<Long, Long> startEntry = sortedHistory.ceilingEntry(targetStartTime);
+                if (startEntry != null && lastTime > startEntry.getKey()) {
+                    long t1 = startEntry.getKey();
+                    long w1 = startEntry.getValue();
+                    long t2 = lastTime;
+                    long w2 = sortedHistory.get(t2);
+
+                    // (Work2 - Work1) / (Time2 - Time1) * 1000 (ms to s)
+                    averageTps = (double) (w2 - w1) / (t2 - t1) * 1000.0;
+                }
+            }
+        }
+
         // 全鏈路瓶頸指標
         long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_NETTY_RECV_COUNT, 0L);
         long gatewayWalWriteCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, 0L);
@@ -121,6 +156,7 @@ public class TestVerificationController {
         metrics.put("engine_work_count", workCount);
         metrics.put("engine_poll_count", pollCount);
         metrics.put("engine_saturation", String.format("%.2f%%", ratio));
+        metrics.put("average_tps", String.format("%.2f", averageTps));
 
         metrics.put("jvm_memory_used_mb", usedMemory / (1024 * 1024));
         metrics.put("jvm_memory_max_mb", maxMemory / (1024 * 1024));

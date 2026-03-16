@@ -39,10 +39,13 @@ public class AsyncWalWriter extends Worker {
     }
 
     private void onMessage(int msgTypeId, org.agrona.DirectBuffer buffer, int offset, int length) {
+        final net.openhft.chronicle.bytes.PointerBytesStore pointer = open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getReusablePointer();
+        pointer.set(buffer.addressOffset() + offset, length);
+
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
             // 直接將數據從 RingBuffer 寫入 WAL (零拷貝)
-            bytes.write(buffer, offset, length);
+            bytes.write(pointer);
 
             localWalWriteCount++;
             if (localWalWriteCount >= METRICS_BATCH_SIZE) {
