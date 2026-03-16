@@ -80,13 +80,9 @@ public abstract class Worker implements Runnable {
      */
     @Override
     public void run() {
-        // 在進程允許的核心範圍內嘗試鎖定核心，若失敗則不綁核 (軟綁定)
-        AffinityLock lock = open.vincentf13.service.spot.infra.util.AffinityUtil.acquireLockInAffinity();
-        if (lock != null) {
-            onBind(lock.cpuId());
-        } else {
-            onBind(-1); // 上報 -1 代表未成功鎖定物理核心
-        }
+        // 在進程允許的核心範圍內自動分配並綁定物理核心 (軟硬結合)
+        int boundCpuId = open.vincentf13.service.spot.infra.util.AffinityUtil.acquireAndBind();
+        onBind(boundCpuId);
 
         try {
             onStart();
@@ -105,12 +101,8 @@ public abstract class Worker implements Runnable {
         } finally {
             // 確保循環結束，便於 stop() 中的 join() 順利返回
             running.set(false);
-            if (lock != null) {
-                lock.close();
-            }
         }
     }
-
     
     /** 
       啟動時的初始化鉤子，由子類實作
