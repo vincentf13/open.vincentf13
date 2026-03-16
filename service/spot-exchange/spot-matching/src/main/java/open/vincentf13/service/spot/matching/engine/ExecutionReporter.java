@@ -42,12 +42,12 @@ public class ExecutionReporter implements AutoCloseable {
 
     public void reportAuth(long userId) {
         if (isReplaying) return;
-        log.info("[Auth] UserId: {} Success", userId); // 驗證次數少，保留 info
+        log.debug("[Auth] UserId: {} Success", userId); // 全面降級為 debug
     }
 
     public void reportDeposit(long userId, int assetId, long amount) {
         if (isReplaying) return;
-        log.info("[Deposit] UserId: {}, AssetId: {}, Amount: {}", userId, assetId, amount); // 充值次數少，保留 info
+        log.debug("[Deposit] UserId: {}, AssetId: {}, Amount: {}", userId, assetId, amount); // 全面降級為 debug
     }
     @Override public void close() {}
 }

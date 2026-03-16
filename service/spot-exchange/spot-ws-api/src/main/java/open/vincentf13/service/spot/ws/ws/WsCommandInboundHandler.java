@@ -70,10 +70,9 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
         switch (holder.getOp()) {
             case "auth" -> {
-                log.info("[GATEWAY] 處理 AUTH: uid={}", holder.getUserId()); // Auth 次數少，可保留 info
+                log.debug("[GATEWAY] 處理 AUTH: uid={}", holder.getUserId()); // 全面降級為 debug
                 sessionManager.addSession(holder.getUserId(), ctx.channel());
-                AuthCommand cmd = context.getAuthCommand();
-                cmd.wrapWriteBuffer(scratch, 0);
+                AuthCommand cmd = context.getAuthCommand();                cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
                 writeRaw(cmd);
             }
