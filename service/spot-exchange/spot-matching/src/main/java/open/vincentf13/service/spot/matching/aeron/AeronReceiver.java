@@ -33,7 +33,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
     @PostConstruct public void init() { start("core-command-receiver"); }
 
     private long localRecvCount = 0;
-    private static final int METRICS_BATCH_SIZE = 10000;
+    private static final int METRICS_BATCH_SIZE = 5000;
 
     @Override
     public void onMessage(DirectBuffer buffer, int offset, int length) {

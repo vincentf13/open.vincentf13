@@ -3,16 +3,20 @@ package open.vincentf13.service.spot.infra.chronicle;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
+import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import open.vincentf13.service.spot.infra.Constants.ChronicleMapEnum;
 import open.vincentf13.service.spot.infra.Constants.ChronicleQueueEnum;
+import open.vincentf13.service.spot.infra.Constants.Ws;
 import open.vincentf13.service.spot.model.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * 系統存儲中心 (Storage Hub) - TPS 測試簡化版
- * 保留所有業務所需的 Maps，僅移除回報鏈路的 Queues 以提升性能。
  */
 @Slf4j
 public class Storage {
@@ -36,6 +40,22 @@ public class Storage {
     // --- 持久化 Queues (WAL) ---
     private volatile ChronicleQueue gatewaySenderWal;    // 網關 -> Aeron
     private volatile ChronicleQueue engineReceiverWal;   // Aeron -> 引擎
+
+    // --- 內存 Queues (Inter-thread) ---
+    private volatile ManyToOneRingBuffer gatewayWalQueue;
+
+    public ManyToOneRingBuffer gatewayWalQueue() {
+        if (gatewayWalQueue == null) synchronized (this) {
+            if (gatewayWalQueue == null) {
+                int bufferSize = Ws.WAL_RING_BUFFER_SIZE;
+                int totalSize = bufferSize + RingBufferDescriptor.TRAILER_LENGTH;
+                ByteBuffer byteBuffer = ByteBuffer.allocateDirect(totalSize);
+                gatewayWalQueue = new ManyToOneRingBuffer(new UnsafeBuffer(byteBuffer));
+                log.info("Gateway WAL RingBuffer initialized: size={}MB", bufferSize / 1024 / 1024);
+            }
+        }
+        return gatewayWalQueue;
+    }
 
     public ChronicleMap<Long, Order> orders() {
         if (orders == null) synchronized (this) {

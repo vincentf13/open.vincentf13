@@ -66,13 +66,14 @@ public class Engine extends Worker {
     private long localWorkCount = 0;
 
     private static final int MAX_BATCH_SIZE = 1000;
-    private static final int METRICS_BATCH_SIZE = 50000;
+    private static final int METRICS_BATCH_SIZE = 5000;
 
     @Override
     protected int doWork() {
         int workDone = 0;
         // 批次化讀取：在一個迴圈內盡量消耗當前已寫入 WAL 的數據，減少獲取 DocumentContext 的次數
         for (int i = 0; i < MAX_BATCH_SIZE; i++) {
+            localPollCount++; // 無論是否有數據，都計算一次 Poll 嘗試
             try (DocumentContext dc = tailer.readingDocument()) {
                 if (!dc.isPresent()) {
                     break;
@@ -83,7 +84,6 @@ public class Engine extends Worker {
                 final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
 
                 localWorkCount++;
-                localPollCount++;
                 workDone++;
 
                 if (gwSeq != MSG_SEQ_NONE) {

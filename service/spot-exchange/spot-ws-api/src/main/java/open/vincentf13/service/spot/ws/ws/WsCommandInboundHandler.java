@@ -5,15 +5,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.Bytes;
-import net.openhft.chronicle.queue.ChronicleQueue;
-import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.Side;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -25,7 +23,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    private final ChronicleQueue gatewaySenderWal = Storage.self().gatewaySenderWal();
+    private final ManyToOneRingBuffer gatewayWalQueue = Storage.self().gatewayWalQueue();
     private final WsSessionManager sessionManager;
 
     public WsCommandInboundHandler(WsSessionManager sessionManager) {
@@ -39,7 +37,6 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     }
 
     private long localNettyRecvCount = 0;
-    private long localWalWriteCount = 0;
     private static final int METRICS_BATCH_SIZE = 10000;
 
     @Override
@@ -83,7 +80,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 sessionManager.addSession(holder.getUserId(), ctx.channel());
                 AuthCommand cmd = context.getAuthCommand();                cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
-                writeRaw(cmd);
+                asyncWrite(cmd);
             }
             case "order_create" -> {
                 log.debug("[GATEWAY] 處理 ORDER_CREATE: uid={}, sid={}, p={}, q={}, side={}, cid={}", 
@@ -92,38 +89,38 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 OrderCreateCommand cmd = context.getOrderCreateCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
-                writeRaw(cmd);
+                asyncWrite(cmd);
             }
             case "order_cancel" -> {
                 log.debug("[GATEWAY] 處理 ORDER_CANCEL: uid={}, oid={}", holder.getUserId(), holder.getOrderId());
                 OrderCancelCommand cmd = context.getOrderCancelCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
-                writeRaw(cmd);
+                asyncWrite(cmd);
             }
             case "deposit" -> {
                 log.debug("[GATEWAY] 處理 DEPOSIT: uid={}, aid={}, amt={}", holder.getUserId(), holder.getAssetId(), holder.getAmount());
                 DepositCommand cmd = context.getDepositCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
-                writeRaw(cmd);
+                asyncWrite(cmd);
             }
         }
     }
 
-    private void writeRaw(AbstractSbeModel model) {
-        try (DocumentContext dc = gatewaySenderWal.acquireAppender().writingDocument()) {
-            net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-            // 調用模型的 writeMarshallable，它會自動處理 PointerBytesStore 並寫入內容
-            model.writeMarshallable(bytes);
-            
-            localWalWriteCount++;
-            if (localWalWriteCount >= METRICS_BATCH_SIZE) {
-                final long batch = localWalWriteCount;
-                Storage.self().metricsHistory().compute(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, (k, v) -> v == null ? batch : v + batch);
-                localWalWriteCount = 0;
+    private void asyncWrite(AbstractSbeModel model) {
+        int length = model.totalByteLength();
+        int msgType = model.getMsgType();
+        int index = gatewayWalQueue.tryClaim(msgType, length);
+        if (index > 0) {
+            try {
+                gatewayWalQueue.buffer().putBytes(index, model.getUnsafeBuffer(), 0, length);
+            } finally {
+                gatewayWalQueue.commit(index);
             }
-            log.debug("[GATEWAY-WAL] 訊息已持久化至 WAL, index={}", dc.index());
+            log.debug("[GATEWAY-WS] 訊息已推入 RingBuffer 佇列, type={}, len={}", msgType, length);
+        } else {
+            log.warn("[GATEWAY-WS] RingBuffer 滿了！訊息被丟棄，請增加 WAL_RING_BUFFER_SIZE");
         }
     }
     @Override

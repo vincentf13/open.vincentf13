@@ -42,7 +42,7 @@ $g = Start-Process java -ArgumentList "@C:\iProject\open.vincentf13\service\spot
 # 6. 設定親和性並檢查
 Start-Sleep 5
 if($e.HasExited){ "Matching FAILED! Error Log:"; gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" } else { $e.ProcessorAffinity = 12; "Matching Success (CPU 2-3)!" }
-if($g.HasExited){ "Gateway FAILED! Error Log:"; gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" } else { $g.ProcessorAffinity = 240; "GateWay Success (CPU 4-7)!" }
+if($g.HasExited){ "Gateway FAILED! Error Log:"; gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" } else { $g.ProcessorAffinity = 49392; "GateWay Success (CPU 4-7, 14-15)!" }
 
 CD "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\"
 
@@ -69,9 +69,9 @@ $e = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spo
 ```
 
 #### B. 網關端 (spot-ws-api)
-分配 4 個 P-core。
+分配 6 個 P-core (4-7 用於 Netty/Aeron, 14-15 用於 Async WAL)。
 ```powershell
-$g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.gw.GateWayApp' -WorkingDirectory "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru; Start-Sleep 5; if ($g.HasExited) { Get-Content "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" } else { $g.ProcessorAffinity = 120; "Success! PID: $($g.Id)" }
+$g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.gw.GateWayApp' -WorkingDirectory "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru; Start-Sleep 5; if ($g.HasExited) { Get-Content "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" } else { $g.ProcessorAffinity = 49392; "Success! PID: $($g.Id)" }
 ```
 
 #### C. 壓測工具 (k6)
