@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.matching;
 
+import net.openhft.affinity.AffinityLock;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -9,8 +10,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 })
 public class MatchingApp {
     public static void main(String[] args) {
-        cleanDataDirectory();
-        SpringApplication.run(MatchingApp.class, args);
+        // 在 JVM 啟動初期為管理執行緒 (GC, JIT) 預留空間，確保它們不干擾後續啟動的 3 個核心 P-core 執行緒
+        try (AffinityLock lock = AffinityLock.acquireCore()) {
+            System.out.println(">>> [AFFINITY] JVM 管理執行緒已鎖定核心: " + lock.cpuId());
+            Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_JVM_MANAGEMENT, (long) lock.cpuId());
+            cleanDataDirectory();
+            SpringApplication.run(MatchingApp.class, args);
+        }
     }
 
     private static void cleanDataDirectory() {

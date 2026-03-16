@@ -128,6 +128,14 @@ public class Storage {
     public static final long KEY_AERON_SEND_COUNT = -6L;
     public static final long KEY_AERON_RECV_COUNT = -7L;
 
+    // CPU ID 監測指標 (執行緒綁核追蹤)
+    public static final long KEY_CPU_ID_ENGINE = -100L;
+    public static final long KEY_CPU_ID_WAL_WRITER = -101L;
+    public static final long KEY_CPU_ID_AERON_SENDER = -102L;
+    public static final long KEY_CPU_ID_AERON_RECEIVER = -103L;
+    public static final long KEY_CPU_ID_SNAPSHOT = -104L;
+    public static final long KEY_CPU_ID_JVM_MANAGEMENT = -105L;
+
     public ChronicleMap<Long, Long> metricsHistory() {
         if (metricsHistory == null) synchronized (this) {
             if (metricsHistory == null) metricsHistory = createMap("metrics-history", Long.class, Long.class, 86400, 8, 8);

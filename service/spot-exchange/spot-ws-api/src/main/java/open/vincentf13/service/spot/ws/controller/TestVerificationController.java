@@ -170,7 +170,23 @@ public class TestVerificationController {
 
         metrics.put("os_cpu_load", sysLoad >= 0 ? String.format("%.2f%%", sysLoad) : "N/A");
 
+        // CPU Affinity 綁定資訊
+        Map<String, Object> cpuAffinity = new java.util.LinkedHashMap<>();
+        addCpuMetric(cpuAffinity, "matching_engine", Storage.KEY_CPU_ID_ENGINE);
+        addCpuMetric(cpuAffinity, "async_wal_writer", Storage.KEY_CPU_ID_WAL_WRITER);
+        addCpuMetric(cpuAffinity, "aeron_sender", Storage.KEY_CPU_ID_AERON_SENDER);
+        addCpuMetric(cpuAffinity, "aeron_receiver", Storage.KEY_CPU_ID_AERON_RECEIVER);
+        addCpuMetric(cpuAffinity, "snapshot_worker", Storage.KEY_CPU_ID_SNAPSHOT);
+        addCpuMetric(cpuAffinity, "jvm_management", Storage.KEY_CPU_ID_JVM_MANAGEMENT);
+        metrics.put("cpu_affinity", cpuAffinity);
+
         return metrics;
+    }
+
+    private void addCpuMetric(Map<String, Object> map, String name, long key) {
+        Long cpuId = Storage.self().metricsHistory().get(key);
+        if (cpuId != null) map.put(name, "Core " + cpuId);
+        else map.put(name, "Not Bound");
     }
     @GetMapping("/dump_wal")
     public List<String> dumpWal() {

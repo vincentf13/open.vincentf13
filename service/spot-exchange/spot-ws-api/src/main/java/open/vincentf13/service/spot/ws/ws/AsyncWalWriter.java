@@ -28,6 +28,11 @@ public class AsyncWalWriter extends Worker {
     }
 
     @Override
+    protected void onBind(int cpuId) {
+        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_WAL_WRITER, (long) cpuId);
+    }
+
+    @Override
     protected void onStart() {
         log.info("Async WAL Writer started, ready to consume from RingBuffer");
     }

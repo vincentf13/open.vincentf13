@@ -3,29 +3,71 @@ package open.vincentf13.service.spot.matching.engine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.MappedBytes;
+import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.WalProgress;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PostConstruct;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  系統快照服務 (Snapshot Service)
- 職責：定期備份 Chronicle Map 文件，並保存一致性的進度位點，確保秒級冷啟動
+ 職責：異步備份 Chronicle Map 文件，獨佔一個 CPU 核心以實現零停頓快照
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SnapshotService {
+public class SnapshotService extends Worker {
     private final String snapshotDir = ChronicleMapEnum.SNAPSHOT_BASE_DIR;
     private static final String BOOK_SNAPSHOT_FILE = "order-book.bin";
+    
+    private final BlockingQueue<WalProgress> snapshotRequests = new LinkedBlockingQueue<>();
 
-    public void createSnapshot(WalProgress currentProgress) {
+    @PostConstruct
+    public void init() {
+        start("snapshot-worker");
+    }
+
+    @Override
+    protected void onBind(int cpuId) {
+        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_SNAPSHOT, (long) cpuId);
+    }
+
+    @Override
+    protected void onStart() {
+        log.info("Snapshot Service Worker started, awaiting requests...");
+    }
+
+    @Override
+    protected int doWork() {
+        WalProgress progress = snapshotRequests.poll();
+        if (progress != null) {
+            executeCreateSnapshot(progress);
+            return 1;
+        }
+        return 0;
+    }
+
+    @Override
+    protected void onStop() {
+        log.info("Snapshot Service Worker stopped");
+    }
+
+    public void requestSnapshot(WalProgress currentProgress) {
+        // 僅保留最新的快照請求，避免堆積
+        if (snapshotRequests.size() > 1) snapshotRequests.clear();
+        snapshotRequests.offer(currentProgress);
+    }
+
+    private void executeCreateSnapshot(WalProgress currentProgress) {
         long seq = currentProgress.getLastProcessedMsgSeq();
         log.debug("--- 開始執行系統快照 (Sequence: {}) ---", seq);
         

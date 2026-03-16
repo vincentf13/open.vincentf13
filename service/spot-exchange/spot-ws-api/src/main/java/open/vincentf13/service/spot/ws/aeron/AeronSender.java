@@ -31,6 +31,11 @@ public class AeronSender extends AbstractAeronSender {
     @PostConstruct public void init() { start("gw-command-sender"); }
 
     @Override
+    protected void onBind(int cpuId) {
+        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_AERON_SENDER, (long) cpuId);
+    }
+
+    @Override
     public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();
         final Bytes<?> bytes = wire.bytes();

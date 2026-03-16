@@ -32,6 +32,11 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @PostConstruct public void init() { start("core-command-receiver"); }
 
+    @Override
+    protected void onBind(int cpuId) {
+        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_AERON_RECEIVER, (long) cpuId);
+    }
+
     private long localRecvCount = 0;
     private static final int METRICS_BATCH_SIZE = 5000;
 

@@ -1,6 +1,6 @@
 package open.vincentf13.service.spot.infra;
 
-import org.agrona.concurrent.YieldingIdleStrategy;
+import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 import net.openhft.affinity.AffinityLock;
 import org.slf4j.Logger;
@@ -17,8 +17,8 @@ public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
 
-    // 改用 YieldingIdleStrategy，在無任務時主動 yield，減少對 CPU 指令週期的無謂佔用，防止干擾其它核心執行緒
-    protected final IdleStrategy idleStrategy = new YieldingIdleStrategy();
+    // 改用 BusySpinIdleStrategy，拒絕任何讓出，確保最低延遲
+    protected final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
     private Thread thread;    
     /** 
      啟動工作者執行緒
@@ -82,6 +82,7 @@ public abstract class Worker implements Runnable {
     public void run() {
         // 在綁核環境下，獲取一個獨佔的 CPU Core 鎖
         try (AffinityLock lock = AffinityLock.acquireCore()) {
+            onBind(lock.cpuId());
             onStart();
             try {
                 // 同時檢查運行標誌位與執行緒中斷狀態
@@ -112,6 +113,12 @@ public abstract class Worker implements Runnable {
      */
     protected abstract void onStart();
     
+    /** 
+      當執行緒成功鎖定 CPU 核心時觸發
+      @param cpuId 鎖定的物理核心 ID
+     */
+    protected void onBind(int cpuId) {}
+
     /** 
      核心工作邏輯
      @return 本次處理的任務數。返回 0 代表無任務，將觸發 IdleStrategy 的空閒邏輯

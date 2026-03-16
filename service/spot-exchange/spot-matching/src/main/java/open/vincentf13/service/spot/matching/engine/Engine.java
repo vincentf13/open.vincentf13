@@ -42,6 +42,11 @@ public class Engine extends Worker {
     @PostConstruct public void init() { start("core-matching-engine"); }
 
     @Override
+    protected void onBind(int cpuId) {
+        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_ENGINE, (long) cpuId);
+    }
+
+    @Override
     protected void onStart() {
         final boolean recoveredFromSnapshot = snapshotService.recoverFromLatestSnapshot();
         if (!recoveredFromSnapshot) {
@@ -166,7 +171,7 @@ public class Engine extends Worker {
         if (index % 100 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
         // 將快照頻率大幅調低，避免壓測時瘋狂寫磁碟導致 TPS 暴跌
         if (!isReplaying && gwSeq != MSG_SEQ_NONE && gwSeq - lastSnapshotSeq >= 100_000_000) {
-            snapshotService.createSnapshot(progress);
+            snapshotService.requestSnapshot(progress);
             lastSnapshotSeq = gwSeq;
         }
     }
