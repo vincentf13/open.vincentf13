@@ -222,7 +222,7 @@ public class Storage {
         new File(dir).mkdirs();
         return net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder
                 .single(dir + q.getPath())
-                .syncMode(net.openhft.chronicle.queue.SyncMode.SYNC)
+                .syncMode(net.openhft.chronicle.bytes.SyncMode.SYNC)
                 .build();
     }
 
