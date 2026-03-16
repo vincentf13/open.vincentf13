@@ -1,29 +1,47 @@
-# GC 選項：分代 ZGC (保持高併發處理力)
+# --- 模組存取權限 (Netty & Aeron 必需) ---
+--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED
+--add-exports=java.base/sun.nio.ch=ALL-UNNAMED
+--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED
+--add-exports=java.base/jdk.internal.access=ALL-UNNAMED
+--add-opens=java.base/jdk.internal.access=ALL-UNNAMED
+--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
+--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+--add-opens=java.base/jdk.internal.util=ALL-UNNAMED
+--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens=java.base/java.lang=ALL-UNNAMED
+--add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+--add-opens=java.base/java.io=ALL-UNNAMED
+--add-opens=java.base/java.util=ALL-UNNAMED
+--add-opens=java.base/java.nio=ALL-UNNAMED
+
+# --- GC 優化：Java 21 Generational ZGC ---
 -XX:+UseZGC
 -XX:+ZGenerational
--XX:MaxGCPauseMillis=20
+-XX:MaxGCPauseMillis=10
+-XX:ZUncommitDelay=3600
+-XX:ParallelGCThreads=4
+-XX:ConcGCThreads=2
 
-# 記憶體配置 (6GB Heap + 4GB DirectMemory)
+# --- 記憶體配置 (6GB Heap + 4GB Direct) ---
 -Xms6G
 -Xmx6G
 -XX:MaxDirectMemorySize=4G
 -XX:+AlwaysPreTouch
 
-# 吞吐量與網路 I/O 優化
+# --- 物理層與吞吐量優化 ---
 -XX:+UseNUMA
--XX:+UseTransparentHugePages
 -XX:+PerfDisableSharedMem
 
-# 編譯優化 (更多編譯器執行緒處理 Netty 負載)
+# --- JIT 編譯與 Netty 優化 ---
 -XX:+TieredCompilation
 -XX:TieredStopAtLevel=4
 -XX:CICompilerCount=8
-
-# JIT 熱點優化參數
 -XX:MaxInlineLevel=15
 -XX:FreqInlineSize=325
 
-# 系統環境
+# --- 系統屬性 ---
 -Djava.net.preferIPv4Stack=true
 -Dfile.encoding=UTF-8
 -Djava.awt.headless=true
+-Djdk.nio.maxCachedBufferSize=2097152
+-Dnetty.worker.count=4
