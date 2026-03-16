@@ -220,7 +220,10 @@ public class Storage {
     private ChronicleQueue createQueue(ChronicleQueueEnum q) {
         String dir = ChronicleMapEnum.WAL_BASE_DIR;
         new File(dir).mkdirs();
-        return ChronicleQueue.single(dir + q.getPath());
+        return net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder
+                .single(dir + q.getPath())
+                .syncMode(net.openhft.chronicle.queue.SyncMode.SYNC)
+                .build();
     }
 
     public void close() {

@@ -48,10 +48,7 @@ public class AsyncWalWriter extends Worker {
             try (DocumentContext dc = appender.writingDocument()) {
                 pointer.set(buffer.addressOffset() + offset, length);
                 // 直接寫入數據，每一筆訊息都會獲得一個唯一的 dc.index()
-                net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-                bytes.write(pointer);
-                // 強制同步刷盤 (fsync)
-                bytes.force();
+                dc.wire().bytes().write(pointer);
 
                 localWalWriteCount++;
                 if (localWalWriteCount >= METRICS_BATCH_SIZE) {
