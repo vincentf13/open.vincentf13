@@ -1,0 +1,27 @@
+error: no objects passed to apply
+error: no objects passed to apply
+deployment.apps/service-template created
+deployment.apps/service-test created
+service/service-template created
+ingress.networking.k8s.io/service-template created
+service/service-test created
+deployment.apps/exchange-account created
+service/exchange-account created
+deployment.apps/exchange-admin created
+service/exchange-admin created
+deployment.apps/exchange-auth created
+service/exchange-auth created
+deployment.apps/exchange-gateway created
+service/exchange-gateway created
+deployment.apps/exchange-market created
+service/exchange-market created
+deployment.apps/exchange-matching created
+service/exchange-matching created
+deployment.apps/exchange-order created
+service/exchange-order created
+deployment.apps/exchange-position created
+service/exchange-position created
+deployment.apps/exchange-risk created
+service/exchange-risk created
+deployment.apps/exchange-user created
+service/exchange-user created

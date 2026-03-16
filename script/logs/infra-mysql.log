@@ -1,0 +1,11 @@
+persistentvolume/infra-mysql-pv-0 unchanged
+persistentvolume/infra-mysql-pv-1 unchanged
+persistentvolumeclaim/mysql-data-infra-mysql-0 unchanged
+persistentvolumeclaim/mysql-data-infra-mysql-1 unchanged
+configmap/infra-mysql-config unchanged
+secret/infra-mysql-secret configured
+service/infra-mysql-headless unchanged
+service/infra-mysql-0 unchanged
+service/infra-mysql-1 unchanged
+statefulset.apps/infra-mysql configured
+partitioned roll out complete: 2 new pods have been updated...

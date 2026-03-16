@@ -1,0 +1,5 @@
+secret/grafana-admin configured
+configmap/grafana-datasources unchanged
+persistentvolumeclaim/grafana-storage unchanged
+deployment.apps/grafana configured
+service/grafana unchanged

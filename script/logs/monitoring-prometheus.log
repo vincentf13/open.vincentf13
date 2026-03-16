@@ -1,0 +1,12 @@
+namespace/monitoring unchanged
+serviceaccount/prometheus unchanged
+clusterrole.rbac.authorization.k8s.io/prometheus unchanged
+clusterrolebinding.rbac.authorization.k8s.io/prometheus unchanged
+configmap/prometheus-config unchanged
+configmap/prometheus-rules unchanged
+deployment.apps/prometheus configured
+service/prometheus unchanged
+configmap/alertmanager-config unchanged
+statefulset.apps/alertmanager configured
+service/alertmanager unchanged
+ingress.networking.k8s.io/prometheus unchanged

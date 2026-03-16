@@ -7,7 +7,6 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.BufferClaim;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
-import net.openhft.chronicle.queue.ChronicleQueue;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.model.MsgProgress;
@@ -23,7 +22,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Slf4j
 public abstract class AbstractAeronReceiver extends Worker {
     protected final Aeron aeron;
-    protected final ChronicleQueue wal;
     protected final ChronicleMap<Byte, MsgProgress> metadata;
     protected final byte metadataKey;
     protected final String subscriptionChannel;
@@ -45,7 +43,6 @@ public abstract class AbstractAeronReceiver extends Worker {
     protected long lastResumeSentTime = 0;
 
     public AbstractAeronReceiver(Aeron aeron,
-                                 ChronicleQueue wal,
                                  ChronicleMap<Byte, MsgProgress> metadata,
                                  byte metadataKey,
                                  String subscriptionChannel,
@@ -53,7 +50,6 @@ public abstract class AbstractAeronReceiver extends Worker {
                                  String controlChannel,
                                  int controlStreamId) {
         this.aeron = aeron;
-        this.wal = wal;
         this.metadata = metadata;
         this.metadataKey = metadataKey;
         this.subscriptionChannel = subscriptionChannel;

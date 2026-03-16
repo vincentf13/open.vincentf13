@@ -4,10 +4,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
-import net.openhft.chronicle.queue.ChronicleQueue;
-import net.openhft.chronicle.queue.ExcerptTailer;
-import net.openhft.chronicle.wire.DocumentContext;
-import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
@@ -18,12 +14,13 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  撮合引擎執行緒 (Engine Orchestrator)
+ 採用 Agrona RingBuffer 實現 Aeron 接收端到引擎核心的純內存零拷貝通訊。
+ 徹底移除本地 WAL 依賴與重播邏輯，最大化實時撮合性能。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class Engine extends Worker {
-    private final ChronicleQueue engineReceiverWal = Storage.self().engineReceiverWal();
     private final ChronicleMap<Byte, WalProgress> metadata = Storage.self().walMetadata();
 
     private final CommandRouter router;
@@ -33,11 +30,9 @@ public class Engine extends Worker {
     private final SnapshotService snapshotService;
     
     private final WalProgress progress = new WalProgress();
-    private ExcerptTailer tailer;
-    private boolean isReplaying = false;
     private long lastSnapshotSeq = MSG_SEQ_NONE;
 
-    private final net.openhft.chronicle.wire.ReadMarshallable walReader = this::onWalMessage;
+    private final org.agrona.concurrent.ringbuffer.MessageHandler ringBufferHandler = this::onRingBufferMessage;
 
     @PostConstruct public void init() { start("core-matching-engine"); }
 
@@ -48,9 +43,10 @@ public class Engine extends Worker {
 
     @Override
     protected void onStart() {
+        // 從快照恢復最新記憶體狀態 (唯一持久化來源)
         final boolean recoveredFromSnapshot = snapshotService.recoverFromLatestSnapshot();
         if (!recoveredFromSnapshot) {
-            log.info("未發現有效快照，執行全量數據校準與索引重建...");
+            log.info("未發現有效快照，執行冷啟動索引重建...");
             ledger.rebuildAssetIndexes();
             OrderBook.rebuildActiveOrdersIndexes();
             orderProcessor.coldStartRebuild();
@@ -61,9 +57,7 @@ public class Engine extends Worker {
         OrderBook.get(1001); 
 
         loadMetadata();
-        this.tailer = engineReceiverWal.createTailer();
-        alignTailer();
-        log.info("Engine 啟動完成，當前模式: {}", isReplaying ? "REPLAYING" : "REAL-TIME");
+        log.info("Engine 啟動完成，進入實時純內存模式 (REAL-TIME)");
     }
 
     private long lastMetricsTime = 0;
@@ -75,29 +69,11 @@ public class Engine extends Worker {
 
     @Override
     protected int doWork() {
-        int workDone = 0;
-        // 批次化讀取：在一個迴圈內盡量消耗當前已寫入 WAL 的數據，減少獲取 DocumentContext 的次數
-        for (int i = 0; i < MAX_BATCH_SIZE; i++) {
-            localPollCount++; // 無論是否有數據，都計算一次 Poll 嘗試
-            try (DocumentContext dc = tailer.readingDocument()) {
-                if (!dc.isPresent()) {
-                    break;
-                }
-
-                final long index = dc.index();
-                final net.openhft.chronicle.wire.WireIn wire = dc.wire();
-                final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
-
-                localWorkCount++;
-                workDone++;
-
-                if (gwSeq != MSG_SEQ_NONE) {
-                    updateMode(index, gwSeq);
-                    checkSequence(gwSeq);
-                    handlePersistence(index, gwSeq);
-                }
-            }
-        }
+        // 從 Agrona RingBuffer 輪詢待處理指令 (零拷貝)
+        int workDone = Storage.self().engineWorkQueue().read(ringBufferHandler, MAX_BATCH_SIZE);
+        
+        localPollCount += MAX_BATCH_SIZE; 
+        localWorkCount += workDone;
 
         // 定時/定量更新指標
         long now = System.currentTimeMillis() / 1000;
@@ -112,6 +88,16 @@ public class Engine extends Worker {
         }
 
         return workDone > 0 ? 1 : 0;
+    }
+
+    private void onRingBufferMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
+        // 直接路由原始 DirectBuffer，避免 Chronicle Wire 的包裝開銷
+        final long gwSeq = router.route(msgType, buffer, offset, length, this::nextOrderId, this::nextTradeId);
+        if (gwSeq != MSG_SEQ_NONE) {
+            checkSequence(gwSeq);
+            // 更新進度與 Sequence 位點
+            handlePersistence(gwSeq);
+        }
     }
 
     private void updateProcessMetrics() {
@@ -136,37 +122,15 @@ public class Engine extends Worker {
         }
     }
 
-    private void onWalMessage(WireIn wire) {
-        // 該方法已棄用，邏輯已移至 doWork 以支援 RAW 模式
-    }
-
     private void loadMetadata() {
         WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
         if (saved != null) {
             progress.copyFrom(saved);
             lastSnapshotSeq = progress.getLastProcessedMsgSeq();
-            log.info("已加載元數據位點: Index={}, MsgSeq={}", progress.getLastProcessedIndex(), progress.getLastProcessedMsgSeq());
+            log.info("已加載元數據位點: MsgSeq={}", progress.getLastProcessedMsgSeq());
         } else {
             log.warn("元數據不存在，重置進度位點。");
             progress.reset();
-        }
-    }
-
-    private void alignTailer() {
-        if (progress.getLastProcessedIndex() != WAL_INDEX_NONE) {
-            setReplaying(true); 
-            tailer.moveToIndex(progress.getLastProcessedIndex());
-            log.info("正在重播增量 WAL 以校準記憶體狀態...");
-        } else {
-            setReplaying(false);
-            tailer.toStart();
-        }
-    }
-
-    private void updateMode(long index, long gwSeq) {
-        if (isReplaying && index >= tailer.queue().lastIndex()) {
-            setReplaying(false);
-            log.info("重播完成，切換至實時模式 (gwSeq: {})", gwSeq);
         }
     }
 
@@ -177,18 +141,18 @@ public class Engine extends Worker {
         }
     }
 
-    private void handlePersistence(long index, long gwSeq) {
-        progress.setLastProcessedIndex(index);
+    private void handlePersistence(long gwSeq) {
         progress.setLastProcessedMsgSeq(gwSeq);
-        if (index % 100 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
-        // 將快照頻率大幅調低，避免壓測時瘋狂寫磁碟導致 TPS 暴跌
-        if (!isReplaying && gwSeq != MSG_SEQ_NONE && gwSeq - lastSnapshotSeq >= 100_000_000) {
+        // 定期將進度與 ID 計數器持久化到元數據 Map
+        if (gwSeq % 100 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
+        
+        // 依賴 Sequence 觸發快照
+        if (gwSeq != MSG_SEQ_NONE && gwSeq - lastSnapshotSeq >= 100_000_000) {
             snapshotService.executeCreateSnapshot(progress);
             lastSnapshotSeq = gwSeq;
         }
     }
 
-    private void setReplaying(boolean val) { this.isReplaying = val; reporter.setReplaying(val); }
     private long nextOrderId() { long id = progress.getOrderIdCounter(); progress.setOrderIdCounter(id + 1); return id; }
     private long nextTradeId() { long id = progress.getTradeIdCounter(); progress.setTradeIdCounter(id + 1); return id; }
 

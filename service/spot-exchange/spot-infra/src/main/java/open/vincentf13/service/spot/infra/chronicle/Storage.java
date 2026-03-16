@@ -39,10 +39,10 @@ public class Storage {
 
     // --- 持久化 Queues (WAL) ---
     private volatile ChronicleQueue gatewaySenderWal;    // 網關 -> Aeron
-    private volatile ChronicleQueue engineReceiverWal;   // Aeron -> 引擎
 
     // --- 內存 Queues (Inter-thread) ---
     private volatile ManyToOneRingBuffer gatewayWalQueue;
+    private volatile ManyToOneRingBuffer engineWorkQueue;
 
     public ManyToOneRingBuffer gatewayWalQueue() {
         if (gatewayWalQueue == null) synchronized (this) {
@@ -55,6 +55,20 @@ public class Storage {
             }
         }
         return gatewayWalQueue;
+    }
+
+    public ManyToOneRingBuffer engineWorkQueue() {
+        if (engineWorkQueue == null) synchronized (this) {
+            if (engineWorkQueue == null) {
+                // 撮合工作隊列建議大小 16MB (足夠緩衝突發流量)
+                int bufferSize = 16 * 1024 * 1024;
+                int totalSize = bufferSize + RingBufferDescriptor.TRAILER_LENGTH;
+                ByteBuffer byteBuffer = ByteBuffer.allocateDirect(totalSize);
+                engineWorkQueue = new ManyToOneRingBuffer(new UnsafeBuffer(byteBuffer));
+                log.info("Engine Work RingBuffer initialized: size={}MB", bufferSize / 1024 / 1024);
+            }
+        }
+        return engineWorkQueue;
     }
 
     public ChronicleMap<Long, Order> orders() {
@@ -156,20 +170,11 @@ public class Storage {
         return metricsHistory;
     }
 
-    // --- WAL Queues ---
-
     public ChronicleQueue gatewaySenderWal() {
         if (gatewaySenderWal == null) synchronized (this) {
             if (gatewaySenderWal == null) gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
         }
         return gatewaySenderWal;
-    }
-
-    public ChronicleQueue engineReceiverWal() {
-        if (engineReceiverWal == null) synchronized (this) {
-            if (engineReceiverWal == null) engineReceiverWal = createQueue(ChronicleQueueEnum.GW_TO_MATCHING);
-        }
-        return engineReceiverWal;
     }
 
     // --- Helpers ---
@@ -232,7 +237,6 @@ public class Storage {
             if (walMetadata != null) { walMetadata.close(); walMetadata = null; }
             if (metricsHistory != null) { metricsHistory.close(); metricsHistory = null; }
             if (gatewaySenderWal != null) { gatewaySenderWal.close(); gatewaySenderWal = null; }
-            if (engineReceiverWal != null) { engineReceiverWal.close(); engineReceiverWal = null; }
         }
     }
 }

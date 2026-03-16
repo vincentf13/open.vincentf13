@@ -1,0 +1,7 @@
+persistentvolume/infra-nacos-pv-0 unchanged
+persistentvolumeclaim/nacos-data-infra-nacos-0 unchanged
+configmap/infra-nacos-config unchanged
+service/infra-nacos-headless unchanged
+service/infra-nacos unchanged
+statefulset.apps/infra-nacos configured
+partitioned roll out complete: 1 new pods have been updated...
