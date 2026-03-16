@@ -62,6 +62,9 @@ public class Engine extends Worker {
     }
 
     private long lastMetricsTime = 0;
+    private long localPollCount = 0;
+    private long localWorkCount = 0;
+    private static final int METRICS_BATCH_SIZE = 10_000;
 
     @Override
     protected int doWork() {
@@ -74,8 +77,11 @@ public class Engine extends Worker {
                     long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
                     Storage.self().metricsHistory().put(now, totalMatches);
                     lastMetricsTime = now;
+                    // 同步累積的 Poll/Work 指標
+                    flushMetrics();
                 }
-                Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
+                localPollCount++;
+                if (localPollCount >= METRICS_BATCH_SIZE) flushMetrics();
                 return 0;
             }
 
@@ -86,9 +92,10 @@ public class Engine extends Worker {
             // 業務路由
             final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
             
-            // 統計與狀態演進
-            Storage.self().metricsHistory().compute(Storage.KEY_WORK_COUNT, (k, v) -> v == null ? 1L : v + 1);
-            Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
+            // 統計與狀態演進 (批量化以降低 Contention)
+            localWorkCount++;
+            localPollCount++;
+            if (localPollCount >= METRICS_BATCH_SIZE) flushMetrics();
             
             if (gwSeq != MSG_SEQ_NONE) {
                 updateMode(index, gwSeq);
@@ -98,6 +105,17 @@ public class Engine extends Worker {
             }
             
             return 1;
+        }
+    }
+
+    private void flushMetrics() {
+        if (localPollCount > 0) {
+            final long p = localPollCount;
+            final long w = localWorkCount;
+            Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? p : v + p);
+            Storage.self().metricsHistory().compute(Storage.KEY_WORK_COUNT, (k, v) -> v == null ? w : v + w);
+            localPollCount = 0;
+            localWorkCount = 0;
         }
     }
 

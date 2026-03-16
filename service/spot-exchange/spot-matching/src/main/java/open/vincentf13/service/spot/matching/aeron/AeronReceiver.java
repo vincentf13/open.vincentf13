@@ -39,11 +39,10 @@ public class AeronReceiver extends AbstractAeronReceiver {
         final long aeronSrcAddress = OffHeapUtil.getAddress(buffer, offset);
         pointer.set(aeronSrcAddress, length);
 
-        // 使用 writingDocument(false) 確保絕對原始寫入
-        try (DocumentContext dc = wal.acquireAppender().writingDocument(false)) {
+        // 使用標準 writingDocument() 確保底層索引即時更新，提高讀取端的可見度
+        try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-            // 關鍵：補回 4 字節長度頭，對齊 CommandRouter 的解析邏輯
-            bytes.writeInt(length);
+            // 直接寫入數據，Chronicle 會自動處理 Document 標頭與長度
             bytes.write(pointer);
             Storage.self().metricsHistory().compute(Storage.KEY_AERON_RECV_COUNT, (k, v) -> v == null ? 1L : v + 1);
             log.debug("[AERON-RECEIVER] 數據已寫入 Engine WAL, len={}", length);

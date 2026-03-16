@@ -34,10 +34,9 @@ public class AeronSender extends AbstractAeronSender {
     public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();
         final Bytes<?> bytes = wire.bytes();
-        if (bytes.readRemaining() < 4) return;
         
-        int payloadLen = bytes.readInt(); // 讀取手動寫入的長度
-        if (bytes.readRemaining() < payloadLen) return;
+        long remaining = bytes.readRemaining();
+        if (remaining <= 0) return;
 
         final long addressForRead = bytes.addressForRead(bytes.readPosition());
         final int msgType = UNSAFE.getInt(addressForRead);
@@ -53,7 +52,8 @@ public class AeronSender extends AbstractAeronSender {
         };
 
         if (cmd != null) {
-            log.debug("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}", msgType, ctxSeq);
+            int payloadLen = cmd.totalByteLength();
+            log.debug("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}, len={}", msgType, ctxSeq, payloadLen);
             this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
                 final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
                 // 零拷貝轉移
