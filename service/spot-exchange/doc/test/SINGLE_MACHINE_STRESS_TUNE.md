@@ -28,7 +28,7 @@ $g = Start-Process java -ArgumentList "@C:\iProject\open.vincentf13\service\spot
 
 # 5. 設定親和性 (避開 8-15 號核心給 k6 使用)
 Start-Sleep 5
-if(!$e.HasExited){ $e.ProcessorAffinity = 15; "Matching Success (CPU 0-3)!" }
+if(!$e.HasExited){ $e.ProcessorAffinity = 12; "Matching Success (CPU 2-3)!" }
 if(!$g.HasExited){ $g.ProcessorAffinity = 240; "GateWay Success (CPU 4-7)!" }
 
 CD "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\"

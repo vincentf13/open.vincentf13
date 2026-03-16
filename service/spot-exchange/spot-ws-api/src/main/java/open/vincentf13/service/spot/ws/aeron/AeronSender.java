@@ -48,7 +48,11 @@ public class AeronSender extends AbstractAeronSender {
             case MsgType.ORDER_CREATE  -> tc.getOrderCreateCommand();
             case MsgType.ORDER_CANCEL  -> tc.getOrderCancelCommand();
             case MsgType.DEPOSIT      -> tc.getDepositCommand();
-            default -> null;
+            default -> {
+                log.warn("[GATEWAY-SENDER] 收到未知訊息類型: {}, 跳過此訊息", msgType);
+                bytes.readSkip(remaining); // 跳過目前剩餘的所有位元組，避免死循環
+                yield null;
+            }
         };
 
         if (cmd != null) {
