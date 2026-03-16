@@ -7,6 +7,7 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.Side;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
@@ -166,8 +167,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     private void updateNettyMetrics() {
         localNettyRecvCount++;
         if (localNettyRecvCount >= METRICS_BATCH_SIZE) {
-            final long batch = localNettyRecvCount;
-            Storage.self().metricsHistory().compute(Storage.KEY_NETTY_RECV_COUNT, (k, v) -> v == null ? batch : v + batch);
+            MetricsCollector.add(Storage.KEY_NETTY_RECV_COUNT, localNettyRecvCount);
             localNettyRecvCount = 0;
         }
     }

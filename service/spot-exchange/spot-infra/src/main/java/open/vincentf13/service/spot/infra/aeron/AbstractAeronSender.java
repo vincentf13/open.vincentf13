@@ -87,9 +87,11 @@ public abstract class AbstractAeronSender extends Worker {
             }
         }
 
+import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
+
         if (workDone > 0 && backPressureCount > 1000) {
             log.warn("警告：偵測到嚴重背壓，請檢查接收端效能！");
-            Storage.self().metricsHistory().compute(Storage.KEY_AERON_BACKPRESSURE, (k, v) -> v == null ? backPressureCount : v + backPressureCount);
+            MetricsCollector.add(Storage.KEY_AERON_BACKPRESSURE, backPressureCount);
             backPressureCount = 0;
         }
 

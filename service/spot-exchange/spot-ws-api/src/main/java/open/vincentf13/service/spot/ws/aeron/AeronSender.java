@@ -15,6 +15,8 @@ import org.springframework.stereotype.Component;
 import static open.vincentf13.service.spot.infra.Constants.*;
 import static org.agrona.UnsafeAccess.UNSAFE;
 
+import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
+
 /** 
  網關 Aeron 發送器 (Raw WAL 讀取版)
  */
@@ -32,7 +34,7 @@ public class AeronSender extends AbstractAeronSender {
 
     @Override
     protected void onBind(int cpuId) {
-        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_AERON_SENDER, (long) cpuId);
+        MetricsCollector.recordCpuAffinity(Storage.KEY_CPU_ID_AERON_SENDER, cpuId);
     }
 
     private long lastMetricsTime = 0;
@@ -50,12 +52,12 @@ public class AeronSender extends AbstractAeronSender {
 
     private void updateProcessMetrics() {
         Runtime r = Runtime.getRuntime();
-        Storage.self().metricsHistory().put(Storage.KEY_GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
-        Storage.self().metricsHistory().put(Storage.KEY_GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
+        MetricsCollector.set(Storage.KEY_GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
+        MetricsCollector.set(Storage.KEY_GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
         
         java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
         if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
-            Storage.self().metricsHistory().put(Storage.KEY_GATEWAY_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
+            MetricsCollector.set(Storage.KEY_GATEWAY_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
         }
     }
 
@@ -86,13 +88,21 @@ public class AeronSender extends AbstractAeronSender {
         if (cmd != null) {
             int payloadLen = (int) remaining;
             log.debug("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}, len={}", msgType, ctxSeq, payloadLen);
+            long startBackpressure = this.backPressureCount;
             this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
                 final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
                 UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
                 // 覆蓋 Sequence，確保與物理 WAL Index 完美同步
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
-            Storage.self().metricsHistory().compute(Storage.KEY_AERON_SEND_COUNT, (k, v) -> v == null ? 1L : v + 1);
+
+            // 異步埋點
+            MetricsCollector.increment(Storage.KEY_AERON_SEND_COUNT);
+            long delta = this.backPressureCount - startBackpressure;
+            if (delta > 0) {
+                MetricsCollector.add(Storage.KEY_AERON_BACKPRESSURE, delta);
+            }
+            
             bytes.readSkip((long) payloadLen);
         }
     }

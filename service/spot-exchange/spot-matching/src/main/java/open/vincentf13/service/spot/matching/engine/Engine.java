@@ -7,6 +7,7 @@ import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import open.vincentf13.service.spot.model.WalProgress;
 import org.springframework.stereotype.Component;
 
@@ -36,7 +37,7 @@ public class Engine extends Worker {
     @PostConstruct public void init() { start("core-matching-engine"); }
 
     @Override protected void onBind(int cpuId) {
-        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_ENGINE, (long) cpuId);
+        MetricsCollector.recordCpuAffinity(Storage.KEY_CPU_ID_ENGINE, cpuId);
     }
 
     @Override protected void onStart() {
@@ -77,16 +78,15 @@ public class Engine extends Worker {
 
     private void updateMetrics(long nowSec) {
         Runtime r = Runtime.getRuntime();
-        Storage s = Storage.self();
-        s.metricsHistory().put(Storage.KEY_MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
-        s.metricsHistory().put(nowSec, OrderBook.TOTAL_MATCH_COUNT.get());
+        MetricsCollector.set(Storage.KEY_MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
+        MetricsCollector.set(nowSec, OrderBook.TOTAL_MATCH_COUNT.get());
         
-        s.metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? pollCount : v + pollCount);
-        s.metricsHistory().compute(Storage.KEY_WORK_COUNT, (k, v) -> v == null ? workCount : v + workCount);
+        MetricsCollector.add(Storage.KEY_POLL_COUNT, pollCount);
+        MetricsCollector.add(Storage.KEY_WORK_COUNT, workCount);
         pollCount = workCount = 0;
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
-            s.metricsHistory().put(Storage.KEY_MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));
+            MetricsCollector.set(Storage.KEY_MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));
         }
     }
 

@@ -6,6 +6,7 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.Worker;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +31,7 @@ public class AsyncWalWriter extends Worker {
 
     @Override
     protected void onBind(int cpuId) {
-        Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_WAL_WRITER, (long) cpuId);
+        MetricsCollector.recordCpuAffinity(Storage.KEY_CPU_ID_WAL_WRITER, cpuId);
     }
 
     @Override
@@ -52,8 +53,7 @@ public class AsyncWalWriter extends Worker {
 
                 localWalWriteCount++;
                 if (localWalWriteCount >= METRICS_BATCH_SIZE) {
-                    final long batch = localWalWriteCount;
-                    Storage.self().metricsHistory().compute(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, (k, v) -> v == null ? batch : v + batch);
+                    MetricsCollector.add(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, localWalWriteCount);
                     localWalWriteCount = 0;
                 }
                 log.debug("[ASYNC-WAL] 訊息已持久化, index={}", dc.index());
