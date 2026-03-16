@@ -30,7 +30,7 @@ public class AeronSender extends AbstractAeronSender {
               AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
     }
 
-    @PostConstruct public void init() { start("gw-command-sender"); }
+    @PostConstruct public void init() { start("gw-command-sender", 0); }
 
     @Override
     protected void onBind(int cpuId) {

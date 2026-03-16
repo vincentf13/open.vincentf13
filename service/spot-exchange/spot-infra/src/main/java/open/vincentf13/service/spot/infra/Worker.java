@@ -16,10 +16,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
+    private int preferredCpuId = -1;
 
     // 改用 BusySpinIdleStrategy，拒絕任何讓出，確保最低延遲
     protected final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
     private Thread thread;    
+
+    /** 
+     啟動工作者執行緒 (帶核心偏好)
+     @param name 執行緒名稱
+     @param preferredCpuId 優先綁定的核心 ID
+     */
+    public void start(String name, int preferredCpuId) {
+        this.preferredCpuId = preferredCpuId;
+        start(name);
+    }
     /** 
      啟動工作者執行緒
      @param name 執行緒名稱，便於監控與診斷
@@ -80,8 +91,8 @@ public abstract class Worker implements Runnable {
      */
     @Override
     public void run() {
-        // 在進程允許的核心範圍內自動分配並綁定物理核心 (軟硬結合)
-        int boundCpuId = open.vincentf13.service.spot.infra.util.AffinityUtil.acquireAndBind();
+        // 根據偏好或自動分配物理核心
+        int boundCpuId = open.vincentf13.service.spot.infra.util.AffinityUtil.acquireAndBind(preferredCpuId);
         onBind(boundCpuId);
 
         try {
