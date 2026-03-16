@@ -100,7 +100,6 @@ public class TestVerificationController {
         long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.NETTY_RECV_COUNT, 0L);
         long gatewayWalWriteCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 0L);
         long aeronSendCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_SEND_COUNT, 0L);
-        long aeronRecvCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_RECV_COUNT, 0L);
         long aeronBackpressure = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_BACKPRESSURE, 0L);
 
         // JVM 與 OS 資源指標 (從 MetricsHistory 獲取異步更新的數值)
@@ -113,7 +112,6 @@ public class TestVerificationController {
         metrics.put("netty_recv_count", nettyRecvCount);
         metrics.put("gateway_wal_write_count", gatewayWalWriteCount);
         metrics.put("aeron_send_count", aeronSendCount);
-        metrics.put("aeron_recv_count", aeronRecvCount);
         metrics.put("aeron_backpressure_count", aeronBackpressure);
         metrics.put("engine_work_count", workCount);
         metrics.put("engine_poll_count", pollCount);

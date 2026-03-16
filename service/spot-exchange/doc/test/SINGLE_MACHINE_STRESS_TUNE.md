@@ -25,14 +25,14 @@ java -Djarmode=layertools -jar "$g_t\spot-ws-api.jar" extract --destination "$g_
 
 # --- 嚴格順序啟動開始 ---
 
-# 4. 啟動 獨立式 Media Driver (CPU 8-10, Mask: 1792)
-"Starting Standalone Media Driver on CPU 8-10..."
+# 4. 啟動 獨立式 Media Driver (CPU 8-12, Mask: 7936)
+"Starting Standalone Media Driver on CPU 8-12..."
 $aeron_jar = (Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar").FullName
 $driver_args = "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED", "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED", "-Xms512m", "-Xmx512m", "-cp", $aeron_jar, "-Daeron.threading.mode=DEDICATED", "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy", "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy", "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy", "-Daeron.dir=$aeron_dir", "io.aeron.driver.MediaDriver"
 
 $driver = Start-Process java -ArgumentList $driver_args -PassThru
-$driver.ProcessorAffinity = 1792
-"Driver (PID: $($driver.Id)) bound to CPU 8-10. Waiting 5s..."
+$driver.ProcessorAffinity = 7936
+"Driver (PID: $($driver.Id)) bound to CPU 8-12. Waiting 5s..."
 Start-Sleep 5 
 
 # 5. 啟動 Matching (CPU 5-7, Mask: 224)
@@ -55,11 +55,11 @@ Start-Sleep 5
 if($e.HasExited){ "Matching FAILED! Check error_matching.log"; return }
 if($g.HasExited){ "Gateway FAILED! Check error_gw.log"; return }
 
-"All services ready. Starting k6 stress test on E-cores (11-15)..."
+"All services ready. Starting k6 stress test on E-cores (13-15)..."
 CD "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\"
-# 鎖定 Core 11-15 (Mask: 61440)
+# 鎖定 Core 13-15 (Mask: 57344)
 $K6 = Start-Process k6 -ArgumentList "run stress-test-ws.js" -PassThru
-$K6.ProcessorAffinity = 61440
+$K6.ProcessorAffinity = 57344
 ```
 
 ## 1. 核心分配矩陣 (Thread-to-Core Mapping)
