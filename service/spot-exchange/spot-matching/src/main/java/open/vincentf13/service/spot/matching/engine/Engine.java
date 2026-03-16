@@ -102,6 +102,7 @@ public class Engine extends Worker {
         // 定時/定量更新指標
         long now = System.currentTimeMillis() / 1000;
         if (now > lastMetricsTime || localPollCount >= METRICS_BATCH_SIZE) {
+            updateProcessMetrics();
             if (now > lastMetricsTime) {
                 long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
                 Storage.self().metricsHistory().put(now, totalMatches);
@@ -111,6 +112,17 @@ public class Engine extends Worker {
         }
 
         return workDone > 0 ? 1 : 0;
+    }
+
+    private void updateProcessMetrics() {
+        Runtime r = Runtime.getRuntime();
+        Storage.self().metricsHistory().put(Storage.KEY_MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
+        Storage.self().metricsHistory().put(Storage.KEY_MATCHING_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
+        
+        java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+        if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
+            Storage.self().metricsHistory().put(Storage.KEY_MATCHING_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
+        }
     }
 
     private void flushMetrics() {

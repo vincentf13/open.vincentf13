@@ -80,20 +80,12 @@ public abstract class Worker implements Runnable {
      */
     @Override
     public void run() {
-        // 在綁核環境下，嘗試獲取一個獨佔的 CPU Core 鎖
-        AffinityLock lock = null;
-        try {
-            lock = AffinityLock.acquireCore();
+        // 在進程允許的核心範圍內嘗試鎖定核心，若失敗則不綁核 (軟綁定)
+        AffinityLock lock = open.vincentf13.service.spot.infra.util.AffinityUtil.acquireLockInAffinity();
+        if (lock != null) {
             onBind(lock.cpuId());
-        } catch (Exception e) {
-            log.warn("無法獲取獨佔核心鎖 (可能是由於 OS 限制): {}, 將嘗試非獨佔鎖定", e.getMessage());
-            try {
-                // 降級：嘗試獲取任何可用的核心鎖，若仍失敗則不綁核
-                lock = AffinityLock.acquireLock();
-                onBind(lock.cpuId());
-            } catch (Exception e2) {
-                log.error("完全無法鎖定 CPU 核心: {}", e2.getMessage());
-            }
+        } else {
+            onBind(-1); // 上報 -1 代表未成功鎖定物理核心
         }
 
         try {

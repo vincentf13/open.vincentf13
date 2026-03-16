@@ -35,6 +35,30 @@ public class AeronSender extends AbstractAeronSender {
         Storage.self().metricsHistory().put(Storage.KEY_CPU_ID_AERON_SENDER, (long) cpuId);
     }
 
+    private long lastMetricsTime = 0;
+
+    @Override
+    protected int doWork() {
+        int work = super.doWork();
+        long now = System.currentTimeMillis() / 1000;
+        if (now > lastMetricsTime) {
+            updateProcessMetrics();
+            lastMetricsTime = now;
+        }
+        return work;
+    }
+
+    private void updateProcessMetrics() {
+        Runtime r = Runtime.getRuntime();
+        Storage.self().metricsHistory().put(Storage.KEY_GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
+        Storage.self().metricsHistory().put(Storage.KEY_GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
+        
+        java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+        if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
+            Storage.self().metricsHistory().put(Storage.KEY_GATEWAY_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
+        }
+    }
+
     @Override
     public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();

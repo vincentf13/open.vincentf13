@@ -136,6 +136,15 @@ public class Storage {
     public static final long KEY_CPU_ID_SNAPSHOT = -104L;
     public static final long KEY_CPU_ID_JVM_MANAGEMENT = -105L;
 
+    // 雙端 JVM 與 CPU 指標 (用於跨進程彙整)
+    public static final long KEY_MATCHING_JVM_USED_MB = -200L;
+    public static final long KEY_MATCHING_JVM_MAX_MB = -201L;
+    public static final long KEY_MATCHING_CPU_LOAD = -202L;
+    
+    public static final long KEY_GATEWAY_JVM_USED_MB = -210L;
+    public static final long KEY_GATEWAY_JVM_MAX_MB = -211L;
+    public static final long KEY_GATEWAY_CPU_LOAD = -212L;
+
     public ChronicleMap<Long, Long> metricsHistory() {
         if (metricsHistory == null) synchronized (this) {
             if (metricsHistory == null) metricsHistory = createMap("metrics-history", Long.class, Long.class, 86400, 8, 8);

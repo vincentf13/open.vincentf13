@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.ws;
 
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 

@@ -11,8 +11,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 })
 public class MatchingApp {
     public static void main(String[] args) {
-        // 移除 main 執行緒的強制綁核，避免與 PowerShell 的 ProcessorAffinity 衝突導致 Error 87
-        // JVM 管理執行緒將由 OS 在進程允許的核心範圍內自動調度
         cleanDataDirectory();
         SpringApplication.run(MatchingApp.class, args);
     }
