@@ -3,7 +3,7 @@ import { check } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 50, // 模擬 50 個併發用戶
+    vus: 100, // 模擬 100 個併發用戶 (翻倍壓力)
     duration: '1m', // 壓測持續 1 分鐘
 };
 

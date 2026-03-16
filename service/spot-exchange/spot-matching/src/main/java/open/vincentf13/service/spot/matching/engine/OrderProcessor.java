@@ -85,7 +85,7 @@ public class OrderProcessor {
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
             // --- 壓測優化：自動充值 (10 億單位) ---
-            log.info("[TEST-FUNDING] 用戶 {} 資產 {} 不足，自動充值並重試", userId, assetId);
+            log.debug("[TEST-FUNDING] 用戶 {} 資產 {} 不足，自動充值並重試", userId, assetId);
             ledger.increaseAvailable(userId, assetId, 1_000_000_000L, gatewaySequence);
             if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
                 log.error("[ORDER-REJECT] 自動充值後凍結依然失敗: uid={}, asset={}", userId, assetId);
