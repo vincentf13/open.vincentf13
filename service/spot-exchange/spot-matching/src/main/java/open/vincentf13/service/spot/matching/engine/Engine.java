@@ -27,7 +27,7 @@ public class Engine extends Worker {
     private final ExecutionReporter reporter;
     
     private final WalProgress progress = new WalProgress();
-    private final org.agrona.concurrent.ringbuffer.MessageHandler handler = this::onMessage;
+    private final org.agrona.concurrent.MessageHandler handler = this::onMessage;
 
     private long lastMetricsSec = 0;
     private long pollCount = 0, workCount = 0;

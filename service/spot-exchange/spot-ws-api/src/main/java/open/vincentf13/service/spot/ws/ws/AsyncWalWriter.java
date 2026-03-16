@@ -44,10 +44,13 @@ public class AsyncWalWriter extends Worker {
         // 批次寫入優化：開啟一個 DocumentContext 寫入多條訊息
         try (DocumentContext dc = appender.writingDocument()) {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
+            final net.openhft.chronicle.bytes.PointerBytesStore pointer = open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getReusablePointer();
+            
             int workDone = queue.read((msgTypeId, buffer, offset, length) -> {
                 // 寫入長度前綴與數據 (零拷貝)
                 bytes.writeInt(length);
-                bytes.write(buffer.addressOffset() + offset, length);
+                pointer.set(buffer.addressOffset() + offset, length);
+                bytes.write(pointer);
 
                 localWalWriteCount++;
                 if (localWalWriteCount >= METRICS_BATCH_SIZE) {
