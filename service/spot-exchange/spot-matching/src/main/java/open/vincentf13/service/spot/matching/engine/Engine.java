@@ -57,6 +57,14 @@ public class Engine extends Worker {
         int done = Storage.self().engineWorkQueue().read(handler, BATCH_SIZE);
         workCount += done;
 
+        // 核心瓶頸修正：將磁碟 I/O 移出撮合熱點路徑，改為背景批量落地
+        if (done > 0 || pollCount % 100 == 0) {
+            ledger.flush();
+            for (OrderBook book : OrderBook.getInstances()) {
+                book.flush();
+            }
+        }
+
         long nowSec = System.currentTimeMillis() / 1000;
         if (nowSec > lastMetricsSec) {
             updateMetrics(nowSec);

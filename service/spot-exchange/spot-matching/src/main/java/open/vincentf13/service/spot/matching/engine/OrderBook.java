@@ -5,10 +5,10 @@ import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
-import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
+import org.agrona.collections.LongHashSet;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Supplier;
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存訂單簿 (OrderBook)
+ 內存訂單簿 (OrderBook) - 背景落地優化版
  職責：領域狀態機，管理撮合、持久化同步與容器回收
  */
 @Slf4j
@@ -26,7 +26,6 @@ public class OrderBook {
     public static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
-    // 全域共享物件池：加固為執行緒安全容器
     private static final Deque<Order> GLOBAL_ORDER_POOL = new ConcurrentLinkedDeque<>();
     private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ConcurrentLinkedDeque<>();
 
@@ -52,18 +51,16 @@ public class OrderBook {
     private final ChronicleMap<Long, byte[]> userActiveOrdersDiskMap = Storage.self().userActiveOrders();
     private final ChronicleMap<Long, Trade> tradeHistoryDiskMap = Storage.self().trades();
     
-    // 預分配 ByteBuffer 以減少 GC
-    private final java.nio.ByteBuffer idBuffer = java.nio.ByteBuffer.allocate(1024);
+    // 背景緩衝區 (Agrona Maps)
+    private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>();
+    private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>();
+    private final LongHashSet pendingActiveRemovals = new LongHashSet();
+    private final LongHashSet pendingActiveAdds = new LongHashSet();
+    private final LongHashSet pendingUserActiveChanged = new LongHashSet();
 
-    /** 
-      雙索引結構優化：
-      TreeMap 提供有序性 (用於撮合)
-      Long2ObjectHashMap 提供 $O(1)$ 查找 (用於快速插入與更新)
-     */
     private final TreeMap<Long, Deque<Order>> bids = new TreeMap<>(Collections.reverseOrder());
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
     private final Long2ObjectHashMap<Deque<Order>> priceLevelIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
-    
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
 
     private final Trade reusableTrade = new Trade();
@@ -77,6 +74,38 @@ public class OrderBook {
         this.symbolId = symbolId;
         this.baseAssetId = baseAssetId;
         this.quoteAssetId = quoteAssetId;
+    }
+
+    /** 
+      背景落地：由 Engine 執行緒調用
+     */
+    public void flush() {
+        if (!pendingOrders.isEmpty()) { pendingOrders.forEach(allOrdersDiskMap::put); pendingOrders.clear(); }
+        if (!pendingTrades.isEmpty()) { pendingTrades.forEach(tradeHistoryDiskMap::put); pendingTrades.clear(); }
+        if (!pendingActiveAdds.isEmpty()) { pendingActiveAdds.forEach(id -> activeOrderIdDiskMap.put(id, Boolean.TRUE)); pendingActiveAdds.clear(); }
+        if (!pendingActiveRemovals.isEmpty()) { pendingActiveRemovals.forEach(activeOrderIdDiskMap::remove); pendingActiveRemovals.clear(); }
+        
+        if (!pendingUserActiveChanged.isEmpty()) {
+            pendingUserActiveChanged.forEach(this::syncUserActiveToDisk);
+            pendingUserActiveChanged.clear();
+        }
+    }
+
+    private void syncUserActiveToDisk(long userId) {
+        // 從內存狀態重建該用戶的活躍訂單清單 (避免同步線性掃描 byte[])
+        List<Long> activeIds = new ArrayList<>();
+        orderIndex.forEach((oid, order) -> {
+            if (order.getUserId() == userId && order.getStatus() < 2) activeIds.add(oid);
+        });
+        
+        if (activeIds.isEmpty()) {
+            userActiveOrdersDiskMap.remove(userId);
+        } else {
+            byte[] bytes = new byte[activeIds.size() * 8];
+            java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(bytes);
+            for (Long id : activeIds) buf.putLong(id);
+            userActiveOrdersDiskMap.put(userId, bytes);
+        }
     }
 
     public void recoverOrder(Order o) {
@@ -119,62 +148,11 @@ public class OrderBook {
         o.setClientOrderId(clientOrderId);
         return o;
     }
-    public static Collection<OrderBook> getInstances() {
-        return INSTANCES.values();
-    }
-
-    public static void rebuildAll() {
-        // 冷啟動索引重建
-        ChronicleMap<Long, Order> allOrders = Storage.self().orders();
-        Storage.self().activeOrders().forEach((id, active) -> {
-            Order o = allOrders.getUsing(id, SCAN_REUSABLE);
-            if (o != null && o.getStatus() < 2) {
-                OrderBook.get(o.getSymbolId()).recoverOrder(o);
-            }
-        });
-    }
-
-    /**
-      活躍訂單索引重建 (校準機制)
-      遍歷所有訂單表，重新計算並更新 activeOrders 與 userActiveOrders
-     */
-    public static void rebuildActiveOrdersIndexes() {
-        log.info("--- 開始重建活躍訂單索引 ---");
-        ChronicleMap<Long, Order> allOrders = Storage.self().orders();
-        ChronicleMap<Long, Boolean> activeIds = Storage.self().activeOrders();
-        ChronicleMap<Long, byte[]> userActive = Storage.self().userActiveOrders();
-        
-        // 1. 清理舊索引
-        activeIds.clear();
-        userActive.clear();
-        
-        // 2. 遍歷訂單表
-        allOrders.forEach((id, order) -> {
-            if (order.getStatus() < 2) { // NEW 或 PARTIALLY_FILLED
-                activeIds.put(id, Boolean.TRUE);
-                
-                long uid = order.getUserId();
-                byte[] current = userActive.get(uid);
-                if (current == null) {
-                    byte[] newBytes = new byte[8];
-                    java.nio.ByteBuffer.wrap(newBytes).putLong(id);
-                    userActive.put(uid, newBytes);
-                } else {
-                    byte[] updated = new byte[current.length + 8];
-                    System.arraycopy(current, 0, updated, 0, current.length);
-                    java.nio.ByteBuffer.wrap(updated, current.length, 8).putLong(id);
-                    userActive.put(uid, updated);
-                }
-            }
-        });
-        log.info("✅ 活躍訂單索引重建完成。");
-    }
 
     private void match(Order taker, long gwSeq, long timestamp, Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
         final boolean isBuy = taker.getSide() == OrderSide.BUY;
         final TreeMap<Long, Deque<Order>> counterSide = isBuy ? asks : bids;
         final long takerPrice = taker.getPrice();
-        final long takerUserId = taker.getUserId();
 
         while (taker.getQty() > taker.getFilled()) {
             if (counterSide.isEmpty()) break;
@@ -191,18 +169,16 @@ public class OrderBook {
                 long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
                 long tid = tradeIdSupplier.get();
                 
-                reusableTrade.setTradeId(tid); reusableTrade.setOrderId(maker.getOrderId());
-                reusableTrade.setPrice(bestPrice); reusableTrade.setQty(matchQty);
-                reusableTrade.setTime(timestamp); reusableTrade.setLastSeq(gwSeq);
-                tradeHistoryDiskMap.put(tid, reusableTrade);
+                Trade t = new Trade();
+                t.setTradeId(tid); t.setOrderId(maker.getOrderId());
+                t.setPrice(bestPrice); t.setQty(matchQty);
+                t.setTime(timestamp); t.setLastSeq(gwSeq);
+                pendingTrades.put(tid, t);
 
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
                 
-                long total = TOTAL_MATCH_COUNT.incrementAndGet();
-                // 異步更新指標，避免阻塞撮合循環
-                open.vincentf13.service.spot.infra.metrics.MetricsCollector.set(timestamp / 1000, total);
-                
+                TOTAL_MATCH_COUNT.incrementAndGet();
                 finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
 
                 if (maker.getFilled() == maker.getQty()) {
@@ -216,8 +192,7 @@ public class OrderBook {
             }
             if (makers != null && makers.isEmpty()) {
                 counterSide.remove(bestPrice);
-                priceLevelIndex.remove(bestPrice); // 同步移除快速索引
-                makers.clear(); // 清理引用，防止記憶體洩漏
+                priceLevelIndex.remove(bestPrice);
                 GLOBAL_DEQUE_POOL.addLast(makers); 
             } else break;
         }
@@ -226,7 +201,6 @@ public class OrderBook {
 
     private void add(Order order) {
         final long price = order.getPrice();
-        // 優化：先從 $O(1)$ 快速索引查找價位容器
         Deque<Order> level = priceLevelIndex.get(price);
         if (level == null) {
             TreeMap<Long, Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
@@ -244,82 +218,48 @@ public class OrderBook {
         else if (o.getFilled() > 0) o.setStatus((byte) 1);
         o.setVersion(o.getVersion() + 1); o.setLastSeq(gwSeq);
         
-        allOrdersDiskMap.put(o.getOrderId(), o);
+        pendingOrders.put(o.getOrderId(), o);
         
-        // --- 核心修正：使用二進制結構維護活躍訂單 ID 清單 ---
         final long uid = o.getUserId();
         final long oid = o.getOrderId();
         
-        // 使用 ThreadContext 複用 CidKey 避免分配
-        final open.vincentf13.service.spot.model.CidKey ctxCid = open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getRequestHolder().getCidKey();
-
         if (o.getStatus() < 2) {
-            activeOrderIdDiskMap.put(oid, Boolean.TRUE);
-            byte[] currentBytes = userActiveOrdersDiskMap.get(uid);
-            if (currentBytes == null) {
-                byte[] newBytes = new byte[8];
-                java.nio.ByteBuffer.wrap(newBytes).putLong(oid);
-                userActiveOrdersDiskMap.put(uid, newBytes);
-            } else {
-                // 檢查是否已存在 (避免重複)
-                boolean exists = false;
-                for (int i = 0; i < currentBytes.length; i += 8) {
-                    if (java.nio.ByteBuffer.wrap(currentBytes, i, 8).getLong() == oid) {
-                        exists = true; break;
-                    }
-                }
-                if (!exists) {
-                    byte[] updatedBytes = new byte[currentBytes.length + 8];
-                    System.arraycopy(currentBytes, 0, updatedBytes, 0, currentBytes.length);
-                    java.nio.ByteBuffer.wrap(updatedBytes, currentBytes.length, 8).putLong(oid);
-                    userActiveOrdersDiskMap.put(uid, updatedBytes);
-                }
-            }
+            pendingActiveAdds.add(oid);
+            pendingActiveRemovals.remove(oid);
         } else {
-            activeOrderIdDiskMap.remove(oid);
-            byte[] currentBytes = userActiveOrdersDiskMap.get(uid);
-            if (currentBytes != null) {
-                int targetIndex = -1;
-                for (int i = 0; i < currentBytes.length; i += 8) {
-                    if (java.nio.ByteBuffer.wrap(currentBytes, i, 8).getLong() == oid) {
-                        targetIndex = i; break;
-                    }
-                }
-                if (targetIndex != -1) {
-                    if (currentBytes.length == 8) {
-                        userActiveOrdersDiskMap.remove(uid);
-                    } else {
-                        byte[] updatedBytes = new byte[currentBytes.length - 8];
-                        System.arraycopy(currentBytes, 0, updatedBytes, 0, targetIndex);
-                        System.arraycopy(currentBytes, targetIndex + 8, updatedBytes, targetIndex, currentBytes.length - targetIndex - 8);
-                        userActiveOrdersDiskMap.put(uid, updatedBytes);
-                    }
-                }
-            }
+            pendingActiveRemovals.add(oid);
+            pendingActiveAdds.remove(oid);
         }
+        pendingUserActiveChanged.add(uid);
     }
 
     public void remove(long orderId) { 
         Order o = orderIndex.remove(orderId); 
         if (o != null) {
-            // 從價位佇列中徹底移除，防止「幽靈訂單」殘留
             Deque<Order> level = priceLevelIndex.get(o.getPrice());
             if (level != null) {
                 level.remove(o);
                 if (level.isEmpty()) {
                     priceLevelIndex.remove(o.getPrice());
-                    if (o.getSide() == OrderSide.BUY) {
-                        bids.remove(o.getPrice());
-                    } else {
-                        asks.remove(o.getPrice());
-                    }
+                    if (o.getSide() == OrderSide.BUY) bids.remove(o.getPrice());
+                    else asks.remove(o.getPrice());
                     GLOBAL_DEQUE_POOL.addLast(level);
                 }
             }
+            pendingActiveRemovals.add(orderId);
+            pendingUserActiveChanged.add(o.getUserId());
             releaseOrder(o);
         }
     }
 
     public int getBaseAssetId() { return baseAssetId; }
     public int getQuoteAssetId() { return quoteAssetId; }
+
+    public static void rebuildAll() {
+        ChronicleMap<Long, Order> allOrders = Storage.self().orders();
+        Storage.self().activeOrders().forEach((id, active) -> {
+            Order o = allOrders.getUsing(id, SCAN_REUSABLE);
+            if (o != null && o.getStatus() < 2) OrderBook.get(o.getSymbolId()).recoverOrder(o);
+        });
+    }
 }
