@@ -35,31 +35,31 @@ $driver.ProcessorAffinity = 3
 "Driver (PID: $($driver.Id)) bound to CPU 0-1. Waiting 5s..."
 Start-Sleep 5 
 
-# 5. 啟動 Matching (CPU 2-3, Mask: 12)
-"Starting Matching Engine on CPU 2-3..."
+# 5. 啟動 Matching (CPU 2-5, Mask: 60)
+"Starting Matching Engine on CPU 2-5..."
 $matching_args = "@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args", "-Daeron.driver.enabled=false", "-Daeron.dir=$aeron_dir", "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/", "open.vincentf13.service.spot.matching.MatchingApp"
 $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru
-$e.ProcessorAffinity = 12
-"Matching (PID: $($e.Id)) bound to CPU 2-3. Waiting 8s for index rebuild..."
-Start-Sleep 8
+$e.ProcessorAffinity = 60
+"Matching (PID: $($e.Id)) bound to CPU 2-5. Waiting 8s for index rebuild..."
+Start-Sleep 5
 
-# 6. 啟動 Gateway (WS-API) (CPU 4-7, 14-15, Mask: 49392)
-"Starting Gateway (WS-API) on CPU 4-7, 14-15..."
+# 6. 啟動 Gateway (WS-API) (CPU 6-7, 13-15, Mask: 57536)
+"Starting Gateway (WS-API) on CPU 6-7, 13-15..."
 $gw_args = "@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args", "-Daeron.driver.enabled=false", "-Daeron.dir=$aeron_dir", "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/", "open.vincentf13.service.spot.ws.WsApiApp"
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru
-$g.ProcessorAffinity = 49392
-"Gateway (PID: $($g.Id)) bound to CPU 4-7, 14-15. Waiting 5s..."
+$g.ProcessorAffinity = 57536
+"Gateway (PID: $($g.Id)) bound to CPU 6-7, 13-15. Waiting 5s..."
 Start-Sleep 5
 
 # 7. 最終檢查與執行壓測
 if($e.HasExited){ "Matching FAILED! Check error_matching.log"; return }
 if($g.HasExited){ "Gateway FAILED! Check error_gw.log"; return }
 
-"All services ready. Starting k6 stress test on E-cores (8-13)..."
+"All services ready. Starting k6 stress test on E-cores (8-12)..."
 CD "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\"
-# 鎖定 Core 8-13 (Mask: 16128)
+# 鎖定 Core 8-12 (Mask: 7936)
 $K6 = Start-Process k6 -ArgumentList "run stress-test-ws.js" -PassThru
-$K6.ProcessorAffinity = 16128
+$K6.ProcessorAffinity = 7936
 ```
 
 ## 1. 核心分配矩陣 (Thread-to-Core Mapping)
@@ -68,13 +68,13 @@ $K6.ProcessorAffinity = 16128
 ### 精準綁核啟動指令 (個別啟動參考)：
 
 #### A. 撮合引擎端 (spot-matching)
-分配 2 個獨立 P-core (Core 2, 3)。
+分配 4 個獨立 P-core (Core 2-5)。
 ```powershell
-$e = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.matching.MatchingApp' -WorkingDirectory "C:\iProject\open.vincentf13\service\spot-exchange\spot-matching\target\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru; $e.ProcessorAffinity = 12; "Started PID: $($e.Id) on Core 2-3"
+$e = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\matching-low-latency.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.matching.MatchingApp' -WorkingDirectory "C:\iProject\open.vincentf13\service\spot-exchange\spot-matching\target\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log" -PassThru; $e.ProcessorAffinity = 60; "Started PID: $($e.Id) on Core 2-5"
 ```
 
 #### B. 網關端 (spot-ws-api)
-分配 6 個核心 (4-7 用於 Netty/Aeron, 14-15 用於 Async WAL)。
+分配 5 個核心 (6-7 用於 Netty/Aeron, 13-15 用於 Async WAL)。
 ```powershell
-$g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.ws.WsApiApp' -WorkingDirectory "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru; $g.ProcessorAffinity = 49392; "Started PID: $($g.Id) on Core 4-7, 14-15"
+$g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spot-exchange\doc\jvm\ws-api-throughput.args" -cp "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/" open.vincentf13.service.spot.ws.WsApiApp' -WorkingDirectory "C:\iProject\open.vincentf13\service\spot-exchange\spot-ws-api\target\extracted" -RedirectStandardError "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log" -PassThru; $g.ProcessorAffinity = 57536; "Started PID: $($g.Id) on Core 6-7, 13-15"
 ```
