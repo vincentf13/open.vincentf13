@@ -17,7 +17,6 @@ import static org.agrona.UnsafeAccess.UNSAFE;
 
 /** 
  網關 Aeron 發送器 (Raw WAL 讀取版)
- 整合了基類的握手與位點跳轉能力
  */
 @Slf4j
 @Component
@@ -25,8 +24,8 @@ public class AeronSender extends AbstractAeronSender {
 
     public AeronSender(Aeron aeron) {
         super(aeron, Storage.self().gatewaySenderWal(), 
-              AeronChannel.MATCHING_URL, AeronChannel.DATA_STREAM_ID,
-              AeronChannel.GATEWAY_URL, AeronChannel.CONTROL_STREAM_ID);
+              AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID,
+              AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
     }
 
     @PostConstruct public void init() { start("gw-command-sender"); }
@@ -35,28 +34,31 @@ public class AeronSender extends AbstractAeronSender {
     public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();
         final Bytes<?> bytes = wire.bytes();
-        if (bytes.readRemaining() < (long) AbstractSbeModel.BODY_OFFSET) return;
+        if (bytes.readRemaining() < 4) return;
+        
+        int payloadLen = bytes.readInt(); // 讀取手動寫入的長度
+        if (bytes.readRemaining() < payloadLen) return;
 
         final long addressForRead = bytes.addressForRead(bytes.readPosition());
         final int msgType = UNSAFE.getInt(addressForRead);
         
-        final ThreadContext ctx = ThreadContext.get();
+        final ThreadContext tc = ThreadContext.get();
         
         AbstractSbeModel cmd = switch (msgType) {
-            case MsgType.AUTH         -> ctx.getAuthCommand();
-            case MsgType.ORDER_CREATE  -> ctx.getOrderCreateCommand();
-            case MsgType.ORDER_CANCEL  -> ctx.getOrderCancelCommand();
-            case MsgType.DEPOSIT      -> ctx.getDepositCommand();
+            case MsgType.AUTH         -> tc.getAuthCommand();
+            case MsgType.ORDER_CREATE  -> tc.getOrderCreateCommand();
+            case MsgType.ORDER_CANCEL  -> tc.getOrderCancelCommand();
+            case MsgType.DEPOSIT      -> tc.getDepositCommand();
             default -> null;
         };
 
         if (cmd != null) {
-            final int payloadLen = cmd.totalByteLength();
+            log.info("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}", msgType, ctxSeq);
             this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
                 final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
                 // 零拷貝轉移
                 UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
-                // 覆蓋 Sequence，確保與 WAL Index 同步 (保證數據完備性)
+                // 覆蓋 Sequence，確保與 WAL Index 同步
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
             bytes.readSkip((long) payloadLen);

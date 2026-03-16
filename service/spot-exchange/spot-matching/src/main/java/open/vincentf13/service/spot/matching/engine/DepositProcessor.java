@@ -24,6 +24,7 @@ public class DepositProcessor {
       處理充值指令
      */
     public void handleDeposit(long userId, int assetId, long amount, long gwSeq) {
+        log.info("[MATCHING-ENGINE] 收到充值請求: uid={}, aid={}, amt={}, seq={}", userId, assetId, amount, gwSeq);
         // 1. 執行帳務增加 (Ledger 內部具備 seq 冪等保護)
         ledger.increaseAvailable(userId, assetId, amount, gwSeq);
         

@@ -123,9 +123,9 @@ public class Constants {
      */
     public static class ChronicleMapEnum {
         // 從系統環境變數獲取路徑，預設為 "data/spot-exchange/"
-        public static final String DEFAULT_BASE_DIR = System.getProperty("SPOT_MAP_DIR", "data/spot-exchange/map/");
-        public static final String WAL_BASE_DIR = System.getProperty("SPOT_WAL_DIR", "data/spot-exchange/wal/");
-        public static final String SNAPSHOT_BASE_DIR = System.getProperty("SPOT_SNAPSHOT_DIR", "data/spot-exchange/snapshot/");
+        public static final String DEFAULT_BASE_DIR = System.getProperty("SPOT_MAP_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/map/");
+        public static final String WAL_BASE_DIR = System.getProperty("SPOT_WAL_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/wal/");
+        public static final String SNAPSHOT_BASE_DIR = System.getProperty("SPOT_SNAPSHOT_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/snapshot/");
         
         public static final String BALANCES = "balances";
         public static final String USER_ASSETS = "user-assets";
@@ -163,10 +163,11 @@ public class Constants {
       Aeron 頻道與串流配置
      */
     public static class AeronChannel {
-        /** 發送至 Matching Core 的通道 */
-        public static final String MATCHING_URL = System.getProperty("AERON_MATCHING_URL", "aeron:ipc");
-        /** 發送至 Gateway 的通道 */
-        public static final String GATEWAY_URL = System.getProperty("AERON_GATEWAY_URL", "aeron:ipc");
+        /** 指令流 (Gateway -> Matching) 使用 IPC */
+        public static final String MATCHING_FLOW = "aeron:ipc";
+        
+        /** 回報流 (Matching -> Gateway) 使用 IPC */
+        public static final String REPORT_FLOW = "aeron:ipc";
         
         /** 統一數據流 ID */
         public static final int DATA_STREAM_ID = 10;

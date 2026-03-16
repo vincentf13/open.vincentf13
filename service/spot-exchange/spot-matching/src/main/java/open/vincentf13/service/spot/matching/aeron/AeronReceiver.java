@@ -26,8 +26,8 @@ public class AeronReceiver extends AbstractAeronReceiver {
     public AeronReceiver(Aeron aeron) {
         super(aeron, Storage.self().engineReceiverWal(), Storage.self().msgProgressMetadata(),
               MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE,
-              AeronChannel.GATEWAY_URL, AeronChannel.DATA_STREAM_ID,
-              AeronChannel.MATCHING_URL, AeronChannel.CONTROL_STREAM_ID);
+              AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID,
+              AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
     }
 
     @PostConstruct public void init() { start("core-command-receiver"); }
@@ -36,12 +36,12 @@ public class AeronReceiver extends AbstractAeronReceiver {
     public void onMessage(DirectBuffer buffer, int offset, int length) {
         final ThreadContext ctx = ThreadContext.get();
         final PointerBytesStore pointer = ctx.getReusablePointer();
-        
-        // 直接寫入原始字節到 WAL，無 Wire Key 開銷
+        final long aeronSrcAddress = OffHeapUtil.getAddress(buffer, offset);
+        pointer.set(aeronSrcAddress, length);
+
         try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
-            Bytes<?> bytes = dc.wire().bytes();
-            final long aeronSrcAddress = OffHeapUtil.getAddress(buffer, offset);
-            pointer.set(aeronSrcAddress, length);
+            net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
+            bytes.writeInt(length);
             bytes.write(pointer);
         }
     }

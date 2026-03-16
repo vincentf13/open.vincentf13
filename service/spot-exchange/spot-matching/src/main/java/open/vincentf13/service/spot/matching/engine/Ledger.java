@@ -35,11 +35,7 @@ public class Ledger {
     }
 
     public void settleTrade(long mUid, long tUid, long tradePrice, long tradeQty, byte takerSide, long takerPrice, long seq, int baseAssetId, int quoteAssetId, long tradeId) {
-        // 安全預檢
-        if (!DecimalUtil.isMultiplySafe(tradePrice, tradeQty)) {
-            throw new ArithmeticException("成交金額溢出！Price: " + tradePrice + ", Qty: " + tradeQty);
-        }
-
+        // 使用 DecimalUtil 進行大額安全計算 (內部包含 BigInteger 備援)
         final long floor = DecimalUtil.mulFloor(tradePrice, tradeQty), ceil = DecimalUtil.mulCeil(tradePrice, tradeQty);
 
         if (takerSide == OrderSide.BUY) {

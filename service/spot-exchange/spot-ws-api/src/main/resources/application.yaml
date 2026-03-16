@@ -9,7 +9,9 @@ spring:
     name: spot-gateway
 
 aeron:
-  dir: data/spot-exchange/aeron
+  dir: C:/iProject/open.vincentf13/data/spot-exchange/aeron
+  driver:
+    enabled: false
 
 state:
-  base-dir: data/spot-exchange/
+  base-dir: C:/iProject/open.vincentf13/data/spot-exchange/

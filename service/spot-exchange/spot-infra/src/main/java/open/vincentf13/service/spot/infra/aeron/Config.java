@@ -23,24 +23,29 @@ public class Config {
     @Value("${aeron.dir}")
     private String aeronDir;
 
+    @Value("${aeron.driver.enabled:true}")
+    private boolean driverEnabled;
+
     @Bean
     public Aeron aeron() {
-        // 1. 配置 MediaDriver Context (通訊引擎核心)
-        MediaDriver.Context driverCtx = new MediaDriver.Context()
-                .aeronDirectoryName(aeronDir)
-                // 採用 DEDICATED 模式：Conductor, Sender, Receiver 各佔用獨立 CPU 核心
-                .threadingMode(ThreadingMode.DEDICATED)
-                // 全路徑使用 BusySpin 策略，消除線程切換延遲
-                .conductorIdleStrategy(new BusySpinIdleStrategy())
-                .senderIdleStrategy(new BusySpinIdleStrategy())
-                .receiverIdleStrategy(new BusySpinIdleStrategy())
-                // 預先分配實體空間，防止寫入時的磁碟碎片
-                .termBufferSparseFile(false)
-                // 設定全域 Term Buffer 為 64MB，減少高頻交易下的背壓機率
-                .publicationTermBufferLength(64 * 1024 * 1024)
-                .dirDeleteOnStart(true);
+        if (driverEnabled) {
+            // 1. 配置 MediaDriver Context (通訊引擎核心)
+            MediaDriver.Context driverCtx = new MediaDriver.Context()
+                    .aeronDirectoryName(aeronDir)
+                    // 採用 DEDICATED 模式：Conductor, Sender, Receiver 各佔用獨立 CPU 核心
+                    .threadingMode(ThreadingMode.DEDICATED)
+                    // 全路徑使用 BusySpin 策略，消除線程切換延遲
+                    .conductorIdleStrategy(new BusySpinIdleStrategy())
+                    .senderIdleStrategy(new BusySpinIdleStrategy())
+                    .receiverIdleStrategy(new BusySpinIdleStrategy())
+                    // 預先分配實體空間，防止寫入時的磁碟碎片
+                    .termBufferSparseFile(false)
+                    // 設定全域 Term Buffer 為 64MB，減少高頻交易下的背壓機率
+                    .publicationTermBufferLength(64 * 1024 * 1024)
+                    .dirDeleteOnStart(true);
 
-        driver = MediaDriver.launch(driverCtx);
+            driver = MediaDriver.launch(driverCtx);
+        }
         
         // 2. 配置 Aeron Client Context
         Aeron.Context clientCtx = new Aeron.Context()

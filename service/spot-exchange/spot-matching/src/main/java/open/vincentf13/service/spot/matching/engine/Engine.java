@@ -58,6 +58,9 @@ public class Engine extends Worker {
     @Override
     protected int doWork() {
         boolean success = tailer.readDocument(walReader);
+        if (success) {
+            log.info("[ENGINE] 從 WAL 成功讀取 Document, index={}", tailer.index());
+        }
         
         // 業務飽和度統計 (真正反映撮合引擎是否在忙碌處理業務)
         Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
@@ -73,6 +76,12 @@ public class Engine extends Worker {
         
         // 1. 指令路由 (核心業務執行) - 改為 Raw 模式
         final long gwSeq = router.routeRaw(wire, this::nextOrderId, this::nextTradeId);
+        
+        if (gwSeq != MSG_SEQ_NONE) {
+            log.info("[ENGINE] 業務處理完成: index={}, gwSeq={}", index, gwSeq);
+        } else {
+            log.warn("[ENGINE] 訊息路由失敗或類型未知: index={}", index);
+        }
 
         // 2. 引擎狀態演進與連續性檢查
         updateMode(index, gwSeq);

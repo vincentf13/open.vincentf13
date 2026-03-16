@@ -1,6 +1,10 @@
 package open.vincentf13.service.spot.ws.controller;
 
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.queue.ExcerptTailer;
+import net.openhft.chronicle.wire.DocumentContext;
+import net.openhft.chronicle.bytes.Bytes;
 import open.vincentf13.service.spot.model.Balance;
 import open.vincentf13.service.spot.model.BalanceKey;
 import open.vincentf13.service.spot.model.Order;
@@ -12,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * 異步驗證控制器：
@@ -66,21 +72,34 @@ public class TestVerificationController {
         return history;
     }
 
-    @GetMapping("/metrics/saturation")
-    public Map<String, Object> getSaturation() {
-        Long pollCount = Storage.self().metricsHistory().get(Storage.KEY_POLL_COUNT);
-        Long workCount = Storage.self().metricsHistory().get(Storage.KEY_WORK_COUNT);
-        
-        if (pollCount == null || pollCount == 0) {
-            return Map.of("saturation_ratio", "0%", "status", "IDLE");
+    @GetMapping("/dump_wal")
+    public List<String> dumpWal() {
+        List<String> logs = new ArrayList<>();
+        ChronicleQueue queue = Storage.self().gatewaySenderWal();
+        ExcerptTailer tailer = queue.createTailer();
+        while (true) {
+            try (DocumentContext dc = tailer.readingDocument()) {
+                if (!dc.isPresent()) break;
+                net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
+                long remaining = bytes.readRemaining();
+                if (remaining < 16) {
+                    // 診斷：輸出 Hex
+                    StringBuilder hex = new StringBuilder();
+                    long pos = bytes.readPosition();
+                    for (int i = 0; i < Math.min(remaining, 16); i++) {
+                        hex.append(String.format("%02X ", bytes.readByte(pos + i)));
+                    }
+                    logs.add(String.format("Index: %d [Invalid] Len: %d, Hex: %s", dc.index(), remaining, hex.toString().trim()));
+                    continue;
+                }
+                int len = bytes.readInt();
+                int msgType = bytes.readInt();
+                long seq = bytes.readLong();
+                logs.add(String.format("Index: %d, MsgType: %d, Seq: %d, DataLen: %d",
+                    dc.index(), msgType, seq, len));
+                bytes.readSkip((long) len - 12);
+            }
         }
-        
-        double ratio = (workCount == null ? 0.0 : workCount.doubleValue()) / pollCount.doubleValue();
-        return Map.of(
-            "poll_count", pollCount,
-            "work_count", workCount == null ? 0 : workCount,
-            "saturation_ratio", String.format("%.2f%%", ratio * 100),
-            "description", "證明撮合引擎 100% 都在處理數據，無空等。"
-        );
+        return logs;
     }
 }

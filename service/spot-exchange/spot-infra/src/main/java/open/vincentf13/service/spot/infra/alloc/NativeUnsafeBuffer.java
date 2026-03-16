@@ -26,6 +26,14 @@ public class NativeUnsafeBuffer {
         return unsafeBuffer;
     }
 
+    public long addressOffset() {
+        return unsafeBuffer.addressOffset();
+    }
+
+    public int capacity() {
+        return unsafeBuffer.capacity();
+    }
+
     /** 釋放資源 (雖然依賴 GC，但提供清理口) */
     public void release() {
         // DirectBuffer 的清理通常依賴 GC 或 Cleaner

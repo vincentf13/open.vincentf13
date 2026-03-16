@@ -51,9 +51,15 @@ public class SnapshotService {
             // 3. 備份內存 OrderBook 狀態至臨時目錄
             saveOrderBookSnapshot(new File(tmpDir, BOOK_SNAPSHOT_FILE));
 
-            // 4. 原子重命名：利用文件系統保證快照完整性
+            // 4. 重命名目錄 (Windows 上 ATOMIC_MOVE 有時會失敗)
             if (finalDir.exists()) deleteDir(finalDir);
-            Files.move(tmpDir.toPath(), finalDir.toPath(), StandardCopyOption.ATOMIC_MOVE);
+            try {
+                Files.move(tmpDir.toPath(), finalDir.toPath());
+            } catch (IOException e) {
+                log.warn("目錄移動失敗，嘗試拷貝並刪除: {}", e.getMessage());
+                copyDir(tmpDir, finalDir);
+                deleteDir(tmpDir);
+            }
 
             log.info("✅ 快照創建成功，存儲路徑: {}", finalDir.getAbsolutePath());
             cleanupOldSnapshots(finalDir.getParentFile());
@@ -64,8 +70,23 @@ public class SnapshotService {
         }
     }
 
+    private void copyDir(File src, File dst) throws IOException {
+        if (!dst.exists()) dst.mkdirs();
+        File[] files = src.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                File target = new File(dst, f.getName());
+                if (f.isDirectory()) {
+                    copyDir(f, target);
+                } else {
+                    Files.copy(f.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
+    }
+
     private void saveOrderBookSnapshot(File file) throws IOException {
-        // 預估 100MB 緩衝區 (可根據訂單量動態調整)
+        // 預估 128MB 緩衝區 (可根據訂單量動態調整)
         try (MappedBytes bytes = MappedBytes.mappedBytes(file, 128 * 1024 * 1024)) {
             bytes.writeInt(OrderBook.getInstances().size());
             for (OrderBook book : OrderBook.getInstances()) {
@@ -103,7 +124,13 @@ public class SnapshotService {
         File[] snapshots = parent.listFiles(File::isDirectory);
         if (snapshots != null && snapshots.length > 3) {
             // 依據目錄名 (Sequence) 排序
-            java.util.Arrays.sort(snapshots, (a, b) -> Long.compare(Long.parseLong(a.getName()), Long.parseLong(b.getName())));
+            java.util.Arrays.sort(snapshots, (a, b) -> {
+                try {
+                    return Long.compare(Long.parseLong(a.getName()), Long.parseLong(b.getName()));
+                } catch (NumberFormatException e) {
+                    return 0;
+                }
+            });
             for (int i = 0; i < snapshots.length - 3; i++) {
                 deleteDir(snapshots[i]);
                 log.info("清理過期快照: {}", snapshots[i].getName());
@@ -113,7 +140,12 @@ public class SnapshotService {
 
     private void deleteDir(File dir) {
         File[] files = dir.listFiles();
-        if (files != null) for (File f : files) f.delete();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) deleteDir(f);
+                else f.delete();
+            }
+        }
         dir.delete();
     }
     

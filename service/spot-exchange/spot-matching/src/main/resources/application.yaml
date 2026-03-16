@@ -5,7 +5,7 @@ spring:
     web-application-type: none
 
 aeron:
-  dir: data/spot-exchange/aeron
+  dir: C:/iProject/open.vincentf13/data/spot-exchange/aeron
 
 state:
-  base-dir: data/spot-exchange/
+  base-dir: C:/iProject/open.vincentf13/data/spot-exchange/

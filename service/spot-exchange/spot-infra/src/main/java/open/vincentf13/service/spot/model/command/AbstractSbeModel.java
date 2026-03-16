@@ -59,7 +59,7 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
     public static final int SBE_HEADER_OFFSET = SEQ_OFFSET + SEQ_SIZE;
     public static final int BODY_OFFSET = SBE_HEADER_OFFSET + SBE_HEADER_SIZE;
 
-    @Getter(AccessLevel.PROTECTED)
+    @Getter
     protected final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(0, 0);
     
     protected final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
