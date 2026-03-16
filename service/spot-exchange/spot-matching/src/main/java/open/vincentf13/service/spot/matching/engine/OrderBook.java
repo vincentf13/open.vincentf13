@@ -123,76 +123,8 @@ public class OrderBook {
         return INSTANCES.values();
     }
 
-    public void saveState(net.openhft.chronicle.bytes.BytesOut<?> bytes) {
-        bytes.writeInt(symbolId);
-        bytes.writeInt(baseAssetId);
-        bytes.writeInt(quoteAssetId);
-
-        // 備份掛單數
-        bytes.writeInt(orderIndex.size());
-        
-        // 分別備份 bids 與 asks
-        saveSide(bytes, bids);
-        saveSide(bytes, asks);
-    }
-
-    private void saveSide(net.openhft.chronicle.bytes.BytesOut<?> bytes, TreeMap<Long, Deque<Order>> side) {
-        bytes.writeInt(side.size()); // 價位檔位數
-        side.forEach((price, orders) -> {
-            bytes.writeLong(price);
-            bytes.writeInt(orders.size());
-            for (Order o : orders) {
-                o.writeMarshallable(bytes);
-            }
-        });
-    }
-
-    public void loadState(net.openhft.chronicle.bytes.BytesIn<?> bytes) {
-        // 1. 清理當前狀態 (如果需要)
-        clear();
-        
-        // 2. 讀取基礎屬性 (略過，因為 Instance 已建立)
-        bytes.readInt(); bytes.readInt(); bytes.readInt();
-        int totalOrders = bytes.readInt();
-
-        // 3. 讀取 Bids & Asks
-        loadSide(bytes, bids);
-        loadSide(bytes, asks);
-        
-        log.info("訂單簿 {} 恢復完成：共加載 {} 筆掛單", symbolId, totalOrders);
-    }
-
-    private void loadSide(net.openhft.chronicle.bytes.BytesIn<?> bytes, TreeMap<Long, Deque<Order>> side) {
-        int levelCount = bytes.readInt();
-        for (int i = 0; i < levelCount; i++) {
-            long price = bytes.readLong();
-            int ordersAtLevel = bytes.readInt();
-            Deque<Order> level = GLOBAL_DEQUE_POOL.pollFirst();
-            if (level == null) level = new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY);
-            
-            for (int j = 0; j < ordersAtLevel; j++) {
-                Order o = borrowOrder();
-                o.readMarshallable(bytes);
-                level.addLast(o);
-                orderIndex.put(o.getOrderId(), o);
-            }
-            side.put(price, level);
-            priceLevelIndex.put(price, level);
-        }
-    }
-
-    private void clear() {
-        orderIndex.values().forEach(this::releaseOrder);
-        orderIndex.clear();
-        bids.values().forEach(level -> { level.clear(); GLOBAL_DEQUE_POOL.addLast(level); });
-        bids.clear();
-        asks.values().forEach(level -> { level.clear(); GLOBAL_DEQUE_POOL.addLast(level); });
-        asks.clear();
-        priceLevelIndex.clear();
-    }
-
     public static void rebuildAll() {
-        // 此方法已由 Snapshot 加載機制取代，僅作為冷啟動兜底
+        // 冷啟動索引重建
         ChronicleMap<Long, Order> allOrders = Storage.self().orders();
         Storage.self().activeOrders().forEach((id, active) -> {
             Order o = allOrders.getUsing(id, SCAN_REUSABLE);

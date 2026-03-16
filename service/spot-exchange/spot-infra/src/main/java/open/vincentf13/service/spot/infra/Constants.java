@@ -49,7 +49,6 @@ public class Constants {
         public static class Wal {
             public static final byte MACHING_ENGINE_POINT = 1;
             public static final byte WS_PUSH_TO_CLIENT_POINT = 2;
-            public static final byte LAST_SNAPSHOT_INFO = 3;
         }
     }
 
@@ -125,7 +124,6 @@ public class Constants {
         // 從系統環境變數獲取路徑，預設為 "data/spot-exchange/"
         public static final String DEFAULT_BASE_DIR = System.getProperty("SPOT_MAP_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/map/");
         public static final String WAL_BASE_DIR = System.getProperty("SPOT_WAL_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/wal/");
-        public static final String SNAPSHOT_BASE_DIR = System.getProperty("SPOT_SNAPSHOT_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/snapshot/");
         
         public static final String BALANCES = "balances";
         public static final String USER_ASSETS = "user-assets";

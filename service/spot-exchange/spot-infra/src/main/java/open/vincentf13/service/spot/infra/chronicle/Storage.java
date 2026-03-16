@@ -147,7 +147,6 @@ public class Storage {
     public static final long KEY_CPU_ID_WAL_WRITER = -101L;
     public static final long KEY_CPU_ID_AERON_SENDER = -102L;
     public static final long KEY_CPU_ID_AERON_RECEIVER = -103L;
-    public static final long KEY_CPU_ID_SNAPSHOT = -104L;
     public static final long KEY_CPU_ID_JVM_MANAGEMENT = -105L;
     public static final long KEY_CPU_ID_NETTY_BOSS = -106L;
     public static final long KEY_CPU_ID_NETTY_WORKER_1 = -107L;

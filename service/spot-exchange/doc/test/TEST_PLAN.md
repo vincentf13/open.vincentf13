@@ -43,11 +43,10 @@
 ## 3. 可靠性測試計畫 (Reliability Test Plan)
 
 ### 目的
-驗證內存數據在崩潰重啟後的一致性。
+驗證內存數據與持久化進度在重啟後的一致性。
 
-### 具體測試方法 (Snapshot 驗證)
-1. **快照一致性**：
-   - 觸發 `SnapshotService` 生成內存鏡像。
-   - 故障重啟後，比對快照載入後的 `orderIndex` 與 `priceLevelIndex` 數量是否與故障前一致。
-2. **消息重放 (Replay)**：
-   - 利用 Aeron 的 Archive 功能或上游消息日誌，在引擎重啟後重新載入指令，確認最終內存狀態完全匹配。
+### 具體測試方法
+1. **進度恢復 (Resume)**：
+   - 殺掉 Matching Engine 並重啟。
+   - 驗證 Engine 能從 `WalProgress` 加載最後處理的 Seq，並同步給 `AeronReceiver`。
+   - 驗證 Aeron 鏈路能自動對齊並從斷點續傳。
