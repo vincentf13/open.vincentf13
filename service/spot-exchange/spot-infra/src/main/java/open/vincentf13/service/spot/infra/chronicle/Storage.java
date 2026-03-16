@@ -39,42 +39,42 @@ public class Storage {
 
     public ChronicleMap<Long, Order> orders() {
         if (orders == null) synchronized (this) {
-            if (orders == null) orders = createMap(ChronicleMapEnum.ORDERS, Long.class, Order.class, 1_000_000, 128);
+            if (orders == null) orders = createMap(ChronicleMapEnum.ORDERS, Long.class, Order.class, 10_000_000, 128);
         }
         return orders;
     }
 
     public ChronicleMap<Long, Trade> trades() {
         if (trades == null) synchronized (this) {
-            if (trades == null) trades = createMap(ChronicleMapEnum.TRADES, Long.class, Trade.class, 1_000_000, 64);
+            if (trades == null) trades = createMap(ChronicleMapEnum.TRADES, Long.class, Trade.class, 10_000_000, 64);
         }
         return trades;
     }
 
     public ChronicleMap<BalanceKey, Balance> balances() {
         if (balances == null) synchronized (this) {
-            if (balances == null) balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 1_000_000, 16, 64);
+            if (balances == null) balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 10_000_000, 16, 64);
         }
         return balances;
     }
 
     public ChronicleMap<Long, Long> userAssets() {
         if (userAssets == null) synchronized (this) {
-            if (userAssets == null) userAssets = createMap(ChronicleMapEnum.USER_ASSETS, Long.class, Long.class, 100_000, 8);
+            if (userAssets == null) userAssets = createMap(ChronicleMapEnum.USER_ASSETS, Long.class, Long.class, 1_000_000, 8);
         }
         return userAssets;
     }
 
     public ChronicleMap<Long, Boolean> activeOrders() {
         if (activeOrders == null) synchronized (this) {
-            if (activeOrders == null) activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, Long.class, Boolean.class, 1_000_000, 1);
+            if (activeOrders == null) activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, Long.class, Boolean.class, 10_000_000, 1);
         }
         return activeOrders;
     }
 
     public ChronicleMap<CidKey, Long> clientOrderIdMap() {
         if (cids == null) synchronized (this) {
-            if (cids == null) cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, Long.class, 1_000_000, 16, 0);
+            if (cids == null) cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, Long.class, 10_000_000, 16, 0);
         }
         return cids;
     }
