@@ -83,16 +83,37 @@ public class TestVerificationController {
 
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
-        // 從 metricsHistory 中提取特殊的負數 Key
+        // 引擎核心指標
         long pollCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_POLL_COUNT, 0L);
         long workCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_WORK_COUNT, 0L);
         double ratio = pollCount == 0 ? 0 : (double) workCount / pollCount * 100.0;
         
-        return Map.of(
-            "poll_count", pollCount,
-            "work_count", workCount,
-            "saturation_ratio", String.format("%.2f%%", ratio)
-        );
+        // JVM 與 OS 資源指標
+        Runtime runtime = Runtime.getRuntime();
+        long maxMemory = runtime.maxMemory();
+        long allocatedMemory = runtime.totalMemory();
+        long freeMemory = runtime.freeMemory();
+        long usedMemory = allocatedMemory - freeMemory;
+        double memoryUsageRatio = maxMemory == 0 ? 0 : (double) usedMemory / maxMemory * 100.0;
+
+        java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+        double sysLoad = -1.0;
+        if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
+            sysLoad = sunOsBean.getCpuLoad() * 100.0; // 系統 CPU 負載
+        }
+
+        Map<String, Object> metrics = new java.util.LinkedHashMap<>();
+        metrics.put("engine_work_count", workCount);
+        metrics.put("engine_poll_count", pollCount);
+        metrics.put("engine_saturation", String.format("%.2f%%", ratio));
+        
+        metrics.put("jvm_memory_used_mb", usedMemory / (1024 * 1024));
+        metrics.put("jvm_memory_max_mb", maxMemory / (1024 * 1024));
+        metrics.put("jvm_memory_usage", String.format("%.2f%%", memoryUsageRatio));
+        
+        metrics.put("os_cpu_load", sysLoad >= 0 ? String.format("%.2f%%", sysLoad) : "N/A");
+        
+        return metrics;
     }
 
     @GetMapping("/dump_wal")
