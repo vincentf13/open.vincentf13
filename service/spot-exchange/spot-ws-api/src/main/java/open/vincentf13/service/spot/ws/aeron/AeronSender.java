@@ -61,41 +61,46 @@ public class AeronSender extends AbstractAeronSender {
 
     @Override
     public void onWalMessage(WireIn wire) {
-        final long ctxSeq = tailer.index();
+        final long index = tailer.index();
         final Bytes<?> bytes = wire.bytes();
         
-        long remaining = bytes.readRemaining();
-        if (remaining <= 0) return;
+        int subIndex = 0;
+        while (bytes.readRemaining() > 0) {
+            // 讀取長度前綴 (與 AsyncWalWriter 對齊)
+            int payloadLen = bytes.readInt();
+            if (payloadLen <= 0) break;
 
-        final long addressForRead = bytes.addressForRead(bytes.readPosition());
-        final int msgType = UNSAFE.getInt(addressForRead);
-        
-        final ThreadContext tc = ThreadContext.get();
-        
-        AbstractSbeModel cmd = switch (msgType) {
-            case MsgType.AUTH         -> tc.getAuthCommand();
-            case MsgType.ORDER_CREATE  -> tc.getOrderCreateCommand();
-            case MsgType.ORDER_CANCEL  -> tc.getOrderCancelCommand();
-            case MsgType.DEPOSIT      -> tc.getDepositCommand();
-            default -> {
-                log.warn("[GATEWAY-SENDER] 收到未知訊息類型: {}, 跳過此訊息", msgType);
-                bytes.readSkip(remaining); // 跳過目前剩餘的所有位元組，避免死循環
-                yield null;
+            final long addressForRead = bytes.addressForRead(bytes.readPosition());
+            final int msgType = UNSAFE.getInt(addressForRead);
+            
+            // 生成複合 Sequence：高 48 位為 WAL Index，低 16 位為批次內偏移
+            final long ctxSeq = (index << 16) | (subIndex & 0xFFFF);
+            
+            final ThreadContext tc = ThreadContext.get();
+            AbstractSbeModel cmd = switch (msgType) {
+                case MsgType.AUTH         -> tc.getAuthCommand();
+                case MsgType.ORDER_CREATE  -> tc.getOrderCreateCommand();
+                case MsgType.ORDER_CANCEL  -> tc.getOrderCancelCommand();
+                case MsgType.DEPOSIT      -> tc.getDepositCommand();
+                default -> {
+                    log.warn("[GATEWAY-SENDER] 收到未知訊息類型: {}, 跳過此訊息", msgType);
+                    bytes.readSkip((long) payloadLen);
+                    yield null;
+                }
+            };
+
+            if (cmd != null) {
+                log.debug("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}, len={}", msgType, ctxSeq, payloadLen);
+                this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
+                    final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
+                    UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
+                    // 覆蓋 Sequence，確保與 WAL Index + subIndex 同步
+                    buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
+                });
+                Storage.self().metricsHistory().compute(Storage.KEY_AERON_SEND_COUNT, (k, v) -> v == null ? 1L : v + 1);
+                bytes.readSkip((long) payloadLen);
             }
-        };
-
-        if (cmd != null) {
-            int payloadLen = cmd.totalByteLength();
-            log.debug("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}, len={}", msgType, ctxSeq, payloadLen);
-            this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
-                final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
-                // 零拷貝轉移
-                UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
-                // 覆蓋 Sequence，確保與 WAL Index 同步
-                buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
-            });
-            Storage.self().metricsHistory().compute(Storage.KEY_AERON_SEND_COUNT, (k, v) -> v == null ? 1L : v + 1);
-            bytes.readSkip((long) payloadLen);
+            subIndex++;
         }
     }
 }

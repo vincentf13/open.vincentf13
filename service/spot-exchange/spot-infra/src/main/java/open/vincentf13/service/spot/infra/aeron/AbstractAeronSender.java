@@ -99,13 +99,16 @@ public abstract class AbstractAeronSender extends Worker {
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
         if (buffer.getInt(offset) == MsgType.RESUME) {
             if (currentState == AeronState.WAITING) {
-                long lastProcessedIndex = buffer.getLong(offset + 4);
-                log.info("✅ 握手成功！收到對端 RESUME 訊號，執行位點跳轉: {}", lastProcessedIndex);
+                long resumeSeq = buffer.getLong(offset + 4);
+                // 解碼 WAL Index：對於批次發送模式，Index 在高 48 位
+                long walIndex = (resumeSeq == MSG_SEQ_NONE) ? WAL_INDEX_NONE : (resumeSeq >> 16);
                 
-                if (lastProcessedIndex == WAL_INDEX_NONE) {
+                log.info("✅ 握手成功！收到對端 RESUME 訊號，Sequence: {}, 執行位點跳轉 Index: {}", resumeSeq, walIndex);
+                
+                if (walIndex == WAL_INDEX_NONE) {
                     tailer.toStart();
                 } else {
-                    tailer.moveToIndex(lastProcessedIndex);
+                    tailer.moveToIndex(walIndex);
                 }
                 currentState = AeronState.SENDING;
             }

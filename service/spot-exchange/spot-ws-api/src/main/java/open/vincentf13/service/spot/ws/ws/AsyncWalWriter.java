@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 public class AsyncWalWriter extends Worker {
     private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
     private final ManyToOneRingBuffer queue = Storage.self().gatewayWalQueue();
+    private net.openhft.chronicle.queue.ExcerptAppender appender;
     private long localWalWriteCount = 0;
     private static final int METRICS_BATCH_SIZE = 10000;
 
@@ -34,31 +35,33 @@ public class AsyncWalWriter extends Worker {
 
     @Override
     protected void onStart() {
+        this.appender = wal.acquireAppender();
         log.info("Async WAL Writer started, ready to consume from RingBuffer");
     }
 
     @Override
     protected int doWork() {
-        // 批量讀取並處理 (Handler 會被回調處理每一條訊息)
-        return queue.read(this::onMessage, 100);
-    }
-
-    private void onMessage(int msgTypeId, org.agrona.DirectBuffer buffer, int offset, int length) {
-        final net.openhft.chronicle.bytes.PointerBytesStore pointer = open.vincentf13.service.spot.infra.alloc.ThreadContext.get().getReusablePointer();
-        pointer.set(buffer.addressOffset() + offset, length);
-
-        try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
+        // 批次寫入優化：開啟一個 DocumentContext 寫入多條訊息
+        try (DocumentContext dc = appender.writingDocument()) {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-            // 直接將數據從 RingBuffer 寫入 WAL (零拷貝)
-            bytes.write(pointer);
+            int workDone = queue.read((msgTypeId, buffer, offset, length) -> {
+                // 寫入長度前綴與數據 (零拷貝)
+                bytes.writeInt(length);
+                bytes.write(buffer.addressOffset() + offset, length);
 
-            localWalWriteCount++;
-            if (localWalWriteCount >= METRICS_BATCH_SIZE) {
-                final long batch = localWalWriteCount;
-                Storage.self().metricsHistory().compute(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, (k, v) -> v == null ? batch : v + batch);
-                localWalWriteCount = 0;
+                localWalWriteCount++;
+                if (localWalWriteCount >= METRICS_BATCH_SIZE) {
+                    final long batch = localWalWriteCount;
+                    Storage.self().metricsHistory().compute(Storage.KEY_GATEWAY_WAL_WRITE_COUNT, (k, v) -> v == null ? batch : v + batch);
+                    localWalWriteCount = 0;
+                }
+                log.debug("[ASYNC-WAL] 訊息已加入批次, len={}", length);
+            }, 100);
+
+            if (workDone == 0) {
+                dc.rollbackOnClose();
             }
-            log.debug("[ASYNC-WAL] 訊息已持久化, index={}", dc.index());
+            return workDone;
         }
     }
 
