@@ -32,10 +32,9 @@ public abstract class AbstractAeronSender extends Worker {
     protected Publication publication;
     protected Subscription controlSubscription;
     protected final BufferClaim bufferClaim = new BufferClaim();
-    protected final IdleStrategy idleStrategy = new BackoffIdleStrategy();
-    
-    protected AeronClient aeronClient;
-    protected ExcerptTailer tailer;
+    protected final org.agrona.concurrent.IdleStrategy idleStrategy = new org.agrona.concurrent.BusySpinIdleStrategy();
+
+    protected AeronClient aeronClient;    protected ExcerptTailer tailer;
     protected AeronState currentState = AeronState.WAITING;
     protected long backPressureCount = 0;
 

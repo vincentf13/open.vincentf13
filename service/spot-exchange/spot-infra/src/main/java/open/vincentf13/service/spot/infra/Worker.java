@@ -1,13 +1,13 @@
 package open.vincentf13.service.spot.infra;
 
-import org.agrona.concurrent.BackoffIdleStrategy;
+import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** 
+/**
  低延遲背景工作者基類
  封裝了基於單執行緒的工作循環模型，並採用 Agrona 的 IdleStrategy 以平衡延遲與 CPU 消耗
  適用於 Gateway、Matching Engine 等需要高效能處理的組件
@@ -15,18 +15,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
-    // Agrona 的空閒策略 (IdleStrategy) 是低延遲架構中的核心組件
-    // 它決定了當 doWork() 返回 0（代表當前沒有任務處理）時，背景執行緒該如何「休息」
-    // BackoffIdleStrategy(1, 1, 1, 1) 的參數意義如下：
-    // 1. maxSpins:  先嘗試「忙等待/自旋」的次數。這裡是 1 次，極致降低延遲。
-    // 2. maxYields: 自旋後，嘗試 Thread.yield() 讓出 CPU 時間片的次數。這裡是 1 次。
-    // 3. minParkNs: 之後進入「休眠/掛起」的最小奈秒數。這裡是 1 奈秒。
-    // 4. maxParkNs: 休眠的最大奈秒數（隨等待時間增加）。這裡是 1 奈秒。
-    // 這種配置 (1,1,1,1) 屬於「極激進型」，優先保證極速響應，只有在完全沒事做時才進行極短時間的掛起，
-    // 目的是在維持微秒級響應的同時，避免 100% 的 CPU 死循環佔用。
-    protected final IdleStrategy idleStrategy = new BackoffIdleStrategy(1, 1, 1, 1);
-    private Thread thread;
-    
+
+    // 改用 BusySpinIdleStrategy，拒絕任何休眠與讓出。
+    // 在綁核環境下，這能 100% 榨乾 CPU 效能，避免 Windows 系統 parkNanos(1) 帶來的 1ms 巨大延遲
+    protected final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
+    private Thread thread;    
     /** 
      啟動工作者執行緒
      @param name 執行緒名稱，便於監控與診斷

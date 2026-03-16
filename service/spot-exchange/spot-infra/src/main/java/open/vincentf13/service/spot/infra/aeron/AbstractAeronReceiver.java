@@ -34,7 +34,7 @@ public abstract class AbstractAeronReceiver extends Worker {
     protected Subscription subscription;
     protected Publication controlPublication;
     protected final BufferClaim bufferClaim = new BufferClaim();
-    protected final IdleStrategy idleStrategy = new BackoffIdleStrategy();
+    protected final org.agrona.concurrent.IdleStrategy idleStrategy = new org.agrona.concurrent.BusySpinIdleStrategy();
     protected final MsgProgress progress = new MsgProgress();
     
     // 使用 FragmentAssembler 確保跨 MTU 訊息的完整性 (處理網路分片)
