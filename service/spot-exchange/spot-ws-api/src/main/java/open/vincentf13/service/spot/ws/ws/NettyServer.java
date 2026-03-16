@@ -17,8 +17,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import net.openhft.affinity.AffinityThreadFactory;
-import net.openhft.affinity.AffinityStrategies;
 
 import static open.vincentf13.service.spot.infra.Constants.Ws;
 
@@ -43,8 +41,7 @@ public class NettyServer {
     public void start() {
         new Thread(() -> {
             bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("netty-boss"));
-            // 使用 AffinityThreadFactory 為 Netty Worker 分配獨佔核心，消除核心切換開銷
-            workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker", AffinityStrategies.DIFFERENT_CORE));
+            workerGroup = new NioEventLoopGroup(workerCount, new DefaultThreadFactory("netty-worker"));
             try {
                 ServerBootstrap b = new ServerBootstrap();
                 b.group(bossGroup, workerGroup)

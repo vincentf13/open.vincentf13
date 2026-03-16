@@ -1,6 +1,6 @@
 package open.vincentf13.service.spot.infra;
 
-import org.agrona.concurrent.BusySpinIdleStrategy;
+import org.agrona.concurrent.YieldingIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 import net.openhft.affinity.AffinityLock;
 import org.slf4j.Logger;
@@ -17,9 +17,8 @@ public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
 
-    // 改用 BusySpinIdleStrategy，拒絕任何休眠與讓出。
-    // 在綁核環境下，這能 100% 榨乾 CPU 效能，避免 Windows 系統 parkNanos(1) 帶來的 1ms 巨大延遲
-    protected final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
+    // 改用 YieldingIdleStrategy，在無任務時主動 yield，減少對 CPU 指令週期的無謂佔用，防止干擾其它核心執行緒
+    protected final IdleStrategy idleStrategy = new YieldingIdleStrategy();
     private Thread thread;    
     /** 
      啟動工作者執行緒
@@ -81,8 +80,8 @@ public abstract class Worker implements Runnable {
      */
     @Override
     public void run() {
-        // 在綁核環境下，獲取一個獨佔的 CPU Core 鎖，防止 OS 將多個忙等待執行緒調度到同一個核心
-        try (AffinityLock lock = AffinityLock.acquireLock()) {
+        // 在綁核環境下，獲取一個獨佔的 CPU Core 鎖
+        try (AffinityLock lock = AffinityLock.acquireCore()) {
             onStart();
             try {
                 // 同時檢查運行標誌位與執行緒中斷狀態
