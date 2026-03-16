@@ -117,6 +117,10 @@ public class Constants {
         SENDING  // 正常發送數據中
     }
 
+    public static class Matching {
+        public static final int ENGINE_BATCH_SIZE = 200;
+    }
+
     /**
      * 監控指標 Key 定義 (Metrics Keys)
      */
@@ -147,6 +151,15 @@ public class Constants {
         public static final long GATEWAY_JVM_USED_MB = -210L;
         public static final long GATEWAY_JVM_MAX_MB = -211L;
         public static final long GATEWAY_CPU_LOAD = -212L;
+
+        // GC 監控指標
+        public static final long MATCHING_GC_COUNT = -300L;
+        public static final long MATCHING_GC_LAST_INTERVAL_MS = -301L;
+        public static final long MATCHING_GC_LAST_DURATION_MS = -302L;
+        
+        public static final long GATEWAY_GC_COUNT = -310L;
+        public static final long GATEWAY_GC_LAST_INTERVAL_MS = -311L;
+        public static final long GATEWAY_GC_LAST_DURATION_MS = -312L;
     }
 
     /**

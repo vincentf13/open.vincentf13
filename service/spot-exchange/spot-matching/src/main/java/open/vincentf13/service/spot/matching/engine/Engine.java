@@ -32,7 +32,7 @@ public class Engine extends Worker {
 
     private long lastMetricsSec = 0;
     private long pollCount = 0, workCount = 0;
-    private static final int BATCH_SIZE = 200;
+    private static final int BATCH_SIZE = Matching.ENGINE_BATCH_SIZE;
 
     @PostConstruct public void init() { start("core-matching-engine"); }
 
@@ -79,6 +79,7 @@ public class Engine extends Worker {
     private void updateMetrics(long nowSec) {
         Runtime r = Runtime.getRuntime();
         MetricsCollector.set(MetricsKey.MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
+        MetricsCollector.set(MetricsKey.MATCHING_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
         MetricsCollector.set(nowSec, OrderBook.TOTAL_MATCH_COUNT.get());
         
         MetricsCollector.set(MetricsKey.POLL_COUNT, pollCount);

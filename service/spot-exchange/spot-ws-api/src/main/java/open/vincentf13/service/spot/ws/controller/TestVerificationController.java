@@ -91,10 +91,11 @@ public class TestVerificationController {
 
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
-        // 引擎核心指標
+        // 引擎核心指標 (修正公式：實際處理量 / 最大處理潛力)
         long pollCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.POLL_COUNT, 0L);
         long workCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.WORK_COUNT, 0L);
-        double ratio = pollCount == 0 ? 0 : (double) workCount / pollCount * 100.0;
+        double maxPotential = (double) pollCount * Matching.ENGINE_BATCH_SIZE;
+        double ratio = maxPotential == 0 ? 0 : Math.min(100.0, (double) workCount / maxPotential * 100.0);
 
         // 全鏈路瓶頸指標
         long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.NETTY_RECV_COUNT, 0L);
@@ -102,11 +103,11 @@ public class TestVerificationController {
         long aeronSendCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_SEND_COUNT, 0L);
         long aeronBackpressure = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_BACKPRESSURE, 0L);
 
-        // JVM 與 OS 資源指標 (從 MetricsHistory 獲取異步更新的數值)
-        long matchingJvmUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_JVM_USED_MB, 0L);
-        long gatewayJvmUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_JVM_USED_MB, 0L);
-        long matchingCpuLoad = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_CPU_LOAD, 0L);
-        long gatewayCpuLoad = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_CPU_LOAD, 0L);
+        // JVM 指標計算 (%)
+        long matchingUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_JVM_USED_MB, 0L);
+        long matchingMax = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_JVM_MAX_MB, 1L);
+        long gatewayUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_JVM_USED_MB, 0L);
+        long gatewayMax = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_JVM_MAX_MB, 1L);
 
         Map<String, Object> metrics = new LinkedHashMap<>();
         metrics.put("netty_recv_count", nettyRecvCount);
@@ -117,10 +118,27 @@ public class TestVerificationController {
         metrics.put("engine_poll_count", pollCount);
         metrics.put("engine_saturation", String.format("%.2f%%", ratio));
 
-        metrics.put("matching_jvm_used_mb", matchingJvmUsed);
-        metrics.put("gateway_jvm_used_mb", gatewayJvmUsed);
-        metrics.put("matching_cpu_load", String.format("%d%%", matchingCpuLoad));
-        metrics.put("gateway_cpu_load", String.format("%d%%", gatewayCpuLoad));
+        metrics.put("matching_jvm_used", String.format("%dMB (%.1f%%)", matchingUsed, (double)matchingUsed/matchingMax*100));
+        metrics.put("gateway_jvm_used", String.format("%dMB (%.1f%%)", gatewayUsed, (double)gatewayUsed/gatewayMax*100));
+        metrics.put("matching_cpu_load", String.format("%d%%", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_CPU_LOAD, 0L)));
+        metrics.put("gateway_cpu_load", String.format("%d%%", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_CPU_LOAD, 0L)));
+
+        // GC 指標
+        Map<String, Object> gcMetrics = new LinkedHashMap<>();
+        
+        Map<String, Object> matchingGc = new LinkedHashMap<>();
+        matchingGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_COUNT, 0L));
+        matchingGc.put("last_interval_ms", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_INTERVAL_MS, 0L));
+        matchingGc.put("last_duration_ms", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_DURATION_MS, 0L));
+        gcMetrics.put("spot-matching", matchingGc);
+
+        Map<String, Object> gatewayGc = new LinkedHashMap<>();
+        gatewayGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_COUNT, 0L));
+        gatewayGc.put("last_interval_ms", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_INTERVAL_MS, 0L));
+        gatewayGc.put("last_duration_ms", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_DURATION_MS, 0L));
+        gcMetrics.put("spot-ws-api", gatewayGc);
+
+        metrics.put("gc_metrics", gcMetrics);
 
         // CPU Affinity 綁定資訊 (按服務聚合)
         Map<String, Object> cpuAffinity = new LinkedHashMap<>();
