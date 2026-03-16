@@ -64,6 +64,7 @@ public class CommandRouter {
                 yield cmd.getSeq();
             }
             default -> {
+                log.warn("[ROUTER] 收到未知訊息類型: {}, len={}", msgType, payloadLen);
                 bytes.readSkip((long) payloadLen);
                 yield MSG_SEQ_NONE;
             }

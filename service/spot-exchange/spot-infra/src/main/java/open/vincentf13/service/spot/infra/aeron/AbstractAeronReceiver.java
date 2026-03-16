@@ -127,7 +127,10 @@ public abstract class AbstractAeronReceiver extends Worker {
         }
 
         // 2. 冪等與連續性檢查
-        if (msgSeq <= progress.getLastProcessedSeq()) return;
+        if (msgSeq <= progress.getLastProcessedSeq()) {
+            log.warn("[AERON-RECEIVER] 丟棄重複或過舊訊息: msgSeq={}, lastSeq={}", msgSeq, lastSeq);
+            return;
+        }
         
         if (currentState == AeronState.SENDING && msgSeq != lastSeq + 1 && lastSeq != MSG_SEQ_NONE) {
             log.error("鏈路跳號！期望: {}, 實際: {}。將強制進入 WAITING 模式並重新握手。", lastSeq + 1, msgSeq);

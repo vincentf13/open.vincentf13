@@ -66,16 +66,20 @@ public class TestVerificationController {
     }
 
     @GetMapping("/metrics/tps")
-    public Map<Long, Long> getTpsHistory() {
+    public List<Map<String, Object>> getTpsHistory() {
         // 使用 TreeMap 進行自動倒序排序
         TreeMap<Long, Long> sortedHistory = new TreeMap<>(java.util.Collections.reverseOrder());
         Storage.self().metricsHistory().forEach(sortedHistory::put);
         
-        // 使用 LinkedHashMap 固化順序，確保 Jackson 序列化時不會被打亂
-        Map<Long, Long> result = new java.util.LinkedHashMap<>();
-        // 移除內部的 poll/work count 指標，只保留秒級 TPS
-        sortedHistory.forEach((k, v) -> {
-            if (k > 0) result.put(k, v);
+        List<Map<String, Object>> result = new ArrayList<>();
+        // 將排序後的數據轉入 List，這能保證 JSON 序列化後的絕對順序
+        sortedHistory.forEach((timestamp, total) -> {
+            if (timestamp > 0) {
+                Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                entry.put("time", timestamp);
+                entry.put("total_matches", total);
+                result.add(entry);
+            }
         });
         return result;
     }

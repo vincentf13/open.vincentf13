@@ -60,21 +60,23 @@ public class Engine extends Worker {
     @Override
     protected int doWork() {
         boolean success = tailer.readDocument(walReader);
-        if (success) {
-            log.info("[ENGINE] 從 WAL 成功讀取 Document, index={}", tailer.index());
-        }
         
         // 業務飽和度統計 (真正反映撮合引擎是否在忙碌處理業務)
         Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
         if (success) {
             Storage.self().metricsHistory().compute(Storage.KEY_WORK_COUNT, (k, v) -> v == null ? 1L : v + 1);
+            log.info("[ENGINE] 成功處理 WAL 訊息, index={}", tailer.index());
         }
 
         // --- 每秒自動紀錄 TPS 總量 (即便沒有成交也能顯示位點) ---
         long now = System.currentTimeMillis() / 1000;
         if (now > lastMetricsTime) {
-            Storage.self().metricsHistory().put(now, OrderBook.TOTAL_MATCH_COUNT.get());
+            long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
+            Storage.self().metricsHistory().put(now, totalMatches);
             lastMetricsTime = now;
+            if (totalMatches > 0) {
+                log.info("[ENGINE-METRICS] 當前累計成交數: {}", totalMatches);
+            }
         }
 
         return success ? 1 : 0;
