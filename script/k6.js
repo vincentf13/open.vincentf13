@@ -2,10 +2,8 @@ import http from 'k6/http';
 import {sleep} from 'k6';
 
 export const options = {
-    stages: [{duration: '30s', target: 50}, {duration: '2m', target: 200}, {
-        duration: '30s',
-        target: 0
-    }]
+    vus: 100, // 固定並發數
+    duration: '10000h', // 執行到手動中斷為止
 };
 export default function () {
     sleep(1);
