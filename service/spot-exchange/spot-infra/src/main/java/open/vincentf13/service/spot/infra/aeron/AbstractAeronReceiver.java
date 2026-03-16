@@ -111,7 +111,8 @@ public abstract class AbstractAeronReceiver extends Worker {
     }
 
     private void fragmentHandler(org.agrona.DirectBuffer buffer, int offset, int length, io.aeron.logbuffer.Header header) {
-        final long msgSeq = buffer.getLong(offset + 4);
+        // 修正偏移量：[Len(4)][Type(4)][Seq(8)]，所以 Seq 從 8 開始
+        final long msgSeq = buffer.getLong(offset + 8);
         final long lastSeq = progress.getLastProcessedSeq();
         
         // 1. 握手與自愈邏輯

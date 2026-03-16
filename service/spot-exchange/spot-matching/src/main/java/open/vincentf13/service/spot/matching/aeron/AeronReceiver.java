@@ -39,9 +39,10 @@ public class AeronReceiver extends AbstractAeronReceiver {
         final long aeronSrcAddress = OffHeapUtil.getAddress(buffer, offset);
         pointer.set(aeronSrcAddress, length);
 
-        try (DocumentContext dc = wal.acquireAppender().writingDocument()) {
+        // 使用 writingDocument(false) 進行 RAW 寫入，避開 Wire 標頭干擾
+        try (DocumentContext dc = wal.acquireAppender().writingDocument(false)) {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-            bytes.writeInt(length);
+            // 注意：Aeron 的內容已經包含 [Len][Type][Seq...]，所以不需要額外寫長度
             bytes.write(pointer);
         }
     }

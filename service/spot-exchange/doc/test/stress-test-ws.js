@@ -13,25 +13,28 @@ const METRICS_URL = 'http://127.0.0.1:8081/metrics/tps';
 export default function () {
     const res = ws.connect(WS_URL, {}, function (socket) {
         socket.on('open', function () {
-            console.log(`VU ${__VU} connected!`); // 確認連線成功
-            // 1. 先發送 Auth (目前系統要求)
+            const uid = Math.floor(Math.random() * 10000) + 1; // 為每個 VU 生成固定 UID
+            console.log(`VU ${__VU} connected with UID ${uid}!`); 
+
+            // 1. 先發送 Auth
             socket.send(JSON.stringify({
                 op: "auth",
-                uid: Math.floor(Math.random() * 10000) + 1
+                uid: uid
             }));
 
-            // 2. 地毯式下單 (無 sleep 模式)
+            // 2. 地毯式下單
             socket.setInterval(function () {
                 const price = 100; 
                 socket.send(JSON.stringify({
                     op: "order_create",
+                    uid: uid, // 補上遺漏的 uid
                     sid: 1,
                     p: price,
                     q: 1,
                     side: Math.random() > 0.5 ? "BUY" : "SELL",
                     cid: Date.now() + Math.floor(Math.random() * 1000)
                 }));
-            }, 10); // 稍微放慢到 10ms (每 VU 100 TPS)，先確認管線通暢
+            }, 10); 
         });
 
         socket.on('close', () => console.log('WS connection closed'));
