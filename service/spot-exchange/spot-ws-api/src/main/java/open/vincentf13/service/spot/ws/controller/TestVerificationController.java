@@ -67,9 +67,22 @@ public class TestVerificationController {
 
     @GetMapping("/metrics/tps")
     public Map<Long, Long> getTpsHistory() {
-        Map<Long, Long> history = new TreeMap<>();
+        Map<Long, Long> history = new TreeMap<>(java.util.Collections.reverseOrder());
         Storage.self().metricsHistory().forEach(history::put);
         return history;
+    }
+
+    @GetMapping("/metrics/saturation")
+    public Map<String, Object> getSaturation() {
+        long pollCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_POLL_COUNT, 0L);
+        long workCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_WORK_COUNT, 0L);
+        double ratio = pollCount == 0 ? 0 : (double) workCount / pollCount * 100.0;
+        
+        return Map.of(
+            "poll_count", pollCount,
+            "work_count", workCount,
+            "saturation_ratio", String.format("%.2f%%", ratio)
+        );
     }
 
     @GetMapping("/dump_wal")

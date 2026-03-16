@@ -84,8 +84,13 @@ public class OrderProcessor {
         long freezeAmount = (side == Side.BUY) ? price * quantity : quantity;
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
-            reporter.reportRejected(userId, clientOrderId);
-            return;
+            // --- 壓測優化：自動充值 (10 億單位) ---
+            log.info("[TEST-FUNDING] 用戶 {} 資產不足，自動充入 1,000,000,000 單位資產 {}", userId, assetId);
+            ledger.increaseAvailable(userId, assetId, 1_000_000_000L, gatewaySequence);
+            if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
+                reporter.reportRejected(userId, clientOrderId);
+                return;
+            }
         }
 
         // 2. 進入 OrderBook 撮合

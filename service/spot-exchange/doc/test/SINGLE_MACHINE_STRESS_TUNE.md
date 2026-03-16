@@ -22,7 +22,17 @@ $g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spo
 Start-Sleep 5
 if(!$e.HasExited){$e.ProcessorAffinity=7; "Matching Success!"}else{gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_matching.log"}
 if(!$g.HasExited){$g.ProcessorAffinity=120; "GateWay Success!"}else{gc "C:\iProject\open.vincentf13\service\spot-exchange\doc\test\error_gw.log"}
+
+
+cd "C:\iProject\open.vincentf13\service\spot-exchange\doc\test"
+# 鎖定 Core 6-15 (Affinity 65472)
+$K6 = Start-Process k6 -ArgumentList "run stress-test-ws.js" -PassThru
+$K6.ProcessorAffinity = 65472
 ```
+
+壓測完成後，您可以再次訪問：
+   * TPS 曲線：http://localhost:8082/api/test/metrics/tps
+   * 飽和度：http://localhost:8082/api/test/metrics/saturation
 
 ## 1. 核心分配矩陣 (Thread-to-Core Mapping)
 針對 Arrow Lake 物理單執行緒 (No HT) 特性，我們將核心執行緒與 P-cores 一一對應，以消除 L1/L2 Cache 競爭。
@@ -47,6 +57,7 @@ $g = Start-Process java -ArgumentList '"@C:\iProject\open.vincentf13\service\spo
 #### C. 壓測工具 (k6)
 完全隔離到 E-cores，避免干擾 P-core 的 L3 Cache 命中率。
 ```powershell
+cd "C:\iProject\open.vincentf13\service\spot-exchange\doc\test"
 # 鎖定 Core 6-15 (Affinity 65472)
 $K6 = Start-Process k6 -ArgumentList "run stress-test-ws.js" -PassThru
 $K6.ProcessorAffinity = 65472

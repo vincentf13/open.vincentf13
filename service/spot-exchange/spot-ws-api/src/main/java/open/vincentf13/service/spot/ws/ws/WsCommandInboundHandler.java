@@ -33,8 +33,14 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     }
 
     @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        log.info("[GATEWAY-WS] 檢測到新的 TCP 連線: {}", ctx.channel().remoteAddress());
+        super.channelActive(ctx);
+    }
+
+    @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {
-        log.debug("收到 WS 原始訊息: {}", frame.text());
+        log.info("[GATEWAY-WS] 收到訊息: {}", frame.text()); // 將 debug 改為 info 確保能看到
         final ThreadContext context = ThreadContext.get();
         final ThreadContext.RequestHolder holder = context.getRequestHolder();
         holder.reset();

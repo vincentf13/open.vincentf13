@@ -7,12 +7,13 @@ export const options = {
     duration: '1m', // 壓測持續 1 分鐘
 };
 
-const WS_URL = 'ws://localhost:8080/ws'; // 根據實際網關端口調整
-const METRICS_URL = 'http://localhost:8081/metrics/tps'; // 根據撮合引擎端口調整
+const WS_URL = 'ws://127.0.0.1:8080/ws/spot'; // 修正路徑為 /ws/spot
+const METRICS_URL = 'http://127.0.0.1:8081/metrics/tps';
 
 export default function () {
     const res = ws.connect(WS_URL, {}, function (socket) {
         socket.on('open', function () {
+            console.log(`VU ${__VU} connected!`); // 確認連線成功
             // 1. 先發送 Auth (目前系統要求)
             socket.send(JSON.stringify({
                 op: "auth",
@@ -21,17 +22,16 @@ export default function () {
 
             // 2. 地毯式下單 (無 sleep 模式)
             socket.setInterval(function () {
-                const side = Math.random() > 0.5 ? "BUY" : "SELL";
-                const price = side === "BUY" ? 100 : 101; // 刻意製造大量成交
+                const price = 100; 
                 socket.send(JSON.stringify({
                     op: "order_create",
                     sid: 1,
                     p: price,
                     q: 1,
-                    side: side,
+                    side: Math.random() > 0.5 ? "BUY" : "SELL",
                     cid: Date.now() + Math.floor(Math.random() * 1000)
                 }));
-            }, 1); // 每 1ms 發送一筆，單個 VU 約 1000 TPS
+            }, 10); // 稍微放慢到 10ms (每 VU 100 TPS)，先確認管線通暢
         });
 
         socket.on('close', () => console.log('WS connection closed'));

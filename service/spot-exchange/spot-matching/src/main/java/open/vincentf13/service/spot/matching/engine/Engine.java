@@ -55,6 +55,8 @@ public class Engine extends Worker {
         log.info("Engine 啟動完成，當前模式: {}", isReplaying ? "REPLAYING" : "REAL-TIME");
     }
 
+    private long lastMetricsTime = 0;
+
     @Override
     protected int doWork() {
         boolean success = tailer.readDocument(walReader);
@@ -66,6 +68,13 @@ public class Engine extends Worker {
         Storage.self().metricsHistory().compute(Storage.KEY_POLL_COUNT, (k, v) -> v == null ? 1L : v + 1);
         if (success) {
             Storage.self().metricsHistory().compute(Storage.KEY_WORK_COUNT, (k, v) -> v == null ? 1L : v + 1);
+        }
+
+        // --- 每秒自動紀錄 TPS 總量 (即便沒有成交也能顯示位點) ---
+        long now = System.currentTimeMillis() / 1000;
+        if (now > lastMetricsTime) {
+            Storage.self().metricsHistory().put(now, OrderBook.TOTAL_MATCH_COUNT.get());
+            lastMetricsTime = now;
         }
 
         return success ? 1 : 0;

@@ -23,7 +23,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 public class OrderBook {
-    private static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
+    public static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
     // 全域共享物件池：加固為執行緒安全容器
