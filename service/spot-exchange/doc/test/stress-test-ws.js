@@ -22,19 +22,33 @@ export default function () {
                 uid: uid
             }));
 
-            // 2. 地毯式下單
+            // 2. 地毯式下單 (對沖模式：一買一賣確保平衡)
             socket.setInterval(function () {
-                const price = 100; 
+                const price = 100;
+                const cid = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+                
+                // 發送買單
                 socket.send(JSON.stringify({
                     op: "order_create",
                     uid: uid,
-                    sid: 1001, // 修正為 1001 (BTCUSDT)
+                    sid: 1001,
                     p: price,
                     q: 1,
-                    side: Math.random() > 0.5 ? "BUY" : "SELL",
-                    cid: Date.now() + Math.floor(Math.random() * 1000)
+                    side: "BUY",
+                    cid: cid
                 }));
-            }, 10); 
+
+                // 立即發送對應的賣單 (確保成交)
+                socket.send(JSON.stringify({
+                    op: "order_create",
+                    uid: uid,
+                    sid: 1001,
+                    p: price,
+                    q: 1,
+                    side: "SELL",
+                    cid: cid + 1
+                }));
+            }, 1); 
         });
 
         socket.on('close', () => console.log('WS connection closed'));

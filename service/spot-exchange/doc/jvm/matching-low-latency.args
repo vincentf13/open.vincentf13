@@ -58,7 +58,10 @@
 -Djava.util.concurrent.ForkJoinPool.common.parallelism=1
 -Daeron.threading.mode=DEDICATED
 -Daeron.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy
--Daeron.term.buffer.length=67108864
+-Daeron.term.buffer.length=134217728
+-Daeron.ipc.term.buffer.length=134217728
+-Daeron.publication.unblock.timeout.ns=10000000
 -Daeron.pre.touch.mapped.memory=true
+-Daeron.mtu.length=8192
 -ea
 -XX:+ShowCodeDetailsInExceptionMessages

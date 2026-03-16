@@ -47,7 +47,11 @@
 -Dnetty.worker.count=2
 -Dio.netty.leakDetection.level=disabled
 -Daeron.threading.mode=DEDICATED
--Daeron.publication.term.buffer.length=67108864
+-Daeron.publication.term.buffer.length=134217728
+-Daeron.term.buffer.length=134217728
+-Daeron.ipc.term.buffer.length=134217728
+-Daeron.mtu.length=8192
+-Daeron.pre.touch.mapped.memory=true
 -Daeron.socket.so_sndbuf=2097152
 -Daeron.socket.so_rcvbuf=2097152
 -Daeron.rcv.initial.window.length=2097152
