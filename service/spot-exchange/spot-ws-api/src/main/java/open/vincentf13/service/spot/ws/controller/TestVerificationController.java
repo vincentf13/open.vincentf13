@@ -67,13 +67,22 @@ public class TestVerificationController {
 
     @GetMapping("/metrics/tps")
     public Map<Long, Long> getTpsHistory() {
-        Map<Long, Long> history = new TreeMap<>(java.util.Collections.reverseOrder());
-        Storage.self().metricsHistory().forEach(history::put);
-        return history;
+        // 使用 TreeMap 進行自動倒序排序
+        TreeMap<Long, Long> sortedHistory = new TreeMap<>(java.util.Collections.reverseOrder());
+        Storage.self().metricsHistory().forEach(sortedHistory::put);
+        
+        // 使用 LinkedHashMap 固化順序，確保 Jackson 序列化時不會被打亂
+        Map<Long, Long> result = new java.util.LinkedHashMap<>();
+        // 移除內部的 poll/work count 指標，只保留秒級 TPS
+        sortedHistory.forEach((k, v) -> {
+            if (k > 0) result.put(k, v);
+        });
+        return result;
     }
 
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
+        // 從 metricsHistory 中提取特殊的負數 Key
         long pollCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_POLL_COUNT, 0L);
         long workCount = Storage.self().metricsHistory().getOrDefault(Storage.KEY_WORK_COUNT, 0L);
         double ratio = pollCount == 0 ? 0 : (double) workCount / pollCount * 100.0;

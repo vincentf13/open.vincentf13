@@ -42,7 +42,8 @@ public class AeronReceiver extends AbstractAeronReceiver {
         // 使用 writingDocument(false) 進行 RAW 寫入，避開 Wire 標頭干擾
         try (DocumentContext dc = wal.acquireAppender().writingDocument(false)) {
             net.openhft.chronicle.bytes.Bytes<?> bytes = dc.wire().bytes();
-            // 注意：Aeron 的內容已經包含 [Len][Type][Seq...]，所以不需要額外寫長度
+            // 關鍵：補回 Length (4 bytes)，因為 CommandRouter.routeRaw 會讀取它
+            bytes.writeInt(length);
             bytes.write(pointer);
         }
     }
