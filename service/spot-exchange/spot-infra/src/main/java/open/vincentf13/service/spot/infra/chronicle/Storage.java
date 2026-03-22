@@ -139,7 +139,7 @@ public class Storage {
                 .single(dir + q.getPath())
                 .indexCount(1024)
                 .indexSpacing(256) // 從 1024 降至 256，加速線性掃描
-                .syncMode(net.openhft.chronicle.bytes.SyncMode.SYNC) 
+                .syncMode(net.openhft.chronicle.bytes.SyncMode.ASYNC) 
                 .build();
     }
 

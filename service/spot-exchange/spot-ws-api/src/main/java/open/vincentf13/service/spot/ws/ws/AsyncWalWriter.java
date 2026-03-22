@@ -23,9 +23,12 @@ public class AsyncWalWriter extends Worker {
     private final ManyToOneRingBuffer queue = Storage.self().gatewayWalQueue();
     private net.openhft.chronicle.queue.ExcerptAppender appender;
     
+    // 批次處理參數
+    private static final int BATCH_SIZE = 1024;
+    
     // 性能優化：將 MessageHandler 定義為成員變數，避免 doWork 每次建立 Lambda 物件
     private final MessageHandler handler = (msgTypeId, buffer, offset, length) -> {
-        // DocumentContext 是 Chronicle Queue 內部的重用物件，分配壓力較小
+        // 使用 DocumentContext 進行高效寫入
         try (DocumentContext dc = appender.writingDocument()) {
             final var context = open.vincentf13.service.spot.infra.alloc.ThreadContext.get();
             final var pointer = context.getReusablePointer();
@@ -48,13 +51,26 @@ public class AsyncWalWriter extends Worker {
     @Override
     protected void onStart() {
         this.appender = wal.acquireAppender();
-        log.info("Async WAL Writer (Ultra-Throughput) started");
+        log.info("Async WAL Writer (Group-Commit enabled) started");
     }
 
     @Override
     protected int doWork() {
-        // 每次只讀 1 筆以保證強一致性，但使用預定義的 handler 消除分配
-        return queue.read(handler, 1); 
+        // 方案一：Group Commit (組提交)
+        // 1. 嘗試從 RingBuffer 批量讀取最多 BATCH_SIZE 筆訊息
+        int readCount = queue.read(handler, BATCH_SIZE);
+        
+        // 2. 如果有數據寫入，執行一次強制的磁碟同步 (攤提 fsync 開銷)
+        if (readCount > 0) {
+            // Chronicle Queue 底層通常是 MappedBytes，我們需要將其轉型以調用 force()
+            // 這能確保這批次的所有數據都確實落盤
+            final var bytes = appender.wire().bytes();
+            if (bytes instanceof net.openhft.chronicle.bytes.MappedBytes mappedBytes) {
+                mappedBytes.force();
+            }
+        }
+        
+        return readCount;
     }
 
     @Override
