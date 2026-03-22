@@ -94,13 +94,15 @@ public class NettyServer {
         @Override
         public Thread newThread(Runnable r) {
             int currentIdx = counter.getAndIncrement();
-            return new Thread(() -> {
+            // 延遲綁定策略：在 Runnable 執行時才進行綁定，確保執行緒已完全啟動
+            Runnable bindingTask = () -> {
                 int cpuId = AffinityUtil.acquireAndBind();
                 if (cpuId != -1 && metricKeys != null && currentIdx < metricKeys.length) {
                     Storage.self().metricsHistory().put(metricKeys[currentIdx], (long) cpuId);
                 }
                 r.run();
-            }, prefix + "-" + (currentIdx + 1));
+            };
+            return new Thread(bindingTask, prefix + "-" + (currentIdx + 1));
         }
     }
 }

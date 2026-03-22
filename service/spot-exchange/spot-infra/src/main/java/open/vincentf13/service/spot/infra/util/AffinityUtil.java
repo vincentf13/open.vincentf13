@@ -16,6 +16,9 @@ public class AffinityUtil {
     
     // 用於在本 JVM 內部遞增分配核心，確保不同 Worker 盡量分開
     private static final AtomicInteger assignedWorkerCount = new AtomicInteger(0);
+    
+    // 防止同一個執行緒重複執行綁定邏輯 (Netty Worker 等執行緒池場景)
+    private static final ThreadLocal<Boolean> isBound = ThreadLocal.withInitial(() -> false);
 
     /**
      * 在進程允許的核心範圍內，自動分配並綁定一個核心
@@ -31,6 +34,9 @@ public class AffinityUtil {
      * @return 實際綁定的核心 ID
      */
     public static int acquireAndBind(int preferredCore) {
+        if (isBound.get()) {
+            return -1; // 已綁定過，不再重複綁定
+        }
         try {
             BitSet affinity = Affinity.getAffinity();
             int totalAvailableInMask = affinity.cardinality();
@@ -61,6 +67,8 @@ public class AffinityUtil {
                 BitSet nextAffinity = new BitSet();
                 nextAffinity.set(targetCore);
                 Affinity.setAffinity(nextAffinity);
+                
+                isBound.set(true);
 
                 log.info("[AFFINITY] 執行緒 [{}] 成功綁定至物理核心: {} (Mask 總數: {})", 
                          Thread.currentThread().getName(), targetCore, totalAvailableInMask);
