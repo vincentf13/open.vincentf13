@@ -98,13 +98,13 @@ Start-Sleep 5
 if ($e.HasExited) { Write-Error "Matching 失敗！請查看 $log_dir\matching_err.log"; return }
 if ($g.HasExited) { Write-Error "Gateway 失敗！請檢查 $log_dir\gw_err.log"; return }
 
-Write-Host "所有服務就緒。正在啟動 k6 極限壓測模式 (500 VUs)..."
+Write-Host "所有服務就緒。正在啟動 k6 平衡壓測模式 (200 VUs)..."
 Set-Location "$base_path\service\spot-exchange\doc\test"
 
 # 優化 k6 運行參數
 $k6_args = @(
     "run",
-    "--vus", "500",
+    "--vus", "200",
     "--duration", "60s",
     "stress-test-ws.js"
 )

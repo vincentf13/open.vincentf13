@@ -3,7 +3,7 @@ import { check } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 500, 
+    vus: 200, // 回退至穩定的 200 並發
     duration: '1m',
     discardResponseBodies: true,
 };
@@ -55,11 +55,11 @@ export default function () {
         socket.on('open', function () {
             socket.sendBinary(authBuf);
 
-            // 激進連發策略：每次觸發發送 200 筆 (100買 100賣)
-            // 補償定時器不精準的問題
+            // 平衡連發策略：每次發送 20 筆 (10買 10賣)
+            // 這種強度對 JS 事件循環更友好
             socket.setInterval(function () {
                 const ts = BigInt(Date.now());
-                for (let i = 0; i < 100; i++) {
+                for (let i = 0; i < 10; i++) {
                     // BUY
                     view.setBigInt64(20, ts, true);
                     view.setBigInt64(28, BigInt(uid), true);
@@ -91,7 +91,6 @@ export function teardown() {
         console.log(`================================================`);
         console.log(`[STRESS] 最終引擎 Work: ${data.engine_work_count}`);
         console.log(`[STRESS] 最終 Netty Recv: ${data.netty_recv_count}`);
-        console.log(`[STRESS] 引擎飽和度: ${data.engine_saturation}`);
         console.log(`================================================`);
     }
 }
