@@ -18,8 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存訂單簿 (OrderBook) - 背景落地優化版
- 職責：領域狀態機，管理撮合、持久化同步與容器回收
+ 內存訂單簿 (OrderBook) - 極致性能優化版
  */
 @Slf4j
 public class OrderBook {
@@ -55,7 +54,6 @@ public class OrderBook {
     private final ChronicleMap<Long, byte[]> userActiveOrdersDiskMap = Storage.self().userActiveOrders();
     private final ChronicleMap<Long, Trade> tradeHistoryDiskMap = Storage.self().trades();
     
-    // 背景緩衝區 (Agrona Maps)
     private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>();
     private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>();
     private final LongHashSet pendingActiveRemovals = new LongHashSet();
@@ -66,11 +64,8 @@ public class OrderBook {
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
     private final Long2ObjectHashMap<Deque<Order>> priceLevelIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
-    
-    // --- 性能優化：用戶活躍訂單快速索引 (消除 O(N) 掃描) ---
     private final Long2ObjectHashMap<LongHashSet> userOrderIdsIndex = new Long2ObjectHashMap<>(4096, 0.5f);
 
-    private final Trade reusableTrade = new Trade();
     private static final Order SCAN_REUSABLE = new Order();
 
     public interface TradeFinalizer {
@@ -83,9 +78,6 @@ public class OrderBook {
         this.quoteAssetId = quoteAssetId;
     }
 
-    /** 
-      背景落地：由 Engine 執行緒調用
-     */
     public void flush() {
         if (!pendingOrders.isEmpty()) { pendingOrders.forEach(allOrdersDiskMap::put); pendingOrders.clear(); }
         if (!pendingTrades.isEmpty()) { pendingTrades.forEach(tradeHistoryDiskMap::put); pendingTrades.clear(); }
@@ -99,15 +91,13 @@ public class OrderBook {
     }
 
     private void syncUserActiveToDisk(long userId) {
-        // 性能優化：從快速索引獲取，不再掃描全表
         LongHashSet activeIds = userOrderIdsIndex.get(userId);
-        
         if (activeIds == null || activeIds.isEmpty()) {
             userActiveOrdersDiskMap.remove(userId);
         } else {
             byte[] bytes = new byte[activeIds.size() * 8];
             java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(bytes);
-            activeIds.forEach(buf::putLong); // LongHashSet 直接遍歷
+            activeIds.forEach(buf::putLong);
             userActiveOrdersDiskMap.put(userId, bytes);
         }
     }
@@ -188,7 +178,6 @@ public class OrderBook {
                 if (maker.getFilled() == maker.getQty()) {
                     syncOrder(maker, gwSeq);
                     orderIndex.remove(maker.getOrderId());
-                    // 從用戶索引移除
                     LongHashSet set = userOrderIdsIndex.get(maker.getUserId());
                     if (set != null) set.remove(maker.getOrderId());
                     releaseOrder(makers.pollFirst()); 
@@ -218,8 +207,6 @@ public class OrderBook {
         }
         level.addLast(order);
         orderIndex.put(order.getOrderId(), order);
-        
-        // 更新用戶索引
         userOrderIdsIndex.computeIfAbsent(order.getUserId(), k -> new LongHashSet(16)).add(order.getOrderId());
     }
 
@@ -229,19 +216,16 @@ public class OrderBook {
         o.setVersion(o.getVersion() + 1); o.setLastSeq(gwSeq);
         
         pendingOrders.put(o.getOrderId(), o);
-        
         final long uid = o.getUserId();
         final long oid = o.getOrderId();
         
         if (o.getStatus() < 2) {
             pendingActiveAdds.add(oid);
             pendingActiveRemovals.remove(oid);
-            // 確保進入活躍清單
             userOrderIdsIndex.computeIfAbsent(uid, k -> new LongHashSet(16)).add(oid);
         } else {
             pendingActiveRemovals.add(oid);
             pendingActiveAdds.remove(oid);
-            // 從用戶索引移除
             LongHashSet set = userOrderIdsIndex.get(uid);
             if (set != null) set.remove(oid);
         }
@@ -263,11 +247,8 @@ public class OrderBook {
             }
             pendingActiveRemovals.add(orderId);
             pendingUserActiveChanged.add(o.getUserId());
-            
-            // 從用戶索引移除
             LongHashSet set = userOrderIdsIndex.get(o.getUserId());
             if (set != null) set.remove(orderId);
-            
             releaseOrder(o);
         }
     }

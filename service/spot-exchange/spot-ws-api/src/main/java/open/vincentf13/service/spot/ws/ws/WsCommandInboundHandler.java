@@ -148,7 +148,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 sessionManager.addSession(holder.getUserId(), ctx.channel());
                 AuthCommand cmd = context.getAuthCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
-                cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId());
+                cmd.set(MSG_SEQ_NONE, open.vincentf13.service.spot.infra.util.Clock.now(), holder.getUserId());
                 asyncWrite(cmd);
             }
             case "order_create" -> {
@@ -157,21 +157,21 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 open.vincentf13.service.spot.sbe.Side side = "BUY".equalsIgnoreCase(holder.getSide()) ? open.vincentf13.service.spot.sbe.Side.BUY : open.vincentf13.service.spot.sbe.Side.SELL;
                 OrderCreateCommand cmd = context.getOrderCreateCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
-                cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
+                cmd.set(MSG_SEQ_NONE, open.vincentf13.service.spot.infra.util.Clock.now(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
                 asyncWrite(cmd);
             }
             case "order_cancel" -> {
                 log.debug("[GATEWAY] 處理 ORDER_CANCEL: uid={}, oid={}", holder.getUserId(), holder.getOrderId());
                 OrderCancelCommand cmd = context.getOrderCancelCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
-                cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getOrderId());
+                cmd.set(MSG_SEQ_NONE, open.vincentf13.service.spot.infra.util.Clock.now(), holder.getUserId(), holder.getOrderId());
                 asyncWrite(cmd);
             }
             case "deposit" -> {
                 log.debug("[GATEWAY] 處理 DEPOSIT: uid={}, aid={}, amt={}", holder.getUserId(), holder.getAssetId(), holder.getAmount());
                 DepositCommand cmd = context.getDepositCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
-                cmd.set(MSG_SEQ_NONE, System.currentTimeMillis(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
+                cmd.set(MSG_SEQ_NONE, open.vincentf13.service.spot.infra.util.Clock.now(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
                 asyncWrite(cmd);
             }
         }

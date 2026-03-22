@@ -53,14 +53,14 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     }
 
     /** 核心入口：處理下單指令 */
-    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
+    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
         final ThreadContext context = ThreadContext.get();
         final CidKey cidKey = context.getRequestHolder().getCidKey(); 
         cidKey.set(userId, clientOrderId);
 
         // 1. 布隆過濾器快速判定：如果判定為絕對不存在於磁碟
         if (!cidBloomFilter.mightContain(cidKey)) {
-            handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, orderIdSupplier.get(), tradeIdSupplier);
+            handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, orderIdSupplier.get(), tradeIdSupplier);
             // 此處暫時不 put，在 handleOrderCreate 成功後再 put
             return;
         }
@@ -71,7 +71,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             return;
         }
 
-        handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, orderIdSupplier.get(), tradeIdSupplier);
+        handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, orderIdSupplier.get(), tradeIdSupplier);
     }
 
     /** 處理撤單指令 */

@@ -73,7 +73,7 @@ public class Engine extends Worker {
         // --- 性能優化：智慧型落地策略 ---
         // 1. 有數據處理時才嘗試落地
         // 2. 或是距離上次落地已超過 10ms (不再基於昂貴的 pollCount % 100)
-        long now = System.currentTimeMillis();
+        long now = open.vincentf13.service.spot.infra.util.Clock.now();
         if (done > 0 || (now - lastFlushTime > 10)) {
             ledger.flush();
             for (OrderBook book : OrderBook.getInstances()) {
@@ -91,7 +91,9 @@ public class Engine extends Worker {
     }
 
     private void onMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
-        long seq = router.route(msgType, buffer, offset, length, progress::getAndIncrOrderId, progress::getAndIncrTradeId);
+        // 按照 AbstractSbeModel 定義，Timestamp 在第 12 個位元組之後
+        final long gatewayTime = buffer.getLong(offset + 12);
+        long seq = router.route(msgType, buffer, offset, length, gatewayTime, progress::getAndIncrOrderId, progress::getAndIncrTradeId);
         if (seq != MSG_SEQ_NONE) {
             if (seq != progress.getLastProcessedMsgSeq() + 1 && progress.getLastProcessedMsgSeq() != MSG_SEQ_NONE) {
                 log.error("指令跳號！期望: {}, 實際: {}", progress.getLastProcessedMsgSeq() + 1, seq);
