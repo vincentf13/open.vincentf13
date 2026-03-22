@@ -39,7 +39,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     public void coldStartRebuild() {
         log.warn("未檢測到有效內存快照，正在執行耗時的全量磁碟掃描以恢復狀態...");
-        OrderBook.rebuildAll();
+        OrderBook.rebuildActiveOrdersIndexes();
     }
 
     /** 核心入口：處理下單指令 */

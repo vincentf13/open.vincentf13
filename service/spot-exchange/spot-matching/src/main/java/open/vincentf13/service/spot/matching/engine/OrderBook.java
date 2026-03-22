@@ -42,6 +42,10 @@ public class OrderBook {
         });
     }
 
+    public static Collection<OrderBook> getInstances() {
+        return INSTANCES.values();
+    }
+
     private final int symbolId;
     private final int baseAssetId;
     private final int quoteAssetId;
@@ -255,7 +259,7 @@ public class OrderBook {
     public int getBaseAssetId() { return baseAssetId; }
     public int getQuoteAssetId() { return quoteAssetId; }
 
-    public static void rebuildAll() {
+    public static void rebuildActiveOrdersIndexes() {
         ChronicleMap<Long, Order> allOrders = Storage.self().orders();
         Storage.self().activeOrders().forEach((id, active) -> {
             Order o = allOrders.getUsing(id, SCAN_REUSABLE);

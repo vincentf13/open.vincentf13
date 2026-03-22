@@ -168,4 +168,18 @@ public class Ledger {
         bitmaskCache.forEach(userAssetBitmaskDiskMap::put);
         log.info("✅ 帳本資產索引重建完成。");
     }
+
+    public boolean hasAsset(long userId, int assetId) {
+        if (assetId >= 0 && assetId < 64) {
+            long mask = pendingBitmasks.get(userId);
+            if (mask == 0) mask = bitmaskCache.get(userId);
+            return (mask & (1L << assetId)) != 0;
+        }
+        reusableKey.set(userId, assetId);
+        return pendingBalances.containsKey(reusableKey) || balancesDiskMap.containsKey(reusableKey);
+    }
+
+    public void initAccount(long userId, int assetId, long seq) {
+        access(userId, assetId, 0, 0, seq, 0);
+    }
 }
