@@ -99,8 +99,11 @@ Write-Host "Gateway (PID: 「**$($g.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
 # --- 7. 啟動 k6 極限壓測 (CPU 13-15, Mask: 57344) ---
-if ($e.HasExited) { Write-Error "Matching 失敗！請查看 $log_dir\matching_err.log"; return }
-if ($g.HasExited) { Write-Error "Gateway 失敗！請檢查 $log_dir\gw_err.log"; return }
+if ($e.HasExited) { Write-Error "Matching 失敗！"; return }
+if ($g.HasExited) { Write-Error "Gateway 失敗！"; return }
+
+$log_dir = "$doc_path\test\log"
+if (-not (Test-Path $log_dir)) { New-Item -ItemType Directory -Path $log_dir }
 
 Write-Host "所有服務就緒。正在啟動 k6 超級壓測模式 (100 VUs, 6-Cores Heavy Burst)..."
 Set-Location "$base_path\service\spot-exchange\doc\test"
