@@ -1,7 +1,12 @@
+  請複製以下內容到對應的 VM options：
+   * MatchingApp: @service/spot-exchange/doc/jvm/matching-low-latency.args
+   * WsApiApp: @service/spot-exchange/doc/jvm/ws-api-throughput.args
+
 ```powershell
 # 1. 嚴格變數定義
 $m_t = "C:\iProject\open.vincentf13\service\spot-exchange\spot-matching\target"
 $m_dest = Join-Path $m_t "extracted"
+$aeron_dir = "C:\iProject\open.vincentf13\data\spot-exchange\aeron"
 
 # 2. 安全閘門：如果變數為空或長度過短，直接中斷執行
 if ([string]::IsNullOrWhiteSpace($m_dest) -or $m_dest.Length -lt 10) {
@@ -18,10 +23,23 @@ if (Test-Path $m_dest) {
 }
 
 # 4. 執行 Layer 提取
-java -Djarmode=layertools -jar "$m_t\spot-matching.jar" extract --destination "$m_dest/"
+if (Test-Path "$m_t\spot-matching.jar") {
+    java -Djarmode=layertools -jar "$m_t\spot-matching.jar" extract --destination "$m_dest/"
+} else {
+    Write-Error "找不到 spot-matching.jar，請先執行 mvn package。"
+    exit
+}
 
-# 5. 啟動 Media Driver
-Write-Host "Starting Standalone Media Driver on CPU 0-1..."
+# 5. 確保 Aeron 目錄存在並清理舊的信號文件（防止殘留干擾）
+if (-not (Test-Path $aeron_dir)) {
+    New-Item -ItemType Directory -Path $aeron_dir -Force | Out-Null
+} else {
+    # 僅清理信號文件，保留目錄
+    Remove-Item (Join-Path $aeron_dir "*") -Force -Recurse -ErrorAction SilentlyContinue
+}
+
+# 6. 啟動 Media Driver
+Write-Host "Starting Standalone Media Driver at $aeron_dir..."
 $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
 
 if ($null -eq $aeron_jar_item) {
@@ -36,7 +54,7 @@ $driver_args = @(
     "-Xms512m",
     "-Xmx512m",
     "-cp", "$aeron_jar",
-    "-Daeron.dir=aeron_dir",
+    "-Daeron.dir=$aeron_dir",
     "io.aeron.driver.MediaDriver"
 )
 
