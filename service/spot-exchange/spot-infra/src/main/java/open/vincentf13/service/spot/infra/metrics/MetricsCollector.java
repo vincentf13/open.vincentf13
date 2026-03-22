@@ -16,8 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MetricsCollector {
 
     // 核心優化：使用陣列存放熱點計數器，Key 映射到索引 (絕對值)
-    // 假設 MetricsKey 都在 -1 到 -100 之間
-    private static final int MAX_METRICS = 128;
+    // 考慮到 GC 指標在 -300 左右，我們將容量擴大至 512
+    private static final int MAX_METRICS = 512;
     private static final LongAdder[] COUNTER_ARRAY = new LongAdder[MAX_METRICS];
     
     // 絕對值緩衝 (非熱點，保留 Map)

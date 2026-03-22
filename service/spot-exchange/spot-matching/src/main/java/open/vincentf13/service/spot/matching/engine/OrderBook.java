@@ -26,10 +26,14 @@ public class OrderBook {
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
     private static final Deque<Order> GLOBAL_ORDER_POOL = new ConcurrentLinkedDeque<>();
+    private static final Deque<Trade> GLOBAL_TRADE_POOL = new ConcurrentLinkedDeque<>();
     private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ConcurrentLinkedDeque<>();
 
     static {
-        for (int i = 0; i < MatchingConfig.INITIAL_POOL_SIZE; i++) GLOBAL_ORDER_POOL.add(new Order());
+        for (int i = 0; i < MatchingConfig.INITIAL_POOL_SIZE; i++) {
+            GLOBAL_ORDER_POOL.add(new Order());
+            GLOBAL_TRADE_POOL.add(new Trade());
+        }
         for (int i = 0; i < 10000; i++) GLOBAL_DEQUE_POOL.add(new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY));
     }
 
@@ -80,7 +84,13 @@ public class OrderBook {
 
     public void flush() {
         if (!pendingOrders.isEmpty()) { pendingOrders.forEach(allOrdersDiskMap::put); pendingOrders.clear(); }
-        if (!pendingTrades.isEmpty()) { pendingTrades.forEach(tradeHistoryDiskMap::put); pendingTrades.clear(); }
+        if (!pendingTrades.isEmpty()) { 
+            pendingTrades.forEach((id, t) -> {
+                tradeHistoryDiskMap.put(id, t);
+                releaseTrade(t);
+            }); 
+            pendingTrades.clear(); 
+        }
         if (!pendingActiveAdds.isEmpty()) { pendingActiveAdds.forEach(id -> activeOrderIdDiskMap.put(id, Boolean.TRUE)); pendingActiveAdds.clear(); }
         if (!pendingActiveRemovals.isEmpty()) { pendingActiveRemovals.forEach(activeOrderIdDiskMap::remove); pendingActiveRemovals.clear(); }
         
@@ -125,6 +135,13 @@ public class OrderBook {
 
     public void releaseOrder(Order o) { if (o != null) GLOBAL_ORDER_POOL.addLast(o); }
 
+    private Trade borrowTrade() {
+        Trade t = GLOBAL_TRADE_POOL.pollFirst();
+        return (t == null) ? new Trade() : t;
+    }
+
+    private void releaseTrade(Trade t) { if (t != null) GLOBAL_TRADE_POOL.addLast(t); }
+
     public Order handleCreate(long orderId, long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long timestamp, long gwSeq,
                              Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
         Order taker = borrowAndFill(orderId, userId, symbolId, price, qty, side, clientOrderId, gwSeq);
@@ -163,7 +180,7 @@ public class OrderBook {
                 long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
                 long tid = tradeIdSupplier.get();
                 
-                Trade t = new Trade();
+                Trade t = borrowTrade();
                 t.setTradeId(tid); t.setOrderId(maker.getOrderId());
                 t.setPrice(bestPrice); t.setQty(matchQty);
                 t.setTime(timestamp); t.setLastSeq(gwSeq);

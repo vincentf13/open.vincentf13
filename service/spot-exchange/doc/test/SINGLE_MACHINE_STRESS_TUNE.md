@@ -112,7 +112,7 @@ $env:GOMAXPROCS = "6"
 $k6_args = @(
     "run",
     "--vus", "100",
-    "--duration", "60s",
+    "--duration", "300s",
     "stress-test-ws.js"
 )
 
