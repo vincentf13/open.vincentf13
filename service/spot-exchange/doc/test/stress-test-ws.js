@@ -3,7 +3,7 @@ import { check } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 40, // 大幅減少 VU，降低 OS 調度開銷
+    vus: 100, // 增加 VU 數量以提高並發連接數與整體壓力
     duration: '1m',
     discardResponseBodies: true,
 };
@@ -56,9 +56,9 @@ export default function () {
             // --- 極限優化：飽和攻擊 (修正版) ---
             socket.setInterval(function () {
                 const ts = BigInt(Date.now());
-                // 大幅增加每批次發送量 (100 BUY + 100 SELL = 200 messages)
-                // 這是為了繞過 Windows 15ms-32ms 的定時器精準度限制
-                for (let i = 0; i < 100; i++) {
+                // 進一步提升每批次發送量 (250 BUY + 250 SELL = 500 messages)
+                // 搭配 100 VUs，理論上能輕易打滿 100k+ TPS 的壓力
+                for (let i = 0; i < 250; i++) {
                     // BUY
                     view.setBigInt64(20, ts, true);
                     view.setBigInt64(28, BigInt(uid), true);
