@@ -26,7 +26,7 @@ public class CommandRouter {
     private final DepositProcessor depositProcessor;
 
     /** 從 RingBuffer 讀取並分發：直接處理 DirectBuffer */
-    public long route(int msgType, DirectBuffer buffer, int offset, int length, long timestamp, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
+    public long route(int msgType, DirectBuffer buffer, int offset, int length, long timestamp, open.vincentf13.service.spot.model.WalProgress progress) {
         if (length <= 0) return MSG_SEQ_NONE;
 
         final long address = getAddress(buffer, offset);
@@ -42,7 +42,7 @@ public class CommandRouter {
             case MsgType.ORDER_CREATE -> {
                 OrderCreateCommand cmd = ctx.getOrderCreateCommand();
                 cmd.wrap(address, length);
-                orderProcessor.processCreateCommand(cmd.getUserId(), cmd.getSymbolId(), cmd.getPrice(), cmd.getQty(), cmd.getSide(), cmd.getClientOrderId(), cmd.getSeq(), timestamp, orderIdSupplier, tradeIdSupplier);
+                orderProcessor.processCreateCommand(cmd.getUserId(), cmd.getSymbolId(), cmd.getPrice(), cmd.getQty(), cmd.getSide(), cmd.getClientOrderId(), cmd.getSeq(), timestamp, progress);
                 yield cmd.getSeq();
             }
             case MsgType.ORDER_CANCEL -> {

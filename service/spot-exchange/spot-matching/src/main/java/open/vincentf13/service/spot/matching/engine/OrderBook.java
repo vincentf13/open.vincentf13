@@ -22,7 +22,10 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 public class OrderBook {
-    public static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
+    // 性能優化：移除全域 AtomicLong，改為局部彙總非同步彙報
+    private static long localMatchCounter = 0;
+    private static final int METRICS_BATCH_SIZE = 10000;
+    
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
     private static final Deque<Order> GLOBAL_ORDER_POOL = new ConcurrentLinkedDeque<>();
@@ -106,31 +109,9 @@ public class OrderBook {
         if (!pendingActiveAdds.isEmpty()) { pendingActiveAdds.forEach(id -> activeOrderIdDiskMap.put(id, Boolean.TRUE)); pendingActiveAdds.clear(); }
         if (!pendingActiveRemovals.isEmpty()) { pendingActiveRemovals.forEach(activeOrderIdDiskMap::remove); pendingActiveRemovals.clear(); }
         
+        // 性能優化：移除 userActiveOrdersDiskMap 寫入，經確認該功能目前無外部依賴且 I/O 負重高
         if (!pendingUserActiveChanged.isEmpty()) {
-            pendingUserActiveChanged.forEach(this::syncUserActiveToDisk);
             pendingUserActiveChanged.clear();
-        }
-    }
-
-    private void syncUserActiveToDisk(long userId) {
-        LongHashSet activeIds = userOrderIdsIndex.get(userId);
-        if (activeIds == null || activeIds.isEmpty()) {
-            userActiveOrdersDiskMap.remove(userId);
-        } else {
-            int size = activeIds.size();
-            int bytesNeeded = size * 8;
-            if (bytesNeeded > userActiveBuffer.length) {
-                // 極端情況：用戶掛單超過 1024 個，降級為分配新數組
-                byte[] largeBuf = new byte[bytesNeeded];
-                java.nio.ByteBuffer lbb = java.nio.ByteBuffer.wrap(largeBuf);
-                activeIds.forEach(lbb::putLong);
-                userActiveOrdersDiskMap.put(userId, largeBuf);
-            } else {
-                userActiveByteBuffer.clear();
-                activeIds.forEach(userActiveByteBuffer::putLong);
-                // ChronicleMap 存儲 byte[] 會拷貝，使用 copyOf 確保長度正確
-                userActiveOrdersDiskMap.put(userId, Arrays.copyOf(userActiveBuffer, bytesNeeded));
-            }
         }
     }
 
@@ -165,9 +146,9 @@ public class OrderBook {
     private void releaseTrade(Trade t) { if (t != null) GLOBAL_TRADE_POOL.addLast(t); }
 
     public Order handleCreate(long orderId, long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long timestamp, long gwSeq,
-                             Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
+                             open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
         Order taker = borrowAndFill(orderId, userId, symbolId, price, qty, side, clientOrderId, gwSeq);
-        match(taker, gwSeq, timestamp, tradeIdSupplier, finalizer);
+        match(taker, gwSeq, timestamp, progress, finalizer);
         syncOrder(taker, gwSeq);
         return taker;
     }
@@ -182,7 +163,7 @@ public class OrderBook {
         return o;
     }
 
-    private void match(Order taker, long gwSeq, long timestamp, Supplier<Long> tradeIdSupplier, TradeFinalizer finalizer) {
+    private void match(Order taker, long gwSeq, long timestamp, open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
         final boolean isBuy = taker.getSide() == OrderSide.BUY;
         final TreeMap<Long, Deque<Order>> counterSide = isBuy ? asks : bids;
         final long takerPrice = taker.getPrice();
@@ -190,7 +171,6 @@ public class OrderBook {
         while (taker.getQty() > taker.getFilled()) {
             if (counterSide.isEmpty()) break;
             
-            // 性能優化：在內部循環中儘可能複用 price level
             final long bestPrice = counterSide.firstKey();
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
@@ -208,7 +188,7 @@ public class OrderBook {
                 }
 
                 long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
-                long tid = tradeIdSupplier.get();
+                long tid = progress.getAndIncrTradeId();
                 
                 Trade t = borrowTrade();
                 t.setTradeId(tid); t.setOrderId(maker.getOrderId());
@@ -219,7 +199,12 @@ public class OrderBook {
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
                 
-                TOTAL_MATCH_COUNT.incrementAndGet();
+                // 性能優化：每 1 萬筆才非同步寫入指標，減少非同步消息隊列壓力
+                if (++localMatchCounter >= METRICS_BATCH_SIZE) {
+                    open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(timestamp / 1000, localMatchCounter);
+                    localMatchCounter = 0;
+                }
+                
                 finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
 
                 if (maker.getFilled() == maker.getQty()) {
@@ -255,7 +240,14 @@ public class OrderBook {
         }
         level.addLast(order);
         orderIndex.put(order.getOrderId(), order);
-        userOrderIdsIndex.computeIfAbsent(order.getUserId(), k -> new LongHashSet(16)).add(order.getOrderId());
+        
+        long uid = order.getUserId();
+        LongHashSet set = userOrderIdsIndex.get(uid);
+        if (set == null) {
+            set = new LongHashSet(16);
+            userOrderIdsIndex.put(uid, set);
+        }
+        set.add(order.getOrderId());
     }
 
     public void syncOrder(Order o, long gwSeq) {
@@ -270,7 +262,12 @@ public class OrderBook {
         if (o.getStatus() < 2) {
             pendingActiveAdds.add(oid);
             pendingActiveRemovals.remove(oid);
-            userOrderIdsIndex.computeIfAbsent(uid, k -> new LongHashSet(16)).add(oid);
+            LongHashSet set = userOrderIdsIndex.get(uid);
+            if (set == null) {
+                set = new LongHashSet(16);
+                userOrderIdsIndex.put(uid, set);
+            }
+            set.add(oid);
         } else {
             pendingActiveRemovals.add(oid);
             pendingActiveAdds.remove(oid);

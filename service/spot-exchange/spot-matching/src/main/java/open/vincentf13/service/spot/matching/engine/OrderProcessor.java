@@ -27,8 +27,12 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final ChronicleMap<Long, Order> orders = Storage.self().orders();
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
     
-    // --- 性能優化：冪等鍵寫緩衝 (消除熱點路徑同步 I/O) ---
-    private final java.util.Map<CidKey, Long> pendingCids = new java.util.HashMap<>(2000);
+    // --- 性能優化：冪等鍵寫緩衝 (零對象分配 Circular Buffer 版) ---
+    private static final int BUFFER_SIZE = 4096;
+    private final long[] pendingUids = new long[BUFFER_SIZE];
+    private final long[] pendingCidsArr = new long[BUFFER_SIZE];
+    private final long[] pendingOids = new long[BUFFER_SIZE];
+    private int bufferCount = 0;
     
     // --- 性能優化：內存布隆過濾器 (減少磁碟 I/O 停頓) ---
     private final com.google.common.hash.BloomFilter<CidKey> cidBloomFilter = com.google.common.hash.BloomFilter.create(
@@ -45,16 +49,19 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     @PostConstruct
     public void init() { 
         log.info("OrderProcessor 初始化完成，正在預熱布隆過濾器..."); 
-        // 預熱布隆過濾器，數據量大時建議異步，但在撮合引擎啟動階段同步是安全的
         clientOrderIdDiskMap.keySet().forEach(cidBloomFilter::put);
         log.info("布隆過濾器預熱完成。");
     }
 
-    /** 核心落地：將緩衝的冪等鍵批量寫入磁碟 */
+    /** 核心落地：將緩衝的冪等鍵批量寫入磁碟，並歸還 CidKey 物件池 */
     public void flush() {
-        if (!pendingCids.isEmpty()) {
-            pendingCids.forEach(clientOrderIdDiskMap::put);
-            pendingCids.clear();
+        if (bufferCount > 0) {
+            CidKey reusable = new CidKey();
+            for (int i = 0; i < bufferCount; i++) {
+                reusable.set(pendingUids[i], pendingCidsArr[i]);
+                clientOrderIdDiskMap.put(reusable, pendingOids[i]);
+            }
+            bufferCount = 0;
         }
     }
 
@@ -64,25 +71,27 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     }
 
     /** 核心入口：處理下單指令 */
-    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, Supplier<Long> orderIdSupplier, LongSupplier tradeIdSupplier) {
+    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, 
+                                   open.vincentf13.service.spot.model.WalProgress progress) {
         final ThreadContext context = ThreadContext.get();
         final CidKey cidKey = context.getRequestHolder().getCidKey(); 
         cidKey.set(userId, clientOrderId);
 
-        // 1. 布隆過濾器快速判定：如果判定為絕對不存在於磁碟
+        // 1. 檢查當前記憶體緩衝區 (10ms 內的最熱點，防重複下單)
+        for (int i = 0; i < bufferCount; i++) {
+            if (pendingUids[i] == userId && pendingCidsArr[i] == clientOrderId) return;
+        }
+
+        // 2. 布隆過濾器快速判定
         if (!cidBloomFilter.mightContain(cidKey)) {
-            handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, orderIdSupplier.get(), tradeIdSupplier);
-            // 此處暫時不 put，在 handleOrderCreate 成功後再 put
+            handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress.getAndIncrOrderId(), progress);
             return;
         }
 
-        // 2. 磁碟 Map 查詢：僅在布隆過濾器判定為 "可能存在" 時執行 (處理 False Positive)
-        if (clientOrderIdDiskMap.containsKey(cidKey)) {
-            log.debug("[IDEMPOTENCY] 攔截到重複訂單: uid={}, cid={}", userId, clientOrderId);
-            return;
-        }
+        // 3. 磁碟 Map 查詢 (僅在布隆過濾器判定為 "可能存在" 時執行)
+        if (clientOrderIdDiskMap.containsKey(cidKey)) return;
 
-        handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, orderIdSupplier.get(), tradeIdSupplier);
+        handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress.getAndIncrOrderId(), progress);
     }
 
     /** 處理撤單指令 */
@@ -90,74 +99,62 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         final ThreadContext context = ThreadContext.get();
         Order order = orders.getUsing(orderId, context.getReusableOrder());
         
-        // 1. 基礎校驗
-        if (order == null || order.getUserId() != userId || order.getStatus() >= OrderStatus.FILLED.ordinal()) {
-            return;
-        }
+        if (order == null || order.getUserId() != userId || order.getStatus() >= OrderStatus.FILLED.ordinal()) return;
 
-        // 2. 從 OrderBook 移除
         OrderBook book = OrderBook.get(order.getSymbolId());
         book.remove(orderId);
 
-        // 3. 資產解凍
         int assetId = (order.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
         long remainingQty = order.getQty() - order.getFilled();
         long unfreezeAmount = (order.getSide() == OrderSide.BUY) ? DecimalUtil.mulFloor(order.getPrice(), remainingQty) : remainingQty;
         ledger.unfreezeBalance(order.getUserId(), assetId, unfreezeAmount, gatewaySequence);
 
-        // 4. 更新狀態
         order.setStatus((byte) OrderStatus.CANCELED.ordinal());
         order.setLastSeq(gatewaySequence);
         orders.put(orderId, order);
-
-        // 5. 發送回報
         reporter.reportCanceled(order);
     }
 
     /** 實作 TradeFinalizer 接口以複用 */
     @Override
     public void onMatch(long tradeId, Order maker, long tradePrice, long tradeQty, int baseAsset, int quoteAsset) {
-        // 成交結算
         ledger.settleTrade(maker.getUserId(), currentTakerUserId, tradePrice, tradeQty, currentTakerSide, tradePrice, currentGatewaySequence, baseAsset, quoteAsset, tradeId);
     }
 
-    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, long orderId, LongSupplier tradeIdSupplier) {
+    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, long orderId, 
+                                 open.vincentf13.service.spot.model.WalProgress progress) {
         final ThreadContext context = ThreadContext.get();
-        // 1. 凍結資產
         OrderBook book = OrderBook.get(symbolId);
         int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId(); 
         long freezeAmount = (side == Side.BUY) ? DecimalUtil.mulCeil(price, quantity) : quantity;
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
-            // --- 壓測優化：自動充值 (10 億單位) ---
-            log.debug("[TEST-FUNDING] 用戶 {} 資產 {} 不足，自動充值並重試", userId, assetId);
             ledger.increaseAvailable(userId, assetId, 1_000_000_000L, gatewaySequence);
             if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
-                log.error("[ORDER-REJECT] 自動充值後凍結依然失敗: uid={}, asset={}", userId, assetId);
                 reporter.reportRejected(userId, clientOrderId);
                 return;
             }
         }
 
-        // 2. 設置當前 Taker 上下文供 onMatch 使用
         this.currentTakerUserId = userId;
         this.currentTakerSide = (byte) (side == Side.BUY ? OrderSide.BUY : OrderSide.SELL);
         this.currentGatewaySequence = gatewaySequence;
 
         // 3. 進入 OrderBook 撮合
-        Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, tradeIdSupplier::getAsLong, this);
+        Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, progress, this);
 
         // 4. 寫入客戶端訂單 ID 映射緩衝 與 更新布隆過濾器
-        // 性能優化：不再直接 put，而是放入 pendingCids 緩衝，並從池中借用對象
-        CidKey takerCid = OrderBook.borrowCid();
+        if (bufferCount < BUFFER_SIZE) {
+            pendingUids[bufferCount] = userId;
+            pendingCidsArr[bufferCount] = clientOrderId;
+            pendingOids[bufferCount] = orderId;
+            bufferCount++;
+        }
+        
+        final CidKey takerCid = context.getRequestHolder().getCidKey();
         takerCid.set(userId, clientOrderId);
-        pendingCids.put(takerCid, orderId);
         cidBloomFilter.put(takerCid);
 
-        // 5. 發送回報 (Accepted)
-        // 性能優化：直接使用 book.handleCreate 返回的對象，不再調用 orders.get(orderId) 觸發額外分配與磁碟 IO
-        if (taker != null) {
-            reporter.reportAccepted(taker);
-        }
+        if (taker != null) reporter.reportAccepted(taker);
     }
 }

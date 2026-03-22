@@ -32,7 +32,11 @@ public class Engine extends Worker {
 
     private long lastMetricsSec = 0;
     private long lastFlushTime = 0;
-    private long pollCount = 0, workCount = 0;
+    
+    // 性能優化：局部計數器，每 1 萬筆才彙報非同步指標
+    private long localPollCount = 0, localWorkCount = 0;
+    private static final int METRICS_BATCH_SIZE = 10000;
+    
     private static final int BATCH_SIZE = Matching.ENGINE_BATCH_SIZE;
 
     @PostConstruct public void init() { start("core-matching-engine"); }
@@ -43,9 +47,7 @@ public class Engine extends Worker {
 
     @Override protected void onStart() {
         log.info("執行冷啟動索引重建與預熱...");
-        // 1. 強制重置本地計數與 Metrics 磁碟存儲
-        pollCount = 0;
-        workCount = 0;
+        // 1. 重置指標
         MetricsCollector.set(MetricsKey.POLL_COUNT, 0L);
         MetricsCollector.set(MetricsKey.WORK_COUNT, 0L);
         MetricsCollector.set(MetricsKey.AERON_DROPPED_COUNT, 0L);
@@ -62,18 +64,24 @@ public class Engine extends Worker {
 
     @Override protected int doWork() {
         int done = Storage.self().engineWorkQueue().read(handler, BATCH_SIZE);
-        workCount += done;
         
-        // 只有當開始處理真實數據後 (workCount > 1)，才開始累計 pollCount
-        // 這樣可以更精準觀察在高負載期間的 Poll/Work 比例
-        if (workCount > 1) {
-            pollCount++;
+        // 性能優化：每 1 萬次才彙報非同步指標
+        if (done > 0) {
+            localWorkCount += done;
+            if (localWorkCount >= METRICS_BATCH_SIZE) {
+                MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
+                localWorkCount = 0;
+            }
+        }
+        
+        if (++localPollCount >= METRICS_BATCH_SIZE) {
+            MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
+            localPollCount = 0;
         }
 
         // --- 性能優化：智慧型落地策略 ---
-        // 修正：將落地頻率調整為 10ms (在高 TPS 下 1ms 太頻繁)，並加入 orderProcessor 落地
         long now = open.vincentf13.service.spot.infra.util.Clock.now();
-        if (now - lastFlushTime >= 10) {
+        if (now - lastFlushTime >= 20) {
             ledger.flush();
             orderProcessor.flush();
             for (OrderBook book : OrderBook.getInstances()) {
@@ -87,19 +95,23 @@ public class Engine extends Worker {
             updateMetrics(nowSec);
             lastMetricsSec = nowSec;
         }
-        return done > 0 ? 1 : 0;
+        
+        if (done == 0) {
+            Thread.onSpinWait(); 
+            return 0;
+        }
+        return 1;
     }
 
     private void onMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
         // 按照 AbstractSbeModel 定義，Timestamp 在第 12 個位元組之後
         final long gatewayTime = buffer.getLong(offset + 12);
-        long seq = router.route(msgType, buffer, offset, length, gatewayTime, progress::getAndIncrOrderId, progress::getAndIncrTradeId);
+        long seq = router.route(msgType, buffer, offset, length, gatewayTime, progress);
         if (seq != MSG_SEQ_NONE) {
             if (seq != progress.getLastProcessedMsgSeq() + 1 && progress.getLastProcessedMsgSeq() != MSG_SEQ_NONE) {
                 log.error("指令跳號！期望: {}, 實際: {}", progress.getLastProcessedMsgSeq() + 1, seq);
             }
             progress.setLastProcessedMsgSeq(seq);
-            // 減少 MetaData 寫入頻率 (每 1000 筆才寫一次磁碟，正常關閉時會寫最後一次)
             if (seq % 1000 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
         }
     }
@@ -108,12 +120,8 @@ public class Engine extends Worker {
         Runtime r = Runtime.getRuntime();
         MetricsCollector.set(MetricsKey.MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
         MetricsCollector.set(MetricsKey.MATCHING_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
-        MetricsCollector.set(nowSec, OrderBook.TOTAL_MATCH_COUNT.get());
         
-        // --- 變更：改為累計值，不再每秒歸零 ---
-        MetricsCollector.set(MetricsKey.POLL_COUNT, pollCount);
-        MetricsCollector.set(MetricsKey.WORK_COUNT, workCount);
-        // pollCount = workCount = 0; // 移除這行
+        // 成交計數已在 OrderBook 局部累積彙報
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));
