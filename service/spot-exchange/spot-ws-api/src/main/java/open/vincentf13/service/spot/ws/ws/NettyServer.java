@@ -54,6 +54,12 @@ public class NettyServer {
                 ServerBootstrap b = new ServerBootstrap();
                 b.group(bossGroup, workerGroup)
                  .channel(NioServerSocketChannel.class)
+                 // --- 性能優化：Socket 選項 ---
+                 .option(io.netty.channel.ChannelOption.SO_BACKLOG, 8192) // 處理爆發連線
+                 .option(io.netty.channel.ChannelOption.SO_REUSEADDR, true)
+                 .childOption(io.netty.channel.ChannelOption.TCP_NODELAY, true) // 關閉 Nagle，低延遲關鍵
+                 .childOption(io.netty.channel.ChannelOption.SO_KEEPALIVE, true)
+                 .childOption(io.netty.channel.ChannelOption.ALLOCATOR, io.netty.buffer.PooledByteBufAllocator.DEFAULT) // 強制使用內存池
                  .childHandler(new ChannelInitializer<SocketChannel>() {
                      @Override
                      protected void initChannel(SocketChannel ch) {

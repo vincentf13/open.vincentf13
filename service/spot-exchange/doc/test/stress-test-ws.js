@@ -1,9 +1,9 @@
 import ws from 'k6/ws';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 200, // 回退至穩定的 200 並發
+    vus: 200, 
     duration: '1m',
     discardResponseBodies: true,
 };
@@ -55,11 +55,12 @@ export default function () {
         socket.on('open', function () {
             socket.sendBinary(authBuf);
 
-            // 平衡連發策略：每次發送 20 筆 (10買 10賣)
-            // 這種強度對 JS 事件循環更友好
-            socket.setInterval(function () {
+            // --- 飽和攻擊優化：取代 setInterval ---
+            // 使用 while 循環配合 sleep(0) 觸發 k6 極限吞吐
+            while (true) {
                 const ts = BigInt(Date.now());
-                for (let i = 0; i < 10; i++) {
+                // 單次迭代發送 50 筆，減少 JS 事件循環開銷
+                for (let i = 0; i < 25; i++) {
                     // BUY
                     view.setBigInt64(20, ts, true);
                     view.setBigInt64(28, BigInt(uid), true);
@@ -74,7 +75,9 @@ export default function () {
                     view.setBigInt64(57, BigInt(++cidCounter), true);
                     socket.sendBinary(buffer);
                 }
-            }, 1);
+                // sleep(0) 允許 k6 切換協程，避免死鎖
+                sleep(0);
+            }
         });
 
         socket.on('error', (e) => console.error(`[VU ${__VU}] WS Error: ${e.error()}`));
@@ -91,6 +94,7 @@ export function teardown() {
         console.log(`================================================`);
         console.log(`[STRESS] 最終引擎 Work: ${data.engine_work_count}`);
         console.log(`[STRESS] 最終 Netty Recv: ${data.netty_recv_count}`);
+        console.log(`[STRESS] 引擎飽和度: ${data.engine_saturation}`);
         console.log(`================================================`);
     }
 }

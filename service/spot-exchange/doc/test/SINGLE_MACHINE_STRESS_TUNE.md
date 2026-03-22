@@ -58,6 +58,10 @@ $driver_args = @(
     "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
     "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
     "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
+    "-Daeron.term.buffer.length=16m",
+    "-Daeron.ipc.term.buffer.length=32m",
+    "-Daeron.socket.so_sndbuf=2m",
+    "-Daeron.socket.so_rcvbuf=2m",
     "-Daeron.dir=$aeron_dir",
     "io.aeron.driver.MediaDriver"
 )

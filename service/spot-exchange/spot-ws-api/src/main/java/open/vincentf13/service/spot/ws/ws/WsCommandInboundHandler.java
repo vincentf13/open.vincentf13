@@ -86,12 +86,12 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             sessionManager.addSession(userId, ctx.channel());
         }
 
-        // 直接將二進制數據推入 RingBuffer (零拷貝轉發)
+        // 直接將二進制數據推入 RingBuffer (零對象開銷轉發)
         int index = gatewayWalQueue.tryClaim(msgType, length);
         if (index > 0) {
             try {
-                // 使用執行緒安全的 getBytes 將數據直接拷貝到 RingBuffer 的物理地址
-                gatewayWalQueue.buffer().putBytes(index, content.nioBuffer(content.readerIndex(), length), 0, length);
+                // 優化：直接從 ByteBuf 複製數據到 RingBuffer 的 Buffer 地址，不建立 nioBuffer 對象
+                content.getBytes(content.readerIndex(), gatewayWalQueue.buffer().byteBuffer(), index, length);
             } finally {
                 gatewayWalQueue.commit(index);
             }
