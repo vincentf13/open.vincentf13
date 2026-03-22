@@ -86,12 +86,24 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             sessionManager.addSession(userId, ctx.channel());
         }
 
-        // 直接將二進制數據推入 RingBuffer (零對象開銷轉發)
+        // 直接將二進制數據推入 RingBuffer (極致性能：物理記憶體零拷貝轉發)
         int index = gatewayWalQueue.tryClaim(msgType, length);
         if (index > 0) {
             try {
-                // 優化：直接從 ByteBuf 複製數據到 RingBuffer 的 Buffer 地址，不建立 nioBuffer 對象
-                content.getBytes(content.readerIndex(), gatewayWalQueue.buffer().byteBuffer(), index, length);
+                // 如果是直接記憶體，使用 Unsafe 進行物理拷貝，避開所有中間對象
+                if (content.hasMemoryAddress()) {
+                    org.agrona.UnsafeAccess.UNSAFE.copyMemory(
+                        content.memoryAddress() + content.readerIndex(),
+                        gatewayWalQueue.buffer().addressOffset() + index,
+                        length
+                    );
+                } else {
+                    // 備援方案：如果是 Heap Buffer (通常壓測中不會出現)
+                    content.getBytes(content.readerIndex(), gatewayWalQueue.buffer().byteBuffer(), index, length);
+                }
+            } catch (Exception e) {
+                // 處理可能出現的 getBytes 不匹配 (補救措施)
+                content.getBytes(content.readerIndex(), gatewayWalQueue.buffer().byteBuffer().position(index), length);
             } finally {
                 gatewayWalQueue.commit(index);
             }
