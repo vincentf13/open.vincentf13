@@ -29,7 +29,7 @@ public class Ledger {
     private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
     
     // 待落地標記優化：使用原始類型陣列替代 HashSet，消除物件分配與陣列歸零壓力
-    private final long[] dirtyQueue = new long[32768]; 
+    private final long[] dirtyQueue = new long[128000]; 
     private int dirtyCount = 0;
     private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
 

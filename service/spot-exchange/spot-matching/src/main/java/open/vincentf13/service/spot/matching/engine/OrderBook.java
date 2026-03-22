@@ -10,9 +10,6 @@ import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.LongHashSet;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.function.Supplier;
-
 import java.util.concurrent.atomic.AtomicLong;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -25,18 +22,21 @@ public class OrderBook {
     public static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
-    private static final Deque<Order> GLOBAL_ORDER_POOL = new ConcurrentLinkedDeque<>();
-    private static final Deque<Trade> GLOBAL_TRADE_POOL = new ConcurrentLinkedDeque<>();
-    private static final Deque<open.vincentf13.service.spot.model.CidKey> GLOBAL_CID_POOL = new ConcurrentLinkedDeque<>();
-    private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ConcurrentLinkedDeque<>();
+    // 性能優化：改用非同步安全但無 Node 分配開銷的池容器 (撮合引擎為單執行緒)
+    private static final Deque<Order> GLOBAL_ORDER_POOL = new ArrayDeque<>(200_000);
+    private static final Deque<Trade> GLOBAL_TRADE_POOL = new ArrayDeque<>(20_000);
+    private static final Deque<open.vincentf13.service.spot.model.CidKey> GLOBAL_CID_POOL = new ArrayDeque<>(20_000);
+    private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ArrayDeque<>(10_000);
 
     static {
-        // 性能優化：大幅擴大物件池容量，應對高頻率分配，減少 GC 壓力
-        for (int i = 0; i < 500_000; i++) {
+        // 性能優化：預分配物件，減少啟動後 GC
+        for (int i = 0; i < 200_000; i++) {
             GLOBAL_ORDER_POOL.add(new Order());
-            if (i < 100_000) {
+            if (i < 20_000) {
                 GLOBAL_TRADE_POOL.add(new Trade());
                 GLOBAL_CID_POOL.add(new open.vincentf13.service.spot.model.CidKey());
+            }
+            if (i < 10_000) {
                 GLOBAL_DEQUE_POOL.add(new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY));
             }
         }
@@ -69,10 +69,10 @@ public class OrderBook {
     private final ChronicleMap<Long, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
     private final ChronicleMap<Long, Trade> tradeHistoryDiskMap = Storage.self().trades();
     
-    private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>(8192, 0.5f);
-    private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>(16384, 0.5f);
-    private final LongHashSet pendingActiveRemovals = new LongHashSet(4096);
-    private final LongHashSet pendingActiveAdds = new LongHashSet(4096);
+    private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>(16384, 0.5f);
+    private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>(32768, 0.5f);
+    private final LongHashSet pendingActiveRemovals = new LongHashSet(8192);
+    private final LongHashSet pendingActiveAdds = new LongHashSet(8192);
 
     private final TreeMap<Long, Deque<Order>> bids = new TreeMap<>(Collections.reverseOrder());
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
@@ -93,7 +93,13 @@ public class OrderBook {
     }
 
     public void flush() {
-        if (!pendingOrders.isEmpty()) { pendingOrders.forEach(allOrdersDiskMap::put); pendingOrders.clear(); }
+        if (!pendingOrders.isEmpty()) { 
+            pendingOrders.forEach((id, o) -> {
+                allOrdersDiskMap.put(id, o);
+                if (o.getStatus() >= 2) releaseOrder(o);
+            });
+            pendingOrders.clear(); 
+        }
         if (!pendingTrades.isEmpty()) { 
             pendingTrades.forEach((id, t) -> {
                 tradeHistoryDiskMap.put(id, t);
@@ -140,13 +146,6 @@ public class OrderBook {
         Order taker = borrowAndFill(orderId, userId, symbolId, price, qty, side, clientOrderId, gwSeq);
         match(taker, gwSeq, timestamp, progress, finalizer);
         syncOrder(taker, gwSeq);
-        
-        // 性能優化：如果 taker 已經完全成交 (Status == 2) 且並未掛在簿上 (orderIndex)
-        // 則代表此物件的生命週期結束，必須在此立即歸還池中，否則會造成物件池乾涸導致頻繁 GC
-        if (taker.getStatus() == 2 && !orderIndex.containsKey(taker.getOrderId())) {
-            releaseOrder(taker);
-            return null; 
-        }
         return taker;
     }
 
@@ -181,7 +180,7 @@ public class OrderBook {
             while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
                 Order maker = makers.peekFirst();
                 if (!orderIndex.containsKey(maker.getOrderId())) {
-                    releaseOrder(makers.pollFirst()); continue;
+                    makers.pollFirst(); continue; 
                 }
 
                 long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
@@ -197,7 +196,6 @@ public class OrderBook {
                 taker.setFilled(taker.getFilled() + matchQty);
                 
                 TOTAL_MATCH_COUNT.incrementAndGet();
-                
                 finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
 
                 if (maker.getFilled() == maker.getQty()) {
@@ -205,7 +203,7 @@ public class OrderBook {
                     orderIndex.remove(maker.getOrderId());
                     LongHashSet set = userOrderIdsIndex.get(maker.getUserId());
                     if (set != null) set.remove(maker.getOrderId());
-                    releaseOrder(makers.pollFirst()); 
+                    makers.pollFirst(); 
                 } else {
                     syncOrder(maker, gwSeq);
                     break;
@@ -215,7 +213,7 @@ public class OrderBook {
             if (makers.isEmpty()) {
                 counterSide.remove(bestPrice);
                 priceLevelIndex.remove(bestPrice);
-                makers.clear(); // 歸還前清空引用
+                makers.clear();
                 GLOBAL_DEQUE_POOL.addLast(makers); 
             }
         }
@@ -290,7 +288,9 @@ public class OrderBook {
             pendingActiveRemovals.add(orderId);
             LongHashSet set = userOrderIdsIndex.get(o.getUserId());
             if (set != null) set.remove(orderId);
-            releaseOrder(o);
+            
+            o.setStatus((byte) 3); // CANCELED
+            syncOrder(o, o.getLastSeq());
         }
     }
 

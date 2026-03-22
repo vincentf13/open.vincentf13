@@ -71,15 +71,16 @@ public class Engine extends Worker {
         }
 
         // --- 性能優化：智慧型落地策略 ---
-        // 修正：將落地頻率放寬至 50ms 或 累計 10,000 筆工作才落地
-        // 頻繁落地會導致嚴重的記憶體寫入壓力與磁碟 I/O 競爭
+        // 修正：將落地頻率放寬至 100ms 或 累計 50,000 筆工作才落地
+        // 將 metadata.put 也移入此處，徹底消除熱點路徑同步 I/O
         long now = open.vincentf13.service.spot.infra.util.Clock.now();
-        if (workCount % 10000 == 0 || now - lastFlushTime >= 50) {
+        if (workCount % 50000 == 0 || now - lastFlushTime >= 100) {
             ledger.flush();
             orderProcessor.flush();
             for (OrderBook book : OrderBook.getInstances()) {
                 book.flush();
             }
+            metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
             lastFlushTime = now;
         }
 
@@ -90,7 +91,6 @@ public class Engine extends Worker {
         }
         
         if (done == 0) {
-            Thread.onSpinWait(); 
             return 0;
         }
         return 1;
@@ -105,7 +105,6 @@ public class Engine extends Worker {
                 log.error("指令跳號！期望: {}, 實際: {}", progress.getLastProcessedMsgSeq() + 1, seq);
             }
             progress.setLastProcessedMsgSeq(seq);
-            if (seq % 1000 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
         }
     }
 
