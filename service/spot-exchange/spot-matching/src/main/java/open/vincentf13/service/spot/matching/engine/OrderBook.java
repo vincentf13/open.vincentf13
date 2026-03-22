@@ -31,12 +31,15 @@ public class OrderBook {
     private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ConcurrentLinkedDeque<>();
 
     static {
-        for (int i = 0; i < MatchingConfig.INITIAL_POOL_SIZE; i++) {
+        // 性能優化：大幅擴大物件池容量，應對高頻率分配，減少 GC 壓力
+        for (int i = 0; i < 500_000; i++) {
             GLOBAL_ORDER_POOL.add(new Order());
-            GLOBAL_TRADE_POOL.add(new Trade());
-            GLOBAL_CID_POOL.add(new open.vincentf13.service.spot.model.CidKey());
+            if (i < 100_000) {
+                GLOBAL_TRADE_POOL.add(new Trade());
+                GLOBAL_CID_POOL.add(new open.vincentf13.service.spot.model.CidKey());
+                GLOBAL_DEQUE_POOL.add(new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY));
+            }
         }
-        for (int i = 0; i < 10000; i++) GLOBAL_DEQUE_POOL.add(new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY));
     }
 
     public static open.vincentf13.service.spot.model.CidKey borrowCid() {
@@ -137,6 +140,13 @@ public class OrderBook {
         Order taker = borrowAndFill(orderId, userId, symbolId, price, qty, side, clientOrderId, gwSeq);
         match(taker, gwSeq, timestamp, progress, finalizer);
         syncOrder(taker, gwSeq);
+        
+        // 性能優化：如果 taker 已經完全成交 (Status == 2) 且並未掛在簿上 (orderIndex)
+        // 則代表此物件的生命週期結束，必須在此立即歸還池中，否則會造成物件池乾涸導致頻繁 GC
+        if (taker.getStatus() == 2 && !orderIndex.containsKey(taker.getOrderId())) {
+            releaseOrder(taker);
+            return null; 
+        }
         return taker;
     }
 
@@ -205,10 +215,12 @@ public class OrderBook {
             if (makers.isEmpty()) {
                 counterSide.remove(bestPrice);
                 priceLevelIndex.remove(bestPrice);
+                makers.clear(); // 歸還前清空引用
                 GLOBAL_DEQUE_POOL.addLast(makers); 
             }
         }
         if (taker.getQty() > taker.getFilled()) add(taker);
+        else taker.setStatus((byte) 2); 
     }
 
     private void add(Order order) {
@@ -218,6 +230,8 @@ public class OrderBook {
             TreeMap<Long, Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
             level = GLOBAL_DEQUE_POOL.pollFirst();
             if (level == null) level = new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY);
+            else level.clear();
+            
             levels.put(price, level);
             priceLevelIndex.put(price, level);
         }
@@ -269,6 +283,7 @@ public class OrderBook {
                     priceLevelIndex.remove(o.getPrice());
                     if (o.getSide() == OrderSide.BUY) bids.remove(o.getPrice());
                     else asks.remove(o.getPrice());
+                    level.clear();
                     GLOBAL_DEQUE_POOL.addLast(level);
                 }
             }
