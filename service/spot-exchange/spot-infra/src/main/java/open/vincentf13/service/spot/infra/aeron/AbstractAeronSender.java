@@ -82,8 +82,8 @@ public abstract class AbstractAeronSender extends Worker {
             return workDone;
         }
 
-        // 3. 處理 WAL 指令流發送 (批量優化)
-        for (int i = 0; i < 100; i++) {
+        // 3. 處理 WAL 指令流發送 (批量優化：從 100 提高到 10000)
+        for (int i = 0; i < 10000; i++) {
             if (tailer.readDocument(walReader)) {
                 workDone++;
             } else {

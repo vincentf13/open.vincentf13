@@ -2,6 +2,7 @@ package open.vincentf13.service.spot.ws.ws;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.wire.DocumentContext;
 import open.vincentf13.service.spot.infra.Worker;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /**
- * 網關異步 WAL 寫入器 (Async WAL Writer) - 批次讀取/異步刷盤版
+ * 網關異步 WAL 寫入器 (Async WAL Writer) - 批次讀取 / Raw 寫入版
  */
 @Slf4j
 @Component
@@ -23,15 +24,15 @@ public class AsyncWalWriter extends Worker {
     private final ManyToOneRingBuffer queue = Storage.self().gatewayWalQueue();
     private net.openhft.chronicle.queue.ExcerptAppender appender;
     
-    // 批次處理上限
-    private static final int BATCH_SIZE = 1024;
-    private open.vincentf13.service.spot.infra.alloc.ThreadContext threadContext;
+    // 放寬批次上限
+    private static final int BATCH_SIZE = 10000;
+    private final PointerBytesStore pointer = new PointerBytesStore();
 
-    // 性能優化：Handler 內部執行單筆 Document 寫入，確保每筆訊息擁有獨立 Index
+    // 性能優化：單筆 Document Raw 寫入，確保每筆訊息擁有獨立 Index
     private final MessageHandler handler = (msgTypeId, buffer, offset, length) -> {
         try (DocumentContext dc = appender.writingDocument()) {
-            final var pointer = threadContext.getReusablePointer();
             pointer.set(buffer.addressOffset() + offset, length);
+            // 使用 Raw 寫入，避開 Wire 協議層
             dc.wire().bytes().write(pointer);
             MetricsCollector.increment(MetricsKey.GATEWAY_WAL_WRITE_COUNT);
         }
@@ -50,14 +51,13 @@ public class AsyncWalWriter extends Worker {
     @Override
     protected void onStart() {
         this.appender = wal.acquireAppender();
-        this.threadContext = open.vincentf13.service.spot.infra.alloc.ThreadContext.get();
-        log.info("Async WAL Writer (Batch-Read / Async-Flush) started");
+        log.info("Async WAL Writer (Batch-Read / Raw-Write) started");
     }
 
     @Override
     protected int doWork() {
         // 批次從 RingBuffer 讀取並寫入 WAL
-        // 由於 Storage 配置為 ASYNC，dc.close() 不會觸發磁碟 IO 阻塞
+        // 由於 Storage 配置為 ASYNC，dc.close() 將由 OS 處理，不阻塞執行緒
         return queue.read(handler, BATCH_SIZE);
     }
 
