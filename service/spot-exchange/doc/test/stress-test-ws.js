@@ -1,9 +1,9 @@
 import ws from 'k6/ws';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 200, 
+    vus: 40, // 大幅減少 VU，降低 OS 調度開銷
     duration: '1m',
     discardResponseBodies: true,
 };
@@ -13,32 +13,30 @@ const METRICS_URL = 'http://127.0.0.1:8082/api/test/metrics/saturation';
 
 const MSG_TYPE_AUTH = 103;
 const MSG_TYPE_ORDER_CREATE = 100;
-const SBE_SCHEMA_ID = 1;
-const SBE_VERSION = 0;
 
 function createAuthBuffer(uid) {
-    const buffer = new ArrayBuffer(20 + 16);
+    const buffer = new ArrayBuffer(36);
     const view = new DataView(buffer);
     view.setInt32(0, MSG_TYPE_AUTH, true); 
     view.setBigInt64(4, BigInt(-1), true); 
     view.setUint16(12, 16, true);
     view.setUint16(14, 103, true);
-    view.setUint16(16, SBE_SCHEMA_ID, true);
-    view.setUint16(18, SBE_VERSION, true);
+    view.setUint16(16, 1, true);
+    view.setUint16(18, 0, true);
     view.setBigInt64(20, BigInt(Date.now()), true);
     view.setBigInt64(28, BigInt(uid), true);
     return buffer;
 }
 
 function createPreallocatedOrderBuffer() {
-    const buffer = new ArrayBuffer(20 + 45);
+    const buffer = new ArrayBuffer(65);
     const view = new DataView(buffer);
     view.setInt32(0, MSG_TYPE_ORDER_CREATE, true); 
     view.setBigInt64(4, BigInt(-1), true); 
     view.setUint16(12, 45, true);
     view.setUint16(14, 100, true);
-    view.setUint16(16, SBE_SCHEMA_ID, true);
-    view.setUint16(18, SBE_VERSION, true);
+    view.setUint16(16, 1, true);
+    view.setUint16(18, 0, true);
     view.setInt32(36, 1001, true); 
     view.setBigInt64(40, BigInt(100), true); 
     view.setBigInt64(48, BigInt(1), true);   
@@ -49,18 +47,19 @@ export default function () {
     const uid = __VU + 1000;
     const authBuf = createAuthBuffer(uid);
     const { buffer, view } = createPreallocatedOrderBuffer();
-    let cidCounter = Date.now() * 1000 + (__VU * 1000000);
+    let cidCounter = Date.now() * 1000 + (__VU * 10000000);
 
     const res = ws.connect(WS_URL, {}, function (socket) {
         socket.on('open', function () {
             socket.sendBinary(authBuf);
 
-            // --- 飽和攻擊優化：取代 setInterval ---
-            // 使用 while 循環配合 sleep(0) 觸發 k6 極限吞吐
-            while (true) {
+            // --- 極限優化：飽和攻擊 2.0 ---
+            // 由於 1ms 定時器不可靠，我們直接使用一個高效的定時循環
+            socket.setInterval(function () {
                 const ts = BigInt(Date.now());
-                // 單次迭代發送 50 筆，減少 JS 事件循環開銷
-                for (let i = 0; i < 25; i++) {
+                // 每次觸發直接灌入 500 筆訂單！
+                // 這能確保即使定時器被延遲，單次發送的量也足以填滿網路管道
+                for (let i = 0; i < 250; i++) {
                     // BUY
                     view.setBigInt64(20, ts, true);
                     view.setBigInt64(28, BigInt(uid), true);
@@ -75,12 +74,10 @@ export default function () {
                     view.setBigInt64(57, BigInt(++cidCounter), true);
                     socket.sendBinary(buffer);
                 }
-                // sleep(0) 允許 k6 切換協程，避免死鎖
-                sleep(0);
-            }
+            }, 1); // 這裡雖然是 1ms，但我們靠每批 500 筆來衝量
         });
 
-        socket.on('error', (e) => console.error(`[VU ${__VU}] WS Error: ${e.error()}`));
+        socket.on('error', (e) => console.error(`[VU ${__VU}] Error: ${e.error()}`));
         socket.setTimeout(function () { socket.close(); }, 58000);
     });
 
@@ -92,9 +89,9 @@ export function teardown() {
     if (res.status === 200) {
         const data = JSON.parse(res.body);
         console.log(`================================================`);
-        console.log(`[STRESS] 最終引擎 Work: ${data.engine_work_count}`);
-        console.log(`[STRESS] 最終 Netty Recv: ${data.netty_recv_count}`);
-        console.log(`[STRESS] 引擎飽和度: ${data.engine_saturation}`);
+        console.log(`[FINAL] 累計 Netty 接收: ${data.netty_recv_count}`);
+        console.log(`[FINAL] 累計引擎處理: ${data.engine_work_count}`);
+        console.log(`[FINAL] 引擎平均飽和度: ${data.engine_saturation}`);
         console.log(`================================================`);
     }
 }
