@@ -30,16 +30,14 @@
 --add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED
 --add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
 
-# --- GC 優化：Java 21 Generational ZGC (針對高分配率調優) ---
+# --- GC 優化：Java 21/23 ZGC ---
 -XX:+UseZGC
--XX:+ZGenerational
--XX:MaxGCPauseMillis=5
+-XX:MaxGCPauseMillis=2
 -XX:ZUncommitDelay=3600
-# 增加回收執行緒，Arrow Lake 有 16 核，分給 GC 多一點
 -XX:ParallelGCThreads=8
 -XX:ConcGCThreads=4
 
-# --- 記憶體配置 (調大至 10GB Heap 以吸收臨時對象) ---
+# --- 記憶體配置 (調大至 10GB Heap) ---
 -Xms10G
 -Xmx10G
 -XX:MaxDirectMemorySize=4G
@@ -55,6 +53,8 @@
 -XX:CICompilerCount=8
 -XX:MaxInlineLevel=15
 -XX:FreqInlineSize=325
+-Dio.netty.allocator.type=pooled
+-Dio.netty.recycler.maxCapacityPerThread=1024
 
 # --- 系統屬性 ---
 -Djava.net.preferIPv4Stack=true

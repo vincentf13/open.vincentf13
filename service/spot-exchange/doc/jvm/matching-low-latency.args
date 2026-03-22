@@ -30,13 +30,12 @@
 --add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED
 --add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
 
-# --- GC 優化：Java 21 Generational ZGC ---
+# --- GC 優化：Java 21/23 ZGC (移除 Windows 不支援或已棄用標記) ---
 -XX:+UseZGC
--XX:+ZGenerational
--XX:MaxGCPauseMillis=2
+-XX:MaxGCPauseMillis=1
 -XX:ZUncommitDelay=3600
--XX:ParallelGCThreads=2
--XX:ConcGCThreads=1
+-XX:ParallelGCThreads=4
+-XX:ConcGCThreads=2
 
 # --- 記憶體配置 (4GB Heap + 4GB Direct) ---
 -Xms4G
@@ -50,10 +49,11 @@
 -XX:+UnlockDiagnosticVMOptions
 -XX:GuaranteedSafepointInterval=0
 
-# --- JIT 編譯優化 ---
+# --- JIT 編譯優化 (加速 BusySpin 熱點預熱) ---
 -XX:+TieredCompilation
 -XX:TieredStopAtLevel=4
 -XX:CICompilerCount=4
+-XX:CompileThreshold=1000
 -XX:InlineSmallCode=4000
 -XX:MaxInlineLevel=15
 

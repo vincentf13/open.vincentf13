@@ -2,12 +2,10 @@ package open.vincentf13.service.spot.infra.metrics;
 
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import org.agrona.collections.Long2LongHashMap;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -21,11 +19,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class MetricsCollector {
 
-    // 內存計數器緩衝 (使用 ConcurrentHashMap 儲存 LongAdder，確保高並發無鎖)
-    private static final ConcurrentHashMap<Long, LongAdder> COUNTERS = new ConcurrentHashMap<>();
+    // 內存計數器緩衝 (使用 ConcurrentHashMap 儲存 LongAdder)
+    private static final ConcurrentHashMap<Long, LongAdder> COUNTERS = new ConcurrentHashMap<>(128);
     
     // 絕對值緩衝 (如 JVM 記憶體、CPU 負載)
-    private static final ConcurrentHashMap<Long, Long> GAUGES = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Long, Long> GAUGES = new ConcurrentHashMap<>(128);
 
     // 唯一的背景定時刷盤執行器
     private static final ScheduledExecutorService FLUSHER = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -42,10 +40,15 @@ public class MetricsCollector {
 
     /**
      * 極速計數：遞增 1
-     * 無對象分配，無鎖
+     * 性能優化：避免在熱點路徑調用 computeIfAbsent (其內部有裝箱開銷)
      */
     public static void increment(long key) {
-        COUNTERS.computeIfAbsent(key, k -> new LongAdder()).increment();
+        LongAdder adder = COUNTERS.get(key);
+        if (adder == null) {
+            // 只有初始化時才會有一次裝箱開銷
+            adder = COUNTERS.computeIfAbsent(key, k -> new LongAdder());
+        }
+        adder.increment();
     }
 
     /**
@@ -53,7 +56,11 @@ public class MetricsCollector {
      */
     public static void add(long key, long delta) {
         if (delta <= 0) return;
-        COUNTERS.computeIfAbsent(key, k -> new LongAdder()).add(delta);
+        LongAdder adder = COUNTERS.get(key);
+        if (adder == null) {
+            adder = COUNTERS.computeIfAbsent(key, k -> new LongAdder());
+        }
+        adder.add(delta);
     }
 
     /**
@@ -81,6 +88,7 @@ public class MetricsCollector {
             COUNTERS.forEach((key, adder) -> {
                 long sum = adder.sumThenReset();
                 if (sum > 0) {
+                    // 同步到持久化磁碟 Map
                     metricsMap.compute(key, (k, v) -> v == null ? sum : v + sum);
                 }
             });
@@ -89,7 +97,6 @@ public class MetricsCollector {
             GAUGES.forEach(metricsMap::put);
             
         } catch (Exception e) {
-            // 防止定時任務因異常中斷
             log.error("[METRICS-FLUSH-ERROR] {}", e.getMessage());
         }
     }
