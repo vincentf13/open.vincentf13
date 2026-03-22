@@ -61,10 +61,6 @@ public class AeronSender extends AbstractAeronSender {
         }
     }
 
-    private long localSendCount = 0;
-    private long localBackpressureCount = 0;
-    private static final int METRICS_BATCH_SIZE = 10000;
-
     @Override
     public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();
@@ -97,17 +93,10 @@ public class AeronSender extends AbstractAeronSender {
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
 
-            // --- 性能優化：批量指標統計 ---
-            localSendCount++;
-            localBackpressureCount += backpressure;
-            
-            if (localSendCount >= METRICS_BATCH_SIZE) {
-                MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, localSendCount);
-                if (localBackpressureCount > 0) {
-                    MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackpressureCount);
-                }
-                localSendCount = 0;
-                localBackpressureCount = 0;
+            // --- 簡化：直接呼叫，內部自動批量 ---
+            MetricsCollector.increment(MetricsKey.AERON_SEND_COUNT);
+            if (backpressure > 0) {
+                MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, backpressure);
             }
             
             bytes.readSkip((long) payloadLen);

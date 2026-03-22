@@ -2,51 +2,65 @@ package open.vincentf13.service.spot.infra.metrics;
 
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import org.agrona.collections.Long2LongHashMap;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 統一監控埋點工具類 (Metrics Collector)
- * 採用異步模式，確保統計行為不影響主交易線程效能
+ * 統一監控指標管理器 (Metrics Manager) - 高性能批處理版
+ * 職責：
+ * 1. 提供極低延遲的埋點 API (increment/add/set)
+ * 2. 內部自動緩衝，避免頻繁觸發非同步任務
+ * 3. 統一背景線程每 100ms 定時刷盤，徹底消除 I/O 競爭與 GC 壓力
  */
 @Slf4j
 public class MetricsCollector {
 
-    // 使用單線程異步執行器，保證指標寫入 Chronicle Map 的順序性且不阻塞主線程
-    private static final Executor METRICS_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "metrics-collector");
+    // 內存計數器緩衝 (使用 ConcurrentHashMap 儲存 LongAdder，確保高並發無鎖)
+    private static final ConcurrentHashMap<Long, LongAdder> COUNTERS = new ConcurrentHashMap<>();
+    
+    // 絕對值緩衝 (如 JVM 記憶體、CPU 負載)
+    private static final ConcurrentHashMap<Long, Long> GAUGES = new ConcurrentHashMap<>();
+
+    // 唯一的背景定時刷盤執行器
+    private static final ScheduledExecutorService FLUSHER = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "metrics-flusher");
         t.setDaemon(true);
         t.setPriority(Thread.MIN_PRIORITY);
         return t;
     });
 
-    /**
-     * 異步更新計數器 (如 netty_recv_count, engine_work_count)
-     */
-    public static void increment(long key) {
-        METRICS_EXECUTOR.execute(() -> {
-            Storage.self().metricsHistory().compute(key, (k, v) -> v == null ? 1L : v + 1);
-        });
+    static {
+        // 每 100ms 執行一次批量刷盤
+        FLUSHER.scheduleAtFixedRate(MetricsCollector::flush, 100, 100, TimeUnit.MILLISECONDS);
     }
 
     /**
-     * 異步增加特定數值 (如 backpressure_count)
+     * 極速計數：遞增 1
+     * 無對象分配，無鎖
+     */
+    public static void increment(long key) {
+        COUNTERS.computeIfAbsent(key, k -> new LongAdder()).increment();
+    }
+
+    /**
+     * 極速計數：增加 delta
      */
     public static void add(long key, long delta) {
         if (delta <= 0) return;
-        METRICS_EXECUTOR.execute(() -> {
-            Storage.self().metricsHistory().compute(key, (k, v) -> v == null ? delta : v + delta);
-        });
+        COUNTERS.computeIfAbsent(key, k -> new LongAdder()).add(delta);
     }
 
     /**
-     * 異步設置絕對數值 (如 jvm_memory_used)
+     * 設置絕對值 (Gauge)
      */
     public static void set(long key, long value) {
-        METRICS_EXECUTOR.execute(() -> {
-            Storage.self().metricsHistory().put(key, value);
-        });
+        GAUGES.put(key, value);
     }
 
     /**
@@ -54,5 +68,38 @@ public class MetricsCollector {
      */
     public static void recordCpuAffinity(long key, int cpuId) {
         set(key, (long) cpuId);
+    }
+
+    /**
+     * 核心動作：將內存數據批量同步至 Chronicle Map (磁碟)
+     */
+    private static void flush() {
+        try {
+            var metricsMap = Storage.self().metricsHistory();
+            
+            // 1. 處理累計器 (Counters)
+            COUNTERS.forEach((key, adder) -> {
+                long sum = adder.sumThenReset();
+                if (sum > 0) {
+                    metricsMap.compute(key, (k, v) -> v == null ? sum : v + sum);
+                }
+            });
+
+            // 2. 處理絕對值 (Gauges)
+            GAUGES.forEach(metricsMap::put);
+            
+        } catch (Exception e) {
+            // 防止定時任務因異常中斷
+            log.error("[METRICS-FLUSH-ERROR] {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * 停機前強制刷盤
+     */
+    public static void shutdown() {
+        log.info("MetricsManager 正在執行最後一次刷盤...");
+        flush();
+        FLUSHER.shutdown();
     }
 }
