@@ -24,17 +24,17 @@ public class AsyncWalWriter extends Worker {
     private final ManyToOneRingBuffer queue = Storage.self().gatewayWalQueue();
     private net.openhft.chronicle.queue.ExcerptAppender appender;
     
-    // 放寬批次上限
-    private static final int BATCH_SIZE = 10000;
+    // 放寬批次上限至 50000 以應對極端 Netty 吞吐量
+    private static final int BATCH_SIZE = 50000;
     private final PointerBytesStore pointer = new PointerBytesStore();
 
     // 性能優化：單筆 Document Raw 寫入，確保每筆訊息擁有獨立 Index
     private final MessageHandler handler = (msgTypeId, buffer, offset, length) -> {
-        appender.writeBytes(b -> {
+        try (DocumentContext dc = appender.writingDocument()) {
             pointer.set(buffer.addressOffset() + offset, length);
             // 使用 Raw 寫入，避開 Wire 協議層
-            b.write(pointer);
-        });
+            dc.wire().bytes().write(pointer);
+        }
     };
 
     @PostConstruct
@@ -53,13 +53,20 @@ public class AsyncWalWriter extends Worker {
         log.info("Async WAL Writer (Batch-Read / Raw-Write) started");
     }
 
+    private long localWalWriteCount = 0;
+    private static final int METRICS_BATCH_SIZE = 50000;
+
     @Override
     protected int doWork() {
         // 批次從 RingBuffer 讀取並寫入 WAL
         // 由於 Storage 配置為 ASYNC，寫入將由 OS 背景刷新，不阻塞執行緒
         int count = queue.read(handler, BATCH_SIZE);
         if (count > 0) {
-            MetricsCollector.add(MetricsKey.GATEWAY_WAL_WRITE_COUNT, count);
+            localWalWriteCount += count;
+            if (localWalWriteCount >= METRICS_BATCH_SIZE) {
+                MetricsCollector.add(MetricsKey.GATEWAY_WAL_WRITE_COUNT, localWalWriteCount);
+                localWalWriteCount = 0;
+            }
         }
         return count;
     }

@@ -38,6 +38,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     }
 
     private long localNettyRecvCount = 0;
+    private long localWalDropCount = 0;
     private static final int METRICS_BATCH_SIZE = 10000;
 
     @Override
@@ -109,7 +110,11 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 gatewayWalQueue.commit(index);
             }
         } else {
-            MetricsCollector.increment(MetricsKey.GATEWAY_WAL_DROP_COUNT);
+            localWalDropCount++;
+            if (localWalDropCount >= METRICS_BATCH_SIZE) {
+                MetricsCollector.add(MetricsKey.GATEWAY_WAL_DROP_COUNT, localWalDropCount);
+                localWalDropCount = 0;
+            }
         }
     }
 
@@ -197,7 +202,11 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             }
             log.debug("[GATEWAY-WS] 訊息已推入 RingBuffer 佇列, type={}, len={}", msgType, length);
         } else {
-            MetricsCollector.increment(MetricsKey.GATEWAY_WAL_DROP_COUNT);
+            localWalDropCount++;
+            if (localWalDropCount >= METRICS_BATCH_SIZE) {
+                MetricsCollector.add(MetricsKey.GATEWAY_WAL_DROP_COUNT, localWalDropCount);
+                localWalDropCount = 0;
+            }
         }
     }
     @Override
