@@ -131,6 +131,7 @@ public class Constants {
         public static final long AERON_BACKPRESSURE = -4L;
         public static final long GATEWAY_WAL_WRITE_COUNT = -5L;
         public static final long AERON_SEND_COUNT = -6L;
+        public static final long AERON_DROPPED_COUNT = -7L; // 新增：丟包計數指標
 
         // CPU ID 監測指標 (執行緒綁核追蹤)
         public static final long CPU_ID_ENGINE = -100L;
