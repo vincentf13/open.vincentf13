@@ -61,9 +61,14 @@ public class Engine extends Worker {
     }
 
     @Override protected int doWork() {
-        pollCount++;
         int done = Storage.self().engineWorkQueue().read(handler, BATCH_SIZE);
         workCount += done;
+        
+        // 只有當開始處理真實數據後 (workCount > 1)，才開始累計 pollCount
+        // 這樣可以更精準觀察在高負載期間的 Poll/Work 比例
+        if (workCount > 1) {
+            pollCount++;
+        }
 
         // --- 性能優化：智慧型落地策略 ---
         // 1. 有數據處理時才嘗試落地

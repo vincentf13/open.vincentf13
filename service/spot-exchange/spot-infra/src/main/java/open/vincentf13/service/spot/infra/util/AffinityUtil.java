@@ -26,7 +26,7 @@ public class AffinityUtil {
     }
 
     /**
-     * 綁定指定核心，或自動分配
+     * 綁定指定核心，或根據 Mask 自動循環分配
      * @param preferredCore 偏好的核心 ID，傳入 -1 則自動分配
      * @return 實際綁定的核心 ID
      */
@@ -36,36 +36,34 @@ public class AffinityUtil {
             int totalAvailableInMask = affinity.cardinality();
 
             if (totalAvailableInMask <= 0) {
-                log.warn("[AFFINITY] 無法獲取有效的 Affinity Mask");
+                log.warn("[AFFINITY] 無法獲取有效的 Affinity Mask，跳過綁定");
                 return -1;
             }
 
             int targetCore = -1;
+            // 如果指定了核心且在 Mask 範圍內，優先使用
             if (preferredCore >= 0 && affinity.get(preferredCore)) {
                 targetCore = preferredCore;
             } else {
-                // 根據已分配的 Worker 數量，循環選擇 Mask 中的可用核心
-                int workerIdx = assignedWorkerCount.getAndIncrement();
-                int targetIdx = workerIdx % totalAvailableInMask;
-
-                int currentFound = 0;
+                // --- 核心優化：基於可用核心列表的循環分配 ---
+                int[] availableCores = new int[totalAvailableInMask];
+                int count = 0;
                 for (int i = affinity.nextSetBit(0); i >= 0; i = affinity.nextSetBit(i + 1)) {
-                    if (currentFound == targetIdx) {
-                        targetCore = i;
-                        break;
-                    }
-                    currentFound++;
+                    availableCores[count++] = i;
                 }
+
+                // 取模分配，確保即使 Worker 數量超過核心數也能均勻分佈
+                int idx = Math.abs(assignedWorkerCount.getAndIncrement() % totalAvailableInMask);
+                targetCore = availableCores[idx];
             }
 
             if (targetCore >= 0) {
-                // 直接使用底層 Affinity.setAffinity 繞過 LockInventory 的檢測
                 BitSet nextAffinity = new BitSet();
                 nextAffinity.set(targetCore);
                 Affinity.setAffinity(nextAffinity);
 
-                log.info("[AFFINITY] 執行緒 [{}] 成功綁定至物理核心: {}", 
-                         Thread.currentThread().getName(), targetCore);
+                log.info("[AFFINITY] 執行緒 [{}] 成功綁定至物理核心: {} (Mask 總數: {})", 
+                         Thread.currentThread().getName(), targetCore, totalAvailableInMask);
                 return targetCore;
             }
         } catch (Exception e) {
