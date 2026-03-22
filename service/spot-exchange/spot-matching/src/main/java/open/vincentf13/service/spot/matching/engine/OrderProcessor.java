@@ -110,7 +110,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         ledger.settleTrade(maker.getUserId(), currentTakerUserId, tradePrice, tradeQty, currentTakerSide, tradePrice, currentGatewaySequence, baseAsset, quoteAsset, tradeId);
     }
 
-    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long orderId, LongSupplier tradeIdSupplier) {
+    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, long orderId, LongSupplier tradeIdSupplier) {
         // 1. 凍結資產
         OrderBook book = OrderBook.get(symbolId);
         int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId(); 
@@ -133,7 +133,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         this.currentGatewaySequence = gatewaySequence;
 
         // 3. 進入 OrderBook 撮合
-        book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, System.currentTimeMillis(), gatewaySequence, tradeIdSupplier::getAsLong, this);
+        book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, tradeIdSupplier::getAsLong, this);
 
         // 4. 寫入客戶端訂單 ID 映射 (持久化 taker) 與 更新布隆過濾器
         final CidKey takerCid = new CidKey(); // 必須新對象，因為會存入 Map 和 Filter
