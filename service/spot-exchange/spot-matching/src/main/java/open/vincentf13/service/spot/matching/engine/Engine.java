@@ -33,9 +33,9 @@ public class Engine extends Worker {
     private long lastMetricsSec = 0;
     private long lastFlushTime = 0;
     
-    // 性能優化：局部計數器，每 1 萬筆才彙報非同步指標
+    // 性能優化：局部計數器，每 1000 筆才彙報非同步指標
     private long localPollCount = 0, localWorkCount = 0;
-    private static final int METRICS_BATCH_SIZE = 10000;
+    private static final int METRICS_BATCH_SIZE = 1000;
     
     private static final int BATCH_SIZE = Matching.ENGINE_BATCH_SIZE;
 
@@ -65,7 +65,7 @@ public class Engine extends Worker {
     @Override protected int doWork() {
         int done = Storage.self().engineWorkQueue().read(handler, BATCH_SIZE);
         
-        // 性能優化：每 1 萬次才彙報非同步指標
+        // 性能優化：每 1000 次才彙報非同步指標
         if (done > 0) {
             localWorkCount += done;
             if (localWorkCount >= METRICS_BATCH_SIZE) {
@@ -121,7 +121,15 @@ public class Engine extends Worker {
         MetricsCollector.set(MetricsKey.MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
         MetricsCollector.set(MetricsKey.MATCHING_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
         
-        // 成交計數已在 OrderBook 局部累積彙報
+        // 性能優化：每秒強制推送剩餘的計數，確保監控介面不會因為未滿 1000 而顯示 0
+        if (localPollCount > 0) {
+            MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
+            localPollCount = 0;
+        }
+        if (localWorkCount > 0) {
+            MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
+            localWorkCount = 0;
+        }
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));

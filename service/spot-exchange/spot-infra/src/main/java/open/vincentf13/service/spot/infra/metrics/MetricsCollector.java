@@ -65,11 +65,13 @@ public class MetricsCollector {
             var metricsMap = Storage.self().metricsHistory();
             
             // 1. 處理累計器 (從陣列讀取，無裝箱)
-            for (int i = 1; i < MAX_METRICS; i++) {
+            // 修正：包含索引 0，並確保 sum > 0 才寫入，避免覆蓋現有數據
+            for (int i = 0; i < MAX_METRICS; i++) {
                 long sum = COUNTER_ARRAY[i].sumThenReset();
                 if (sum > 0) {
                     final long metricsKey = -((long)i);
-                    metricsMap.compute(metricsKey, (k, v) -> v == null ? sum : v + sum);
+                    // 修正：使用更安全的累加邏輯
+                    metricsMap.merge(metricsKey, sum, Long::sum);
                 }
             }
 

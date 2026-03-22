@@ -24,7 +24,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class OrderBook {
     // 性能優化：移除全域 AtomicLong，改為局部彙總非同步彙報
     private static long localMatchCounter = 0;
-    private static final int METRICS_BATCH_SIZE = 10000;
+    private static long lastMatchSec = 0;
+    private static final int METRICS_BATCH_SIZE = 1000;
     
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
@@ -199,10 +200,19 @@ public class OrderBook {
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
                 
-                // 性能優化：每 1 萬筆才非同步寫入指標，減少非同步消息隊列壓力
-                if (++localMatchCounter >= METRICS_BATCH_SIZE) {
-                    open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(timestamp / 1000, localMatchCounter);
-                    localMatchCounter = 0;
+                // 性能優化：每 1000 筆才彙報，且跨秒時強制彙報以確保 TPS 曲線連續
+                final long nowSec = timestamp / 1000;
+                if (nowSec != lastMatchSec) {
+                    if (localMatchCounter > 0) {
+                        open.vincentf13.service.spot.infra.metrics.MetricsCollector.set(lastMatchSec, localMatchCounter);
+                    }
+                    lastMatchSec = nowSec;
+                    localMatchCounter = 1;
+                } else {
+                    localMatchCounter++;
+                    if (localMatchCounter % METRICS_BATCH_SIZE == 0) {
+                        open.vincentf13.service.spot.infra.metrics.MetricsCollector.set(nowSec, localMatchCounter);
+                    }
                 }
                 
                 finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
