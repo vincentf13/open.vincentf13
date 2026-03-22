@@ -65,13 +65,14 @@ public class MetricsCollector {
             var metricsMap = Storage.self().metricsHistory();
             
             // 1. 處理累計器 (從陣列讀取，無裝箱)
-            // 修正：包含索引 0，並確保 sum > 0 才寫入，避免覆蓋現有數據
+            // 核心優化：永遠只讀取 sum() 並覆蓋持久化層，不進行 Reset
+            // 這能保證指標數據在任何取樣點都是單調遞增的，防止計算 TPS 時出現負數
             for (int i = 0; i < MAX_METRICS; i++) {
-                long sum = COUNTER_ARRAY[i].sumThenReset();
-                if (sum > 0) {
+                long total = COUNTER_ARRAY[i].sum();
+                if (total > 0) {
                     final long metricsKey = -((long)i);
-                    // 修正：使用更安全的累加邏輯
-                    metricsMap.merge(metricsKey, sum, Long::sum);
+                    // 直接寫入當前總量，覆蓋舊值
+                    metricsMap.put(metricsKey, total);
                 }
             }
 
