@@ -123,6 +123,13 @@ public class TestVerificationController {
         metrics.put("matching_cpu_load", String.format("%d%%", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_CPU_LOAD, 0L)));
         metrics.put("gateway_cpu_load", String.format("%d%%", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_CPU_LOAD, 0L)));
 
+        // --- 新增：系統與進程級 CPU 詳細資訊 ---
+        var os = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+        if (os instanceof com.sun.management.OperatingSystemMXBean sunOs) {
+            metrics.put("os_system_cpu_load", String.format("%.2f%%", sunOs.getCpuLoad() * 100));
+            metrics.put("os_process_cpu_load", String.format("%.2f%%", sunOs.getProcessCpuLoad() * 100));
+        }
+
         // GC 指標
         Map<String, Object> gcMetrics = new LinkedHashMap<>();
         

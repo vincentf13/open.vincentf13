@@ -102,13 +102,16 @@ Start-Sleep 5
 if ($e.HasExited) { Write-Error "Matching 失敗！請查看 $log_dir\matching_err.log"; return }
 if ($g.HasExited) { Write-Error "Gateway 失敗！請檢查 $log_dir\gw_err.log"; return }
 
-Write-Host "所有服務就緒。正在啟動 k6 高吞吐模式 (40 VUs, Heavy Burst)..."
+Write-Host "所有服務就緒。正在啟動 k6 極限壓測模式 (100 VUs, GOMAXPROCS=3)..."
 Set-Location "$base_path\service\spot-exchange\doc\test"
+
+# 設置 Go 運行時環境變數，確保它敢於使用全部分配到的核心 (13, 14, 15)
+$env:GOMAXPROCS = "3"
 
 # 優化 k6 運行參數
 $k6_args = @(
     "run",
-    "--vus", "40",
+    "--vus", "100",
     "--duration", "60s",
     "stress-test-ws.js"
 )
