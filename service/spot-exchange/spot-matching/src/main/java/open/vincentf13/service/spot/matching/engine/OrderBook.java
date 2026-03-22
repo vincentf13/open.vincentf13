@@ -22,11 +22,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 public class OrderBook {
-    // 性能優化：移除全域 AtomicLong，改為局部彙總非同步彙報
-    private static long localMatchCounter = 0;
-    private static long lastMatchSec = 0;
-    private static final int METRICS_BATCH_SIZE = 1000;
-    
+    public static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
     private static final Deque<Order> GLOBAL_ORDER_POOL = new ConcurrentLinkedDeque<>();
@@ -68,23 +64,18 @@ public class OrderBook {
     
     private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
     private final ChronicleMap<Long, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
-    private final ChronicleMap<Long, byte[]> userActiveOrdersDiskMap = Storage.self().userActiveOrders();
     private final ChronicleMap<Long, Trade> tradeHistoryDiskMap = Storage.self().trades();
     
-    private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>();
-    private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>();
-    private final LongHashSet pendingActiveRemovals = new LongHashSet();
-    private final LongHashSet pendingActiveAdds = new LongHashSet();
-    private final LongHashSet pendingUserActiveChanged = new LongHashSet();
+    private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>(8192, 0.5f);
+    private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>(16384, 0.5f);
+    private final LongHashSet pendingActiveRemovals = new LongHashSet(4096);
+    private final LongHashSet pendingActiveAdds = new LongHashSet(4096);
 
     private final TreeMap<Long, Deque<Order>> bids = new TreeMap<>(Collections.reverseOrder());
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
     private final Long2ObjectHashMap<Deque<Order>> priceLevelIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
     private final Long2ObjectHashMap<LongHashSet> userOrderIdsIndex = new Long2ObjectHashMap<>(4096, 0.5f);
-
-    private final byte[] userActiveBuffer = new byte[8192]; // 支持單用戶 1024 個掛單
-    private final java.nio.ByteBuffer userActiveByteBuffer = java.nio.ByteBuffer.wrap(userActiveBuffer);
 
     private static final Order SCAN_REUSABLE = new Order();
 
@@ -109,11 +100,6 @@ public class OrderBook {
         }
         if (!pendingActiveAdds.isEmpty()) { pendingActiveAdds.forEach(id -> activeOrderIdDiskMap.put(id, Boolean.TRUE)); pendingActiveAdds.clear(); }
         if (!pendingActiveRemovals.isEmpty()) { pendingActiveRemovals.forEach(activeOrderIdDiskMap::remove); pendingActiveRemovals.clear(); }
-        
-        // 性能優化：移除 userActiveOrdersDiskMap 寫入，經確認該功能目前無外部依賴且 I/O 負重高
-        if (!pendingUserActiveChanged.isEmpty()) {
-            pendingUserActiveChanged.clear();
-        }
     }
 
     public void recoverOrder(Order o) {
@@ -200,20 +186,7 @@ public class OrderBook {
                 maker.setFilled(maker.getFilled() + matchQty);
                 taker.setFilled(taker.getFilled() + matchQty);
                 
-                // 性能優化：每 1000 筆才彙報，且跨秒時強制彙報以確保 TPS 曲線連續
-                final long nowSec = timestamp / 1000;
-                if (nowSec != lastMatchSec) {
-                    if (localMatchCounter > 0) {
-                        open.vincentf13.service.spot.infra.metrics.MetricsCollector.set(lastMatchSec, localMatchCounter);
-                    }
-                    lastMatchSec = nowSec;
-                    localMatchCounter = 1;
-                } else {
-                    localMatchCounter++;
-                    if (localMatchCounter % METRICS_BATCH_SIZE == 0) {
-                        open.vincentf13.service.spot.infra.metrics.MetricsCollector.set(nowSec, localMatchCounter);
-                    }
-                }
+                TOTAL_MATCH_COUNT.incrementAndGet();
                 
                 finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
 
@@ -284,7 +257,6 @@ public class OrderBook {
             LongHashSet set = userOrderIdsIndex.get(uid);
             if (set != null) set.remove(oid);
         }
-        pendingUserActiveChanged.add(uid);
     }
 
     public void remove(long orderId) { 
@@ -301,7 +273,6 @@ public class OrderBook {
                 }
             }
             pendingActiveRemovals.add(orderId);
-            pendingUserActiveChanged.add(o.getUserId());
             LongHashSet set = userOrderIdsIndex.get(o.getUserId());
             if (set != null) set.remove(orderId);
             releaseOrder(o);

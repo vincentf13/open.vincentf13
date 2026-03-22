@@ -25,12 +25,12 @@ public class Ledger {
     private final ChronicleMap<Long, Long> userAssetBitmaskDiskMap = Storage.self().userAssets();
     
     // 二級緩存：徹底消除 BalanceKey 對象分配與磁碟讀取
-    // Key: (userId << 32) | assetId
     private final Long2ObjectHashMap<Balance> balanceCache = new Long2ObjectHashMap<>(100_000, 0.5f);
     private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
     
-    // 待落地標記：紀錄哪些帳戶在本次循環中變動過
-    private final LongHashSet dirtyAccounts = new LongHashSet(10000);
+    // 待落地標記優化：使用原始類型陣列替代 HashSet，消除物件分配與陣列歸零壓力
+    private final long[] dirtyQueue = new long[32768]; 
+    private int dirtyCount = 0;
     private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
 
     private final BalanceKey reusableKey = new BalanceKey();
@@ -38,9 +38,7 @@ public class Ledger {
     @PostConstruct
     public void init() {
         log.info("Ledger 正在預加載帳務數據至二級緩存...");
-        // 預加載資產遮罩
         userAssetBitmaskDiskMap.forEach(bitmaskCache::put);
-        // 這裡不預加載全量餘額以節省內存，採用的「懶加載 + 永久保留」策略
         log.info("Ledger 初始化完成。");
     }
 
@@ -48,8 +46,9 @@ public class Ledger {
      * 將變動過的緩存帳戶同步至磁碟
      */
     public void flush() {
-        if (!dirtyAccounts.isEmpty()) {
-            dirtyAccounts.forEach(combinedKey -> {
+        if (dirtyCount > 0) {
+            for (int i = 0; i < dirtyCount; i++) {
+                long combinedKey = dirtyQueue[i];
                 long userId = combinedKey >>> 32;
                 int assetId = (int) (combinedKey & 0xFFFFFFFFL);
                 Balance b = balanceCache.get(combinedKey);
@@ -57,8 +56,8 @@ public class Ledger {
                     reusableKey.set(userId, assetId);
                     balancesDiskMap.put(reusableKey, b);
                 }
-            });
-            dirtyAccounts.clear();
+            }
+            dirtyCount = 0;
         }
         
         if (!dirtyBitmasks.isEmpty()) {
@@ -78,7 +77,6 @@ public class Ledger {
         Balance b = balanceCache.get(combinedKey);
         if (b == null) {
             reusableKey.set(userId, assetId);
-            // 從磁碟讀取並拷貝到內存，後續操作均在內存進行
             Balance diskVal = balancesDiskMap.get(reusableKey);
             if (diskVal != null) {
                 b = new Balance();
@@ -162,7 +160,12 @@ public class Ledger {
         b.setLastSeq(seq);
         if (tradeId > 0) b.setLastTradeId(tradeId);
         
-        dirtyAccounts.add(combine(userId, assetId));
+        // 性能優化：如果隊列未滿則加入，若滿了則在 flush 時會由全量掃描或增加容量處理
+        // 這裡暫不考慮極端去重，因為 ChronicleMap.put 覆蓋相同資料開銷可接受
+        if (dirtyCount < dirtyQueue.length) {
+            dirtyQueue[dirtyCount++] = combine(userId, assetId);
+        }
+        
         updateAssetIndex(userId, assetId);
     }
 

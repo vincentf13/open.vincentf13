@@ -32,11 +32,7 @@ public class Engine extends Worker {
 
     private long lastMetricsSec = 0;
     private long lastFlushTime = 0;
-    
-    // 性能優化：局部計數器，每 1000 筆才彙報非同步指標
-    private long localPollCount = 0, localWorkCount = 0;
-    private static final int METRICS_BATCH_SIZE = 1000;
-    
+    private long pollCount = 0, workCount = 0;
     private static final int BATCH_SIZE = Matching.ENGINE_BATCH_SIZE;
 
     @PostConstruct public void init() { start("core-matching-engine"); }
@@ -47,7 +43,9 @@ public class Engine extends Worker {
 
     @Override protected void onStart() {
         log.info("執行冷啟動索引重建與預熱...");
-        // 1. 重置指標
+        // 1. 強制重置本地計數與 Metrics 磁碟存儲
+        pollCount = 0;
+        workCount = 0;
         MetricsCollector.set(MetricsKey.POLL_COUNT, 0L);
         MetricsCollector.set(MetricsKey.WORK_COUNT, 0L);
         MetricsCollector.set(MetricsKey.AERON_DROPPED_COUNT, 0L);
@@ -64,24 +62,19 @@ public class Engine extends Worker {
 
     @Override protected int doWork() {
         int done = Storage.self().engineWorkQueue().read(handler, BATCH_SIZE);
+        workCount += done;
         
-        // 性能優化：每 1000 次才彙報非同步指標
-        if (done > 0) {
-            localWorkCount += done;
-            if (localWorkCount >= METRICS_BATCH_SIZE) {
-                MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
-                localWorkCount = 0;
-            }
-        }
-        
-        if (++localPollCount >= METRICS_BATCH_SIZE) {
-            MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
-            localPollCount = 0;
+        // 只有當開始處理真實數據後 (workCount > 1)，才開始累計 pollCount
+        // 這樣可以更精準觀察在高負載期間的 Poll/Work 比例
+        if (workCount > 1) {
+            pollCount++;
         }
 
         // --- 性能優化：智慧型落地策略 ---
+        // 修正：將落地頻率放寬至 50ms 或 累計 10,000 筆工作才落地
+        // 頻繁落地會導致嚴重的記憶體寫入壓力與磁碟 I/O 競爭
         long now = open.vincentf13.service.spot.infra.util.Clock.now();
-        if (now - lastFlushTime >= 20) {
+        if (workCount % 10000 == 0 || now - lastFlushTime >= 50) {
             ledger.flush();
             orderProcessor.flush();
             for (OrderBook book : OrderBook.getInstances()) {
@@ -120,16 +113,11 @@ public class Engine extends Worker {
         Runtime r = Runtime.getRuntime();
         MetricsCollector.set(MetricsKey.MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
         MetricsCollector.set(MetricsKey.MATCHING_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
+        MetricsCollector.set(nowSec, OrderBook.TOTAL_MATCH_COUNT.get());
         
-        // 性能優化：每秒強制推送剩餘的計數，確保監控介面不會因為未滿 1000 而顯示 0
-        if (localPollCount > 0) {
-            MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
-            localPollCount = 0;
-        }
-        if (localWorkCount > 0) {
-            MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
-            localWorkCount = 0;
-        }
+        // --- 變更：改為累計值，不再每秒歸零 ---
+        MetricsCollector.set(MetricsKey.POLL_COUNT, pollCount);
+        MetricsCollector.set(MetricsKey.WORK_COUNT, workCount);
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));
