@@ -1,10 +1,10 @@
 import ws from 'k6/ws';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 100, // 增加 VU 數量以提高並發連接數與整體壓力
-    duration: '1m',
+    vus: 100, // 100 個並發連接
+    duration: '5m', // 執行 5 分鐘
     discardResponseBodies: true,
 };
 
@@ -53,12 +53,11 @@ export default function () {
         socket.on('open', function () {
             socket.sendBinary(authBuf);
 
-            // --- 極限優化：飽和攻擊 (修正版) ---
+            // 每 5ms 觸發一次，每次 250 筆
+            // 降低觸發頻率避免 k6 自身被壓垮，依靠每批次的量來提升總 TPS
             socket.setInterval(function () {
                 const ts = BigInt(Date.now());
-                // 進一步提升每批次發送量 (250 BUY + 250 SELL = 500 messages)
-                // 搭配 100 VUs，理論上能輕易打滿 100k+ TPS 的壓力
-                for (let i = 0; i < 250; i++) {
+                for (let i = 0; i < 125; i++) { // 125 * 2 = 250 msgs per tick
                     // BUY
                     view.setBigInt64(20, ts, true);
                     view.setBigInt64(28, BigInt(uid), true);
@@ -73,11 +72,16 @@ export default function () {
                     view.setBigInt64(57, BigInt(++cidCounter), true);
                     socket.sendBinary(buffer);
                 }
-            }, 1); 
+            }, 5); 
+            
+            // 讓這個連接保持存活 295 秒，不讓它立刻結束
+            socket.setTimeout(function () {
+                socket.close();
+            }, 295000);
         });
 
         socket.on('error', (e) => console.error(`[VU ${__VU}] Error: ${e.error()}`));
-        socket.setTimeout(function () { socket.close(); }, 58000);
+        socket.on('close', () => console.log(`[VU ${__VU}] Connection closed`));
     });
 
     check(res, { 'status is 101': (r) => r && r.status === 101 });
@@ -88,7 +92,6 @@ export function teardown() {
     if (res.status === 200 && res.body) {
         try {
             const data = JSON.parse(res.body);
-            // 處理可能存在的 data 封裝層
             const metrics = data.data || data;
             console.log(`================================================`);
             console.log(`[FINAL] 累計 Netty 接收: ${metrics.netty_recv_count || 0}`);
