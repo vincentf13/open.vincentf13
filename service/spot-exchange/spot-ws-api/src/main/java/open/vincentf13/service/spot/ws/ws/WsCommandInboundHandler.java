@@ -109,7 +109,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 gatewayWalQueue.commit(index);
             }
         } else {
-            log.warn("[GATEWAY-WS] RingBuffer 滿了！二進制訊息被丟棄");
+            MetricsCollector.increment(MetricsKey.GATEWAY_WAL_DROP_COUNT);
         }
     }
 
@@ -197,7 +197,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
             }
             log.debug("[GATEWAY-WS] 訊息已推入 RingBuffer 佇列, type={}, len={}", msgType, length);
         } else {
-            log.warn("[GATEWAY-WS] RingBuffer 滿了！訊息被丟棄，請增加 WAL_RING_BUFFER_SIZE");
+            MetricsCollector.increment(MetricsKey.GATEWAY_WAL_DROP_COUNT);
         }
     }
     @Override

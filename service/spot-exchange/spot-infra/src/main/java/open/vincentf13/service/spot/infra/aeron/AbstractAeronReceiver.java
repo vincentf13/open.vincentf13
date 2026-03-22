@@ -91,6 +91,10 @@ public abstract class AbstractAeronReceiver extends Worker {
                 lastResumeSentTime = now;
             }
         }
+        
+        // 更新指標：記錄嘗試 Poll 的次數
+        open.vincentf13.service.spot.infra.metrics.MetricsCollector.increment(MetricsKey.POLL_COUNT);
+
         // 關鍵：傳遞 assembler 而非直接傳遞 fragmentHandler
         int fragments = subscription.poll(assembler, 10);
         if (fragments > 0) {

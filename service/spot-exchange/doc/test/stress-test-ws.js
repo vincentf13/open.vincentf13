@@ -56,8 +56,9 @@ export default function () {
             // --- 極限優化：飽和攻擊 (修正版) ---
             socket.setInterval(function () {
                 const ts = BigInt(Date.now());
-                // 調低每批次發送量，避免單機網路棧直接崩潰
-                for (let i = 0; i < 10; i++) {
+                // 大幅增加每批次發送量 (100 BUY + 100 SELL = 200 messages)
+                // 這是為了繞過 Windows 15ms-32ms 的定時器精準度限制
+                for (let i = 0; i < 100; i++) {
                     // BUY
                     view.setBigInt64(20, ts, true);
                     view.setBigInt64(28, BigInt(uid), true);

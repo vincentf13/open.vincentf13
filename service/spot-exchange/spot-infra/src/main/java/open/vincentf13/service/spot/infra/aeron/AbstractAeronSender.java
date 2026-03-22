@@ -83,12 +83,18 @@ public abstract class AbstractAeronSender extends Worker {
         }
 
         // 3. 處理 WAL 指令流發送 (批量優化：從 100 提高到 10000)
+        int msgsSent = 0;
         for (int i = 0; i < 10000; i++) {
             if (tailer.readDocument(walReader)) {
-                workDone++;
+                msgsSent++;
             } else {
                 break;
             }
+        }
+        
+        if (msgsSent > 0) {
+            MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, msgsSent);
+            workDone += msgsSent;
         }
 
         if (workDone > 0 && backPressureCount > 1000) {

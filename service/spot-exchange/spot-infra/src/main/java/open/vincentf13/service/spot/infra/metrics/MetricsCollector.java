@@ -38,9 +38,10 @@ public class MetricsCollector {
     }
 
     private static int getIndex(long key) {
-        // 將負數 Key 轉為正數索引，例如 -1L -> 1
-        int idx = (int)Math.abs(key);
-        return idx < MAX_METRICS ? idx : 0;
+        // 使用絕對值索引，並確保不超過陣列邊界
+        int idx = (int) Math.abs(key);
+        // 如果 Key 是負數且在合理範圍內，直接作為索引
+        return (idx > 0 && idx < MAX_METRICS) ? idx : 0;
     }
 
     public static void increment(long key) {

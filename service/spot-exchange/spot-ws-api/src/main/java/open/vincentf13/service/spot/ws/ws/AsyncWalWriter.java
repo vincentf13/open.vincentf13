@@ -30,12 +30,11 @@ public class AsyncWalWriter extends Worker {
 
     // 性能優化：單筆 Document Raw 寫入，確保每筆訊息擁有獨立 Index
     private final MessageHandler handler = (msgTypeId, buffer, offset, length) -> {
-        try (DocumentContext dc = appender.writingDocument()) {
+        appender.writeBytes(b -> {
             pointer.set(buffer.addressOffset() + offset, length);
             // 使用 Raw 寫入，避開 Wire 協議層
-            dc.wire().bytes().write(pointer);
-            MetricsCollector.increment(MetricsKey.GATEWAY_WAL_WRITE_COUNT);
-        }
+            b.write(pointer);
+        });
     };
 
     @PostConstruct
@@ -57,8 +56,12 @@ public class AsyncWalWriter extends Worker {
     @Override
     protected int doWork() {
         // 批次從 RingBuffer 讀取並寫入 WAL
-        // 由於 Storage 配置為 ASYNC，dc.close() 將由 OS 處理，不阻塞執行緒
-        return queue.read(handler, BATCH_SIZE);
+        // 由於 Storage 配置為 ASYNC，寫入將由 OS 背景刷新，不阻塞執行緒
+        int count = queue.read(handler, BATCH_SIZE);
+        if (count > 0) {
+            MetricsCollector.add(MetricsKey.GATEWAY_WAL_WRITE_COUNT, count);
+        }
+        return count;
     }
 
     @Override
