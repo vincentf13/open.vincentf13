@@ -16,14 +16,13 @@ const MSG_TYPE_ORDER_CREATE = 100;
 const SBE_SCHEMA_ID = 1;
 const SBE_VERSION = 0;
 
-/** 預分配 Auth Buffer */
 function createAuthBuffer(uid) {
     const buffer = new ArrayBuffer(20 + 16);
     const view = new DataView(buffer);
     view.setInt32(0, MSG_TYPE_AUTH, true); 
     view.setBigInt64(4, BigInt(-1), true); 
-    view.setUint16(12, 16, true);          // BlockLength
-    view.setUint16(14, 103, true);         // TemplateId
+    view.setUint16(12, 16, true);
+    view.setUint16(14, 103, true);
     view.setUint16(16, SBE_SCHEMA_ID, true);
     view.setUint16(18, SBE_VERSION, true);
     view.setBigInt64(20, BigInt(Date.now()), true);
@@ -31,7 +30,6 @@ function createAuthBuffer(uid) {
     return buffer;
 }
 
-/** 預分配 Order Buffer */
 function createPreallocatedOrderBuffer() {
     const buffer = new ArrayBuffer(20 + 45);
     const view = new DataView(buffer);
@@ -41,9 +39,9 @@ function createPreallocatedOrderBuffer() {
     view.setUint16(14, 100, true);
     view.setUint16(16, SBE_SCHEMA_ID, true);
     view.setUint16(18, SBE_VERSION, true);
-    view.setInt32(36, 1001, true); // SymbolId
-    view.setBigInt64(40, BigInt(100), true); // Price
-    view.setBigInt64(48, BigInt(1), true);   // Qty
+    view.setInt32(36, 1001, true); 
+    view.setBigInt64(40, BigInt(100), true); 
+    view.setBigInt64(48, BigInt(1), true);   
     return { buffer, view };
 }
 
@@ -55,13 +53,13 @@ export default function () {
 
     const res = ws.connect(WS_URL, {}, function (socket) {
         socket.on('open', function () {
-            // 1. 必須發送 Auth 以讓網關識別連線
             socket.sendBinary(authBuf);
 
-            // 2. 啟動爆發連發定時器
+            // 激進連發策略：每次觸發發送 200 筆 (100買 100賣)
+            // 補償定時器不精準的問題
             socket.setInterval(function () {
                 const ts = BigInt(Date.now());
-                for (let i = 0; i < 25; i++) { // 每次爆發 50 筆
+                for (let i = 0; i < 100; i++) {
                     // BUY
                     view.setBigInt64(20, ts, true);
                     view.setBigInt64(28, BigInt(uid), true);
@@ -91,8 +89,9 @@ export function teardown() {
     if (res.status === 200) {
         const data = JSON.parse(res.body);
         console.log(`================================================`);
-        console.log(`最終引擎 Work: ${data.engine_work_count}`);
-        console.log(`最終 Netty Recv: ${data.netty_recv_count}`);
+        console.log(`[STRESS] 最終引擎 Work: ${data.engine_work_count}`);
+        console.log(`[STRESS] 最終 Netty Recv: ${data.netty_recv_count}`);
+        console.log(`[STRESS] 引擎飽和度: ${data.engine_saturation}`);
         console.log(`================================================`);
     }
 }
