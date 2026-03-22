@@ -94,13 +94,23 @@ $g.ProcessorAffinity = 4127
 Write-Host "Gateway (PID: 「**$($g.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
-# --- 7. 健康檢查與啟動 k6 壓測 (CPU 13-15, Mask: 57344) ---
-if ($e.HasExited) { Write-Error "Matching 失敗！請查看 error_matching.log"; return }
-if ($g.HasExited) { Write-Error "Gateway 失敗！請查看 error_gw.log"; return }
+# --- 7. 啟動 k6 極限壓測 (CPU 13-15, Mask: 57344) ---
+if ($e.HasExited) { Write-Error "Matching 失敗！請查看 $log_dir\matching_err.log"; return }
+if ($g.HasExited) { Write-Error "Gateway 失敗！請檢查 $log_dir\gw_err.log"; return }
 
-Write-Host "所有服務就緒。正在 E-cores (13-15) 啟動 k6 壓測..."
-Set-Location "$doc_path\test"
-$k6_proc = Start-Process k6 -ArgumentList "run stress-test-ws.js" -PassThru
+Write-Host "所有服務就緒。正在啟動 k6 極限壓測模式 (500 VUs)..."
+Set-Location "$base_path\service\spot-exchange"
+
+# 優化 k6 運行參數：增加並發與環境變數
+$k6_args = @(
+    "run",
+    "--vus", "500",
+    "--duration", "60s",
+    "--batch", "100",
+    "stress-test-ws.js"
+)
+
+$k6_proc = Start-Process k6 -ArgumentList $k6_args -RedirectStandardOutput "$log_dir\k6_out.log" -RedirectStandardError "$log_dir\k6_err.log" -PassThru
 $k6_proc.ProcessorAffinity = 57344
-Write-Host "k6 (PID: 「**$($k6_proc.Id)**」) 已鎖定 Core 13-15 執行中。"
+Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 已啟動，火力全開中..."
 ```
