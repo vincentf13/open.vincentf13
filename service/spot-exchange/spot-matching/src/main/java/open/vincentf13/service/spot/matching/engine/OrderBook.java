@@ -66,6 +66,9 @@ public class OrderBook {
     private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
     private final Long2ObjectHashMap<Deque<Order>> priceLevelIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
+    
+    // --- 性能優化：用戶活躍訂單快速索引 (消除 O(N) 掃描) ---
+    private final Long2ObjectHashMap<LongHashSet> userOrderIdsIndex = new Long2ObjectHashMap<>(4096, 0.5f);
 
     private final Trade reusableTrade = new Trade();
     private static final Order SCAN_REUSABLE = new Order();
@@ -96,18 +99,15 @@ public class OrderBook {
     }
 
     private void syncUserActiveToDisk(long userId) {
-        // 從內存狀態重建該用戶的活躍訂單清單 (避免同步線性掃描 byte[])
-        List<Long> activeIds = new ArrayList<>();
-        orderIndex.forEach((oid, order) -> {
-            if (order.getUserId() == userId && order.getStatus() < 2) activeIds.add(oid);
-        });
+        // 性能優化：從快速索引獲取，不再掃描全表
+        LongHashSet activeIds = userOrderIdsIndex.get(userId);
         
-        if (activeIds.isEmpty()) {
+        if (activeIds == null || activeIds.isEmpty()) {
             userActiveOrdersDiskMap.remove(userId);
         } else {
             byte[] bytes = new byte[activeIds.size() * 8];
             java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(bytes);
-            for (Long id : activeIds) buf.putLong(id);
+            activeIds.forEach(buf::putLong); // LongHashSet 直接遍歷
             userActiveOrdersDiskMap.put(userId, bytes);
         }
     }
@@ -188,6 +188,9 @@ public class OrderBook {
                 if (maker.getFilled() == maker.getQty()) {
                     syncOrder(maker, gwSeq);
                     orderIndex.remove(maker.getOrderId());
+                    // 從用戶索引移除
+                    LongHashSet set = userOrderIdsIndex.get(maker.getUserId());
+                    if (set != null) set.remove(maker.getOrderId());
                     releaseOrder(makers.pollFirst()); 
                 } else {
                     syncOrder(maker, gwSeq);
@@ -215,6 +218,9 @@ public class OrderBook {
         }
         level.addLast(order);
         orderIndex.put(order.getOrderId(), order);
+        
+        // 更新用戶索引
+        userOrderIdsIndex.computeIfAbsent(order.getUserId(), k -> new LongHashSet(16)).add(order.getOrderId());
     }
 
     public void syncOrder(Order o, long gwSeq) {
@@ -230,9 +236,14 @@ public class OrderBook {
         if (o.getStatus() < 2) {
             pendingActiveAdds.add(oid);
             pendingActiveRemovals.remove(oid);
+            // 確保進入活躍清單
+            userOrderIdsIndex.computeIfAbsent(uid, k -> new LongHashSet(16)).add(oid);
         } else {
             pendingActiveRemovals.add(oid);
             pendingActiveAdds.remove(oid);
+            // 從用戶索引移除
+            LongHashSet set = userOrderIdsIndex.get(uid);
+            if (set != null) set.remove(oid);
         }
         pendingUserActiveChanged.add(uid);
     }
@@ -252,6 +263,11 @@ public class OrderBook {
             }
             pendingActiveRemovals.add(orderId);
             pendingUserActiveChanged.add(o.getUserId());
+            
+            // 從用戶索引移除
+            LongHashSet set = userOrderIdsIndex.get(o.getUserId());
+            if (set != null) set.remove(orderId);
+            
             releaseOrder(o);
         }
     }
