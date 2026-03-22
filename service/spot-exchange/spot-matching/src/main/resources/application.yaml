@@ -2,6 +2,7 @@ logging:
   level:
     root: INFO
     open.vincentf13: WARN
+    net.openhft.chronicle: WARN
 
 spring:
   application:
