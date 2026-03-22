@@ -33,4 +33,13 @@ public class Balance implements BytesMarshallable {
         lastSeq = bytes.readLong();
         lastTradeId = bytes.readLong();
     }
+
+    public void copyFrom(Balance other) {
+        if (other == null) return;
+        this.available = other.available;
+        this.frozen = other.frozen;
+        this.version = other.version;
+        this.lastSeq = other.lastSeq;
+        this.lastTradeId = other.lastTradeId;
+    }
 }

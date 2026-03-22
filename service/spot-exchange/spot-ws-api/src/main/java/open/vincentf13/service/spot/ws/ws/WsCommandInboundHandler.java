@@ -98,12 +98,13 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                         length
                     );
                 } else {
-                    // 備援方案：如果是 Heap Buffer (通常壓測中不會出現)
-                    content.getBytes(content.readerIndex(), gatewayWalQueue.buffer().byteBuffer(), index, length);
+                    // 備援方案：如果是 Heap Buffer，使用標準的 ByteBuffer 拷貝
+                    java.nio.ByteBuffer dst = gatewayWalQueue.buffer().byteBuffer();
+                    dst.clear().position(index).limit(index + length);
+                    content.getBytes(content.readerIndex(), dst);
                 }
             } catch (Exception e) {
-                // 處理可能出現的 getBytes 不匹配 (補救措施)
-                content.getBytes(content.readerIndex(), gatewayWalQueue.buffer().byteBuffer().position(index), length);
+                log.error("[GATEWAY-WS] 零拷貝轉發失敗: {}", e.getMessage());
             } finally {
                 gatewayWalQueue.commit(index);
             }
