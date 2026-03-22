@@ -40,10 +40,17 @@ public class Engine extends Worker {
     @Override protected void onBind(int cpuId) {
         MetricsCollector.recordCpuAffinity(MetricsKey.CPU_ID_ENGINE, cpuId);
     }
+@Override protected void onStart() {
+    log.info("執行冷啟動索引重建與預熱...");
+    // 1. 強制重置本地計數與 Metrics 磁碟存儲
+    pollCount = 0;
+    workCount = 0;
+    MetricsCollector.set(MetricsKey.POLL_COUNT, 0L);
+    MetricsCollector.set(MetricsKey.WORK_COUNT, 0L);
+    MetricsCollector.set(MetricsKey.AERON_DROPPED_COUNT, 0L);
 
-    @Override protected void onStart() {
-        log.info("執行冷啟動索引重建與預熱...");
-        ledger.rebuildAssetIndexes();
+    ledger.rebuildAssetIndexes();
+...
         OrderBook.rebuildActiveOrdersIndexes();
         orderProcessor.coldStartRebuild();
         OrderBook.get(1001); 

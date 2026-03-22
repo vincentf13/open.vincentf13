@@ -137,7 +137,9 @@ public class Storage {
         new File(dir).mkdirs();
         return SingleChronicleQueueBuilder
                 .single(dir + q.getPath())
-                .syncMode(net.openhft.chronicle.bytes.SyncMode.SYNC)
+                .indexCount(64) // 增加索引數量
+                .indexSpacing(64) // 減少索引間隔，加速掃描
+                .syncMode(net.openhft.chronicle.bytes.SyncMode.SYNC) // 強制同步模式
                 .build();
     }
 
