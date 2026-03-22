@@ -102,11 +102,11 @@ Start-Sleep 5
 if ($e.HasExited) { Write-Error "Matching 失敗！請查看 $log_dir\matching_err.log"; return }
 if ($g.HasExited) { Write-Error "Gateway 失敗！請檢查 $log_dir\gw_err.log"; return }
 
-Write-Host "所有服務就緒。正在啟動 k6 極限壓測模式 (100 VUs, GOMAXPROCS=3)..."
+Write-Host "所有服務就緒。正在啟動 k6 超級壓測模式 (100 VUs, 6-Cores Heavy Burst)..."
 Set-Location "$base_path\service\spot-exchange\doc\test"
 
-# 設置 Go 運行時環境變數，確保它敢於使用全部分配到的核心 (13, 14, 15)
-$env:GOMAXPROCS = "3"
+# 設置 Go 運行時使用 6 個核心 (2, 7, 12, 13, 14, 15)
+$env:GOMAXPROCS = "6"
 
 # 優化 k6 運行參數
 $k6_args = @(
@@ -117,6 +117,6 @@ $k6_args = @(
 )
 
 $k6_proc = Start-Process k6 -ArgumentList $k6_args -RedirectStandardOutput "$log_dir\k6_out.log" -RedirectStandardError "$log_dir\k6_err.log" -PassThru
-$k6_proc.ProcessorAffinity = 57344
-Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 正在 $doc_path\test 執行中..."
+$k6_proc.ProcessorAffinity = 61572
+Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 已鎖定 Core 2,7,12,13,14,15，火力全開中..."
 ```
