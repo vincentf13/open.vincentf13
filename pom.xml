@@ -26,6 +26,8 @@
 
     <properties>
         <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <maven.compiler.release>21</maven.compiler.release>
         <spring-boot.version>3.4.1</spring-boot.version>
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
@@ -180,7 +182,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.34</version>
+                <version>1.18.36</version>
             </dependency>
             <dependency>
                 <groupId>com.github.pagehelper</groupId>
@@ -347,7 +349,7 @@
                             <path>
                                 <groupId>org.projectlombok</groupId>
                                 <artifactId>lombok</artifactId>
-                                <version>1.18.34</version>
+                                <version>1.18.36</version>
                             </path>
                             <!-- 對齊存取規約（處理 fluent 等） -->
                             <path>

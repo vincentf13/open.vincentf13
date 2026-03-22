@@ -38,3 +38,4 @@ script/ai-tools/
 /log/
 *.bkp
 *.dtmp
+*.dat
