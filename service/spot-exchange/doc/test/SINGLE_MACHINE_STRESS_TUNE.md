@@ -99,18 +99,17 @@ if ($e.HasExited) { Write-Error "Matching 失敗！請查看 $log_dir\matching_e
 if ($g.HasExited) { Write-Error "Gateway 失敗！請檢查 $log_dir\gw_err.log"; return }
 
 Write-Host "所有服務就緒。正在啟動 k6 極限壓測模式 (500 VUs)..."
-Set-Location "$base_path\service\spot-exchange"
+Set-Location "$base_path\service\spot-exchange\doc\test"
 
-# 優化 k6 運行參數：增加並發與環境變數
+# 優化 k6 運行參數
 $k6_args = @(
     "run",
     "--vus", "500",
     "--duration", "60s",
-    "--batch", "100",
     "stress-test-ws.js"
 )
 
 $k6_proc = Start-Process k6 -ArgumentList $k6_args -RedirectStandardOutput "$log_dir\k6_out.log" -RedirectStandardError "$log_dir\k6_err.log" -PassThru
 $k6_proc.ProcessorAffinity = 57344
-Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 已啟動，火力全開中..."
+Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 正在 $doc_path\test 執行中..."
 ```
