@@ -90,10 +90,10 @@ public class AeronSender extends AbstractAeronSender {
             long backpressure = aeronClient.send(payloadLen, (buffer, offset) -> {
                 final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
                 UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
+                // 每個訊息都擁有唯一的 WAL Index 作為 Sequence
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
 
-            // --- 簡化：直接呼叫，內部自動批量 ---
             MetricsCollector.increment(MetricsKey.AERON_SEND_COUNT);
             if (backpressure > 0) {
                 MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, backpressure);
