@@ -53,13 +53,11 @@ export default function () {
         socket.on('open', function () {
             socket.sendBinary(authBuf);
 
-            // --- 極限優化：飽和攻擊 2.0 ---
-            // 由於 1ms 定時器不可靠，我們直接使用一個高效的定時循環
+            // --- 極限優化：飽和攻擊 (修正版) ---
             socket.setInterval(function () {
                 const ts = BigInt(Date.now());
-                // 每次觸發直接灌入 500 筆訂單！
-                // 這能確保即使定時器被延遲，單次發送的量也足以填滿網路管道
-                for (let i = 0; i < 250; i++) {
+                // 調低每批次發送量，避免單機網路棧直接崩潰
+                for (let i = 0; i < 10; i++) {
                     // BUY
                     view.setBigInt64(20, ts, true);
                     view.setBigInt64(28, BigInt(uid), true);
@@ -74,7 +72,7 @@ export default function () {
                     view.setBigInt64(57, BigInt(++cidCounter), true);
                     socket.sendBinary(buffer);
                 }
-            }, 1); // 這裡雖然是 1ms，但我們靠每批 500 筆來衝量
+            }, 1); 
         });
 
         socket.on('error', (e) => console.error(`[VU ${__VU}] Error: ${e.error()}`));
@@ -86,12 +84,20 @@ export default function () {
 
 export function teardown() {
     const res = http.get(METRICS_URL);
-    if (res.status === 200) {
-        const data = JSON.parse(res.body);
-        console.log(`================================================`);
-        console.log(`[FINAL] 累計 Netty 接收: ${data.netty_recv_count}`);
-        console.log(`[FINAL] 累計引擎處理: ${data.engine_work_count}`);
-        console.log(`[FINAL] 引擎平均飽和度: ${data.engine_saturation}`);
-        console.log(`================================================`);
+    if (res.status === 200 && res.body) {
+        try {
+            const data = JSON.parse(res.body);
+            // 處理可能存在的 data 封裝層
+            const metrics = data.data || data;
+            console.log(`================================================`);
+            console.log(`[FINAL] 累計 Netty 接收: ${metrics.netty_recv_count || 0}`);
+            console.log(`[FINAL] 累計引擎處理: ${metrics.engine_work_count || 0}`);
+            console.log(`[FINAL] 引擎平均飽和度: ${metrics.engine_saturation || 'N/A'}`);
+            console.log(`================================================`);
+        } catch (e) {
+            console.error(`解析監測數據失敗: ${e.message}`);
+        }
+    } else {
+        console.error(`無法獲取監測數據，HTTP 狀態碼: ${res.status}`);
     }
 }
