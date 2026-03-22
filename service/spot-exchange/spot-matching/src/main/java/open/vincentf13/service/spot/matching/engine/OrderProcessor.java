@@ -27,6 +27,9 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final ChronicleMap<Long, Order> orders = Storage.self().orders();
     private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
     
+    // --- 性能優化：冪等鍵寫緩衝 (消除熱點路徑同步 I/O) ---
+    private final java.util.Map<CidKey, Long> pendingCids = new java.util.HashMap<>(2000);
+    
     // --- 性能優化：內存布隆過濾器 (減少磁碟 I/O 停頓) ---
     private final com.google.common.hash.BloomFilter<CidKey> cidBloomFilter = com.google.common.hash.BloomFilter.create(
             (from, into) -> into.putLong(from.getUserId()).putLong(from.getClientOrderId()),
@@ -45,6 +48,14 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         // 預熱布隆過濾器，數據量大時建議異步，但在撮合引擎啟動階段同步是安全的
         clientOrderIdDiskMap.keySet().forEach(cidBloomFilter::put);
         log.info("布隆過濾器預熱完成。");
+    }
+
+    /** 核心落地：將緩衝的冪等鍵批量寫入磁碟 */
+    public void flush() {
+        if (!pendingCids.isEmpty()) {
+            pendingCids.forEach(clientOrderIdDiskMap::put);
+            pendingCids.clear();
+        }
     }
 
     public void coldStartRebuild() {
@@ -136,11 +147,11 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         // 3. 進入 OrderBook 撮合
         Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, tradeIdSupplier::getAsLong, this);
 
-        // 4. 寫入客戶端訂單 ID 映射 (持久化 taker) 與 更新布隆過濾器
-        // 性能優化：直接複用 ThreadContext 的 cidKey，不再分配新對象 (Map 和 Filter 均會序列化或雜湊，不持有引用)
-        final CidKey takerCid = context.getRequestHolder().getCidKey();
+        // 4. 寫入客戶端訂單 ID 映射緩衝 與 更新布隆過濾器
+        // 性能優化：不再直接 put，而是放入 pendingCids 緩衝，並從池中借用對象
+        CidKey takerCid = OrderBook.borrowCid();
         takerCid.set(userId, clientOrderId);
-        clientOrderIdDiskMap.put(takerCid, orderId);
+        pendingCids.put(takerCid, orderId);
         cidBloomFilter.put(takerCid);
 
         // 5. 發送回報 (Accepted)

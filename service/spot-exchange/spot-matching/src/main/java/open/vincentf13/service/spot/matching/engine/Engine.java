@@ -71,10 +71,11 @@ public class Engine extends Worker {
         }
 
         // --- 性能優化：智慧型落地策略 ---
-        // 修正：不再每次 done > 0 就 flush，而是基於時間 (1ms) 落地
+        // 修正：將落地頻率調整為 10ms (在高 TPS 下 1ms 太頻繁)，並加入 orderProcessor 落地
         long now = open.vincentf13.service.spot.infra.util.Clock.now();
-        if (now != lastFlushTime) {
+        if (now - lastFlushTime >= 10) {
             ledger.flush();
+            orderProcessor.flush();
             for (OrderBook book : OrderBook.getInstances()) {
                 book.flush();
             }

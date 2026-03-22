@@ -27,15 +27,24 @@ public class OrderBook {
     
     private static final Deque<Order> GLOBAL_ORDER_POOL = new ConcurrentLinkedDeque<>();
     private static final Deque<Trade> GLOBAL_TRADE_POOL = new ConcurrentLinkedDeque<>();
+    private static final Deque<open.vincentf13.service.spot.model.CidKey> GLOBAL_CID_POOL = new ConcurrentLinkedDeque<>();
     private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ConcurrentLinkedDeque<>();
 
     static {
         for (int i = 0; i < MatchingConfig.INITIAL_POOL_SIZE; i++) {
             GLOBAL_ORDER_POOL.add(new Order());
             GLOBAL_TRADE_POOL.add(new Trade());
+            GLOBAL_CID_POOL.add(new open.vincentf13.service.spot.model.CidKey());
         }
         for (int i = 0; i < 10000; i++) GLOBAL_DEQUE_POOL.add(new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY));
     }
+
+    public static open.vincentf13.service.spot.model.CidKey borrowCid() {
+        open.vincentf13.service.spot.model.CidKey cid = GLOBAL_CID_POOL.pollFirst();
+        return (cid == null) ? new open.vincentf13.service.spot.model.CidKey() : cid;
+    }
+
+    public static void releaseCid(open.vincentf13.service.spot.model.CidKey cid) { if (cid != null) GLOBAL_CID_POOL.addLast(cid); }
 
     public static OrderBook get(int symbolId) {
         return INSTANCES.computeIfAbsent(symbolId, id -> {
@@ -180,11 +189,19 @@ public class OrderBook {
 
         while (taker.getQty() > taker.getFilled()) {
             if (counterSide.isEmpty()) break;
+            
+            // 性能優化：在內部循環中儘可能複用 price level
             final long bestPrice = counterSide.firstKey();
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
             final Deque<Order> makers = priceLevelIndex.get(bestPrice);
-            while (makers != null && !makers.isEmpty() && taker.getQty() > taker.getFilled()) {
+            if (makers == null || makers.isEmpty()) {
+                counterSide.remove(bestPrice);
+                priceLevelIndex.remove(bestPrice);
+                continue;
+            }
+
+            while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
                 Order maker = makers.peekFirst();
                 if (!orderIndex.containsKey(maker.getOrderId())) {
                     releaseOrder(makers.pollFirst()); continue;
@@ -216,11 +233,12 @@ public class OrderBook {
                     break;
                 }
             }
-            if (makers != null && makers.isEmpty()) {
+            
+            if (makers.isEmpty()) {
                 counterSide.remove(bestPrice);
                 priceLevelIndex.remove(bestPrice);
                 GLOBAL_DEQUE_POOL.addLast(makers); 
-            } else break;
+            }
         }
         if (taker.getQty() > taker.getFilled()) add(taker);
     }
