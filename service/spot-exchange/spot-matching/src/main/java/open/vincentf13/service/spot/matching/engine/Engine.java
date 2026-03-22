@@ -103,9 +103,10 @@ public class Engine extends Worker {
         MetricsCollector.set(MetricsKey.MATCHING_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
         MetricsCollector.set(nowSec, OrderBook.TOTAL_MATCH_COUNT.get());
         
+        // --- 變更：改為累計值，不再每秒歸零 ---
         MetricsCollector.set(MetricsKey.POLL_COUNT, pollCount);
         MetricsCollector.set(MetricsKey.WORK_COUNT, workCount);
-        pollCount = workCount = 0;
+        // pollCount = workCount = 0; // 移除這行
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));

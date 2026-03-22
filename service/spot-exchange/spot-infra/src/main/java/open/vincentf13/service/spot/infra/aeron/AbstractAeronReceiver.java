@@ -113,21 +113,23 @@ public abstract class AbstractAeronReceiver extends Worker {
         
         // 1. 握手與自愈邏輯
         if (currentState == AeronState.WAITING) {
-            if (msgSeq == 0 || msgSeq == 1) { // 允許從 0 或 1 開始重置
-                log.warn("檢測到發送端 Sequence 重置 (msgSeq={}, current={})，執行進度重置", msgSeq, lastSeq);
+            // 只要收到的序號比本地小，且本地已經有一定進度，就判定為發送端重置了 (例如壓測重跑)
+            if (msgSeq < lastSeq && lastSeq != MSG_SEQ_NONE) {
+                log.warn("[AERON-RECEIVER] 檢測到發送端 Sequence 重置 (msgSeq={}, current={})，執行自動進度校準", msgSeq, lastSeq);
                 progress.setLastProcessedSeq(MSG_SEQ_NONE);
                 currentState = AeronState.SENDING;
             } else if (msgSeq > lastSeq) {
                 currentState = AeronState.SENDING;
                 log.info("已與發送端對齊進度 (msgSeq: {})，握手成功", msgSeq);
+            } else if (msgSeq == lastSeq) {
+                // 剛好相等，直接進入發送模式
+                currentState = AeronState.SENDING;
             }
         }
 
         // 2. 冪等與連續性檢查
         if (msgSeq <= progress.getLastProcessedSeq()) {
-            if (msgSeq % 1000 == 0) { // 減少日誌量
-                log.warn("[AERON-RECEIVER] 丟棄重複或過舊訊息: msgSeq={}, lastSeq={}", msgSeq, lastSeq);
-            }
+            // 增加指標計數，但不打印太多日誌
             open.vincentf13.service.spot.infra.metrics.MetricsCollector.increment(MetricsKey.AERON_DROPPED_COUNT);
             return;
         }
