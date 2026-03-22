@@ -61,6 +61,10 @@ public class AeronSender extends AbstractAeronSender {
         }
     }
 
+    private long localSendCount = 0;
+    private long localBackpressureCount = 0;
+    private static final int METRICS_BATCH_SIZE = 10000;
+
     @Override
     public void onWalMessage(WireIn wire) {
         final long ctxSeq = tailer.index();
@@ -87,20 +91,23 @@ public class AeronSender extends AbstractAeronSender {
 
         if (cmd != null) {
             int payloadLen = (int) remaining;
-            log.debug("[GATEWAY-SENDER] 正在發送訊息至 Aeron: type={}, seq={}, len={}", msgType, ctxSeq, payloadLen);
-            long startBackpressure = this.backPressureCount;
-            this.backPressureCount += aeronClient.send(payloadLen, (buffer, offset) -> {
+            long backpressure = aeronClient.send(payloadLen, (buffer, offset) -> {
                 final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
                 UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
-                // 覆蓋 Sequence，確保與物理 WAL Index 完美同步
                 buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
             });
 
-            // 異步埋點
-            MetricsCollector.increment(MetricsKey.AERON_SEND_COUNT);
-            long delta = this.backPressureCount - startBackpressure;
-            if (delta > 0) {
-                MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, delta);
+            // --- 性能優化：批量指標統計 ---
+            localSendCount++;
+            localBackpressureCount += backpressure;
+            
+            if (localSendCount >= METRICS_BATCH_SIZE) {
+                MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, localSendCount);
+                if (localBackpressureCount > 0) {
+                    MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackpressureCount);
+                }
+                localSendCount = 0;
+                localBackpressureCount = 0;
             }
             
             bytes.readSkip((long) payloadLen);

@@ -106,6 +106,9 @@ public abstract class AbstractAeronReceiver extends Worker {
         });
     }
 
+    private long localDroppedCount = 0;
+    private static final int METRICS_BATCH_SIZE = 10000;
+
     private void fragmentHandler(org.agrona.DirectBuffer buffer, int offset, int length, io.aeron.logbuffer.Header header) {
         // 按照 AbstractSbeModel.SEQ_OFFSET 定義，Seq 在第 4 個位元組之後
         final long msgSeq = buffer.getLong(offset + 4);
@@ -129,15 +132,20 @@ public abstract class AbstractAeronReceiver extends Worker {
 
         // 2. 冪等與連續性檢查
         if (msgSeq <= progress.getLastProcessedSeq()) {
-            // 增加指標計數，但不打印太多日誌
-            open.vincentf13.service.spot.infra.metrics.MetricsCollector.increment(MetricsKey.AERON_DROPPED_COUNT);
+            if (++localDroppedCount >= METRICS_BATCH_SIZE) {
+                open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.AERON_DROPPED_COUNT, localDroppedCount);
+                localDroppedCount = 0;
+            }
             return;
         }
         
         if (currentState == AeronState.SENDING && msgSeq != lastSeq + 1 && lastSeq != MSG_SEQ_NONE) {
             log.error("鏈路跳號！期望: {}, 實際: {}。將強制進入 WAITING 模式並重新握手。", lastSeq + 1, msgSeq);
             currentState = AeronState.WAITING;
-            open.vincentf13.service.spot.infra.metrics.MetricsCollector.increment(MetricsKey.AERON_DROPPED_COUNT);
+            if (++localDroppedCount >= METRICS_BATCH_SIZE) {
+                open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.AERON_DROPPED_COUNT, localDroppedCount);
+                localDroppedCount = 0;
+            }
             sendResumeSignalBlocking();
             return;
         }
