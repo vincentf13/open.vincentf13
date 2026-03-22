@@ -39,7 +39,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
 
     private long localNettyRecvCount = 0;
     private long localWalDropCount = 0;
-    private static final int METRICS_BATCH_SIZE = 10000;
+    private static final int METRICS_BATCH_SIZE = 5000;
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {     

@@ -54,7 +54,7 @@ public class AsyncWalWriter extends Worker {
     }
 
     private long localWalWriteCount = 0;
-    private static final int METRICS_BATCH_SIZE = 50000;
+    private static final int METRICS_BATCH_SIZE = 5000;
 
     @Override
     protected int doWork() {

@@ -40,6 +40,8 @@ public abstract class AbstractAeronSender extends Worker {
     protected ExcerptTailer tailer;
     protected AeronState currentState = AeronState.WAITING;
     protected long backPressureCount = 0;
+    private long localAeronSendCount = 0;
+    private static final int METRICS_BATCH_SIZE = 5000;
 
     // 預先定義 Reader 以避免在 doWork 中產生 Lambda 分配
     private final net.openhft.chronicle.wire.ReadMarshallable walReader = this::onWalMessage;
@@ -93,7 +95,11 @@ public abstract class AbstractAeronSender extends Worker {
         }
         
         if (msgsSent > 0) {
-            MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, msgsSent);
+            localAeronSendCount += msgsSent;
+            if (localAeronSendCount >= METRICS_BATCH_SIZE) {
+                MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, localAeronSendCount);
+                localAeronSendCount = 0;
+            }
             workDone += msgsSent;
         }
 

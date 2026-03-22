@@ -41,6 +41,9 @@ public abstract class AbstractAeronReceiver extends Worker {
     
     protected AeronState currentState = AeronState.WAITING;
     protected long lastResumeSentTime = 0;
+    
+    private long localPollCount = 0;
+    private static final int METRICS_BATCH_SIZE = 5000;
 
     public AbstractAeronReceiver(Aeron aeron,
                                  ChronicleMap<Byte, MsgProgress> metadata,
@@ -92,8 +95,12 @@ public abstract class AbstractAeronReceiver extends Worker {
             }
         }
         
-        // 更新指標：記錄嘗試 Poll 的次數
-        open.vincentf13.service.spot.infra.metrics.MetricsCollector.increment(MetricsKey.POLL_COUNT);
+        // 更新指標：記錄嘗試 Poll 的次數 (批次)
+        localPollCount++;
+        if (localPollCount >= METRICS_BATCH_SIZE) {
+            open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
+            localPollCount = 0;
+        }
 
         // 關鍵：傳遞 assembler 而非直接傳遞 fragmentHandler
         int fragments = subscription.poll(assembler, 10);
