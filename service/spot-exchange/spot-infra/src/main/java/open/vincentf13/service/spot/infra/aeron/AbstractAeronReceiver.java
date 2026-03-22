@@ -113,9 +113,10 @@ public abstract class AbstractAeronReceiver extends Worker {
         
         // 1. 握手與自愈邏輯
         if (currentState == AeronState.WAITING) {
-            if (msgSeq == 0 && lastSeq > 1000) {
-                log.warn("檢測到發送端 WAL 重置 (msgSeq=0, lastProcessed={})，執行進度重置", lastSeq);
+            if (msgSeq == 0 || msgSeq == 1) { // 允許從 0 或 1 開始重置
+                log.warn("檢測到發送端 Sequence 重置 (msgSeq={}, current={})，執行進度重置", msgSeq, lastSeq);
                 progress.setLastProcessedSeq(MSG_SEQ_NONE);
+                currentState = AeronState.SENDING;
             } else if (msgSeq > lastSeq) {
                 currentState = AeronState.SENDING;
                 log.info("已與發送端對齊進度 (msgSeq: {})，握手成功", msgSeq);
@@ -124,13 +125,17 @@ public abstract class AbstractAeronReceiver extends Worker {
 
         // 2. 冪等與連續性檢查
         if (msgSeq <= progress.getLastProcessedSeq()) {
-            log.warn("[AERON-RECEIVER] 丟棄重複或過舊訊息: msgSeq={}, lastSeq={}", msgSeq, lastSeq);
+            if (msgSeq % 1000 == 0) { // 減少日誌量
+                log.warn("[AERON-RECEIVER] 丟棄重複或過舊訊息: msgSeq={}, lastSeq={}", msgSeq, lastSeq);
+            }
+            open.vincentf13.service.spot.infra.metrics.MetricsCollector.increment(MetricsKey.AERON_DROPPED_COUNT);
             return;
         }
         
         if (currentState == AeronState.SENDING && msgSeq != lastSeq + 1 && lastSeq != MSG_SEQ_NONE) {
             log.error("鏈路跳號！期望: {}, 實際: {}。將強制進入 WAITING 模式並重新握手。", lastSeq + 1, msgSeq);
             currentState = AeronState.WAITING;
+            open.vincentf13.service.spot.infra.metrics.MetricsCollector.increment(MetricsKey.AERON_DROPPED_COUNT);
             sendResumeSignalBlocking();
             return;
         }

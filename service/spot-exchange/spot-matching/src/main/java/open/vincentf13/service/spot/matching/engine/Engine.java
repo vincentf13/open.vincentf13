@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- * 撮合引擎核心 (Matching Engine)
+ * 撮合引擎核心 (Matching Engine) - 智慧型落地優化版
  * 職責：極簡化的指令分發與進度持久化中心。
  */
 @Slf4j
@@ -31,6 +31,7 @@ public class Engine extends Worker {
     private final org.agrona.concurrent.MessageHandler handler = this::onMessage;
 
     private long lastMetricsSec = 0;
+    private long lastFlushTime = 0;
     private long pollCount = 0, workCount = 0;
     private static final int BATCH_SIZE = Matching.ENGINE_BATCH_SIZE;
 
@@ -57,15 +58,19 @@ public class Engine extends Worker {
         int done = Storage.self().engineWorkQueue().read(handler, BATCH_SIZE);
         workCount += done;
 
-        // 核心瓶頸修正：將磁碟 I/O 移出撮合熱點路徑，改為背景批量落地
-        if (done > 0 || pollCount % 100 == 0) {
+        // --- 性能優化：智慧型落地策略 ---
+        // 1. 有數據處理時才嘗試落地
+        // 2. 或是距離上次落地已超過 10ms (不再基於昂貴的 pollCount % 100)
+        long now = System.currentTimeMillis();
+        if (done > 0 || (now - lastFlushTime > 10)) {
             ledger.flush();
             for (OrderBook book : OrderBook.getInstances()) {
                 book.flush();
             }
+            lastFlushTime = now;
         }
 
-        long nowSec = System.currentTimeMillis() / 1000;
+        long nowSec = now / 1000;
         if (nowSec > lastMetricsSec) {
             updateMetrics(nowSec);
             lastMetricsSec = nowSec;
@@ -80,7 +85,8 @@ public class Engine extends Worker {
                 log.error("指令跳號！期望: {}, 實際: {}", progress.getLastProcessedMsgSeq() + 1, seq);
             }
             progress.setLastProcessedMsgSeq(seq);
-            if (seq % 100 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
+            // 減少 MetaData 寫入頻率 (每 1000 筆才寫一次磁碟，正常關閉時會寫最後一次)
+            if (seq % 1000 == 0) metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
         }
     }
 
@@ -99,5 +105,9 @@ public class Engine extends Worker {
         }
     }
 
-    @Override protected void onStop() { reporter.close(); ThreadContext.cleanup(); }
+    @Override protected void onStop() { 
+        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress); // 確保關閉時存檔
+        reporter.close(); 
+        ThreadContext.cleanup(); 
+    }
 }
