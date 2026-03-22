@@ -30,14 +30,16 @@
 --add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED
 --add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
 
-# --- GC 優化：Java 21/23 ZGC ---
+# --- GC 優化：Java 21/23 ZGC (吞吐量優先模式) ---
 -XX:+UseZGC
--XX:MaxGCPauseMillis=2
+# 不限制暫停時間，讓 GC 線程有更多空間處理高分配率
 -XX:ZUncommitDelay=3600
 -XX:ParallelGCThreads=8
 -XX:ConcGCThreads=4
+# 提高突發分配耐受度
+-XX:ZAllocationSpikeTolerance=5.0
 
-# --- 記憶體配置 (調大至 10GB Heap) ---
+# --- 記憶體配置 (維持 10GB Heap) ---
 -Xms10G
 -Xmx10G
 -XX:MaxDirectMemorySize=4G

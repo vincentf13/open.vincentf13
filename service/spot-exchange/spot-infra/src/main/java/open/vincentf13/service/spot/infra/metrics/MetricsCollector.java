@@ -10,22 +10,19 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 統一監控指標管理器 (Metrics Manager) - 高性能批處理版
- * 職責：
- * 1. 提供極低延遲的埋點 API (increment/add/set)
- * 2. 內部自動緩衝，避免頻繁觸發非同步任務
- * 3. 統一背景線程每 100ms 定時刷盤，徹底消除 I/O 競爭與 GC 壓力
+ * 統一監控指標管理器 (Metrics Manager) - 零對象裝箱版
  */
 @Slf4j
 public class MetricsCollector {
 
-    // 內存計數器緩衝 (使用 ConcurrentHashMap 儲存 LongAdder)
-    private static final ConcurrentHashMap<Long, LongAdder> COUNTERS = new ConcurrentHashMap<>(128);
+    // 核心優化：使用陣列存放熱點計數器，Key 映射到索引 (絕對值)
+    // 假設 MetricsKey 都在 -1 到 -100 之間
+    private static final int MAX_METRICS = 128;
+    private static final LongAdder[] COUNTER_ARRAY = new LongAdder[MAX_METRICS];
     
-    // 絕對值緩衝 (如 JVM 記憶體、CPU 負載)
+    // 絕對值緩衝 (非熱點，保留 Map)
     private static final ConcurrentHashMap<Long, Long> GAUGES = new ConcurrentHashMap<>(128);
 
-    // 唯一的背景定時刷盤執行器
     private static final ScheduledExecutorService FLUSHER = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "metrics-flusher");
         t.setDaemon(true);
@@ -34,66 +31,49 @@ public class MetricsCollector {
     });
 
     static {
-        // 每 100ms 執行一次批量刷盤
+        for (int i = 0; i < MAX_METRICS; i++) {
+            COUNTER_ARRAY[i] = new LongAdder();
+        }
         FLUSHER.scheduleAtFixedRate(MetricsCollector::flush, 100, 100, TimeUnit.MILLISECONDS);
     }
 
-    /**
-     * 極速計數：遞增 1
-     * 性能優化：避免在熱點路徑調用 computeIfAbsent (其內部有裝箱開銷)
-     */
-    public static void increment(long key) {
-        LongAdder adder = COUNTERS.get(key);
-        if (adder == null) {
-            // 只有初始化時才會有一次裝箱開銷
-            adder = COUNTERS.computeIfAbsent(key, k -> new LongAdder());
-        }
-        adder.increment();
+    private static int getIndex(long key) {
+        // 將負數 Key 轉為正數索引，例如 -1L -> 1
+        int idx = (int)Math.abs(key);
+        return idx < MAX_METRICS ? idx : 0;
     }
 
-    /**
-     * 極速計數：增加 delta
-     */
+    public static void increment(long key) {
+        COUNTER_ARRAY[getIndex(key)].increment();
+    }
+
     public static void add(long key, long delta) {
         if (delta <= 0) return;
-        LongAdder adder = COUNTERS.get(key);
-        if (adder == null) {
-            adder = COUNTERS.computeIfAbsent(key, k -> new LongAdder());
-        }
-        adder.add(delta);
+        COUNTER_ARRAY[getIndex(key)].add(delta);
     }
 
-    /**
-     * 設置絕對值 (Gauge)
-     */
     public static void set(long key, long value) {
         GAUGES.put(key, value);
     }
 
-    /**
-     * 紀錄 CPU 綁核狀態
-     */
     public static void recordCpuAffinity(long key, int cpuId) {
         set(key, (long) cpuId);
     }
 
-    /**
-     * 核心動作：將內存數據批量同步至 Chronicle Map (磁碟)
-     */
     private static void flush() {
         try {
             var metricsMap = Storage.self().metricsHistory();
             
-            // 1. 處理累計器 (Counters)
-            COUNTERS.forEach((key, adder) -> {
-                long sum = adder.sumThenReset();
+            // 1. 處理累計器 (從陣列讀取，無裝箱)
+            for (int i = 1; i < MAX_METRICS; i++) {
+                long sum = COUNTER_ARRAY[i].sumThenReset();
                 if (sum > 0) {
-                    // 同步到持久化磁碟 Map
-                    metricsMap.compute(key, (k, v) -> v == null ? sum : v + sum);
+                    final long metricsKey = -((long)i);
+                    metricsMap.compute(metricsKey, (k, v) -> v == null ? sum : v + sum);
                 }
-            });
+            }
 
-            // 2. 處理絕對值 (Gauges)
+            // 2. 處理絕對值
             GAUGES.forEach(metricsMap::put);
             
         } catch (Exception e) {
@@ -101,11 +81,7 @@ public class MetricsCollector {
         }
     }
     
-    /**
-     * 停機前強制刷盤
-     */
     public static void shutdown() {
-        log.info("MetricsManager 正在執行最後一次刷盤...");
         flush();
         FLUSHER.shutdown();
     }
