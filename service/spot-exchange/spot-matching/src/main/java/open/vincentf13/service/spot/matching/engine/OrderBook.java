@@ -70,6 +70,9 @@ public class OrderBook {
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
     private final Long2ObjectHashMap<LongHashSet> userOrderIdsIndex = new Long2ObjectHashMap<>(4096, 0.5f);
 
+    private final byte[] userActiveBuffer = new byte[8192]; // 支持單用戶 1024 個掛單
+    private final java.nio.ByteBuffer userActiveByteBuffer = java.nio.ByteBuffer.wrap(userActiveBuffer);
+
     private static final Order SCAN_REUSABLE = new Order();
 
     public interface TradeFinalizer {
@@ -105,10 +108,20 @@ public class OrderBook {
         if (activeIds == null || activeIds.isEmpty()) {
             userActiveOrdersDiskMap.remove(userId);
         } else {
-            byte[] bytes = new byte[activeIds.size() * 8];
-            java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(bytes);
-            activeIds.forEach(buf::putLong);
-            userActiveOrdersDiskMap.put(userId, bytes);
+            int size = activeIds.size();
+            int bytesNeeded = size * 8;
+            if (bytesNeeded > userActiveBuffer.length) {
+                // 極端情況：用戶掛單超過 1024 個，降級為分配新數組
+                byte[] largeBuf = new byte[bytesNeeded];
+                java.nio.ByteBuffer lbb = java.nio.ByteBuffer.wrap(largeBuf);
+                activeIds.forEach(lbb::putLong);
+                userActiveOrdersDiskMap.put(userId, largeBuf);
+            } else {
+                userActiveByteBuffer.clear();
+                activeIds.forEach(userActiveByteBuffer::putLong);
+                // ChronicleMap 存儲 byte[] 會拷貝，使用 copyOf 確保長度正確
+                userActiveOrdersDiskMap.put(userId, Arrays.copyOf(userActiveBuffer, bytesNeeded));
+            }
         }
     }
 
@@ -170,7 +183,7 @@ public class OrderBook {
             final long bestPrice = counterSide.firstKey();
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
-            final Deque<Order> makers = counterSide.get(bestPrice);
+            final Deque<Order> makers = priceLevelIndex.get(bestPrice);
             while (makers != null && !makers.isEmpty() && taker.getQty() > taker.getFilled()) {
                 Order maker = makers.peekFirst();
                 if (!orderIndex.containsKey(maker.getOrderId())) {

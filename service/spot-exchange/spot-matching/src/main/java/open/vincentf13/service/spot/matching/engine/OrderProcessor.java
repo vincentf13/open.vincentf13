@@ -111,6 +111,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     }
 
     private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, long orderId, LongSupplier tradeIdSupplier) {
+        final ThreadContext context = ThreadContext.get();
         // 1. 凍結資產
         OrderBook book = OrderBook.get(symbolId);
         int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId(); 
@@ -133,16 +134,17 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         this.currentGatewaySequence = gatewaySequence;
 
         // 3. 進入 OrderBook 撮合
-        book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, tradeIdSupplier::getAsLong, this);
+        Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, tradeIdSupplier::getAsLong, this);
 
         // 4. 寫入客戶端訂單 ID 映射 (持久化 taker) 與 更新布隆過濾器
-        final CidKey takerCid = new CidKey(); // 必須新對象，因為會存入 Map 和 Filter
+        // 性能優化：直接複用 ThreadContext 的 cidKey，不再分配新對象 (Map 和 Filter 均會序列化或雜湊，不持有引用)
+        final CidKey takerCid = context.getRequestHolder().getCidKey();
         takerCid.set(userId, clientOrderId);
         clientOrderIdDiskMap.put(takerCid, orderId);
         cidBloomFilter.put(takerCid);
 
         // 5. 發送回報 (Accepted)
-        Order taker = orders.get(orderId);
+        // 性能優化：直接使用 book.handleCreate 返回的對象，不再調用 orders.get(orderId) 觸發額外分配與磁碟 IO
         if (taker != null) {
             reporter.reportAccepted(taker);
         }

@@ -71,10 +71,9 @@ public class Engine extends Worker {
         }
 
         // --- 性能優化：智慧型落地策略 ---
-        // 1. 有數據處理時才嘗試落地
-        // 2. 或是距離上次落地已超過 10ms (不再基於昂貴的 pollCount % 100)
+        // 修正：不再每次 done > 0 就 flush，而是基於時間 (1ms) 落地
         long now = open.vincentf13.service.spot.infra.util.Clock.now();
-        if (done > 0 || (now - lastFlushTime > 10)) {
+        if (now != lastFlushTime) {
             ledger.flush();
             for (OrderBook book : OrderBook.getInstances()) {
                 book.flush();
