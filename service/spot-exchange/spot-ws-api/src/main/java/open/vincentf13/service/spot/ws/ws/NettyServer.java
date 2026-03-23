@@ -49,7 +49,8 @@ public class NettyServer {
         new Thread(() -> {
             bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss", MetricsKey.CPU_ID_NETTY_BOSS));
             workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker", 
-                MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2));
+                MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2, 
+                MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4));
             try {
                 ServerBootstrap b = new ServerBootstrap();
                 b.group(bossGroup, workerGroup)

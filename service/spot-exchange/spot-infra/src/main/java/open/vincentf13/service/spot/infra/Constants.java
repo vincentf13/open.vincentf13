@@ -143,6 +143,8 @@ public class Constants {
         public static final long CPU_ID_NETTY_BOSS = -106L;
         public static final long CPU_ID_NETTY_WORKER_1 = -107L;
         public static final long CPU_ID_NETTY_WORKER_2 = -108L;
+        public static final long CPU_ID_NETTY_WORKER_3 = -110L;
+        public static final long CPU_ID_NETTY_WORKER_4 = -111L;
         public static final long CPU_ID_AERON_CONDUCTOR = -109L;
 
         // JVM 與 CPU 指標
