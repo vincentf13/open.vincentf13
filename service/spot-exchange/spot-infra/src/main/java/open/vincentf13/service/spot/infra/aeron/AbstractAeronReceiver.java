@@ -8,10 +8,7 @@ import io.aeron.logbuffer.BufferClaim;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.Worker;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.model.MsgProgress;
-import org.agrona.concurrent.BackoffIdleStrategy;
-import org.agrona.concurrent.IdleStrategy;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 

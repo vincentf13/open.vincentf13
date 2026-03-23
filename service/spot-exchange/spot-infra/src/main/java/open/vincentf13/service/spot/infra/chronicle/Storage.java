@@ -4,21 +4,17 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
-import org.agrona.concurrent.UnsafeBuffer;
-import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
-import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 import open.vincentf13.service.spot.infra.Constants.ChronicleMapEnum;
 import open.vincentf13.service.spot.infra.Constants.ChronicleQueueEnum;
-import open.vincentf13.service.spot.infra.Constants.Ws;
 import open.vincentf13.service.spot.model.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * 系統存儲中心 (Storage Hub) - 高性能優化版
- * 職責：統一管理所有持久化 (Chronicle Map/Queue) 與內存 (RingBuffer) 資源
+ * 職責：統一管理所有持久化 (Chronicle Map/Queue) 資源。
+ * 優化：移除內存 RingBuffer 隊列，改由 Aeron 直連撮合。
  */
 @Slf4j
 public class Storage {
@@ -39,9 +35,6 @@ public class Storage {
 
     // --- 持久化 Queues (WAL) ---
     private final ChronicleQueue gatewaySenderWal;
-
-    // --- 內存 Queues (Lazy Init via Double-Check) ---
-    private volatile ManyToOneRingBuffer engineWorkQueue;
 
     private Storage() {
         log.info(">>> [INIT] 正在初始化 Chronicle 存儲資源...");
@@ -72,24 +65,6 @@ public class Storage {
     public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
     public ChronicleMap<Long, Long> metricsHistory() { return metricsHistory; }
     public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
-
-    // --- RingBuffer Getters (Lazy) ---
-
-    public ManyToOneRingBuffer engineWorkQueue() {
-        if (engineWorkQueue == null) synchronized (this) {
-            if (engineWorkQueue == null) {
-                engineWorkQueue = initRingBuffer("EngineWork", 64 * 1024 * 1024);
-            }
-        }
-        return engineWorkQueue;
-    }
-
-    private ManyToOneRingBuffer initRingBuffer(String name, int bufferSize) {
-        int totalSize = bufferSize + RingBufferDescriptor.TRAILER_LENGTH;
-        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(totalSize);
-        log.info("{} RingBuffer initialized: size={}MB", name, bufferSize / 1024 / 1024);
-        return new ManyToOneRingBuffer(new UnsafeBuffer(byteBuffer));
-    }
 
     // --- Helpers ---
 
