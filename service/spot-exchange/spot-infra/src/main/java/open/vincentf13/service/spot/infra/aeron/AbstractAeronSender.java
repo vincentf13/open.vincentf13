@@ -82,19 +82,26 @@ public abstract class AbstractAeronSender extends Worker {
 
         // 批量發送優化
         for (int i = 0; i < 1000; i++) {
+            boolean failed = false;
+            long indexBeforeRead = 0;
             try (var dc = tailer.readingDocument()) {
                 if (!dc.isPresent()) break;
                 
-                final long indexBeforeRead = dc.index();
+                indexBeforeRead = dc.index();
                 onWalMessage(dc.wire());
                 
                 // 檢查是否發送成功 (透過 bytes 剩餘量判定，由 AeronSender.onWalMessage 操作)
                 if (dc.wire().bytes().readRemaining() > 0) {
-                    // 發送失敗 (如背壓)，不前移位點，下次 doWork 重新處理
-                    tailer.moveToIndex(indexBeforeRead);
-                    break;
+                    failed = true;
+                } else {
+                    workDone++;
                 }
-                workDone++;
+            }
+            
+            if (failed) {
+                // 發送失敗 (如背壓)，在 dc 關閉後回退 tailer 位點，下次 doWork 重新處理
+                tailer.moveToIndex(indexBeforeRead);
+                break;
             }
         }
         
