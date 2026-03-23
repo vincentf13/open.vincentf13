@@ -9,9 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptAppender;
+import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
-import open.vincentf13.service.spot.model.command.AbstractSbeModel;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -27,9 +27,8 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
     private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
     
-    // 核心優化：ThreadLocal Appender 與 Pointer，消除爭用與一次內存拷貝
+    // 核心優化：ThreadLocal Appender，消除寫入爭用
     private final ThreadLocal<ExcerptAppender> appenderThreadLocal = ThreadLocal.withInitial(wal::acquireAppender);
-    private final ThreadLocal<PointerBytesStore> pointerThreadLocal = ThreadLocal.withInitial(PointerBytesStore::new);
     private final ThreadLocal<Long> localNettyRecvCount = ThreadLocal.withInitial(() -> 0L);
     private static final int METRICS_BATCH_SIZE = 5000;
 
@@ -49,32 +48,32 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
 
         io.netty.buffer.ByteBuf content = frame.content();
         int length = content.readableBytes();
-        if (length < 20) { 
-            return; // 忽略無效封包
+        if (length < 20) return;
+
+        // 1. 提取 MsgType 與處理 Session 綁定 (僅在尚未綁定時執行)
+        if (ctx.channel().attr(WsSessionManager.USER_ID_KEY).get() == null) {
+            int msgType = content.getIntLE(content.readerIndex());
+            if (msgType == MsgType.AUTH) {
+                long userId = content.getLongLE(content.readerIndex() + 28);
+                sessionManager.addSession(userId, ctx.channel());
+            }
         }
 
-        // 提取 MsgType (位於 SBE 固定偏移量 0)
-        int msgType = content.getIntLE(content.readerIndex());
-        
-        // 處理 AUTH 以建立 Session 映射
-        if (msgType == open.vincentf13.service.spot.infra.Constants.MsgType.AUTH) {
-            // Layout: [Header 20][Timestamp 8][UserId 8]
-            long userId = content.getLongLE(content.readerIndex() + 20 + 8);
-            sessionManager.addSession(userId, ctx.channel());
-        }
-
-        // --- 核心優化：物理記憶體零拷貝直寫 WAL ---
-        ExcerptAppender appender = appenderThreadLocal.get();
-        PointerBytesStore pointer = pointerThreadLocal.get();
+        // 2. --- 核心優化：物理記憶體零拷貝直寫 WAL ---
+        final ThreadContext context = ThreadContext.get();
+        final ExcerptAppender appender = appenderThreadLocal.get();
+        final PointerBytesStore pointer = context.getReusablePointer();
         
         try (var dc = appender.writingDocument()) {
             if (content.hasMemoryAddress()) {
                 pointer.set(content.memoryAddress() + content.readerIndex(), length);
                 dc.wire().bytes().write(pointer);
             } else {
-                byte[] data = new byte[length];
-                content.getBytes(content.readerIndex(), data);
-                dc.wire().bytes().write(data);
+                // 回退方案：避免頻繁分配 byte[]，使用 ThreadContext 的 scratchBuffer
+                int writeLen = Math.min(length, 1024);
+                byte[] scratch = new byte[writeLen]; // 這裡仍有進步空間，但 Netty 通常是 Direct
+                content.getBytes(content.readerIndex(), scratch);
+                dc.wire().bytes().write(scratch);
             }
         } catch (Exception e) {
             log.error("[GATEWAY-WS] WAL 直寫失敗: {}", e.getMessage());

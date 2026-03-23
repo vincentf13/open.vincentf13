@@ -79,6 +79,7 @@ public class WsSessionManager {
 
     /**
      * 精準推送：向該用戶的所有活躍設備推送二進制訊息
+     * 優化：減少 Frame 的重複封裝，並正確利用 Netty 引用計數進行廣播
      */
     public void sendMessage(long userId, ByteBuf data) {
         Set<Channel> channels;
@@ -93,14 +94,20 @@ public class WsSessionManager {
         }
 
         try {
+            // 建立一次 Frame，供該用戶的所有連線使用
+            // BinaryWebSocketFrame 會自動 retain 傳入的 ByteBuf
+            BinaryWebSocketFrame sharedFrame = new BinaryWebSocketFrame(data);
+            
             for (Channel c : channels) {
                 if (c.isActive()) {
-                    // 核心優化：改用 BinaryWebSocketFrame 推送，完全移除文字編碼開銷
-                    c.writeAndFlush(new BinaryWebSocketFrame(data.retain()));
+                    // 對每個連線發送 Frame 的副本 (retainedDuplicate) 以確保執行緒安全與正確釋放
+                    c.writeAndFlush(sharedFrame.retainedDuplicate());
                 }
             }
-        } finally {
-            data.release();
+            // 釋放 sharedFrame 初始持有的一份引用
+            sharedFrame.release();
+        } catch (Exception e) {
+            log.error("[WS-SESSION] 推送訊息失敗 (userId: {}): {}", userId, e.getMessage());
         }
     }
 }
