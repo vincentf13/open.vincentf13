@@ -32,6 +32,7 @@ public class Engine implements AeronMessageHandler {
     private long lastMetricsSec = 0;
     private long lastFlushTime = 0;
     private long workCount = 0;
+    private long unflushedWorkCount = 0;
     private long localPollCount = 0, localWorkCount = 0;
     private static final int METRICS_BATCH_SIZE = 5000;
 
@@ -42,6 +43,7 @@ public class Engine implements AeronMessageHandler {
     public void onStart() {
         log.info("執行冷啟動索引重建與預熱...");
         workCount = 0;
+        unflushedWorkCount = 0;
         MetricsCollector.set(MetricsKey.POLL_COUNT, 0L);
         MetricsCollector.set(MetricsKey.WORK_COUNT, 0L);
         MetricsCollector.set(MetricsKey.AERON_DROPPED_COUNT, 0L);
@@ -63,14 +65,16 @@ public class Engine implements AeronMessageHandler {
     public void tick(int done) {
         if (done > 0) {
             updateWorkMetrics(done);
+            unflushedWorkCount += done;
         }
 
         final long now = open.vincentf13.service.spot.infra.util.Clock.now();
-        
-        // 智慧型落地策略：達到閾值或超時
-        if (done > 0 && (workCount % 50000 == 0 || now - lastFlushTime >= 100)) {
+
+        // 智慧型落地策略：有未落地資料，且達到數量閾值或時間閾值 (解決閒置時尾部數據不落地的 bug)
+        if (unflushedWorkCount > 0 && (unflushedWorkCount >= 50000 || now - lastFlushTime >= 100)) {
             flushAll();
             lastFlushTime = now;
+            unflushedWorkCount = 0;
         }
 
         final long nowSec = now / 1000;
@@ -96,7 +100,9 @@ public class Engine implements AeronMessageHandler {
     private void flushAll() {
         ledger.flush();
         orderProcessor.flush();
-        OrderBook.getInstances().forEach(OrderBook::flush);
+        for (OrderBook book : OrderBook.getInstances()) {
+            book.flush();
+        }
         metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
     }
 
@@ -105,15 +111,11 @@ public class Engine implements AeronMessageHandler {
         final long gatewayTime = buffer.getLong(offset + 12);
         long seq = router.route(msgType, buffer, offset, length, gatewayTime, progress);
         if (seq != MSG_SEQ_NONE) {
-            validateSequence(seq);
+            long last = progress.getLastProcessedMsgSeq();
+            if (last != MSG_SEQ_NONE && seq != last + 1) {
+                log.error("指令跳號！期望: {}, 實際: {}", last + 1, seq);
+            }
             progress.setLastProcessedMsgSeq(seq);
-        }
-    }
-
-    private void validateSequence(long seq) {
-        long last = progress.getLastProcessedMsgSeq();
-        if (last != MSG_SEQ_NONE && seq != last + 1) {
-            log.error("指令跳號！期望: {}, 實際: {}", last + 1, seq);
         }
     }
 

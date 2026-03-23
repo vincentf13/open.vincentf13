@@ -39,10 +39,19 @@ public class AeronSender extends AbstractAeronSender {
 
     private long lastMetricsTime = 0;
 
+    private long localBackPressure = 0;
+
     @Override
     protected int doWork() {
         int work = super.doWork();
-        long now = System.currentTimeMillis() / 1000;
+        
+        // 批量匯總背壓指標
+        if (localBackPressure > 0) {
+            MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackPressure);
+            localBackPressure = 0;
+        }
+
+        long now = open.vincentf13.service.spot.infra.util.Clock.now() / 1000;
         if (now > lastMetricsTime) {
             updateProcessMetrics();
             lastMetricsTime = now;
@@ -50,42 +59,25 @@ public class AeronSender extends AbstractAeronSender {
         return work;
     }
 
-    private void updateProcessMetrics() {
-        Runtime r = Runtime.getRuntime();
-        MetricsCollector.set(MetricsKey.GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
-        MetricsCollector.set(MetricsKey.GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
-        
-        java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
-        if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
-            MetricsCollector.set(MetricsKey.GATEWAY_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
-        }
-    }
-
     @Override
     public void onWalMessage(WireIn wire) {
-        final long ctxSeq = tailer.index();
-        final Bytes<?> bytes = wire.bytes();
-        
-        long remaining = bytes.readRemaining();
-        if (remaining <= 0) return;
+        final net.openhft.chronicle.bytes.Bytes<?> bytes = wire.bytes();
+        final int payloadLen = (int) bytes.readRemaining();
+        if (payloadLen <= 0) return;
 
         final long addressForRead = bytes.addressForRead(bytes.readPosition());
-        final int payloadLen = (int) remaining;
+        final long ctxSeq = tailer.index();
 
         // 核心修正：檢查發送結果
         long result = aeronClient.send(payloadLen, (buffer, offset) -> {
-            final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
-            UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
+            UNSAFE.copyMemory(addressForRead, OffHeapUtil.getAddress(buffer, offset), (long) payloadLen);
             buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
         });
 
         if (result >= 0) {
-            // 發送成功，移動讀取指針
             bytes.readSkip((long) payloadLen);
         } else {
-            // 發送失敗 (BACK_PRESSURED / NOT_CONNECTED)
-            // 不執行 readSkip，讓下次 doWork 重新讀取此訊息
-            MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, 1L);
+            localBackPressure++;
         }
     }
 }
