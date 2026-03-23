@@ -70,8 +70,8 @@ $driver.ProcessorAffinity = 1792
 Write-Host "Media Driver (PID: 「**$($driver.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
-# --- 5. 啟動 Matching Engine (CPU 5, GC: 6-7, 12, Mask: 4320) ---
-Write-Host "Starting Matching Engine on CPU 5 (+Core 6, 7, 12, 15 for GC)..."
+# --- 5. 啟動 Matching Engine (CPU 5, GC: 6, Mask: 96) ---
+Write-Host "Starting Matching Engine on CPU 5 (+Core 6 for GC)..."
 $matching_args = @(
     "@$doc_path\jvm\matching-low-latency.args",
     "-Daeron.driver.enabled=false",
@@ -80,7 +80,7 @@ $matching_args = @(
     "open.vincentf13.service.spot.matching.MatchingApp"
 )
 $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
-$e.ProcessorAffinity = 37088
+$e.ProcessorAffinity = 96
 Write-Host "Matching (PID: 「**$($e.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
@@ -99,18 +99,18 @@ $g.ProcessorAffinity = 36895
 Write-Host "Gateway (PID: 「**$($g.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
-# --- 7. 啟動 k6 極限壓測 (CPU 11, 13-14, Mask: 26624) ---
+# --- 7. 啟動 k6 極限壓測 (CPU 7, 11, 13-14, Mask: 26752) ---
 if ($e.HasExited) { Write-Error "Matching 失敗！"; return }
 if ($g.HasExited) { Write-Error "Gateway 失敗！"; return }
 
 $log_dir = "$doc_path\test\log"
 if (-not (Test-Path $log_dir)) { New-Item -ItemType Directory -Path $log_dir }
 
-Write-Host "所有服務就緒。正在啟動 k6 超級壓測模式 (100 VUs, 3-Cores Dedicated)..."
+Write-Host "所有服務就緒。正在啟動 k6 超級壓測模式 (100 VUs, 4-Cores Dedicated)..."
 Set-Location "$base_path\service\spot-exchange\doc\test"
 
-# 設置 Go 運行時使用 3 個核心 (11, 13, 14)
-$env:GOMAXPROCS = "3"
+# 設置 Go 運行時使用 4 個核心 (7, 11, 13, 14)
+$env:GOMAXPROCS = "4"
 
 # 優化 k6 運行參數
 $k6_args = @(
@@ -121,6 +121,6 @@ $k6_args = @(
 )
 
 $k6_proc = Start-Process k6 -ArgumentList $k6_args -RedirectStandardOutput "$log_dir\k6_out.log" -RedirectStandardError "$log_dir\k6_err.log" -PassThru
-$k6_proc.ProcessorAffinity = 26624
-Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 已鎖定 Core 11, 13, 14，火力全開中..."
+$k6_proc.ProcessorAffinity = 26752
+Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 已鎖定 Core 7, 11, 13, 14，火力全開中..."
 ```
