@@ -68,7 +68,7 @@ public class TestVerificationController {
     public List<Map<String, Object>> getTpsHistory() {
         TreeMap<Long, Long> sortedHistory = new TreeMap<>(Collections.reverseOrder());
         Storage.self().metricsHistory().forEach((key, total) -> {
-            // 關鍵：只有當 Key 大於系統指標範圍 (1000) 且像是秒級時間戳時才計入 TPS 歷史
+            // 時間戳 Key 必定是很大的正數
             if (key > 1000000) sortedHistory.put(key, total);
         });
         

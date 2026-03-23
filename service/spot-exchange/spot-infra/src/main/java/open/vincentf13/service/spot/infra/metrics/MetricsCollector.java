@@ -37,7 +37,8 @@ public class MetricsCollector {
     }
 
     private static int getIndex(long key) {
-        int idx = (int) Math.abs(key);
+        // MetricsKey 均為負數 (-1 ~ -512)，將其轉為正數索引 (1 ~ 512)
+        int idx = (int) -key;
         return (idx >= 0 && idx < MAX_METRICS) ? idx : 0;
     }
 
@@ -64,11 +65,11 @@ public class MetricsCollector {
         try {
             var metricsMap = Storage.self().metricsHistory();
             
-            // 1. 處理累計器
+            // 1. 處理累計器 (還原為負數 Key 以對齊 Constants)
             for (int i = 0; i < MAX_METRICS; i++) {
                 long total = COUNTER_ARRAY[i].sum();
                 if (total > 0) {
-                    metricsMap.put((long)i, total);
+                    metricsMap.put(-((long)i), total);
                 }
             }
 
@@ -76,7 +77,7 @@ public class MetricsCollector {
             synchronized (MetricsCollector.class) {
                 for (int i = 0; i < MAX_METRICS; i++) {
                     if (GAUGE_UPDATED[i]) {
-                        metricsMap.put((long)i, GAUGE_ARRAY[i]);
+                        metricsMap.put(-((long)i), GAUGE_ARRAY[i]);
                     }
                 }
             }

@@ -91,8 +91,14 @@ public abstract class Worker implements Runnable {
      */
     @Override
     public void run() {
-        // 根據偏好或自動分配物理核心
-        int boundCpuId = open.vincentf13.service.spot.infra.util.AffinityUtil.acquireAndBind(preferredCpuId);
+        int boundCpuId = -1;
+        try {
+            // 根據偏好或自動分配物理核心
+            boundCpuId = open.vincentf13.service.spot.infra.util.AffinityUtil.acquireAndBind(preferredCpuId);
+        } catch (Exception e) {
+            log.warn("CPU Affinity 綁定失敗，執行緒 {} 將運行於預設核心: {}", thread.getName(), e.getMessage());
+        }
+        
         onBind(boundCpuId);
 
         try {
