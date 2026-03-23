@@ -128,7 +128,9 @@ public class Engine implements AeronMessageHandler {
         
         final long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
         MetricsCollector.set(MetricsKey.MATCH_COUNT, totalMatches);
-        Storage.self().metricsHistory().put(nowSec, totalMatches);
+        
+        // 修正：TPS 歷史紀錄應該儲存引擎總共處理的「交易數 (workCount)」，而非只有「成交數 (totalMatches)」
+        Storage.self().metricsHistory().put(nowSec, workCount);
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));
