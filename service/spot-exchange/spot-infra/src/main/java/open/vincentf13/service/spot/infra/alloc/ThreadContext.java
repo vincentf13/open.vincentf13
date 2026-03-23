@@ -37,6 +37,7 @@ public class ThreadContext {
     // --- 基礎組件 (Flyweight) ---
     @Getter private final Order reusableOrder = new Order();
     @Getter private final PointerBytesStore reusablePointer = new PointerBytesStore();
+    @Getter private final CidKey cidKey = new CidKey();
 
     private ThreadContext() {
         PointerBytesStore pbs = new PointerBytesStore();

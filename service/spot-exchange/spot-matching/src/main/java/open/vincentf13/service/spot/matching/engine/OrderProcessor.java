@@ -74,7 +74,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, 
                                    open.vincentf13.service.spot.model.WalProgress progress) {
         final ThreadContext context = ThreadContext.get();
-        final CidKey cidKey = context.getRequestHolder().getCidKey(); 
+        final CidKey cidKey = context.getCidKey(); 
         cidKey.set(userId, clientOrderId);
 
         // 1. 檢查當前記憶體緩衝區 (10ms 內的最熱點，防重複下單)
@@ -151,7 +151,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             bufferCount++;
         }
         
-        final CidKey takerCid = context.getRequestHolder().getCidKey();
+        final CidKey takerCid = context.getCidKey();
         takerCid.set(userId, clientOrderId);
         cidBloomFilter.put(takerCid);
 

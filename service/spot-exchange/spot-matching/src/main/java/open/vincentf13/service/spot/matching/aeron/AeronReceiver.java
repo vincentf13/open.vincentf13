@@ -27,10 +27,14 @@ public class AeronReceiver extends AbstractAeronReceiver {
               AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
     }
 
-    @PostConstruct public void init() { start("core-command-receiver"); }
+    @PostConstruct public void init() { 
+        // 職責分離：由 Engine 調用 setup()，不再啟動獨立執行緒
+        log.info("[AERON-RECEIVER] 初始化完成 (待 Engine 驅動模式)");
+    }
 
     @Override
     protected void onBind(int cpuId) {
+        // 在 Poll 模式下，這將在 Engine 的執行緒中執行
         Storage.self().metricsHistory().put(MetricsKey.CPU_ID_AERON_RECEIVER, (long) cpuId);
     }
 
@@ -42,7 +46,6 @@ public class AeronReceiver extends AbstractAeronReceiver {
             long seq = engineProgress.getLastProcessedMsgSeq();
             MsgProgress msgProg = new MsgProgress();
             msgProg.setLastProcessedSeq(seq);
-            // 同步到接收器的 metadata，這樣 super.onStart() 就能讀到正確的恢復點
             metadata.put(metadataKey, msgProg);
             log.info("[AERON-RECEIVER] 已從 Engine 持久化位點恢復恢復位點: Seq={}", seq);
         }
@@ -51,11 +54,6 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     public void onMessage(DirectBuffer buffer, int offset, int length) {
-        final int msgType = buffer.getInt(offset);
-
-        // 自旋寫入，直到成功為止 (產生背壓，絕不丟包)
-        while (!Storage.self().engineWorkQueue().write(msgType, buffer, offset, length)) {
-            // 在極高壓下，稍微提示但不停下
-            // Thread.onSpinWait(); // Java 9+ 提示 CPU 正在自旋
-        }
+        // 此方法在 Poll 模式下僅作為後備，正常情況下會分發給 Engine 的 handler
+        log.warn("[AERON-RECEIVER] 收到未分發訊息，長度: {}", length);
     }}

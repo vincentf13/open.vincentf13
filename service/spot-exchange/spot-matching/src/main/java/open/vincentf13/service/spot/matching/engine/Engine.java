@@ -26,9 +26,10 @@ public class Engine extends Worker {
     private final OrderProcessor orderProcessor;
     private final Ledger ledger;
     private final ExecutionReporter reporter;
+    private final open.vincentf13.service.spot.matching.aeron.AeronReceiver aeronReceiver;
     
     private final WalProgress progress = new WalProgress();
-    private final org.agrona.concurrent.MessageHandler handler = this::onMessage;
+    private final open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver.AeronMessageHandler handler = this::onMessage;
 
     private long lastMetricsSec = 0;
     private long lastFlushTime = 0;
@@ -59,11 +60,15 @@ public class Engine extends Worker {
 
         WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
         if (saved != null) progress.copyFrom(saved);
+        
+        // 初始化 Aeron 接收器 (被動模式)
+        aeronReceiver.setup();
+        
         log.info("Engine 啟動完成，恢復點: Seq={}", progress.getLastProcessedMsgSeq());
     }
 
     @Override protected int doWork() {
-        int done = Storage.self().engineWorkQueue().read(handler, BATCH_SIZE);
+        int done = aeronReceiver.poll(handler, BATCH_SIZE);
         workCount += done;
         localWorkCount += done;
         

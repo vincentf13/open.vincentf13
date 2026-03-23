@@ -21,6 +21,12 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 public abstract class AbstractAeronReceiver extends Worker {
+    // 自定義處理器接口，支持 DirectBuffer (ReadOnly)
+    @FunctionalInterface
+    public interface AeronMessageHandler {
+        void onMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length);
+    }
+
     protected final Aeron aeron;
     protected final ChronicleMap<Byte, MsgProgress> metadata;
     protected final byte metadataKey;
@@ -45,6 +51,9 @@ public abstract class AbstractAeronReceiver extends Worker {
     private long localPollCount = 0;
     private static final int METRICS_BATCH_SIZE = 5000;
 
+    // 外部處理器，用於 Poll 模式
+    private AeronMessageHandler externalHandler;
+
     public AbstractAeronReceiver(Aeron aeron,
                                  ChronicleMap<Byte, MsgProgress> metadata,
                                  byte metadataKey,
@@ -59,6 +68,44 @@ public abstract class AbstractAeronReceiver extends Worker {
         this.subscriptionStreamId = subscriptionStreamId;
         this.controlChannel = controlChannel;
         this.controlStreamId = controlStreamId;
+    }
+
+    /**
+     * 被動模式下的手動初始化
+     */
+    public void setup() {
+        onStart();
+    }
+
+    /**
+     * 被動模式下的拉取入口
+     */
+    public int poll(AeronMessageHandler handler, int limit) {
+        this.externalHandler = handler;
+        
+        if (currentState == AeronState.SENDING && !subscription.isConnected()) {
+            currentState = AeronState.WAITING;
+            log.warn("檢測到發送端斷開，回退至握手模式...");
+        }
+
+        if (currentState == AeronState.WAITING) {
+            long now = System.currentTimeMillis();
+            if (now - lastResumeSentTime > 200) {
+                sendResumeSignalBlocking();
+                lastResumeSentTime = now;
+            }
+        }
+        
+        updatePollMetrics();
+        return subscription.poll(assembler, limit);
+    }
+
+    private void updatePollMetrics() {
+        localPollCount++;
+        if (localPollCount >= METRICS_BATCH_SIZE) {
+            open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
+            localPollCount = 0;
+        }
     }
 
     @Override
@@ -152,8 +199,12 @@ public abstract class AbstractAeronReceiver extends Worker {
             return;
         }
 
-        // 3. 業務處理與落地 (由子類實作)
-        onMessage(buffer, offset, length);
+        // 3. 業務處理與落地
+        if (externalHandler != null) {
+            externalHandler.onMessage(buffer.getInt(offset), buffer, offset, length);
+        } else {
+            onMessage(buffer, offset, length);
+        }
         
         progress.setLastProcessedSeq(msgSeq);
         
