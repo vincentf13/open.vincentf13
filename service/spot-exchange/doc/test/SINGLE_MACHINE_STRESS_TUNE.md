@@ -66,51 +66,51 @@ $driver_args = @(
     "io.aeron.driver.MediaDriver"
 )
 $driver = Start-Process java -ArgumentList $driver_args -PassThru
-$driver.ProcessorAffinity = 3840
+$driver.ProcessorAffinity = 1792
 Write-Host "Media Driver (PID: 「**$($driver.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
-# --- 5. 啟動 Matching Engine (CPU 5-7, 12, Mask: 4320) ---
-Write-Host "Starting Matching Engine on CPU 5-7 (+Core 12 for GC)..."
+# --- 5. 啟動 Matching Engine (CPU 5, GC: 6-7, 12, Mask: 4320) ---
+Write-Host "Starting Matching Engine on CPU 5 (+Core 6, 7, 12, 15 for GC)..."
 $matching_args = @(
     "@$doc_path\jvm\matching-low-latency.args",
     "-Daeron.driver.enabled=false",
     "-Daeron.dir=$aeron_dir",
-    "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/",
+    "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
     "open.vincentf13.service.spot.matching.MatchingApp"
 )
 $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
-$e.ProcessorAffinity = 4320
+$e.ProcessorAffinity = 37088
 Write-Host "Matching (PID: 「**$($e.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
-# --- 6. 啟動 Gateway (WS-API) (CPU 0-4, 12, Mask: 4127) ---
+# --- 6. 啟動 Gateway (WS-API) (CPU 0-4, 12, 15, Mask: 36895) ---
 # 優化：5 核心直寫 WAL 架構 (1 Boss + 4 Workers)，消除 RingBuffer 瓶頸
-Write-Host "Starting Gateway (WS-API) on CPU 0-4 (+Core 12 for GC)..."
+Write-Host "Starting Gateway (WS-API) on CPU 0-4 (+Core 12, 15 for GC)..."
 $gw_args = @(
     "@$doc_path\jvm\ws-api-throughput.args",
     "-Daeron.driver.enabled=false",
     "-Daeron.dir=$aeron_dir",
-    "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;snapshot-dependencies/BOOT-INF/lib/*;spring-boot-loader/",
+    "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
     "open.vincentf13.service.spot.ws.WsApiApp"
 )
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
-$g.ProcessorAffinity = 4127
+$g.ProcessorAffinity = 36895
 Write-Host "Gateway (PID: 「**$($g.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
-# --- 7. 啟動 k6 極限壓測 (CPU 13-15, Mask: 57344) ---
+# --- 7. 啟動 k6 極限壓測 (CPU 11, 13-14, Mask: 26624) ---
 if ($e.HasExited) { Write-Error "Matching 失敗！"; return }
 if ($g.HasExited) { Write-Error "Gateway 失敗！"; return }
 
 $log_dir = "$doc_path\test\log"
 if (-not (Test-Path $log_dir)) { New-Item -ItemType Directory -Path $log_dir }
 
-Write-Host "所有服務就緒。正在啟動 k6 超級壓測模式 (100 VUs, 6-Cores Heavy Burst)..."
+Write-Host "所有服務就緒。正在啟動 k6 超級壓測模式 (100 VUs, 3-Cores Dedicated)..."
 Set-Location "$base_path\service\spot-exchange\doc\test"
 
-# 設置 Go 運行時使用 6 個核心 (2, 7, 12, 13, 14, 15)
-$env:GOMAXPROCS = "6"
+# 設置 Go 運行時使用 3 個核心 (11, 13, 14)
+$env:GOMAXPROCS = "3"
 
 # 優化 k6 運行參數
 $k6_args = @(
@@ -121,6 +121,6 @@ $k6_args = @(
 )
 
 $k6_proc = Start-Process k6 -ArgumentList $k6_args -RedirectStandardOutput "$log_dir\k6_out.log" -RedirectStandardError "$log_dir\k6_err.log" -PassThru
-$k6_proc.ProcessorAffinity = 61572
-Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 已鎖定 Core 2,7,12,13,14,15，火力全開中..."
+$k6_proc.ProcessorAffinity = 26624
+Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 已鎖定 Core 11, 13, 14，火力全開中..."
 ```
