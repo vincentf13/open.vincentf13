@@ -129,11 +129,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         long freezeAmount = (side == Side.BUY) ? DecimalUtil.mulCeil(price, quantity) : quantity;
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
-            ledger.increaseAvailable(userId, assetId, 1_000_000_000L, gatewaySequence);
-            if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
-                reporter.reportRejected(userId, clientOrderId);
-                return;
-            }
+            reporter.reportRejected(userId, clientOrderId);
+            return;
         }
 
         this.currentTakerUserId = userId;

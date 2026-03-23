@@ -68,29 +68,27 @@ public class Engine extends Worker {
     }
 
     @Override protected int doWork() {
-        int done = aeronReceiver.poll(handler, BATCH_SIZE);
-        workCount += done;
-        localWorkCount += done;
+        final int done = aeronReceiver.poll(handler, BATCH_SIZE);
         
-        // 只有當開始處理真實數據後 (workCount > 1)，才開始累計 pollCount
-        // 這樣可以更精準觀察在高負載期間的 Poll/Work 比例
-        if (workCount > 1) {
+        if (done > 0) {
+            workCount += done;
+            localWorkCount += done;
+            
+            // 只有在處理真實數據時才增加 pollCount 觀測
             pollCount++;
             localPollCount++;
-        }
 
-        if (localWorkCount >= METRICS_BATCH_SIZE || localPollCount >= METRICS_BATCH_SIZE) {
-            MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
-            MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
-            localWorkCount = 0;
-            localPollCount = 0;
+            if (localWorkCount >= METRICS_BATCH_SIZE) {
+                MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
+                MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
+                localWorkCount = 0;
+                localPollCount = 0;
+            }
         }
 
         // --- 性能優化：智慧型落地策略 ---
-        // 修正：將落地頻率放寬至 100ms 或 累計 50,000 筆工作才落地
-        // 將 metadata.put 也移入此處，徹底消除熱點路徑同步 I/O
-        long now = open.vincentf13.service.spot.infra.util.Clock.now();
-        if (workCount % 50000 == 0 || now - lastFlushTime >= 100) {
+        final long now = open.vincentf13.service.spot.infra.util.Clock.now();
+        if (done > 0 && (workCount % 50000 == 0 || now - lastFlushTime >= 100)) {
             ledger.flush();
             orderProcessor.flush();
             for (OrderBook book : OrderBook.getInstances()) {
@@ -100,16 +98,13 @@ public class Engine extends Worker {
             lastFlushTime = now;
         }
 
-        long nowSec = now / 1000;
+        final long nowSec = now / 1000;
         if (nowSec > lastMetricsSec) {
             updateMetrics(nowSec);
             lastMetricsSec = nowSec;
         }
         
-        if (done == 0) {
-            return 0;
-        }
-        return 1;
+        return done;
     }
 
     private void onMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {

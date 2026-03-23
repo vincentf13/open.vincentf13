@@ -29,7 +29,8 @@ public class Ledger {
     private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
     
     // 待落地標記優化：使用原始類型陣列替代 HashSet，消除物件分配與陣列歸零壓力
-    private final long[] dirtyQueue = new long[128000]; 
+    private static final int MAX_DIRTY = 256000;
+    private final long[] dirtyQueue = new long[MAX_DIRTY]; 
     private int dirtyCount = 0;
     private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
 
@@ -48,12 +49,10 @@ public class Ledger {
     public void flush() {
         if (dirtyCount > 0) {
             for (int i = 0; i < dirtyCount; i++) {
-                long combinedKey = dirtyQueue[i];
-                long userId = combinedKey >>> 32;
-                int assetId = (int) (combinedKey & 0xFFFFFFFFL);
-                Balance b = balanceCache.get(combinedKey);
+                final long combinedKey = dirtyQueue[i];
+                final Balance b = balanceCache.get(combinedKey);
                 if (b != null) {
-                    reusableKey.set(userId, assetId);
+                    reusableKey.set(combinedKey >>> 32, (int) (combinedKey & 0xFFFFFFFFL));
                     balancesDiskMap.put(reusableKey, b);
                 }
             }
@@ -160,10 +159,10 @@ public class Ledger {
         b.setLastSeq(seq);
         if (tradeId > 0) b.setLastTradeId(tradeId);
         
-        // 性能優化：如果隊列未滿則加入，若滿了則在 flush 時會由全量掃描或增加容量處理
-        // 這裡暫不考慮極端去重，因為 ChronicleMap.put 覆蓋相同資料開銷可接受
-        if (dirtyCount < dirtyQueue.length) {
+        if (dirtyCount < MAX_DIRTY) {
             dirtyQueue[dirtyCount++] = combine(userId, assetId);
+        } else {
+            log.warn("[LEDGER] Dirty queue overflow! 資料同步可能會延遲。");
         }
         
         updateAssetIndex(userId, assetId);

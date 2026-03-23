@@ -170,55 +170,76 @@ public class OrderBook {
             final long bestPrice = counterSide.firstKey();
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
-            final Deque<Order> makers = priceLevelIndex.get(bestPrice);
-            if (makers == null || makers.isEmpty()) {
-                counterSide.remove(bestPrice);
-                priceLevelIndex.remove(bestPrice);
-                continue;
+            executeMatchAtLevel(taker, bestPrice, counterSide, gwSeq, timestamp, progress, finalizer);
+        }
+        
+        if (taker.getQty() > taker.getFilled()) {
+            add(taker);
+        } else {
+            taker.setStatus((byte) 2); // FILLED
+        }
+    }
+
+    private void executeMatchAtLevel(Order taker, long price, TreeMap<Long, Deque<Order>> counterSide, long gwSeq, long timestamp, 
+                                   open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
+        final Deque<Order> makers = priceLevelIndex.get(price);
+        if (makers == null || makers.isEmpty()) {
+            counterSide.remove(price);
+            priceLevelIndex.remove(price);
+            return;
+        }
+
+        while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
+            Order maker = makers.peekFirst();
+            // 檢查訂單是否依然有效 (防範非同步刪除或狀態異常)
+            if (!orderIndex.containsKey(maker.getOrderId())) {
+                makers.pollFirst(); 
+                continue; 
             }
 
-            while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
-                Order maker = makers.peekFirst();
-                if (!orderIndex.containsKey(maker.getOrderId())) {
-                    makers.pollFirst(); continue; 
-                }
-
-                long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
-                long tid = progress.getAndIncrTradeId();
-                
-                Trade t = borrowTrade();
-                t.setTradeId(tid); t.setOrderId(maker.getOrderId());
-                t.setPrice(bestPrice); t.setQty(matchQty);
-                t.setTime(timestamp); t.setLastSeq(gwSeq);
-                pendingTrades.put(tid, t);
-
-                maker.setFilled(maker.getFilled() + matchQty);
-                taker.setFilled(taker.getFilled() + matchQty);
-                
-                TOTAL_MATCH_COUNT.incrementAndGet();
-                finalizer.onMatch(tid, maker, bestPrice, matchQty, baseAssetId, quoteAssetId);
-
-                if (maker.getFilled() == maker.getQty()) {
-                    syncOrder(maker, gwSeq);
-                    orderIndex.remove(maker.getOrderId());
-                    LongHashSet set = userOrderIdsIndex.get(maker.getUserId());
-                    if (set != null) set.remove(maker.getOrderId());
-                    makers.pollFirst(); 
-                } else {
-                    syncOrder(maker, gwSeq);
-                    break;
-                }
-            }
+            long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
+            long tid = progress.getAndIncrTradeId();
             
-            if (makers.isEmpty()) {
-                counterSide.remove(bestPrice);
-                priceLevelIndex.remove(bestPrice);
-                makers.clear();
-                GLOBAL_DEQUE_POOL.addLast(makers); 
+            // 建立成交記錄
+            Trade t = borrowTrade();
+            t.setTradeId(tid); t.setOrderId(maker.getOrderId());
+            t.setPrice(price); t.setQty(matchQty);
+            t.setTime(timestamp); t.setLastSeq(gwSeq);
+            pendingTrades.put(tid, t);
+
+            // 更新數量
+            maker.setFilled(maker.getFilled() + matchQty);
+            taker.setFilled(taker.getFilled() + matchQty);
+            
+            TOTAL_MATCH_COUNT.incrementAndGet();
+            finalizer.onMatch(tid, maker, price, matchQty, baseAssetId, quoteAssetId);
+
+            if (maker.getFilled() == maker.getQty()) {
+                finalizeMakerFilled(maker, gwSeq);
+                makers.pollFirst(); 
+            } else {
+                syncOrder(maker, gwSeq);
+                break;
             }
         }
-        if (taker.getQty() > taker.getFilled()) add(taker);
-        else taker.setStatus((byte) 2); 
+        
+        if (makers.isEmpty()) {
+            cleanupEmptyLevel(price, counterSide, makers);
+        }
+    }
+
+    private void finalizeMakerFilled(Order maker, long gwSeq) {
+        syncOrder(maker, gwSeq);
+        orderIndex.remove(maker.getOrderId());
+        LongHashSet set = userOrderIdsIndex.get(maker.getUserId());
+        if (set != null) set.remove(maker.getOrderId());
+    }
+
+    private void cleanupEmptyLevel(long price, TreeMap<Long, Deque<Order>> counterSide, Deque<Order> makers) {
+        counterSide.remove(price);
+        priceLevelIndex.remove(price);
+        makers.clear();
+        GLOBAL_DEQUE_POOL.addLast(makers); 
     }
 
     private void add(Order order) {
