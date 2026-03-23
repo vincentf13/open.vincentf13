@@ -42,6 +42,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final Ledger ledger;
     private final ExecutionReporter reporter;
 
+    private final CidKey reusableFlushKey = new CidKey();
     private long currentGatewaySequence;
     private long currentTakerUserId;
     private byte currentTakerSide;
@@ -53,13 +54,12 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         log.info("布隆過濾器預熱完成。");
     }
 
-    /** 核心落地：將緩衝的冪等鍵批量寫入磁碟，並歸還 CidKey 物件池 */
+    /** 核心落地：將緩衝的冪等鍵批量寫入磁碟，實現零分配 */
     public void flush() {
         if (bufferCount > 0) {
-            CidKey reusable = new CidKey();
             for (int i = 0; i < bufferCount; i++) {
-                reusable.set(pendingUids[i], pendingCidsArr[i]);
-                clientOrderIdDiskMap.put(reusable, pendingOids[i]);
+                reusableFlushKey.set(pendingUids[i], pendingCidsArr[i]);
+                clientOrderIdDiskMap.put(reusableFlushKey, pendingOids[i]);
             }
             bufferCount = 0;
         }

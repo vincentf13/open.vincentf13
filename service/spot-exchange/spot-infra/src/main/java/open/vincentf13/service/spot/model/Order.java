@@ -22,6 +22,20 @@ public class Order implements BytesMarshallable {
     private long clientOrderId;
     private byte side; // 0=BUY, 1=SELL
     private byte status; // 0=NEW, 1=PARTIAL, 2=FILLED, 3=CANCELED
+
+    public void fill(long orderId, long userId, int symbolId, long price, long qty, byte side, long clientOrderId, long gwSeq) {
+        this.orderId = orderId;
+        this.userId = userId;
+        this.symbolId = symbolId;
+        this.price = price;
+        this.qty = qty;
+        this.filled = 0;
+        this.side = side;
+        this.status = 0;
+        this.version = 1;
+        this.lastSeq = gwSeq;
+        this.clientOrderId = clientOrderId;
+    }
     
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {

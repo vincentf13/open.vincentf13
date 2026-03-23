@@ -151,11 +151,7 @@ public class OrderBook {
 
     private Order borrowAndFill(long orderId, long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gwSeq) {
         Order o = borrowOrder();
-        o.setOrderId(orderId); o.setUserId(userId); o.setSymbolId(symbolId);
-        o.setPrice(price); o.setQty(qty); o.setFilled(0);
-        o.setSide((byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL));
-        o.setStatus((byte)0); o.setVersion(1); o.setLastSeq(gwSeq);
-        o.setClientOrderId(clientOrderId);
+        o.fill(orderId, userId, symbolId, price, qty, (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), clientOrderId, gwSeq);
         return o;
     }
 
