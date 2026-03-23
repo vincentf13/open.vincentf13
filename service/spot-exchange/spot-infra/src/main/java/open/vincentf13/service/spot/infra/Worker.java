@@ -99,8 +99,14 @@ public abstract class Worker implements Runnable {
             onStart();
             while (running.get() && !Thread.currentThread().isInterrupted()) {
                 int workDone = doWork();
-                // 根據工作量決定等待策略：有任務時不休眠，無任務時逐步退避 (Spin -> Yield -> Park)
-                idleStrategy.idle(workDone);
+                if (workDone > 0) {
+                    // 持續有工作時不休眠，維持最高吞吐量
+                    continue;
+                }
+                
+                // 無工作時執行 Idle 策略，並提示 CPU 進入自旋優化狀態
+                Thread.onSpinWait();
+                idleStrategy.idle(0);
             }
         } catch (Exception e) {
             // 捕獲所有異常，確保執行緒崩潰時有日誌記錄
