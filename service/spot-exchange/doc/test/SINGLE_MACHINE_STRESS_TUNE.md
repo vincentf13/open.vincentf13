@@ -85,6 +85,7 @@ Write-Host "Matching (PID: 「**$($e.Id)**」) 啟動成功，等待 5s..."
 Start-Sleep 5
 
 # --- 6. 啟動 Gateway (WS-API) (CPU 0-4, 12, Mask: 4127) ---
+# 優化：5 核心直寫 WAL 架構 (1 Boss + 4 Workers)，消除 RingBuffer 瓶頸
 Write-Host "Starting Gateway (WS-API) on CPU 0-4 (+Core 12 for GC)..."
 $gw_args = @(
     "@$doc_path\jvm\ws-api-throughput.args",
