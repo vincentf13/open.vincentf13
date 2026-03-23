@@ -41,7 +41,6 @@ public class Storage {
     private final ChronicleQueue gatewaySenderWal;
 
     // --- 內存 Queues (Lazy Init via Double-Check) ---
-    private volatile ManyToOneRingBuffer gatewayWalQueue;
     private volatile ManyToOneRingBuffer engineWorkQueue;
 
     private Storage() {
@@ -75,15 +74,6 @@ public class Storage {
     public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
 
     // --- RingBuffer Getters (Lazy) ---
-
-    public ManyToOneRingBuffer gatewayWalQueue() {
-        if (gatewayWalQueue == null) synchronized (this) {
-            if (gatewayWalQueue == null) {
-                gatewayWalQueue = initRingBuffer("GatewayWAL", Ws.WAL_RING_BUFFER_SIZE);
-            }
-        }
-        return gatewayWalQueue;
-    }
 
     public ManyToOneRingBuffer engineWorkQueue() {
         if (engineWorkQueue == null) synchronized (this) {

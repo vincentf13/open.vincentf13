@@ -1,9 +1,8 @@
 package open.vincentf13.service.spot.ws.ws;
 
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.queue.ExcerptAppender;
+import net.openhft.chronicle.bytes.PointerBytesStore;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
@@ -12,20 +11,23 @@ import open.vincentf13.service.spot.model.command.*;
 import open.vincentf13.service.spot.sbe.Side;
 import open.vincentf13.service.spot.ws.util.JsonUtil;
 import org.agrona.MutableDirectBuffer;
-import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 網關 WebSocket 指令處理器 (TPS 性能極限版)
+ 網關 WebSocket 指令處理器 (極致直寫 WAL 版)
  */
 @Slf4j
 @Component
 @ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-    private final ManyToOneRingBuffer gatewayWalQueue = Storage.self().gatewayWalQueue();
+    private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
+    
+    // 核心優化：ThreadLocal Appender，消除 RingBuffer 競爭與一次內存拷貝
+    private final ThreadLocal<ExcerptAppender> appenderThreadLocal = ThreadLocal.withInitial(wal::acquireAppender);
+    private final ThreadLocal<PointerBytesStore> pointerThreadLocal = ThreadLocal.withInitial(PointerBytesStore::new);
 
     public WsCommandInboundHandler(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;
@@ -37,8 +39,8 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
         super.channelActive(ctx);
     }
 
-    private long localNettyRecvCount = 0;
-    private long localWalDropCount = 0;
+    // 指標更新頻率控制 (基於 ThreadLocal 以確保執行緒安全且無競爭)
+    private final ThreadLocal<Long> localNettyRecvCount = ThreadLocal.withInitial(() -> 0L);
     private static final int METRICS_BATCH_SIZE = 5000;
 
     @Override
@@ -65,61 +67,44 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
     }
 
     private void handleBinaryMessage(ChannelHandlerContext ctx, io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame frame) {
-        // 增加 Netty 接收指標 (批量)
         updateNettyMetrics();
 
         io.netty.buffer.ByteBuf content = frame.content();
         int length = content.readableBytes();
-        if (length < 20) { // 至少要包含 Header
+        if (length < 20) { 
             log.warn("[GATEWAY-WS] 收到無效封包，長度不足: {}", length);
             return;
         }
 
-        // 提取 MsgType (位於 AbstractSbeModel.TYPE_OFFSET = 0) - SBE 固定 Little Endian
         int msgType = content.getIntLE(content.readerIndex());
         
-        // --- 關鍵修復：如果是 AUTH 指令，必須在網關層建立 Session ---
         if (msgType == open.vincentf13.service.spot.infra.Constants.MsgType.AUTH) {
-            // Auth Body 位於 BODY_OFFSET = 20，其中 UserId 位於 Body 偏移 8 的位置
-            // Layout: [Header 20][Timestamp 8][UserId 8]
             long userId = content.getLongLE(content.readerIndex() + 20 + 8);
             log.debug("[GATEWAY] 二進制 AUTH 識別: uid={}", userId);
             sessionManager.addSession(userId, ctx.channel());
         }
 
-        // 直接將二進制數據推入 RingBuffer (極致性能：物理記憶體零拷貝轉發)
-        int index = gatewayWalQueue.tryClaim(msgType, length);
-        if (index > 0) {
-            try {
-                // 如果是直接記憶體，使用 Unsafe 進行物理拷貝，避開所有中間對象
-                if (content.hasMemoryAddress()) {
-                    org.agrona.UnsafeAccess.UNSAFE.copyMemory(
-                        content.memoryAddress() + content.readerIndex(),
-                        gatewayWalQueue.buffer().addressOffset() + index,
-                        length
-                    );
-                } else {
-                    // 備援方案：如果是 Heap Buffer，使用標準的 ByteBuffer 拷貝
-                    java.nio.ByteBuffer dst = gatewayWalQueue.buffer().byteBuffer();
-                    dst.clear().position(index).limit(index + length);
-                    content.getBytes(content.readerIndex(), dst);
-                }
-            } catch (Exception e) {
-                log.error("[GATEWAY-WS] 零拷貝轉發失敗: {}", e.getMessage());
-            } finally {
-                gatewayWalQueue.commit(index);
+        // --- 核心優化：物理記憶體零拷貝直寫 WAL ---
+        ExcerptAppender appender = appenderThreadLocal.get();
+        PointerBytesStore pointer = pointerThreadLocal.get();
+        
+        try (var dc = appender.writingDocument()) {
+            if (content.hasMemoryAddress()) {
+                // 如果是直接記憶體，直接映射物理位址寫入，完全避開中間對象與額外拷貝
+                pointer.set(content.memoryAddress() + content.readerIndex(), length);
+                dc.wire().bytes().write(pointer);
+            } else {
+                // 備援方案：如果是 Heap Buffer，寫入 Bytes
+                byte[] data = new byte[length];
+                content.getBytes(content.readerIndex(), data);
+                dc.wire().bytes().write(data);
             }
-        } else {
-            localWalDropCount++;
-            if (localWalDropCount >= METRICS_BATCH_SIZE) {
-                MetricsCollector.add(MetricsKey.GATEWAY_WAL_DROP_COUNT, localWalDropCount);
-                localWalDropCount = 0;
-            }
+        } catch (Exception e) {
+            log.error("[GATEWAY-WS] WAL 直寫失敗: {}", e.getMessage());
         }
     }
 
     private void handleTextMessage(ChannelHandlerContext ctx, String text) {
-        // 增加 Netty 接收指標 (批量)
         updateNettyMetrics();
 
         log.debug("[GATEWAY-WS] 收到 JSON 訊息: {}", text); 
@@ -154,7 +139,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 AuthCommand cmd = context.getAuthCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, open.vincentf13.service.spot.infra.util.Clock.now(), holder.getUserId());
-                asyncWrite(cmd);
+                directWrite(cmd);
             }
             case "order_create" -> {
                 log.debug("[GATEWAY] 處理 ORDER_CREATE: uid={}, sid={}, p={}, q={}, side={}, cid={}", 
@@ -163,52 +148,52 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<TextWeb
                 OrderCreateCommand cmd = context.getOrderCreateCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, open.vincentf13.service.spot.infra.util.Clock.now(), holder.getUserId(), holder.getSymbolId(), holder.getPrice(), holder.getQty(), side, holder.getCid());
-                asyncWrite(cmd);
+                directWrite(cmd);
             }
             case "order_cancel" -> {
                 log.debug("[GATEWAY] 處理 ORDER_CANCEL: uid={}, oid={}", holder.getUserId(), holder.getOrderId());
                 OrderCancelCommand cmd = context.getOrderCancelCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, open.vincentf13.service.spot.infra.util.Clock.now(), holder.getUserId(), holder.getOrderId());
-                asyncWrite(cmd);
+                directWrite(cmd);
             }
             case "deposit" -> {
                 log.debug("[GATEWAY] 處理 DEPOSIT: uid={}, aid={}, amt={}", holder.getUserId(), holder.getAssetId(), holder.getAmount());
                 DepositCommand cmd = context.getDepositCommand();
                 cmd.wrapWriteBuffer(scratch, 0);
                 cmd.set(MSG_SEQ_NONE, open.vincentf13.service.spot.infra.util.Clock.now(), holder.getUserId(), holder.getAssetId(), holder.getAmount());
-                asyncWrite(cmd);
+                directWrite(cmd);
             }
         }
     }
 
     private void updateNettyMetrics() {
-        localNettyRecvCount++;
-        if (localNettyRecvCount >= METRICS_BATCH_SIZE) {
-            MetricsCollector.add(MetricsKey.NETTY_RECV_COUNT, localNettyRecvCount);
-            localNettyRecvCount = 0;
+        long count = localNettyRecvCount.get() + 1;
+        if (count >= METRICS_BATCH_SIZE) {
+            MetricsCollector.add(MetricsKey.NETTY_RECV_COUNT, count);
+            localNettyRecvCount.set(0L);
+        } else {
+            localNettyRecvCount.set(count);
         }
     }
 
-    private void asyncWrite(AbstractSbeModel model) {
-        int length = model.totalByteLength();
-        int msgType = model.getMsgType();
-        int index = gatewayWalQueue.tryClaim(msgType, length);
-        if (index > 0) {
-            try {
-                gatewayWalQueue.buffer().putBytes(index, model.getUnsafeBuffer(), 0, length);
-            } finally {
-                gatewayWalQueue.commit(index);
-            }
-            log.debug("[GATEWAY-WS] 訊息已推入 RingBuffer 佇列, type={}, len={}", msgType, length);
-        } else {
-            localWalDropCount++;
-            if (localWalDropCount >= METRICS_BATCH_SIZE) {
-                MetricsCollector.add(MetricsKey.GATEWAY_WAL_DROP_COUNT, localWalDropCount);
-                localWalDropCount = 0;
-            }
+    private void directWrite(AbstractSbeModel model) {
+        ExcerptAppender appender = appenderThreadLocal.get();
+        PointerBytesStore pointer = pointerThreadLocal.get();
+        try (var dc = appender.writingDocument()) {
+            pointer.set(model.getUnsafeBuffer().addressOffset(), model.totalByteLength());
+            dc.wire().bytes().write(pointer);
         }
+        log.debug("[GATEWAY-WS] 訊息已直寫 WAL, type={}, len={}", model.getMsgType(), model.totalByteLength());
     }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+        Long uid = sessionManager.getUserIdByChannel(ctx.channel());
+        if (uid != null) sessionManager.removeSession(uid, ctx.channel());
+    }
+}
+
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         Long uid = sessionManager.getUserIdByChannel(ctx.channel());
