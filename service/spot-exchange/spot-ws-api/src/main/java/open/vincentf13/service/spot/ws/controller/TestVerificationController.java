@@ -150,14 +150,14 @@ public class TestVerificationController {
         // 1. Spot Matching 服務
         Map<String, Object> matchingAffinity = new LinkedHashMap<>();
         addCpuMetric(matchingAffinity, "engine", MetricsKey.CPU_ID_ENGINE);
-        addCpuMetric(matchingAffinity, "aeron_receiver", MetricsKey.CPU_ID_AERON_RECEIVER);
         cpuAffinity.put("spot-matching", matchingAffinity);
 
         // 2. Spot WS-API 服務
         Map<String, Object> wsApiAffinity = new LinkedHashMap<>();
         addCpuMetric(wsApiAffinity, "netty_worker_1", MetricsKey.CPU_ID_NETTY_WORKER_1);
         addCpuMetric(wsApiAffinity, "netty_worker_2", MetricsKey.CPU_ID_NETTY_WORKER_2);
-        addCpuMetric(wsApiAffinity, "async_wal_writer", MetricsKey.CPU_ID_WAL_WRITER);
+        addCpuMetric(wsApiAffinity, "netty_worker_3", MetricsKey.CPU_ID_NETTY_WORKER_3);
+        addCpuMetric(wsApiAffinity, "netty_worker_4", MetricsKey.CPU_ID_NETTY_WORKER_4);
         addCpuMetric(wsApiAffinity, "aeron_sender", MetricsKey.CPU_ID_AERON_SENDER);
         cpuAffinity.put("spot-ws-api", wsApiAffinity);
 

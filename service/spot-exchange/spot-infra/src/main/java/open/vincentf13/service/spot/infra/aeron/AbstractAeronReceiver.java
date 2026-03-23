@@ -123,6 +123,9 @@ public abstract class AbstractAeronReceiver extends Worker {
 
         currentState = AeronState.WAITING;
         log.info("{} 啟動：當前進度: {}，進入握手狀態...", getClass().getSimpleName(), progress.getLastProcessedSeq());
+        
+        // 主動發送一次握手訊號，減少啟動等待，加速數據流恢復
+        sendResumeSignalBlocking();
     }
 
     @Override
