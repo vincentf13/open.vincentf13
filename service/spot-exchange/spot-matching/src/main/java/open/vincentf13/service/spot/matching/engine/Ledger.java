@@ -112,34 +112,28 @@ public class Ledger {
 
     public boolean freezeBalance(long userId, int assetId, long amount, long seq) {
         Balance b = getOrCreateBalance(userId, assetId);
-        if (b.getLastSeq() >= seq) return true;
+        if (b.getLastSeq() >= seq || b.getAvailable() < amount) return b.getLastSeq() >= seq;
 
-        if (b.getAvailable() >= amount) {
-            b.setAvailable(b.getAvailable() - amount);
-            b.setFrozen(b.getFrozen() + amount);
-            markDirty(userId, assetId, b, seq, 0);
-            return true;
-        }
-        return false;
+        b.setAvailable(b.getAvailable() - amount);
+        b.setFrozen(b.getFrozen() + amount);
+        markDirty(userId, assetId, b, seq, 0);
+        return true;
     }
 
     public void unfreezeBalance(long userId, int assetId, long amount, long seq) {
         Balance b = getOrCreateBalance(userId, assetId);
-        if (b.getLastSeq() >= seq) return;
-
-        b.setAvailable(b.getAvailable() + amount);
-        b.setFrozen(Math.max(0, b.getFrozen() - amount));
-        markDirty(userId, assetId, b, seq, 0);
+        if (b.getLastSeq() < seq) {
+            b.setAvailable(b.getAvailable() + amount);
+            b.setFrozen(Math.max(0, b.getFrozen() - amount));
+            markDirty(userId, assetId, b, seq, 0);
+        }
     }
 
     private void access(long userId, int assetId, long availDelta, long frozenDelta, long seq, long tradeId) {
         Balance b = getOrCreateBalance(userId, assetId);
-
-        if (tradeId > 0) {
-            if (b.getLastTradeId() >= tradeId) return;
-        } else {
-            if (b.getLastSeq() >= seq && availDelta == 0 && frozenDelta == 0) return;
-        }
+        
+        // 冪等與重複更新檢查
+        if (tradeId > 0 ? b.getLastTradeId() >= tradeId : (b.getLastSeq() >= seq && availDelta == 0 && frozenDelta == 0)) return;
 
         b.setAvailable(b.getAvailable() + availDelta);
         b.setFrozen(Math.max(0, b.getFrozen() + frozenDelta));

@@ -74,23 +74,19 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, 
                                    open.vincentf13.service.spot.model.WalProgress progress) {
         final ThreadContext context = ThreadContext.get();
-        final CidKey cidKey = context.getCidKey(); 
+        final CidKey cidKey = context.getCidKey();
         cidKey.set(userId, clientOrderId);
 
-        // 1. 檢查當前記憶體緩衝區 (10ms 內的最熱點，防重複下單)
+        // 1. 三道防線攔截重複指令：緩衝區 -> 布隆過濾器 -> 磁碟 Map
+        boolean duplicate = false;
         for (int i = 0; i < bufferCount; i++) {
-            if (pendingUids[i] == userId && pendingCidsArr[i] == clientOrderId) return;
+            if (pendingUids[i] == userId && pendingCidsArr[i] == clientOrderId) { duplicate = true; break; }
         }
+        
+        if (duplicate) return;
+        if (cidBloomFilter.mightContain(cidKey) && clientOrderIdDiskMap.containsKey(cidKey)) return;
 
-        // 2. 布隆過濾器快速判定
-        if (!cidBloomFilter.mightContain(cidKey)) {
-            handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress.getAndIncrOrderId(), progress);
-            return;
-        }
-
-        // 3. 磁碟 Map 查詢 (僅在布隆過濾器判定為 "可能存在" 時執行)
-        if (clientOrderIdDiskMap.containsKey(cidKey)) return;
-
+        // 2. 確定不重複後，執行下單
         handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress.getAndIncrOrderId(), progress);
     }
 

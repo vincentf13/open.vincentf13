@@ -263,52 +263,42 @@ public class OrderBook {
     }
 
     public void syncOrder(Order o, long gwSeq) {
-        if (o.getFilled() == o.getQty()) o.setStatus((byte) 2);
-        else if (o.getFilled() > 0) o.setStatus((byte) 1);
-        o.setVersion(o.getVersion() + 1); o.setLastSeq(gwSeq);
+        // 1. 自動狀態機轉換
+        final long filled = o.getFilled(), qty = o.getQty();
+        o.setStatus((byte) (filled == qty ? 2 : (filled > 0 ? 1 : 0)));
+        o.setVersion(o.getVersion() + 1);
+        o.setLastSeq(gwSeq);
         
-        pendingOrders.put(o.getOrderId(), o);
-        final long uid = o.getUserId();
-        final long oid = o.getOrderId();
+        // 2. 更新持久化緩衝與內存索引
+        final long oid = o.getOrderId(), uid = o.getUserId();
+        pendingOrders.put(oid, o);
         
-        if (o.getStatus() < 2) {
+        LongHashSet userOrders = userOrderIdsIndex.computeIfAbsent(uid, k -> new LongHashSet(16));
+        if (o.getStatus() < 2) { // NEW, PARTIAL
             pendingActiveAdds.add(oid);
             pendingActiveRemovals.remove(oid);
-            LongHashSet set = userOrderIdsIndex.get(uid);
-            if (set == null) {
-                set = new LongHashSet(16);
-                userOrderIdsIndex.put(uid, set);
-            }
-            set.add(oid);
-        } else {
+            userOrders.add(oid);
+        } else { // FILLED, CANCELED
             pendingActiveRemovals.add(oid);
             pendingActiveAdds.remove(oid);
-            LongHashSet set = userOrderIdsIndex.get(uid);
-            if (set != null) set.remove(oid);
+            userOrders.remove(oid);
         }
     }
 
     public void remove(long orderId) { 
         Order o = orderIndex.remove(orderId); 
-        if (o != null) {
-            Deque<Order> level = priceLevelIndex.get(o.getPrice());
-            if (level != null) {
-                level.remove(o);
-                if (level.isEmpty()) {
-                    priceLevelIndex.remove(o.getPrice());
-                    if (o.getSide() == OrderSide.BUY) bids.remove(o.getPrice());
-                    else asks.remove(o.getPrice());
-                    level.clear();
-                    GLOBAL_DEQUE_POOL.addLast(level);
-                }
+        if (o == null) return;
+
+        Deque<Order> level = priceLevelIndex.get(o.getPrice());
+        if (level != null) {
+            level.remove(o);
+            if (level.isEmpty()) {
+                cleanupEmptyLevel(o.getPrice(), (o.getSide() == OrderSide.BUY) ? bids : asks, level);
             }
-            pendingActiveRemovals.add(orderId);
-            LongHashSet set = userOrderIdsIndex.get(o.getUserId());
-            if (set != null) set.remove(orderId);
-            
-            o.setStatus((byte) 3); // CANCELED
-            syncOrder(o, o.getLastSeq());
         }
+        
+        o.setStatus((byte) 3); // CANCELED
+        syncOrder(o, o.getLastSeq());
     }
 
     public int getBaseAssetId() { return baseAssetId; }
