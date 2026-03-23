@@ -68,7 +68,7 @@ public class MetricsCollector {
             for (int i = 0; i < MAX_METRICS; i++) {
                 long total = COUNTER_ARRAY[i].sum();
                 if (total > 0) {
-                    metricsMap.put(-((long)i), total);
+                    metricsMap.put((long)i, total);
                 }
             }
 
@@ -76,8 +76,7 @@ public class MetricsCollector {
             synchronized (MetricsCollector.class) {
                 for (int i = 0; i < MAX_METRICS; i++) {
                     if (GAUGE_UPDATED[i]) {
-                        metricsMap.put(-((long)i), GAUGE_ARRAY[i]);
-                        // GAUGE_UPDATED[i] = false; // 為了讓前端能持續讀取，這裡不清除狀態
+                        metricsMap.put((long)i, GAUGE_ARRAY[i]);
                     }
                 }
             }

@@ -69,12 +69,11 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
                 pointer.set(content.memoryAddress() + content.readerIndex(), length);
                 dc.wire().bytes().write(pointer);
             } else {
-                // 回退方案：避免頻繁分配 byte[]，使用 ThreadContext 的 scratchBuffer
-                int writeLen = Math.min(length, 1024);
-                byte[] scratch = new byte[writeLen]; // 這裡仍有進步空間，但 Netty 通常是 Direct
+                byte[] scratch = new byte[length]; 
                 content.getBytes(content.readerIndex(), scratch);
                 dc.wire().bytes().write(scratch);
             }
+            MetricsCollector.increment(MetricsKey.GATEWAY_WAL_WRITE_COUNT);
         } catch (Exception e) {
             log.error("[GATEWAY-WS] WAL 直寫失敗: {}", e.getMessage());
         }

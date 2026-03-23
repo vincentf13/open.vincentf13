@@ -123,7 +123,13 @@ public class Engine extends Worker {
         Runtime r = Runtime.getRuntime();
         MetricsCollector.set(MetricsKey.MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
         MetricsCollector.set(MetricsKey.MATCHING_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
-        MetricsCollector.set(nowSec, OrderBook.TOTAL_MATCH_COUNT.get());
+        
+        // 1. 實時計數 (用於 Saturation 接口)
+        final long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
+        MetricsCollector.set(MetricsKey.MATCH_COUNT, totalMatches);
+
+        // 2. 秒級歷史 (用於 TPS 曲線接口 - 直寫磁碟以免溢出內存陣列)
+        Storage.self().metricsHistory().put(nowSec, totalMatches);
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));

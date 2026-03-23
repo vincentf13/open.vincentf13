@@ -66,24 +66,21 @@ public class TestVerificationController {
 
     @GetMapping("/metrics/tps")
     public List<Map<String, Object>> getTpsHistory() {
-        // 使用 TreeMap 進行自動倒序排序 (最新在前面)
         TreeMap<Long, Long> sortedHistory = new TreeMap<>(Collections.reverseOrder());
-        Storage.self().metricsHistory().forEach((timestamp, total) -> {
-            if (timestamp > 0) sortedHistory.put(timestamp, total);
+        Storage.self().metricsHistory().forEach((key, total) -> {
+            // 關鍵：只有當 Key 大於系統指標範圍 (1000) 且像是秒級時間戳時才計入 TPS 歷史
+            if (key > 1000000) sortedHistory.put(key, total);
         });
         
         List<Map<String, Object>> result = new ArrayList<>();
-        
-        // 遍歷排序後的歷史記錄
         sortedHistory.forEach((timestamp, total) -> {
-            // 尋找比當前 timestamp 小的最大 timestamp (即前一秒)
             Map.Entry<Long, Long> previousEntry = sortedHistory.higherEntry(timestamp);
-            long diff = (previousEntry == null) ? total : total - previousEntry.getValue();
+            long diff = (previousEntry == null) ? 0 : total - previousEntry.getValue();
             
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("time", timestamp);
             entry.put("total", total);
-            entry.put("diff", diff);
+            entry.put("tps", diff);
             result.add(entry);
         });
         return result;
