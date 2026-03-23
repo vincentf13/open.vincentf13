@@ -6,10 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
-import open.vincentf13.service.spot.model.command.*;
+import open.vincentf13.service.spot.model.command.AbstractSbeModel;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -19,6 +18,7 @@ import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 
 /** 
  網關 Aeron 發送器 (Raw WAL 讀取版)
+ 優化：極簡化指針直寫，移除 SBE 模型解碼分支
  */
 @Slf4j
 @Component
@@ -69,37 +69,23 @@ public class AeronSender extends AbstractAeronSender {
         long remaining = bytes.readRemaining();
         if (remaining <= 0) return;
 
+        // 核心優化：零解碼直接拷貝發送
+        // WAL 中的數據已經是 SBE 格式，直接定位指針
         final long addressForRead = bytes.addressForRead(bytes.readPosition());
-        final int msgType = UNSAFE.getInt(addressForRead);
-        
-        final ThreadContext tc = ThreadContext.get();
-        AbstractSbeModel cmd = switch (msgType) {
-            case MsgType.AUTH         -> tc.getAuthCommand();
-            case MsgType.ORDER_CREATE  -> tc.getOrderCreateCommand();
-            case MsgType.ORDER_CANCEL  -> tc.getOrderCancelCommand();
-            case MsgType.DEPOSIT      -> tc.getDepositCommand();
-            default -> {
-                log.warn("[GATEWAY-SENDER] 收到未知訊息類型: {}, 跳過此訊息", msgType);
-                bytes.readSkip(remaining);
-                yield null;
-            }
-        };
+        final int payloadLen = (int) remaining;
 
-        if (cmd != null) {
-            int payloadLen = (int) remaining;
-            long backpressure = aeronClient.send(payloadLen, (buffer, offset) -> {
-                final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
-                // 1. 拷貝原始 SBE 數據
-                UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
-                // 2. 覆蓋 Sequence ID (Offset 4)
-                buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
-            });
+        long backpressure = aeronClient.send(payloadLen, (buffer, offset) -> {
+            final long aeronDstAddress = OffHeapUtil.getAddress(buffer, offset);
+            // 1. 物理記憶體零拷貝 (WAL -> Aeron)
+            UNSAFE.copyMemory(addressForRead, aeronDstAddress, (long) payloadLen);
+            // 2. 注入唯一 Sequence ID (位於 SBE Header 固定偏移量)
+            buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
+        });
 
-            if (backpressure > 0) {
-                MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, backpressure);
-            }
-            
-            bytes.readSkip((long) payloadLen);
+        if (backpressure > 0) {
+            MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, backpressure);
         }
+        
+        bytes.readSkip((long) payloadLen);
     }
 }
