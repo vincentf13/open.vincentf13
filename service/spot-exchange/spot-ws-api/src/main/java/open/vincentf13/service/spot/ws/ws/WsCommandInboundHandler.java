@@ -30,7 +30,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
     // 核心優化：ThreadLocal Appender，消除寫入爭用
     private final ThreadLocal<ExcerptAppender> appenderThreadLocal = ThreadLocal.withInitial(wal::acquireAppender);
     private final ThreadLocal<Long> localNettyRecvCount = ThreadLocal.withInitial(() -> 0L);
-    private static final int METRICS_BATCH_SIZE = 5000;
+    private static final int METRICS_BATCH_SIZE = 100;
 
     public WsCommandInboundHandler(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;

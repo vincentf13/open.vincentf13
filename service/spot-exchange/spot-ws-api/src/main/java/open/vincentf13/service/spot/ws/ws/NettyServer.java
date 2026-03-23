@@ -101,10 +101,17 @@ public class NettyServer {
         @Override
         public Thread newThread(Runnable r) {
             int currentIdx = counter.getAndIncrement();
-            // 延遲綁定策略：在 Runnable 執行時才進行綁定，確保執行緒已完全啟動
             Runnable bindingTask = () -> {
-                int cpuId = AffinityUtil.acquireAndBind();
-                if (cpuId != -1 && metricKeys != null && currentIdx < metricKeys.length) {
+                int cpuId = -1;
+                try {
+                    // 嘗試綁核，失敗則回退到作業系統調度
+                    cpuId = AffinityUtil.acquireAndBind();
+                } catch (Throwable t) {
+                    log.warn("[NETTY-AFFINITY] 綁核失敗 ({}): {}", prefix, t.getMessage());
+                }
+                
+                // 無論成功與否都記錄指標，cpuId 為 -1 代表系統自動分配
+                if (metricKeys != null && currentIdx < metricKeys.length) {
                     Storage.self().metricsHistory().put(metricKeys[currentIdx], (long) cpuId);
                 }
                 r.run();
