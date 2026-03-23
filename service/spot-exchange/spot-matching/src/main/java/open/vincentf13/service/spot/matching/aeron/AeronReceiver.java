@@ -43,18 +43,19 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected void onStart() {
-        // 從 Engine 的落地點同步 Aeron 的接收進度，確保不丟失訊息
+        // 1. 先讓 Engine 完成冷啟動與索引重建，確保業務完全就緒
+        engine.onStart();
+
+        // 2. 從 Engine 的落地點同步 Aeron 的接收進度，確保不丟失訊息
         WalProgress engineProgress = Storage.self().walMetadata().get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
         if (engineProgress != null) {
             long seq = engineProgress.getLastProcessedMsgSeq();
-            MsgProgress msgProg = new MsgProgress();
-            msgProg.setLastProcessedSeq(seq);
-            metadata.put(metadataKey, msgProg);
+            metadata.put(metadataKey, new MsgProgress(seq));
             log.info("[AERON-RECEIVER] 根據業務落地點對齊 Sequence: {}", seq);
         }
 
+        // 3. 啟動 Aeron 訂閱並發送握手訊號，開啟網路閘門
         super.onStart();
-        engine.onStart();
     }
 
     @Override
