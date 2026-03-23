@@ -68,43 +68,42 @@ public abstract class AbstractAeronSender extends Worker {
 
     @Override
     protected int doWork() {
-        // 1. 連線狀態檢查
         if (currentState == AeronState.SENDING && !publication.isConnected()) {
             currentState = AeronState.WAITING;
             log.warn("檢測到接收端斷開，回退至握手模式...");
         }
 
         int workDone = 0;
-        // 2. 處理控制流 (優先處理握手與控制指令)
         workDone += controlSubscription.poll(resumeHandler, 10);
         
         if (currentState == AeronState.WAITING) {
             return workDone;
         }
 
-        // 3. 處理 WAL 指令流發送 (批量優化：從 100 提高到 10000)
-        int msgsSent = 0;
-        for (int i = 0; i < 10000; i++) {
-            if (tailer.readDocument(walReader)) {
-                msgsSent++;
-            } else {
-                break;
+        // 批量發送優化
+        for (int i = 0; i < 1000; i++) {
+            try (var dc = tailer.readingDocument()) {
+                if (!dc.isPresent()) break;
+                
+                final long indexBeforeRead = dc.index();
+                onWalMessage(dc.wire());
+                
+                // 檢查是否發送成功 (透過 bytes 剩餘量判定，由 AeronSender.onWalMessage 操作)
+                if (dc.wire().bytes().readRemaining() > 0) {
+                    // 發送失敗 (如背壓)，不前移位點，下次 doWork 重新處理
+                    tailer.moveToIndex(indexBeforeRead);
+                    break;
+                }
+                workDone++;
             }
         }
         
-        if (msgsSent > 0) {
-            localAeronSendCount += msgsSent;
+        if (workDone > 0) {
+            localAeronSendCount += workDone;
             if (localAeronSendCount >= METRICS_BATCH_SIZE) {
-                MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, localAeronSendCount);
+                open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, localAeronSendCount);
                 localAeronSendCount = 0;
             }
-            workDone += msgsSent;
-        }
-
-        if (workDone > 0 && backPressureCount > 1000) {
-            log.warn("警告：偵測到嚴重背壓，請檢查接收端效能！");
-            MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, backPressureCount);
-            backPressureCount = 0;
         }
 
         return workDone;
@@ -113,16 +112,19 @@ public abstract class AbstractAeronSender extends Worker {
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
         if (buffer.getInt(offset) == MsgType.RESUME) {
             if (currentState == AeronState.WAITING) {
-                long resumeSeq = buffer.getLong(offset + 4);
-                // 直接映射：Sequence 就是實體 WAL Index
-                long walIndex = (resumeSeq == MSG_SEQ_NONE) ? WAL_INDEX_NONE : resumeSeq;
+                long walIndex = buffer.getLong(offset + 4);
+                log.info("✅ 握手成功！收到對端 RESUME 訊號，請求位點: {}", walIndex);
                 
-                log.info("✅ 握手成功！收到對端 RESUME 訊號，Sequence/Index: {}", walIndex);
-                
-                if (walIndex == WAL_INDEX_NONE) {
+                if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE) {
                     tailer.toStart();
                 } else {
-                    tailer.moveToIndex(walIndex);
+                    // 移動到最後處理過的位點，然後執行一次讀取來跳過它
+                    if (tailer.moveToIndex(walIndex)) {
+                        try (var dc = tailer.readingDocument()) { /* skip processed */ }
+                    } else {
+                        log.error("無法移動到指定位點: {}，回退至 Start", walIndex);
+                        tailer.toStart();
+                    }
                 }
                 currentState = AeronState.SENDING;
             }

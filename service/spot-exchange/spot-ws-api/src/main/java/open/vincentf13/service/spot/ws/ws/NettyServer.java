@@ -33,7 +33,7 @@ public class NettyServer {
     @Value("${websocket.port:8080}")
     private int port;
 
-    @Value("${netty.worker.count:2}")
+    @Value("${netty.worker.count:4}")
     private int workerCount;
 
     private final WsCommandInboundHandler wsHandler;
