@@ -2,7 +2,7 @@ package open.vincentf13.service.spot.ws.ws;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 import org.agrona.collections.Long2ObjectHashMap;
@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * WebSocket 會話管理器 (WsSessionManager)
- * 職責：管理用戶與 Channel 的映射關係，執行條帶化鎖優化的精準推送
+ * 職責：管理用戶與 Channel 的映射關係，執行條帶化鎖優化的精準推送 (純二進制版)
  */
 @Slf4j
 @Component
@@ -78,7 +78,7 @@ public class WsSessionManager {
     }
 
     /**
-     * 精準推送：向該用戶的所有活躍設備推送訊息
+     * 精準推送：向該用戶的所有活躍設備推送二進制訊息
      */
     public void sendMessage(long userId, ByteBuf data) {
         Set<Channel> channels;
@@ -95,7 +95,8 @@ public class WsSessionManager {
         try {
             for (Channel c : channels) {
                 if (c.isActive()) {
-                    c.writeAndFlush(new TextWebSocketFrame(data.retain()));
+                    // 核心優化：改用 BinaryWebSocketFrame 推送，完全移除文字編碼開銷
+                    c.writeAndFlush(new BinaryWebSocketFrame(data.retain()));
                 }
             }
         } finally {

@@ -27,7 +27,6 @@ public class ThreadContext {
     // --- 核心資源 ---
     @Getter private final NativeUnsafeBuffer scratchBuffer = new NativeUnsafeBuffer(1024);
     @Getter private final Bytes<?> scratchBytes;
-    @Getter private final RequestHolder requestHolder = new RequestHolder();
     
     // --- 指令模型 (Flyweight / 池化物件) ---
     private AuthCommand authCommand;
@@ -49,15 +48,4 @@ public class ThreadContext {
     public OrderCreateCommand getOrderCreateCommand() { if (orderCreateCommand == null) orderCreateCommand = new OrderCreateCommand(); return orderCreateCommand; }
     public OrderCancelCommand getOrderCancelCommand() { if (orderCancelCommand == null) orderCancelCommand = new OrderCancelCommand(); return orderCancelCommand; }
     public DepositCommand getDepositCommand() { if (depositCommand == null) depositCommand = new DepositCommand(); return depositCommand; }
-
-    /** 統一指令解析載體 (God Object for Performance) */
-    @lombok.Data
-    public static class RequestHolder {
-        private String op;
-        private long userId, orderId, price, qty, cid, amount;
-        private int symbolId, assetId;
-        private String side;
-        private final CidKey cidKey = new CidKey();
-        public void reset() { op = null; userId = orderId = price = qty = cid = amount = 0; symbolId = assetId = 0; side = null; }
-    }
 }

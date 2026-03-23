@@ -10,6 +10,10 @@ server:
 websocket:
   port: 8080
 
+netty:
+  worker:
+    count: 4
+
 spring:
   application:
     name: spot-gateway
