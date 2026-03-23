@@ -44,9 +44,11 @@ public class Engine implements AeronMessageHandler {
         log.info("執行冷啟動索引重建與預熱...");
         workCount = 0;
         unflushedWorkCount = 0;
-        MetricsCollector.set(MetricsKey.POLL_COUNT, 0L);
-        MetricsCollector.set(MetricsKey.WORK_COUNT, 0L);
-        MetricsCollector.set(MetricsKey.AERON_DROPPED_COUNT, 0L);
+        
+        // 移除錯誤的 MetricsCollector.set，改為直接重置持久化記憶體中的值，避免觸發 GAUGE 覆寫
+        Storage.self().metricsHistory().put(MetricsKey.POLL_COUNT, 0L);
+        Storage.self().metricsHistory().put(MetricsKey.WORK_COUNT, 0L);
+        Storage.self().metricsHistory().put(MetricsKey.AERON_DROPPED_COUNT, 0L);
 
         ledger.rebuildAssetIndexes();
         OrderBook.rebuildActiveOrdersIndexes();

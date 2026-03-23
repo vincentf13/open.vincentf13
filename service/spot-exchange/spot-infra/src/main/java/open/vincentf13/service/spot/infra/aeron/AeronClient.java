@@ -36,16 +36,19 @@ public class AeronClient {
                 } finally {
                     bufferClaim.commit();
                 }
-                return backPressureCount;
+                return 0; // 成功發送
             } else if (result == Publication.BACK_PRESSURED || result == Publication.ADMIN_ACTION) {
                 backPressureCount++;
+                if (backPressureCount > 1000) return -2; // 長時間背壓，回傳負數代表失敗
                 idleStrategy.idle();
             } else if (result == Publication.NOT_CONNECTED) {
-                return backPressureCount;
+                return -1; // 未連線回傳負數
+            } else if (result == Publication.CLOSED || result == Publication.MAX_POSITION_EXCEEDED) {
+                return -3; // 嚴重錯誤，回傳負數
             } else {
                 idleStrategy.idle();
             }
         }
-        return backPressureCount;
+        return -4; // 未運行 (running = false)
     }
 }
