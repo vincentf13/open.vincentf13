@@ -1,6 +1,8 @@
 package open.vincentf13.service.spot.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import net.openhft.chronicle.bytes.BytesIn;
 import net.openhft.chronicle.bytes.BytesMarshallable;
 import net.openhft.chronicle.bytes.BytesOut;
@@ -12,6 +14,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  * 職責：持久化記錄 Aeron 網路消息流處理到的最後序號 (Sequence)
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class MsgProgress implements BytesMarshallable {
     // 最後處理的來源端業務序號 (Logical Sequence)
     private long lastProcessedSeq = MSG_SEQ_NONE;

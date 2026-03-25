@@ -59,6 +59,17 @@ public class AeronSender extends AbstractAeronSender {
         return work;
     }
 
+    private void updateProcessMetrics() {
+        Runtime r = Runtime.getRuntime();
+        MetricsCollector.set(MetricsKey.GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
+        MetricsCollector.set(MetricsKey.GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
+        
+        java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+        if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
+            MetricsCollector.set(MetricsKey.GATEWAY_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
+        }
+    }
+
     @Override
     public void onWalMessage(WireIn wire) {
         final net.openhft.chronicle.bytes.Bytes<?> bytes = wire.bytes();

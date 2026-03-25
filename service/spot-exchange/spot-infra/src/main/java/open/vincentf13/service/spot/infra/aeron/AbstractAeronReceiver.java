@@ -72,6 +72,7 @@ public abstract class AbstractAeronReceiver extends Worker {
      * 被動模式下的手動初始化
      */
     public void setup() {
+        running.set(true); // 關鍵：確保 AeronClient 允許發送 RESUME 訊號
         onStart();
     }
 

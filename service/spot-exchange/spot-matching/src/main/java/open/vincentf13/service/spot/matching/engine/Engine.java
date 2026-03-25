@@ -72,8 +72,9 @@ public class Engine implements AeronMessageHandler {
 
         final long now = open.vincentf13.service.spot.infra.util.Clock.now();
 
-        // 智慧型落地策略：有未落地資料，且達到數量閾值或時間閾值 (解決閒置時尾部數據不落地的 bug)
-        if (unflushedWorkCount > 0 && (unflushedWorkCount >= 50000 || now - lastFlushTime >= 100)) {
+        // 智慧型落地策略：降低落地頻率至 1000ms (1秒) 以提升吞吐量
+        // 過於頻繁的 flush (100ms) 會導致頻繁的磁碟 Sync，嚴重拖慢撮合速度
+        if (unflushedWorkCount > 0 && (unflushedWorkCount >= 100000 || now - lastFlushTime >= 1000)) {
             flushAll();
             lastFlushTime = now;
             unflushedWorkCount = 0;
@@ -89,13 +90,12 @@ public class Engine implements AeronMessageHandler {
     private void updateWorkMetrics(int done) {
         workCount += done;
         localWorkCount += done;
-        localPollCount++;
+        // 移除 localPollCount++，避免與 AbstractAeronReceiver 的指標衝突
 
         if (localWorkCount >= METRICS_BATCH_SIZE) {
             MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
-            MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
+            // 移除 MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
             localWorkCount = 0;
-            localPollCount = 0;
         }
     }
 

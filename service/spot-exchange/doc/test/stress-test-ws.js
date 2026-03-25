@@ -12,7 +12,12 @@ const WS_URL = 'ws://127.0.0.1:8080/ws/spot';
 const METRICS_URL = 'http://127.0.0.1:8082/api/test/metrics/saturation';
 
 const MSG_TYPE_AUTH = 103;
+const MSG_TYPE_DEPOSIT = 102;
 const MSG_TYPE_ORDER_CREATE = 100;
+
+const ASSET_BTC = 1;
+const ASSET_USDT = 2;
+const SCALE = 100000000n;
 
 function createAuthBuffer(uid) {
     const buffer = new ArrayBuffer(36);
@@ -28,6 +33,22 @@ function createAuthBuffer(uid) {
     return buffer;
 }
 
+function createDepositBuffer(uid, assetId, amount) {
+    const buffer = new ArrayBuffer(20 + 28);
+    const view = new DataView(buffer);
+    view.setInt32(0, MSG_TYPE_DEPOSIT, true);
+    view.setBigInt64(4, BigInt(-1), true);
+    view.setUint16(12, 28, true);
+    view.setUint16(14, 102, true);
+    view.setUint16(16, 1, true);
+    view.setUint16(18, 0, true);
+    view.setBigInt64(20, BigInt(Date.now()), true);
+    view.setBigInt64(28, BigInt(uid), true);
+    view.setInt32(36, assetId, true);
+    view.setBigInt64(40, BigInt(amount), true);
+    return buffer;
+}
+
 function createPreallocatedOrderBuffer() {
     const buffer = new ArrayBuffer(65);
     const view = new DataView(buffer);
@@ -38,43 +59,51 @@ function createPreallocatedOrderBuffer() {
     view.setUint16(16, 1, true);
     view.setUint16(18, 0, true);
     view.setInt32(36, 1001, true); 
-    view.setBigInt64(40, BigInt(100), true); 
-    view.setBigInt64(48, BigInt(1), true);   
+    view.setBigInt64(40, BigInt(60000) * SCALE, true); // 設定合理價格 60000
+    view.setBigInt64(48, SCALE, true);   // 設定 1 BTC
     return { buffer, view };
 }
 
 export default function () {
     const uid = __VU + 1000;
     const authBuf = createAuthBuffer(uid);
+    const depositBtcBuf = createDepositBuffer(uid, ASSET_BTC, 100n * SCALE); // 充值 100 BTC
+    const depositUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 10000000n * SCALE); // 充值 1000 萬 USDT
     const { buffer, view } = createPreallocatedOrderBuffer();
     let cidCounter = Date.now() * 1000 + (__VU * 10000000);
 
     const res = ws.connect(WS_URL, {}, function (socket) {
         socket.on('open', function () {
+            // 1. 認證
             socket.sendBinary(authBuf);
-
-            // 每 5ms 觸發一次，每次 250 筆
-            // 降低觸發頻率避免 k6 自身被壓垮，依靠每批次的量來提升總 TPS
-            socket.setInterval(function () {
-                const ts = BigInt(Date.now());
-                for (let i = 0; i < 125; i++) { // 125 * 2 = 250 msgs per tick
-                    // BUY
-                    view.setBigInt64(20, ts, true);
-                    view.setBigInt64(28, BigInt(uid), true);
-                    view.setUint8(56, 0); 
-                    view.setBigInt64(57, BigInt(++cidCounter), true);
-                    socket.sendBinary(buffer);
-
-                    // SELL
-                    view.setBigInt64(20, ts, true);
-                    view.setBigInt64(28, BigInt(uid), true);
-                    view.setUint8(56, 1);
-                    view.setBigInt64(57, BigInt(++cidCounter), true);
-                    socket.sendBinary(buffer);
-                }
-            }, 5); 
             
-            // 讓這個連接保持存活 295 秒，不讓它立刻結束
+            // 2. 初始充值 (BTC & USDT)
+            socket.sendBinary(depositBtcBuf);
+            socket.sendBinary(depositUsdtBuf);
+
+            // 3. 稍等 100ms 讓充值先入帳後開始下單
+            socket.setTimeout(function () {
+                socket.setInterval(function () {
+                    const ts = BigInt(Date.now());
+                    for (let i = 0; i < 125; i++) {
+                        // BUY
+                        view.setBigInt64(20, ts, true);
+                        view.setBigInt64(28, BigInt(uid), true);
+                        view.setUint8(56, 0); 
+                        view.setBigInt64(57, BigInt(++cidCounter), true);
+                        socket.sendBinary(buffer);
+
+                        // SELL
+                        view.setBigInt64(20, ts, true);
+                        view.setBigInt64(28, BigInt(uid), true);
+                        view.setUint8(56, 1);
+                        view.setBigInt64(57, BigInt(++cidCounter), true);
+                        socket.sendBinary(buffer);
+                    }
+                }, 5); 
+            }, 100);
+            
+            // 讓這個連接保持存活 295 秒
             socket.setTimeout(function () {
                 socket.close();
             }, 295000);
