@@ -1,90 +1,62 @@
 package open.vincentf13.service.spot.infra.thread;
 
 import open.vincentf13.service.spot.infra.jvm.Jvm;
-import org.agrona.concurrent.IdleStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- 低延遲背景工作者基類 (Worker)
- 職責：提供生命週期管理，並透過 Jvm.startCycle/endCycle 接入工作負載監控。
+/** 
+ 高性能背景工作者基類 (Worker)
+ 職責：管理單執行緒工作循環，支持 CPU 綁核與 Duty Cycle 監控。
  */
 public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
-    private int preferredCpuId = -1;
+    private Thread thread;
+    private int boundCpu = -1;
 
-    protected final IdleStrategy idleStrategy = Strategies.BUSY_SPIN;
-    private Thread thread;    
-
-    public void start(String name, int preferredCpuId) {
-        this.preferredCpuId = preferredCpuId;
-        start(name);
-    }
-
-    public void start(String name) {
+    /** 啟動工作者，可選擇性綁定物理核心 */
+    public void start(String name, int cpuId) {
         if (running.compareAndSet(false, true)) {
+            this.boundCpu = cpuId;
             thread = new Thread(this, name);
             thread.start();
             log.info("Worker {} started", name);
         }
     }
-    
+
+    public void start(String name) { start(name, -1); }
+
     public void stop() {
-        if (!running.compareAndSet(true, false)) return;
-        if (thread != null) {
-            try {
-                thread.join(5000);
-                if (thread.isAlive()) {
-                    log.warn("Worker {} 未能在 5 秒內優雅退出，發出中斷...", thread.getName());
-                    thread.interrupt();
-                    thread.join(1000);
-                }
-            } catch (InterruptedException e) {
-                log.error("等待 Worker {} 停止時被中斷", thread.getName());
-                Thread.currentThread().interrupt();
-            }
-        }
-        if (thread != null && thread.isAlive()) {
-            throw new RuntimeException("Worker " + thread.getName() + " 停機失敗！");
-        }
-        onStop();
-        log.info("Worker {} 已停止", thread != null ? thread.getName() : "Unknown");
+        if (!running.compareAndSet(true, false) || thread == null) return;
+        try {
+            thread.join(5000);
+            if (thread.isAlive()) { thread.interrupt(); thread.join(1000); }
+        } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        
+        if (thread.isAlive()) log.error("Worker {} 停機失敗", thread.getName());
+        else { onStop(); log.info("Worker {} stopped", thread.getName()); }
     }
-    
+
     @Override
     public void run() {
-        int boundCpuId = -1;
-        try {
-            boundCpuId = open.vincentf13.service.spot.infra.util.AffinityUtil.acquireAndBind(preferredCpuId);
-        } catch (Exception e) {
-            log.warn("CPU Affinity 綁定失敗: {}", e.getMessage());
-        }
-        onBind(boundCpuId);
-
+        int actualCpu = -1;
+        try { actualCpu = AffinityUtil.acquireAndBind(boundCpu); }
+        catch (Exception e) { log.warn("綁核失敗: {}", e.getMessage()); }
+        
+        onBind(actualCpu);
         try {
             onStart();
             while (running.get() && !Thread.currentThread().isInterrupted()) {
                 Jvm.startCycle();
-                int workDone = doWork();
-                Jvm.endCycle(workDone > 0);
-                
-                if (workDone > 0) continue;
-                
-                Thread.onSpinWait();
-                idleStrategy.idle(0);
+                int work = doWork();
+                Jvm.endCycle(work > 0);
+                if (work <= 0) { Thread.onSpinWait(); Strategies.BUSY_SPIN.idle(0); }
             }
-        } catch (Exception e) {
-            if (!(e instanceof InterruptedException) && !(e.getCause() instanceof InterruptedException)) {
-                log.error("Worker {} 運行錯誤", Thread.currentThread().getName(), e);
-            }
-        } finally {
-            running.set(false);
-        }
+        } catch (Exception e) { if (!Thread.interrupted()) log.error("Worker 運行異常", e); }
+        finally { running.set(false); }
     }
-    
+
     protected abstract void onStart();
     protected void onBind(int cpuId) {}
     protected abstract int doWork();

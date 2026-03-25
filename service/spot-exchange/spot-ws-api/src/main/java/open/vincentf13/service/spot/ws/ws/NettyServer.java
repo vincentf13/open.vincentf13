@@ -16,16 +16,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import open.vincentf13.service.spot.infra.Constants.Ws;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.util.AffinityUtil;
+import open.vincentf13.service.spot.infra.thread.AffinityUtil;
 
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static open.vincentf13.service.spot.infra.Constants.Ws;
 
 @Slf4j
 @Component

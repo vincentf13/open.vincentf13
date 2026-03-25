@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.infra.util;
+package open.vincentf13.service.spot.infra.thread;
 
 import net.openhft.affinity.Affinity;
 import org.slf4j.Logger;
