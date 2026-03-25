@@ -16,7 +16,7 @@ public abstract class Worker implements Runnable {
     private Thread thread;
     private final Sampler metricsSampler = new Sampler(10000, 1000);
 
-    public void start(String name) {
+    public void workerStart(String name) {
         if (running.compareAndSet(false, true)) {
             thread = new Thread(this, name);
             thread.start();
@@ -24,7 +24,7 @@ public abstract class Worker implements Runnable {
         }
     }
 
-    public void stop() {
+    public void workerStop() {
         if (!running.compareAndSet(true, false) || thread == null) return;
         try {
             thread.join(5000);

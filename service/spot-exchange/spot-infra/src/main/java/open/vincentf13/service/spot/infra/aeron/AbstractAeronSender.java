@@ -28,16 +28,12 @@ public abstract class AbstractAeronSender extends Worker {
 
     public AbstractAeronSender(ChronicleQueue wal) { this.wal = wal; }
 
-    protected void initChannels(String dataUrl, int dataId, String ctrlUrl, int ctrlId) {
+    protected void initAeronChannels(String dataUrl, int dataId, String ctrlUrl, int ctrlId) {
         this.publication = AeronClientHolder.aeron().addPublication(dataUrl, dataId);
         this.controlSub = AeronClientHolder.aeron().addSubscription(ctrlUrl, ctrlId);
         this.tailer = wal.createTailer();
     }
-
-    protected int send(int length, AeronUtil.AeronHandler handler) {
-        return AeronUtil.send(publication, length, handler, running);
-    }
-
+    
     @Override
     protected int doWork() {
         if (currentState == AeronState.SENDING && !publication.isConnected()) currentState = AeronState.WAITING;

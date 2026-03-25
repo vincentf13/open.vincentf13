@@ -29,7 +29,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
         this.engine = engine;
     }
 
-    @PostConstruct public void init() { start("matching-worker"); }
+    @PostConstruct public void init() { workerStart("matching-worker"); }
 
     @Override
     protected void onStart() {
