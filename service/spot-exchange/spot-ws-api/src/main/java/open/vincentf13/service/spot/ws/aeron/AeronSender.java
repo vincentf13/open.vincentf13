@@ -80,7 +80,7 @@ public class AeronSender extends AbstractAeronSender {
         final long ctxSeq = tailer.index();
 
         // 核心修正：檢查發送結果
-        long result = aeronClient.send(payloadLen, (buffer, offset) -> {
+        long result = send(payloadLen, (buffer, offset) -> {
             UNSAFE.copyMemory(addressForRead, OffHeapUtil.getAddress(buffer, offset), (long) payloadLen);
             buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
         });
