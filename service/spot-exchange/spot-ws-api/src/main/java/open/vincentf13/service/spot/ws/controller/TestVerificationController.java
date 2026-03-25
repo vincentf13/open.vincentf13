@@ -127,19 +127,19 @@ public class TestVerificationController {
             metrics.put("os_process_cpu_load", String.format("%.2f%%", sunOs.getProcessCpuLoad() * 100));
         }
 
-        // GC 指標
+        // GC 指標 (加上單位)
         Map<String, Object> gcMetrics = new LinkedHashMap<>();
         
         Map<String, Object> matchingGc = new LinkedHashMap<>();
-        matchingGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_COUNT, 0L));
-        matchingGc.put("last_interval_ms", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_INTERVAL_MS, 0L));
-        matchingGc.put("last_duration_ms", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_DURATION_MS, 0L));
+        matchingGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_COUNT, 0L) + " times");
+        matchingGc.put("last_interval", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_INTERVAL_MS, 0L) + " ms");
+        matchingGc.put("last_duration", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_DURATION_MS, 0L) + " ms");
         gcMetrics.put("spot-matching", matchingGc);
 
         Map<String, Object> gatewayGc = new LinkedHashMap<>();
-        gatewayGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_COUNT, 0L));
-        gatewayGc.put("last_interval_ms", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_INTERVAL_MS, 0L));
-        gatewayGc.put("last_duration_ms", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_DURATION_MS, 0L));
+        gatewayGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_COUNT, 0L) + " times");
+        gatewayGc.put("last_interval", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_INTERVAL_MS, 0L) + " ms");
+        gatewayGc.put("last_duration", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_DURATION_MS, 0L) + " ms");
         gcMetrics.put("spot-ws-api", gatewayGc);
 
         metrics.put("gc_metrics", gcMetrics);
