@@ -105,14 +105,8 @@ public class TestVerificationController {
 
         metrics.put("matching_jvm_used", String.format("%dMB (%.1f%%)", getMetric(MetricsKey.MATCHING_JVM_USED_MB, 0L), (double) getMetric(MetricsKey.MATCHING_JVM_USED_MB, 0L) / getMetric(MetricsKey.MATCHING_JVM_MAX_MB, 1L) *100));
         metrics.put("gateway_jvm_used", String.format("%dMB (%.1f%%)", getMetric(MetricsKey.GATEWAY_JVM_USED_MB, 0L), (double) getMetric(MetricsKey.GATEWAY_JVM_USED_MB, 0L) / getMetric(MetricsKey.GATEWAY_JVM_MAX_MB, 1L) *100));
-        metrics.put("matching_cpu_load", String.format("%d%%", getMetric(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE, 0L)));
-        metrics.put("gateway_cpu_load", String.format("%d%%", getMetric(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE, 0L)));
-
-        var os = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
-        if (os instanceof com.sun.management.OperatingSystemMXBean sunOs) {
-            metrics.put("os_system_cpu_load", String.format("%.2f%%", sunOs.getCpuLoad() * 100));
-            metrics.put("os_process_cpu_load", String.format("%.2f%%", sunOs.getProcessCpuLoad() * 100));
-        }
+        metrics.put("matching_aeron_recevier_worker_duty_cycle", String.format("%d%%", getMetric(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE, 0L)));
+        metrics.put("gateway_aeron_sender_worker_duty_cycle", String.format("%d%%", getMetric(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE, 0L)));
 
         Map<String, Object> gcMetrics = new LinkedHashMap<>();
         
