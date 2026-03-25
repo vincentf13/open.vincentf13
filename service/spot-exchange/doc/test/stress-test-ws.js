@@ -3,7 +3,7 @@ import { check, sleep } from 'k6';
 import http from 'k6/http';
 
 export const options = {
-    vus: 100, // 100 個並發連接
+    vus: 200, // 200 個並發連接
     duration: '5m', // 執行 5 分鐘
     discardResponseBodies: true,
 };
@@ -71,8 +71,8 @@ export default function () {
     const depositUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 1000000000n * SCALE); // 初始 10 億 USDT
 
     // 維護性充值 (避免溢位)
-    const maintainBtcBuf = createDepositBuffer(uid, ASSET_BTC, 10n * SCALE); // 每 5ms 補 10 BTC
-    const maintainUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 1000000n * SCALE); // 每 5ms 補 100 萬 USDT
+    const maintainBtcBuf = createDepositBuffer(uid, ASSET_BTC, 10n * SCALE); // 每次補 10 BTC
+    const maintainUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 1000000n * SCALE); // 每次補 100 萬 USDT
     
     const { buffer, view } = createPreallocatedOrderBuffer();
     let cidCounter = Date.now() * 1000 + (__VU * 10000000);
@@ -91,11 +91,11 @@ export default function () {
                 socket.setInterval(function () {
                     const ts = BigInt(Date.now());
 
-                    // 維護性補血 (每 5ms 補一次，總量控制在 7 分鐘內不溢位)
+                    // 維護性補血
                     socket.sendBinary(maintainBtcBuf);
                     socket.sendBinary(maintainUsdtBuf);
 
-                    for (let i = 0; i < 125; i++) {
+                    for (let i = 0; i < 250; i++) { // 250 * 2 = 500 筆訂單 per tick
                         // BUY
                         view.setBigInt64(20, ts, true);
                         view.setBigInt64(28, BigInt(uid), true);
@@ -110,7 +110,7 @@ export default function () {
                         view.setBigInt64(57, BigInt(++cidCounter), true);
                         socket.sendBinary(buffer);
                     }
-                }, 5); 
+                }, 1); // 每 1ms 觸發一次
             }, 500);
             
             // 讓這個連接保持存活 295 秒
