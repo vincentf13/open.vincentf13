@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.infra.thread;
+package open.vincentf13.service.spot.infra.metrics;
 
 import open.vincentf13.service.spot.infra.util.Clock;
 

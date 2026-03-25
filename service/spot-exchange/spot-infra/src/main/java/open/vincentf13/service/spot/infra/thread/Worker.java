@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.infra.thread;
 
+import open.vincentf13.service.spot.infra.metrics.Sampler;
 import open.vincentf13.service.spot.infra.metrics.WorkerMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
