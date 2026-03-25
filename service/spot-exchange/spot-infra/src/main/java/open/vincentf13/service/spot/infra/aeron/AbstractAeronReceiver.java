@@ -33,7 +33,6 @@ public abstract class AbstractAeronReceiver extends Worker {
     
     protected AeronState currentState = AeronState.WAITING;
     protected long lastResumeTime = 0;
-    private long localPollCount = 0;
     private AeronMessageHandler externalHandler;
 
     public AbstractAeronReceiver(ChronicleMap<Byte, MsgProgress> metadata, byte metadataKey,
@@ -51,10 +50,6 @@ public abstract class AbstractAeronReceiver extends Worker {
         if (currentState == AeronState.WAITING && Clock.now() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
         
         int done = subscription.poll(assembler, limit);
-        if ((localPollCount += 1) >= AeronConstants.METRICS_BATCH_SIZE) {
-            open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
-            localPollCount = 0;
-        }
         return done;
     }
 

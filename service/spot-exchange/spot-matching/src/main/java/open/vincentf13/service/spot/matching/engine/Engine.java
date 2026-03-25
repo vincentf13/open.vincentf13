@@ -30,18 +30,11 @@ public class Engine implements AeronMessageHandler {
 
     private long lastMetricsSec = 0;
     private long lastFlushTime = 0;
-    private long workCount = 0;
     private long unflushedWorkCount = 0;
-    private long localWorkCount = 0;
-    private long effectivePollCount = 0;
-    private static final int METRICS_BATCH_SIZE = 5000;
-
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue metricKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue metricValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
 
     public void onStart() {
         log.info("執行冷啟動索引重建與預熱...");
-        workCount = 0; unflushedWorkCount = 0; effectivePollCount = 0;
+        unflushedWorkCount = 0;
         
         ledger.rebuildAssetIndexes();
         OrderBook.rebuildActiveOrdersIndexes();
@@ -54,7 +47,7 @@ public class Engine implements AeronMessageHandler {
     }
 
     public void tick(int done) {
-        if (done > 0) { updateWorkMetrics(done); unflushedWorkCount += done; }
+        if (done > 0) { unflushedWorkCount += done; }
 
         final long now = open.vincentf13.service.spot.infra.util.Clock.now();
         if (unflushedWorkCount > 0 && (unflushedWorkCount >= 100000 || now - lastFlushTime >= 1000)) {
@@ -63,15 +56,6 @@ public class Engine implements AeronMessageHandler {
 
         final long nowSec = now / 1000;
         if (nowSec > lastMetricsSec) { updateSystemMetrics(nowSec); lastMetricsSec = nowSec; }
-    }
-
-    private void updateWorkMetrics(int done) {
-        workCount += done; localWorkCount += done; effectivePollCount++; 
-        if (localWorkCount >= METRICS_BATCH_SIZE) {
-            MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
-            MetricsCollector.add(MetricsKey.POLL_COUNT, effectivePollCount);
-            localWorkCount = 0; effectivePollCount = 0;
-        }
     }
 
     private void flushAll() {
@@ -97,10 +81,6 @@ public class Engine implements AeronMessageHandler {
     private void updateSystemMetrics(long nowSec) {
         // 僅回報業務相關指標
         MetricsCollector.set(MetricsKey.MATCH_COUNT, OrderBook.TOTAL_MATCH_COUNT.get());
-        
-        metricKey.set(nowSec);
-        metricValue.set(workCount);
-        Storage.self().metricsHistory().put(metricKey, metricValue);
     }
 
     public void onStop() { 

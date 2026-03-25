@@ -91,8 +91,8 @@ export function teardown() {
     if (res.status === 200) {
         const data = JSON.parse(res.body);
         console.log(`================================================`);
-        console.log(`[TEARDOWN] 最終引擎 Work: ${data.engine_work_count}`);
-        console.log(`[TEARDOWN] 引擎飽和度: ${data.engine_saturation}`);
+        console.log(`[TEARDOWN] Netty Recv: ${data.netty_recv_count}`);
+        console.log(`[TEARDOWN] Gateway WAL Write: ${data.gateway_wal_write_count}`);
         console.log(`================================================`);
     }
 }

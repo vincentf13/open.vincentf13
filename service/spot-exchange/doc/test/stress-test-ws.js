@@ -138,8 +138,7 @@ export function teardown() {
             const metrics = data.data || data;
             console.log(`================================================`);
             console.log(`[FINAL] 累計 Netty 接收: ${metrics.netty_recv_count || 0}`);
-            console.log(`[FINAL] 累計引擎處理: ${metrics.engine_work_count || 0}`);
-            console.log(`[FINAL] 引擎平均飽和度: ${metrics.engine_saturation || 'N/A'}`);
+            console.log(`[FINAL] 累計 Gateway WAL 寫入: ${metrics.gateway_wal_write_count || 0}`);
             console.log(`================================================`);
         } catch (e) {
             console.error(`解析監測數據失敗: ${e.message}`);

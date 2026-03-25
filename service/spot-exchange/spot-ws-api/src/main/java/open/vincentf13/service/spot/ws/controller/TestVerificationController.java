@@ -102,9 +102,6 @@ public class TestVerificationController {
         metrics.put("gateway_wal_write_count", getMetric(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 0L));
         metrics.put("aeron_send_count", getMetric(MetricsKey.AERON_SEND_COUNT, 0L));
         metrics.put("aeron_backpressure_count", getMetric(MetricsKey.AERON_BACKPRESSURE, 0L));
-        metrics.put("engine_work_count", getMetric(MetricsKey.WORK_COUNT, 0L));
-        metrics.put("engine_poll_count", getMetric(MetricsKey.POLL_COUNT, 0L));
-        metrics.put("engine_saturation", String.format("%.2f%%", (double) getMetric(MetricsKey.POLL_COUNT, 0L) * Matching.ENGINE_BATCH_SIZE == 0 ? 0 : Math.min(100.0, (double) getMetric(MetricsKey.WORK_COUNT, 0L) / ((double) getMetric(MetricsKey.POLL_COUNT, 0L) * Matching.ENGINE_BATCH_SIZE) * 100.0)));
 
         metrics.put("matching_jvm_used", String.format("%dMB (%.1f%%)", getMetric(MetricsKey.MATCHING_JVM_USED_MB, 0L), (double) getMetric(MetricsKey.MATCHING_JVM_USED_MB, 0L) / getMetric(MetricsKey.MATCHING_JVM_MAX_MB, 1L) *100));
         metrics.put("gateway_jvm_used", String.format("%dMB (%.1f%%)", getMetric(MetricsKey.GATEWAY_JVM_USED_MB, 0L), (double) getMetric(MetricsKey.GATEWAY_JVM_USED_MB, 0L) / getMetric(MetricsKey.GATEWAY_JVM_MAX_MB, 1L) *100));

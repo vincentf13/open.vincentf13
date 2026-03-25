@@ -117,8 +117,6 @@ public class Constants {
      * 監控指標 Key 定義 (Metrics Keys)
      */
     public static class MetricsKey {
-        public static final long POLL_COUNT = -1L;
-        public static final long WORK_COUNT = -2L;
         public static final long NETTY_RECV_COUNT = -3L;
         public static final long AERON_BACKPRESSURE = -4L;
         public static final long GATEWAY_WAL_WRITE_COUNT = -5L;
