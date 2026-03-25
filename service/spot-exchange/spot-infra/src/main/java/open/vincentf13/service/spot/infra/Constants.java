@@ -109,14 +109,6 @@ public class Constants {
         }
     }
 
-    /** 
-      Aeron 通訊組件工作狀態 (AeronState)
-     */
-    public enum AeronState {
-        WAITING, // 等待握手/同步中
-        SENDING  // 正常發送數據中
-    }
-
     public static class Matching {
         public static final int ENGINE_BATCH_SIZE = 500;
     }

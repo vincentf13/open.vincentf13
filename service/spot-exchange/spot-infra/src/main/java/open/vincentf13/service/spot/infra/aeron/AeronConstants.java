@@ -31,5 +31,13 @@ public class AeronConstants {
     /** 預設 Term Buffer 長度 (64MB) */
     public static final int DEFAULT_TERM_BUFFER_LENGTH = 64 * 1024 * 1024;
 
+    /** 
+      Aeron 通訊組件工作狀態 (AeronState)
+     */
+    public enum AeronState {
+        WAITING, // 等待握手/同步中
+        SENDING  // 正常發送數據中
+    }
+
     private AeronConstants() {}
 }
