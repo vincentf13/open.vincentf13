@@ -6,7 +6,6 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
 import open.vincentf13.service.spot.sbe.Side;
-import open.vincentf13.service.spot.sbe.OrderSide;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.LongHashSet;
