@@ -8,72 +8,93 @@ import java.math.BigInteger;
 public class DecimalUtil {
     public static final long SCALE = 100_000_000L; // 10^8
     private static final BigInteger SCALE_BI = BigInteger.valueOf(SCALE);
-    
-    /** 
-      乘法安全預檢：判定 a * b 是否會超過 Long.MAX_VALUE
+
+    /**
+     * 無損加法
      */
-    public static boolean isMultiplySafe(long a, long b) {
-        if (a == 0 || b == 0) return true;
+    public static long add(long a, long b) {
+        return Math.addExact(a, b);
+    }
+
+    /**
+     * 無損減法
+     */
+    public static long sub(long a, long b) {
+        return Math.subtractExact(a, b);
+    }
+
+    /**
+     * 無損乘法 (向下取整)
+     * 演算法：將整數與小數部分拆解，避免直接相乘導致 `long` 溢出。
+     * a = aHigh * SCALE + aLow
+     * b = bHigh * SCALE + bLow
+     * (a * b) / SCALE = aHigh * bHigh * SCALE + aHigh * bLow + aLow * bHigh + (aLow * bLow) / SCALE
+     * 此作法完全消除了 BigInteger 帶來的 GC 與效能損耗。
+     */
+    public static long mulFloor(long a, long b) {
+        if (a == 0 || b == 0) return 0;
+        
+        long sign = (a < 0) ^ (b < 0) ? -1 : 1;
+        a = Math.abs(a);
+        b = Math.abs(b);
+
+        long aHigh = a / SCALE;
+        long aLow  = a % SCALE;
+        long bHigh = b / SCALE;
+        long bLow  = b % SCALE;
+
         try {
-            Math.multiplyExact(a, b);
-            return true;
+            long p1 = Math.multiplyExact(Math.multiplyExact(aHigh, bHigh), SCALE);
+            long p2 = Math.multiplyExact(aHigh, bLow);
+            long p3 = Math.multiplyExact(aLow, bHigh);
+            long p4 = (aLow * bLow) / SCALE;
+            
+            long res = Math.addExact(Math.addExact(Math.addExact(p1, p2), p3), p4);
+            return res * sign;
         } catch (ArithmeticException e) {
-            return false;
+            // 發生極端溢位時降級使用 BigInteger (效能較差但安全)
+            BigInteger resBI = BigInteger.valueOf(a)
+                                         .multiply(BigInteger.valueOf(b))
+                                         .divide(SCALE_BI);
+            return resBI.longValue() * sign;
         }
     }
 
     /**
-     大額安全乘法並向下取整 (入帳用)
+     * 無損乘法 (向上取整)
      */
-    public static long mulFloor(long a,
-                                long b) {
-        if (a == 0 || b == 0)
-            return 0;
+    public static long mulCeil(long a, long b) {
+        if (a == 0 || b == 0) return 0;
         
+        long sign = (a < 0) ^ (b < 0) ? -1 : 1;
+        a = Math.abs(a);
+        b = Math.abs(b);
+
+        long aHigh = a / SCALE;
+        long aLow  = a % SCALE;
+        long bHigh = b / SCALE;
+        long bLow  = b % SCALE;
+
         try {
-            long aInt = a / SCALE;
-            long aFrac = a % SCALE;
+            long p1 = Math.multiplyExact(Math.multiplyExact(aHigh, bHigh), SCALE);
+            long p2 = Math.multiplyExact(aHigh, bLow);
+            long p3 = Math.multiplyExact(aLow, bHigh);
+            long lowProduct = aLow * bLow;
+            long p4 = lowProduct / SCALE;
             
-            // Fast Path: 利用 Math.multiplyExact 自動檢測溢出
-            long res1 = Math.multiplyExact(aInt, b);
-            long prod2 = Math.multiplyExact(aFrac, b);
-            
-            return Math.addExact(res1, prod2 / SCALE);
-        } catch (ArithmeticException e) {
-            // 巨鯨交易回退至 BigInteger 防溢出
-            return BigInteger.valueOf(a)
-                             .multiply(BigInteger.valueOf(b))
-                             .divide(SCALE_BI)
-                             .longValue();
-        }
-    }
-    
-    /**
-     大額安全乘法並向上取整 (扣款用)
-     */
-    public static long mulCeil(long a,
-                               long b) {
-        if (a == 0 || b == 0)
-            return 0;
-        
-        try {
-            long aInt = a / SCALE;
-            long aFrac = a % SCALE;
-            
-            long res1 = Math.multiplyExact(aInt, b);
-            long prod2 = Math.multiplyExact(aFrac, b);
-            long res2 = prod2 / SCALE;
-            if (prod2 % SCALE > 0)
-                res2++;
-            
-            return Math.addExact(res1, res2);
+            long res = Math.addExact(Math.addExact(Math.addExact(p1, p2), p3), p4);
+            if (lowProduct % SCALE != 0) {
+                res = Math.addExact(res, 1);
+            }
+            return res * sign;
         } catch (ArithmeticException e) {
             BigInteger res = BigInteger.valueOf(a).multiply(BigInteger.valueOf(b));
             BigInteger[] divRem = res.divideAndRemainder(SCALE_BI);
+            long val = divRem[0].longValue();
             if (divRem[1].signum() > 0) {
-                return divRem[0].add(BigInteger.ONE).longValue();
+                val += 1;
             }
-            return divRem[0].longValue();
+            return val * sign;
         }
     }
 }
