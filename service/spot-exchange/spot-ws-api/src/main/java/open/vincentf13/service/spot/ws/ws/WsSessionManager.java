@@ -93,10 +93,11 @@ public class WsSessionManager {
             return;
         }
 
+        BinaryWebSocketFrame sharedFrame = null;
         try {
             // 建立一次 Frame，供該用戶的所有連線使用
-            // BinaryWebSocketFrame 會自動 retain 傳入的 ByteBuf
-            BinaryWebSocketFrame sharedFrame = new BinaryWebSocketFrame(data);
+            // BinaryWebSocketFrame 會自動接管 ByteBuf 的生命週期 (無需手動 retain)
+            sharedFrame = new BinaryWebSocketFrame(data);
             
             for (Channel c : channels) {
                 if (c.isActive()) {
@@ -104,10 +105,16 @@ public class WsSessionManager {
                     c.writeAndFlush(sharedFrame.retainedDuplicate());
                 }
             }
-            // 釋放 sharedFrame 初始持有的一份引用
-            sharedFrame.release();
         } catch (Exception e) {
             log.error("[WS-SESSION] 推送訊息失敗 (userId: {}): {}", userId, e.getMessage());
+        } finally {
+            if (sharedFrame != null) {
+                // 釋放 sharedFrame 初始持有的一份引用，連帶釋放內部的 data
+                sharedFrame.release();
+            } else {
+                // 如果 sharedFrame 創建失敗，手動釋放原始 data
+                data.release();
+            }
         }
     }
 }

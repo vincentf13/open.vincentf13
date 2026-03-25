@@ -3,8 +3,11 @@ package open.vincentf13.service.spot.ws.ws;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.queue.ChronicleQueue;
@@ -81,13 +84,25 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        // 僅接受二進制框架，拒絕文字框架以節省性能
-        if (msg instanceof TextWebSocketFrame textFrame) {
+        if (msg instanceof BinaryWebSocketFrame) {
+            super.channelRead(ctx, msg);
+        } else if (msg instanceof TextWebSocketFrame textFrame) {
             log.warn("[GATEWAY-WS] 已停用 JSON 支持，忽略訊息: {}", textFrame.text());
             textFrame.release();
-            return;
+        } else if (msg instanceof FullHttpRequest request) {
+            log.warn("[GATEWAY-WS] 收到非 WebSocket 請求 (Path: {}), 正在釋放並關閉連線", request.uri());
+            request.release();
+            ctx.close();
+        } else {
+            // 處理其餘 WebSocket 框架 (如 Continuation) 與 Netty 內部消息
+            // SimpleChannelInboundHandler.channelRead 會根據是否匹配泛型來決定是調用 channelRead0 還是 ctx.fireChannelRead
+            try {
+                super.channelRead(ctx, msg);
+            } catch (Exception e) {
+                ReferenceCountUtil.safeRelease(msg);
+                throw e;
+            }
         }
-        super.channelRead(ctx, msg);
     }
 
     private void updateNettyMetrics() {
