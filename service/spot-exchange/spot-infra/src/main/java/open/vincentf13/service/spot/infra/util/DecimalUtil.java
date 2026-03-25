@@ -34,6 +34,14 @@ public class DecimalUtil {
     public static long mulFloor(long a, long b) {
         if (a == 0 || b == 0) return 0;
         
+        // Handle Long.MIN_VALUE which Math.abs() cannot handle correctly
+        if (a == Long.MIN_VALUE || b == Long.MIN_VALUE) {
+            return BigInteger.valueOf(a)
+                    .multiply(BigInteger.valueOf(b))
+                    .divide(SCALE_BI)
+                    .longValue();
+        }
+
         long sign = (a < 0) ^ (b < 0) ? -1 : 1;
         a = Math.abs(a);
         b = Math.abs(b);
@@ -66,6 +74,17 @@ public class DecimalUtil {
     public static long mulCeil(long a, long b) {
         if (a == 0 || b == 0) return 0;
         
+        // Handle Long.MIN_VALUE
+        if (a == Long.MIN_VALUE || b == Long.MIN_VALUE) {
+            BigInteger res = BigInteger.valueOf(a).multiply(BigInteger.valueOf(b));
+            BigInteger[] divRem = res.divideAndRemainder(SCALE_BI);
+            long val = divRem[0].longValue();
+            if (divRem[1].signum() != 0) { // signum != 0 for ceiling
+                val = (res.signum() > 0) ? val + 1 : val - 1;
+            }
+            return val;
+        }
+
         long sign = (a < 0) ^ (b < 0) ? -1 : 1;
         a = Math.abs(a);
         b = Math.abs(b);
