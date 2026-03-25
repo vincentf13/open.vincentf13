@@ -15,79 +15,58 @@ import static org.agrona.UnsafeAccess.UNSAFE;
 
 import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 
-/** 
- 網關 Aeron 發送器 (Raw WAL 讀取版)
- 優化：極簡化指針直寫，移除 SBE 模型解碼分支
- */
+/** 網關 Aeron 發送器 */
 @Slf4j
 @Component
 public class AeronSender extends AbstractAeronSender {
 
-    public AeronSender(Aeron aeron) {
-        super(Storage.self().gatewaySenderWal(), 
-              AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID,
-              AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
+    public AeronSender(Aeron aeron) { // aeron 入參保留供 Spring 注入，但不傳給 super
+        super(Storage.self().gatewaySenderWal());
     }
 
-    @PostConstruct public void init() { start("gw-command-sender"); }
+    @PostConstruct public void init() { start("gw-sender"); }
+
+    @Override
+    protected void onStart() {
+        initChannels(AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID,
+                     AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
+    }
 
     @Override
     protected void onBind(int cpuId) {
         MetricsCollector.recordCpuAffinity(MetricsKey.CPU_ID_AERON_SENDER, cpuId);
     }
 
-    private long lastMetricsTime = 0;
-
     private long localBackPressure = 0;
 
     @Override
-    protected int doWork() {
-        int work = super.doWork();
-        
-        // 批量匯總背壓指標
+    protected void onHeartbeat() {
         if (localBackPressure > 0) {
             MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackPressure);
             localBackPressure = 0;
         }
-
-        long now = open.vincentf13.service.spot.infra.util.Clock.now() / 1000;
-        if (now > lastMetricsTime) {
-            updateProcessMetrics();
-            lastMetricsTime = now;
-        }
-        return work;
-    }
-
-    private void updateProcessMetrics() {
         Runtime r = Runtime.getRuntime();
         MetricsCollector.set(MetricsKey.GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
         MetricsCollector.set(MetricsKey.GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
         
-        java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
-        if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOsBean) {
-            MetricsCollector.set(MetricsKey.GATEWAY_CPU_LOAD, (long)(sunOsBean.getCpuLoad() * 100));
+        if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
+            MetricsCollector.set(MetricsKey.GATEWAY_CPU_LOAD, (long)(os.getCpuLoad() * 100));
         }
     }
 
     @Override
     public void onWalMessage(WireIn wire) {
         final net.openhft.chronicle.bytes.Bytes<?> bytes = wire.bytes();
-        final int payloadLen = (int) bytes.readRemaining();
-        if (payloadLen <= 0) return;
+        final int len = (int) bytes.readRemaining();
+        if (len <= 0) return;
 
-        final long addressForRead = bytes.addressForRead(bytes.readPosition());
-        final long ctxSeq = tailer.index();
+        final long addr = bytes.addressForRead(bytes.readPosition());
+        final long seq = tailer.index();
 
-        // 核心修正：檢查發送結果
-        long result = send(payloadLen, (buffer, offset) -> {
-            UNSAFE.copyMemory(addressForRead, OffHeapUtil.getAddress(buffer, offset), (long) payloadLen);
-            buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, ctxSeq);
-        });
-
-        if (result >= 0) {
-            bytes.readSkip((long) payloadLen);
-        } else {
-            localBackPressure++;
-        }
+        if (send(len, (buf, off) -> {
+            UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
+            buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, seq);
+        }) >= 0) bytes.readSkip(len);
+        else localBackPressure++;
     }
 }
