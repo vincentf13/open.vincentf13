@@ -96,32 +96,18 @@ public class TestVerificationController {
 
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
-        long pollCount = getMetric(MetricsKey.POLL_COUNT, 0L);
-        long workCount = getMetric(MetricsKey.WORK_COUNT, 0L);
-        double maxPotential = (double) pollCount * Matching.ENGINE_BATCH_SIZE;
-        double ratio = maxPotential == 0 ? 0 : Math.min(100.0, (double) workCount / maxPotential * 100.0);
-
-        long nettyRecvCount = getMetric(MetricsKey.NETTY_RECV_COUNT, 0L);
-        long gatewayWalWriteCount = getMetric(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 0L);
-        long aeronSendCount = getMetric(MetricsKey.AERON_SEND_COUNT, 0L);
-        long aeronBackpressure = getMetric(MetricsKey.AERON_BACKPRESSURE, 0L);
-
-        long matchingUsed = getMetric(MetricsKey.MATCHING_JVM_USED_MB, 0L);
-        long matchingMax = getMetric(MetricsKey.MATCHING_JVM_MAX_MB, 1L);
-        long gatewayUsed = getMetric(MetricsKey.GATEWAY_JVM_USED_MB, 0L);
-        long gatewayMax = getMetric(MetricsKey.GATEWAY_JVM_MAX_MB, 1L);
-
+        
         Map<String, Object> metrics = new LinkedHashMap<>();
-        metrics.put("netty_recv_count", nettyRecvCount);
-        metrics.put("gateway_wal_write_count", gatewayWalWriteCount);
-        metrics.put("aeron_send_count", aeronSendCount);
-        metrics.put("aeron_backpressure_count", aeronBackpressure);
-        metrics.put("engine_work_count", workCount);
-        metrics.put("engine_poll_count", pollCount);
-        metrics.put("engine_saturation", String.format("%.2f%%", ratio));
+        metrics.put("netty_recv_count", getMetric(MetricsKey.NETTY_RECV_COUNT, 0L));
+        metrics.put("gateway_wal_write_count", getMetric(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 0L));
+        metrics.put("aeron_send_count", getMetric(MetricsKey.AERON_SEND_COUNT, 0L));
+        metrics.put("aeron_backpressure_count", getMetric(MetricsKey.AERON_BACKPRESSURE, 0L));
+        metrics.put("engine_work_count", getMetric(MetricsKey.WORK_COUNT, 0L));
+        metrics.put("engine_poll_count", getMetric(MetricsKey.POLL_COUNT, 0L));
+        metrics.put("engine_saturation", String.format("%.2f%%", (double) getMetric(MetricsKey.POLL_COUNT, 0L) * Matching.ENGINE_BATCH_SIZE == 0 ? 0 : Math.min(100.0, (double) getMetric(MetricsKey.WORK_COUNT, 0L) / ((double) getMetric(MetricsKey.POLL_COUNT, 0L) * Matching.ENGINE_BATCH_SIZE) * 100.0)));
 
-        metrics.put("matching_jvm_used", String.format("%dMB (%.1f%%)", matchingUsed, (double)matchingUsed/matchingMax*100));
-        metrics.put("gateway_jvm_used", String.format("%dMB (%.1f%%)", gatewayUsed, (double)gatewayUsed/gatewayMax*100));
+        metrics.put("matching_jvm_used", String.format("%dMB (%.1f%%)", getMetric(MetricsKey.MATCHING_JVM_USED_MB, 0L), (double) getMetric(MetricsKey.MATCHING_JVM_USED_MB, 0L) / getMetric(MetricsKey.MATCHING_JVM_MAX_MB, 1L) *100));
+        metrics.put("gateway_jvm_used", String.format("%dMB (%.1f%%)", getMetric(MetricsKey.GATEWAY_JVM_USED_MB, 0L), (double) getMetric(MetricsKey.GATEWAY_JVM_USED_MB, 0L) / getMetric(MetricsKey.GATEWAY_JVM_MAX_MB, 1L) *100));
         metrics.put("matching_cpu_load", String.format("%d%%", getMetric(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE, 0L)));
         metrics.put("gateway_cpu_load", String.format("%d%%", getMetric(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE, 0L)));
 

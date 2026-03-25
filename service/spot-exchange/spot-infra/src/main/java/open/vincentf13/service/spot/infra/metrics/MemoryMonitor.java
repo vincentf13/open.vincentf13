@@ -12,7 +12,6 @@ import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
 
 import static open.vincentf13.service.spot.infra.Constants.MetricsKey.*;
 
@@ -26,13 +25,12 @@ public class MemoryMonitor {
 
     private final ApplicationContext ctx;
     private static final Runtime RUNTIME = Runtime.getRuntime();
-    private static final OperatingSystemMXBean OS_BEAN = ManagementFactory.getOperatingSystemMXBean();
     
     private long lastGcTimestamp = Clock.now();
     private long gcLocalCount = 0;
 
     // --- 指標 Key 配置 ---
-    private long kUsed, kMax, kLoad, kGcCount, kGcInterval, kGcDuration, kGcHistory;
+    private long kUsed, kMax, kGcCount, kGcInterval, kGcDuration, kGcHistory;
 
     public MemoryMonitor(ApplicationContext ctx) { this.ctx = ctx; }
 
@@ -42,10 +40,10 @@ public class MemoryMonitor {
                 .values().iterator().next().getClass().getSimpleName();
 
         if (mainClassName.contains("WsApi")) {
-            setupKeys(GATEWAY_JVM_USED_MB, GATEWAY_JVM_MAX_MB, GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE,
+            setupKeys(GATEWAY_JVM_USED_MB, GATEWAY_JVM_MAX_MB,
                       GATEWAY_GC_COUNT, GATEWAY_GC_LAST_INTERVAL_MS, GATEWAY_GC_LAST_DURATION_MS, GATEWAY_GC_HISTORY_START);
         } else if (mainClassName.contains("Matching")) {
-            setupKeys(MATCHING_JVM_USED_MB, MATCHING_JVM_MAX_MB, MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE,
+            setupKeys(MATCHING_JVM_USED_MB, MATCHING_JVM_MAX_MB,
                       MATCHING_GC_COUNT, MATCHING_GC_LAST_INTERVAL_MS, MATCHING_GC_LAST_DURATION_MS, MATCHING_GC_HISTORY_START);
         } else {
             log.warn("Unknown app type: {}, skipping JvmMonitor", mainClassName);
@@ -55,8 +53,8 @@ public class MemoryMonitor {
         startMonitoring();
     }
 
-    private void setupKeys(long used, long max, long load, long gcc, long gci, long gcd, long gch) {
-        this.kUsed = used; this.kMax = max; this.kLoad = load;
+    private void setupKeys(long used, long max, long gcc, long gci, long gcd, long gch) {
+        this.kUsed = used; this.kMax = max;
         this.kGcCount = gcc; this.kGcInterval = gci; this.kGcDuration = gcd; this.kGcHistory = gch;
     }
 
@@ -90,10 +88,6 @@ public class MemoryMonitor {
                 try {
                     MetricsCollector.set(kUsed, (RUNTIME.totalMemory() - RUNTIME.freeMemory()) / 1024 / 1024);
                     MetricsCollector.set(kMax, RUNTIME.maxMemory() / 1024 / 1024);
-                    if (OS_BEAN instanceof com.sun.management.OperatingSystemMXBean sunOs) {
-                        double load = sunOs.getCpuLoad();
-                        if (load >= 0) MetricsCollector.set(kLoad, (long)(load * 100));
-                    }
                     Thread.sleep(1000);
                 } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
                 catch (Exception e) { log.error("Sampler error", e); }
