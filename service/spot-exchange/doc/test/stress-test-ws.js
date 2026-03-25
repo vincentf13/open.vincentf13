@@ -67,8 +67,8 @@ function createPreallocatedOrderBuffer() {
 export default function () {
     const uid = __VU + 1000;
     const authBuf = createAuthBuffer(uid);
-    const depositBtcBuf = createDepositBuffer(uid, ASSET_BTC, 100n * SCALE); // 充值 100 BTC
-    const depositUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 10000000n * SCALE); // 充值 1000 萬 USDT
+    const depositBtcBuf = createDepositBuffer(uid, ASSET_BTC, 1000n * SCALE); // 充值 1000 BTC
+    const depositUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 1000000000n * SCALE); // 充值 10 億 USDT       
     const { buffer, view } = createPreallocatedOrderBuffer();
     let cidCounter = Date.now() * 1000 + (__VU * 10000000);
 
@@ -76,12 +76,12 @@ export default function () {
         socket.on('open', function () {
             // 1. 認證
             socket.sendBinary(authBuf);
-            
+
             // 2. 初始充值 (BTC & USDT)
             socket.sendBinary(depositBtcBuf);
             socket.sendBinary(depositUsdtBuf);
 
-            // 3. 稍等 100ms 讓充值先入帳後開始下單
+            // 3. 稍等 500ms 讓充值先入帳後開始下單
             socket.setTimeout(function () {
                 socket.setInterval(function () {
                     const ts = BigInt(Date.now());
@@ -101,7 +101,7 @@ export default function () {
                         socket.sendBinary(buffer);
                     }
                 }, 5); 
-            }, 100);
+            }, 500);
             
             // 讓這個連接保持存活 295 秒
             socket.setTimeout(function () {

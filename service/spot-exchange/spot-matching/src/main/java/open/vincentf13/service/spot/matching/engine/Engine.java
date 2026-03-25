@@ -33,7 +33,8 @@ public class Engine implements AeronMessageHandler {
     private long lastFlushTime = 0;
     private long workCount = 0;
     private long unflushedWorkCount = 0;
-    private long localPollCount = 0, localWorkCount = 0;
+    private long localWorkCount = 0;
+    private long effectivePollCount = 0;
     private static final int METRICS_BATCH_SIZE = 5000;
 
     public void onBind(int cpuId) {
@@ -44,6 +45,7 @@ public class Engine implements AeronMessageHandler {
         log.info("執行冷啟動索引重建與預熱...");
         workCount = 0;
         unflushedWorkCount = 0;
+        effectivePollCount = 0;
         
         // 移除錯誤的 MetricsCollector.set，改為直接重置持久化記憶體中的值，避免觸發 GAUGE 覆寫
         Storage.self().metricsHistory().put(MetricsKey.POLL_COUNT, 0L);
@@ -90,12 +92,13 @@ public class Engine implements AeronMessageHandler {
     private void updateWorkMetrics(int done) {
         workCount += done;
         localWorkCount += done;
-        // 移除 localPollCount++，避免與 AbstractAeronReceiver 的指標衝突
+        effectivePollCount++; 
 
         if (localWorkCount >= METRICS_BATCH_SIZE) {
             MetricsCollector.add(MetricsKey.WORK_COUNT, localWorkCount);
-            // 移除 MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
+            MetricsCollector.add(MetricsKey.POLL_COUNT, effectivePollCount);
             localWorkCount = 0;
+            effectivePollCount = 0;
         }
     }
 
@@ -129,7 +132,7 @@ public class Engine implements AeronMessageHandler {
         final long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
         MetricsCollector.set(MetricsKey.MATCH_COUNT, totalMatches);
         
-        // 修正：TPS 歷史紀錄應該儲存引擎總共處理的「交易數 (workCount)」，而非只有「成交數 (totalMatches)」
+        // 修正：TPS 歷史紀錄應該儲存引擎總共處理的「交易數 (workCount)」，而非只有「成交數 (totalMatches)」   
         Storage.self().metricsHistory().put(nowSec, workCount);
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {

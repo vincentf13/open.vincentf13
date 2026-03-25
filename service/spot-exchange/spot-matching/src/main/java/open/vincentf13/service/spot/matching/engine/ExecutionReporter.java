@@ -20,7 +20,7 @@ public class ExecutionReporter implements AutoCloseable {
     public void reportCanceled(Order order) { }
 
     public void reportRejected(long userId, long clientOrderId) {
-        log.warn("[MATCHING-REJECTED] UserId: {}, ClientOrderId: {}", userId, clientOrderId);
+        // log.warn("[MATCHING-REJECTED] UserId: {}, ClientOrderId: {}", userId, clientOrderId);
     }
 
     public void reportAuth(long userId) { }
