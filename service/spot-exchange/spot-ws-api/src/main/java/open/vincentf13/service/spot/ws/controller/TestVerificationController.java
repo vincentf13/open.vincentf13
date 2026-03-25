@@ -14,18 +14,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /**
  * 異步驗證控制器：
- * 運行於 spot-ws-api 進程中，通過共享記憶體 (Chronicle Map) 讀取撮合引擎的即時狀態。
- * 避免了 Web 線程與撮合核心線程的 context switch 競爭。
  */
 @RestController
 @RequestMapping("/api/test")
 public class TestVerificationController {
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+            .withZone(ZoneId.systemDefault());
 
     @GetMapping("/balance")
     public Map<String, Object> getBalance(@RequestParam long userId, @RequestParam int assetId) {
@@ -134,12 +137,14 @@ public class TestVerificationController {
         matchingGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_COUNT, 0L) + " times");
         matchingGc.put("last_interval", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_INTERVAL_MS, 0L) + " ms");
         matchingGc.put("last_duration", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_DURATION_MS, 0L) + " ms");
+        matchingGc.put("history", getGcHistory(MetricsKey.MATCHING_GC_HISTORY_START));
         gcMetrics.put("spot-matching", matchingGc);
 
         Map<String, Object> gatewayGc = new LinkedHashMap<>();
         gatewayGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_COUNT, 0L) + " times");
         gatewayGc.put("last_interval", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_INTERVAL_MS, 0L) + " ms");
         gatewayGc.put("last_duration", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_DURATION_MS, 0L) + " ms");
+        gatewayGc.put("history", getGcHistory(MetricsKey.GATEWAY_GC_HISTORY_START));
         gcMetrics.put("spot-ws-api", gatewayGc);
 
         metrics.put("gc_metrics", gcMetrics);
@@ -164,6 +169,22 @@ public class TestVerificationController {
         metrics.put("cpu_affinity", cpuAffinity);
 
         return metrics;
+    }
+
+    private List<String> getGcHistory(long startKey) {
+        List<Long> timestamps = new ArrayList<>();
+        for (int i = 0; i < GC_HISTORY_MAX_KEEP; i++) {
+            Long ts = Storage.self().metricsHistory().get(startKey - i);
+            if (ts != null && ts > 0) timestamps.add(ts);
+        }
+        // 按時間從新到舊排序
+        timestamps.sort(Collections.reverseOrder());
+        
+        List<String> history = new ArrayList<>();
+        for (Long ts : timestamps) {
+            history.add(TIME_FORMATTER.format(Instant.ofEpochMilli(ts)));
+        }
+        return history;
     }
 
     private void addCpuMetric(Map<String, Object> map, String name, long key) {

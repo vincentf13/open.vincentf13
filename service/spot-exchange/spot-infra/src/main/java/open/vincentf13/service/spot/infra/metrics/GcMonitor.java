@@ -2,6 +2,7 @@ package open.vincentf13.service.spot.infra.metrics;
 
 import com.sun.management.GarbageCollectionNotificationInfo;
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.service.spot.infra.Constants;
 
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
@@ -18,18 +19,20 @@ public class GcMonitor {
     private final long countKey;
     private final long intervalKey;
     private final long durationKey;
+    private final long historyStartKey;
 
-    private GcMonitor(long countKey, long intervalKey, long durationKey) {
+    private GcMonitor(long countKey, long intervalKey, long durationKey, long historyStartKey) {
         this.countKey = countKey;
         this.intervalKey = intervalKey;
         this.durationKey = durationKey;
+        this.historyStartKey = historyStartKey;
     }
 
     /**
      * 啟動 GC 監聽
      */
-    public static void start(long countKey, long intervalKey, long durationKey) {
-        GcMonitor instance = new GcMonitor(countKey, intervalKey, durationKey);
+    public static void start(long countKey, long intervalKey, long durationKey, long historyStartKey) {
+        GcMonitor instance = new GcMonitor(countKey, intervalKey, durationKey, historyStartKey);
         for (GarbageCollectorMXBean gcBean : ManagementFactory.getGarbageCollectorMXBeans()) {
             if (gcBean instanceof NotificationEmitter emitter) {
                 emitter.addNotificationListener((notification, handback) -> {
@@ -43,9 +46,14 @@ public class GcMonitor {
 
                         // 排除間隔過短的極小 GC
                         if (interval > 10) {
-                            MetricsCollector.increment(instance.countKey);
+                            long count = MetricsCollector.increment(instance.countKey);
                             MetricsCollector.set(instance.intervalKey, interval);
                             MetricsCollector.set(instance.durationKey, duration);
+                            
+                            // 紀錄歷史時間戳 (循環儲存)
+                            long historySlot = instance.historyStartKey - (count % Constants.MetricsKey.GC_HISTORY_MAX_KEEP);
+                            MetricsCollector.set(historySlot, now);
+                            
                             instance.lastGcTimestamp = now;
 
                             log.info("[GC-MONITOR] Type: {}, Action: {}, Duration: {}ms, Interval: {}ms",
@@ -55,6 +63,7 @@ public class GcMonitor {
                 }, null, null);
             }
         }
-        log.info("GC Monitor started for keys: {}, {}, {}", countKey, intervalKey, durationKey);
+        log.info("GC Monitor started for keys: {}, {}, {}, history: {}", 
+                countKey, intervalKey, durationKey, historyStartKey);
     }
 }

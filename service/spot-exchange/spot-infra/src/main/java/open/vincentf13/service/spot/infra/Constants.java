@@ -165,6 +165,11 @@ public class Constants {
         public static final long GATEWAY_GC_COUNT = -310L;
         public static final long GATEWAY_GC_LAST_INTERVAL_MS = -311L;
         public static final long GATEWAY_GC_LAST_DURATION_MS = -312L;
+
+        // GC 歷史記錄 (最近 100 筆時間戳)
+        public static final long MATCHING_GC_HISTORY_START = -400L;
+        public static final long GATEWAY_GC_HISTORY_START = -500L;
+        public static final int GC_HISTORY_MAX_KEEP = 100;
     }
 
     /**
