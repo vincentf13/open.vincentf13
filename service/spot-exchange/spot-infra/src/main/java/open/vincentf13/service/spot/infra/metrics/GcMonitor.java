@@ -17,6 +17,7 @@ import java.lang.management.ManagementFactory;
 @Slf4j
 public class GcMonitor {
     private long lastGcTimestamp = System.currentTimeMillis();
+    private long localCount = 0; // 內部精確計數器，用於槽位計算
     private final long countKey;
     private final long intervalKey;
     private final long durationKey;
@@ -41,24 +42,30 @@ public class GcMonitor {
                         CompositeData cd = (CompositeData) notification.getUserData();
                         GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from(cd);
 
+                        // 過濾：只處理 "end of" 的通知，避免 ZGC/G1 多階段導致的重複計算
+                        String action = info.getGcAction().toLowerCase();
+                        if (!action.contains("end of")) {
+                            return;
+                        }
+
                         long now = System.currentTimeMillis();
                         long interval = now - instance.lastGcTimestamp;
                         long duration = info.getGcInfo().getDuration();
 
-                        // 排除間隔過短的極小 GC
-                        if (interval > 10) {
+                        // 排除過於頻繁的干擾訊號 (合併 500ms 內的通知)
+                        if (interval > 500) {
                             MetricsCollector.increment(instance.countKey);
                             MetricsCollector.set(instance.intervalKey, interval);
                             MetricsCollector.set(instance.durationKey, duration);
                             
-                            // 紀錄歷史時間戳 (循環儲存)
-                            long count = Storage.self().metricsHistory().getOrDefault(instance.countKey, 0L);
-                            long historySlot = instance.historyStartKey - (count % Constants.MetricsKey.GC_HISTORY_MAX_KEEP);
+                            // 使用內部精確計數來決定槽位，解決併發覆蓋問題
+                            long currentCount = ++instance.localCount;
+                            long historySlot = instance.historyStartKey - (currentCount % Constants.MetricsKey.GC_HISTORY_MAX_KEEP);
                             MetricsCollector.set(historySlot, now);
                             
                             instance.lastGcTimestamp = now;
 
-                            log.info("[GC-MONITOR] Type: {}, Action: {}, Duration: {}ms, Interval: {}ms",
+                            log.info("[GC-MONITOR] Name: {}, Action: {}, Duration: {}ms, Interval: {}ms",
                                     info.getGcName(), info.getGcAction(), duration, interval);
                         }
                     }
