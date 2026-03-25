@@ -28,9 +28,9 @@ public class Ledger {
     private final Long2ObjectHashMap<Balance> balanceCache = new Long2ObjectHashMap<>(100_000, 0.5f);
     private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
     
-    // 待落地標記優化：使用原始類型陣列替代 HashSet，消除物件分配與陣列歸零壓力
-    private static final int MAX_DIRTY = 256000;
-    private final long[] dirtyQueue = new long[MAX_DIRTY]; 
+    // 待落地標記優化：加大隊列以應對極限 TPS
+    private static final int MAX_DIRTY = 1024000;
+    private final long[] dirtyQueue = new long[MAX_DIRTY];
     private int dirtyCount = 0;
     private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
 
@@ -43,11 +43,12 @@ public class Ledger {
         log.info("Ledger 初始化完成。");
     }
 
-    /** 
+    /**
      * 將變動過的緩存帳戶同步至磁碟
      */
     public void flush() {
         if (dirtyCount > 0) {
+            // 由於 dirtyQueue 可能存在重複 UserId，寫回磁碟時 ChronicleMap 會自動處理冪等
             for (int i = 0; i < dirtyCount; i++) {
                 final long combinedKey = dirtyQueue[i];
                 final Balance b = balanceCache.get(combinedKey);
@@ -58,7 +59,7 @@ public class Ledger {
             }
             dirtyCount = 0;
         }
-        
+
         if (!dirtyBitmasks.isEmpty()) {
             dirtyBitmasks.forEach(userId -> {
                 userAssetBitmaskDiskMap.put(userId, bitmaskCache.get(userId));
@@ -131,7 +132,7 @@ public class Ledger {
 
     private void access(long userId, int assetId, long availDelta, long frozenDelta, long seq, long tradeId) {
         Balance b = getOrCreateBalance(userId, assetId);
-        
+
         // 冪等與重複更新檢查
         if (tradeId > 0 ? b.getLastTradeId() >= tradeId : (b.getLastSeq() >= seq && availDelta == 0 && frozenDelta == 0)) return;
 
@@ -152,16 +153,13 @@ public class Ledger {
         b.setVersion(b.getVersion() + 1);
         b.setLastSeq(seq);
         if (tradeId > 0) b.setLastTradeId(tradeId);
-        
+
         if (dirtyCount < MAX_DIRTY) {
             dirtyQueue[dirtyCount++] = combine(userId, assetId);
-        } else {
-            log.warn("[LEDGER] Dirty queue overflow! 資料同步可能會延遲。");
         }
-        
+
         updateAssetIndex(userId, assetId);
     }
-
     private void updateAssetIndex(long userId, int assetId) {
         if (assetId < 0 || assetId >= 64) return;
         long mask = bitmaskCache.get(userId);
