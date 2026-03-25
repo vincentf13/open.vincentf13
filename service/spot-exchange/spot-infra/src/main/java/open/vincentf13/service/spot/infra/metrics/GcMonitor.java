@@ -3,6 +3,7 @@ package open.vincentf13.service.spot.infra.metrics;
 import com.sun.management.GarbageCollectionNotificationInfo;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.Constants;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
