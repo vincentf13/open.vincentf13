@@ -15,6 +15,9 @@ public class Balance implements BytesMarshallable {
     private long version;
     private long lastSeq; // 最後更新此餘額的 WAL Sequence ID
     private long lastTradeId; // 最後更新此餘額的全域成交 ID
+
+    // 快取專用標記 (不序列化)
+    private transient boolean isDirty = false;
     
     @Override
     public void writeMarshallable(BytesOut<?> bytes) {

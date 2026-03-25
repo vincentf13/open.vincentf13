@@ -28,33 +28,25 @@ public class Ledger {
     private final Long2ObjectHashMap<Balance> balanceCache = new Long2ObjectHashMap<>(100_000, 0.5f);
     private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
     
-    // 待落地標記優化：加大隊列以應對極限 TPS
-    private static final int MAX_DIRTY = 1024000;
+    // 待落地標記優化：唯一標記去重版
+    private static final int MAX_DIRTY = 256000; // 足以支撐單個 flush 週期內 25.6 萬個活躍用戶
     private final long[] dirtyQueue = new long[MAX_DIRTY];
     private int dirtyCount = 0;
-    private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
-
-    private final BalanceKey reusableKey = new BalanceKey();
-
-    @PostConstruct
-    public void init() {
-        log.info("Ledger 正在預加載帳務數據至二級緩存...");
-        userAssetBitmaskDiskMap.forEach(bitmaskCache::put);
-        log.info("Ledger 初始化完成。");
-    }
+    private long overflowLogSample = 0;
 
     /**
      * 將變動過的緩存帳戶同步至磁碟
      */
     public void flush() {
         if (dirtyCount > 0) {
-            // 由於 dirtyQueue 可能存在重複 UserId，寫回磁碟時 ChronicleMap 會自動處理冪等
+            // 核心優化：此處 dirtyQueue 內保證每個 UserId-AssetId 唯一，極大減少 I/O
             for (int i = 0; i < dirtyCount; i++) {
                 final long combinedKey = dirtyQueue[i];
                 final Balance b = balanceCache.get(combinedKey);
                 if (b != null) {
                     reusableKey.set(combinedKey >>> 32, (int) (combinedKey & 0xFFFFFFFFL));
                     balancesDiskMap.put(reusableKey, b);
+                    b.setDirty(false); // 重設標記，允許下次變動時再次入隊
                 }
             }
             dirtyCount = 0;
@@ -154,8 +146,15 @@ public class Ledger {
         b.setLastSeq(seq);
         if (tradeId > 0) b.setLastTradeId(tradeId);
 
-        if (dirtyCount < MAX_DIRTY) {
-            dirtyQueue[dirtyCount++] = combine(userId, assetId);
+        if (!b.isDirty()) { // 僅在尚未入隊時入隊，實現絕對去重
+            if (dirtyCount < MAX_DIRTY) {
+                dirtyQueue[dirtyCount++] = combine(userId, assetId);
+                b.setDirty(true);
+            } else {
+                if (++overflowLogSample % 1000 == 0) {
+                    log.warn("[LEDGER] Dirty queue overflow! (Sampled 1/1000) Active accounts > 256k");
+                }
+            }
         }
 
         updateAssetIndex(userId, assetId);
