@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
+import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import open.vincentf13.service.spot.model.command.AbstractSbeModel;
@@ -62,11 +63,11 @@ public class AeronSender extends AbstractAeronSender {
 
         final long addr = bytes.addressForRead(bytes.readPosition());
         final long seq = tailer.index();
-
-        if (send(len, (buf, off) -> {
+        
+        if (AeronUtil.send(publication, len, (buf, off) -> {
             UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
             buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, seq);
-        }) >= 0) bytes.readSkip(len);
+        }, running) >= 0) bytes.readSkip(len);
         else localBackPressure++;
     }
 }

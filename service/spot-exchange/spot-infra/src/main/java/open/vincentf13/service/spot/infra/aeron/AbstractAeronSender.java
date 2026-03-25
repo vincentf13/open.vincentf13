@@ -34,11 +34,7 @@ public abstract class AbstractAeronSender extends Worker {
         this.controlSub = AeronClientHolder.aeron().addSubscription(ctrlUrl, ctrlId);
         this.tailer = wal.createTailer();
     }
-
-    protected int send(int length, AeronUtil.AeronHandler handler) {
-        return AeronUtil.send(publication, length, handler, running);
-    }
-
+    
     @Override
     protected int doWork() {
         if (currentState == AeronState.SENDING && !publication.isConnected()) currentState = AeronState.WAITING;
@@ -63,7 +59,7 @@ public abstract class AbstractAeronSender extends Worker {
             localSendCount = 0;
         }
 
-        long now = System.currentTimeMillis();
+        long now = open.vincentf13.service.spot.infra.util.Clock.now();
         if (now - lastHeartbeatTime > 1000) {
             onHeartbeat();
             lastHeartbeatTime = now;

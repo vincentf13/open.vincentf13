@@ -1,36 +1,35 @@
 package open.vincentf13.service.spot.infra.util;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 /**
- * 高性能時鐘工具 (Cached Clock)
- * 職責：使用背景執行緒緩存當前時間戳，消除頻繁調用 System.currentTimeMillis() 的開銷。
+ * 高性能緩存時鐘 (Cached Clock)
+ * 職責：減少 System.currentTimeMillis() 的系統調用開銷。
+ * 採用背景執行緒每毫秒更新一次緩存值，適用於對時間精度要求在 1ms 內的場景。
  */
 public class Clock {
-    // 使用 volatile 確保多執行緒可見性
+
     private static volatile long currentMillis = System.currentTimeMillis();
 
-    private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "cached-clock");
-        t.setDaemon(true);
-        t.setPriority(Thread.MAX_PRIORITY); // 最高優先權確保時間準確
-        return t;
-    });
-
     static {
-        // 每 1ms 更新一次緩存，這對於交易系統的精度與效能平衡最優
-        SCHEDULER.scheduleAtFixedRate(() -> {
-            currentMillis = System.currentTimeMillis();
-        }, 0, 1, TimeUnit.MILLISECONDS);
+        Thread clockThread = new Thread(() -> {
+            while (true) {
+                currentMillis = System.currentTimeMillis();
+                try {
+                    // 使用睡眠以減少 CPU 佔用，雖然不絕對精準，但對指標統計與超時判斷已足夠
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }, "cached-clock");
+        clockThread.setDaemon(true);
+        clockThread.start();
     }
 
-    /**
-     * 獲取緩存的當前時間戳
-     * @return 當前毫秒數
-     */
+    /** 獲取緩存的目前時間 (毫秒) */
     public static long now() {
         return currentMillis;
     }
+
+    private Clock() {}
 }

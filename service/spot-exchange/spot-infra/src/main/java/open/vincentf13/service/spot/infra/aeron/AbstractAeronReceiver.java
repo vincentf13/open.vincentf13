@@ -3,13 +3,13 @@ package open.vincentf13.service.spot.infra.aeron;
 import io.aeron.FragmentAssembler;
 import io.aeron.Publication;
 import io.aeron.Subscription;
-import io.aeron.logbuffer.BufferClaim;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.thread.Worker;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.model.MsgProgress;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
+import open.vincentf13.service.spot.infra.util.Clock;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -48,7 +48,7 @@ public abstract class AbstractAeronReceiver extends Worker {
     public int poll(AeronMessageHandler handler, int limit) {
         this.externalHandler = handler;
         if (currentState == AeronState.SENDING && !subscription.isConnected()) currentState = AeronState.WAITING;
-        if (currentState == AeronState.WAITING && System.currentTimeMillis() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
+        if (currentState == AeronState.WAITING && Clock.now() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
         
         int done = subscription.poll(assembler, limit);
         if ((localPollCount += 1) >= AeronConstants.METRICS_BATCH_SIZE) {
@@ -78,7 +78,7 @@ public abstract class AbstractAeronReceiver extends Worker {
             buffer.putInt(offset, MsgType.RESUME);
             buffer.putLong(offset + AeronConstants.MSG_SEQ_OFFSET, progress.getLastProcessedSeq());
         }, running);
-        lastResumeTime = System.currentTimeMillis();
+        lastResumeTime = Clock.now();
     }
 
     private void fragmentHandler(org.agrona.DirectBuffer buffer, int offset, int length, io.aeron.logbuffer.Header header) {
