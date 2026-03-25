@@ -8,7 +8,7 @@ import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import open.vincentf13.service.spot.model.command.AbstractSbeModel;
-import open.vincentf13.service.spot.infra.jvm.Jvm;
+import open.vincentf13.service.spot.infra.metrics.WorkerMonitor;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -38,7 +38,7 @@ public class AeronSender extends AbstractAeronSender {
         if (localBackPressure > 0) { MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackPressure); localBackPressure = 0; }
         
         // 僅回報執行緒級別指標，JVM 內存由 JvmMonitor 後台自動採集
-        Jvm.reportThreadMetrics(MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.GATEWAY_CPU_LOAD);
+        WorkerMonitor.reportThreadMetrics(MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
     }
 
     @Override

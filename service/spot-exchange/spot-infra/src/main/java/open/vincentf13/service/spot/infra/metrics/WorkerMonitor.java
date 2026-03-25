@@ -1,13 +1,12 @@
-package open.vincentf13.service.spot.infra.jvm;
+package open.vincentf13.service.spot.infra.metrics;
 
-import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import open.vincentf13.service.spot.infra.thread.AffinityUtil;
 
 /**
  * JVM 執行緒級別工具類 (Jvm)
  * 職責：封裝與目前執行緒強相關的效能指標採集。
  */
-public class Jvm {
+public class WorkerMonitor {
 
     // --- ThreadLocal Duty Cycle Counters ---
     private static final ThreadLocal<long[]> CYCLE_COUNTERS = ThreadLocal.withInitial(() -> new long[2]);
@@ -33,5 +32,5 @@ public class Jvm {
         MetricsCollector.recordCpuAffinity(cpuIdKey, AffinityUtil.currentCpu());
     }
 
-    private Jvm() {}
+    private WorkerMonitor() {}
 }

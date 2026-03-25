@@ -1,6 +1,6 @@
 package open.vincentf13.service.spot.infra.thread;
 
-import open.vincentf13.service.spot.infra.jvm.Jvm;
+import open.vincentf13.service.spot.infra.metrics.WorkerMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,9 +40,9 @@ public abstract class Worker implements Runnable {
         try {
             onStart();
             while (running.get() && !Thread.currentThread().isInterrupted()) {
-                Jvm.startCycle();
+                WorkerMonitor.startCycle();
                 int work = doWork();
-                Jvm.endCycle(work > 0);
+                WorkerMonitor.endCycle(work > 0);
 
                 if (metricsSampler.shouldSample()) collectMetrics();
 

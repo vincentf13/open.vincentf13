@@ -7,7 +7,6 @@ import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import open.vincentf13.service.spot.model.WalProgress;
-import open.vincentf13.service.spot.infra.jvm.Jvm;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver.AeronMessageHandler;
 

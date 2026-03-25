@@ -143,11 +143,11 @@ public class Constants {
         // JVM 與 CPU 指標
         public static final long MATCHING_JVM_USED_MB = -200L;
         public static final long MATCHING_JVM_MAX_MB = -201L;
-        public static final long MATCHING_CPU_LOAD = -202L;
+        public static final long MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE = -202L;
         
         public static final long GATEWAY_JVM_USED_MB = -210L;
         public static final long GATEWAY_JVM_MAX_MB = -211L;
-        public static final long GATEWAY_CPU_LOAD = -212L;
+        public static final long GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE = -212L;
 
         // GC 監控指標
         public static final long MATCHING_GC_COUNT = -300L;

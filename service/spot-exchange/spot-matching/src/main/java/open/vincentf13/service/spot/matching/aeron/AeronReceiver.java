@@ -5,8 +5,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
-import open.vincentf13.service.spot.infra.jvm.Jvm;
+import open.vincentf13.service.spot.infra.metrics.WorkerMonitor;
 import open.vincentf13.service.spot.matching.engine.Engine;
 import open.vincentf13.service.spot.model.MsgProgress;
 import open.vincentf13.service.spot.model.WalProgress;
@@ -54,7 +53,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
     @Override
     protected void collectMetrics() {
         // 僅回報執行緒級別指標
-        Jvm.reportThreadMetrics(MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.MATCHING_CPU_LOAD);
+        WorkerMonitor.reportThreadMetrics(MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE);
     }
 
     @Override

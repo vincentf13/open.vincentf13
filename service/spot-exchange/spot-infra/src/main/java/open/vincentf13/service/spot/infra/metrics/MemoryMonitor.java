@@ -1,10 +1,9 @@
-package open.vincentf13.service.spot.infra.jvm;
+package open.vincentf13.service.spot.infra.metrics;
 
 import com.sun.management.GarbageCollectionNotificationInfo;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.Constants;
-import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import open.vincentf13.service.spot.infra.util.Clock;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
@@ -23,7 +22,7 @@ import static open.vincentf13.service.spot.infra.Constants.MetricsKey.*;
  */
 @Slf4j
 @Component
-public class JvmMonitor {
+public class MemoryMonitor {
 
     private final ApplicationContext ctx;
     private static final Runtime RUNTIME = Runtime.getRuntime();
@@ -35,7 +34,7 @@ public class JvmMonitor {
     // --- 指標 Key 配置 ---
     private long kUsed, kMax, kLoad, kGcCount, kGcInterval, kGcDuration, kGcHistory;
 
-    public JvmMonitor(ApplicationContext ctx) { this.ctx = ctx; }
+    public MemoryMonitor(ApplicationContext ctx) { this.ctx = ctx; }
 
     @PostConstruct
     public void init() {
@@ -43,10 +42,10 @@ public class JvmMonitor {
                 .values().iterator().next().getClass().getSimpleName();
 
         if (mainClassName.contains("WsApi")) {
-            setupKeys(GATEWAY_JVM_USED_MB, GATEWAY_JVM_MAX_MB, GATEWAY_CPU_LOAD, 
+            setupKeys(GATEWAY_JVM_USED_MB, GATEWAY_JVM_MAX_MB, GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE,
                       GATEWAY_GC_COUNT, GATEWAY_GC_LAST_INTERVAL_MS, GATEWAY_GC_LAST_DURATION_MS, GATEWAY_GC_HISTORY_START);
         } else if (mainClassName.contains("Matching")) {
-            setupKeys(MATCHING_JVM_USED_MB, MATCHING_JVM_MAX_MB, MATCHING_CPU_LOAD, 
+            setupKeys(MATCHING_JVM_USED_MB, MATCHING_JVM_MAX_MB, MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE,
                       MATCHING_GC_COUNT, MATCHING_GC_LAST_INTERVAL_MS, MATCHING_GC_LAST_DURATION_MS, MATCHING_GC_HISTORY_START);
         } else {
             log.warn("Unknown app type: {}, skipping JvmMonitor", mainClassName);

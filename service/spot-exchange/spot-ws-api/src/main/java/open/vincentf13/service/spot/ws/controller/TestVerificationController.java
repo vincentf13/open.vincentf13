@@ -122,8 +122,8 @@ public class TestVerificationController {
 
         metrics.put("matching_jvm_used", String.format("%dMB (%.1f%%)", matchingUsed, (double)matchingUsed/matchingMax*100));
         metrics.put("gateway_jvm_used", String.format("%dMB (%.1f%%)", gatewayUsed, (double)gatewayUsed/gatewayMax*100));
-        metrics.put("matching_cpu_load", String.format("%d%%", getMetric(MetricsKey.MATCHING_CPU_LOAD, 0L)));
-        metrics.put("gateway_cpu_load", String.format("%d%%", getMetric(MetricsKey.GATEWAY_CPU_LOAD, 0L)));
+        metrics.put("matching_cpu_load", String.format("%d%%", getMetric(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE, 0L)));
+        metrics.put("gateway_cpu_load", String.format("%d%%", getMetric(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE, 0L)));
 
         var os = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
         if (os instanceof com.sun.management.OperatingSystemMXBean sunOs) {
