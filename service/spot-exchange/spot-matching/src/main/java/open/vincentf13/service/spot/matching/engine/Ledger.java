@@ -164,14 +164,13 @@ public class Ledger {
         if (tradeId > 0) b.setLastTradeId(tradeId);
 
         if (!b.isDirty()) { // 僅在尚未入隊時入隊，實現絕對去重
-            if (dirtyCount < MAX_DIRTY) {
-                dirtyQueue[dirtyCount++] = combine(userId, assetId);
-                b.setDirty(true);
-            } else {
-                if (++overflowLogSample % 1000 == 0) {
-                    log.warn("[LEDGER] Dirty queue overflow! (Sampled 1/1000) Active accounts > 256k");
-                }
+            if (dirtyCount >= MAX_DIRTY) {
+                log.warn("[LEDGER] Dirty queue is full ({}), triggering emergency flush to disk...", MAX_DIRTY);
+                flush(); // 隊列滿時立即觸發落地，清空隊列以接收新數據
             }
+            
+            dirtyQueue[dirtyCount++] = combine(userId, assetId);
+            b.setDirty(true);
         }
 
         updateAssetIndex(userId, assetId);

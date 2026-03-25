@@ -121,7 +121,8 @@ public class Engine implements AeronMessageHandler {
         if (seq != MSG_SEQ_NONE) {
             long last = progress.getLastProcessedMsgSeq();
             if (last != MSG_SEQ_NONE && seq != last + 1) {
-                log.error("指令跳號！期望: {}, 實際: {}", last + 1, seq);
+                log.error("❌ [FATAL] 指令跳號！期望: {}, 實際: {}。系統將立即停機以保護數據一致性。", last + 1, seq);
+                System.exit(1); 
             }
             progress.setLastProcessedMsgSeq(seq);
         }
