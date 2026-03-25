@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
+import open.vincentf13.service.spot.infra.jvm.Jvm;
 import open.vincentf13.service.spot.matching.engine.Engine;
 import open.vincentf13.service.spot.model.MsgProgress;
 import open.vincentf13.service.spot.model.WalProgress;
@@ -20,7 +21,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class AeronReceiver extends AbstractAeronReceiver {
     private final Engine engine;
     private static final int BATCH_SIZE = Matching.ENGINE_BATCH_SIZE;
-    private long lastMetricsTime = 0;
 
     public AeronReceiver(Aeron aeron, Engine engine) {
         super(Storage.self().msgProgressMetadata(),
@@ -31,12 +31,6 @@ public class AeronReceiver extends AbstractAeronReceiver {
     }
 
     @PostConstruct public void init() { start("matching-worker"); }
-
-    @Override
-    protected void onBind(int cpuId) {
-        Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(MetricsKey.CPU_ID_AERON_RECEIVER), new open.vincentf13.service.spot.infra.chronicle.LongValue((long) cpuId));
-        engine.onBind(cpuId);
-    }
 
     @Override
     protected void onStart() {
@@ -54,13 +48,13 @@ public class AeronReceiver extends AbstractAeronReceiver {
     protected int doWork() {
         final int done = poll(engine, BATCH_SIZE);
         engine.tick(done);
-
-        long now = System.currentTimeMillis();
-        if (now - lastMetricsTime > 1000) {
-            MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, open.vincentf13.service.spot.infra.jvm.Jvm.getAndResetDutyCycle());
-            lastMetricsTime = now;
-        }
         return done;
+    }
+
+    @Override
+    protected void collectMetrics() {
+        // 僅回報執行緒級別指標
+        Jvm.reportThreadMetrics(MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.MATCHING_CPU_LOAD);
     }
 
     @Override

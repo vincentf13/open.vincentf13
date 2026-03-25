@@ -21,9 +21,9 @@ import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 @Component
 public class AeronSender extends AbstractAeronSender {
 
-    public AeronSender(Aeron aeron) {
-        super(Storage.self().gatewaySenderWal());
-    }
+    private long localBackPressure = 0;
+
+    public AeronSender(Aeron aeron) { super(Storage.self().gatewaySenderWal()); }
 
     @PostConstruct public void init() { start("gw-sender"); }
 
@@ -34,21 +34,11 @@ public class AeronSender extends AbstractAeronSender {
     }
 
     @Override
-    protected void onBind(int cpuId) {
-        MetricsCollector.recordCpuAffinity(MetricsKey.CPU_ID_AERON_SENDER, cpuId);
-    }
-
-    private long localBackPressure = 0;
-
-    @Override
-    protected void onHeartbeat() {
-        if (localBackPressure > 0) {
-            MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackPressure);
-            localBackPressure = 0;
-        }
-        MetricsCollector.set(MetricsKey.GATEWAY_JVM_USED_MB, Jvm.usedMemoryMb());
-        MetricsCollector.set(MetricsKey.GATEWAY_JVM_MAX_MB, Jvm.maxMemoryMb());
-        MetricsCollector.set(MetricsKey.GATEWAY_CPU_LOAD, Jvm.getAndResetDutyCycle());
+    protected void collectMetrics() {
+        if (localBackPressure > 0) { MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackPressure); localBackPressure = 0; }
+        
+        // 僅回報執行緒級別指標，JVM 內存由 JvmMonitor 後台自動採集
+        Jvm.reportThreadMetrics(MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.GATEWAY_CPU_LOAD);
     }
 
     @Override

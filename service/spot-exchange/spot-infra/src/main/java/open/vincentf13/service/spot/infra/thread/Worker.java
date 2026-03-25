@@ -7,14 +7,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** 
  高性能背景工作者基類 (Worker)
- 職責：管理單執行緒工作循環，支持自動 CPU 綁核與 Duty Cycle 監控。
+ 職責：管理工作循環，並透過 Sampler 執行低開銷的指標統計。
  */
 public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
     private Thread thread;
+    private final Sampler metricsSampler = new Sampler(10000, 1000);
 
-    /** 啟動工作者，自動分配核心 */
     public void start(String name) {
         if (running.compareAndSet(false, true)) {
             thread = new Thread(this, name);
@@ -29,7 +29,6 @@ public abstract class Worker implements Runnable {
             thread.join(5000);
             if (thread.isAlive()) { thread.interrupt(); thread.join(1000); }
         } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-        
         if (thread.isAlive()) log.error("Worker {} 停機失敗", thread.getName());
         else { onStop(); log.info("Worker {} stopped", thread.getName()); }
     }
@@ -37,12 +36,16 @@ public abstract class Worker implements Runnable {
     @Override
     public void run() {
         onBind(AffinityUtil.acquireAndBind());
+        metricsSampler.reset();
         try {
             onStart();
             while (running.get() && !Thread.currentThread().isInterrupted()) {
                 Jvm.startCycle();
                 int work = doWork();
                 Jvm.endCycle(work > 0);
+
+                if (metricsSampler.shouldSample()) collectMetrics();
+
                 if (work <= 0) { Thread.onSpinWait(); Strategies.BUSY_SPIN.idle(0); }
             }
         } catch (Exception e) { if (!Thread.interrupted()) log.error("Worker 運行異常", e); }
@@ -52,5 +55,7 @@ public abstract class Worker implements Runnable {
     protected abstract void onStart();
     protected void onBind(int cpuId) {}
     protected abstract int doWork();
+    /** 專屬統計方法：每秒觸發一次，用於回報效能指標 */
+    protected void collectMetrics() {}
     protected abstract void onStop();
 }

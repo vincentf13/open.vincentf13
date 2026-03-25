@@ -39,8 +39,25 @@ public class Order implements BytesMarshallable {
         this.clientOrderId = clientOrderId;
     }
     
+    public void copyFrom(Order other) {
+        if (other == null) return;
+        this.orderId = other.orderId;
+        this.userId = other.userId;
+        this.symbolId = other.symbolId;
+        this.price = other.price;
+        this.qty = other.qty;
+        this.filled = other.filled;
+        this.frozen = other.frozen;
+        this.clientOrderId = other.clientOrderId;
+        this.timestamp = other.timestamp;
+        this.lastSeq = other.lastSeq;
+        this.side = other.side;
+        this.status = other.status;
+        this.version = other.version;
+    }
+
     @Override
-    public void writeMarshallable(BytesOut<?> bytes) {
+    public void writeMarshallable(BytesOut bytes) {
         bytes.writeLong(orderId);
         bytes.writeLong(userId);
         bytes.writeLong(price);

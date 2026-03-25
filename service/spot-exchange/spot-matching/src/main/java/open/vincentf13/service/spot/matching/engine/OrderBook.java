@@ -5,6 +5,7 @@ import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
+import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
@@ -17,337 +18,214 @@ import java.util.concurrent.atomic.AtomicLong;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存訂單簿 (OrderBook) - 極致 GC 免疫版
- 使用 Fastutil 消除 Long 裝箱帶來的效能與 GC 損耗。
+ 內存訂單簿 (OrderBook) - 低延遲 Zero-GC 版
+ 職責：執行價格優先、時間優先 (FIFO) 的撮合邏輯，並維護高效的內存索引。
  */
 @Slf4j
 public class OrderBook {
     public static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
-    // 性能優化：改用非同步安全但無 Node 分配開銷的池容器
-    private static final Deque<Order> GLOBAL_ORDER_POOL = new ArrayDeque<>(200_000);
-    private static final Deque<Trade> GLOBAL_TRADE_POOL = new ArrayDeque<>(20_000);
-    private static final Deque<open.vincentf13.service.spot.model.CidKey> GLOBAL_CID_POOL = new ArrayDeque<>(20_000);
-    private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ArrayDeque<>(10_000);
+    // --- 全局對象池 (Object Pools) ---
+    private static final Deque<Order> ORDER_POOL = new ArrayDeque<>(200_000);
+    private static final Deque<Trade> TRADE_POOL = new ArrayDeque<>(20_000);
+    private static final Deque<CidKey> CID_POOL = new ArrayDeque<>(20_000);
+    private static final Deque<Deque<Order>> DEQUE_POOL = new ArrayDeque<>(10_000);
 
     static {
         for (int i = 0; i < 200_000; i++) {
-            GLOBAL_ORDER_POOL.add(new Order());
-            if (i < 20_000) {
-                GLOBAL_TRADE_POOL.add(new Trade());
-                GLOBAL_CID_POOL.add(new open.vincentf13.service.spot.model.CidKey());
-            }
-            if (i < 10_000) {
-                GLOBAL_DEQUE_POOL.add(new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY));
-            }
+            ORDER_POOL.add(new Order());
+            if (i < 20_000) { TRADE_POOL.add(new Trade()); CID_POOL.add(new CidKey()); }
+            if (i < 10_000) DEQUE_POOL.add(new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY));
         }
     }
 
-    public static open.vincentf13.service.spot.model.CidKey borrowCid() {
-        open.vincentf13.service.spot.model.CidKey cid = GLOBAL_CID_POOL.pollFirst();
-        return (cid == null) ? new open.vincentf13.service.spot.model.CidKey() : cid;
-    }
-
-    public static void releaseCid(open.vincentf13.service.spot.model.CidKey cid) { if (cid != null) GLOBAL_CID_POOL.addLast(cid); }
+    public static CidKey borrowCid() { CidKey c = CID_POOL.pollFirst(); return c != null ? c : new CidKey(); }
+    public static void releaseCid(CidKey c) { if (c != null) CID_POOL.addLast(c); }
 
     public static OrderBook get(int symbolId) {
         return INSTANCES.computeIfAbsent(symbolId, id -> {
             Symbol s = Symbol.of(id);
-            if (s == null) throw new IllegalArgumentException("未知的交易對 ID: " + id);
+            if (s == null) throw new IllegalArgumentException("Unknown symbol: " + id);
             return new OrderBook(id, s.getBaseAssetId(), s.getQuoteAssetId());
         });
     }
 
-    public static Collection<OrderBook> getInstances() {
-        return INSTANCES.values();
-    }
+    public static Collection<OrderBook> getInstances() { return INSTANCES.values(); }
 
-    private final int symbolId;
-    private final int baseAssetId;
-    private final int quoteAssetId;
+    private final int symbolId, baseAssetId, quoteAssetId;
     
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> allOrdersDiskMap = Storage.self().orders();
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Trade> tradeHistoryDiskMap = Storage.self().trades();
+    // --- 磁碟持久化映射 ---
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> ordersDisk = Storage.self().orders();
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Boolean> activeDisk = Storage.self().activeOrders();
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Trade> tradesDisk = Storage.self().trades();
     
+    // --- 批次寫入緩衝 ---
     private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>(16384, 0.5f);
     private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>(32768, 0.5f);
-    private final LongHashSet pendingActiveRemovals = new LongHashSet(8192);
-    private final LongHashSet pendingActiveAdds = new LongHashSet(8192);
+    private final LongHashSet pendingAdds = new LongHashSet(8192), pendingRemovals = new LongHashSet(8192);
 
-    // --- Fastutil 零裝箱紅黑樹 ---
-    // bids 降冪排序 (買單價格高的優先)
-    private final Long2ObjectRBTreeMap<Deque<Order>> bids = new Long2ObjectRBTreeMap<>(
-            (LongComparator) (k1, k2) -> Long.compare(k2, k1)
-    );
-    // asks 升冪排序 (賣單價格低的優先)
+    // --- 內存撮合數據結構 (Fastutil RB-Tree) ---
+    private final Long2ObjectRBTreeMap<Deque<Order>> bids = new Long2ObjectRBTreeMap<>((LongComparator) (k1, k2) -> Long.compare(k2, k1));
     private final Long2ObjectRBTreeMap<Deque<Order>> asks = new Long2ObjectRBTreeMap<>();
-    
     private final Long2ObjectHashMap<Deque<Order>> priceLevelIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
-    private final Long2ObjectHashMap<LongHashSet> userOrderIdsIndex = new Long2ObjectHashMap<>(4096, 0.5f);
+    private final Long2ObjectHashMap<LongHashSet> userOrdersIndex = new Long2ObjectHashMap<>(4096, 0.5f);
 
-    private static final Order SCAN_REUSABLE = new Order();
-
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushOrderKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushTradeKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushActiveKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue kO = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue kT = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue kA = new open.vincentf13.service.spot.infra.chronicle.LongValue();
 
     public interface TradeFinalizer {
         void onMatch(long tradeId, Order maker, Order taker, long price, long qty, int baseAsset, int quoteAsset);
     }
 
     private OrderBook(int symbolId, int baseAssetId, int quoteAssetId) {
-        this.symbolId = symbolId;
-        this.baseAssetId = baseAssetId;
-        this.quoteAssetId = quoteAssetId;
+        this.symbolId = symbolId; this.baseAssetId = baseAssetId; this.quoteAssetId = quoteAssetId;
     }
 
+    /** 執行掛單批次落地 */
     public void flush() {
         if (!pendingOrders.isEmpty()) { 
-            org.agrona.collections.Long2ObjectHashMap<Order>.EntryIterator iter = pendingOrders.entrySet().iterator();
-            while (iter.hasNext()) {
-                iter.next();
-                flushOrderKey.set(iter.getLongKey());
-                Order o = iter.getValue();
-                allOrdersDiskMap.put(flushOrderKey, o);
-                if (o.getStatus() >= 2) releaseOrder(o);
-            }
+            pendingOrders.forEach((id, o) -> { kO.set(id); ordersDisk.put(kO, o); if (o.getStatus() >= 2) releaseOrder(o); });
             pendingOrders.clear(); 
         }
         if (!pendingTrades.isEmpty()) { 
-            org.agrona.collections.Long2ObjectHashMap<Trade>.EntryIterator iter = pendingTrades.entrySet().iterator();
-            while (iter.hasNext()) {
-                iter.next();
-                flushTradeKey.set(iter.getLongKey());
-                Trade t = iter.getValue();
-                tradeHistoryDiskMap.put(flushTradeKey, t);
-                releaseTrade(t);
-            }
+            pendingTrades.forEach((id, t) -> { kT.set(id); tradesDisk.put(kT, t); releaseTrade(t); });
             pendingTrades.clear(); 
         }
-        if (!pendingActiveAdds.isEmpty()) { 
-            org.agrona.collections.LongHashSet.LongIterator iter = pendingActiveAdds.iterator();
-            while (iter.hasNext()) {
-                flushActiveKey.set(iter.nextValue());
-                activeOrderIdDiskMap.put(flushActiveKey, Boolean.TRUE);
-            }
-            pendingActiveAdds.clear(); 
-        }
-        if (!pendingActiveRemovals.isEmpty()) { 
-            org.agrona.collections.LongHashSet.LongIterator iter = pendingActiveRemovals.iterator();
-            while (iter.hasNext()) {
-                flushActiveKey.set(iter.nextValue());
-                activeOrderIdDiskMap.remove(flushActiveKey);
-            }
-            pendingActiveRemovals.clear(); 
-        }
+        if (!pendingAdds.isEmpty()) { pendingAdds.forEach(id -> { kA.set(id); activeDisk.put(kA, Boolean.TRUE); }); pendingAdds.clear(); }
+        if (!pendingRemovals.isEmpty()) { pendingRemovals.forEach(id -> { kA.set(id); activeDisk.remove(kA); }); pendingRemovals.clear(); }
     }
 
     public void recoverOrder(Order o) {
         if (o == null || o.getStatus() >= 2) return;
-        Order recovered = borrowOrder();
-        copyOrder(o, recovered);
-        add(recovered);
+        Order r = borrowOrder();
+        r.copyFrom(o); // 假設 Order 類有 copyFrom，若無則手動賦值
+        add(r);
     }
 
-    private void copyOrder(Order src, Order dst) {
-        dst.setOrderId(src.getOrderId()); dst.setUserId(src.getUserId());
-        dst.setSymbolId(src.getSymbolId()); dst.setPrice(src.getPrice());
-        dst.setQty(src.getQty()); dst.setFilled(src.getFilled());
-        dst.setFrozen(src.getFrozen());
-        dst.setSide(src.getSide()); dst.setStatus(src.getStatus());
-        dst.setVersion(src.getVersion()); dst.setLastSeq(src.getLastSeq());
-        dst.setClientOrderId(src.getClientOrderId());
-    }
+    private Order borrowOrder() { Order o = ORDER_POOL.pollFirst(); return o != null ? o : new Order(); }
+    public void releaseOrder(Order o) { if (o != null) ORDER_POOL.addLast(o); }
+    private Trade borrowTrade() { Trade t = TRADE_POOL.pollFirst(); return t != null ? t : new Trade(); }
+    private void releaseTrade(Trade t) { if (t != null) TRADE_POOL.addLast(t); }
 
-    private Order borrowOrder() {
-        Order o = GLOBAL_ORDER_POOL.pollFirst();
-        return (o == null) ? new Order() : o;
-    }
-
-    public void releaseOrder(Order o) { if (o != null) GLOBAL_ORDER_POOL.addLast(o); }
-
-    private Trade borrowTrade() {
-        Trade t = GLOBAL_TRADE_POOL.pollFirst();
-        return (t == null) ? new Trade() : t;
-    }
-
-    private void releaseTrade(Trade t) { if (t != null) GLOBAL_TRADE_POOL.addLast(t); }
-
+    /** 下單入口 */
     public Order handleCreate(long orderId, long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long timestamp, long gwSeq,
                              open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
-        Order taker = borrowAndFill(orderId, userId, symbolId, price, qty, side, clientOrderId, gwSeq);
+        Order taker = borrowOrder();
+        taker.fill(orderId, userId, symbolId, price, qty, (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), clientOrderId, gwSeq);
+        
         match(taker, gwSeq, timestamp, progress, finalizer);
         syncOrder(taker, gwSeq);
         return taker;
     }
 
-    private Order borrowAndFill(long orderId, long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gwSeq) {
-        Order o = borrowOrder();
-        o.fill(orderId, userId, symbolId, price, qty, (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), clientOrderId, gwSeq);
-        return o;
-    }
-
     private void match(Order taker, long gwSeq, long timestamp, open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
         final boolean isBuy = taker.getSide() == OrderSide.BUY;
-        final Long2ObjectRBTreeMap<Deque<Order>> counterSide = isBuy ? asks : bids;
+        final Long2ObjectRBTreeMap<Deque<Order>> counters = isBuy ? asks : bids;
         final long takerPrice = taker.getPrice();
 
-        while (taker.getQty() > taker.getFilled()) {
-            if (counterSide.isEmpty()) break;
-            
-            final long bestPrice = counterSide.firstLongKey();
+        while (taker.getQty() > taker.getFilled() && !counters.isEmpty()) {
+            final long bestPrice = counters.firstLongKey();
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
-            executeMatchAtLevel(taker, bestPrice, counterSide, gwSeq, timestamp, progress, finalizer);
+            executeMatchAtLevel(taker, bestPrice, counters, gwSeq, timestamp, progress, finalizer);
         }
         
-        if (taker.getQty() > taker.getFilled()) {
-            add(taker);
-        } else {
-            taker.setStatus((byte) 2); // FILLED
-        }
+        if (taker.getQty() > taker.getFilled()) add(taker);
+        else taker.setStatus((byte) 2); 
     }
 
-    private void executeMatchAtLevel(Order taker, long price, Long2ObjectRBTreeMap<Deque<Order>> counterSide, long gwSeq, long timestamp, 
+    private void executeMatchAtLevel(Order taker, long price, Long2ObjectRBTreeMap<Deque<Order>> counters, long gwSeq, long timestamp, 
                                    open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
         final Deque<Order> makers = priceLevelIndex.get(price);
-        if (makers == null || makers.isEmpty()) {
-            counterSide.remove(price);
-            priceLevelIndex.remove(price);
-            return;
-        }
+        if (makers == null || makers.isEmpty()) { counters.remove(price); priceLevelIndex.remove(price); return; }
 
         while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
             Order maker = makers.peekFirst();
-            // 檢查訂單是否依然有效 (防範非同步刪除或狀態異常)
-            if (!orderIndex.containsKey(maker.getOrderId())) {
-                makers.pollFirst(); 
-                continue; 
-            }
+            if (!orderIndex.containsKey(maker.getOrderId())) { makers.pollFirst(); continue; } // 已被撤單
 
             long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
             long tid = progress.getAndIncrTradeId();
             
-            // 建立成交記錄
             Trade t = borrowTrade();
-            t.setTradeId(tid); t.setOrderId(maker.getOrderId());
-            t.setPrice(price); t.setQty(matchQty);
-            t.setTime(timestamp); t.setLastSeq(gwSeq);
+            t.setTradeId(tid); t.setOrderId(maker.getOrderId()); t.setPrice(price); t.setQty(matchQty); t.setTime(timestamp); t.setLastSeq(gwSeq);
             pendingTrades.put(tid, t);
 
-            // 更新數量
             maker.setFilled(maker.getFilled() + matchQty);
             taker.setFilled(taker.getFilled() + matchQty);
             
             TOTAL_MATCH_COUNT.incrementAndGet();
             finalizer.onMatch(tid, maker, taker, price, matchQty, baseAssetId, quoteAssetId);
 
-            if (maker.getFilled() == maker.getQty()) {
-                finalizeMakerFilled(maker, gwSeq);
-                makers.pollFirst(); 
-            } else {
-                syncOrder(maker, gwSeq);
-                break;
-            }
+            if (maker.getFilled() == maker.getQty()) { finalizeOrder(maker, gwSeq); makers.pollFirst(); } 
+            else { syncOrder(maker, gwSeq); break; }
         }
         
-        if (makers.isEmpty()) {
-            cleanupEmptyLevel(price, counterSide, makers);
-        }
+        if (makers.isEmpty()) cleanupEmptyLevel(price, counters, makers);
     }
 
-    private void finalizeMakerFilled(Order maker, long gwSeq) {
-        syncOrder(maker, gwSeq);
-        orderIndex.remove(maker.getOrderId());
-        LongHashSet set = userOrderIdsIndex.get(maker.getUserId());
-        if (set != null) set.remove(maker.getOrderId());
+    /** 訂單結束處理 (成交或撤單) */
+    private void finalizeOrder(Order o, long gwSeq) {
+        syncOrder(o, gwSeq);
+        orderIndex.remove(o.getOrderId());
+        LongHashSet set = userOrdersIndex.get(o.getUserId());
+        if (set != null) set.remove(o.getOrderId());
     }
 
-    private void cleanupEmptyLevel(long price, Long2ObjectRBTreeMap<Deque<Order>> counterSide, Deque<Order> makers) {
-        counterSide.remove(price);
-        priceLevelIndex.remove(price);
-        makers.clear();
-        GLOBAL_DEQUE_POOL.addLast(makers); 
+    private void cleanupEmptyLevel(long price, Long2ObjectRBTreeMap<Deque<Order>> counters, Deque<Order> makers) {
+        counters.remove(price); priceLevelIndex.remove(price);
+        makers.clear(); DEQUE_POOL.addLast(makers); 
     }
 
     private void add(Order order) {
         final long price = order.getPrice();
         Deque<Order> level = priceLevelIndex.get(price);
         if (level == null) {
-            Long2ObjectRBTreeMap<Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
-            level = GLOBAL_DEQUE_POOL.pollFirst();
+            level = DEQUE_POOL.pollFirst();
             if (level == null) level = new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY);
             else level.clear();
-            
-            levels.put(price, level);
+            ((order.getSide() == OrderSide.BUY) ? bids : asks).put(price, level);
             priceLevelIndex.put(price, level);
         }
         level.addLast(order);
         orderIndex.put(order.getOrderId(), order);
-        
-        long uid = order.getUserId();
-        LongHashSet set = userOrderIdsIndex.get(uid);
-        if (set == null) {
-            set = new LongHashSet(16);
-            userOrderIdsIndex.put(uid, set);
-        }
-        set.add(order.getOrderId());
+        userOrdersIndex.computeIfAbsent(order.getUserId(), k -> new LongHashSet(16)).add(order.getOrderId());
     }
 
     public void syncOrder(Order o, long gwSeq) {
-        // 1. 自動狀態機轉換
-        final long filled = o.getFilled(), qty = o.getQty();
-        o.setStatus((byte) (filled == qty ? 2 : (filled > 0 ? 1 : 0)));
+        o.setStatus((byte) (o.getFilled() == o.getQty() ? 2 : (o.getFilled() > 0 ? 1 : 0)));
         o.setVersion(o.getVersion() + 1);
         o.setLastSeq(gwSeq);
-        
-        // 2. 更新持久化緩衝與內存索引
-        final long oid = o.getOrderId(), uid = o.getUserId();
-        pendingOrders.put(oid, o);
+        pendingOrders.put(o.getOrderId(), o);
 
-        LongHashSet userOrders = userOrderIdsIndex.get(uid);
-        if (userOrders == null) {
-            userOrders = new LongHashSet(16);
-            userOrderIdsIndex.put(uid, userOrders);
-        }
-
-        if (o.getStatus() < 2) { // NEW, PARTIAL
-            pendingActiveAdds.add(oid);
-            pendingActiveRemovals.remove(oid);
-            userOrders.add(oid);
-        } else { // FILLED, CANCELED
-            pendingActiveRemovals.add(oid);
-            pendingActiveAdds.remove(oid);
-            userOrders.remove(oid);
-        }
+        if (o.getStatus() < 2) { pendingAdds.add(o.getOrderId()); pendingRemovals.remove(o.getOrderId()); } 
+        else { pendingRemovals.add(o.getOrderId()); pendingAdds.remove(o.getOrderId()); }
     }
 
+    /** 撤單邏輯 */
     public void remove(long orderId) { 
-        Order o = orderIndex.remove(orderId); 
+        Order o = orderIndex.get(orderId); // 注意：remove 之前先拿對象
         if (o == null) return;
 
         Deque<Order> level = priceLevelIndex.get(o.getPrice());
         if (level != null) {
             level.remove(o);
-            if (level.isEmpty()) {
-                cleanupEmptyLevel(o.getPrice(), (o.getSide() == OrderSide.BUY) ? bids : asks, level);
-            }
+            if (level.isEmpty()) cleanupEmptyLevel(o.getPrice(), (o.getSide() == OrderSide.BUY) ? bids : asks, level);
         }
         
         o.setStatus((byte) 3); // CANCELED
-        syncOrder(o, o.getLastSeq());
+        finalizeOrder(o, o.getLastSeq());
     }
 
     public int getBaseAssetId() { return baseAssetId; }
     public int getQuoteAssetId() { return quoteAssetId; }
 
     public static void rebuildActiveOrdersIndexes() {
-        ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> allOrders = Storage.self().orders();
+        ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> all = Storage.self().orders();
         Storage.self().activeOrders().forEach((id, active) -> {
-            Order o = allOrders.getUsing(id, SCAN_REUSABLE);
+            Order o = all.getUsing(id, new Order()); // 此處僅在啟動時執行一次
             if (o != null && o.getStatus() < 2) OrderBook.get(o.getSymbolId()).recoverOrder(o);
         });
     }

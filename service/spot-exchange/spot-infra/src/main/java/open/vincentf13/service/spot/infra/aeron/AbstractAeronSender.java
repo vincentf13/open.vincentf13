@@ -14,7 +14,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
  Aeron 發送器抽象基類 
- 職責：管理發送鏈路生命週期，處理基於 WAL 的指令重放與位點對齊。
+ 職責：管理發送鏈路生命週期，處理基於 WAL 的指令重放。
  */
 @Slf4j
 public abstract class AbstractAeronSender extends Worker {
@@ -24,17 +24,20 @@ public abstract class AbstractAeronSender extends Worker {
     protected ExcerptTailer tailer;
 
     protected AeronState currentState = AeronState.WAITING;
-    private long localSendCount = 0, lastHeartbeatTime = 0;
+    private long localSendCount = 0;
 
     public AbstractAeronSender(ChronicleQueue wal) { this.wal = wal; }
 
-    /** 由子類提供通道配置並執行初始化 */
     protected void initChannels(String dataUrl, int dataId, String ctrlUrl, int ctrlId) {
         this.publication = AeronClientHolder.aeron().addPublication(dataUrl, dataId);
         this.controlSub = AeronClientHolder.aeron().addSubscription(ctrlUrl, ctrlId);
         this.tailer = wal.createTailer();
     }
-    
+
+    protected int send(int length, AeronUtil.AeronHandler handler) {
+        return AeronUtil.send(publication, length, handler, running);
+    }
+
     @Override
     protected int doWork() {
         if (currentState == AeronState.SENDING && !publication.isConnected()) currentState = AeronState.WAITING;
@@ -58,12 +61,6 @@ public abstract class AbstractAeronSender extends Worker {
             open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, localSendCount);
             localSendCount = 0;
         }
-
-        long now = open.vincentf13.service.spot.infra.util.Clock.now();
-        if (now - lastHeartbeatTime > 1000) {
-            onHeartbeat();
-            lastHeartbeatTime = now;
-        }
         return work;
     }
 
@@ -78,9 +75,6 @@ public abstract class AbstractAeronSender extends Worker {
     };
 
     protected abstract void onWalMessage(net.openhft.chronicle.wire.WireIn wire);
-    
-    /** 每秒執行一次的指標或心跳邏輯 */
-    protected void onHeartbeat() {}
 
     @Override
     protected void onStop() {
