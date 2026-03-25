@@ -13,14 +13,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class ExecutionReporter implements AutoCloseable {
 
-    public void reportAccepted(Order taker) { }
+    private long rejectedCount = 0;
+    private long acceptedCount = 0;
+
+    public void reportAccepted(Order taker) {
+        if (++acceptedCount % 1000 == 0) {
+            log.info("[MATCHING-ACCEPTED] (Sampled 1/1000) UserId: {}, ClientOrderId: {}, Total: {}", taker.getUserId(), taker.getClientOrderId(), acceptedCount);
+        }
+    }
 
     public void reportMatch(Order taker, Order maker, Trade trade) { }
 
     public void reportCanceled(Order order) { }
 
     public void reportRejected(long userId, long clientOrderId) {
-        // log.warn("[MATCHING-REJECTED] UserId: {}, ClientOrderId: {}", userId, clientOrderId);
+        if (++rejectedCount % 1000 == 0) {
+            log.warn("[MATCHING-REJECTED] (Sampled 1/1000) UserId: {}, ClientOrderId: {}, Total: {}", userId, clientOrderId, rejectedCount);
+        }
     }
 
     public void reportAuth(long userId) { }

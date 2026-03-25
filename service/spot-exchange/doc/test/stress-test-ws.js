@@ -67,8 +67,13 @@ function createPreallocatedOrderBuffer() {
 export default function () {
     const uid = __VU + 1000;
     const authBuf = createAuthBuffer(uid);
-    const depositBtcBuf = createDepositBuffer(uid, ASSET_BTC, 1000n * SCALE); // 充值 1000 BTC
-    const depositUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 1000000000n * SCALE); // 充值 10 億 USDT       
+    const depositBtcBuf = createDepositBuffer(uid, ASSET_BTC, 1000n * SCALE); // 初始 1000 BTC
+    const depositUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 1000000000n * SCALE); // 初始 10 億 USDT
+
+    // 維護性充值 (避免溢位)
+    const maintainBtcBuf = createDepositBuffer(uid, ASSET_BTC, 10n * SCALE); // 每 5ms 補 10 BTC
+    const maintainUsdtBuf = createDepositBuffer(uid, ASSET_USDT, 1000000n * SCALE); // 每 5ms 補 100 萬 USDT
+    
     const { buffer, view } = createPreallocatedOrderBuffer();
     let cidCounter = Date.now() * 1000 + (__VU * 10000000);
 
@@ -77,7 +82,7 @@ export default function () {
             // 1. 認證
             socket.sendBinary(authBuf);
 
-            // 2. 初始充值 (BTC & USDT)
+            // 2. 初始充值
             socket.sendBinary(depositBtcBuf);
             socket.sendBinary(depositUsdtBuf);
 
@@ -85,6 +90,11 @@ export default function () {
             socket.setTimeout(function () {
                 socket.setInterval(function () {
                     const ts = BigInt(Date.now());
+
+                    // 維護性補血 (每 5ms 補一次，總量控制在 7 分鐘內不溢位)
+                    socket.sendBinary(maintainBtcBuf);
+                    socket.sendBinary(maintainUsdtBuf);
+
                     for (let i = 0; i < 125; i++) {
                         // BUY
                         view.setBigInt64(20, ts, true);
