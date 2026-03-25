@@ -36,7 +36,7 @@ public abstract class Worker implements Runnable {
 
     @Override
     public void run() {
-        onBind(AffinityUtil.acquireAndBind());
+        AffinityUtil.acquireAndBind();
         metricsSampler.reset();
         try {
             onStart();
@@ -54,7 +54,6 @@ public abstract class Worker implements Runnable {
     }
 
     protected abstract void onStart();
-    protected void onBind(int cpuId) {}
     protected abstract int doWork();
     /** 專屬統計方法：每秒觸發一次，用於回報效能指標 */
     protected void collectMetrics() {}
