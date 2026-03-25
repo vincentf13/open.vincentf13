@@ -41,7 +41,7 @@ public class AeronUtil {
                 }
                 return 0;
             } else if (result == Publication.BACK_PRESSURED || result == Publication.ADMIN_ACTION) {
-                if (++backPressureCount > 1000) return -2;
+                if (++backPressureCount > AeronConstants.BACK_PRESSURE_RETRY_LIMIT) return -2;
                 idleStrategy.idle();
             } else if (result == Publication.NOT_CONNECTED) {
                 return -1;

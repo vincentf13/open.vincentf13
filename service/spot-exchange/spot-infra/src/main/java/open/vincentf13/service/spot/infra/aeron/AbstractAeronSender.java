@@ -34,7 +34,6 @@ public abstract class AbstractAeronSender extends Worker {
 
     protected AeronState currentState = AeronState.WAITING;
     private long localSendCount = 0;
-    private static final int METRICS_BATCH_SIZE = 5000;
 
     public AbstractAeronSender(Aeron aeron, ChronicleQueue wal, String dataUrl, int dataStreamId, String controlUrl, int controlStreamId) {
         this.aeron = aeron; this.wal = wal;
@@ -62,10 +61,10 @@ public abstract class AbstractAeronSender extends Worker {
             log.warn("接收端斷開，回退至握手模式...");
         }
 
-        int work = controlSub.poll(resumeHandler, 10);
+        int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
         if (currentState == AeronState.WAITING) return work;
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
             long lastIdx = tailer.index();
             try (var dc = tailer.readingDocument()) {
                 if (!dc.isPresent()) break;
@@ -78,7 +77,7 @@ public abstract class AbstractAeronSender extends Worker {
             }
         }
         
-        if ((localSendCount += work) >= METRICS_BATCH_SIZE) {
+        if ((localSendCount += work) >= AeronConstants.METRICS_BATCH_SIZE) {
             open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, localSendCount);
             localSendCount = 0;
         }
@@ -87,7 +86,7 @@ public abstract class AbstractAeronSender extends Worker {
 
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
         if (buffer.getInt(offset) == MsgType.RESUME && currentState == AeronState.WAITING) {
-            long walIndex = buffer.getLong(offset + 4);
+            long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET);
             log.info("✅ 握手成功！恢復位點: {}", walIndex);
             if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !tailer.moveToIndex(walIndex)) {
                 tailer.toStart();

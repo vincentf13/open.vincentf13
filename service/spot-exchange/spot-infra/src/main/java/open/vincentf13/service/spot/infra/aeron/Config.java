@@ -41,7 +41,7 @@ public class Config {
                     // 預先分配實體空間，防止寫入時的磁碟碎片
                     .termBufferSparseFile(false)
                     // 設定全域 Term Buffer 為 64MB，減少高頻交易下的背壓機率
-                    .publicationTermBufferLength(64 * 1024 * 1024)
+                    .publicationTermBufferLength(AeronConstants.DEFAULT_TERM_BUFFER_LENGTH)
                     .dirDeleteOnStart(true);
 
             driver = MediaDriver.launch(driverCtx);
