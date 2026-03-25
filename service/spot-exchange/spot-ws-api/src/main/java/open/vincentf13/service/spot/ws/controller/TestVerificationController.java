@@ -128,7 +128,7 @@ public class TestVerificationController {
 
         Map<String, Object> cpuAffinity = new LinkedHashMap<>();
         Map<String, Object> matchingAffinity = new LinkedHashMap<>();
-        addCpuMetric(matchingAffinity, "engine", MetricsKey.CPU_ID_ENGINE);
+        addCpuMetric(matchingAffinity, "cpu_id_aeron_receiver", MetricsKey.CPU_ID_AERON_RECEIVER);
         cpuAffinity.put("spot-matching", matchingAffinity);
 
         Map<String, Object> wsApiAffinity = new LinkedHashMap<>();

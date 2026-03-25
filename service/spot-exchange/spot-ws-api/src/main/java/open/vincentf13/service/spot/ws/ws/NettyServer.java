@@ -20,8 +20,10 @@ import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import open.vincentf13.service.spot.infra.Constants.Ws;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.thread.AffinityUtil;
+import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
@@ -45,11 +47,17 @@ public class NettyServer {
     public void start() {
         new Thread(() -> {
             bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss", MetricsKey.CPU_ID_NETTY_BOSS));
-            workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker", 
-                MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2, 
+            workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker",
+                MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
                 MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4));
-            try {
-                ServerBootstrap b = new ServerBootstrap();
+
+            // 定期上報 Netty 執行緒核心親和性
+            scheduleMetrics(bossGroup, MetricsKey.CPU_ID_NETTY_BOSS);
+            scheduleMetrics(workerGroup, 
+                MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
+                MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4);
+
+            try {                ServerBootstrap b = new ServerBootstrap();
                 b.group(bossGroup, workerGroup)
                  .channel(NioServerSocketChannel.class)
                  // --- 性能優化：Socket 選項 ---
@@ -83,6 +91,17 @@ public class NettyServer {
     public void stop() {
         if (bossGroup != null) bossGroup.shutdownGracefully();
         if (workerGroup != null) workerGroup.shutdownGracefully();
+    }
+
+    private void scheduleMetrics(EventLoopGroup group, long... keys) {
+        int i = 0;
+        for (io.netty.util.concurrent.EventExecutor executor : group) {
+            if (i >= keys.length) break;
+            final long key = keys[i++];
+            executor.scheduleAtFixedRate(() -> {
+                MetricsCollector.recordCpuAffinity(key, AffinityUtil.currentCpu());
+            }, 1, 1, TimeUnit.SECONDS);
+        }
     }
 
     private static class AffinityThreadFactory implements ThreadFactory {
