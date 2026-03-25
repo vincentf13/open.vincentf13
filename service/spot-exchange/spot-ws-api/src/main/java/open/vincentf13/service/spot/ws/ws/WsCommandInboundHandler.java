@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptAppender;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
+import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import org.springframework.stereotype.Component;

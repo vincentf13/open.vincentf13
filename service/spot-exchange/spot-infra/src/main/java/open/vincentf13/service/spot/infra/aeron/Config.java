@@ -12,11 +12,43 @@ import org.springframework.context.annotation.Configuration;
 import jakarta.annotation.PreDestroy;
 
 /**
-  Aeron 生產級通訊配置
-  採用 DEDICATED 線程模式與 BusySpin 策略以追求極致的微秒級延遲
+ * Aeron 生產級通訊配置與常數定義
+ * 職責：整合 MediaDriver 運行時配置與傳輸層物理常數
  */
 @Configuration
 public class Config {
+
+    // --- Aeron 傳輸層常數 (原 AeronConstants) ---
+    
+    /** WAL 讀取批次大小 (每次 doWork 處理的最大指令數) */
+    public static final int WAL_BATCH_SIZE = 1000;
+
+    /** 指標統計批次大小 (每處理 N 筆訊息更新一次 MetricsCollector) */
+    public static final int METRICS_BATCH_SIZE = 5000;
+
+    /** Aeron 訂閱輪詢限制 (每次 poll 獲取的最大 Fragment 數) */
+    public static final int AERON_POLL_LIMIT = 10;
+
+    /** RESUME 握手信號的總長度 (MsgType:4 bytes + Seq:8 bytes) */
+    public static final int RESUME_SIGNAL_LENGTH = 12;
+
+    /** RESUME 握手信號發送間隔 (毫秒)，防止頻繁發送導致控制端擁塞 */
+    public static final int RESUME_SIGNAL_INTERVAL_MS = 200;
+
+    /** 訊息序列號 (Sequence) 在 DirectBuffer 中的偏移量 */
+    public static final int MSG_SEQ_OFFSET = 4;
+
+    /** 進度持久化週期 (每處理 N 筆訊息強制寫入一次 ChronicleMap 進度) */
+    public static final int METADATA_FLUSH_PERIOD = 100;
+
+    /** 背壓 (Back-pressure) 重試次數限制，超過後判定為發送失敗 */
+    public static final int BACK_PRESSURE_RETRY_LIMIT = 1000;
+
+    /** 預設 Term Buffer 長度 (64MB)，用於在高吞吐下緩衝訊息，減少背壓 */
+    public static final int DEFAULT_TERM_BUFFER_LENGTH = 64 * 1024 * 1024;
+
+    // --- Spring Bean 配置 ---
+
     private MediaDriver driver;
     private Aeron aeron;
 
@@ -29,33 +61,25 @@ public class Config {
     @Bean
     public Aeron aeron() {
         if (driverEnabled) {
-            // 1. 配置 MediaDriver Context (通訊引擎核心)
             MediaDriver.Context driverCtx = new MediaDriver.Context()
                     .aeronDirectoryName(aeronDir)
-                    // 採用 DEDICATED 模式：Conductor, Sender, Receiver 各佔用獨立 CPU 核心
                     .threadingMode(ThreadingMode.DEDICATED)
-                    // 全路徑使用 BusySpin 策略，消除線程切換延遲
-                    .conductorIdleStrategy(new BusySpinIdleStrategy())
-                    .senderIdleStrategy(new BusySpinIdleStrategy())
-                    .receiverIdleStrategy(new BusySpinIdleStrategy())
-                    // 預先分配實體空間，防止寫入時的磁碟碎片
+                    .conductorIdleStrategy(open.vincentf13.service.spot.infra.thread.Strategies.BUSY_SPIN)
+                    .senderIdleStrategy(open.vincentf13.service.spot.infra.thread.Strategies.BUSY_SPIN)
+                    .receiverIdleStrategy(open.vincentf13.service.spot.infra.thread.Strategies.BUSY_SPIN)
                     .termBufferSparseFile(false)
-                    // 設定全域 Term Buffer 為 64MB，減少高頻交易下的背壓機率
-                    .publicationTermBufferLength(AeronConstants.DEFAULT_TERM_BUFFER_LENGTH)
+                    .publicationTermBufferLength(DEFAULT_TERM_BUFFER_LENGTH)
                     .dirDeleteOnStart(true);
 
             driver = MediaDriver.launch(driverCtx);
         }
         
-        // 2. 配置 Aeron Client Context
         Aeron.Context clientCtx = new Aeron.Context()
                 .aeronDirectoryName(aeronDir)
-                // 開啟記憶體分頁預熱，確保讀寫時不會因 Page Fault 產生延遲尖峰
                 .preTouchMappedMemory(true);
 
         aeron = Aeron.connect(clientCtx);
         
-        // 註冊系統信號，確保安全關閉
         SigInt.register(() -> {
             if (aeron != null) aeron.close();
             if (driver != null) driver.close();

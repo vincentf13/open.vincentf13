@@ -2,7 +2,7 @@ package open.vincentf13.service.spot.matching.engine;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
+import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.model.command.*;
 import org.springframework.stereotype.Component;
 

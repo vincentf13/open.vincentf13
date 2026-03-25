@@ -4,14 +4,11 @@ import io.aeron.Aeron;
 import io.aeron.FragmentAssembler;
 import io.aeron.Publication;
 import io.aeron.Subscription;
-import io.aeron.logbuffer.BufferClaim;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.Worker;
-import open.vincentf13.service.spot.infra.alloc.ThreadContext;
+import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.model.MsgProgress;
-import org.agrona.concurrent.BusySpinIdleStrategy;
-import org.agrona.concurrent.IdleStrategy;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -31,8 +28,6 @@ public abstract class AbstractAeronReceiver extends Worker {
 
     protected Subscription subscription;
     protected Publication controlPub;
-    protected final BufferClaim bufferClaim = new BufferClaim();
-    protected final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
     protected final MsgProgress progress = new MsgProgress();
     protected FragmentAssembler assembler;
     
@@ -53,10 +48,10 @@ public abstract class AbstractAeronReceiver extends Worker {
     public int poll(AeronMessageHandler handler, int limit) {
         this.externalHandler = handler;
         if (currentState == AeronState.SENDING && !subscription.isConnected()) currentState = AeronState.WAITING;
-        if (currentState == AeronState.WAITING && System.currentTimeMillis() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
+        if (currentState == AeronState.WAITING && System.currentTimeMillis() - lastResumeTime > Config.RESUME_SIGNAL_INTERVAL_MS) sendResume();
         
         int done = subscription.poll(assembler, limit);
-        if ((localPollCount += 1) >= AeronConstants.METRICS_BATCH_SIZE) {
+        if ((localPollCount += 1) >= Config.METRICS_BATCH_SIZE) {
             open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
             localPollCount = 0;
         }
@@ -76,18 +71,18 @@ public abstract class AbstractAeronReceiver extends Worker {
         sendResume();
     }
 
-    @Override protected int doWork() { return poll(null, AeronConstants.AERON_POLL_LIMIT); }
+    @Override protected int doWork() { return poll(null, Config.AERON_POLL_LIMIT); }
 
     protected void sendResume() {
-        AeronUtil.send(controlPub, bufferClaim, AeronConstants.RESUME_SIGNAL_LENGTH, (buffer, offset) -> {
+        AeronUtil.send(controlPub, Config.RESUME_SIGNAL_LENGTH, (buffer, offset) -> {
             buffer.putInt(offset, MsgType.RESUME);
-            buffer.putLong(offset + AeronConstants.MSG_SEQ_OFFSET, progress.getLastProcessedSeq());
-        }, running, idleStrategy);
+            buffer.putLong(offset + Config.MSG_SEQ_OFFSET, progress.getLastProcessedSeq());
+        }, running);
         lastResumeTime = System.currentTimeMillis();
     }
 
     private void fragmentHandler(org.agrona.DirectBuffer buffer, int offset, int length, io.aeron.logbuffer.Header header) {
-        final long msgSeq = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET), lastSeq = progress.getLastProcessedSeq();
+        final long msgSeq = buffer.getLong(offset + Config.MSG_SEQ_OFFSET), lastSeq = progress.getLastProcessedSeq();
         
         if (currentState == AeronState.WAITING) {
             if (msgSeq < lastSeq && lastSeq != MSG_SEQ_NONE) progress.setLastProcessedSeq(MSG_SEQ_NONE);
@@ -105,7 +100,7 @@ public abstract class AbstractAeronReceiver extends Worker {
         else onMessage(buffer, offset, length);
         
         progress.setLastProcessedSeq(msgSeq);
-        if (msgSeq % AeronConstants.METADATA_FLUSH_PERIOD == 0) metadata.put(metadataKey, progress);
+        if (msgSeq % Config.METADATA_FLUSH_PERIOD == 0) metadata.put(metadataKey, progress);
     }
 
     protected abstract void onMessage(org.agrona.DirectBuffer buffer, int offset, int length);
@@ -115,5 +110,6 @@ public abstract class AbstractAeronReceiver extends Worker {
         if (subscription != null) subscription.close();
         if (controlPub != null) controlPub.close();
         ThreadContext.cleanup();
+        AeronThreadContext.cleanup();
     }
 }
