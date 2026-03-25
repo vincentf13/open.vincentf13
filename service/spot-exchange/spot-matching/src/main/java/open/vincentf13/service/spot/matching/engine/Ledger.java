@@ -65,11 +65,13 @@ public class Ledger {
         }
 
         if (!dirtyBitmasks.isEmpty()) {
-            dirtyBitmasks.forEach(userId -> {
+            org.agrona.collections.LongHashSet.LongIterator iter = dirtyBitmasks.iterator();
+            while (iter.hasNext()) {
+                long userId = iter.nextValue();
                 flushMaskKey.set(userId);
                 flushMaskValue.set(bitmaskCache.get(userId));
                 userAssetBitmaskDiskMap.put(flushMaskKey, flushMaskValue);
-            });
+            }
             dirtyBitmasks.clear();
         }
     }

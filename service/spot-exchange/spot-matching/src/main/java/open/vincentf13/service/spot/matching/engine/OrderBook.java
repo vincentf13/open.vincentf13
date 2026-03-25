@@ -106,33 +106,41 @@ public class OrderBook {
 
     public void flush() {
         if (!pendingOrders.isEmpty()) { 
-            pendingOrders.forEach((id, o) -> {
-                flushOrderKey.set(id);
+            org.agrona.collections.Long2ObjectHashMap<Order>.EntryIterator iter = pendingOrders.entrySet().iterator();
+            while (iter.hasNext()) {
+                iter.next();
+                flushOrderKey.set(iter.getLongKey());
+                Order o = iter.getValue();
                 allOrdersDiskMap.put(flushOrderKey, o);
                 if (o.getStatus() >= 2) releaseOrder(o);
-            });
+            }
             pendingOrders.clear(); 
         }
         if (!pendingTrades.isEmpty()) { 
-            pendingTrades.forEach((id, t) -> {
-                flushTradeKey.set(id);
+            org.agrona.collections.Long2ObjectHashMap<Trade>.EntryIterator iter = pendingTrades.entrySet().iterator();
+            while (iter.hasNext()) {
+                iter.next();
+                flushTradeKey.set(iter.getLongKey());
+                Trade t = iter.getValue();
                 tradeHistoryDiskMap.put(flushTradeKey, t);
                 releaseTrade(t);
-            }); 
+            }
             pendingTrades.clear(); 
         }
         if (!pendingActiveAdds.isEmpty()) { 
-            pendingActiveAdds.forEach(id -> {
-                flushActiveKey.set(id);
+            org.agrona.collections.LongHashSet.LongIterator iter = pendingActiveAdds.iterator();
+            while (iter.hasNext()) {
+                flushActiveKey.set(iter.nextValue());
                 activeOrderIdDiskMap.put(flushActiveKey, Boolean.TRUE);
-            }); 
+            }
             pendingActiveAdds.clear(); 
         }
         if (!pendingActiveRemovals.isEmpty()) { 
-            pendingActiveRemovals.forEach(id -> {
-                flushActiveKey.set(id);
+            org.agrona.collections.LongHashSet.LongIterator iter = pendingActiveRemovals.iterator();
+            while (iter.hasNext()) {
+                flushActiveKey.set(iter.nextValue());
                 activeOrderIdDiskMap.remove(flushActiveKey);
-            }); 
+            }
             pendingActiveRemovals.clear(); 
         }
     }
@@ -305,7 +313,8 @@ public class OrderBook {
             userOrderIdsIndex.put(uid, userOrders);
         }
 
-        if (o.getStatus() < 2) { // NEW, PARTIAL            pendingActiveAdds.add(oid);
+        if (o.getStatus() < 2) { // NEW, PARTIAL
+            pendingActiveAdds.add(oid);
             pendingActiveRemovals.remove(oid);
             userOrders.add(oid);
         } else { // FILLED, CANCELED
