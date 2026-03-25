@@ -6,30 +6,33 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
 import open.vincentf13.service.spot.sbe.Side;
+import open.vincentf13.service.spot.sbe.OrderSide;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.LongHashSet;
+import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
+import it.unimi.dsi.fastutil.longs.LongComparator;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 內存訂單簿 (OrderBook) - 極致性能優化版
+ 內存訂單簿 (OrderBook) - 極致 GC 免疫版
+ 使用 Fastutil 消除 Long 裝箱帶來的效能與 GC 損耗。
  */
 @Slf4j
 public class OrderBook {
     public static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
-    // 性能優化：改用非同步安全但無 Node 分配開銷的池容器 (撮合引擎為單執行緒)
+    // 性能優化：改用非同步安全但無 Node 分配開銷的池容器
     private static final Deque<Order> GLOBAL_ORDER_POOL = new ArrayDeque<>(200_000);
     private static final Deque<Trade> GLOBAL_TRADE_POOL = new ArrayDeque<>(20_000);
     private static final Deque<open.vincentf13.service.spot.model.CidKey> GLOBAL_CID_POOL = new ArrayDeque<>(20_000);
     private static final Deque<Deque<Order>> GLOBAL_DEQUE_POOL = new ArrayDeque<>(10_000);
 
     static {
-        // 性能優化：預分配物件，減少啟動後 GC
         for (int i = 0; i < 200_000; i++) {
             GLOBAL_ORDER_POOL.add(new Order());
             if (i < 20_000) {
@@ -74,8 +77,14 @@ public class OrderBook {
     private final LongHashSet pendingActiveRemovals = new LongHashSet(8192);
     private final LongHashSet pendingActiveAdds = new LongHashSet(8192);
 
-    private final TreeMap<Long, Deque<Order>> bids = new TreeMap<>(Collections.reverseOrder());
-    private final TreeMap<Long, Deque<Order>> asks = new TreeMap<>();
+    // --- Fastutil 零裝箱紅黑樹 ---
+    // bids 降冪排序 (買單價格高的優先)
+    private final Long2ObjectRBTreeMap<Deque<Order>> bids = new Long2ObjectRBTreeMap<>(
+            (LongComparator) (k1, k2) -> Long.compare(k2, k1)
+    );
+    // asks 升冪排序 (賣單價格低的優先)
+    private final Long2ObjectRBTreeMap<Deque<Order>> asks = new Long2ObjectRBTreeMap<>();
+    
     private final Long2ObjectHashMap<Deque<Order>> priceLevelIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
     private final Long2ObjectHashMap<LongHashSet> userOrderIdsIndex = new Long2ObjectHashMap<>(4096, 0.5f);
@@ -157,13 +166,13 @@ public class OrderBook {
 
     private void match(Order taker, long gwSeq, long timestamp, open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
         final boolean isBuy = taker.getSide() == OrderSide.BUY;
-        final TreeMap<Long, Deque<Order>> counterSide = isBuy ? asks : bids;
+        final Long2ObjectRBTreeMap<Deque<Order>> counterSide = isBuy ? asks : bids;
         final long takerPrice = taker.getPrice();
 
         while (taker.getQty() > taker.getFilled()) {
             if (counterSide.isEmpty()) break;
             
-            final long bestPrice = counterSide.firstKey();
+            final long bestPrice = counterSide.firstLongKey();
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
             executeMatchAtLevel(taker, bestPrice, counterSide, gwSeq, timestamp, progress, finalizer);
@@ -176,7 +185,7 @@ public class OrderBook {
         }
     }
 
-    private void executeMatchAtLevel(Order taker, long price, TreeMap<Long, Deque<Order>> counterSide, long gwSeq, long timestamp, 
+    private void executeMatchAtLevel(Order taker, long price, Long2ObjectRBTreeMap<Deque<Order>> counterSide, long gwSeq, long timestamp, 
                                    open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
         final Deque<Order> makers = priceLevelIndex.get(price);
         if (makers == null || makers.isEmpty()) {
@@ -231,7 +240,7 @@ public class OrderBook {
         if (set != null) set.remove(maker.getOrderId());
     }
 
-    private void cleanupEmptyLevel(long price, TreeMap<Long, Deque<Order>> counterSide, Deque<Order> makers) {
+    private void cleanupEmptyLevel(long price, Long2ObjectRBTreeMap<Deque<Order>> counterSide, Deque<Order> makers) {
         counterSide.remove(price);
         priceLevelIndex.remove(price);
         makers.clear();
@@ -242,7 +251,7 @@ public class OrderBook {
         final long price = order.getPrice();
         Deque<Order> level = priceLevelIndex.get(price);
         if (level == null) {
-            TreeMap<Long, Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
+            Long2ObjectRBTreeMap<Deque<Order>> levels = (order.getSide() == OrderSide.BUY) ? bids : asks;
             level = GLOBAL_DEQUE_POOL.pollFirst();
             if (level == null) level = new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY);
             else level.clear();

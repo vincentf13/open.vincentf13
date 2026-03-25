@@ -25,6 +25,12 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
+        <!-- Fastutil: 提供零裝箱的 primitive 集合 (如 Long2ObjectRBTreeMap) 以消除 GC -->
+        <dependency>
+            <groupId>it.unimi.dsi</groupId>
+            <artifactId>fastutil</artifactId>
+            <version>8.5.13</version>
+        </dependency>
     </dependencies>
 
     <build>
