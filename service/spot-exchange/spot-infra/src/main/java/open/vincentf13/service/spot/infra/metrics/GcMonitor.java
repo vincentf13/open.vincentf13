@@ -46,11 +46,12 @@ public class GcMonitor {
 
                         // 排除間隔過短的極小 GC
                         if (interval > 10) {
-                            long count = MetricsCollector.increment(instance.countKey);
+                            MetricsCollector.increment(instance.countKey);
                             MetricsCollector.set(instance.intervalKey, interval);
                             MetricsCollector.set(instance.durationKey, duration);
                             
                             // 紀錄歷史時間戳 (循環儲存)
+                            long count = Storage.self().metricsHistory().getOrDefault(instance.countKey, 0L);
                             long historySlot = instance.historyStartKey - (count % Constants.MetricsKey.GC_HISTORY_MAX_KEEP);
                             MetricsCollector.set(historySlot, now);
                             

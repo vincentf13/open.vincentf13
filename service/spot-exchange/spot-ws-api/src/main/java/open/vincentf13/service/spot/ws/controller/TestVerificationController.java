@@ -71,7 +71,6 @@ public class TestVerificationController {
     public List<Map<String, Object>> getTpsHistory() {
         TreeMap<Long, Long> sortedHistory = new TreeMap<>(Collections.reverseOrder());
         Storage.self().metricsHistory().forEach((key, total) -> {
-            // 時間戳 Key 必定是很大的正數
             if (key > 1000000) sortedHistory.put(key, total);
         });
         
@@ -91,19 +90,16 @@ public class TestVerificationController {
 
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
-        // 引擎核心指標 (修正公式：實際處理量 / 最大處理潛力)
         long pollCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.POLL_COUNT, 0L);
         long workCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.WORK_COUNT, 0L);
         double maxPotential = (double) pollCount * Matching.ENGINE_BATCH_SIZE;
         double ratio = maxPotential == 0 ? 0 : Math.min(100.0, (double) workCount / maxPotential * 100.0);
 
-        // 全鏈路瓶頸指標
         long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.NETTY_RECV_COUNT, 0L);
         long gatewayWalWriteCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 0L);
         long aeronSendCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_SEND_COUNT, 0L);
         long aeronBackpressure = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_BACKPRESSURE, 0L);
 
-        // JVM 指標計算 (%)
         long matchingUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_JVM_USED_MB, 0L);
         long matchingMax = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_JVM_MAX_MB, 1L);
         long gatewayUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_JVM_USED_MB, 0L);
@@ -123,14 +119,12 @@ public class TestVerificationController {
         metrics.put("matching_cpu_load", String.format("%d%%", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_CPU_LOAD, 0L)));
         metrics.put("gateway_cpu_load", String.format("%d%%", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_CPU_LOAD, 0L)));
 
-        // --- 新增：系統與進程級 CPU 詳細資訊 ---
         var os = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
         if (os instanceof com.sun.management.OperatingSystemMXBean sunOs) {
             metrics.put("os_system_cpu_load", String.format("%.2f%%", sunOs.getCpuLoad() * 100));
             metrics.put("os_process_cpu_load", String.format("%.2f%%", sunOs.getProcessCpuLoad() * 100));
         }
 
-        // GC 指標 (加上單位)
         Map<String, Object> gcMetrics = new LinkedHashMap<>();
         
         Map<String, Object> matchingGc = new LinkedHashMap<>();
@@ -149,15 +143,11 @@ public class TestVerificationController {
 
         metrics.put("gc_metrics", gcMetrics);
 
-        // CPU Affinity 綁定資訊 (按服務聚合)
         Map<String, Object> cpuAffinity = new LinkedHashMap<>();
-        
-        // 1. Spot Matching 服務
         Map<String, Object> matchingAffinity = new LinkedHashMap<>();
         addCpuMetric(matchingAffinity, "engine", MetricsKey.CPU_ID_ENGINE);
         cpuAffinity.put("spot-matching", matchingAffinity);
 
-        // 2. Spot WS-API 服務
         Map<String, Object> wsApiAffinity = new LinkedHashMap<>();
         addCpuMetric(wsApiAffinity, "netty_worker_1", MetricsKey.CPU_ID_NETTY_WORKER_1);
         addCpuMetric(wsApiAffinity, "netty_worker_2", MetricsKey.CPU_ID_NETTY_WORKER_2);
@@ -173,11 +163,10 @@ public class TestVerificationController {
 
     private List<String> getGcHistory(long startKey) {
         List<Long> timestamps = new ArrayList<>();
-        for (int i = 0; i < GC_HISTORY_MAX_KEEP; i++) {
+        for (int i = 0; i < MetricsKey.GC_HISTORY_MAX_KEEP; i++) {
             Long ts = Storage.self().metricsHistory().get(startKey - i);
             if (ts != null && ts > 0) timestamps.add(ts);
         }
-        // 按時間從新到舊排序
         timestamps.sort(Collections.reverseOrder());
         
         List<String> history = new ArrayList<>();
