@@ -4,6 +4,7 @@ import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.DocumentContext;
+import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Balance;
 import open.vincentf13.service.spot.model.BalanceKey;
@@ -42,7 +43,7 @@ public class TestVerificationController {
 
     @GetMapping("/order")
     public Map<String, Object> getOrder(@RequestParam long orderId) {
-        Order order = Storage.self().orders().getUsing(orderId, new Order());
+        Order order = Storage.self().orders().getUsing(new LongValue(orderId), new Order());
         if (order == null) {
             return Map.of("error", "Order not found");
         }
@@ -60,18 +61,18 @@ public class TestVerificationController {
     public Map<String, Object> getOrderByCid(@RequestParam long userId, @RequestParam long cid) {
         CidKey cidKey = new CidKey();
         cidKey.set(userId, cid);
-        Long orderId = Storage.self().clientOrderIdMap().get(cidKey);
-        if (orderId == null) {
+        LongValue orderIdVal = Storage.self().clientOrderIdMap().get(cidKey);
+        if (orderIdVal == null) {
             return Map.of("error", "Order not found");
         }
-        return getOrder(orderId);
+        return getOrder(orderIdVal.getValue());
     }
 
     @GetMapping("/metrics/tps")
     public List<Map<String, Object>> getTpsHistory() {
         TreeMap<Long, Long> sortedHistory = new TreeMap<>(Collections.reverseOrder());
         Storage.self().metricsHistory().forEach((key, total) -> {
-            if (key > 1000000) sortedHistory.put(key, total);
+            if (key.getValue() > 1000000) sortedHistory.put(key.getValue(), total.getValue());
         });
         
         List<Map<String, Object>> result = new ArrayList<>();
@@ -88,22 +89,27 @@ public class TestVerificationController {
         return result;
     }
 
+    private long getMetric(long key, long defaultValue) {
+        LongValue val = Storage.self().metricsHistory().get(new LongValue(key));
+        return val != null ? val.getValue() : defaultValue;
+    }
+
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
-        long pollCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.POLL_COUNT, 0L);
-        long workCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.WORK_COUNT, 0L);
+        long pollCount = getMetric(MetricsKey.POLL_COUNT, 0L);
+        long workCount = getMetric(MetricsKey.WORK_COUNT, 0L);
         double maxPotential = (double) pollCount * Matching.ENGINE_BATCH_SIZE;
         double ratio = maxPotential == 0 ? 0 : Math.min(100.0, (double) workCount / maxPotential * 100.0);
 
-        long nettyRecvCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.NETTY_RECV_COUNT, 0L);
-        long gatewayWalWriteCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 0L);
-        long aeronSendCount = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_SEND_COUNT, 0L);
-        long aeronBackpressure = Storage.self().metricsHistory().getOrDefault(MetricsKey.AERON_BACKPRESSURE, 0L);
+        long nettyRecvCount = getMetric(MetricsKey.NETTY_RECV_COUNT, 0L);
+        long gatewayWalWriteCount = getMetric(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 0L);
+        long aeronSendCount = getMetric(MetricsKey.AERON_SEND_COUNT, 0L);
+        long aeronBackpressure = getMetric(MetricsKey.AERON_BACKPRESSURE, 0L);
 
-        long matchingUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_JVM_USED_MB, 0L);
-        long matchingMax = Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_JVM_MAX_MB, 1L);
-        long gatewayUsed = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_JVM_USED_MB, 0L);
-        long gatewayMax = Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_JVM_MAX_MB, 1L);
+        long matchingUsed = getMetric(MetricsKey.MATCHING_JVM_USED_MB, 0L);
+        long matchingMax = getMetric(MetricsKey.MATCHING_JVM_MAX_MB, 1L);
+        long gatewayUsed = getMetric(MetricsKey.GATEWAY_JVM_USED_MB, 0L);
+        long gatewayMax = getMetric(MetricsKey.GATEWAY_JVM_MAX_MB, 1L);
 
         Map<String, Object> metrics = new LinkedHashMap<>();
         metrics.put("netty_recv_count", nettyRecvCount);
@@ -116,8 +122,8 @@ public class TestVerificationController {
 
         metrics.put("matching_jvm_used", String.format("%dMB (%.1f%%)", matchingUsed, (double)matchingUsed/matchingMax*100));
         metrics.put("gateway_jvm_used", String.format("%dMB (%.1f%%)", gatewayUsed, (double)gatewayUsed/gatewayMax*100));
-        metrics.put("matching_cpu_load", String.format("%d%%", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_CPU_LOAD, 0L)));
-        metrics.put("gateway_cpu_load", String.format("%d%%", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_CPU_LOAD, 0L)));
+        metrics.put("matching_cpu_load", String.format("%d%%", getMetric(MetricsKey.MATCHING_CPU_LOAD, 0L)));
+        metrics.put("gateway_cpu_load", String.format("%d%%", getMetric(MetricsKey.GATEWAY_CPU_LOAD, 0L)));
 
         var os = java.lang.management.ManagementFactory.getOperatingSystemMXBean();
         if (os instanceof com.sun.management.OperatingSystemMXBean sunOs) {
@@ -128,16 +134,16 @@ public class TestVerificationController {
         Map<String, Object> gcMetrics = new LinkedHashMap<>();
         
         Map<String, Object> matchingGc = new LinkedHashMap<>();
-        matchingGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_COUNT, 0L) + " times");
-        matchingGc.put("last_interval", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_INTERVAL_MS, 0L) + " ms");
-        matchingGc.put("last_duration", Storage.self().metricsHistory().getOrDefault(MetricsKey.MATCHING_GC_LAST_DURATION_MS, 0L) + " ms");
+        matchingGc.put("count", getMetric(MetricsKey.MATCHING_GC_COUNT, 0L) + " times");
+        matchingGc.put("last_interval", getMetric(MetricsKey.MATCHING_GC_LAST_INTERVAL_MS, 0L) + " ms");
+        matchingGc.put("last_duration", getMetric(MetricsKey.MATCHING_GC_LAST_DURATION_MS, 0L) + " ms");
         matchingGc.put("history", getGcHistory(MetricsKey.MATCHING_GC_HISTORY_START));
         gcMetrics.put("spot-matching", matchingGc);
 
         Map<String, Object> gatewayGc = new LinkedHashMap<>();
-        gatewayGc.put("count", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_COUNT, 0L) + " times");
-        gatewayGc.put("last_interval", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_INTERVAL_MS, 0L) + " ms");
-        gatewayGc.put("last_duration", Storage.self().metricsHistory().getOrDefault(MetricsKey.GATEWAY_GC_LAST_DURATION_MS, 0L) + " ms");
+        gatewayGc.put("count", getMetric(MetricsKey.GATEWAY_GC_COUNT, 0L) + " times");
+        gatewayGc.put("last_interval", getMetric(MetricsKey.GATEWAY_GC_LAST_INTERVAL_MS, 0L) + " ms");
+        gatewayGc.put("last_duration", getMetric(MetricsKey.GATEWAY_GC_LAST_DURATION_MS, 0L) + " ms");
         gatewayGc.put("history", getGcHistory(MetricsKey.GATEWAY_GC_HISTORY_START));
         gcMetrics.put("spot-ws-api", gatewayGc);
 
@@ -164,8 +170,8 @@ public class TestVerificationController {
     private List<String> getGcHistory(long startKey) {
         List<Long> timestamps = new ArrayList<>();
         for (int i = 0; i < MetricsKey.GC_HISTORY_MAX_KEEP; i++) {
-            Long ts = Storage.self().metricsHistory().get(startKey - i);
-            if (ts != null && ts > 0) timestamps.add(ts);
+            LongValue val = Storage.self().metricsHistory().get(new LongValue(startKey - i));
+            if (val != null && val.getValue() > 0) timestamps.add(val.getValue());
         }
         timestamps.sort(Collections.reverseOrder());
         
@@ -177,8 +183,8 @@ public class TestVerificationController {
     }
 
     private void addCpuMetric(Map<String, Object> map, String name, long key) {
-        Long cpuId = Storage.self().metricsHistory().get(key);
-        if (cpuId != null) map.put(name, "Core " + cpuId);
+        LongValue val = Storage.self().metricsHistory().get(new LongValue(key));
+        if (val != null) map.put(name, "Core " + val.getValue());
         else map.put(name, "Not Bound");
     }
 

@@ -61,6 +61,11 @@ public class MetricsCollector {
         set(key, (long) cpuId);
     }
 
+    private static final open.vincentf13.service.spot.infra.chronicle.LongValue REUSABLE_KEY_1 = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private static final open.vincentf13.service.spot.infra.chronicle.LongValue REUSABLE_KEY_2 = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private static final open.vincentf13.service.spot.infra.chronicle.LongValue REUSABLE_VAL_1 = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private static final open.vincentf13.service.spot.infra.chronicle.LongValue REUSABLE_VAL_2 = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+
     private static void flush() {
         try {
             var metricsMap = Storage.self().metricsHistory();
@@ -69,7 +74,9 @@ public class MetricsCollector {
             for (int i = 0; i < MAX_METRICS; i++) {
                 long total = COUNTER_ARRAY[i].sum();
                 if (total > 0) {
-                    metricsMap.put(-((long)i), total);
+                    REUSABLE_KEY_1.set(-((long)i));
+                    REUSABLE_VAL_1.set(total);
+                    metricsMap.put(REUSABLE_KEY_1, REUSABLE_VAL_1);
                 }
             }
 
@@ -77,7 +84,9 @@ public class MetricsCollector {
             synchronized (MetricsCollector.class) {
                 for (int i = 0; i < MAX_METRICS; i++) {
                     if (GAUGE_UPDATED[i]) {
-                        metricsMap.put(-((long)i), GAUGE_ARRAY[i]);
+                        REUSABLE_KEY_2.set(-((long)i));
+                        REUSABLE_VAL_2.set(GAUGE_ARRAY[i]);
+                        metricsMap.put(REUSABLE_KEY_2, REUSABLE_VAL_2);
                     }
                 }
             }

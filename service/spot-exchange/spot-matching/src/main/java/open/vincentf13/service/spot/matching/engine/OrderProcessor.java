@@ -24,8 +24,8 @@ import java.util.function.Supplier;
 @Component
 @RequiredArgsConstructor
 public class OrderProcessor implements OrderBook.TradeFinalizer {
-    private final ChronicleMap<Long, Order> orders = Storage.self().orders();
-    private final ChronicleMap<CidKey, Long> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> orders = Storage.self().orders();
+    private final ChronicleMap<CidKey, open.vincentf13.service.spot.infra.chronicle.LongValue> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
     
     // --- 性能優化：冪等鍵寫緩衝 (零對象分配 Circular Buffer 版) ---
     private static final int BUFFER_SIZE = 4096;
@@ -43,6 +43,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final ExecutionReporter reporter;
 
     private final CidKey reusableFlushKey = new CidKey();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableFlushValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue cancelKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
     private long currentGatewaySequence;
     private long currentTakerUserId;
     private byte currentTakerSide;
@@ -59,7 +61,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         if (bufferCount > 0) {
             for (int i = 0; i < bufferCount; i++) {
                 reusableFlushKey.set(pendingUids[i], pendingCidsArr[i]);
-                clientOrderIdDiskMap.put(reusableFlushKey, pendingOids[i]);
+                reusableFlushValue.set(pendingOids[i]);
+                clientOrderIdDiskMap.put(reusableFlushKey, reusableFlushValue);
             }
             bufferCount = 0;
         }
@@ -93,7 +96,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     /** 處理撤單指令 */
     public void processCancelCommand(long userId, long orderId, long gatewaySequence) {
         final ThreadContext context = ThreadContext.get();
-        Order order = orders.getUsing(orderId, context.getReusableOrder());
+        cancelKey.set(orderId);
+        Order order = orders.getUsing(cancelKey, context.getReusableOrder());
         
         if (order == null || order.getUserId() != userId || order.getStatus() >= OrderStatus.FILLED.ordinal()) return;
 
@@ -107,7 +111,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
         order.setStatus((byte) OrderStatus.CANCELED.ordinal());
         order.setLastSeq(gatewaySequence);
-        orders.put(orderId, order);
+        orders.put(cancelKey, order);
         reporter.reportCanceled(order);
     }
 

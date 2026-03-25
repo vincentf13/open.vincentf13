@@ -37,7 +37,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected void onBind(int cpuId) {
-        Storage.self().metricsHistory().put(MetricsKey.CPU_ID_AERON_RECEIVER, (long) cpuId);
+        Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(MetricsKey.CPU_ID_AERON_RECEIVER), new open.vincentf13.service.spot.infra.chronicle.LongValue((long) cpuId));
         engine.onBind(cpuId);
     }
 

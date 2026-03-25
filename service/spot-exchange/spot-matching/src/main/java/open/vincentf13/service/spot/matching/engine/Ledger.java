@@ -22,7 +22,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Service
 public class Ledger {
     private final ChronicleMap<BalanceKey, Balance> balancesDiskMap = Storage.self().balances();
-    private final ChronicleMap<Long, Long> userAssetBitmaskDiskMap = Storage.self().userAssets();
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, open.vincentf13.service.spot.infra.chronicle.LongValue> userAssetBitmaskDiskMap = Storage.self().userAssets();
     
     // 二級緩存：徹底消除 BalanceKey 對象分配與磁碟讀取
     private final Long2ObjectHashMap<Balance> balanceCache = new Long2ObjectHashMap<>(100_000, 0.5f);
@@ -36,11 +36,13 @@ public class Ledger {
     private long overflowLogSample = 0;
 
     private final BalanceKey reusableKey = new BalanceKey();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushMaskKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushMaskValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
 
     @PostConstruct
     public void init() {
         log.info("Ledger 正在預加載帳務數據至二級緩存...");
-        userAssetBitmaskDiskMap.forEach(bitmaskCache::put);
+        userAssetBitmaskDiskMap.forEach((k, v) -> bitmaskCache.put(k.getValue(), v.getValue()));
         log.info("Ledger 初始化完成。");
     }
 
@@ -64,7 +66,9 @@ public class Ledger {
 
         if (!dirtyBitmasks.isEmpty()) {
             dirtyBitmasks.forEach(userId -> {
-                userAssetBitmaskDiskMap.put(userId, bitmaskCache.get(userId));
+                flushMaskKey.set(userId);
+                flushMaskValue.set(bitmaskCache.get(userId));
+                userAssetBitmaskDiskMap.put(flushMaskKey, flushMaskValue);
             });
             dirtyBitmasks.clear();
         }
@@ -198,7 +202,7 @@ public class Ledger {
                 }
             }
         });
-        bitmaskCache.forEach(userAssetBitmaskDiskMap::put);
+        bitmaskCache.forEach((k, v) -> userAssetBitmaskDiskMap.put(new open.vincentf13.service.spot.infra.chronicle.LongValue(k), new open.vincentf13.service.spot.infra.chronicle.LongValue(v)));
         log.info("✅ Ledger 預熱完成，緩存帳戶數: {}", balanceCache.size());
     }
 

@@ -112,7 +112,7 @@ public class NettyServer {
                 
                 // 無論成功與否都記錄指標，cpuId 為 -1 代表系統自動分配
                 if (metricKeys != null && currentIdx < metricKeys.length) {
-                    Storage.self().metricsHistory().put(metricKeys[currentIdx], (long) cpuId);
+                    Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(metricKeys[currentIdx]), new open.vincentf13.service.spot.infra.chronicle.LongValue((long) cpuId));
                 }
                 r.run();
             };

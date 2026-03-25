@@ -67,9 +67,9 @@ public class OrderBook {
     private final int baseAssetId;
     private final int quoteAssetId;
     
-    private final ChronicleMap<Long, Order> allOrdersDiskMap = Storage.self().orders();
-    private final ChronicleMap<Long, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
-    private final ChronicleMap<Long, Trade> tradeHistoryDiskMap = Storage.self().trades();
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> allOrdersDiskMap = Storage.self().orders();
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Boolean> activeOrderIdDiskMap = Storage.self().activeOrders();
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Trade> tradeHistoryDiskMap = Storage.self().trades();
     
     private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>(16384, 0.5f);
     private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>(32768, 0.5f);
@@ -90,6 +90,10 @@ public class OrderBook {
 
     private static final Order SCAN_REUSABLE = new Order();
 
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushOrderKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushTradeKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushActiveKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+
     public interface TradeFinalizer {
         void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset);
     }
@@ -103,20 +107,34 @@ public class OrderBook {
     public void flush() {
         if (!pendingOrders.isEmpty()) { 
             pendingOrders.forEach((id, o) -> {
-                allOrdersDiskMap.put(id, o);
+                flushOrderKey.set(id);
+                allOrdersDiskMap.put(flushOrderKey, o);
                 if (o.getStatus() >= 2) releaseOrder(o);
             });
             pendingOrders.clear(); 
         }
         if (!pendingTrades.isEmpty()) { 
             pendingTrades.forEach((id, t) -> {
-                tradeHistoryDiskMap.put(id, t);
+                flushTradeKey.set(id);
+                tradeHistoryDiskMap.put(flushTradeKey, t);
                 releaseTrade(t);
             }); 
             pendingTrades.clear(); 
         }
-        if (!pendingActiveAdds.isEmpty()) { pendingActiveAdds.forEach(id -> activeOrderIdDiskMap.put(id, Boolean.TRUE)); pendingActiveAdds.clear(); }
-        if (!pendingActiveRemovals.isEmpty()) { pendingActiveRemovals.forEach(activeOrderIdDiskMap::remove); pendingActiveRemovals.clear(); }
+        if (!pendingActiveAdds.isEmpty()) { 
+            pendingActiveAdds.forEach(id -> {
+                flushActiveKey.set(id);
+                activeOrderIdDiskMap.put(flushActiveKey, Boolean.TRUE);
+            }); 
+            pendingActiveAdds.clear(); 
+        }
+        if (!pendingActiveRemovals.isEmpty()) { 
+            pendingActiveRemovals.forEach(id -> {
+                flushActiveKey.set(id);
+                activeOrderIdDiskMap.remove(flushActiveKey);
+            }); 
+            pendingActiveRemovals.clear(); 
+        }
     }
 
     public void recoverOrder(Order o) {
@@ -313,7 +331,7 @@ public class OrderBook {
     public int getQuoteAssetId() { return quoteAssetId; }
 
     public static void rebuildActiveOrdersIndexes() {
-        ChronicleMap<Long, Order> allOrders = Storage.self().orders();
+        ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> allOrders = Storage.self().orders();
         Storage.self().activeOrders().forEach((id, active) -> {
             Order o = allOrders.getUsing(id, SCAN_REUSABLE);
             if (o != null && o.getStatus() < 2) OrderBook.get(o.getSymbolId()).recoverOrder(o);

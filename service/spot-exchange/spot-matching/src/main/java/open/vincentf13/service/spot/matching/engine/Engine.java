@@ -37,6 +37,9 @@ public class Engine implements AeronMessageHandler {
     private long effectivePollCount = 0;
     private static final int METRICS_BATCH_SIZE = 5000;
 
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue metricKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue metricValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+
     public void onBind(int cpuId) {
         MetricsCollector.recordCpuAffinity(MetricsKey.CPU_ID_ENGINE, cpuId);
     }
@@ -48,9 +51,9 @@ public class Engine implements AeronMessageHandler {
         effectivePollCount = 0;
         
         // 移除錯誤的 MetricsCollector.set，改為直接重置持久化記憶體中的值，避免觸發 GAUGE 覆寫
-        Storage.self().metricsHistory().put(MetricsKey.POLL_COUNT, 0L);
-        Storage.self().metricsHistory().put(MetricsKey.WORK_COUNT, 0L);
-        Storage.self().metricsHistory().put(MetricsKey.AERON_DROPPED_COUNT, 0L);
+        Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(MetricsKey.POLL_COUNT), new open.vincentf13.service.spot.infra.chronicle.LongValue(0L));
+        Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(MetricsKey.WORK_COUNT), new open.vincentf13.service.spot.infra.chronicle.LongValue(0L));
+        Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(MetricsKey.AERON_DROPPED_COUNT), new open.vincentf13.service.spot.infra.chronicle.LongValue(0L));
 
         ledger.rebuildAssetIndexes();
         OrderBook.rebuildActiveOrdersIndexes();
@@ -133,7 +136,9 @@ public class Engine implements AeronMessageHandler {
         MetricsCollector.set(MetricsKey.MATCH_COUNT, totalMatches);
         
         // 修正：TPS 歷史紀錄應該儲存引擎總共處理的「交易數 (workCount)」，而非只有「成交數 (totalMatches)」   
-        Storage.self().metricsHistory().put(nowSec, workCount);
+        metricKey.set(nowSec);
+        metricValue.set(workCount);
+        Storage.self().metricsHistory().put(metricKey, metricValue);
 
         if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));
