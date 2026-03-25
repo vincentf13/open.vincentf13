@@ -32,7 +32,17 @@ public class Ledger {
     private static final int MAX_DIRTY = 256000; // 足以支撐單個 flush 週期內 25.6 萬個活躍用戶
     private final long[] dirtyQueue = new long[MAX_DIRTY];
     private int dirtyCount = 0;
+    private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
     private long overflowLogSample = 0;
+
+    private final BalanceKey reusableKey = new BalanceKey();
+
+    @PostConstruct
+    public void init() {
+        log.info("Ledger 正在預加載帳務數據至二級緩存...");
+        userAssetBitmaskDiskMap.forEach(bitmaskCache::put);
+        log.info("Ledger 初始化完成。");
+    }
 
     /**
      * 將變動過的緩存帳戶同步至磁碟
