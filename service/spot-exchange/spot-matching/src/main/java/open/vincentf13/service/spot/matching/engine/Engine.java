@@ -7,15 +7,15 @@ import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 import open.vincentf13.service.spot.model.WalProgress;
+import open.vincentf13.service.spot.infra.jvm.Jvm;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver.AeronMessageHandler;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- 撮合引擎核心 (Matching Engine) - 智慧型落地優化版
+ 撮合引擎核心 (Matching Engine)
  職責：極簡化的指令分發與進度持久化中心。
- 現在由 AeronReceiver 驅動，不主動繼承 Worker。
  */
 @Slf4j
 @Component
@@ -50,7 +50,6 @@ public class Engine implements AeronMessageHandler {
         unflushedWorkCount = 0;
         effectivePollCount = 0;
         
-        // 移除錯誤的 MetricsCollector.set，改為直接重置持久化記憶體中的值，避免觸發 GAUGE 覆寫
         Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(MetricsKey.POLL_COUNT), new open.vincentf13.service.spot.infra.chronicle.LongValue(0L));
         Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(MetricsKey.WORK_COUNT), new open.vincentf13.service.spot.infra.chronicle.LongValue(0L));
         Storage.self().metricsHistory().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(MetricsKey.AERON_DROPPED_COUNT), new open.vincentf13.service.spot.infra.chronicle.LongValue(0L));
@@ -66,9 +65,6 @@ public class Engine implements AeronMessageHandler {
         log.info("Engine 啟動完成，恢復點: Seq={}", progress.getLastProcessedMsgSeq());
     }
 
-    /** 
-     每輪主循環觸發一次，處理落地與指標更新
-     */
     public void tick(int done) {
         if (done > 0) {
             updateWorkMetrics(done);
@@ -77,8 +73,6 @@ public class Engine implements AeronMessageHandler {
 
         final long now = open.vincentf13.service.spot.infra.util.Clock.now();
 
-        // 智慧型落地策略：降低落地頻率至 1000ms (1秒) 以提升吞吐量
-        // 過於頻繁的 flush (100ms) 會導致頻繁的磁碟 Sync，嚴重拖慢撮合速度
         if (unflushedWorkCount > 0 && (unflushedWorkCount >= 100000 || now - lastFlushTime >= 1000)) {
             flushAll();
             lastFlushTime = now;
@@ -108,9 +102,7 @@ public class Engine implements AeronMessageHandler {
     private void flushAll() {
         ledger.flush();
         orderProcessor.flush();
-        for (OrderBook book : OrderBook.getInstances()) {
-            book.flush();
-        }
+        for (OrderBook book : OrderBook.getInstances()) book.flush();
         metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
     }
 
@@ -129,21 +121,13 @@ public class Engine implements AeronMessageHandler {
     }
 
     private void updateSystemMetrics(long nowSec) {
-        Runtime r = Runtime.getRuntime();
-        MetricsCollector.set(MetricsKey.MATCHING_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
-        MetricsCollector.set(MetricsKey.MATCHING_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
+        MetricsCollector.set(MetricsKey.MATCHING_JVM_USED_MB, Jvm.usedMemoryMb());
+        MetricsCollector.set(MetricsKey.MATCHING_JVM_MAX_MB, Jvm.maxMemoryMb());
+        MetricsCollector.set(MetricsKey.MATCH_COUNT, OrderBook.TOTAL_MATCH_COUNT.get());
         
-        final long totalMatches = OrderBook.TOTAL_MATCH_COUNT.get();
-        MetricsCollector.set(MetricsKey.MATCH_COUNT, totalMatches);
-        
-        // 修正：TPS 歷史紀錄應該儲存引擎總共處理的「交易數 (workCount)」，而非只有「成交數 (totalMatches)」   
         metricKey.set(nowSec);
         metricValue.set(workCount);
         Storage.self().metricsHistory().put(metricKey, metricValue);
-
-        if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
-            MetricsCollector.set(MetricsKey.MATCHING_CPU_LOAD, (long)(os.getCpuLoad() * 100));
-        }
     }
 
     public void onStop() { 

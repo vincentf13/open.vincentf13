@@ -5,10 +5,10 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
-import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import open.vincentf13.service.spot.model.command.AbstractSbeModel;
+import open.vincentf13.service.spot.infra.jvm.Jvm;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -21,7 +21,7 @@ import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 @Component
 public class AeronSender extends AbstractAeronSender {
 
-    public AeronSender(Aeron aeron) { // aeron 入參保留供 Spring 注入，但不傳給 super
+    public AeronSender(Aeron aeron) {
         super(Storage.self().gatewaySenderWal());
     }
 
@@ -46,13 +46,9 @@ public class AeronSender extends AbstractAeronSender {
             MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackPressure);
             localBackPressure = 0;
         }
-        Runtime r = Runtime.getRuntime();
-        MetricsCollector.set(MetricsKey.GATEWAY_JVM_USED_MB, (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
-        MetricsCollector.set(MetricsKey.GATEWAY_JVM_MAX_MB, r.maxMemory() / 1024 / 1024);
-        
-        if (java.lang.management.ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
-            MetricsCollector.set(MetricsKey.GATEWAY_CPU_LOAD, (long)(os.getCpuLoad() * 100));
-        }
+        MetricsCollector.set(MetricsKey.GATEWAY_JVM_USED_MB, Jvm.usedMemoryMb());
+        MetricsCollector.set(MetricsKey.GATEWAY_JVM_MAX_MB, Jvm.maxMemoryMb());
+        MetricsCollector.set(MetricsKey.GATEWAY_CPU_LOAD, Jvm.getAndResetDutyCycle());
     }
 
     @Override
@@ -63,11 +59,11 @@ public class AeronSender extends AbstractAeronSender {
 
         final long addr = bytes.addressForRead(bytes.readPosition());
         final long seq = tailer.index();
-        
-        if (AeronUtil.send(publication, len, (buf, off) -> {
+
+        if (send(len, (buf, off) -> {
             UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
             buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, seq);
-        }, running) >= 0) bytes.readSkip(len);
+        }) >= 0) bytes.readSkip(len);
         else localBackPressure++;
     }
 }
