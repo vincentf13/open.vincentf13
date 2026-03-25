@@ -3,79 +3,62 @@ package open.vincentf13.service.spot.infra.thread;
 import net.openhft.affinity.Affinity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.BitSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 優化的 CPU 親和性工具類
- * 專門解決 Windows 環境下 ProcessorAffinity 導致 AffinityLock 邊界檢查失敗的問題
+ * CPU 親和性工具類 (AffinityUtil)
+ * 職責：在進程允許的核心範圍內自動分配並鎖定物理核心，確保高性能執行緒不被切換。
  */
 public class AffinityUtil {
     private static final Logger log = LoggerFactory.getLogger(AffinityUtil.class);
     
-    // 用於在本 JVM 內部遞增分配核心，確保不同 Worker 盡量分開
-    private static final AtomicInteger assignedWorkerCount = new AtomicInteger(0);
+    /** 全局分配計數器，用於在可用核心間進行循環分配 */
+    private static final AtomicInteger assignedCount = new AtomicInteger(0);
     
-    // 防止同一個執行緒重複執行綁定邏輯 (Netty Worker 等執行緒池場景)
+    /** 執行緒局部標記，防止同一個執行緒重複執行綁定邏輯 */
     private static final ThreadLocal<Boolean> isBound = ThreadLocal.withInitial(() -> false);
 
     /**
-     * 在進程允許的核心範圍內，自動分配並綁定一個核心
-     * @return 綁定的物理核心 ID，失敗則返回 -1
+     * 自動分配並綁定一個可用核心。
+     * 邏輯：從目前進程允許的 CPU 掩碼 (Mask) 中，按順序選取一個物理核心進行綁定。
+     * 
+     * @return 實際綁定的物理核心 ID，失敗則返回 -1
      */
     public static int acquireAndBind() {
-        return acquireAndBind(-1);
-    }
-
-    /**
-     * 綁定指定核心，或根據 Mask 自動循環分配
-     * @param preferredCore 偏好的核心 ID，傳入 -1 則自動分配
-     * @return 實際綁定的核心 ID
-     */
-    public static int acquireAndBind(int preferredCore) {
-        if (isBound.get()) {
-            return -1; // 已綁定過，不再重複綁定
-        }
+        if (isBound.get()) return -1;
+        
         try {
-            BitSet affinity = Affinity.getAffinity();
-            int totalAvailableInMask = affinity.cardinality();
+            // 1. 獲取目前進程可用的 CPU 核心掩碼
+            BitSet mask = Affinity.getAffinity();
+            int totalAvailable = mask.cardinality();
+            if (totalAvailable <= 0) return -1;
 
-            if (totalAvailableInMask <= 0) {
-                log.warn("[AFFINITY] 無法獲取有效的 Affinity Mask，跳過綁定");
-                return -1;
-            }
-
+            // 2. 透過全局計數器決定要分配第幾個可用核心 (循環分配策略)
+            int targetIdx = Math.abs(assignedCount.getAndIncrement() % totalAvailable);
             int targetCore = -1;
-            // 如果指定了核心且在 Mask 範圍內，優先使用
-            if (preferredCore >= 0 && affinity.get(preferredCore)) {
-                targetCore = preferredCore;
-            } else {
-                // --- 核心優化：基於可用核心列表的循環分配 ---
-                int[] availableCores = new int[totalAvailableInMask];
-                int count = 0;
-                for (int i = affinity.nextSetBit(0); i >= 0; i = affinity.nextSetBit(i + 1)) {
-                    availableCores[count++] = i;
-                }
+            int currentIdx = 0;
 
-                // 取模分配，確保即使 Worker 數量超過核心數也能均勻分佈
-                int idx = Math.abs(assignedWorkerCount.getAndIncrement() % totalAvailableInMask);
-                targetCore = availableCores[idx];
+            // 3. 在掩碼中尋找第 targetIdx 個被設置的核心位點
+            for (int i = mask.nextSetBit(0); i >= 0; i = mask.nextSetBit(i + 1)) {
+                if (currentIdx++ == targetIdx) {
+                    targetCore = i;
+                    break;
+                }
             }
 
+            // 4. 執行物理綁定
             if (targetCore >= 0) {
-                BitSet nextAffinity = new BitSet();
-                nextAffinity.set(targetCore);
-                Affinity.setAffinity(nextAffinity);
-                
+                BitSet next = new BitSet();
+                next.set(targetCore);
+                Affinity.setAffinity(next);
                 isBound.set(true);
 
-                log.info("[AFFINITY] 執行緒 [{}] 成功綁定至物理核心: {} (Mask 總數: {})", 
-                         Thread.currentThread().getName(), targetCore, totalAvailableInMask);
+                log.info("[AFFINITY] 執行緒 {} 成功鎖定核心: {}", Thread.currentThread().getName(), targetCore);
                 return targetCore;
             }
         } catch (Exception e) {
-            log.error("[AFFINITY] 綁定過程中發生錯誤: {}", e.getMessage());
+            log.error("[AFFINITY] 核心綁定異常: {}", e.getMessage());
         }
         return -1;
     }

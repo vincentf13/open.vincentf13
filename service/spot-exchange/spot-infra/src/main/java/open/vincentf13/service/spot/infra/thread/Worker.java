@@ -7,25 +7,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** 
  高性能背景工作者基類 (Worker)
- 職責：管理單執行緒工作循環，支持 CPU 綁核與 Duty Cycle 監控。
+ 職責：管理單執行緒工作循環，支持自動 CPU 綁核與 Duty Cycle 監控。
  */
 public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
     private Thread thread;
-    private int boundCpu = -1;
 
-    /** 啟動工作者，可選擇性綁定物理核心 */
-    public void start(String name, int cpuId) {
+    /** 啟動工作者，自動分配核心 */
+    public void start(String name) {
         if (running.compareAndSet(false, true)) {
-            this.boundCpu = cpuId;
             thread = new Thread(this, name);
             thread.start();
             log.info("Worker {} started", name);
         }
     }
-
-    public void start(String name) { start(name, -1); }
 
     public void stop() {
         if (!running.compareAndSet(true, false) || thread == null) return;
@@ -40,11 +36,7 @@ public abstract class Worker implements Runnable {
 
     @Override
     public void run() {
-        int actualCpu = -1;
-        try { actualCpu = AffinityUtil.acquireAndBind(boundCpu); }
-        catch (Exception e) { log.warn("綁核失敗: {}", e.getMessage()); }
-        
-        onBind(actualCpu);
+        onBind(AffinityUtil.acquireAndBind());
         try {
             onStart();
             while (running.get() && !Thread.currentThread().isInterrupted()) {
