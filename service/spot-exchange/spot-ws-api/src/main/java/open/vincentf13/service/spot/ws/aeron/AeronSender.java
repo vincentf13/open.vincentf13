@@ -3,7 +3,6 @@ package open.vincentf13.service.spot.ws.aeron;
 import io.aeron.Aeron;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
@@ -25,7 +24,7 @@ import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 public class AeronSender extends AbstractAeronSender {
 
     public AeronSender(Aeron aeron) {
-        super(aeron, Storage.self().gatewaySenderWal(), 
+        super(Storage.self().gatewaySenderWal(), 
               AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID,
               AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
     }

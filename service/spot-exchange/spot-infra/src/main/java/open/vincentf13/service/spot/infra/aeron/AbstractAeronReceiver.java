@@ -1,9 +1,9 @@
 package open.vincentf13.service.spot.infra.aeron;
 
-import io.aeron.Aeron;
 import io.aeron.FragmentAssembler;
 import io.aeron.Publication;
 import io.aeron.Subscription;
+import io.aeron.logbuffer.BufferClaim;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.Worker;
@@ -20,7 +20,6 @@ public abstract class AbstractAeronReceiver extends Worker {
         void onMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length);
     }
 
-    protected final Aeron aeron;
     protected final ChronicleMap<Byte, MsgProgress> metadata;
     protected final byte metadataKey;
     protected final String subUrl, controlUrl;
@@ -36,9 +35,9 @@ public abstract class AbstractAeronReceiver extends Worker {
     private long localPollCount = 0;
     private AeronMessageHandler externalHandler;
 
-    public AbstractAeronReceiver(Aeron aeron, ChronicleMap<Byte, MsgProgress> metadata, byte metadataKey,
+    public AbstractAeronReceiver(ChronicleMap<Byte, MsgProgress> metadata, byte metadataKey,
                                  String subUrl, int subStreamId, String controlUrl, int controlStreamId) {
-        this.aeron = aeron; this.metadata = metadata; this.metadataKey = metadataKey;
+        this.metadata = metadata; this.metadataKey = metadataKey;
         this.subUrl = subUrl; this.subStreamId = subStreamId;
         this.controlUrl = controlUrl; this.controlStreamId = controlStreamId;
     }
@@ -48,10 +47,10 @@ public abstract class AbstractAeronReceiver extends Worker {
     public int poll(AeronMessageHandler handler, int limit) {
         this.externalHandler = handler;
         if (currentState == AeronState.SENDING && !subscription.isConnected()) currentState = AeronState.WAITING;
-        if (currentState == AeronState.WAITING && System.currentTimeMillis() - lastResumeTime > Config.RESUME_SIGNAL_INTERVAL_MS) sendResume();
+        if (currentState == AeronState.WAITING && System.currentTimeMillis() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
         
         int done = subscription.poll(assembler, limit);
-        if ((localPollCount += 1) >= Config.METRICS_BATCH_SIZE) {
+        if ((localPollCount += 1) >= AeronConstants.METRICS_BATCH_SIZE) {
             open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.POLL_COUNT, localPollCount);
             localPollCount = 0;
         }
@@ -60,8 +59,8 @@ public abstract class AbstractAeronReceiver extends Worker {
 
     @Override
     protected void onStart() {
-        subscription = aeron.addSubscription(subUrl, subStreamId);
-        controlPub = aeron.addPublication(controlUrl, controlStreamId);
+        subscription = AeronClientHolder.aeron().addSubscription(subUrl, subStreamId);
+        controlPub = AeronClientHolder.aeron().addPublication(controlUrl, controlStreamId);
         assembler = new FragmentAssembler(this::fragmentHandler);
         
         MsgProgress saved = metadata.get(metadataKey);
@@ -71,18 +70,18 @@ public abstract class AbstractAeronReceiver extends Worker {
         sendResume();
     }
 
-    @Override protected int doWork() { return poll(null, Config.AERON_POLL_LIMIT); }
+    @Override protected int doWork() { return poll(null, AeronConstants.AERON_POLL_LIMIT); }
 
     protected void sendResume() {
-        AeronUtil.send(controlPub, Config.RESUME_SIGNAL_LENGTH, (buffer, offset) -> {
+        AeronUtil.send(controlPub, AeronConstants.RESUME_SIGNAL_LENGTH, (buffer, offset) -> {
             buffer.putInt(offset, MsgType.RESUME);
-            buffer.putLong(offset + Config.MSG_SEQ_OFFSET, progress.getLastProcessedSeq());
+            buffer.putLong(offset + AeronConstants.MSG_SEQ_OFFSET, progress.getLastProcessedSeq());
         }, running);
         lastResumeTime = System.currentTimeMillis();
     }
 
     private void fragmentHandler(org.agrona.DirectBuffer buffer, int offset, int length, io.aeron.logbuffer.Header header) {
-        final long msgSeq = buffer.getLong(offset + Config.MSG_SEQ_OFFSET), lastSeq = progress.getLastProcessedSeq();
+        final long msgSeq = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET), lastSeq = progress.getLastProcessedSeq();
         
         if (currentState == AeronState.WAITING) {
             if (msgSeq < lastSeq && lastSeq != MSG_SEQ_NONE) progress.setLastProcessedSeq(MSG_SEQ_NONE);
@@ -100,7 +99,7 @@ public abstract class AbstractAeronReceiver extends Worker {
         else onMessage(buffer, offset, length);
         
         progress.setLastProcessedSeq(msgSeq);
-        if (msgSeq % Config.METADATA_FLUSH_PERIOD == 0) metadata.put(metadataKey, progress);
+        if (msgSeq % AeronConstants.METADATA_FLUSH_PERIOD == 0) metadata.put(metadataKey, progress);
     }
 
     protected abstract void onMessage(org.agrona.DirectBuffer buffer, int offset, int length);

@@ -2,6 +2,7 @@ package open.vincentf13.service.spot.infra.aeron;
 
 import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
+import open.vincentf13.service.spot.infra.thread.Strategies;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.IdleStrategy;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,7 +29,7 @@ public class AeronUtil {
      */
     public static int send(Publication publication, int length, AeronHandler handler, AtomicBoolean running) {
         final BufferClaim bufferClaim = AeronThreadContext.bufferClaim();
-        final IdleStrategy idleStrategy = AeronThreadContext.idleStrategy();
+        final IdleStrategy idleStrategy = Strategies.BUSY_SPIN;
         int backPressureCount = 0;
 
         while (running.get()) {
@@ -41,7 +42,7 @@ public class AeronUtil {
                 }
                 return 0;
             } else if (result == Publication.BACK_PRESSURED || result == Publication.ADMIN_ACTION) {
-                if (++backPressureCount > Config.BACK_PRESSURE_RETRY_LIMIT) return -2;
+                if (++backPressureCount > AeronConstants.BACK_PRESSURE_RETRY_LIMIT) return -2;
                 idleStrategy.idle();
             } else if (result == Publication.NOT_CONNECTED) {
                 return -1;

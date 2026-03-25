@@ -24,7 +24,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
     private static final int BATCH_SIZE = Matching.ENGINE_BATCH_SIZE;
 
     public AeronReceiver(Aeron aeron, Engine engine) {
-        super(aeron, Storage.self().msgProgressMetadata(),
+        super(Storage.self().msgProgressMetadata(),
               MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE,
               AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID,
               AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
@@ -43,10 +43,10 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected void onStart() {
-        // 1. 先讓 Engine 完成冷啟動與索引重建，確保業務完全就緒
+        // 1. 先讓 Engine 完成 cold start，確保業務完全就緒
         engine.onStart();
 
-        // 2. 從 Engine 的落地點同步 Aeron 的接收進度，確保不丟失訊息
+        // 2. 從 Engine 的落地點同步 Aeron 的接收進度
         WalProgress engineProgress = Storage.self().walMetadata().get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
         if (engineProgress != null) {
             long seq = engineProgress.getLastProcessedMsgSeq();
@@ -54,16 +54,16 @@ public class AeronReceiver extends AbstractAeronReceiver {
             log.info("[AERON-RECEIVER] 根據業務落地點對齊 Sequence: {}", seq);
         }
 
-        // 3. 啟動 Aeron 訂閱並發送握手訊號，開啟網路閘門
+        // 3. 啟動基類 Aeron 訂閱
         super.onStart();
     }
 
     @Override
     protected int doWork() {
-        // 1. 執行 Aeron 輪詢並觸發 engine.onMessage
+        // 1. 執行 Aeron 輪詢
         final int done = poll(engine, BATCH_SIZE);
 
-        // 2. 驅動 Engine 週期性任務 (智慧落地、系統指標)
+        // 2. 驅動 Engine 週期性任務
         engine.tick(done);
 
         return done;
@@ -77,7 +77,6 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     public void onMessage(DirectBuffer buffer, int offset, int length) {
-        // 此處僅為介面實作要求，Poll 模式下所有訊息會流向 Engine.onMessage
         log.warn("[AERON-RECEIVER] 意外進入備援 Handler: {}", length);
     }
 }
