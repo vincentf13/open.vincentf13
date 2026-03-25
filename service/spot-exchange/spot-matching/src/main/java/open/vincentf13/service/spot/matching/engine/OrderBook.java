@@ -298,10 +298,14 @@ public class OrderBook {
         // 2. 更新持久化緩衝與內存索引
         final long oid = o.getOrderId(), uid = o.getUserId();
         pendingOrders.put(oid, o);
-        
-        LongHashSet userOrders = userOrderIdsIndex.computeIfAbsent(uid, k -> new LongHashSet(16));
-        if (o.getStatus() < 2) { // NEW, PARTIAL
-            pendingActiveAdds.add(oid);
+
+        LongHashSet userOrders = userOrderIdsIndex.get(uid);
+        if (userOrders == null) {
+            userOrders = new LongHashSet(16);
+            userOrderIdsIndex.put(uid, userOrders);
+        }
+
+        if (o.getStatus() < 2) { // NEW, PARTIAL            pendingActiveAdds.add(oid);
             pendingActiveRemovals.remove(oid);
             userOrders.add(oid);
         } else { // FILLED, CANCELED
