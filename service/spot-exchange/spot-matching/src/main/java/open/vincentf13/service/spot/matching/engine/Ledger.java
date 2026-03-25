@@ -97,19 +97,20 @@ public class Ledger {
         return b;
     }
 
-    public void settleTrade(long mUid, long tUid, long tradePrice, long tradeQty, byte takerSide, long takerPrice, long seq, int baseAssetId, int quoteAssetId, long tradeId) {
+    public void settleTrade(long mUid, long tUid, long tradePrice, long tradeQty, byte takerSide, long mFrozenDelta, long tFrozenDelta, long seq, int baseAssetId, int quoteAssetId, long tradeId) {
         final long floor = DecimalUtil.mulFloor(tradePrice, tradeQty), ceil = DecimalUtil.mulCeil(tradePrice, tradeQty);
 
         if (takerSide == OrderSide.BUY) {
-            final long takerFrozenTotal = DecimalUtil.mulCeil(takerPrice, tradeQty);
-            access(tUid, quoteAssetId, takerFrozenTotal - ceil, -takerFrozenTotal, seq, tradeId);
+            // Taker 是買方：扣除 Taker 的凍結款項 (tFrozenDelta)，增加 Taker 的 Base，減少 Maker 的 Base，增加 Maker 的 Quote (floor)
+            access(tUid, quoteAssetId, tFrozenDelta - ceil, -tFrozenDelta, seq, tradeId);
             access(tUid, baseAssetId, tradeQty, 0, seq, tradeId);
             access(mUid, baseAssetId, 0, -tradeQty, seq, tradeId);
             access(mUid, quoteAssetId, floor, 0, seq, tradeId);
         } else {
-            access(tUid, baseAssetId, 0, -tradeQty, seq, tradeId);
+            // Taker 是賣方：扣除 Taker 的 Base (tFrozenDelta=tradeQty)，增加 Taker 的 Quote (floor)，減少 Maker 的 Quote (mFrozenDelta)，增加 Maker 的 Base (tradeQty)
+            access(tUid, baseAssetId, 0, -tFrozenDelta, seq, tradeId);
             access(tUid, quoteAssetId, floor, 0, seq, tradeId);
-            access(mUid, quoteAssetId, 0, -ceil, seq, tradeId);
+            access(mUid, quoteAssetId, mFrozenDelta - ceil, -mFrozenDelta, seq, tradeId);
             access(mUid, baseAssetId, tradeQty, 0, seq, tradeId);
         }
         if (ceil > floor) access(PLATFORM_USER_ID, quoteAssetId, ceil - floor, 0, seq, tradeId);

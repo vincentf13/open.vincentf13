@@ -15,6 +15,7 @@ public class Order implements BytesMarshallable {
     private long price;
     private long qty;
     private long filled;
+    private long frozen; // Initially frozen amount (for BUY orders)
     private long version;
     private long timestamp;
     private long lastSeq;
@@ -30,6 +31,7 @@ public class Order implements BytesMarshallable {
         this.price = price;
         this.qty = qty;
         this.filled = 0;
+        this.frozen = 0;
         this.side = side;
         this.status = 0;
         this.version = 1;
@@ -44,6 +46,7 @@ public class Order implements BytesMarshallable {
         bytes.writeLong(price);
         bytes.writeLong(qty);
         bytes.writeLong(filled);
+        bytes.writeLong(frozen);
         bytes.writeLong(version);
         bytes.writeLong(timestamp);
         bytes.writeLong(lastSeq);
@@ -60,6 +63,7 @@ public class Order implements BytesMarshallable {
         price = bytes.readLong();
         qty = bytes.readLong();
         filled = bytes.readLong();
+        frozen = bytes.readLong();
         version = bytes.readLong();
         timestamp = bytes.readLong();
         lastSeq = bytes.readLong();

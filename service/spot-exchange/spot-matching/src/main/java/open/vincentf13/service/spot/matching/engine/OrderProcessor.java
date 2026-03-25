@@ -41,6 +41,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final open.vincentf13.service.spot.infra.chronicle.LongValue cancelKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
     private long currentGatewaySequence;
     private long currentTakerUserId;
+    private long currentTakerPrice;
     private byte currentTakerSide;
 
     @PostConstruct
@@ -96,20 +97,46 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         book.remove(orderId);
 
         int assetId = (order.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
-        long remainingQty = order.getQty() - order.getFilled();
-        long unfreezeAmount = (order.getSide() == OrderSide.BUY) ? DecimalUtil.mulFloor(order.getPrice(), remainingQty) : remainingQty;
-        ledger.unfreezeBalance(order.getUserId(), assetId, unfreezeAmount, gatewaySequence);
+        // 直接使用 order 中剩餘的 frozen 金額，確保 100% 準確
+        ledger.unfreezeBalance(order.getUserId(), assetId, order.getFrozen(), gatewaySequence);
 
         order.setStatus((byte) OrderStatus.CANCELED.ordinal());
         order.setLastSeq(gatewaySequence);
+        order.setFrozen(0); // 撤單後歸零
         orders.put(cancelKey, order);
         reporter.reportCanceled(order);
     }
 
     /** 實作 TradeFinalizer 接口以複用 */
     @Override
-    public void onMatch(long tradeId, Order maker, long tradePrice, long tradeQty, int baseAsset, int quoteAsset) {
-        ledger.settleTrade(maker.getUserId(), currentTakerUserId, tradePrice, tradeQty, currentTakerSide, tradePrice, currentGatewaySequence, baseAsset, quoteAsset, tradeId);
+    public void onMatch(long tradeId, Order maker, Order taker, long tradePrice, long tradeQty, int baseAsset, int quoteAsset) {
+        long mFrozenDelta, tFrozenDelta;
+        
+        if (maker.getSide() == OrderSide.BUY) {
+            // Maker 是買方：計算此次成交應釋放的凍結金額
+            long remainingQty = maker.getQty() - maker.getFilled(); // 注意：此時 filled 已包含此次成交量
+            long nextFrozen = DecimalUtil.mulCeil(maker.getPrice(), remainingQty);
+            mFrozenDelta = maker.getFrozen() - nextFrozen;
+            maker.setFrozen(nextFrozen);
+        } else {
+            // Maker 是賣方：凍結的是 Base， delta 就是 tradeQty
+            mFrozenDelta = tradeQty;
+            maker.setFrozen(maker.getFrozen() - tradeQty);
+        }
+
+        if (taker.getSide() == OrderSide.BUY) {
+            // Taker 是買方
+            long remainingQty = taker.getQty() - taker.getFilled();
+            long nextFrozen = DecimalUtil.mulCeil(taker.getPrice(), remainingQty);
+            tFrozenDelta = taker.getFrozen() - nextFrozen;
+            taker.setFrozen(nextFrozen);
+        } else {
+            // Taker 是賣方
+            tFrozenDelta = tradeQty;
+            taker.setFrozen(taker.getFrozen() - tradeQty);
+        }
+
+        ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, currentGatewaySequence, baseAsset, quoteAsset, tradeId);
     }
 
     private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, long orderId, 
@@ -124,11 +151,15 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         }
 
         this.currentTakerUserId = userId;
+        this.currentTakerPrice = price;
         this.currentTakerSide = (byte) (side == Side.BUY ? OrderSide.BUY : OrderSide.SELL);
         this.currentGatewaySequence = gatewaySequence;
 
         // 3. 進入 OrderBook 撮合
         Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, progress, this);
+        if (taker != null) {
+            taker.setFrozen(freezeAmount);
+        }
 
         // 4. 寫入客戶端訂單 ID 映射緩衝
         if (bufferCount < BUFFER_SIZE) {

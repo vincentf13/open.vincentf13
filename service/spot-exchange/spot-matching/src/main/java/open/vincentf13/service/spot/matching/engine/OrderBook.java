@@ -95,7 +95,7 @@ public class OrderBook {
     private final open.vincentf13.service.spot.infra.chronicle.LongValue flushActiveKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
 
     public interface TradeFinalizer {
-        void onMatch(long tradeId, Order maker, long price, long qty, int baseAsset, int quoteAsset);
+        void onMatch(long tradeId, Order maker, Order taker, long price, long qty, int baseAsset, int quoteAsset);
     }
 
     private OrderBook(int symbolId, int baseAssetId, int quoteAssetId) {
@@ -156,6 +156,7 @@ public class OrderBook {
         dst.setOrderId(src.getOrderId()); dst.setUserId(src.getUserId());
         dst.setSymbolId(src.getSymbolId()); dst.setPrice(src.getPrice());
         dst.setQty(src.getQty()); dst.setFilled(src.getFilled());
+        dst.setFrozen(src.getFrozen());
         dst.setSide(src.getSide()); dst.setStatus(src.getStatus());
         dst.setVersion(src.getVersion()); dst.setLastSeq(src.getLastSeq());
         dst.setClientOrderId(src.getClientOrderId());
@@ -242,7 +243,7 @@ public class OrderBook {
             taker.setFilled(taker.getFilled() + matchQty);
             
             TOTAL_MATCH_COUNT.incrementAndGet();
-            finalizer.onMatch(tid, maker, price, matchQty, baseAssetId, quoteAssetId);
+            finalizer.onMatch(tid, maker, taker, price, matchQty, baseAssetId, quoteAssetId);
 
             if (maker.getFilled() == maker.getQty()) {
                 finalizeMakerFilled(maker, gwSeq);
