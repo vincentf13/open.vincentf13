@@ -13,6 +13,7 @@ const METRICS_URL = 'http://127.0.0.1:8082/api/test/metrics/saturation';
 
 const MSG_TYPE_AUTH = 103;
 const MSG_TYPE_ORDER_CREATE = 100;
+const MSG_TYPE_DEPOSIT = 102;
 const SBE_SCHEMA_ID = 1;
 const SBE_VERSION = 0;
 
@@ -31,6 +32,22 @@ function createAuthBuffer(uid) {
     return buffer;
 }
 
+/** 預分配 Deposit Buffer */
+function createDepositBuffer(uid, aid, amt) {
+    const buffer = new ArrayBuffer(20 + 20);
+    const view = new DataView(buffer);
+    view.setInt32(0, MSG_TYPE_DEPOSIT, true); 
+    view.setBigInt64(4, BigInt(-1), true); 
+    view.setUint16(12, 20, true);
+    view.setUint16(14, 102, true);
+    view.setUint16(16, SBE_SCHEMA_ID, true);
+    view.setUint16(18, SBE_VERSION, true);
+    view.setBigInt64(20, BigInt(uid), true);
+    view.setInt32(28, aid, true);
+    view.setBigInt64(32, BigInt(amt), true);
+    return buffer;
+}
+
 /** 預分配 Order Buffer */
 function createPreallocatedOrderBuffer() {
     const buffer = new ArrayBuffer(20 + 45);
@@ -43,13 +60,15 @@ function createPreallocatedOrderBuffer() {
     view.setUint16(18, SBE_VERSION, true);
     view.setInt32(36, 1001, true); // SymbolId
     view.setBigInt64(40, BigInt(100), true); // Price
-    view.setBigInt64(48, BigInt(1), true);   // Qty
+    view.setBigInt64(48, BigInt(100), true);   // Qty (增加一點數量，讓撮合更穩定)
     return { buffer, view };
 }
 
 export default function () {
     const uid = __VU + 1000;
     const authBuf = createAuthBuffer(uid);
+    const btcDep  = createDepositBuffer(uid, 1, 100000000000L); // 1000 BTC
+    const usdtDep = createDepositBuffer(uid, 2, 100000000000L); // 1000 USDT
     const { buffer, view } = createPreallocatedOrderBuffer();
     let cidCounter = Date.now() * 1000 + (__VU * 1000000);
 
@@ -57,8 +76,11 @@ export default function () {
         socket.on('open', function () {
             // 1. 必須發送 Auth
             socket.sendBinary(authBuf);
+            // 2. 充值以確保餘額充足
+            socket.sendBinary(btcDep);
+            socket.sendBinary(usdtDep);
 
-            // 2. 開始極速下單
+            // 3. 開始極速下單
             socket.setInterval(function () {
                 const ts = BigInt(Date.now());
                 for (let i = 0; i < 20; i++) {
