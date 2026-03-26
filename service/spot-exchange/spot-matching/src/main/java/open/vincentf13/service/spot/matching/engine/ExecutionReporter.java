@@ -1,6 +1,8 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.service.spot.infra.Constants.MetricsKey;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
 import org.springframework.stereotype.Component;
@@ -17,6 +19,7 @@ public class ExecutionReporter implements AutoCloseable {
     private long acceptedCount = 0;
 
     public void reportAccepted(Order taker) {
+        StaticMetricsHolder.addCounter(MetricsKey.ORDER_ACCEPTED_COUNT, 1);
         if (++acceptedCount % 1000 == 0) {
             log.info("[MATCHING-ACCEPTED] (Sampled 1/1000) UserId: {}, ClientOrderId: {}, Total: {}", taker.getUserId(), taker.getClientOrderId(), acceptedCount);
         }
@@ -27,6 +30,7 @@ public class ExecutionReporter implements AutoCloseable {
     public void reportCanceled(Order order) { }
 
     public void reportRejected(long userId, long clientOrderId) {
+        StaticMetricsHolder.addCounter(MetricsKey.ORDER_REJECTED_COUNT, 1);
         if (++rejectedCount % 1000 == 0) {
             log.warn("[MATCHING-REJECTED] (Sampled 1/1000) UserId: {}, ClientOrderId: {}, Total: {}", userId, clientOrderId, rejectedCount);
         }

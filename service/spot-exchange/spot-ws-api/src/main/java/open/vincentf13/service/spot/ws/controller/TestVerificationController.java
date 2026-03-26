@@ -45,6 +45,8 @@ public class TestVerificationController {
         m.put("wal_write", get(MetricsKey.GATEWAY_WAL_WRITE_COUNT));
         m.put("aeron_send", get(MetricsKey.AERON_SEND_COUNT));
         m.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
+        m.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
+        m.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
 
         m.put("matching_jvm", formatJvm(MetricsKey.MATCHING_JVM_USED_MB, MetricsKey.MATCHING_JVM_MAX_MB));
         m.put("matching_gc", formatGc(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_LAST_DURATION_MS));

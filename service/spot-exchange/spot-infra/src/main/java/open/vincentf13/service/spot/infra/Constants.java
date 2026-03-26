@@ -117,60 +117,62 @@ public class Constants {
      * 監控指標 Key 定義 (Metrics Keys)
      */
     public static class MetricsKey {
-        public static final long NETTY_RECV_COUNT = -3L;
-        public static final long AERON_BACKPRESSURE = -4L;
-        public static final long GATEWAY_WAL_WRITE_COUNT = -5L;
-        public static final long AERON_SEND_COUNT = -6L;
-        public static final long AERON_DROPPED_COUNT = -7L; // 新增：丟包計數指標
-        public static final long GATEWAY_WAL_DROP_COUNT = -8L; // 新增：網關 WAL 佇列丟失計數
+        public static final long NETTY_RECV_COUNT = 3L;
+        public static final long AERON_BACKPRESSURE = 4L;
+        public static final long GATEWAY_WAL_WRITE_COUNT = 5L;
+        public static final long AERON_SEND_COUNT = 6L;
+        public static final long AERON_DROPPED_COUNT = 7L; // 新增：丟包計數指標
+        public static final long GATEWAY_WAL_DROP_COUNT = 8L; // 新增：網關 WAL 佇列丟失計數
         // 業務指標 (Counters)
-        public static final long MATCH_COUNT = -9L;
+        public static final long MATCH_COUNT = 9L;
+        public static final long ORDER_ACCEPTED_COUNT = 12L;
+        public static final long ORDER_REJECTED_COUNT = 13L;
 
         // 延遲分佈指標 (Latencies - Nanoseconds)
-        public static final long LATENCY_MATCHING = -10L;
-        public static final long LATENCY_TRANSPORT = -11L;
+        public static final long LATENCY_MATCHING = 10L;
+        public static final long LATENCY_TRANSPORT = 11L;
 
-        // 分位數指標 (Percentiles)
+        // 分位數指標 (Percentiles) - 這些用於 Chronicle Map 編碼，不直接作為 Micrometer Key
         public static final long P50 = 50L;
         public static final long P90 = 90L;
         public static final long P99 = 99L;
         public static final long P999 = 999L;
         public static final long MAX = 100L;
 
-        // CPU ID 監測指標 (執行緒綁核追蹤)
-        public static final long CPU_ID_ENGINE = -100L;
-        public static final long CPU_ID_WAL_WRITER = -101L;
-        public static final long CPU_ID_AERON_SENDER = -102L;
-        public static final long CPU_ID_AERON_RECEIVER = -103L;
-        public static final long CPU_ID_JVM_MANAGEMENT = -105L;
-        public static final long CPU_ID_NETTY_BOSS = -106L;
-        public static final long CPU_ID_NETTY_WORKER_1 = -107L;
-        public static final long CPU_ID_NETTY_WORKER_2 = -108L;
-        public static final long CPU_ID_NETTY_WORKER_3 = -110L;
-        public static final long CPU_ID_NETTY_WORKER_4 = -111L;
-        public static final long CPU_ID_AERON_CONDUCTOR = -109L;
+        // CPU ID 監測指標 (執行緒綁核追蹤) - 使用 1000+ 避開百分位數
+        public static final long CPU_ID_ENGINE = 1000L;
+        public static final long CPU_ID_WAL_WRITER = 1001L;
+        public static final long CPU_ID_AERON_SENDER = 1002L;
+        public static final long CPU_ID_AERON_RECEIVER = 1003L;
+        public static final long CPU_ID_JVM_MANAGEMENT = 1005L;
+        public static final long CPU_ID_NETTY_BOSS = 1006L;
+        public static final long CPU_ID_NETTY_WORKER_1 = 1007L;
+        public static final long CPU_ID_NETTY_WORKER_2 = 1008L;
+        public static final long CPU_ID_NETTY_WORKER_3 = 1010L;
+        public static final long CPU_ID_NETTY_WORKER_4 = 1011L;
+        public static final long CPU_ID_AERON_CONDUCTOR = 1009L;
 
         // JVM 與 CPU 指標
-        public static final long MATCHING_JVM_USED_MB = -200L;
-        public static final long MATCHING_JVM_MAX_MB = -201L;
-        public static final long MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE = -202L;
+        public static final long MATCHING_JVM_USED_MB = 200L;
+        public static final long MATCHING_JVM_MAX_MB = 201L;
+        public static final long MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE = 202L;
         
-        public static final long GATEWAY_JVM_USED_MB = -210L;
-        public static final long GATEWAY_JVM_MAX_MB = -211L;
-        public static final long GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE = -212L;
+        public static final long GATEWAY_JVM_USED_MB = 210L;
+        public static final long GATEWAY_JVM_MAX_MB = 211L;
+        public static final long GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE = 212L;
 
         // GC 監控指標
-        public static final long MATCHING_GC_COUNT = -300L;
-        public static final long MATCHING_GC_LAST_INTERVAL_MS = -301L;
-        public static final long MATCHING_GC_LAST_DURATION_MS = -302L;
+        public static final long MATCHING_GC_COUNT = 300L;
+        public static final long MATCHING_GC_LAST_INTERVAL_MS = 301L;
+        public static final long MATCHING_GC_LAST_DURATION_MS = 302L;
         
-        public static final long GATEWAY_GC_COUNT = -310L;
-        public static final long GATEWAY_GC_LAST_INTERVAL_MS = -311L;
-        public static final long GATEWAY_GC_LAST_DURATION_MS = -312L;
+        public static final long GATEWAY_GC_COUNT = 310L;
+        public static final long GATEWAY_GC_LAST_INTERVAL_MS = 311L;
+        public static final long GATEWAY_GC_LAST_DURATION_MS = 312L;
 
         // GC 歷史記錄 (最近 100 筆時間戳)
-        public static final long MATCHING_GC_HISTORY_START = -400L;
-        public static final long GATEWAY_GC_HISTORY_START = -500L;
+        public static final long MATCHING_GC_HISTORY_START = 400L;
+        public static final long GATEWAY_GC_HISTORY_START = 500L;
         public static final int GC_HISTORY_MAX_KEEP = 100;
     }
 
