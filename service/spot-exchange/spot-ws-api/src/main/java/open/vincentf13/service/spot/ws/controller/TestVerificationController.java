@@ -54,11 +54,13 @@ public class TestVerificationController {
         m.put("gateway_gc",  buildGcInfo(MetricsKey.GATEWAY_GC_COUNT,  MetricsKey.GATEWAY_GC_HISTORY_START));
 
         Map<String, List<Integer>> cpuIds = new LinkedHashMap<>();
-        cpuIds.put("matching_engine", parseCpuMask(get(MetricsKey.CPU_ID_ENGINE)));
         cpuIds.put("matching_receiver", parseCpuMask(get(MetricsKey.CPU_ID_AERON_RECEIVER)));
-        cpuIds.put("gateway_sender", parseCpuMask(get(MetricsKey.CPU_ID_AERON_SENDER)));
-        cpuIds.put("netty_boss", parseCpuMask(get(MetricsKey.CPU_ID_NETTY_BOSS)));
-        cpuIds.put("netty_worker_1", parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_1)));
+        cpuIds.put("gateway_sender",    parseCpuMask(get(MetricsKey.CPU_ID_AERON_SENDER)));
+        cpuIds.put("netty_boss",        parseCpuMask(get(MetricsKey.CPU_ID_NETTY_BOSS)));
+        cpuIds.put("netty_worker_1",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_1)));
+        cpuIds.put("netty_worker_2",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_2)));
+        cpuIds.put("netty_worker_3",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_3)));
+        cpuIds.put("netty_worker_4",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_4)));
         m.put("cpu_affinity_history", cpuIds);
         
         m.put("latency", Map.of(

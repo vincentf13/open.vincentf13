@@ -97,9 +97,9 @@ public class NettyServer {
         for (io.netty.util.concurrent.EventExecutor executor : group) {
             if (i >= keys.length) break;
             final long key = keys[i++];
-            executor.scheduleAtFixedRate(() -> {
-                StaticMetricsHolder.setGauge(key, AffinityUtil.currentCpu());
-            }, 1, 1, TimeUnit.SECONDS);
+            executor.scheduleAtFixedRate(() ->
+                StaticMetricsHolder.recordCpuId(key, AffinityUtil.currentCpu()),
+            1, 1, TimeUnit.SECONDS);
         }
     }
 
@@ -117,14 +117,11 @@ public class NettyServer {
         public Thread newThread(Runnable r) {
             int currentIdx = counter.getAndIncrement();
             Runnable bindingTask = () -> {
-                int cpuId = -1;
                 try {
-                    cpuId = AffinityUtil.acquireAndBind();
+                    int cpuId = AffinityUtil.acquireAndBind();
+                    if (metricKeys != null && currentIdx < metricKeys.length)
+                        StaticMetricsHolder.recordCpuId(metricKeys[currentIdx], cpuId);
                 } catch (Throwable ignored) {}
-                
-                if (metricKeys != null && currentIdx < metricKeys.length) {
-                    StaticMetricsHolder.setGauge(metricKeys[currentIdx], cpuId);
-                }
                 r.run();
             };
             return new Thread(bindingTask, prefix + "-" + (currentIdx + 1));
