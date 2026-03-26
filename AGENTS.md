@@ -2,9 +2,7 @@
 
 ## Repo Layout
 - Root `pom.xml` 聚合 `sdk`、`service`；指令從根目錄執行。
-- `sdk/`: 橫切關注點 (Log, MySQL, Redis, Kafka, Auth等)；`sdk-contract/`: 契約與 DTO。
 - `service/<module>/`: 業務微服務，含專屬 `pom.xml` 與 `Dockerfile`。
-- `k8s/`: 集群部署清單；`doc/exchange/`: 核心設計文件（優先權最高）。
 
 ## Build & Run
 - 政策：Agent 預設**不執行 Maven 指令與測試**；必要時僅執行 `mvn clean compile`。
@@ -14,13 +12,6 @@
 - **基礎規範**: Java UTF-8, 4-space; PascalCase 類名, camelCase 成員, UPPER_SNAKE 常數; 偏好建構子注入。
 - **簡約原則**: Intent-Centric 風格，直接使用入參或欄位，避免多餘的 `null` 判斷、包裝或暫存變數；移除所有 `System.out`。
     - **例外**: 若入參或欄位操作後，需要宣告一個區域變數以說明其運算意義並增加可讀性（例如：說明堆外內存位址計算過程），則應使用具備明確語義的變數名稱。
-- **資料轉換**: 一律使用 `open.vincentf13.sdk.core.object.mapper.OpenObjectMapper`。
-- **註解格式**: 
-  /** 
-    多行內容使用兩空格縮排
-    結尾對齊，不使用星號前綴
-   */
-- **持久化**: 批次操作統一用 `open.vincentf13.sdk.infra.mysql.OpenMybatisBatchExecutor` (1,000 筆 flush)。
 
 ## 驗證與測試 (受命執行時)
 ### 1. 結構與風格
