@@ -10,8 +10,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class GatewayJvmReporter extends AbstractJvmReporter {
 
-    @Override protected long getUsedMbKey() { return MetricsKey.GATEWAY_JVM_USED_MB; }
-    @Override protected long getMaxMbKey() { return MetricsKey.GATEWAY_JVM_MAX_MB; }
-    @Override protected long getGcCountKey() { return MetricsKey.GATEWAY_GC_COUNT; }
-    @Override protected long getGcDurationKey() { return MetricsKey.GATEWAY_GC_LAST_DURATION_MS; }
+    @Override protected long getUsedMbKey()      { return MetricsKey.GATEWAY_JVM_USED_MB; }
+    @Override protected long getMaxMbKey()       { return MetricsKey.GATEWAY_JVM_MAX_MB; }
+    @Override protected long getGcCountKey()     { return MetricsKey.GATEWAY_GC_COUNT; }
+    @Override protected long getGcDurationKey()  { return MetricsKey.GATEWAY_GC_LAST_DURATION_MS; }
+    @Override protected long getGcHistoryStart() { return MetricsKey.GATEWAY_GC_HISTORY_START; }
 }

@@ -3,12 +3,14 @@ package open.vincentf13.service.spot.infra.metrics;
 import com.sun.management.GarbageCollectionNotificationInfo;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * JVM 指標回報器 (抽象基類)
@@ -17,24 +19,32 @@ import java.lang.management.ManagementFactory;
 @Slf4j
 public abstract class AbstractJvmReporter {
 
+    // 循環寫入 GC 歷史槽位的計數器
+    private final AtomicInteger gcSlot = new AtomicInteger(0);
+
     @PostConstruct
     public void init() {
         for (GarbageCollectorMXBean gcBean : ManagementFactory.getGarbageCollectorMXBeans()) {
             if (gcBean instanceof NotificationEmitter emitter) {
                 emitter.addNotificationListener((notification, handback) -> {
-                    if (GarbageCollectionNotificationInfo.GARBAGE_COLLECTION_NOTIFICATION.equals(notification.getType())) {
-                        CompositeData cd = (CompositeData) notification.getUserData();
-                        GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from(cd);
-                        if (!info.getGcAction().toLowerCase().contains("end of")) return;
-                        
-                        StaticMetricsHolder.setGauge(getGcDurationKey(), info.getGcInfo().getDuration());
-                        StaticMetricsHolder.addCounter(getGcCountKey(), 1);
-                    }
+                    if (!GarbageCollectionNotificationInfo.GARBAGE_COLLECTION_NOTIFICATION.equals(notification.getType())) return;
+                    CompositeData cd = (CompositeData) notification.getUserData();
+                    GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from(cd);
+                    if (!info.getGcAction().toLowerCase().contains("end of")) return;
+
+                    long durationMs = info.getGcInfo().getDuration();
+                    // 編碼：epochSeconds × 10^6 + durationMicros (上限 999_999µs ≈ 1s)
+                    long encoded = (System.currentTimeMillis() / 1000) * 1_000_000L
+                                 + Math.min(durationMs * 1000, 999_999L);
+
+                    int slot = gcSlot.getAndIncrement() % MetricsKey.GC_HISTORY_MAX_KEEP;
+                    StaticMetricsHolder.setGauge(getGcHistoryStart() + slot, encoded);
+                    StaticMetricsHolder.setGauge(getGcDurationKey(), durationMs);
+                    StaticMetricsHolder.addCounter(getGcCountKey(), 1);
                 }, null, null);
             }
         }
-        log.info("{} initialized with keys: [Used:{}, Max:{}, GcCount:{}, GcDur:{}]", 
-                 getClass().getSimpleName(), getUsedMbKey(), getMaxMbKey(), getGcCountKey(), getGcDurationKey());
+        log.info("{} initialized", getClass().getSimpleName());
     }
 
     @Scheduled(fixedRate = 1000)
@@ -42,14 +52,14 @@ public abstract class AbstractJvmReporter {
         Runtime r = Runtime.getRuntime();
         StaticMetricsHolder.setGauge(getUsedMbKey(), (r.totalMemory() - r.freeMemory()) / 1024 / 1024);
         StaticMetricsHolder.setGauge(getMaxMbKey(), r.maxMemory() / 1024 / 1024);
-        onReport(); // 提供鉤子給子類執行額外邏輯
+        onReport();
     }
 
     protected abstract long getUsedMbKey();
     protected abstract long getMaxMbKey();
     protected abstract long getGcCountKey();
     protected abstract long getGcDurationKey();
+    protected abstract long getGcHistoryStart();
 
-    /** 鉤子方法：子類可在此實作服務特有的回報邏輯 (如 TPS 歷史) */
     protected void onReport() {}
 }

@@ -12,10 +12,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class MatchingJvmReporter extends AbstractJvmReporter {
 
-    @Override protected long getUsedMbKey() { return MetricsKey.MATCHING_JVM_USED_MB; }
-    @Override protected long getMaxMbKey() { return MetricsKey.MATCHING_JVM_MAX_MB; }
-    @Override protected long getGcCountKey() { return MetricsKey.MATCHING_GC_COUNT; }
-    @Override protected long getGcDurationKey() { return MetricsKey.MATCHING_GC_LAST_DURATION_MS; }
+    @Override protected long getUsedMbKey()      { return MetricsKey.MATCHING_JVM_USED_MB; }
+    @Override protected long getMaxMbKey()       { return MetricsKey.MATCHING_JVM_MAX_MB; }
+    @Override protected long getGcCountKey()     { return MetricsKey.MATCHING_GC_COUNT; }
+    @Override protected long getGcDurationKey()  { return MetricsKey.MATCHING_GC_LAST_DURATION_MS; }
+    @Override protected long getGcHistoryStart() { return MetricsKey.MATCHING_GC_HISTORY_START; }
 
     @Override
     protected void onReport() {

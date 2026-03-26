@@ -49,9 +49,9 @@ public class TestVerificationController {
         m.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
 
         m.put("matching_jvm", formatJvm(MetricsKey.MATCHING_JVM_USED_MB, MetricsKey.MATCHING_JVM_MAX_MB));
-        m.put("matching_gc", formatGc(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_LAST_DURATION_MS));
+        m.put("matching_gc", buildGcInfo(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_HISTORY_START));
         m.put("gateway_jvm", formatJvm(MetricsKey.GATEWAY_JVM_USED_MB, MetricsKey.GATEWAY_JVM_MAX_MB));
-        m.put("gateway_gc", formatGc(MetricsKey.GATEWAY_GC_COUNT, MetricsKey.GATEWAY_GC_LAST_DURATION_MS));
+        m.put("gateway_gc",  buildGcInfo(MetricsKey.GATEWAY_GC_COUNT,  MetricsKey.GATEWAY_GC_HISTORY_START));
 
         Map<String, List<Integer>> cpuIds = new LinkedHashMap<>();
         cpuIds.put("matching_engine", parseCpuMask(get(MetricsKey.CPU_ID_ENGINE)));
@@ -88,9 +88,24 @@ public class TestVerificationController {
         return u == 0 ? "N/A" : String.format("%dMB (%.1f%%)", u, (double) u / (m == 0 ? 1 : m) * 100);
     }
 
-    private String formatGc(long countKey, long durationKey) {
+    private Map<String, Object> buildGcInfo(long countKey, long historyStart) {
         long count = get(countKey);
-        return count == 0 ? "No GC yet" : String.format("%d次 (最近耗時:%dms)", count, get(durationKey));
+        if (count == 0) return Map.of("count", 0, "history", List.of());
+
+        // 讀取所有非零歷史槽，解碼後按時間倒序排列
+        List<Map<String, Object>> history = new ArrayList<>();
+        for (int i = 0; i < MetricsKey.GC_HISTORY_MAX_KEEP; i++) {
+            long encoded = get(historyStart + i);
+            if (encoded == 0) continue;
+            long epochSec     = encoded / 1_000_000L;
+            long durationUs   = encoded % 1_000_000L;
+            history.add(Map.of(
+                "time",     TIME.format(Instant.ofEpochSecond(epochSec)),
+                "duration", durationUs + "µs"
+            ));
+        }
+        history.sort((a, b) -> b.get("time").toString().compareTo(a.get("time").toString()));
+        return Map.of("count", count, "history", history);
     }
 
     private List<Map<String, Object>> getLatency(long metricKey) {
