@@ -31,7 +31,9 @@ public class Storage {
     private final ChronicleMap<LongValue, byte[]> userActiveOrders;
     private final ChronicleMap<Byte, MsgProgress> msgMetadata;
     private final ChronicleMap<Byte, WalProgress> walMetadata;
-    private final ChronicleMap<LongValue, LongValue> metricsHistory;
+    private final ChronicleMap<LongValue, LongValue> latestMetrics;
+    private final ChronicleMap<LongValue, LongValue> tpsHistory;
+    private final ChronicleMap<LongValue, LongValue> latencyHistory;
 
     // --- 持久化 Queues (WAL) ---
     private final ChronicleQueue gatewaySenderWal;
@@ -47,7 +49,11 @@ public class Storage {
         this.userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, LongValue.class, byte[].class, 100_000, 256);
         this.msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 0);
         this.walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 0);
-        this.metricsHistory = createMap(ChronicleMapEnum.METRICS_HISTORY, LongValue.class, LongValue.class, 86400 * 2, 8, 8); // 保留 2 天指標
+        
+        // 拆分指標存儲
+        this.latestMetrics = createMap("metrics-latest", LongValue.class, LongValue.class, 1024, 8, 8);
+        this.tpsHistory = createMap("metrics-tps-history", LongValue.class, LongValue.class, 86400 * 7, 8, 8); // 7天 TPS
+        this.latencyHistory = createMap("metrics-latency-history", LongValue.class, LongValue.class, 86400 * 7, 8, 8); // 7天延遲
         
         this.gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
         log.info(">>> [INIT] Chronicle 存儲資源初始化完成。");
@@ -63,7 +69,9 @@ public class Storage {
     public ChronicleMap<LongValue, byte[]> userActiveOrders() { return userActiveOrders; }
     public ChronicleMap<Byte, MsgProgress> msgProgressMetadata() { return msgMetadata; }
     public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
-    public ChronicleMap<LongValue, LongValue> metricsHistory() { return metricsHistory; }
+    public ChronicleMap<LongValue, LongValue> latestMetrics() { return latestMetrics; }
+    public ChronicleMap<LongValue, LongValue> tpsHistory() { return tpsHistory; }
+    public ChronicleMap<LongValue, LongValue> latencyHistory() { return latencyHistory; }
     public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
 
     // --- Helpers ---
@@ -121,7 +129,9 @@ public class Storage {
             safeClose(userActiveOrders);
             safeClose(msgMetadata);
             safeClose(walMetadata);
-            safeClose(metricsHistory);
+            safeClose(latestMetrics);
+            safeClose(tpsHistory);
+            safeClose(latencyHistory);
             if (gatewaySenderWal != null) gatewaySenderWal.close();
         }
     }

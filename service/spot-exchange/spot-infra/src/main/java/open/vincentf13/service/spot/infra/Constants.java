@@ -123,24 +123,19 @@ public class Constants {
         public static final long AERON_SEND_COUNT = -6L;
         public static final long AERON_DROPPED_COUNT = -7L; // 新增：丟包計數指標
         public static final long GATEWAY_WAL_DROP_COUNT = -8L; // 新增：網關 WAL 佇列丟失計數
-        public static final long MATCH_COUNT = -9L; // 新增：總成交筆數指標
+        // 業務指標 (Counters)
+        public static final long MATCH_COUNT = -9L;
 
-        // 延遲監測指標 (Latency Metrics)
-        public static final long MATCHING_PROCESS_LATENCY_NS = -10L; // 撮合引擎處理延遲 (奈秒)
-        public static final long TRANSPORT_LATENCY_NS = -11L;        // 網關到引擎傳輸延遲 (奈秒)
+        // 延遲分佈指標 (Latencies - Nanoseconds)
+        public static final long LATENCY_MATCHING = -10L;
+        public static final long LATENCY_TRANSPORT = -11L;
 
-        // 數據分佈指標 (Percentiles)
-        public static final long MATCHING_LATENCY_P50 = -20L;
-        public static final long MATCHING_LATENCY_P90 = -21L;
-        public static final long MATCHING_LATENCY_P99 = -22L;
-        public static final long MATCHING_LATENCY_P999 = -23L;
-        public static final long MATCHING_LATENCY_MAX = -24L;
-
-        public static final long TRANSPORT_LATENCY_P50 = -30L;
-        public static final long TRANSPORT_LATENCY_P90 = -31L;
-        public static final long TRANSPORT_LATENCY_P99 = -32L;
-        public static final long TRANSPORT_LATENCY_P999 = -33L;
-        public static final long TRANSPORT_LATENCY_MAX = -34L;
+        // 分位數指標 (Percentiles)
+        public static final long P50 = 50L;
+        public static final long P90 = 90L;
+        public static final long P99 = 99L;
+        public static final long P999 = 999L;
+        public static final long MAX = 100L;
 
         // CPU ID 監測指標 (執行緒綁核追蹤)
         public static final long CPU_ID_ENGINE = -100L;
