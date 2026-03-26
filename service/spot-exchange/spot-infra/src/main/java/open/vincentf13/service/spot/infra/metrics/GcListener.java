@@ -16,50 +16,46 @@ import java.lang.management.ManagementFactory;
 import static open.vincentf13.service.spot.infra.Constants.MetricsKey.*;
 
 /**
- * 自動化 JVM 監測器 (JvmMonitor)
- * 職責：自動識別服務類型並啟動 GC 監聽與定時指標採集。
+ * GC 事件監聽器 (GC Listener)
+ * 職責：監聽 JVM GC 通知並記錄次數、間隔與耗時指標。
  */
 @Slf4j
 @Component
-public class MemoryMonitor {
+public class GcListener {
 
     private final ApplicationContext ctx;
-    private static final Runtime RUNTIME = Runtime.getRuntime();
-    
     private long lastGcTimestamp = Clock.now();
     private long gcLocalCount = 0;
 
-    // --- 指標 Key 配置 ---
-    private long kUsed, kMax, kGcCount, kGcInterval, kGcDuration, kGcHistory;
+    // 指標 Key 配置
+    private long kGcCount, kGcInterval, kGcDuration, kGcHistory;
 
-    public MemoryMonitor(ApplicationContext ctx) { this.ctx = ctx; }
+    public GcListener(ApplicationContext ctx) {
+        this.ctx = ctx;
+    }
 
     @PostConstruct
     public void init() {
-        String mainClassName = ctx.getBeansWithAnnotation(org.springframework.boot.autoconfigure.SpringBootApplication.class)
-                .values().iterator().next().getClass().getSimpleName();
+        var beans = ctx.getBeansWithAnnotation(org.springframework.boot.autoconfigure.SpringBootApplication.class);
+        if (beans.isEmpty()) return;
+        String mainClassName = beans.values().iterator().next().getClass().getSimpleName();
 
         if (mainClassName.contains("WsApi")) {
-            setupKeys(GATEWAY_JVM_USED_MB, GATEWAY_JVM_MAX_MB,
-                      GATEWAY_GC_COUNT, GATEWAY_GC_LAST_INTERVAL_MS, GATEWAY_GC_LAST_DURATION_MS, GATEWAY_GC_HISTORY_START);
+            setupKeys(GATEWAY_GC_COUNT, GATEWAY_GC_LAST_INTERVAL_MS, GATEWAY_GC_LAST_DURATION_MS, GATEWAY_GC_HISTORY_START);
         } else if (mainClassName.contains("Matching")) {
-            setupKeys(MATCHING_JVM_USED_MB, MATCHING_JVM_MAX_MB,
-                      MATCHING_GC_COUNT, MATCHING_GC_LAST_INTERVAL_MS, MATCHING_GC_LAST_DURATION_MS, MATCHING_GC_HISTORY_START);
+            setupKeys(MATCHING_GC_COUNT, MATCHING_GC_LAST_INTERVAL_MS, MATCHING_GC_LAST_DURATION_MS, MATCHING_GC_HISTORY_START);
         } else {
-            log.warn("Unknown app type: {}, skipping JvmMonitor", mainClassName);
             return;
         }
 
-        startMonitoring();
+        startListening();
     }
 
-    private void setupKeys(long used, long max, long gcc, long gci, long gcd, long gch) {
-        this.kUsed = used; this.kMax = max;
+    private void setupKeys(long gcc, long gci, long gcd, long gch) {
         this.kGcCount = gcc; this.kGcInterval = gci; this.kGcDuration = gcd; this.kGcHistory = gch;
     }
 
-    private void startMonitoring() {
-        // 1. GC 監聽
+    private void startListening() {
         for (GarbageCollectorMXBean gcBean : ManagementFactory.getGarbageCollectorMXBeans()) {
             if (gcBean instanceof NotificationEmitter emitter) {
                 emitter.addNotificationListener((notification, handback) -> {
@@ -70,30 +66,17 @@ public class MemoryMonitor {
 
                         long now = Clock.now(), interval = now - lastGcTimestamp, duration = info.getGcInfo().getDuration();
                         if (interval > 500) {
-                            MetricsCollector.increment(kGcCount);
-                            MetricsCollector.set(kGcInterval, interval);
-                            MetricsCollector.set(kGcDuration, duration);
+                            CounterMetrics.increment(kGcCount);
+                            GaugeMetrics.set(kGcInterval, interval);
+                            GaugeMetrics.set(kGcDuration, duration);
                             long slot = kGcHistory - (++gcLocalCount % Constants.MetricsKey.GC_HISTORY_MAX_KEEP);
-                            MetricsCollector.set(slot, now);
+                            GaugeMetrics.set(slot, now);
                             lastGcTimestamp = now;
                         }
                     }
                 }, null, null);
             }
         }
-
-        // 2. 定時採樣線程
-        Thread t = new Thread(() -> {
-            while (true) {
-                try {
-                    MetricsCollector.set(kUsed, (RUNTIME.totalMemory() - RUNTIME.freeMemory()) / 1024 / 1024);
-                    MetricsCollector.set(kMax, RUNTIME.maxMemory() / 1024 / 1024);
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
-                catch (Exception e) { log.error("Sampler error", e); }
-            }
-        }, "jvm-monitor");
-        t.setDaemon(true); t.start();
-        log.info("JvmMonitor auto-started for app type.");
+        log.info("GcListener started.");
     }
 }

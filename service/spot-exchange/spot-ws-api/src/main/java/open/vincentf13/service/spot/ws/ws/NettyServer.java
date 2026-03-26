@@ -20,7 +20,7 @@ import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import open.vincentf13.service.spot.infra.Constants.Ws;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.thread.AffinityUtil;
-import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
+import open.vincentf13.service.spot.infra.metrics.GaugeMetrics;
 
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -99,7 +99,7 @@ public class NettyServer {
             if (i >= keys.length) break;
             final long key = keys[i++];
             executor.scheduleAtFixedRate(() -> {
-                MetricsCollector.recordCpuAffinity(key, AffinityUtil.currentCpu());
+                GaugeMetrics.set(key, AffinityUtil.currentCpu());
             }, 1, 1, TimeUnit.SECONDS);
         }
     }

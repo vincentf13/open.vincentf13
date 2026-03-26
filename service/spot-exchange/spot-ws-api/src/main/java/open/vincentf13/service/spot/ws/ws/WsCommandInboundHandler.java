@@ -14,7 +14,7 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptAppender;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
+import open.vincentf13.service.spot.infra.metrics.CounterMetrics;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -80,7 +80,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
                 content.getBytes(content.readerIndex(), scratch);
                 dc.wire().bytes().write(scratch);
             }
-            MetricsCollector.increment(MetricsKey.GATEWAY_WAL_WRITE_COUNT);
+            CounterMetrics.increment(MetricsKey.GATEWAY_WAL_WRITE_COUNT);
         } catch (Exception e) {
             log.error("[GATEWAY-WS] WAL 直寫失敗: {}", e.getMessage());
         }
@@ -112,7 +112,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
     private void updateNettyMetrics() {
         long count = localNettyRecvCount.get() + 1;
         if (count >= METRICS_BATCH_SIZE) {
-            MetricsCollector.add(MetricsKey.NETTY_RECV_COUNT, count);
+            CounterMetrics.add(MetricsKey.NETTY_RECV_COUNT, count);
             localNettyRecvCount.set(0L);
         } else {
             localNettyRecvCount.set(count);

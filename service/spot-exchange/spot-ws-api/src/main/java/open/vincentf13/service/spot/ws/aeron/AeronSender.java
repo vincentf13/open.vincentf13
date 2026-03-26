@@ -9,13 +9,12 @@ import open.vincentf13.service.spot.infra.aeron.AeronUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import open.vincentf13.service.spot.model.command.AbstractSbeModel;
-import open.vincentf13.service.spot.infra.metrics.WorkerMonitor;
+import open.vincentf13.service.spot.infra.metrics.CounterMetrics;
+import open.vincentf13.service.spot.infra.metrics.WorkerMetrics;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 import static org.agrona.UnsafeAccess.UNSAFE;
-
-import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
 
 /** 網關 Aeron 發送器 */
 @Slf4j
@@ -36,10 +35,10 @@ public class AeronSender extends AbstractAeronSender {
 
     @Override
     protected void collectMetrics() {
-        if (localBackPressure > 0) { MetricsCollector.add(MetricsKey.AERON_BACKPRESSURE, localBackPressure); localBackPressure = 0; }
+        if (localBackPressure > 0) { CounterMetrics.add(MetricsKey.AERON_BACKPRESSURE, localBackPressure); localBackPressure = 0; }
         
         // 僅回報執行緒級別指標，JVM 內存由 JvmMonitor 後台自動採集
-        WorkerMonitor.reportThreadMetrics(MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
+        WorkerMetrics.reportThreadMetrics(MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
     }
 
     @Override

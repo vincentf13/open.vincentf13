@@ -6,6 +6,7 @@ import io.aeron.logbuffer.FragmentHandler;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import open.vincentf13.service.spot.infra.metrics.CounterMetrics;
 import open.vincentf13.service.spot.infra.thread.Worker;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
@@ -54,7 +55,7 @@ public abstract class AbstractAeronSender extends Worker {
         }
         
         if ((localSendCount += work) >= AeronConstants.METRICS_BATCH_SIZE) {
-            open.vincentf13.service.spot.infra.metrics.MetricsCollector.add(MetricsKey.AERON_SEND_COUNT, localSendCount);
+            CounterMetrics.add(MetricsKey.AERON_SEND_COUNT, localSendCount);
             localSendCount = 0;
         }
         return work;

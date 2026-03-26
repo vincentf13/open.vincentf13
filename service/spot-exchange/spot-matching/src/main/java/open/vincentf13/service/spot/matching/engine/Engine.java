@@ -5,7 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.metrics.MetricsCollector;
+import open.vincentf13.service.spot.infra.metrics.GaugeMetrics;
+import open.vincentf13.service.spot.infra.metrics.LatencyMetrics;
 import open.vincentf13.service.spot.model.WalProgress;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver.AeronMessageHandler;
@@ -78,8 +79,8 @@ public class Engine implements AeronMessageHandler {
             final long transportNs = arrivalTimeNs - gatewayTimeNs;
             final long processNs = System.nanoTime() - arrivalTimeNs;
 
-            MetricsCollector.recordLatency(MetricsKey.LATENCY_TRANSPORT, transportNs);
-            MetricsCollector.recordLatency(MetricsKey.LATENCY_MATCHING, processNs);
+            LatencyMetrics.record(MetricsKey.LATENCY_TRANSPORT, transportNs);
+            LatencyMetrics.record(MetricsKey.LATENCY_MATCHING, processNs);
         }
         if (seq != MSG_SEQ_NONE) {
             long last = progress.getLastProcessedMsgSeq();
@@ -93,7 +94,7 @@ public class Engine implements AeronMessageHandler {
 
     private void updateSystemMetrics(long nowSec) {
         // 僅回報業務相關指標
-        MetricsCollector.set(MetricsKey.MATCH_COUNT, OrderBook.TOTAL_MATCH_COUNT.get());
+        GaugeMetrics.set(MetricsKey.MATCH_COUNT, OrderBook.TOTAL_MATCH_COUNT.get());
     }
 
     public void onStop() { 
