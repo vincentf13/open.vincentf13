@@ -1,5 +1,7 @@
 package open.vincentf13.service.spot.infra.thread;
 
+import com.sun.jna.Library;
+import com.sun.jna.Native;
 import net.openhft.affinity.Affinity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +44,19 @@ public class AffinityUtil {
         return -1;
     }
 
+    private interface Kernel32 extends Library {
+        Kernel32 INSTANCE = Native.load("kernel32", Kernel32.class);
+        int GetCurrentProcessorNumber();
+    }
+
     /** 獲取目前執行緒真實運行的物理核心 ID */
     public static int currentCpu() {
-        return Affinity.getCpu();
+        int cpu = Affinity.getCpu();
+        if (cpu < 0 && System.getProperty("os.name").toLowerCase().contains("win")) {
+            try {
+                return Kernel32.INSTANCE.GetCurrentProcessorNumber();
+            } catch (Throwable ignored) {}
+        }
+        return cpu;
     }
 }

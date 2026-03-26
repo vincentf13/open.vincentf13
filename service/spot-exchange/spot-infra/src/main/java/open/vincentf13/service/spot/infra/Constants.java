@@ -140,7 +140,6 @@ public class Constants {
         public static final long MAX = 100L;
 
         // CPU ID 監測指標 (執行緒綁核追蹤) - 使用 1000+ 避開百分位數
-        public static final long CPU_ID_ENGINE = 1000L;
         public static final long CPU_ID_WAL_WRITER = 1001L;
         public static final long CPU_ID_AERON_SENDER = 1002L;
         public static final long CPU_ID_AERON_RECEIVER = 1003L;
