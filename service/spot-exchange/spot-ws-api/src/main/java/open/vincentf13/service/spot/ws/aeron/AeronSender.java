@@ -50,10 +50,18 @@ public class AeronSender extends AbstractAeronSender {
         final long addr = bytes.addressForRead(bytes.readPosition());
         final long seq = tailer.index();
         
-        if (AeronUtil.send(publication, len, (buf, off) -> {
-            UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
-            buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, seq);
-        }, running) >= 0) bytes.readSkip(len);
-        else localBackPressure++;
+        // 原地重試直至成功，防止背壓丟包
+        while (running.get()) {
+            if (AeronUtil.send(publication, len, (buf, off) -> {
+                UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
+                buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, seq);
+            }, running) >= 0) {
+                bytes.readSkip(len);
+                break;
+            } else {
+                localBackPressure++;
+                Thread.onSpinWait(); // 提示 CPU 此處在忙等
+            }
+        }
     }
 }

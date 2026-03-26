@@ -215,11 +215,11 @@ public class Constants {
       Aeron 頻道與串流配置
      */
     public static class AeronChannel {
-        /** 指令流 (Gateway -> Matching) 使用 IPC，加大 Term Buffer 至 64MB */
-        public static final String MATCHING_FLOW = "aeron:ipc?term-length=64M";
+        /** 指令流 (Gateway -> Matching) 使用 IPC，加大 Term Buffer 至 256MB */
+        public static final String MATCHING_FLOW = "aeron:ipc?term-length=256M";
         
-        /** 回報流 (Matching -> Gateway) 使用 IPC，加大 Term Buffer 至 64MB */
-        public static final String REPORT_FLOW = "aeron:ipc?term-length=64M";
+        /** 回報流 (Matching -> Gateway) 使用 IPC，加大 Term Buffer 至 256MB */
+        public static final String REPORT_FLOW = "aeron:ipc?term-length=256M";
         
         /** 統一數據流 ID */
         public static final int DATA_STREAM_ID = 10;
