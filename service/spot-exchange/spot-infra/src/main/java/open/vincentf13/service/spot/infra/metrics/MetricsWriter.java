@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.infra.metrics;
 
+import com.sun.management.GarbageCollectionNotificationInfo;
 import io.micrometer.core.instrument.*;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -9,21 +10,26 @@ import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import org.springframework.stereotype.Component;
 
+import javax.management.NotificationEmitter;
+import javax.management.openmbean.CompositeData;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 指標異步寫入器 (Micrometer 橋接版)
- * 職責：定期將 Micrometer 註冊表中的數據同步至 Chronicle Map (latest, tps, latency)。
+ * 指標異步寫入器 (極簡加強版)
  */
 @Slf4j
 @Component
 public class MetricsWriter {
 
     private final MeterRegistry registry;
+    private final org.springframework.context.ApplicationContext ctx;
     private final LongValue k = new LongValue();
     private final LongValue v = new LongValue();
+    private long kUsed = 0, kMax = 0, kGcCount = 0, kGcDuration = 0;
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "metrics-writer");
@@ -32,13 +38,55 @@ public class MetricsWriter {
         return t;
     });
 
-    public MetricsWriter(MeterRegistry registry) {
+    public MetricsWriter(MeterRegistry registry, org.springframework.context.ApplicationContext ctx) {
         this.registry = registry;
+        this.ctx = ctx;
     }
 
     @PostConstruct
     public void start() {
+        setupJvmKeys();
+        startGcListening();
         scheduler.scheduleAtFixedRate(this::tick, 1, 1, TimeUnit.SECONDS);
+    }
+
+    private void setupJvmKeys() {
+        try {
+            var beans = ctx.getBeansWithAnnotation(org.springframework.boot.autoconfigure.SpringBootApplication.class);
+            if (!beans.isEmpty()) {
+                String mainName = beans.values().iterator().next().getClass().getSimpleName();
+                if (mainName.contains("WsApi")) { 
+                    kUsed = MetricsKey.GATEWAY_JVM_USED_MB; kMax = MetricsKey.GATEWAY_JVM_MAX_MB; 
+                    kGcCount = MetricsKey.GATEWAY_GC_COUNT; kGcDuration = MetricsKey.GATEWAY_GC_LAST_DURATION_MS;
+                }
+                else if (mainName.contains("Matching")) { 
+                    kUsed = MetricsKey.MATCHING_JVM_USED_MB; kMax = MetricsKey.MATCHING_JVM_MAX_MB; 
+                    kGcCount = MetricsKey.MATCHING_GC_COUNT; kGcDuration = MetricsKey.MATCHING_GC_LAST_DURATION_MS;
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    /** 監聽 GC 事件：直接獲取「每次」執行時間指標 */
+    private void startGcListening() {
+        if (kGcCount == 0) return;
+        for (GarbageCollectorMXBean gcBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+            if (gcBean instanceof NotificationEmitter emitter) {
+                emitter.addNotificationListener((notification, handback) -> {
+                    if (GarbageCollectionNotificationInfo.GARBAGE_COLLECTION_NOTIFICATION.equals(notification.getType())) {
+                        CompositeData cd = (CompositeData) notification.getUserData();
+                        GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from(cd);
+                        if (!info.getGcAction().toLowerCase().contains("end of")) return;
+
+                        long duration = info.getGcInfo().getDuration();
+                        // 1. 同步最近一次 GC 指標
+                        StaticMetricsHolder.setGauge(kGcDuration, duration);
+                        StaticMetricsHolder.addCounter(kGcCount, 1);
+                        log.info("JVM GC detected: {} ms", duration);
+                    }
+                }, null, null);
+            }
+        }
     }
 
     private void tick() {
@@ -49,25 +97,28 @@ public class MetricsWriter {
             var tpsMap = s.tpsHistory();
             var latMap = s.latencyHistory();
 
+            // 同步 JVM 內存 (使用 Spring 內部統計)
+            if (kUsed != 0) {
+                try {
+                    long used = (long) registry.get("jvm.memory.used").tag("area", "heap").gauge().value() / 1024 / 1024;
+                    long max = (long) registry.get("jvm.memory.max").tag("area", "heap").gauge().value() / 1024 / 1024;
+                    write(latestMap, kUsed, used); write(latestMap, kMax, max);
+                } catch (Exception ignored) {}
+            }
+
             registry.forEachMeter(meter -> {
                 String name = meter.getId().getName();
                 if (!name.startsWith("spot.metric.")) return;
 
                 try {
                     long mKey = -Long.parseLong(name.substring(12));
-                    
                     if (meter instanceof Counter c) {
                         long val = (long) c.count();
                         write(latestMap, mKey, val);
                         if (mKey == MetricsKey.MATCH_COUNT) write(tpsMap, now, val);
                     } 
-                    else if (meter instanceof Gauge g) {
-                        write(latestMap, mKey, (long) g.value());
-                    } 
-                    else if (meter instanceof Timer t) {
-                        write(latestMap, mKey, (long) t.mean(TimeUnit.NANOSECONDS));
-                        flushLatency(latMap, now, mKey, t);
-                    }
+                    else if (meter instanceof Gauge g) write(latestMap, mKey, (long) g.value());
+                    else if (meter instanceof Timer t) flushLatency(latMap, now, mKey, t);
                 } catch (Exception ignored) {}
             });
         } catch (Exception e) {
@@ -77,9 +128,7 @@ public class MetricsWriter {
 
     private void flushLatency(net.openhft.chronicle.map.ChronicleMap<LongValue, LongValue> map, long now, long mKey, Timer t) {
         var snapshot = t.takeSnapshot();
-        // 延遲統計的編碼 Key：(Key絕對值 * 10^15) + (分位數Key * 10^12) + (秒級時間戳)
         saveLatency(map, now, mKey, MetricsKey.P50, (long) (snapshot.percentileValues().length > 0 ? snapshot.percentileValues()[0].value() : 0));
-        saveLatency(map, now, mKey, MetricsKey.P90, (long) (snapshot.percentileValues().length > 1 ? snapshot.percentileValues()[1].value() : 0));
         saveLatency(map, now, mKey, MetricsKey.P99, (long) (snapshot.percentileValues().length > 2 ? snapshot.percentileValues()[2].value() : 0));
         saveLatency(map, now, mKey, MetricsKey.MAX, (long) snapshot.max(TimeUnit.NANOSECONDS));
     }
@@ -95,7 +144,5 @@ public class MetricsWriter {
     }
 
     @PreDestroy
-    public void shutdown() {
-        scheduler.shutdown();
-    }
+    public void shutdown() { scheduler.shutdown(); }
 }

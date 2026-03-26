@@ -19,37 +19,47 @@ public class TestVerificationController {
 
     @GetMapping("/metrics/tps")
     public List<Map<String, Object>> getTpsHistory() {
-        TreeMap<Long, Long> sorted = new TreeMap<>(Collections.reverseOrder());
+        TreeMap<Long, Long> sorted = new TreeMap<>();
         Storage.self().tpsHistory().forEach((k, v) -> sorted.put(k.getValue(), v.getValue()));
         
         List<Map<String, Object>> result = new ArrayList<>();
-        sorted.forEach((ts, total) -> {
-            var prev = sorted.higherEntry(ts);
-            long tps = (prev == null) ? 0 : total - prev.getValue();
-            if (tps >= 0) {
-                result.add(Map.of("time", TIME.format(Instant.ofEpochMilli(ts)), "total", total, "tps", tps));
+        Long lastTotal = null;
+        for (var entry : sorted.entrySet()) {
+            if (lastTotal != null) {
+                long tps = entry.getValue() - lastTotal;
+                if (tps >= 0) {
+                    result.add(Map.of("time", TIME.format(Instant.ofEpochMilli(entry.getKey())), "tps", tps, "total", entry.getValue()));
+                }
             }
-        });
+            lastTotal = entry.getValue();
+        }
+        Collections.reverse(result);
         return result;
     }
 
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
-        Storage s = Storage.self();
         Map<String, Object> m = new LinkedHashMap<>();
         
-        // 核心計數
         m.put("netty_recv", get(MetricsKey.NETTY_RECV_COUNT));
         m.put("wal_write", get(MetricsKey.GATEWAY_WAL_WRITE_COUNT));
         m.put("aeron_send", get(MetricsKey.AERON_SEND_COUNT));
         m.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
 
-        // 資源占用
         m.put("matching_jvm", formatJvm(MetricsKey.MATCHING_JVM_USED_MB, MetricsKey.MATCHING_JVM_MAX_MB));
+        m.put("matching_gc", formatGc(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_LAST_DURATION_MS));
         m.put("gateway_jvm", formatJvm(MetricsKey.GATEWAY_JVM_USED_MB, MetricsKey.GATEWAY_JVM_MAX_MB));
+        m.put("gateway_gc", formatGc(MetricsKey.GATEWAY_GC_COUNT, MetricsKey.GATEWAY_GC_LAST_DURATION_MS));
+
+        Map<String, List<Integer>> cpuIds = new LinkedHashMap<>();
+        cpuIds.put("matching_engine", parseCpuMask(get(MetricsKey.CPU_ID_ENGINE)));
+        cpuIds.put("matching_receiver", parseCpuMask(get(MetricsKey.CPU_ID_AERON_RECEIVER)));
+        cpuIds.put("gateway_sender", parseCpuMask(get(MetricsKey.CPU_ID_AERON_SENDER)));
+        cpuIds.put("netty_boss", parseCpuMask(get(MetricsKey.CPU_ID_NETTY_BOSS)));
+        cpuIds.put("netty_worker_1", parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_1)));
+        m.put("cpu_affinity_history", cpuIds);
         
-        // 延遲歷史 (10s Intervals)
-        m.put("latency_history", Map.of(
+        m.put("latency", Map.of(
             "matching", getLatency(MetricsKey.LATENCY_MATCHING),
             "transport", getLatency(MetricsKey.LATENCY_TRANSPORT)
         ));
@@ -62,9 +72,23 @@ public class TestVerificationController {
         return v == null ? 0 : v.getValue();
     }
 
+    private List<Integer> parseCpuMask(long mask) {
+        List<Integer> ids = new ArrayList<>();
+        if (mask == 0) return ids;
+        for (int i = 0; i < 64; i++) {
+            if (((mask >> i) & 1L) == 1L) ids.add(i);
+        }
+        return ids;
+    }
+
     private String formatJvm(long usedKey, long maxKey) {
         long u = get(usedKey), m = get(maxKey);
-        return String.format("%dMB (%.1f%%)", u, (double) u / (m == 0 ? 1 : m) * 100);
+        return u == 0 ? "N/A" : String.format("%dMB (%.1f%%)", u, (double) u / (m == 0 ? 1 : m) * 100);
+    }
+
+    private String formatGc(long countKey, long durationKey) {
+        long count = get(countKey);
+        return count == 0 ? "No GC yet" : String.format("%d次 (最近耗時:%dms)", count, get(durationKey));
     }
 
     private List<Map<String, Object>> getLatency(long metricKey) {
@@ -74,21 +98,18 @@ public class TestVerificationController {
         Storage.self().latencyHistory().forEach((k, v) -> {
             long key = k.getValue();
             if (key >= base && key < base + 1_000_000_000_000_000L) {
-                long percentile = (key - base) / 1_000_000_000_000L;
-                long windowSec = (key - base) % 1_000_000_000_000L;
-                
-                var entry = history.computeIfAbsent(windowSec, t -> {
+                long p = (key - base) / 1_000_000_000_000L;
+                long t = (key - base) % 1_000_000_000_000L;
+                history.computeIfAbsent(t, time -> {
                     var map = new LinkedHashMap<String, Object>();
-                    map.put("time", TIME.format(Instant.ofEpochSecond(t)));
+                    map.put("time", TIME.format(Instant.ofEpochSecond(time)));
                     return map;
-                });
-                entry.put("p" + percentile, v.getValue() + " ns");
+                }).put("p" + p, v.getValue() + " ns");
             }
         });
         return new ArrayList<>(history.values());
     }
 
-    // --- 輔助業務接口 ---
     @GetMapping("/balance")
     public Map<String, Object> getBalance(@RequestParam long userId, @RequestParam int assetId) {
         Balance b = Storage.self().balances().getUsing(new BalanceKey(userId, assetId), new Balance());
