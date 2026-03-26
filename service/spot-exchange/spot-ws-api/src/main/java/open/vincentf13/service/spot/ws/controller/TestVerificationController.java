@@ -141,7 +141,58 @@ public class TestVerificationController {
 
         metrics.put("cpu_affinity", cpuAffinity);
 
+        Map<String, Object> latencyMetrics = new LinkedHashMap<>();
+        
+        Map<String, Object> matchingLatency = new LinkedHashMap<>();
+        matchingLatency.put("p50", getMetric(MetricsKey.MATCHING_LATENCY_P50, 0L) + " ns");
+        matchingLatency.put("p90", getMetric(MetricsKey.MATCHING_LATENCY_P90, 0L) + " ns");
+        matchingLatency.put("p99", getMetric(MetricsKey.MATCHING_LATENCY_P99, 0L) + " ns");
+        matchingLatency.put("p999", getMetric(MetricsKey.MATCHING_LATENCY_P999, 0L) + " ns");
+        matchingLatency.put("max", getMetric(MetricsKey.MATCHING_LATENCY_MAX, 0L) + " ns");
+        latencyMetrics.put("matching_process_latency", matchingLatency);
+
+        Map<String, Object> transportLatency = new LinkedHashMap<>();
+        transportLatency.put("p50", getMetric(MetricsKey.TRANSPORT_LATENCY_P50, 0L) + " ns");
+        transportLatency.put("p90", getMetric(MetricsKey.TRANSPORT_LATENCY_P90, 0L) + " ns");
+        transportLatency.put("p99", getMetric(MetricsKey.TRANSPORT_LATENCY_P99, 0L) + " ns");
+        transportLatency.put("p999", getMetric(MetricsKey.TRANSPORT_LATENCY_P999, 0L) + " ns");
+        transportLatency.put("max", getMetric(MetricsKey.TRANSPORT_LATENCY_MAX, 0L) + " ns");
+        latencyMetrics.put("gateway_to_engine_transport_latency", transportLatency);
+
+        metrics.put("latency_metrics_ns", latencyMetrics);
+
+        Map<String, Object> latencyHistory = new LinkedHashMap<>();
+        latencyHistory.put("matching_process_latency_history", getLatencyHistory(MetricsKey.MATCHING_LATENCY_P50, MetricsKey.MATCHING_LATENCY_P90, MetricsKey.MATCHING_LATENCY_P99, MetricsKey.MATCHING_LATENCY_P999, MetricsKey.MATCHING_LATENCY_MAX));
+        latencyHistory.put("transport_latency_history", getLatencyHistory(MetricsKey.TRANSPORT_LATENCY_P50, MetricsKey.TRANSPORT_LATENCY_P90, MetricsKey.TRANSPORT_LATENCY_P99, MetricsKey.TRANSPORT_LATENCY_P999, MetricsKey.TRANSPORT_LATENCY_MAX));
+        metrics.put("latency_history_10s_intervals", latencyHistory);
+
         return metrics;
+    }
+
+    private List<Map<String, Object>> getLatencyHistory(long p50, long p90, long p99, long p999, long max) {
+        // 使用 TreeMap 根據時間戳排序
+        TreeMap<Long, Map<String, Object>> history = new TreeMap<>(Collections.reverseOrder());
+        
+        long[] keys = {p50, p90, p99, p999, max};
+        String[] names = {"p50", "p90", "p99", "p999", "max"};
+
+        Storage.self().metricsHistory().forEach((k, v) -> {
+            long encodedKey = k.getValue();
+            for (int i = 0; i < keys.length; i++) {
+                long base = Math.abs(keys[i]) * 1_000_000_000_000L;
+                if (encodedKey >= base && encodedKey < base + 1_000_000_000_000L) {
+                    long timestamp = encodedKey - base;
+                    Map<String, Object> entry = history.computeIfAbsent(timestamp, t -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("time", TIME_FORMATTER.format(Instant.ofEpochMilli(t)));
+                        return m;
+                    });
+                    entry.put(names[i], v.getValue() + " ns");
+                }
+            }
+        });
+
+        return new ArrayList<>(history.values());
     }
 
     private List<String> getGcHistory(long startKey) {
