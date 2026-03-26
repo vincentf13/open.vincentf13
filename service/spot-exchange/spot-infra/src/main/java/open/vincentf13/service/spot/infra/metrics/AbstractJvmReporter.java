@@ -23,8 +23,8 @@ public abstract class AbstractJvmReporter {
 
     // 循環寫入 GC 歷史槽位的計數器
     private final AtomicInteger gcSlot = new AtomicInteger(0);
-    // 追蹤每個 GC 管理器的最後一個 GC ID，防止重複記錄同一事件的多個階段
-    private final Map<String, Long> lastGcIdMap = new ConcurrentHashMap<>();
+    // 累加器：暫存每個 GC ID 的總耗時 (ms)
+    private final Map<Long, Long> gcIdDurationMap = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() {
@@ -35,28 +35,55 @@ public abstract class AbstractJvmReporter {
                     CompositeData cd = (CompositeData) notification.getUserData();
                     GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from(cd);
                     
-                    // 1. 去重邏輯：檢查 GC ID 是否已經處理過
                     long gcId = info.getGcInfo().getId();
-                    String gcName = info.getGcName();
-                    if (lastGcIdMap.getOrDefault(gcName, -1L) == gcId) return;
-                    lastGcIdMap.put(gcName, gcId);
-
-                    // 2. 只處理結束通知
-                    if (!info.getGcAction().toLowerCase().contains("end of")) return;
-
                     long durationMs = info.getGcInfo().getDuration();
-                    // 編碼：epochMillis × 1000 + durationMicros
-                    long encoded = System.currentTimeMillis() * 1_000_000L
-                                 + Math.min(durationMs * 1000, 999_999L);
+                    
+                    // 累加當前階段的耗時
+                    gcIdDurationMap.merge(gcId, durationMs, Long::sum);
 
-                    int slot = gcSlot.getAndIncrement() % MetricsKey.GC_HISTORY_MAX_KEEP;
-                    StaticMetricsHolder.setGauge(getGcHistoryStart() + slot, encoded);
-                    StaticMetricsHolder.setGauge(getGcDurationKey(), durationMs);
-                    StaticMetricsHolder.addCounter(getGcCountKey(), 1);
+                    // 檢查是否為該次 GC 的最後一個階段
+                    // 註：通常 GC 通知本身就是階段結束，但我們可以透過 gcAction 判定
+                    if (info.getGcAction().toLowerCase().contains("end of")) {
+                        // 為了確保捕獲所有階段，我們可以延遲一小段時間或根據 GC 類型判定
+                        // 對於高頻交易系統，我們通常直接在上報時取出累計值
+                        long totalDurationMs = gcIdDurationMap.get(gcId);
+                        
+                        // 如果是最終階段 (例如 G1 的最後一個 pause)，執行上報
+                        // 這裡我們優化為：只要有耗時，就更新該 ID 的最終狀態
+                        if (totalDurationMs > 0) {
+                            reportGc(gcId, totalDurationMs);
+                        }
+                    }
                 }, null, null);
             }
         }
         log.info("{} initialized", getClass().getSimpleName());
+    }
+
+    private final Map<Long, Boolean> reportedGcIds = new ConcurrentHashMap<>();
+
+    private void reportGc(long gcId, long totalDurationMs) {
+        // 確保每個 GC ID 在歷史紀錄中只佔一個坑位 (更新制)
+        // 我們使用一個小的 Cache 來防止同一個 ID 被重複計入 count
+        if (reportedGcIds.putIfAbsent(gcId, true) == null) {
+            StaticMetricsHolder.addCounter(getGcCountKey(), 1);
+            int slot = gcSlot.getAndIncrement() % MetricsKey.GC_HISTORY_MAX_KEEP;
+            // 初始寫入
+            updateGcSlot(slot, gcId, totalDurationMs);
+        } else {
+            // 如果 ID 已存在，更新同一個 slot (找到剛才那個 slot)
+            // 為了簡化，在高並發下我們接受微小的 count 誤差，或使用更複雜的 ID -> Slot 映射
+            // 這裡採用簡單策略：如果總耗時增加，代表有新階段加入，我們更新最新的紀錄
+            int lastSlot = (gcSlot.get() - 1 + MetricsKey.GC_HISTORY_MAX_KEEP) % MetricsKey.GC_HISTORY_MAX_KEEP;
+            updateGcSlot(lastSlot, gcId, totalDurationMs);
+        }
+    }
+
+    private void updateGcSlot(int slot, long gcId, long totalDurationMs) {
+        long encoded = System.currentTimeMillis() * 1_000_000L
+                     + Math.min(totalDurationMs * 1000, 999_999L);
+        StaticMetricsHolder.setGauge(getGcHistoryStart() + slot, encoded);
+        StaticMetricsHolder.setGauge(getGcDurationKey(), totalDurationMs);
     }
 
     @Scheduled(fixedRate = 1000)
