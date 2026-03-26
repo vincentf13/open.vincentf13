@@ -10,6 +10,8 @@ import javax.management.NotificationEmitter;
 import javax.management.openmbean.CompositeData;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -21,6 +23,8 @@ public abstract class AbstractJvmReporter {
 
     // 循環寫入 GC 歷史槽位的計數器
     private final AtomicInteger gcSlot = new AtomicInteger(0);
+    // 追蹤每個 GC 管理器的最後一個 GC ID，防止重複記錄同一事件的多個階段
+    private final Map<String, Long> lastGcIdMap = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() {
@@ -30,11 +34,18 @@ public abstract class AbstractJvmReporter {
                     if (!GarbageCollectionNotificationInfo.GARBAGE_COLLECTION_NOTIFICATION.equals(notification.getType())) return;
                     CompositeData cd = (CompositeData) notification.getUserData();
                     GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from(cd);
+                    
+                    // 1. 去重邏輯：檢查 GC ID 是否已經處理過
+                    long gcId = info.getGcInfo().getId();
+                    String gcName = info.getGcName();
+                    if (lastGcIdMap.getOrDefault(gcName, -1L) == gcId) return;
+                    lastGcIdMap.put(gcName, gcId);
+
+                    // 2. 只處理結束通知
                     if (!info.getGcAction().toLowerCase().contains("end of")) return;
 
                     long durationMs = info.getGcInfo().getDuration();
-                    // 編碼：epochMillis × 1000 + durationMicros (上限 999_999µs ≈ 1s)
-                    // 這樣即便在一秒內有多次 GC，也能區分開來
+                    // 編碼：epochMillis × 1000 + durationMicros
                     long encoded = System.currentTimeMillis() * 1_000_000L
                                  + Math.min(durationMs * 1000, 999_999L);
 
