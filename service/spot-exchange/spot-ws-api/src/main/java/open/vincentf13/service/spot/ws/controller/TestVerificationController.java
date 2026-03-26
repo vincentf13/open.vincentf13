@@ -72,7 +72,11 @@ public class TestVerificationController {
     public List<Map<String, Object>> getTpsHistory() {
         TreeMap<Long, Long> sortedHistory = new TreeMap<>(Collections.reverseOrder());
         Storage.self().metricsHistory().forEach((key, total) -> {
-            if (key.getValue() > 1000000) sortedHistory.put(key.getValue(), total.getValue());
+            long k = key.getValue();
+            // 僅處理原始時間戳 Key (毫秒級別約為 1.7*10^12，編碼 Key 則為 10^16 級別)
+            if (k > 1000000 && k < 1_000_000_000_000_000L) {
+                sortedHistory.put(k, total.getValue());
+            }
         });
         
         List<Map<String, Object>> result = new ArrayList<>();
@@ -80,11 +84,14 @@ public class TestVerificationController {
             Map.Entry<Long, Long> previousEntry = sortedHistory.higherEntry(timestamp);
             long diff = (previousEntry == null) ? 0 : total - previousEntry.getValue();
             
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("time", timestamp);
-            entry.put("total", total);
-            entry.put("tps", diff);
-            result.add(entry);
+            // 排除因重啟或重置產生的異常 TPS (負數)
+            if (diff >= 0) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("time", TIME_FORMATTER.format(Instant.ofEpochMilli(timestamp)));
+                entry.put("total", total);
+                entry.put("tps", diff);
+                result.add(entry);
+            }
         });
         return result;
     }
