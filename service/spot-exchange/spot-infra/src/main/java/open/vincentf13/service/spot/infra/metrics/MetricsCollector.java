@@ -87,7 +87,7 @@ public class MetricsCollector {
             
             // 每 10 秒處理一次直方圖百分位數 (轉換為 Gauge 並存儲歷史區間)
             if (now - last10sFlushTime >= 10000) {
-                final long windowId = (now / 10000) * 10; // 10秒窗口的時間戳
+                final long windowId = (now / 10000) * 10000; // 修正：使用正確的毫秒時間戳 (10秒對齊)
                 updatePercentilesAndHistory(windowId, MetricsKey.MATCHING_PROCESS_LATENCY_NS, 
                                  MetricsKey.MATCHING_LATENCY_P50, MetricsKey.MATCHING_LATENCY_P90, 
                                  MetricsKey.MATCHING_LATENCY_P99, MetricsKey.MATCHING_LATENCY_P999, MetricsKey.MATCHING_LATENCY_MAX);
@@ -149,9 +149,9 @@ public class MetricsCollector {
     }
 
     private static void saveHistory(long windowId, long metricKey, long value) {
-        // Key 編碼：(絕對值 MetricKey * 10^12) + WindowId
-        // 例如：P99 (-22) -> 22,000,000,000,000 + 1711456780
-        long encodedKey = (Math.abs(metricKey) * 1_000_000_000_000L) + windowId;
+        // Key 編碼：(絕對值 MetricKey * 10^15) + WindowId
+        // 使用 10^15 確保 Key 空間與毫秒級時間戳 (10^12) 徹底分離
+        long encodedKey = (Math.abs(metricKey) * 1_000_000_000_000_000L) + windowId;
         REUSABLE_KEY_1.set(encodedKey);
         REUSABLE_VAL_1.set(value);
         Storage.self().metricsHistory().put(REUSABLE_KEY_1, REUSABLE_VAL_1);

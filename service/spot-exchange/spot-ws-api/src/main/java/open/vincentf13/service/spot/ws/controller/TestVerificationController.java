@@ -179,8 +179,8 @@ public class TestVerificationController {
         Storage.self().metricsHistory().forEach((k, v) -> {
             long encodedKey = k.getValue();
             for (int i = 0; i < keys.length; i++) {
-                long base = Math.abs(keys[i]) * 1_000_000_000_000L;
-                if (encodedKey >= base && encodedKey < base + 1_000_000_000_000L) {
+                long base = Math.abs(keys[i]) * 1_000_000_000_000_000L;
+                if (encodedKey >= base && encodedKey < base + 1_000_000_000_000_000L) {
                     long timestamp = encodedKey - base;
                     Map<String, Object> entry = history.computeIfAbsent(timestamp, t -> {
                         Map<String, Object> m = new LinkedHashMap<>();
