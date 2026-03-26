@@ -1,6 +1,5 @@
 package open.vincentf13.service.spot.infra.metrics;
 
-import com.sun.management.GarbageCollectionNotificationInfo;
 import io.micrometer.core.instrument.*;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -10,27 +9,22 @@ import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import org.springframework.stereotype.Component;
 
-import javax.management.NotificationEmitter;
-import javax.management.openmbean.CompositeData;
-import java.lang.management.GarbageCollectorMXBean;
-import java.lang.management.ManagementFactory;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 指標異步寫入器 (全局 Micrometer 版)
+ * 指標異步寫入器 (極簡版)
+ * 職責：每秒遍歷本地 JVM 的 Micrometer Registry，並將所有 spot 指標刷新到共享磁碟中。
+ * 由於 Registry 是進程隔離的，此組件會自動實現「各司其職」，不會發生跨進程數據覆蓋。
  */
 @Slf4j
 @Component
 public class MetricsWriter {
 
     private final MeterRegistry registry = Metrics.globalRegistry;
-    private final org.springframework.context.ApplicationContext ctx;
     
-    private long kUsed = 0, kMax = 0, kGcCount = 0, kGcDuration = 0;
-
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "metrics-writer");
         t.setDaemon(true);
@@ -38,50 +32,10 @@ public class MetricsWriter {
         return t;
     });
 
-    public MetricsWriter(org.springframework.context.ApplicationContext ctx) {
-        this.ctx = ctx;
-    }
-
     @PostConstruct
     public void start() {
-        setupJvmKeys();
-        startGcListening();
         scheduler.scheduleAtFixedRate(this::tick, 1, 1, TimeUnit.SECONDS);
-        log.info("MetricsWriter started using Global Registry.");
-    }
-
-    private void setupJvmKeys() {
-        try {
-            var beans = ctx.getBeansWithAnnotation(org.springframework.boot.autoconfigure.SpringBootApplication.class);
-            if (!beans.isEmpty()) {
-                String mainName = beans.values().iterator().next().getClass().getSimpleName();
-                if (mainName.contains("WsApi")) { 
-                    kUsed = MetricsKey.GATEWAY_JVM_USED_MB; kMax = MetricsKey.GATEWAY_JVM_MAX_MB; 
-                    kGcCount = MetricsKey.GATEWAY_GC_COUNT; kGcDuration = MetricsKey.GATEWAY_GC_LAST_DURATION_MS;
-                }
-                else if (mainName.contains("Matching")) { 
-                    kUsed = MetricsKey.MATCHING_JVM_USED_MB; kMax = MetricsKey.MATCHING_JVM_MAX_MB; 
-                    kGcCount = MetricsKey.MATCHING_GC_COUNT; kGcDuration = MetricsKey.MATCHING_GC_LAST_DURATION_MS;
-                }
-            }
-        } catch (Exception ignored) {}
-    }
-
-    private void startGcListening() {
-        if (kGcCount == 0) return;
-        for (GarbageCollectorMXBean gcBean : ManagementFactory.getGarbageCollectorMXBeans()) {
-            if (gcBean instanceof NotificationEmitter emitter) {
-                emitter.addNotificationListener((notification, handback) -> {
-                    if (GarbageCollectionNotificationInfo.GARBAGE_COLLECTION_NOTIFICATION.equals(notification.getType())) {
-                        CompositeData cd = (CompositeData) notification.getUserData();
-                        GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from(cd);
-                        if (!info.getGcAction().toLowerCase().contains("end of")) return;
-                        StaticMetricsHolder.setGauge(kGcDuration, info.getGcInfo().getDuration());
-                        StaticMetricsHolder.addCounter(kGcCount, 1);
-                    }
-                }, null, null);
-            }
-        }
+        log.info("MetricsWriter initialized.");
     }
 
     private void tick() {
@@ -93,21 +47,13 @@ public class MetricsWriter {
             var latMap = s.latencyHistory();
             AtomicInteger count = new AtomicInteger(0);
 
-            // 1. 同步 JVM 指標
-            if (kUsed != 0) {
-                Runtime r = Runtime.getRuntime();
-                write(latestMap, kUsed, (r.totalMemory() - r.freeMemory()) / 1024 / 1024); 
-                write(latestMap, kMax, r.maxMemory() / 1024 / 1024);
-                count.addAndGet(2);
-            }
-
-            // 2. 遍歷全局註冊表並同步
             registry.forEachMeter(meter -> {
                 String name = meter.getId().getName();
                 if (!name.startsWith("spot.metric.")) return;
 
                 try {
                     long mKey = Long.parseLong(name.substring(12));
+                    
                     if (meter instanceof Counter c) {
                         long val = (long) c.count();
                         write(latestMap, mKey, val);

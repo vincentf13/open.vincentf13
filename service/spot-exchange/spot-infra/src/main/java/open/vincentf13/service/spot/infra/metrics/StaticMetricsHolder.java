@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 指標靜態持有者 (全局 Micrometer 版)
- * 職責：使用 Metrics.globalRegistry，確保指標始終能被捕捉，不受 Spring Bean 初始化順序影響。
+ * 職責：使用 Metrics.globalRegistry，確保指標始終能被捕捉。
  */
 @Slf4j
 @Component
@@ -38,6 +38,7 @@ public class StaticMetricsHolder {
 
     /** 記錄 CPU 位圖：將目前的 cpuId 疊加到 bitmask 中 */
     public static void recordCpuId(long key, int cpuId) {
+        if (cpuId < 0 || cpuId >= 64) return;
         long bit = 1L << cpuId;
         GAUGE_MAP.computeIfAbsent(key, k -> {
             AtomicLong al = new AtomicLong(0);
