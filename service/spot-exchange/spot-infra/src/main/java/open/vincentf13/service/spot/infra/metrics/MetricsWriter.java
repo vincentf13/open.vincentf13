@@ -2,12 +2,14 @@ package open.vincentf13.service.spot.infra.metrics;
 
 import com.sun.management.GarbageCollectionNotificationInfo;
 import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import javax.management.NotificationEmitter;
@@ -38,8 +40,8 @@ public class MetricsWriter {
         return t;
     });
 
-    public MetricsWriter(MeterRegistry registry, org.springframework.context.ApplicationContext ctx) {
-        this.registry = registry;
+    public MetricsWriter(ObjectProvider<MeterRegistry> registryProvider, org.springframework.context.ApplicationContext ctx) {
+        this.registry = registryProvider.getIfAvailable(SimpleMeterRegistry::new);
         this.ctx = ctx;
     }
 

@@ -1,7 +1,9 @@
 package open.vincentf13.service.spot.infra.metrics;
 
 import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -19,9 +21,10 @@ public class StaticMetricsHolder {
     private static MeterRegistry registry;
     private static final Map<Long, AtomicLong> GAUGE_MAP = new ConcurrentHashMap<>();
 
-    public StaticMetricsHolder(MeterRegistry registry) {
-        StaticMetricsHolder.registry = registry;
-        log.info("StaticMetricsHolder initialized with Micrometer registry.");
+    public StaticMetricsHolder(ObjectProvider<MeterRegistry> registryProvider) {
+        StaticMetricsHolder.registry = registryProvider.getIfAvailable(SimpleMeterRegistry::new);
+        log.info("StaticMetricsHolder initialized with {} registry.", 
+                 StaticMetricsHolder.registry.getClass().getSimpleName());
     }
 
     public static void addCounter(long key, long delta) {
