@@ -67,22 +67,32 @@ function createPreallocatedOrderBuffer() {
 export default function () {
     const uid = __VU + 1000;
     const authBuf = createAuthBuffer(uid);
-    const btcDep  = createDepositBuffer(uid, 1, 100000000000L); // 1000 BTC
-    const usdtDep = createDepositBuffer(uid, 2, 100000000000L); // 1000 USDT
+    // 充值 1 億單位 (8 位精度)
+    const BIG_AMT = BigInt("10000000000000000"); 
+    const btcDep  = createDepositBuffer(uid, 1, BIG_AMT); 
+    const usdtDep = createDepositBuffer(uid, 2, BIG_AMT); 
     const { buffer, view } = createPreallocatedOrderBuffer();
     let cidCounter = Date.now() * 1000 + (__VU * 1000000);
+    let batchCount = 0;
 
     const res = ws.connect(WS_URL, {}, function (socket) {
         socket.on('open', function () {
-            // 1. 必須發送 Auth
+            // 1. 認證
             socket.sendBinary(authBuf);
-            // 2. 充值以確保餘額充足
+            // 2. 初始大額充值
             socket.sendBinary(btcDep);
             socket.sendBinary(usdtDep);
 
             // 3. 開始極速下單
             socket.setInterval(function () {
                 const ts = BigInt(Date.now());
+                
+                // 每 100 輪補票一次，確保資產流通不斷裂
+                if (++batchCount % 100 === 0) {
+                    socket.sendBinary(btcDep);
+                    socket.sendBinary(usdtDep);
+                }
+
                 for (let i = 0; i < 20; i++) {
                     // BUY
                     view.setBigInt64(20, ts, true);
