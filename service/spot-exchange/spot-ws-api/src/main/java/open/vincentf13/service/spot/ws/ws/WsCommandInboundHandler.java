@@ -47,11 +47,15 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, BinaryWebSocketFrame frame) {
+        final long arrivalTimeNs = System.nanoTime();
         updateNettyMetrics();
 
         io.netty.buffer.ByteBuf content = frame.content();
         int length = content.readableBytes();
         if (length < 20) return;
+
+        // 盡早填入網關接收時間戳
+        content.setLongLE(content.readerIndex() + 12, arrivalTimeNs);
 
         // 1. 提取 MsgType 與處理 Session 綁定 (僅在尚未綁定時執行)
         if (ctx.channel().attr(WsSessionManager.USER_ID_KEY).get() == null) {

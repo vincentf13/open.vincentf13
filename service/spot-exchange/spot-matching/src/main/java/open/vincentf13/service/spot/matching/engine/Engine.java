@@ -66,8 +66,24 @@ public class Engine implements AeronMessageHandler {
 
     @Override
     public void onMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
-        final long gatewayTime = buffer.getLong(offset + 12);
-        long seq = router.route(msgType, buffer, offset, length, gatewayTime, progress);
+        final long arrivalTimeNs = System.nanoTime();
+        final long gatewayTimeNs = buffer.getLong(offset + 12);
+        
+        long seq = router.route(msgType, buffer, offset, length, gatewayTimeNs, progress);
+        
+        final long endNs = System.nanoTime();
+        
+        // 延遲統計
+        if (msgType == MsgType.ORDER_CREATE || msgType == MsgType.ORDER_CANCEL) {
+            // 1. 傳輸延遲 (ns)
+            long transportNs = arrivalTimeNs - gatewayTimeNs;
+            // 2. 處理延遲 (ns)
+            long processNs = endNs - arrivalTimeNs;
+            
+            MetricsCollector.recordLatency(MetricsKey.TRANSPORT_LATENCY_NS, transportNs);
+            MetricsCollector.recordLatency(MetricsKey.MATCHING_PROCESS_LATENCY_NS, processNs);
+        }
+
         if (seq != MSG_SEQ_NONE) {
             long last = progress.getLastProcessedMsgSeq();
             if (last != MSG_SEQ_NONE && seq != last + 1) {

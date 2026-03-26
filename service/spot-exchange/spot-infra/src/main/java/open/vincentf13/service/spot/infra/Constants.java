@@ -125,6 +125,23 @@ public class Constants {
         public static final long GATEWAY_WAL_DROP_COUNT = -8L; // 新增：網關 WAL 佇列丟失計數
         public static final long MATCH_COUNT = -9L; // 新增：總成交筆數指標
 
+        // 延遲監測指標 (Latency Metrics)
+        public static final long MATCHING_PROCESS_LATENCY_NS = -10L; // 撮合引擎處理延遲 (奈秒)
+        public static final long TRANSPORT_LATENCY_NS = -11L;        // 網關到引擎傳輸延遲 (奈秒)
+
+        // 數據分佈指標 (Percentiles)
+        public static final long MATCHING_LATENCY_P50 = -20L;
+        public static final long MATCHING_LATENCY_P90 = -21L;
+        public static final long MATCHING_LATENCY_P99 = -22L;
+        public static final long MATCHING_LATENCY_P999 = -23L;
+        public static final long MATCHING_LATENCY_MAX = -24L;
+
+        public static final long TRANSPORT_LATENCY_P50 = -30L;
+        public static final long TRANSPORT_LATENCY_P90 = -31L;
+        public static final long TRANSPORT_LATENCY_P99 = -32L;
+        public static final long TRANSPORT_LATENCY_P999 = -33L;
+        public static final long TRANSPORT_LATENCY_MAX = -34L;
+
         // CPU ID 監測指標 (執行緒綁核追蹤)
         public static final long CPU_ID_ENGINE = -100L;
         public static final long CPU_ID_WAL_WRITER = -101L;
