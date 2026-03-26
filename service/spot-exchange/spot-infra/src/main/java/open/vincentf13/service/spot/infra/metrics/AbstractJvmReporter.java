@@ -4,6 +4,7 @@ import com.sun.management.GarbageCollectionNotificationInfo;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import javax.management.NotificationEmitter;
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Slf4j
 public abstract class AbstractJvmReporter {
+    private static final String GC_META_SEPARATOR = "\u001F";
 
     private final AtomicInteger gcSlot = new AtomicInteger(0);
 
@@ -30,7 +32,7 @@ public abstract class AbstractJvmReporter {
 
                     CompositeData cd = (CompositeData) notification.getUserData();
                     GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from(cd);
-                    reportGcEvent(info.getGcInfo().getDuration());
+                    reportGcEvent(info);
                 }, null, null);
             }
         }
@@ -45,14 +47,26 @@ public abstract class AbstractJvmReporter {
         onReport();
     }
 
-    private synchronized void reportGcEvent(long durationMs) {
+    private synchronized void reportGcEvent(GarbageCollectionNotificationInfo info) {
+        long durationMs = info.getGcInfo().getDuration();
         StaticMetricsHolder.addCounter(getGcCountKey(), 1);
 
         int slot = gcSlot.getAndIncrement() % MetricsKey.GC_HISTORY_MAX_KEEP;
+        long eventKey = getGcHistoryStart() + slot;
         long encoded = System.currentTimeMillis() * 1_000_000L + Math.min(durationMs * 1000, 999_999L);
 
-        StaticMetricsHolder.setGauge(getGcHistoryStart() + slot, encoded);
+        StaticMetricsHolder.setGauge(eventKey, encoded);
         StaticMetricsHolder.setGauge(getGcDurationKey(), durationMs);
+        Storage.self().gcEventHistory().put(eventKey, encodeGcMeta(info.getGcName(), info.getGcAction(), info.getGcCause()));
+    }
+
+    private String encodeGcMeta(String gcName, String gcAction, String gcCause) {
+        return normalize(gcName) + GC_META_SEPARATOR + normalize(gcAction) + GC_META_SEPARATOR + normalize(gcCause);
+    }
+
+    private String normalize(String value) {
+        if (value == null) return "";
+        return value.replace(GC_META_SEPARATOR, " ");
     }
 
     protected abstract long getUsedMbKey();

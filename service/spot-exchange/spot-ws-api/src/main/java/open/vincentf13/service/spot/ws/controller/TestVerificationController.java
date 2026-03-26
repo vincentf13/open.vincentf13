@@ -15,6 +15,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @RestController
 @RequestMapping("/api/test")
 public class TestVerificationController {
+    private static final String GC_META_SEPARATOR = "\u001F";
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
     @GetMapping("/metrics/tps")
@@ -109,14 +110,19 @@ public class TestVerificationController {
 
         List<Map<String, Object>> history = new ArrayList<>();
         for (int i = 0; i < MetricsKey.GC_HISTORY_MAX_KEEP; i++) {
-            long encoded = get(historyStart + i);
+            long eventKey = historyStart + i;
+            long encoded = get(eventKey);
             if (encoded == 0) continue;
             long epochMillis  = encoded / 1_000_000L;
             long durationUs   = encoded % 1_000_000L;
+            String[] gcMeta = parseGcMeta(Storage.self().gcEventHistory().get(eventKey));
             history.add(Map.of(
                 "time",     TIME.format(Instant.ofEpochMilli(epochMillis)),
                 "duration_ms", durationUs / 1000.0d,
-                "type", "pause_notification"
+                "type", "pause_notification",
+                "gc_name", gcMeta[0],
+                "gc_action", gcMeta[1],
+                "gc_cause", gcMeta[2]
             ));
         }
         history.sort((a, b) -> b.get("time").toString().compareTo(a.get("time").toString()));
@@ -125,6 +131,15 @@ public class TestVerificationController {
             "pause_history", history,
             "semantic", "jvm_gc_notification_pause"
         );
+    }
+
+    private String[] parseGcMeta(String raw) {
+        if (raw == null || raw.isEmpty()) return new String[]{"", "", ""};
+
+        String[] parts = raw.split(GC_META_SEPARATOR, -1);
+        if (parts.length >= 3) return new String[]{parts[0], parts[1], parts[2]};
+        if (parts.length == 2) return new String[]{parts[0], parts[1], ""};
+        return new String[]{parts[0], "", ""};
     }
 
     private List<Map<String, Object>> getCombinedLatency() {
