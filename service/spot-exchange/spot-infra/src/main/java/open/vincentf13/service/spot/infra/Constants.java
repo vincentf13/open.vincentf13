@@ -127,6 +127,7 @@ public class Constants {
         public static final long MATCH_COUNT = 9L;
         public static final long ORDER_ACCEPTED_COUNT = 12L;
         public static final long ORDER_REJECTED_COUNT = 13L;
+        public static final long ORDER_PROCESSED_COUNT = 14L;
 
         // 延遲分佈指標 (Latencies - Nanoseconds)
         public static final long LATENCY_MATCHING = 10L;
@@ -150,6 +151,13 @@ public class Constants {
         public static final long CPU_ID_NETTY_WORKER_3 = 1010L;
         public static final long CPU_ID_NETTY_WORKER_4 = 1011L;
         public static final long CPU_ID_AERON_CONDUCTOR = 1009L;
+        public static final long CPU_ID_CURRENT_AERON_SENDER = 1012L;
+        public static final long CPU_ID_CURRENT_AERON_RECEIVER = 1013L;
+        public static final long CPU_ID_CURRENT_NETTY_BOSS = 1014L;
+        public static final long CPU_ID_CURRENT_NETTY_WORKER_1 = 1015L;
+        public static final long CPU_ID_CURRENT_NETTY_WORKER_2 = 1016L;
+        public static final long CPU_ID_CURRENT_NETTY_WORKER_3 = 1017L;
+        public static final long CPU_ID_CURRENT_NETTY_WORKER_4 = 1018L;
 
         // JVM 與 CPU 指標
         public static final long MATCHING_JVM_USED_MB = 200L;

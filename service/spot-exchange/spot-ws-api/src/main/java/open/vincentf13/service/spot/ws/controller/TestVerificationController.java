@@ -28,7 +28,7 @@ public class TestVerificationController {
             if (lastTotal != null) {
                 long tps = entry.getValue() - lastTotal;
                 if (tps >= 0) {
-                    result.add(Map.of("time", TIME.format(Instant.ofEpochMilli(entry.getKey())), "tps", tps, "total", entry.getValue()));
+                    result.add(Map.of("time", TIME.format(Instant.ofEpochMilli(entry.getKey())), "tps", tps, "total", entry.getValue(), "type", "order"));
                 }
             }
             lastTotal = entry.getValue();
@@ -47,21 +47,33 @@ public class TestVerificationController {
         m.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
         m.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
         m.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
+        m.put("matching_receiver_duty_cycle", get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE));
+        m.put("gateway_sender_duty_cycle", get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE));
 
         m.put("matching_jvm", formatJvm(MetricsKey.MATCHING_JVM_USED_MB, MetricsKey.MATCHING_JVM_MAX_MB));
-        m.put("matching_gc", buildGcInfo(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_HISTORY_START));
+        m.put("matching_gc_pause", buildGcPauseInfo(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_HISTORY_START));
         m.put("gateway_jvm", formatJvm(MetricsKey.GATEWAY_JVM_USED_MB, MetricsKey.GATEWAY_JVM_MAX_MB));
-        m.put("gateway_gc",  buildGcInfo(MetricsKey.GATEWAY_GC_COUNT,  MetricsKey.GATEWAY_GC_HISTORY_START));
+        m.put("gateway_gc_pause",  buildGcPauseInfo(MetricsKey.GATEWAY_GC_COUNT,  MetricsKey.GATEWAY_GC_HISTORY_START));
 
-        Map<String, List<Integer>> cpuIds = new LinkedHashMap<>();
-        cpuIds.put("matching_receiver", parseCpuMask(get(MetricsKey.CPU_ID_AERON_RECEIVER)));
-        cpuIds.put("gateway_sender",    parseCpuMask(get(MetricsKey.CPU_ID_AERON_SENDER)));
-        cpuIds.put("netty_boss",        parseCpuMask(get(MetricsKey.CPU_ID_NETTY_BOSS)));
-        cpuIds.put("netty_worker_1",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_1)));
-        cpuIds.put("netty_worker_2",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_2)));
-        cpuIds.put("netty_worker_3",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_3)));
-        cpuIds.put("netty_worker_4",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_4)));
-        m.put("cpu_affinity_history", cpuIds);
+        Map<String, List<Integer>> cpuHistory = new LinkedHashMap<>();
+        cpuHistory.put("matching_receiver", parseCpuMask(get(MetricsKey.CPU_ID_AERON_RECEIVER)));
+        cpuHistory.put("gateway_sender",    parseCpuMask(get(MetricsKey.CPU_ID_AERON_SENDER)));
+        cpuHistory.put("netty_boss",        parseCpuMask(get(MetricsKey.CPU_ID_NETTY_BOSS)));
+        cpuHistory.put("netty_worker_1",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_1)));
+        cpuHistory.put("netty_worker_2",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_2)));
+        cpuHistory.put("netty_worker_3",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_3)));
+        cpuHistory.put("netty_worker_4",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_4)));
+        m.put("cpu_affinity_history", cpuHistory);
+
+        Map<String, Object> currentCpuIds = new LinkedHashMap<>();
+        currentCpuIds.put("matching_receiver", getNullable(MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER));
+        currentCpuIds.put("gateway_sender",    getNullable(MetricsKey.CPU_ID_CURRENT_AERON_SENDER));
+        currentCpuIds.put("netty_boss",        getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_BOSS));
+        currentCpuIds.put("netty_worker_1",    getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1));
+        currentCpuIds.put("netty_worker_2",    getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2));
+        currentCpuIds.put("netty_worker_3",    getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3));
+        currentCpuIds.put("netty_worker_4",    getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4));
+        m.put("current_cpu_id", currentCpuIds);
         
         m.put("latency", getCombinedLatency());
 
@@ -71,6 +83,10 @@ public class TestVerificationController {
     private long get(long key) {
         var v = Storage.self().latestMetrics().get(key);
         return v == null ? 0 : v;
+    }
+
+    private Long getNullable(long key) {
+        return Storage.self().latestMetrics().get(key);
     }
 
     private List<Integer> parseCpuMask(long mask) {
@@ -87,11 +103,10 @@ public class TestVerificationController {
         return u == 0 ? "N/A" : String.format("%dMB (%.1f%%)", u, (double) u / (m == 0 ? 1 : m) * 100);
     }
 
-    private Map<String, Object> buildGcInfo(long countKey, long historyStart) {
+    private Map<String, Object> buildGcPauseInfo(long countKey, long historyStart) {
         long count = get(countKey);
-        if (count == 0) return Map.of("count", 0, "history", List.of());
+        if (count == 0) return Map.of("pause_count", 0, "pause_history", List.of(), "semantic", "jvm_gc_notification_pause");
 
-        // 讀取所有非零歷史槽，解碼後按時間倒序排列
         List<Map<String, Object>> history = new ArrayList<>();
         for (int i = 0; i < MetricsKey.GC_HISTORY_MAX_KEEP; i++) {
             long encoded = get(historyStart + i);
@@ -100,11 +115,16 @@ public class TestVerificationController {
             long durationUs   = encoded % 1_000_000L;
             history.add(Map.of(
                 "time",     TIME.format(Instant.ofEpochMilli(epochMillis)),
-                "duration", durationUs + "µs"
+                "duration_ms", durationUs / 1000.0d,
+                "type", "pause_notification"
             ));
         }
         history.sort((a, b) -> b.get("time").toString().compareTo(a.get("time").toString()));
-        return Map.of("count", count, "history", history);
+        return Map.of(
+            "pause_count", count,
+            "pause_history", history,
+            "semantic", "jvm_gc_notification_pause"
+        );
     }
 
     private List<Map<String, Object>> getCombinedLatency() {

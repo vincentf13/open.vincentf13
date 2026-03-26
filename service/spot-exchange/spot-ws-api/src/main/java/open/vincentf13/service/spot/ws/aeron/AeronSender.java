@@ -38,7 +38,11 @@ public class AeronSender extends AbstractAeronSender {
             StaticMetricsHolder.addCounter(MetricsKey.AERON_BACKPRESSURE, localBackPressure); 
             localBackPressure = 0; 
         }
-        WorkerMetrics.reportThreadMetrics(MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
+        WorkerMetrics.reportThreadMetrics(
+            MetricsKey.CPU_ID_AERON_SENDER,
+            MetricsKey.CPU_ID_CURRENT_AERON_SENDER,
+            MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE
+        );
     }
 
     @Override

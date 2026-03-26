@@ -51,10 +51,18 @@ public class NettyServer {
                 MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
                 MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4));
 
-            scheduleMetrics(bossGroup, MetricsKey.CPU_ID_NETTY_BOSS);
+            scheduleMetrics(bossGroup,
+                new long[]{MetricsKey.CPU_ID_NETTY_BOSS},
+                new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_BOSS});
             scheduleMetrics(workerGroup, 
-                MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
-                MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4);
+                new long[]{
+                    MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
+                    MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4
+                },
+                new long[]{
+                    MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2,
+                    MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4
+                });
 
             try {
                 ServerBootstrap b = new ServerBootstrap();
@@ -92,13 +100,15 @@ public class NettyServer {
         if (workerGroup != null) workerGroup.shutdownGracefully();
     }
 
-    private void scheduleMetrics(EventLoopGroup group, long... keys) {
+    private void scheduleMetrics(EventLoopGroup group, long[] historyKeys, long[] currentKeys) {
         int i = 0;
         for (io.netty.util.concurrent.EventExecutor executor : group) {
-            if (i >= keys.length) break;
-            final long key = keys[i++];
+            if (i >= historyKeys.length || i >= currentKeys.length) break;
+            final long historyKey = historyKeys[i];
+            final long currentKey = currentKeys[i];
+            i++;
             executor.scheduleAtFixedRate(() ->
-                StaticMetricsHolder.recordCpuId(key, AffinityUtil.currentCpu()),
+                StaticMetricsHolder.recordCpuId(historyKey, currentKey, AffinityUtil.currentCpu()),
             1, 1, TimeUnit.SECONDS);
         }
     }
@@ -119,8 +129,16 @@ public class NettyServer {
             Runnable bindingTask = () -> {
                 try {
                     int cpuId = AffinityUtil.acquireAndBind();
-                    if (metricKeys != null && currentIdx < metricKeys.length)
-                        StaticMetricsHolder.recordCpuId(metricKeys[currentIdx], cpuId);
+                    if (metricKeys != null && currentIdx < metricKeys.length) {
+                        long currentMetricKey;
+                        if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_BOSS) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_BOSS;
+                        else if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_WORKER_1) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1;
+                        else if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_WORKER_2) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2;
+                        else if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_WORKER_3) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3;
+                        else if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_WORKER_4) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4;
+                        else currentMetricKey = metricKeys[currentIdx];
+                        StaticMetricsHolder.recordCpuId(metricKeys[currentIdx], currentMetricKey, cpuId);
+                    }
                 } catch (Throwable ignored) {}
                 r.run();
             };

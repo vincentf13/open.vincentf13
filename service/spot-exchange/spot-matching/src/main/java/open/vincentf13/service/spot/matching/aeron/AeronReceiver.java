@@ -37,7 +37,11 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected void collectMetrics() {
-        WorkerMetrics.reportThreadMetrics(MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE);
+        WorkerMetrics.reportThreadMetrics(
+            MetricsKey.CPU_ID_AERON_RECEIVER,
+            MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER,
+            MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE
+        );
     }
 
     @Override

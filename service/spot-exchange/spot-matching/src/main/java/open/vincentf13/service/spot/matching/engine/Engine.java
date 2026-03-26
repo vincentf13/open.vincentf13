@@ -72,6 +72,7 @@ public class Engine implements AeronMessageHandler {
         
         // 延遲統計
         if (msgType == MsgType.ORDER_CREATE || msgType == MsgType.ORDER_CANCEL) {
+            StaticMetricsHolder.addCounter(MetricsKey.ORDER_PROCESSED_COUNT, 1);
             final long transportNs = arrivalTimeNs - gatewayTimeNs;
             final long processNs = System.nanoTime() - arrivalTimeNs;
 

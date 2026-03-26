@@ -1,6 +1,5 @@
 package open.vincentf13.service.spot.infra.metrics;
 
-import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -43,31 +42,20 @@ public class MetricsWriter {
                 s.latestMetrics().put(key, atom.get())
             );
 
-            // 將延遲 Timer 的百分位數寫入 latencyHistory
-            StaticMetricsHolder.timerRegistry().forEachMeter(m -> {
-                if (!(m instanceof Timer t)) return;
-                String name = m.getId().getName();
-                if (!name.startsWith("spot.latency.")) return;
-                try {
-                    long key = Long.parseLong(name.substring("spot.latency.".length()));
-                    flushLatency(s.latencyHistory(), now, key, t);
-                } catch (Exception e) {
-                    log.warn("Failed to flush latency [{}]: {}", name, e.getMessage());
-                }
-            });
+            // 將秒級延遲窗口的百分位數寫入 latencyHistory
+            StaticMetricsHolder.snapshotLatencyAndReset().forEach((key, snapshot) ->
+                flushLatency(s.latencyHistory(), now, key, snapshot)
+            );
 
         } catch (Exception e) {
             log.error("Metrics tick failed", e);
         }
     }
 
-    private void flushLatency(ChronicleMap<Long, Long> map, long now, long key, Timer t) {
-        var snapshot = t.takeSnapshot();
-        if (snapshot.count() == 0) return;
-        var pv = snapshot.percentileValues();
-        save(map, now, key, MetricsKey.P50, pv.length > 0 ? (long) pv[0].value() : 0);
-        save(map, now, key, MetricsKey.P99, pv.length > 1 ? (long) pv[1].value() : 0);
-        save(map, now, key, MetricsKey.MAX, (long) snapshot.max(TimeUnit.NANOSECONDS));
+    private void flushLatency(ChronicleMap<Long, Long> map, long now, long key, StaticMetricsHolder.LatencySnapshot snapshot) {
+        save(map, now, key, MetricsKey.P50, snapshot.p50());
+        save(map, now, key, MetricsKey.P99, snapshot.p99());
+        save(map, now, key, MetricsKey.MAX, snapshot.max());
     }
 
     // 編碼公式：Key(10^15) + Percentile(10^12) + EpochSecond(10^0)

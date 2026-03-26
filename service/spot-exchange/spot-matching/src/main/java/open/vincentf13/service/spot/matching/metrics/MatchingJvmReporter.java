@@ -20,7 +20,7 @@ public class MatchingJvmReporter extends AbstractJvmReporter {
 
     @Override
     protected void onReport() {
-        var c = StaticMetricsHolder.values().get(MetricsKey.MATCH_COUNT);
+        var c = StaticMetricsHolder.values().get(MetricsKey.ORDER_PROCESSED_COUNT);
         Storage.self().tpsHistory().put(System.currentTimeMillis(), c != null ? c.get() : 0L);
     }
 }
