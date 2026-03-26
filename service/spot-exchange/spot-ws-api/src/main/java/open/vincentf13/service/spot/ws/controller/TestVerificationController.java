@@ -48,8 +48,8 @@ public class TestVerificationController {
         m.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
         m.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
         m.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
-        m.put("matching_receiver_duty_cycle", get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE));
-        m.put("gateway_sender_duty_cycle", get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE));
+        m.put("matching_receiver_duty_cycle", formatPercent(get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE)));
+        m.put("gateway_sender_duty_cycle", formatPercent(get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE)));
 
         m.put("matching_jvm", formatJvm(MetricsKey.MATCHING_JVM_USED_MB, MetricsKey.MATCHING_JVM_MAX_MB));
         m.put("matching_gc_pause", buildGcPauseInfo(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_HISTORY_START));
@@ -102,6 +102,10 @@ public class TestVerificationController {
     private String formatJvm(long usedKey, long maxKey) {
         long u = get(usedKey), m = get(maxKey);
         return u == 0 ? "N/A" : String.format("%dMB (%.1f%%)", u, (double) u / (m == 0 ? 1 : m) * 100);
+    }
+
+    private String formatPercent(long value) {
+        return value + "%";
     }
 
     private Map<String, Object> buildGcPauseInfo(long countKey, long historyStart) {
