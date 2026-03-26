@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 指標異步寫入器 (極簡共用版)
@@ -31,12 +32,14 @@ public class MetricsWriter {
     @PostConstruct
     public void start() {
         scheduler.scheduleAtFixedRate(this::tick, 1, 1, TimeUnit.SECONDS);
+        log.info("MetricsWriter [TICKER] initialized on thread: {}", Thread.currentThread().getName());
     }
 
     private void tick() {
         try {
             final long now = System.currentTimeMillis();
             final Storage s = Storage.self();
+            final AtomicInteger count = new AtomicInteger(0);
 
             registry.forEachMeter(m -> {
                 String name = m.getId().getName();
@@ -50,8 +53,13 @@ public class MetricsWriter {
                         long val = (long) (m instanceof Counter c ? c.count() : ((Gauge) m).value());
                         s.latestMetrics().put(new LongValue(key), new LongValue(val));
                     }
+                    count.incrementAndGet();
                 } catch (Exception ignored) {}
             });
+            
+            if (count.get() > 0) {
+                log.debug("Metrics ticker flushed {} metrics to disk.", count.get());
+            }
         } catch (Exception e) {
             log.error("Metrics tick failed", e);
         }
