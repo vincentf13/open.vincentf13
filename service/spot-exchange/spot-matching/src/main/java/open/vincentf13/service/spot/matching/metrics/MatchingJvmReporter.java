@@ -1,10 +1,9 @@
 package open.vincentf13.service.spot.matching.metrics;
 
-import io.micrometer.core.instrument.Metrics;
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
-import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.AbstractJvmReporter;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,9 +19,7 @@ public class MatchingJvmReporter extends AbstractJvmReporter {
 
     @Override
     protected void onReport() {
-        // 額外邏輯：同步 TPS 歷史 (非共用)
-        final long now = System.currentTimeMillis();
-        long totalMatch = (long) Metrics.globalRegistry.counter("spot.metric." + MetricsKey.MATCH_COUNT).count();
-        Storage.self().tpsHistory().put(new LongValue(now), new LongValue(totalMatch));
+        var c = StaticMetricsHolder.values().get(MetricsKey.MATCH_COUNT);
+        Storage.self().tpsHistory().put(System.currentTimeMillis(), c != null ? c.get() : 0L);
     }
 }

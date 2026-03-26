@@ -34,6 +34,7 @@ public abstract class Worker implements Runnable {
 
     public void run() {
         AffinityUtil.acquireAndBind();
+        long lastMetricsNs = System.nanoTime();
         try {
             onStart();
             while (running.get() && !Thread.currentThread().isInterrupted()) {
@@ -41,7 +42,11 @@ public abstract class Worker implements Runnable {
                 int work = doWork();
                 WorkerMetrics.endCycle(work > 0);
 
-                collectMetrics();
+                long now = System.nanoTime();
+                if (now - lastMetricsNs >= 1_000_000_000L) {
+                    collectMetrics();
+                    lastMetricsNs = now;
+                }
 
                 if (work <= 0) { Thread.onSpinWait(); Strategies.BUSY_SPIN.idle(0); }
             }

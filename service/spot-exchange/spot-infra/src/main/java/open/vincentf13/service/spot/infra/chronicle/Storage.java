@@ -12,16 +12,19 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * 系統存儲中心 (Storage Hub) - 高性能優化版
- * 職責：統一管理所有持久化 (Chronicle Map/Queue) 資源。
- * 優化：移除內存 RingBuffer 隊列，改由 Aeron 直連撮合。
+ * 系統存儲中心 (Storage Hub) - 穩定版
+ * 職責：管理所有 Chronicle 資源，並針對 Windows 檔案鎖定進行優化。
  */
 @Slf4j
 public class Storage {
-    private static final Storage INSTANCE = new Storage();
-    public static Storage self() { return INSTANCE; }
+    private static Storage INSTANCE;
 
-    // --- 持久化 Maps (Final & Pre-initialized) ---
+    // 單例取得改為延遲加載 (Lazy Init)，防止 Spring 啟動時因為檔案鎖定而卡死 main 線程
+    public static synchronized Storage self() {
+        if (INSTANCE == null) INSTANCE = new Storage();
+        return INSTANCE;
+    }
+
     private final ChronicleMap<LongValue, Order> orders;
     private final ChronicleMap<LongValue, Trade> trades;
     private final ChronicleMap<BalanceKey, Balance> balances;
@@ -31,35 +34,38 @@ public class Storage {
     private final ChronicleMap<LongValue, byte[]> userActiveOrders;
     private final ChronicleMap<Byte, MsgProgress> msgMetadata;
     private final ChronicleMap<Byte, WalProgress> walMetadata;
-    private final ChronicleMap<LongValue, LongValue> latestMetrics;
-    private final ChronicleMap<LongValue, LongValue> tpsHistory;
-    private final ChronicleMap<LongValue, LongValue> latencyHistory;
+    private final ChronicleMap<Long, Long> latestMetrics;
+    private final ChronicleMap<Long, Long> tpsHistory;
+    private final ChronicleMap<Long, Long> latencyHistory;
 
-    // --- 持久化 Queues (WAL) ---
     private final ChronicleQueue gatewaySenderWal;
 
     private Storage() {
-        log.info(">>> [INIT] 正在初始化 Chronicle 存儲資源...");
-        this.orders = createMap(ChronicleMapEnum.ORDERS, LongValue.class, Order.class, 10_000_000, 128);
-        this.trades = createMap(ChronicleMapEnum.TRADES, LongValue.class, Trade.class, 10_000_000, 64);
-        this.balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 10_000_000, 16, 64);
-        this.userAssets = createMap(ChronicleMapEnum.USER_ASSETS, LongValue.class, LongValue.class, 1_000_000, 8);
-        this.activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, LongValue.class, Boolean.class, 10_000_000, 1);
-        this.cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, LongValue.class, 10_000_000, 16, 8);
-        this.userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, LongValue.class, byte[].class, 100_000, 256);
-        this.msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 0);
-        this.walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 0);
-        
-        // 拆分指標存儲
-        this.latestMetrics = createMap("metrics-latest", LongValue.class, LongValue.class, 1024, 8, 8);
-        this.tpsHistory = createMap("metrics-tps-history", LongValue.class, LongValue.class, 86400 * 7, 8, 8); // 7天 TPS
-        this.latencyHistory = createMap("metrics-latency-history", LongValue.class, LongValue.class, 86400 * 7, 8, 8); // 7天延遲
-        
-        this.gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
-        log.info(">>> [INIT] Chronicle 存儲資源初始化完成。");
+        log.info(">>> [STORAGE] 正在啟動 Chronicle 資源加載...");
+        try {
+            this.orders = createMap(ChronicleMapEnum.ORDERS, LongValue.class, Order.class, 10_000_000, 128);
+            this.trades = createMap(ChronicleMapEnum.TRADES, LongValue.class, Trade.class, 10_000_000, 64);
+            this.balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 10_000_000, 16, 64);
+            this.userAssets = createMap(ChronicleMapEnum.USER_ASSETS, LongValue.class, LongValue.class, 1_000_000, 8);
+            this.activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, LongValue.class, Boolean.class, 10_000_000, 1);
+            this.cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, LongValue.class, 10_000_000, 16, 8);
+            this.userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, LongValue.class, byte[].class, 100_000, 256);
+            this.msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 32);
+            this.walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 32);
+            
+            // 重要：這些 Map 如果在 Windows 上被多個 Java 進程同時訪問且沒有設置正確的 entries 空間，會拋出 Exception
+            this.latestMetrics = createMap("metrics-latest", Long.class, Long.class, 4096, 8, 8);
+            this.tpsHistory = createMap("metrics-tps-history", Long.class, Long.class, 86400 * 7, 8, 8); 
+            this.latencyHistory = createMap("metrics-latency-history", Long.class, Long.class, 86400 * 7, 8, 8); 
+            
+            this.gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
+            log.info(">>> [STORAGE] Chronicle 所有資源初始化成功。");
+        } catch (Exception e) {
+            log.error(">>> [STORAGE-ERROR] Chronicle 初始化期間發生嚴重錯誤！可能是檔案被其他進程佔用。", e);
+            throw e;
+        }
     }
 
-    // --- Getters (Thread-Safe by Final) ---
     public ChronicleMap<LongValue, Order> orders() { return orders; }
     public ChronicleMap<LongValue, Trade> trades() { return trades; }
     public ChronicleMap<BalanceKey, Balance> balances() { return balances; }
@@ -69,38 +75,41 @@ public class Storage {
     public ChronicleMap<LongValue, byte[]> userActiveOrders() { return userActiveOrders; }
     public ChronicleMap<Byte, MsgProgress> msgProgressMetadata() { return msgMetadata; }
     public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
-    public ChronicleMap<LongValue, LongValue> latestMetrics() { return latestMetrics; }
-    public ChronicleMap<LongValue, LongValue> tpsHistory() { return tpsHistory; }
-    public ChronicleMap<LongValue, LongValue> latencyHistory() { return latencyHistory; }
+    public ChronicleMap<Long, Long> latestMetrics() { return latestMetrics; }
+    public ChronicleMap<Long, Long> tpsHistory() { return tpsHistory; }
+    public ChronicleMap<Long, Long> latencyHistory() { return latencyHistory; }
     public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
 
-    // --- Helpers ---
-
+    // 輔助方法：5 個引數的重載
     private <K, V> ChronicleMap<K, V> createMap(Object name, Class<K> keyCls, Class<V> valCls, int entries, int valSize) {
-        return createMap(name.toString(), keyCls, valCls, entries, 0, valSize);
+        return createMap(name, keyCls, valCls, entries, 0, valSize);
     }
 
+    // 核心方法：6 個引數
     private <K, V> ChronicleMap<K, V> createMap(Object name, Class<K> keyCls, Class<V> valCls, int entries, int keySize, int valSize) {
+        String dir = ChronicleMapEnum.DEFAULT_BASE_DIR;
+        new File(dir).mkdirs();
+        File mapFile = new File(dir + name);
+        
         try {
-            String dir = ChronicleMapEnum.DEFAULT_BASE_DIR;
-            new File(dir).mkdirs();
             var builder = ChronicleMap.of(keyCls, valCls).name(name.toString()).entries(entries);
             
+            // 重要：對於固定長度類型 (如 Long)，averageKeySize 會拋出異常，必須 catch
             try {
-                if (keySize > 0) builder.averageKeySize(keySize);
-                else if (keyCls == String.class) builder.averageKeySize(32);
+                if (keyCls == Long.class || keyCls == long.class) builder.averageKeySize(8);
+                else if (keySize > 0) builder.averageKeySize(keySize);
                 else builder.averageKeySize(16);
-            } catch (IllegalStateException ignored) {}
+            } catch (Exception ignored) {}
 
             try {
-                if (valSize > 0) builder.averageValueSize(valSize);
-                else if (valCls.isInterface()) builder.averageValueSize(32);
-                else if (valCls == byte[].class) builder.averageValueSize(256);
-                else builder.averageValueSize(64);
-            } catch (IllegalStateException ignored) {}
+                if (valCls == Long.class || valCls == long.class) builder.averageValueSize(8);
+                else if (valSize > 0) builder.averageValueSize(valSize);
+                else builder.averageValueSize(32);
+            } catch (Exception ignored) {}
             
-            return builder.createPersistedTo(new File(dir + name));
+            return builder.createPersistedTo(mapFile);
         } catch (IOException e) {
+            log.error("無法開啟 ChronicleMap: {}，路徑: {}", name, mapFile.getAbsolutePath(), e);
             throw new RuntimeException("ChronicleMap 建立失敗: " + name, e);
         }
     }
@@ -108,30 +117,15 @@ public class Storage {
     private ChronicleQueue createQueue(ChronicleQueueEnum q) {
         String dir = ChronicleMapEnum.WAL_BASE_DIR;
         new File(dir).mkdirs();
-        return SingleChronicleQueueBuilder
-                .single(dir + q.getPath())
-                .rollCycle(net.openhft.chronicle.queue.RollCycles.FAST_DAILY)
-                .indexCount(1024)
-                .indexSpacing(256) // 恢復為 256 以保證讀取性能
-                .syncMode(net.openhft.chronicle.bytes.SyncMode.ASYNC) 
-                .build();
+        return SingleChronicleQueueBuilder.single(dir + q.getPath()).rollCycle(net.openhft.chronicle.queue.RollCycles.FAST_DAILY).build();
     }
 
     public void close() {
-        log.info(">>> [CLOSE] 正在釋放存儲資源...");
         synchronized (this) {
-            safeClose(orders);
-            safeClose(trades);
-            safeClose(balances);
-            safeClose(userAssets);
-            safeClose(activeOrders);
-            safeClose(cids);
-            safeClose(userActiveOrders);
-            safeClose(msgMetadata);
-            safeClose(walMetadata);
-            safeClose(latestMetrics);
-            safeClose(tpsHistory);
-            safeClose(latencyHistory);
+            safeClose(orders); safeClose(trades); safeClose(balances); safeClose(userAssets);
+            safeClose(activeOrders); safeClose(cids); safeClose(userActiveOrders);
+            safeClose(msgMetadata); safeClose(walMetadata); safeClose(latestMetrics);
+            safeClose(tpsHistory); safeClose(latencyHistory);
             if (gatewaySenderWal != null) gatewaySenderWal.close();
         }
     }

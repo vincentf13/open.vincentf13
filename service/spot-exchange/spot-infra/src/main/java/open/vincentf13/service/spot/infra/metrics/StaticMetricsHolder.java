@@ -1,8 +1,8 @@
 package open.vincentf13.service.spot.infra.metrics;
 
-import io.micrometer.core.instrument.*;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,49 +10,36 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 指標靜態持有者 (全局 Micrometer 版)
- * 職責：使用 Metrics.globalRegistry，確保指標始終能被捕捉。
+ * 指標靜態門面
+ * 直接持有 AtomicLong Map，消除 Spring 初始化時序問題。
+ * 延遲指標另用獨立的 SimpleMeterRegistry 保留 HDR 百分位計算。
  */
-@Slf4j
-@Component
 public class StaticMetricsHolder {
 
-    private static final MeterRegistry REGISTRY = Metrics.globalRegistry;
-    private static final Map<Long, AtomicLong> GAUGE_MAP = new ConcurrentHashMap<>();
-
-    public StaticMetricsHolder() {
-        log.info("StaticMetricsHolder initialized using Global Registry.");
-    }
+    private static final ConcurrentHashMap<Long, AtomicLong> VALUES = new ConcurrentHashMap<>();
+    private static final SimpleMeterRegistry TIMER_REGISTRY = new SimpleMeterRegistry();
 
     public static void addCounter(long key, long delta) {
-        REGISTRY.counter("spot.metric." + key).increment(delta);
+        VALUES.computeIfAbsent(key, k -> new AtomicLong()).addAndGet(delta);
     }
 
     public static void setGauge(long key, long val) {
-        GAUGE_MAP.computeIfAbsent(key, k -> {
-            AtomicLong al = new AtomicLong(val);
-            REGISTRY.gauge("spot.metric." + k, al);
-            return al;
-        }).set(val);
+        VALUES.computeIfAbsent(key, k -> new AtomicLong()).set(val);
     }
 
-    /** 記錄 CPU 位圖：將目前的 cpuId 疊加到 bitmask 中 */
     public static void recordCpuId(long key, int cpuId) {
         if (cpuId < 0 || cpuId >= 64) return;
-        long bit = 1L << cpuId;
-        GAUGE_MAP.computeIfAbsent(key, k -> {
-            AtomicLong al = new AtomicLong(0);
-            REGISTRY.gauge("spot.metric." + k, al);
-            return al;
-        }).accumulateAndGet(bit, (prev, x) -> prev | x);
+        VALUES.computeIfAbsent(key, k -> new AtomicLong()).accumulateAndGet(1L << cpuId, (prev, x) -> prev | x);
     }
 
     public static void recordLatency(long key, long nanos) {
-        Timer.builder("spot.metric." + key)
-             .publishPercentiles(0.5, 0.9, 0.99, 0.999)
-             .register(REGISTRY)
+        Timer.builder("spot.latency." + key)
+             .publishPercentiles(0.5, 0.99)
+             .register(TIMER_REGISTRY)
              .record(nanos, TimeUnit.NANOSECONDS);
     }
 
-    public static MeterRegistry getRegistry() { return REGISTRY; }
+    public static Map<Long, AtomicLong> values() { return VALUES; }
+
+    public static MeterRegistry timerRegistry() { return TIMER_REGISTRY; }
 }

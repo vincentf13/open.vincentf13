@@ -20,7 +20,7 @@ public class TestVerificationController {
     @GetMapping("/metrics/tps")
     public List<Map<String, Object>> getTpsHistory() {
         TreeMap<Long, Long> sorted = new TreeMap<>();
-        Storage.self().tpsHistory().forEach((k, v) -> sorted.put(k.getValue(), v.getValue()));
+        Storage.self().tpsHistory().forEach((k, v) -> sorted.put(k, v));
         
         List<Map<String, Object>> result = new ArrayList<>();
         Long lastTotal = null;
@@ -70,8 +70,8 @@ public class TestVerificationController {
     }
 
     private long get(long key) {
-        var v = Storage.self().latestMetrics().get(new LongValue(key));
-        return v == null ? 0 : v.getValue();
+        var v = Storage.self().latestMetrics().get(key);
+        return v == null ? 0 : v;
     }
 
     private List<Integer> parseCpuMask(long mask) {
@@ -98,7 +98,7 @@ public class TestVerificationController {
         long base = Math.abs(metricKey) * 1_000_000_000_000_000L;
         
         Storage.self().latencyHistory().forEach((k, v) -> {
-            long key = k.getValue();
+            long key = k;
             if (key >= base && key < base + 1_000_000_000_000_000L) {
                 long p = (key - base) / 1_000_000_000_000L;
                 long t = (key - base) % 1_000_000_000_000L;
@@ -106,7 +106,7 @@ public class TestVerificationController {
                     var map = new LinkedHashMap<String, Object>();
                     map.put("time", TIME.format(Instant.ofEpochSecond(time)));
                     return map;
-                }).put("p" + p, v.getValue() + " ns");
+                }).put("p" + p, v + " ns");
             }
         });
         return new ArrayList<>(history.values());
@@ -116,5 +116,12 @@ public class TestVerificationController {
     public Map<String, Object> getBalance(@RequestParam long userId, @RequestParam int assetId) {
         Balance b = Storage.self().balances().getUsing(new BalanceKey(userId, assetId), new Balance());
         return b == null ? Map.of("available", 0, "frozen", 0) : Map.of("available", b.getAvailable(), "frozen", b.getFrozen());
+    }
+
+    @GetMapping("/order_by_cid")
+    public Order getOrderByCid(@RequestParam long userId, @RequestParam long cid) {
+        LongValue orderId = Storage.self().clientOrderIdMap().get(new CidKey(userId, cid));
+        if (orderId == null) return null;
+        return Storage.self().orders().get(orderId);
     }
 }
