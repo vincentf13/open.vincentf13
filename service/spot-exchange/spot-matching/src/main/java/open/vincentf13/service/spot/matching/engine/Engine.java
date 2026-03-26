@@ -54,9 +54,6 @@ public class Engine implements AeronMessageHandler {
         if (unflushedWorkCount > 0 && (unflushedWorkCount >= 100000 || now - lastFlushTime >= 1000)) {
             flushAll(); lastFlushTime = now; unflushedWorkCount = 0;
         }
-
-        final long nowSec = now / 1000;
-        if (nowSec > lastMetricsSec) { updateSystemMetrics(nowSec); lastMetricsSec = nowSec; }
     }
 
     private void flushAll() {
@@ -92,13 +89,9 @@ public class Engine implements AeronMessageHandler {
         }
     }
 
-    private void updateSystemMetrics(long nowSec) {
-        // 僅回報業務相關指標
-        GaugeMetrics.set(MetricsKey.MATCH_COUNT, OrderBook.TOTAL_MATCH_COUNT.get());
-    }
-
-    public void onStop() { 
+    public void onStop() {
         metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
-        reporter.close(); ThreadContext.cleanup(); 
+        reporter.close(); ThreadContext.cleanup();
     }
 }
+

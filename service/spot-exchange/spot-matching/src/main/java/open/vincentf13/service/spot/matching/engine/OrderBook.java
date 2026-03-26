@@ -13,8 +13,8 @@ import org.agrona.collections.LongHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.LongComparator;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
 
+import open.vincentf13.service.spot.infra.metrics.CounterMetrics;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
@@ -23,7 +23,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 public class OrderBook {
-    public static final AtomicLong TOTAL_MATCH_COUNT = new AtomicLong(0);
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
     
     // --- 全局對象池 (Object Pools) ---
@@ -155,10 +154,9 @@ public class OrderBook {
 
             maker.setFilled(maker.getFilled() + matchQty);
             taker.setFilled(taker.getFilled() + matchQty);
-            
-            TOTAL_MATCH_COUNT.incrementAndGet();
-            finalizer.onMatch(tid, maker, taker, price, matchQty, baseAssetId, quoteAssetId);
 
+            CounterMetrics.increment(MetricsKey.MATCH_COUNT);
+            finalizer.onMatch(tid, maker, taker, price, matchQty, baseAssetId, quoteAssetId);
             if (maker.getFilled() == maker.getQty()) { finalizeOrder(maker, gwSeq); makers.pollFirst(); } 
             else { syncOrder(maker, gwSeq); break; }
         }
