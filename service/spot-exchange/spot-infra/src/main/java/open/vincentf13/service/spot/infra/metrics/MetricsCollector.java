@@ -66,7 +66,7 @@ public class MetricsCollector {
     public static void recordCpuAffinity(long key, int cpuId) { set(key, cpuId); }
 
     private static int idx(long key) { return (int) Math.abs(key) % MAX_METRICS; }
-    private static boolean latencyValid(long ns) { return nanos > 0; }
+    private static boolean latencyValid(long ns) { return ns > 0; }
 
     private static void flush() {
         try {
