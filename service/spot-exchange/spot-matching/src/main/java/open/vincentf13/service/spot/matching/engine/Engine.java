@@ -5,8 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.infra.metrics.GaugeMetrics;
-import open.vincentf13.service.spot.infra.metrics.LatencyMetrics;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.model.WalProgress;
 import org.springframework.stereotype.Component;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver.AeronMessageHandler;
@@ -76,8 +75,8 @@ public class Engine implements AeronMessageHandler {
             final long transportNs = arrivalTimeNs - gatewayTimeNs;
             final long processNs = System.nanoTime() - arrivalTimeNs;
 
-            LatencyMetrics.record(MetricsKey.LATENCY_TRANSPORT, transportNs);
-            LatencyMetrics.record(MetricsKey.LATENCY_MATCHING, processNs);
+            StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_TRANSPORT, transportNs);
+            StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_MATCHING, processNs);
         }
         if (seq != MSG_SEQ_NONE) {
             long last = progress.getLastProcessedMsgSeq();

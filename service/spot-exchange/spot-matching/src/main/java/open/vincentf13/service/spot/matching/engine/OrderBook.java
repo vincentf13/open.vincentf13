@@ -14,7 +14,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.LongComparator;
 import java.util.*;
 
-import open.vincentf13.service.spot.infra.metrics.CounterMetrics;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
@@ -155,7 +155,7 @@ public class OrderBook {
             maker.setFilled(maker.getFilled() + matchQty);
             taker.setFilled(taker.getFilled() + matchQty);
 
-            CounterMetrics.increment(MetricsKey.MATCH_COUNT);
+            StaticMetricsHolder.addCounter(MetricsKey.MATCH_COUNT, 1);
             finalizer.onMatch(tid, maker, taker, price, matchQty, baseAssetId, quoteAssetId);
             if (maker.getFilled() == maker.getQty()) { finalizeOrder(maker, gwSeq); makers.pollFirst(); } 
             else { syncOrder(maker, gwSeq); break; }

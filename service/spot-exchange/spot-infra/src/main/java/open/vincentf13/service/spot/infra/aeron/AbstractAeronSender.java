@@ -6,7 +6,7 @@ import io.aeron.logbuffer.FragmentHandler;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import open.vincentf13.service.spot.infra.metrics.CounterMetrics;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.infra.thread.Worker;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
@@ -14,8 +14,7 @@ import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
- Aeron 發送器抽象基類 
- 職責：管理發送鏈路生命週期，處理基於 WAL 的指令重放。
+ Aeron 發送器抽象基類 (極簡 Micrometer 版)
  */
 @Slf4j
 public abstract class AbstractAeronSender extends Worker {
@@ -23,9 +22,7 @@ public abstract class AbstractAeronSender extends Worker {
     protected Publication publication;
     protected Subscription controlSub;
     protected ExcerptTailer tailer;
-
     protected AeronState currentState = AeronState.WAITING;
-    private long localSendCount = 0;
 
     public AbstractAeronSender(ChronicleQueue wal) { this.wal = wal; }
 
@@ -47,16 +44,12 @@ public abstract class AbstractAeronSender extends Worker {
             try (var dc = tailer.readingDocument()) {
                 if (!dc.isPresent()) break;
                 onWalMessage(dc.wire());
-                if (dc.wire().bytes().readRemaining() > 0) { // 發送失敗 (如背壓)
+                if (dc.wire().bytes().readRemaining() > 0) {
                     tailer.moveToIndex(lastIdx); break;
                 }
+                StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
                 work++;
             }
-        }
-        
-        if ((localSendCount += work) >= AeronConstants.METRICS_BATCH_SIZE) {
-            CounterMetrics.add(MetricsKey.AERON_SEND_COUNT, localSendCount);
-            localSendCount = 0;
         }
         return work;
     }
@@ -66,7 +59,6 @@ public abstract class AbstractAeronSender extends Worker {
             long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET);
             log.info("✅ 握手成功！位點: {}", walIndex);
             if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !tailer.moveToIndex(walIndex)) tailer.toStart();
-            else try (var dc = tailer.readingDocument()) {} 
             currentState = AeronState.SENDING;
         }
     };
@@ -78,6 +70,5 @@ public abstract class AbstractAeronSender extends Worker {
         if (publication != null) publication.close();
         if (controlSub != null) controlSub.close();
         ThreadContext.cleanup();
-        AeronThreadContext.cleanup();
     }
 }

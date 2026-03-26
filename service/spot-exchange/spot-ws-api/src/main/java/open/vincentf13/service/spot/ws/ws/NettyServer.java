@@ -20,7 +20,7 @@ import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import open.vincentf13.service.spot.infra.Constants.Ws;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.thread.AffinityUtil;
-import open.vincentf13.service.spot.infra.metrics.GaugeMetrics;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -51,21 +51,20 @@ public class NettyServer {
                 MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
                 MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4));
 
-            // 定期上報 Netty 執行緒核心親和性
             scheduleMetrics(bossGroup, MetricsKey.CPU_ID_NETTY_BOSS);
             scheduleMetrics(workerGroup, 
                 MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
                 MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4);
 
-            try {                ServerBootstrap b = new ServerBootstrap();
+            try {
+                ServerBootstrap b = new ServerBootstrap();
                 b.group(bossGroup, workerGroup)
                  .channel(NioServerSocketChannel.class)
-                 // --- 性能優化：Socket 選項 ---
-                 .option(io.netty.channel.ChannelOption.SO_BACKLOG, 8192) // 處理爆發連線
+                 .option(io.netty.channel.ChannelOption.SO_BACKLOG, 8192)
                  .option(io.netty.channel.ChannelOption.SO_REUSEADDR, true)
-                 .childOption(io.netty.channel.ChannelOption.TCP_NODELAY, true) // 關閉 Nagle，低延遲關鍵
+                 .childOption(io.netty.channel.ChannelOption.TCP_NODELAY, true)
                  .childOption(io.netty.channel.ChannelOption.SO_KEEPALIVE, true)
-                 .childOption(io.netty.channel.ChannelOption.ALLOCATOR, io.netty.buffer.PooledByteBufAllocator.DEFAULT) // 強制使用內存池
+                 .childOption(io.netty.channel.ChannelOption.ALLOCATOR, io.netty.buffer.PooledByteBufAllocator.DEFAULT)
                  .childHandler(new ChannelInitializer<SocketChannel>() {
                      @Override
                      protected void initChannel(SocketChannel ch) {
@@ -77,7 +76,7 @@ public class NettyServer {
                      }
                  });
 
-                log.info("Netty WebSocket Server started on port {} with {} workers", port, workerCount);
+                log.info("Netty WebSocket Server started on port {}", port);
                 b.bind(port).sync().channel().closeFuture().sync();
             } catch (Exception e) {
                 log.error("Netty Server Error", e);
@@ -99,7 +98,7 @@ public class NettyServer {
             if (i >= keys.length) break;
             final long key = keys[i++];
             executor.scheduleAtFixedRate(() -> {
-                GaugeMetrics.set(key, AffinityUtil.currentCpu());
+                StaticMetricsHolder.setGauge(key, AffinityUtil.currentCpu());
             }, 1, 1, TimeUnit.SECONDS);
         }
     }
@@ -120,15 +119,11 @@ public class NettyServer {
             Runnable bindingTask = () -> {
                 int cpuId = -1;
                 try {
-                    // 嘗試綁核，失敗則回退到作業系統調度
                     cpuId = AffinityUtil.acquireAndBind();
-                } catch (Throwable t) {
-                    log.warn("[NETTY-AFFINITY] 綁核失敗 ({}): {}", prefix, t.getMessage());
-                }
+                } catch (Throwable ignored) {}
                 
-                // 無論成功與否都記錄指標，cpuId 為 -1 代表系統自動分配
                 if (metricKeys != null && currentIdx < metricKeys.length) {
-                    Storage.self().latestMetrics().put(new open.vincentf13.service.spot.infra.chronicle.LongValue(metricKeys[currentIdx]), new open.vincentf13.service.spot.infra.chronicle.LongValue((long) cpuId));
+                    StaticMetricsHolder.setGauge(metricKeys[currentIdx], cpuId);
                 }
                 r.run();
             };

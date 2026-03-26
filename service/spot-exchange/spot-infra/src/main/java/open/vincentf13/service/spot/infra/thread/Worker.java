@@ -1,6 +1,5 @@
 package open.vincentf13.service.spot.infra.thread;
 
-import open.vincentf13.service.spot.infra.metrics.Sampler;
 import open.vincentf13.service.spot.infra.metrics.WorkerMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +13,6 @@ public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
     private Thread thread;
-    private final Sampler metricsSampler = new Sampler(10000, 1000);
 
     public void workerStart(String name) {
         if (running.compareAndSet(false, true)) {
@@ -34,10 +32,8 @@ public abstract class Worker implements Runnable {
         else { onStop(); log.info("Worker {} stopped", thread.getName()); }
     }
 
-    @Override
     public void run() {
         AffinityUtil.acquireAndBind();
-        metricsSampler.reset();
         try {
             onStart();
             while (running.get() && !Thread.currentThread().isInterrupted()) {
@@ -45,7 +41,7 @@ public abstract class Worker implements Runnable {
                 int work = doWork();
                 WorkerMetrics.endCycle(work > 0);
 
-                if (metricsSampler.shouldSample()) collectMetrics();
+                collectMetrics();
 
                 if (work <= 0) { Thread.onSpinWait(); Strategies.BUSY_SPIN.idle(0); }
             }
