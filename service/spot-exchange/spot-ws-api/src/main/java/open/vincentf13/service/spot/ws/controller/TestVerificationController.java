@@ -63,10 +63,7 @@ public class TestVerificationController {
         cpuIds.put("netty_worker_4",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_4)));
         m.put("cpu_affinity_history", cpuIds);
         
-        m.put("latency", Map.of(
-            "matching", getLatency(MetricsKey.LATENCY_MATCHING),
-            "transport", getLatency(MetricsKey.LATENCY_TRANSPORT)
-        ));
+        m.put("latency", getCombinedLatency());
 
         return m;
     }
@@ -110,20 +107,31 @@ public class TestVerificationController {
         return Map.of("count", count, "history", history);
     }
 
-    private List<Map<String, Object>> getLatency(long metricKey) {
+    private List<Map<String, Object>> getCombinedLatency() {
+        // time -> { "time": "...", "matching": {}, "transport": {} }
         TreeMap<Long, Map<String, Object>> history = new TreeMap<>(Collections.reverseOrder());
-        long base = Math.abs(metricKey) * 1_000_000_000_000_000L;
-        
+
         Storage.self().latencyHistory().forEach((k, v) -> {
             long key = k;
-            if (key >= base && key < base + 1_000_000_000_000_000L) {
-                long p = (key - base) / 1_000_000_000_000L;
-                long t = (key - base) % 1_000_000_000_000L;
-                history.computeIfAbsent(t, time -> {
-                    var map = new LinkedHashMap<String, Object>();
+            long metricKey = key / 1_000_000_000_000_000L;
+            long rest = key % 1_000_000_000_000_000L;
+            long p = rest / 1_000_000_000_000L;
+            long t = rest % 1_000_000_000_000L;
+
+            String label = null;
+            if (metricKey == Math.abs(MetricsKey.LATENCY_MATCHING)) label = "matching";
+            else if (metricKey == Math.abs(MetricsKey.LATENCY_TRANSPORT)) label = "transport";
+
+            if (label != null) {
+                Map<String, Object> entry = history.computeIfAbsent(t, time -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
                     map.put("time", TIME.format(Instant.ofEpochSecond(time)));
                     return map;
-                }).put("p" + p, v + " ns");
+                });
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> metrics = (Map<String, Object>) entry.computeIfAbsent(label, l -> new LinkedHashMap<>());
+                metrics.put("p" + p, v + " ns");
             }
         });
         return new ArrayList<>(history.values());
