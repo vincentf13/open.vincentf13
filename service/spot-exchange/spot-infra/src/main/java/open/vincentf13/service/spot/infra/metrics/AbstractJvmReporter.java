@@ -33,8 +33,9 @@ public abstract class AbstractJvmReporter {
                     if (!info.getGcAction().toLowerCase().contains("end of")) return;
 
                     long durationMs = info.getGcInfo().getDuration();
-                    // 編碼：epochSeconds × 10^6 + durationMicros (上限 999_999µs ≈ 1s)
-                    long encoded = (System.currentTimeMillis() / 1000) * 1_000_000L
+                    // 編碼：epochMillis × 1000 + durationMicros (上限 999_999µs ≈ 1s)
+                    // 這樣即便在一秒內有多次 GC，也能區分開來
+                    long encoded = System.currentTimeMillis() * 1_000_000L
                                  + Math.min(durationMs * 1000, 999_999L);
 
                     int slot = gcSlot.getAndIncrement() % MetricsKey.GC_HISTORY_MAX_KEEP;

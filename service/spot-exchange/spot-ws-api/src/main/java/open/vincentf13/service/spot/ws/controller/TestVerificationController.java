@@ -96,10 +96,10 @@ public class TestVerificationController {
         for (int i = 0; i < MetricsKey.GC_HISTORY_MAX_KEEP; i++) {
             long encoded = get(historyStart + i);
             if (encoded == 0) continue;
-            long epochSec     = encoded / 1_000_000L;
+            long epochMillis  = encoded / 1_000_000L;
             long durationUs   = encoded % 1_000_000L;
             history.add(Map.of(
-                "time",     TIME.format(Instant.ofEpochSecond(epochSec)),
+                "time",     TIME.format(Instant.ofEpochMilli(epochMillis)),
                 "duration", durationUs + "µs"
             ));
         }
@@ -108,8 +108,8 @@ public class TestVerificationController {
     }
 
     private List<Map<String, Object>> getCombinedLatency() {
-        // time -> { "time": "...", "matching": {}, "transport": {} }
-        TreeMap<Long, Map<String, Object>> history = new TreeMap<>(Collections.reverseOrder());
+        // time -> label -> percentile -> value
+        TreeMap<Long, Map<String, Map<Long, Long>>> rawData = new TreeMap<>(Collections.reverseOrder());
 
         Storage.self().latencyHistory().forEach((k, v) -> {
             long key = k;
@@ -123,18 +123,34 @@ public class TestVerificationController {
             else if (metricKey == Math.abs(MetricsKey.LATENCY_TRANSPORT)) label = "transport";
 
             if (label != null) {
-                Map<String, Object> entry = history.computeIfAbsent(t, time -> {
-                    Map<String, Object> map = new LinkedHashMap<>();
-                    map.put("time", TIME.format(Instant.ofEpochSecond(time)));
-                    return map;
-                });
-
-                @SuppressWarnings("unchecked")
-                Map<String, Object> metrics = (Map<String, Object>) entry.computeIfAbsent(label, l -> new LinkedHashMap<>());
-                metrics.put("p" + p, v + " ns");
+                rawData.computeIfAbsent(t, k1 -> new HashMap<>())
+                       .computeIfAbsent(label, k2 -> new HashMap<>())
+                       .put(p, v);
             }
         });
-        return new ArrayList<>(history.values());
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var entry : rawData.entrySet()) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("time", TIME.format(Instant.ofEpochSecond(entry.getKey())));
+            
+            // 嚴格順序：先顯示 transport，再顯示 matching
+            addMetrics(map, "transport", entry.getValue().get("transport"));
+            addMetrics(map, "matching", entry.getValue().get("matching"));
+            
+            result.add(map);
+        }
+        return result;
+    }
+
+    private void addMetrics(Map<String, Object> target, String label, Map<Long, Long> pData) {
+        if (pData == null) return;
+        // 使用 LinkedHashMap 確保 p50 -> p99 -> p100 的順序
+        Map<String, Object> sortedP = new LinkedHashMap<>();
+        if (pData.containsKey(50L))  sortedP.put("p50",  pData.get(50L) + " ns");
+        if (pData.containsKey(99L))  sortedP.put("p99",  pData.get(99L) + " ns");
+        if (pData.containsKey(100L)) sortedP.put("p100", pData.get(100L) + " ns");
+        target.put(label, sortedP);
     }
 
     @GetMapping("/balance")
