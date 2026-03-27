@@ -4,16 +4,13 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
-import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.Order;
+import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.Constants.OrderSide;
-import open.vincentf13.service.spot.sbe.OrderStatus;
 import open.vincentf13.service.spot.sbe.Side;
-import open.vincentf13.service.spot.model.command.OrderCreateCommand;
-import open.vincentf13.service.spot.sbe.OrderCreateDecoder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -38,11 +35,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     private final CidKey reusableFlushKey = new CidKey();
     private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableFlushValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue cancelKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private long currentGatewaySequence;
-    private long currentTakerUserId;
-    private long currentTakerPrice;
-    private byte currentTakerSide;
+    private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableOrderKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
 
     @PostConstruct
     public void init() { 
@@ -68,43 +61,38 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     /** 核心入口：處理下單指令 */
     public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, open.vincentf13.service.spot.model.WalProgress progress) {
+        if (userId <= 0 || clientOrderId <= 0 || qty <= 0 || (side == Side.BUY && price <= 0)) {
+            reporter.reportRejected(userId, clientOrderId);
+            return;
+        }
+
         final ThreadContext context = ThreadContext.get();
         final CidKey cidKey = context.getCidKey();
         cidKey.set(userId, clientOrderId);
 
-        // 1. 三道防線攔截重複指令：緩衝區 -> 磁碟 Map (零分配查詢)
-        boolean duplicate = false;
-        for (int i = 0; i < bufferCount; i++) {
-            if (pendingUids[i] == userId && pendingCidsArr[i] == clientOrderId) { duplicate = true; break; }
-        }
-        
-        if (duplicate) return;
+        if (isBufferedDuplicate(userId, clientOrderId)) return;
         if (clientOrderIdDiskMap.containsKey(cidKey)) return;
 
-        // 2. 確定不重複後，執行下單
         handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress.getAndIncrOrderId(), progress);
     }
 
     /** 處理撤單指令 */
     public void processCancelCommand(long userId, long orderId, long gatewaySequence) {
-        final ThreadContext context = ThreadContext.get();
-        cancelKey.set(orderId);
-        Order order = orders.getUsing(cancelKey, context.getReusableOrder());
-        
-        if (order == null || order.getUserId() != userId || order.getStatus() >= OrderStatus.FILLED.ordinal()) return;
+        if (userId <= 0 || orderId <= 0) return;
+
+        reusableOrderKey.set(orderId);
+        Order order = orders.get(reusableOrderKey);
+        if (order == null || order.getUserId() != userId || order.isTerminal()) return;
 
         OrderBook book = OrderBook.get(order.getSymbolId());
-        book.remove(orderId);
+        Order canceled = book.cancel(orderId, userId, gatewaySequence);
+        if (canceled == null) return;
 
-        int assetId = (order.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
-        // 直接使用 order 中剩餘的 frozen 金額，確保 100% 準確
-        ledger.unfreezeBalance(order.getUserId(), assetId, order.getFrozen(), gatewaySequence);
-
-        order.setStatus((byte) OrderStatus.CANCELED.ordinal());
-        order.setLastSeq(gatewaySequence);
-        order.setFrozen(0); // 撤單後歸零
-        orders.put(cancelKey, order);
-        reporter.reportCanceled(order);
+        long frozenAmount = canceled.getFrozen();
+        int assetId = (canceled.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
+        ledger.unfreezeBalance(canceled.getUserId(), assetId, frozenAmount, gatewaySequence);
+        canceled.setFrozen(0);
+        reporter.reportCanceled(canceled);
     }
 
     /** 實作 TradeFinalizer 接口以複用 */
@@ -126,7 +114,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
         if (taker.getSide() == OrderSide.BUY) {
             // Taker 是買方
-            long remainingQty = taker.getQty() - taker.getFilled();
+            long remainingQty = taker.remainingQty();
             long nextFrozen = DecimalUtil.mulCeil(taker.getPrice(), remainingQty);
             tFrozenDelta = taker.getFrozen() - nextFrozen;
             taker.setFrozen(nextFrozen);
@@ -136,12 +124,19 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             taker.setFrozen(taker.getFrozen() - tradeQty);
         }
 
-        ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, currentGatewaySequence, baseAsset, quoteAsset, tradeId);
+        ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, taker.getLastSeq(), baseAsset, quoteAsset, tradeId);
     }
 
     private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, long orderId, 
                                  open.vincentf13.service.spot.model.WalProgress progress) {
-        OrderBook book = OrderBook.get(symbolId);
+        OrderBook book;
+        try {
+            book = OrderBook.get(symbolId);
+        } catch (IllegalArgumentException ex) {
+            reporter.reportRejected(userId, clientOrderId);
+            return;
+        }
+
         int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId(); 
         long freezeAmount = (side == Side.BUY) ? DecimalUtil.mulCeil(price, quantity) : quantity;
 
@@ -150,25 +145,24 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             return;
         }
 
-        this.currentTakerUserId = userId;
-        this.currentTakerPrice = price;
-        this.currentTakerSide = (byte) (side == Side.BUY ? OrderSide.BUY : OrderSide.SELL);
-        this.currentGatewaySequence = gatewaySequence;
-
-        // 3. 進入 OrderBook 撮合
-        Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, progress, this);
-        if (taker != null) {
-            taker.setFrozen(freezeAmount);
-        }
-
-        // 4. 寫入客戶端訂單 ID 映射緩衝
-        if (bufferCount < BUFFER_SIZE) {
-            pendingUids[bufferCount] = userId;
-            pendingCidsArr[bufferCount] = clientOrderId;
-            pendingOids[bufferCount] = orderId;
-            bufferCount++;
-        }
+        Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, freezeAmount, progress, this);
+        appendCidMapping(userId, clientOrderId, orderId);
 
         if (taker != null) reporter.reportAccepted(taker);
+    }
+
+    private boolean isBufferedDuplicate(long userId, long clientOrderId) {
+        for (int i = 0; i < bufferCount; i++) {
+            if (pendingUids[i] == userId && pendingCidsArr[i] == clientOrderId) return true;
+        }
+        return false;
+    }
+
+    private void appendCidMapping(long userId, long clientOrderId, long orderId) {
+        if (bufferCount >= BUFFER_SIZE) flush();
+        pendingUids[bufferCount] = userId;
+        pendingCidsArr[bufferCount] = clientOrderId;
+        pendingOids[bufferCount] = orderId;
+        bufferCount++;
     }
 }

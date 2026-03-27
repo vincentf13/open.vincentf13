@@ -117,6 +117,7 @@ public class Ledger {
     }
 
     public void increaseAvailable(long userId, int assetId, long amount, long seq) {
+        if (amount <= 0) return;
         access(userId, assetId, amount, 0, seq, 0);
     }
 
@@ -142,11 +143,23 @@ public class Ledger {
     private void access(long userId, int assetId, long availDelta, long frozenDelta, long seq, long tradeId) {
         Balance b = getOrCreateBalance(userId, assetId);
 
-        // 冪等與重複更新檢查
-        if (tradeId > 0 ? b.getLastTradeId() >= tradeId : (b.getLastSeq() >= seq && availDelta == 0 && frozenDelta == 0)) return;
+        if (tradeId > 0) {
+            if (b.getLastTradeId() >= tradeId) return;
+        } else if (b.getLastSeq() >= seq) {
+            return;
+        }
 
-        b.setAvailable(b.getAvailable() + availDelta);
-        b.setFrozen(Math.max(0, b.getFrozen() + frozenDelta));
+        long nextAvailable = b.getAvailable() + availDelta;
+        long nextFrozen = b.getFrozen() + frozenDelta;
+        if (nextAvailable < 0 || nextFrozen < 0) {
+            throw new IllegalStateException(
+                "Negative balance state, uid=%d, asset=%d, avail=%d, frozen=%d, seq=%d, tradeId=%d"
+                    .formatted(userId, assetId, nextAvailable, nextFrozen, seq, tradeId)
+            );
+        }
+
+        b.setAvailable(nextAvailable);
+        b.setFrozen(nextFrozen);
         markDirty(userId, assetId, b, seq, tradeId);
     }
 

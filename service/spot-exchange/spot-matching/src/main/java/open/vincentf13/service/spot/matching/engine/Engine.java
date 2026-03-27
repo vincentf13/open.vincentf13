@@ -28,7 +28,6 @@ public class Engine implements AeronMessageHandler {
     
     private final WalProgress progress = new WalProgress();
 
-    private long lastMetricsSec = 0;
     private long lastFlushTime = 0;
     private long unflushedWorkCount = 0;
 
@@ -56,7 +55,8 @@ public class Engine implements AeronMessageHandler {
     }
 
     private void flushAll() {
-        ledger.flush(); orderProcessor.flush();
+        ledger.flush();
+        orderProcessor.flush();
         for (OrderBook book : OrderBook.getInstances()) book.flush();
         metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
     }
@@ -69,12 +69,11 @@ public class Engine implements AeronMessageHandler {
         long seq = router.route(msgType, buffer, offset, length, gatewayTimeNs, progress);
         
         final long endNs = System.nanoTime();
-        
-        // 延遲統計
+
         if (msgType == MsgType.ORDER_CREATE || msgType == MsgType.ORDER_CANCEL) {
             StaticMetricsHolder.addCounter(MetricsKey.ORDER_PROCESSED_COUNT, 1);
             final long transportNs = arrivalTimeNs - gatewayTimeNs;
-            final long processNs = System.nanoTime() - arrivalTimeNs;
+            final long processNs = endNs - arrivalTimeNs;
 
             StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_TRANSPORT, transportNs);
             StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_MATCHING, processNs);
@@ -82,16 +81,16 @@ public class Engine implements AeronMessageHandler {
         if (seq != MSG_SEQ_NONE) {
             long last = progress.getLastProcessedMsgSeq();
             if (last != MSG_SEQ_NONE && seq != last + 1) {
-                log.error("❌ [FATAL] 指令跳號！期望: {}, 實際: {}", last + 1, seq);
-                System.exit(1); 
+                throw new IllegalStateException("指令跳號，期望=%d, 實際=%d".formatted(last + 1, seq));
             }
             progress.setLastProcessedMsgSeq(seq);
         }
     }
 
     public void onStop() {
-        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
-        reporter.close(); ThreadContext.cleanup();
+        flushAll();
+        reporter.close();
+        ThreadContext.cleanup();
     }
 }
 

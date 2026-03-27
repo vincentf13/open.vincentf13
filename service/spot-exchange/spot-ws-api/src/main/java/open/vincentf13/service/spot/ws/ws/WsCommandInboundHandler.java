@@ -3,9 +3,7 @@ package open.vincentf13.service.spot.ws.ws;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.PointerBytesStore;
@@ -43,14 +41,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         if (length < 20) return;
 
         content.setLongLE(content.readerIndex() + 12, arrivalTimeNs);
-
-        if (ctx.channel().attr(WsSessionManager.USER_ID_KEY).get() == null) {
-            int msgType = content.getIntLE(content.readerIndex());
-            if (msgType == MsgType.AUTH) {
-                long userId = content.getLongLE(content.readerIndex() + 28);
-                sessionManager.addSession(userId, ctx.channel());
-            }
-        }
+        Long authenticatedUserId = extractAuthUserId(ctx, content, length);
 
         final ThreadContext context = ThreadContext.get();
         final ExcerptAppender appender = appenderThreadLocal.get();
@@ -66,9 +57,21 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
                 dc.wire().bytes().write(scratch);
             }
             StaticMetricsHolder.addCounter(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 1);
+            if (authenticatedUserId != null) sessionManager.addSession(authenticatedUserId, ctx.channel());
         } catch (Exception e) {
             log.error("[GATEWAY-WS] WAL 直寫失敗: {}", e.getMessage());
         }
+    }
+
+    private Long extractAuthUserId(ChannelHandlerContext ctx, io.netty.buffer.ByteBuf content, int length) {
+        if (ctx.channel().attr(WsSessionManager.USER_ID_KEY).get() != null) return null;
+        if (length < 36) return null;
+
+        int readerIndex = content.readerIndex();
+        if (content.getIntLE(readerIndex) != MsgType.AUTH) return null;
+
+        long userId = content.getLongLE(readerIndex + 28);
+        return userId > 0 ? userId : null;
     }
 
     @Override

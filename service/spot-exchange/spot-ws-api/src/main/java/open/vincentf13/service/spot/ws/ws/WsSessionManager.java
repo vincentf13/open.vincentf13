@@ -34,6 +34,10 @@ public class WsSessionManager {
     private int getIdx(long userId) { return (int) ((userId ^ (userId >>> 32)) & STRIPE_MASK); }
 
     public void addSession(long uid, Channel c) {
+        Long previousUid = c.attr(USER_ID_KEY).get();
+        if (previousUid != null && previousUid != uid) {
+            removeSession(previousUid, c);
+        }
         c.attr(USER_ID_KEY).set(uid);
         int i = getIdx(uid);
         synchronized (locks[i]) {
@@ -62,7 +66,10 @@ public class WsSessionManager {
         BinaryWebSocketFrame frame = null;
         try {
             frame = new BinaryWebSocketFrame(data);
-            for (Channel c : channels) { if (c.isActive()) c.writeAndFlush(frame.retainedDuplicate()); }
+            for (Channel c : channels) {
+                if (c.isActive()) c.writeAndFlush(frame.retainedDuplicate());
+                else removeSession(uid, c);
+            }
         } catch (Exception e) { log.error("[WS] Push failed for {}: {}", uid, e.getMessage()); } 
         finally { if (frame != null) frame.release(); else data.release(); }
     }

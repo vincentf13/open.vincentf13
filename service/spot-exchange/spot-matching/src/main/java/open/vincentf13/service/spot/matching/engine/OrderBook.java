@@ -6,6 +6,7 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
 import open.vincentf13.service.spot.model.CidKey;
+import open.vincentf13.service.spot.sbe.OrderStatus;
 import open.vincentf13.service.spot.sbe.Side;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
@@ -67,7 +68,8 @@ public class OrderBook {
     // --- 內存撮合數據結構 (Fastutil RB-Tree) ---
     private final Long2ObjectRBTreeMap<Deque<Order>> bids = new Long2ObjectRBTreeMap<>((LongComparator) (k1, k2) -> Long.compare(k2, k1));
     private final Long2ObjectRBTreeMap<Deque<Order>> asks = new Long2ObjectRBTreeMap<>();
-    private final Long2ObjectHashMap<Deque<Order>> priceLevelIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
+    private final Long2ObjectHashMap<Deque<Order>> bidLevels = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
+    private final Long2ObjectHashMap<Deque<Order>> askLevels = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY, 0.5f);
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f); 
     private final Long2ObjectHashMap<LongHashSet> userOrdersIndex = new Long2ObjectHashMap<>(4096, 0.5f);
 
@@ -98,9 +100,9 @@ public class OrderBook {
     }
 
     public void recoverOrder(Order o) {
-        if (o == null || o.getStatus() >= 2) return;
+        if (o == null || o.isTerminal()) return;
         Order r = borrowOrder();
-        r.copyFrom(o); // 假設 Order 類有 copyFrom，若無則手動賦值
+        r.copyFrom(o);
         add(r);
     }
 
@@ -111,9 +113,10 @@ public class OrderBook {
 
     /** 下單入口 */
     public Order handleCreate(long orderId, long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long timestamp, long gwSeq,
+                             long frozenAmount,
                              open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
         Order taker = borrowOrder();
-        taker.fill(orderId, userId, symbolId, price, qty, (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), clientOrderId, gwSeq);
+        taker.fill(orderId, userId, symbolId, price, qty, (byte)(side == Side.BUY ? OrderSide.BUY : OrderSide.SELL), clientOrderId, timestamp, gwSeq, frozenAmount);
         
         match(taker, gwSeq, timestamp, progress, finalizer);
         syncOrder(taker, gwSeq);
@@ -125,27 +128,31 @@ public class OrderBook {
         final Long2ObjectRBTreeMap<Deque<Order>> counters = isBuy ? asks : bids;
         final long takerPrice = taker.getPrice();
 
-        while (taker.getQty() > taker.getFilled() && !counters.isEmpty()) {
+        while (taker.remainingQty() > 0 && !counters.isEmpty()) {
             final long bestPrice = counters.firstLongKey();
             if (isBuy ? (takerPrice < bestPrice) : (takerPrice > bestPrice)) break;
 
-            executeMatchAtLevel(taker, bestPrice, counters, gwSeq, timestamp, progress, finalizer);
+            executeMatchAtLevel(taker, bestPrice, counters, getLevels(!isBuy), gwSeq, timestamp, progress, finalizer);
         }
         
-        if (taker.getQty() > taker.getFilled()) add(taker);
-        else taker.setStatus((byte) 2); 
+        if (taker.remainingQty() > 0) add(taker);
+        else taker.setStatus((byte) OrderStatus.FILLED.ordinal());
     }
 
-    private void executeMatchAtLevel(Order taker, long price, Long2ObjectRBTreeMap<Deque<Order>> counters, long gwSeq, long timestamp, 
+    private void executeMatchAtLevel(Order taker, long price, Long2ObjectRBTreeMap<Deque<Order>> counters,
+                                   Long2ObjectHashMap<Deque<Order>> levels, long gwSeq, long timestamp,
                                    open.vincentf13.service.spot.model.WalProgress progress, TradeFinalizer finalizer) {
-        final Deque<Order> makers = priceLevelIndex.get(price);
-        if (makers == null || makers.isEmpty()) { counters.remove(price); priceLevelIndex.remove(price); return; }
+        final Deque<Order> makers = levels.get(price);
+        if (makers == null || makers.isEmpty()) {
+            cleanupEmptyLevel(price, counters, levels, makers);
+            return;
+        }
 
-        while (!makers.isEmpty() && taker.getQty() > taker.getFilled()) {
+        while (!makers.isEmpty() && taker.remainingQty() > 0) {
             Order maker = makers.peekFirst();
             if (!orderIndex.containsKey(maker.getOrderId())) { makers.pollFirst(); continue; } // 已被撤單
 
-            long matchQty = Math.min(taker.getQty() - taker.getFilled(), maker.getQty() - maker.getFilled());
+            long matchQty = Math.min(taker.remainingQty(), maker.remainingQty());
             long tid = progress.getAndIncrTradeId();
             
             Trade t = borrowTrade();
@@ -157,11 +164,11 @@ public class OrderBook {
 
             StaticMetricsHolder.addCounter(MetricsKey.MATCH_COUNT, 1);
             finalizer.onMatch(tid, maker, taker, price, matchQty, baseAssetId, quoteAssetId);
-            if (maker.getFilled() == maker.getQty()) { finalizeOrder(maker, gwSeq); makers.pollFirst(); } 
+            if (maker.remainingQty() == 0) { finalizeOrder(maker, gwSeq); makers.pollFirst(); } 
             else { syncOrder(maker, gwSeq); break; }
         }
         
-        if (makers.isEmpty()) cleanupEmptyLevel(price, counters, makers);
+        if (makers.isEmpty()) cleanupEmptyLevel(price, counters, levels, makers);
     }
 
     /** 訂單結束處理 (成交或撤單) */
@@ -169,23 +176,35 @@ public class OrderBook {
         syncOrder(o, gwSeq);
         orderIndex.remove(o.getOrderId());
         LongHashSet set = userOrdersIndex.get(o.getUserId());
-        if (set != null) set.remove(o.getOrderId());
+        if (set != null) {
+            set.remove(o.getOrderId());
+            if (set.isEmpty()) userOrdersIndex.remove(o.getUserId());
+        }
     }
 
-    private void cleanupEmptyLevel(long price, Long2ObjectRBTreeMap<Deque<Order>> counters, Deque<Order> makers) {
-        counters.remove(price); priceLevelIndex.remove(price);
-        makers.clear(); DEQUE_POOL.addLast(makers); 
+    private void cleanupEmptyLevel(long price, Long2ObjectRBTreeMap<Deque<Order>> counters,
+                                   Long2ObjectHashMap<Deque<Order>> levels, Deque<Order> makers) {
+        counters.remove(price);
+        Deque<Order> removed = levels.remove(price);
+        if (removed != null) {
+            removed.clear();
+            DEQUE_POOL.addLast(removed);
+        } else if (makers != null) {
+            makers.clear();
+            DEQUE_POOL.addLast(makers);
+        }
     }
 
     private void add(Order order) {
         final long price = order.getPrice();
-        Deque<Order> level = priceLevelIndex.get(price);
+        Long2ObjectHashMap<Deque<Order>> levels = getLevels(order.getSide() == OrderSide.BUY);
+        Deque<Order> level = levels.get(price);
         if (level == null) {
             level = DEQUE_POOL.pollFirst();
             if (level == null) level = new ArrayDeque<>(MatchingConfig.INITIAL_BOOK_LEVEL_CAPACITY);
             else level.clear();
-            ((order.getSide() == OrderSide.BUY) ? bids : asks).put(price, level);
-            priceLevelIndex.put(price, level);
+            getTree(order.getSide() == OrderSide.BUY).put(price, level);
+            levels.put(price, level);
         }
         level.addLast(order);
         orderIndex.put(order.getOrderId(), order);
@@ -193,38 +212,51 @@ public class OrderBook {
     }
 
     public void syncOrder(Order o, long gwSeq) {
-        o.setStatus((byte) (o.getFilled() == o.getQty() ? 2 : (o.getFilled() > 0 ? 1 : 0)));
+        if (o.getStatus() != OrderStatus.CANCELED.ordinal()) {
+            o.setStatus((byte) (o.remainingQty() == 0
+                ? OrderStatus.FILLED.ordinal()
+                : (o.getFilled() > 0 ? OrderStatus.PARTIALLY_FILLED.ordinal() : OrderStatus.NEW.ordinal())));
+        }
         o.setVersion(o.getVersion() + 1);
         o.setLastSeq(gwSeq);
         pendingOrders.put(o.getOrderId(), o);
 
-        if (o.getStatus() < 2) { pendingAdds.add(o.getOrderId()); pendingRemovals.remove(o.getOrderId()); } 
+        if (!o.isTerminal()) { pendingAdds.add(o.getOrderId()); pendingRemovals.remove(o.getOrderId()); } 
         else { pendingRemovals.add(o.getOrderId()); pendingAdds.remove(o.getOrderId()); }
     }
 
-    /** 撤單邏輯 */
-    public void remove(long orderId) { 
-        Order o = orderIndex.get(orderId); // 注意：remove 之前先拿對象
-        if (o == null) return;
+    public Order cancel(long orderId, long userId, long gwSeq) {
+        Order o = orderIndex.get(orderId);
+        if (o == null || o.getUserId() != userId || o.isTerminal()) return null;
 
-        Deque<Order> level = priceLevelIndex.get(o.getPrice());
+        Long2ObjectHashMap<Deque<Order>> levels = getLevels(o.getSide() == OrderSide.BUY);
+        Deque<Order> level = levels.get(o.getPrice());
         if (level != null) {
             level.remove(o);
-            if (level.isEmpty()) cleanupEmptyLevel(o.getPrice(), (o.getSide() == OrderSide.BUY) ? bids : asks, level);
+            if (level.isEmpty()) cleanupEmptyLevel(o.getPrice(), getTree(o.getSide() == OrderSide.BUY), levels, level);
         }
         
-        o.setStatus((byte) 3); // CANCELED
-        finalizeOrder(o, o.getLastSeq());
+        o.setStatus((byte) OrderStatus.CANCELED.ordinal());
+        finalizeOrder(o, gwSeq);
+        return o;
     }
 
     public int getBaseAssetId() { return baseAssetId; }
     public int getQuoteAssetId() { return quoteAssetId; }
 
+    private Long2ObjectRBTreeMap<Deque<Order>> getTree(boolean buySide) {
+        return buySide ? bids : asks;
+    }
+
+    private Long2ObjectHashMap<Deque<Order>> getLevels(boolean buySide) {
+        return buySide ? bidLevels : askLevels;
+    }
+
     public static void rebuildActiveOrdersIndexes() {
         ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> all = Storage.self().orders();
         Storage.self().activeOrders().forEach((id, active) -> {
-            Order o = all.getUsing(id, new Order()); // 此處僅在啟動時執行一次
-            if (o != null && o.getStatus() < 2) OrderBook.get(o.getSymbolId()).recoverOrder(o);
+            Order o = all.getUsing(id, new Order());
+            if (o != null && !o.isTerminal()) OrderBook.get(o.getSymbolId()).recoverOrder(o);
         });
     }
 }
