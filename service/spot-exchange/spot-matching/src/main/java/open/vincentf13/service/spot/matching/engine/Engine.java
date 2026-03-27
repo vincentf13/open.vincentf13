@@ -33,7 +33,7 @@ public class Engine implements AeronMessageHandler {
     private long unflushedWorkCount = 0;
 
     public void onStart() {
-        log.info("執行冷啟動索引重建與預熱...");
+        log.info("執行冷啟動最小重建，後續由 WAL 重放收斂狀態...");
         unflushedWorkCount = 0;
 
         WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
@@ -43,10 +43,10 @@ public class Engine implements AeronMessageHandler {
         OrderProcessor.RecoveryState recoveryState = orderProcessor.coldStartRebuild();
         long maxTradeId = rebuildTradeCounterFloor();
         progress.alignNextIds(recoveryState.maxOrderId(), maxTradeId);
-        coreStateValidator.validateOrThrow();
+        coreStateValidator.validateOnRecovery();
         OrderBook.get(1001); 
         log.info(
-            "Engine 啟動完成，位點: Seq={}, nextOrderId={}, nextTradeId={}",
+            "Engine 啟動完成，保守位點: Seq={}, nextOrderId={}, nextTradeId={}",
             progress.getLastProcessedMsgSeq(),
             progress.getOrderIdCounter(),
             progress.getTradeIdCounter()

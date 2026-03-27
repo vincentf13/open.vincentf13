@@ -16,6 +16,14 @@ import java.util.Map;
 public class CoreStateValidator {
     private final Ledger ledger;
 
+    public void validateOnRecovery() {
+        try {
+            validateOrThrow();
+        } catch (RuntimeException ex) {
+            log.warn("冷啟動自校驗未通過，改由 WAL 重放收斂最終一致性: {}", ex.getMessage(), ex);
+        }
+    }
+
     public void validateOrThrow() {
         ledger.validateState();
 
