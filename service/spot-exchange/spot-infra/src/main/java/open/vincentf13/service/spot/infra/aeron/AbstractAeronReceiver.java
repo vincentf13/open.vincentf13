@@ -39,9 +39,7 @@ public abstract class AbstractAeronReceiver extends Worker {
     public int poll(int limit) {
         if (currentState == AeronState.SENDING && !subscription.isConnected()) currentState = AeronState.WAITING;
         if (currentState == AeronState.WAITING && Clock.now() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
-        
-        int done = subscription.poll(assembler, limit);
-        return done;
+        return subscription.poll(assembler, limit);
     }
 
     @Override

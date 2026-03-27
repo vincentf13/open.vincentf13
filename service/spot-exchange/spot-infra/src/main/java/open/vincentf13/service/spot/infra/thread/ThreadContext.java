@@ -18,11 +18,7 @@ public class ThreadContext {
     public static ThreadContext get() { return INSTANCE.get(); }
 
     public static void cleanup() {
-        ThreadContext ctx = INSTANCE.get();
-        if (ctx != null) {
-            ctx.scratchBuffer.release();
-            INSTANCE.remove();
-        }
+        if (INSTANCE.get() != null) INSTANCE.remove();
     }
 
     // --- 核心資源 ---

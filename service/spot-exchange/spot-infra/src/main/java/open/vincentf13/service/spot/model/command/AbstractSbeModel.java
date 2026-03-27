@@ -22,15 +22,9 @@ import org.agrona.concurrent.UnsafeBuffer;
  * 
  * <b>1. 寫入模式 (Write Mode):</b>
  * <pre>{@code
- *     // 從池中獲取模型與緩衝區
  *     OrderCreateCommand cmd = ctx.getOrderCreateCommand();
- *     MutableDirectBuffer buffer = ctx.getScratchBuffer().wrapForWrite();
- *     
- *     // 安裝目標緩衝區並鏈式賦值 (自動編碼 SBE)
- *     cmd.wrapWriteBuffer(buffer, 0)
+ *     cmd.wrapWriteBuffer(dstBuffer, 0)
  *        .set(sequence, timestamp, userId, symbolId, price, qty, side, clientOrderId);
- *     
- *     // 隨後可將 cmd 直接寫入 WAL (透過 writeMarshallable)
  *     wal.acquireAppender().writeDocument(cmd);
  * }</pre>
  * 

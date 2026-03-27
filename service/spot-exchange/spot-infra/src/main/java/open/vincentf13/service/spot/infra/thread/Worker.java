@@ -50,7 +50,7 @@ public abstract class Worker implements Runnable {
                     lastMetricsNs = now;
                 }
 
-                if (work <= 0) { Thread.onSpinWait(); Strategies.BUSY_SPIN.idle(0); }
+                if (work <= 0) Strategies.BUSY_SPIN.idle(0);
             }
         } catch (Exception e) { if (!Thread.interrupted()) log.error("Worker 運行異常", e); }
         finally {

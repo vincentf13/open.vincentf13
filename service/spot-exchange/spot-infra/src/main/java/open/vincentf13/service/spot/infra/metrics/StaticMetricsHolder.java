@@ -49,21 +49,7 @@ public class StaticMetricsHolder {
         return snapshots;
     }
 
-    public static class LatencySnapshot {
-        private final long p50;
-        private final long p99;
-        private final long max;
-
-        private LatencySnapshot(long p50, long p99, long max) {
-            this.p50 = p50;
-            this.p99 = p99;
-            this.max = max;
-        }
-
-        public long p50() { return p50; }
-        public long p99() { return p99; }
-        public long max() { return max; }
-    }
+    public record LatencySnapshot(long p50, long p99, long max) {}
 
     private static class LatencyWindow {
         private final LongArrayList samples = new LongArrayList();
