@@ -135,7 +135,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             );
         }
 
-        ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, taker.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
+        ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, trade.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
         maker.validateState();
         taker.validateState();
         reporter.reportMatch(taker, maker, trade);

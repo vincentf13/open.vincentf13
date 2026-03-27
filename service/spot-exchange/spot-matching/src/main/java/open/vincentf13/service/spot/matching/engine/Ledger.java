@@ -106,66 +106,84 @@ public class Ledger {
         if (tradePrice <= 0 || tradeQty <= 0) {
             throw new IllegalArgumentException("Invalid trade payload, price=%d, qty=%d".formatted(tradePrice, tradeQty));
         }
+        if (tradeId <= 0) {
+            throw new IllegalArgumentException("Trade settlement requires positive tradeId");
+        }
 
         final long floor = DecimalUtil.mulFloor(tradePrice, tradeQty), ceil = DecimalUtil.mulCeil(tradePrice, tradeQty);
 
         if (takerSide == OrderSide.BUY) {
             // Taker 是買方：扣除 Taker 的凍結款項 (tFrozenDelta)，增加 Taker 的 Base，減少 Maker 的 Base，增加 Maker 的 Quote (floor)
-            access(tUid, quoteAssetId, tFrozenDelta - ceil, -tFrozenDelta, seq, tradeId);
-            access(tUid, baseAssetId, tradeQty, 0, seq, tradeId);
-            access(mUid, baseAssetId, 0, -tradeQty, seq, tradeId);
-            access(mUid, quoteAssetId, floor, 0, seq, tradeId);
+            applyTradeChange(tUid, quoteAssetId, tFrozenDelta - ceil, -tFrozenDelta, seq, tradeId);
+            applyTradeChange(tUid, baseAssetId, tradeQty, 0, seq, tradeId);
+            applyTradeChange(mUid, baseAssetId, 0, -tradeQty, seq, tradeId);
+            applyTradeChange(mUid, quoteAssetId, floor, 0, seq, tradeId);
         } else {
             // Taker 是賣方：扣除 Taker 的 Base (tFrozenDelta=tradeQty)，增加 Taker 的 Quote (floor)，減少 Maker 的 Quote (mFrozenDelta)，增加 Maker 的 Base (tradeQty)
-            access(tUid, baseAssetId, 0, -tFrozenDelta, seq, tradeId);
-            access(tUid, quoteAssetId, floor, 0, seq, tradeId);
-            access(mUid, quoteAssetId, mFrozenDelta - ceil, -mFrozenDelta, seq, tradeId);
-            access(mUid, baseAssetId, tradeQty, 0, seq, tradeId);
+            applyTradeChange(tUid, baseAssetId, 0, -tFrozenDelta, seq, tradeId);
+            applyTradeChange(tUid, quoteAssetId, floor, 0, seq, tradeId);
+            applyTradeChange(mUid, quoteAssetId, mFrozenDelta - ceil, -mFrozenDelta, seq, tradeId);
+            applyTradeChange(mUid, baseAssetId, tradeQty, 0, seq, tradeId);
         }
-        if (ceil > floor) access(PLATFORM_USER_ID, quoteAssetId, ceil - floor, 0, seq, tradeId);
+        if (ceil > floor) {
+            applyTradeChange(PLATFORM_USER_ID, quoteAssetId, ceil - floor, 0, seq, tradeId);
+        }
     }
 
     public void increaseAvailable(long userId, int assetId, long amount, long seq) {
         if (amount <= 0) return;
-        access(userId, assetId, amount, 0, seq, 0);
+        applySeqChange(userId, assetId, amount, 0, seq);
     }
 
     public boolean freezeBalance(long userId, int assetId, long amount, long seq) {
         if (amount < 0) throw new IllegalArgumentException("Freeze amount must be >= 0");
         Balance b = getOrCreateBalance(userId, assetId);
-        if (b.getLastSeq() >= seq || b.getAvailable() < amount) return b.getLastSeq() >= seq;
+        if (shouldSkipSeqChange(b, seq)) return true;
+        if (b.getAvailable() < amount) return false;
 
         b.setAvailable(b.getAvailable() - amount);
         b.setFrozen(b.getFrozen() + amount);
-        markDirty(userId, assetId, b, seq, 0);
+        markDirtyForSeq(userId, assetId, b, seq);
         return true;
     }
 
     public void unfreezeBalance(long userId, int assetId, long amount, long seq) {
         if (amount < 0) throw new IllegalArgumentException("Unfreeze amount must be >= 0");
         Balance b = getOrCreateBalance(userId, assetId);
-        if (b.getLastSeq() < seq) {
-            if (amount > b.getFrozen()) {
-                throw new IllegalStateException(
-                    "Unfreeze exceeds frozen balance, uid=%d, asset=%d, frozen=%d, amount=%d, seq=%d"
-                        .formatted(userId, assetId, b.getFrozen(), amount, seq)
-                );
-            }
-            b.setAvailable(b.getAvailable() + amount);
-            b.setFrozen(b.getFrozen() - amount);
-            markDirty(userId, assetId, b, seq, 0);
+        if (shouldSkipSeqChange(b, seq)) return;
+        if (amount > b.getFrozen()) {
+            throw new IllegalStateException(
+                "Unfreeze exceeds frozen balance, uid=%d, asset=%d, frozen=%d, amount=%d, seq=%d"
+                    .formatted(userId, assetId, b.getFrozen(), amount, seq)
+            );
         }
+
+        b.setAvailable(b.getAvailable() + amount);
+        b.setFrozen(b.getFrozen() - amount);
+        markDirtyForSeq(userId, assetId, b, seq);
     }
 
-    private void access(long userId, int assetId, long availDelta, long frozenDelta, long seq, long tradeId) {
+    private void applySeqChange(long userId, int assetId, long availDelta, long frozenDelta, long seq) {
         Balance b = getOrCreateBalance(userId, assetId);
+        if (shouldSkipSeqChange(b, seq)) return;
+        applyBalanceDelta(userId, assetId, b, availDelta, frozenDelta, seq, 0);
+        markDirtyForSeq(userId, assetId, b, seq);
+    }
 
-        if (tradeId > 0) {
-            if (b.getLastTradeId() >= tradeId) return;
-        } else if (b.getLastSeq() >= seq) {
-            return;
+    private void applyTradeChange(long userId, int assetId, long availDelta, long frozenDelta, long seq, long tradeId) {
+        Balance b = getOrCreateBalance(userId, assetId);
+        if (shouldSkipTradeChange(b, tradeId)) return;
+        if (seq < b.getLastSeq()) {
+            throw new IllegalStateException(
+                "Trade sequence regressed, uid=%d, asset=%d, balanceSeq=%d, tradeSeq=%d, tradeId=%d"
+                    .formatted(userId, assetId, b.getLastSeq(), seq, tradeId)
+            );
         }
+        applyBalanceDelta(userId, assetId, b, availDelta, frozenDelta, seq, tradeId);
+        markDirtyForTrade(userId, assetId, b, seq, tradeId);
+    }
 
+    private void applyBalanceDelta(long userId, int assetId, Balance b, long availDelta, long frozenDelta, long seq, long tradeId) {
         long nextAvailable = b.getAvailable() + availDelta;
         long nextFrozen = b.getFrozen() + frozenDelta;
         if (nextAvailable < 0 || nextFrozen < 0) {
@@ -177,7 +195,14 @@ public class Ledger {
 
         b.setAvailable(nextAvailable);
         b.setFrozen(nextFrozen);
-        markDirty(userId, assetId, b, seq, tradeId);
+    }
+
+    private boolean shouldSkipSeqChange(Balance b, long seq) {
+        return b.getLastSeq() >= seq;
+    }
+
+    private boolean shouldSkipTradeChange(Balance b, long tradeId) {
+        return b.getLastTradeId() >= tradeId;
     }
 
     private Balance prepareNewAccount() {
@@ -188,11 +213,24 @@ public class Ledger {
         return b;
     }
 
-    private void markDirty(long userId, int assetId, Balance b, long seq, long tradeId) {
+    private void markDirtyForSeq(long userId, int assetId, Balance b, long seq) {
         b.setVersion(b.getVersion() + 1);
         b.setLastSeq(seq);
-        if (tradeId > 0) b.setLastTradeId(tradeId);
+        enqueueDirty(userId, assetId, b);
+        updateAssetIndex(userId, assetId);
+    }
 
+    private void markDirtyForTrade(long userId, int assetId, Balance b, long seq, long tradeId) {
+        b.setVersion(b.getVersion() + 1);
+        if (seq > b.getLastSeq()) {
+            b.setLastSeq(seq);
+        }
+        b.setLastTradeId(tradeId);
+        enqueueDirty(userId, assetId, b);
+        updateAssetIndex(userId, assetId);
+    }
+
+    private void enqueueDirty(long userId, int assetId, Balance b) {
         if (!b.isDirty()) { // 僅在尚未入隊時入隊，實現絕對去重
             if (dirtyCount >= MAX_DIRTY) {
                 log.warn("[LEDGER] Dirty queue is full ({}), triggering emergency flush to disk...", MAX_DIRTY);
@@ -202,8 +240,6 @@ public class Ledger {
             dirtyQueue[dirtyCount++] = combine(userId, assetId);
             b.setDirty(true);
         }
-
-        updateAssetIndex(userId, assetId);
     }
     private void updateAssetIndex(long userId, int assetId) {
         if (assetId < 0 || assetId >= 64) return;
@@ -249,7 +285,7 @@ public class Ledger {
     }
 
     public void initAccount(long userId, int assetId, long seq) {
-        access(userId, assetId, 0, 0, seq, 0);
+        applySeqChange(userId, assetId, 0, 0, seq);
     }
 
     public void validateState() {
