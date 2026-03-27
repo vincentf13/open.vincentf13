@@ -80,11 +80,7 @@ public class Engine implements AeronMessageHandler {
             StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_MATCHING, processNs);
         }
         if (seq != MSG_SEQ_NONE) {
-            long last = progress.getLastProcessedMsgSeq();
-            if (last != MSG_SEQ_NONE && seq != last + 1) {
-                throw new IllegalStateException("指令跳號，期望=%d, 實際=%d".formatted(last + 1, seq));
-            }
-            progress.setLastProcessedMsgSeq(seq);
+            progress.advanceLastProcessedMsgSeq(seq);
         }
     }
 

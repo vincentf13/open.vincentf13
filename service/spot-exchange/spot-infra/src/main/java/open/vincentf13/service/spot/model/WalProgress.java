@@ -40,12 +40,19 @@ public class WalProgress implements BytesMarshallable {
         tradeIdCounter = bytes.readLong();
     }
 
-    public long currentOrderId() { return orderIdCounter; }
-    public long currentTradeId() { return tradeIdCounter; }
-    public long getAndIncrOrderId() { return orderIdCounter++; }
-    public long getAndIncrTradeId() { return tradeIdCounter++; }
     public long nextOrderId() { return orderIdCounter++; }
     public long nextTradeId() { return tradeIdCounter++; }
+
+    public void advanceLastProcessedMsgSeq(long seq) {
+        if (seq == MSG_SEQ_NONE) return;
+        if (lastProcessedMsgSeq != MSG_SEQ_NONE && seq != lastProcessedMsgSeq + 1) {
+            throw new IllegalStateException(
+                "Message sequence must advance monotonically, expected=%d, actual=%d"
+                    .formatted(lastProcessedMsgSeq + 1, seq)
+            );
+        }
+        lastProcessedMsgSeq = seq;
+    }
 
     public void copyFrom(WalProgress other) {
         this.lastProcessedIndex = other.lastProcessedIndex;
