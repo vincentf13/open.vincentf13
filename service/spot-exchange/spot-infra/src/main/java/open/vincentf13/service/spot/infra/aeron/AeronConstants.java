@@ -28,7 +28,8 @@ public class AeronConstants {
 
     /** 預設 Term Buffer 長度 (64MB) */
     public static final int DEFAULT_TERM_BUFFER_LENGTH = 64 * 1024 * 1024;
-
+    public static final int WAL_BATCH_SIZE = 1000 ;
+    
     /** 
       Aeron 通訊組件工作狀態 (AeronState)
      */
