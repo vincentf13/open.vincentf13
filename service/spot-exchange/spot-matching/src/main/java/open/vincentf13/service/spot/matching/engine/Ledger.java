@@ -13,13 +13,11 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
-/** 
+/**
  * 內存帳務處理器 (Ledger) - 零對象分配 & 二級緩存版
  * 職責：管理資產流轉，使用內存緩存徹底消除熱點帳戶的磁碟 I/O 與對象裝箱。
  */
@@ -28,17 +26,16 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class Ledger {
     private final ChronicleMap<BalanceKey, Balance> balancesDiskMap = Storage.self().balances();
     private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, open.vincentf13.service.spot.infra.chronicle.LongValue> userAssetBitmaskDiskMap = Storage.self().userAssets();
-    
+
     // 二級緩存：徹底消除 BalanceKey 對象分配與磁碟讀取
     private final Long2ObjectHashMap<Balance> balanceCache = new Long2ObjectHashMap<>(100_000, 0.5f);
     private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
-    
+
     // 待落地標記優化：唯一標記去重版
-    private static final int MAX_DIRTY = 256000; // 足以支撐單個 flush 週期內 25.6 萬個活躍用戶
+    private static final int MAX_DIRTY = 256000;
     private final long[] dirtyQueue = new long[MAX_DIRTY];
     private int dirtyCount = 0;
     private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
-    private long overflowLogSample = 0;
 
     private final BalanceKey reusableKey = new BalanceKey();
     private final open.vincentf13.service.spot.infra.chronicle.LongValue flushMaskKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
@@ -51,19 +48,15 @@ public class Ledger {
         log.info("Ledger 初始化完成。");
     }
 
-    /**
-     * 將變動過的緩存帳戶同步至磁碟
-     */
     public void flush() {
         if (dirtyCount > 0) {
-            // 核心優化：此處 dirtyQueue 內保證每個 UserId-AssetId 唯一，極大減少 I/O
             for (int i = 0; i < dirtyCount; i++) {
                 final long combinedKey = dirtyQueue[i];
                 final Balance b = balanceCache.get(combinedKey);
                 if (b != null) {
                     reusableKey.set(combinedKey >>> 32, (int) (combinedKey & 0xFFFFFFFFL));
                     balancesDiskMap.put(reusableKey, b);
-                    b.setDirty(false); // 重設標記，允許下次變動時再次入隊
+                    b.setDirty(false);
                 }
             }
             dirtyCount = 0;
@@ -95,7 +88,8 @@ public class Ledger {
                 b = new Balance();
                 b.copyFrom(diskVal);
             } else {
-                b = prepareNewAccount();
+                b = new Balance();
+                b.setLastSeq(-1);
             }
             balanceCache.put(combinedKey, b);
         }
@@ -113,13 +107,11 @@ public class Ledger {
         final long floor = DecimalUtil.mulFloor(tradePrice, tradeQty), ceil = DecimalUtil.mulCeil(tradePrice, tradeQty);
 
         if (takerSide == OrderSide.BUY) {
-            // Taker 是買方：扣除 Taker 的凍結款項 (tFrozenDelta)，增加 Taker 的 Base，減少 Maker 的 Base，增加 Maker 的 Quote (floor)
             applyTradeChange(tUid, quoteAssetId, tFrozenDelta - ceil, -tFrozenDelta, seq, tradeId);
             applyTradeChange(tUid, baseAssetId, tradeQty, 0, seq, tradeId);
             applyTradeChange(mUid, baseAssetId, 0, -tradeQty, seq, tradeId);
             applyTradeChange(mUid, quoteAssetId, floor, 0, seq, tradeId);
         } else {
-            // Taker 是賣方：扣除 Taker 的 Base (tFrozenDelta=tradeQty)，增加 Taker 的 Quote (floor)，減少 Maker 的 Quote (mFrozenDelta)，增加 Maker 的 Base (tradeQty)
             applyTradeChange(tUid, baseAssetId, 0, -tFrozenDelta, seq, tradeId);
             applyTradeChange(tUid, quoteAssetId, floor, 0, seq, tradeId);
             applyTradeChange(mUid, quoteAssetId, mFrozenDelta - ceil, -mFrozenDelta, seq, tradeId);
@@ -192,7 +184,6 @@ public class Ledger {
                     .formatted(userId, assetId, nextAvailable, nextFrozen, seq, tradeId)
             );
         }
-
         b.setAvailable(nextAvailable);
         b.setFrozen(nextFrozen);
     }
@@ -205,14 +196,6 @@ public class Ledger {
         return b.getLastTradeId() >= tradeId;
     }
 
-    private Balance prepareNewAccount() {
-        Balance b = new Balance();
-        b.setAvailable(0); b.setFrozen(0);
-        b.setVersion(0); b.setLastSeq(-1);
-        b.setLastTradeId(0);
-        return b;
-    }
-
     private void markDirtyForSeq(long userId, int assetId, Balance b, long seq) {
         b.setVersion(b.getVersion() + 1);
         b.setLastSeq(seq);
@@ -222,25 +205,23 @@ public class Ledger {
 
     private void markDirtyForTrade(long userId, int assetId, Balance b, long seq, long tradeId) {
         b.setVersion(b.getVersion() + 1);
-        if (seq > b.getLastSeq()) {
-            b.setLastSeq(seq);
-        }
+        if (seq > b.getLastSeq()) b.setLastSeq(seq);
         b.setLastTradeId(tradeId);
         enqueueDirty(userId, assetId, b);
         updateAssetIndex(userId, assetId);
     }
 
     private void enqueueDirty(long userId, int assetId, Balance b) {
-        if (!b.isDirty()) { // 僅在尚未入隊時入隊，實現絕對去重
+        if (!b.isDirty()) {
             if (dirtyCount >= MAX_DIRTY) {
                 log.warn("[LEDGER] Dirty queue is full ({}), triggering emergency flush to disk...", MAX_DIRTY);
-                flush(); // 隊列滿時立即觸發落地，清空隊列以接收新數據
+                flush();
             }
-            
             dirtyQueue[dirtyCount++] = combine(userId, assetId);
             b.setDirty(true);
         }
     }
+
     private void updateAssetIndex(long userId, int assetId) {
         if (assetId < 0 || assetId >= 64) return;
         long mask = bitmaskCache.get(userId);
@@ -258,13 +239,11 @@ public class Ledger {
         dirtyCount = 0;
         dirtyBitmasks.clear();
         balancesDiskMap.forEach((key, diskVal) -> {
-            // 預熱內存緩存
             Balance b = new Balance();
             b.copyFrom(diskVal);
             b.setDirty(false);
             balanceCache.put(combine(key.getUserId(), key.getAssetId()), b);
-            
-            // 重建索引
+
             if (b.getAvailable() > 0 || b.getFrozen() > 0) {
                 int assetId = key.getAssetId();
                 if (assetId >= 0 && assetId < 64) {
@@ -294,32 +273,22 @@ public class Ledger {
             if (balance.getAvailable() < 0 || balance.getFrozen() < 0) {
                 throw new IllegalStateException("Negative balance cache state for key=" + combinedKey);
             }
-
-            long combined = combinedKey.longValue();
-            long userId = combined >>> 32;
-            int assetId = (int) combined;
+            long userId = combinedKey >>> 32;
+            int assetId = (int)(long) combinedKey;
             if ((balance.getAvailable() > 0 || balance.getFrozen() > 0) && assetId >= 0 && assetId < 64) {
-                expectedMasks.merge(userId, 1L << assetId, (left, right) -> left | right);
+                expectedMasks.merge(userId, 1L << assetId, (l, r) -> l | r);
             }
         });
 
-        Set<Long> seenUsers = new HashSet<>();
         bitmaskCache.forEach((userId, mask) -> {
             long expected = expectedMasks.getOrDefault(userId, 0L);
-            if (mask != expected) {
-                throw new IllegalStateException(
-                    "User asset bitmask mismatch, uid=%d, expected=%d, actual=%d".formatted(userId, expected, mask)
-                );
-            }
-            seenUsers.add(userId);
+            if (mask != expected) throw new IllegalStateException(
+                "User asset bitmask mismatch, uid=%d, expected=%d, actual=%d".formatted(userId, expected, mask));
         });
 
-        for (Map.Entry<Long, Long> entry : expectedMasks.entrySet()) {
-            if (!seenUsers.contains(entry.getKey())) {
-                throw new IllegalStateException(
-                    "Missing user asset bitmask, uid=%d, expected=%d".formatted(entry.getKey(), entry.getValue())
-                );
-            }
-        }
+        expectedMasks.forEach((userId, expected) -> {
+            if (bitmaskCache.get(userId) != expected) throw new IllegalStateException(
+                "Missing user asset bitmask, uid=%d, expected=%d".formatted(userId, expected));
+        });
     }
 }

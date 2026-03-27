@@ -1,6 +1,5 @@
 package open.vincentf13.service.spot.matching.engine;
 
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
@@ -8,6 +7,8 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.Order;
+import open.vincentf13.service.spot.model.Trade;
+import open.vincentf13.service.spot.model.WalProgress;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.Constants.OrderSide;
 import open.vincentf13.service.spot.sbe.Side;
@@ -20,15 +21,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OrderProcessor implements OrderBook.TradeFinalizer {
-    private static final class SettlementAmounts {
-        private final long quoteFloor;
-        private final long quoteCeil;
-
-        private SettlementAmounts(long quoteFloor, long quoteCeil) {
-            this.quoteFloor = quoteFloor;
-            this.quoteCeil = quoteCeil;
-        }
-    }
 
     private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> orders = Storage.self().orders();
     private final ChronicleMap<CidKey, open.vincentf13.service.spot.infra.chronicle.LongValue> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
@@ -47,11 +39,6 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final CidKey reusableFlushKey = new CidKey();
     private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableFlushValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
     private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableOrderKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-
-    @PostConstruct
-    public void init() { 
-        log.info("OrderProcessor 初始化完成。"); 
-    }
 
     /** 核心落地：將緩衝的冪等鍵批量寫入磁碟，實現零分配 */
     public void flush() {
@@ -92,14 +79,13 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     }
 
     /** 核心入口：處理下單指令 */
-    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, open.vincentf13.service.spot.model.WalProgress progress) {
+    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, WalProgress progress) {
         if (userId <= 0 || clientOrderId <= 0 || qty <= 0 || (side == Side.BUY && price <= 0)) {
             reporter.reportRejected(userId, clientOrderId);
             return;
         }
 
-        final ThreadContext context = ThreadContext.get();
-        final CidKey cidKey = context.getCidKey();
+        final CidKey cidKey = ThreadContext.get().getCidKey();
         cidKey.set(userId, clientOrderId);
 
         if (isBufferedDuplicate(userId, clientOrderId)) return;
@@ -129,34 +115,27 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         reporter.reportCanceled(canceled);
     }
 
-    /** 實作 TradeFinalizer 接口以複用 */
+    /** 實作 TradeFinalizer 接口 */
     @Override
-    public void onMatch(open.vincentf13.service.spot.model.Trade trade, Order maker, Order taker, int baseAsset, int quoteAsset) {
-        long tradePrice = trade.getPrice();
+    public void onMatch(Trade trade, Order maker, Order taker, int baseAsset, int quoteAsset) {
         long tradeQty = trade.getQty();
         validateMatchInputs(trade, maker, taker);
         long mFrozenDelta, tFrozenDelta;
-        
+
         if (maker.getSide() == OrderSide.BUY) {
-            // Maker 是買方：計算此次成交應釋放的凍結金額
-            long remainingQty = maker.remainingQty();
-            long nextFrozen = DecimalUtil.mulCeil(maker.getPrice(), remainingQty);
+            long nextFrozen = DecimalUtil.mulCeil(maker.getPrice(), maker.remainingQty());
             mFrozenDelta = maker.getFrozen() - nextFrozen;
             maker.setFrozen(nextFrozen);
         } else {
-            // Maker 是賣方：凍結的是 Base， delta 就是 tradeQty
             mFrozenDelta = tradeQty;
             maker.setFrozen(maker.getFrozen() - tradeQty);
         }
 
         if (taker.getSide() == OrderSide.BUY) {
-            // Taker 是買方
-            long remainingQty = taker.remainingQty();
-            long nextFrozen = DecimalUtil.mulCeil(taker.getPrice(), remainingQty);
+            long nextFrozen = DecimalUtil.mulCeil(taker.getPrice(), taker.remainingQty());
             tFrozenDelta = taker.getFrozen() - nextFrozen;
             taker.setFrozen(nextFrozen);
         } else {
-            // Taker 是賣方
             tFrozenDelta = tradeQty;
             taker.setFrozen(taker.getFrozen() - tradeQty);
         }
@@ -167,16 +146,14 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             );
         }
 
-        SettlementAmounts settlement = validateSettlementAmounts(trade, maker, taker, mFrozenDelta, tFrozenDelta);
-        ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, trade.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
-        validateTradeConservation(trade, taker.getSide(), mFrozenDelta, tFrozenDelta, settlement);
+        validateSettlementAmounts(trade, maker, taker, mFrozenDelta, tFrozenDelta);
+        ledger.settleTrade(maker.getUserId(), taker.getUserId(), trade.getPrice(), tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, trade.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
         maker.validateState();
         taker.validateState();
         reporter.reportMatch(taker, maker, trade);
     }
 
-    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp,
-                                   open.vincentf13.service.spot.model.WalProgress progress) {
+    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, WalProgress progress) {
         OrderBook book;
         try {
             book = OrderBook.get(symbolId);
@@ -185,7 +162,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             return;
         }
 
-        int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId(); 
+        int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
         long freezeAmount = (side == Side.BUY) ? DecimalUtil.mulCeil(price, quantity) : quantity;
 
         if (!ledger.freezeBalance(userId, assetId, freezeAmount, gatewaySequence)) {
@@ -197,11 +174,10 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, freezeAmount, progress, this);
         taker.validateState();
         appendCidMapping(userId, clientOrderId, orderId);
-
-        if (taker != null) reporter.reportAccepted(taker);
+        reporter.reportAccepted(taker);
     }
 
-    private void validateMatchInputs(open.vincentf13.service.spot.model.Trade trade, Order maker, Order taker) {
+    private void validateMatchInputs(Trade trade, Order maker, Order taker) {
         if (trade.getQty() <= 0 || trade.getPrice() <= 0) {
             throw new IllegalStateException("Invalid trade payload, tradeId=" + trade.getTradeId());
         }
@@ -222,8 +198,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         }
     }
 
-    private SettlementAmounts validateSettlementAmounts(open.vincentf13.service.spot.model.Trade trade, Order maker, Order taker, long mFrozenDelta, long tFrozenDelta) {
-        long quoteFloor = DecimalUtil.mulFloor(trade.getPrice(), trade.getQty());
+    private void validateSettlementAmounts(Trade trade, Order maker, Order taker, long mFrozenDelta, long tFrozenDelta) {
         long quoteCeil = DecimalUtil.mulCeil(trade.getPrice(), trade.getQty());
 
         if (maker.getSide() == OrderSide.BUY) {
@@ -253,29 +228,6 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
                 );
             }
         }
-        return new SettlementAmounts(quoteFloor, quoteCeil);
-    }
-
-    private void validateTradeConservation(open.vincentf13.service.spot.model.Trade trade, byte takerSide, long mFrozenDelta, long tFrozenDelta, SettlementAmounts settlement) {
-        long baseNet;
-        long quoteNet;
-        if (takerSide == OrderSide.BUY) {
-            baseNet = trade.getQty() - trade.getQty();
-            quoteNet = (tFrozenDelta - settlement.quoteCeil) + settlement.quoteFloor + (settlement.quoteCeil - settlement.quoteFloor) - tFrozenDelta;
-        } else {
-            baseNet = trade.getQty() - tFrozenDelta + mFrozenDelta - trade.getQty();
-            quoteNet = settlement.quoteFloor + (mFrozenDelta - settlement.quoteCeil) + tradeFeeDelta(settlement) - mFrozenDelta;
-        }
-        if (baseNet != 0 || quoteNet != 0) {
-            throw new IllegalStateException(
-                "Trade conservation violated, tradeId=%d, baseNet=%d, quoteNet=%d"
-                    .formatted(trade.getTradeId(), baseNet, quoteNet)
-            );
-        }
-    }
-
-    private long tradeFeeDelta(SettlementAmounts settlement) {
-        return settlement.quoteCeil - settlement.quoteFloor;
     }
 
     private boolean isBufferedDuplicate(long userId, long clientOrderId) {

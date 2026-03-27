@@ -3,6 +3,7 @@ package open.vincentf13.service.spot.matching.engine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
+import open.vincentf13.service.spot.model.WalProgress;
 import open.vincentf13.service.spot.model.command.AuthCommand;
 import open.vincentf13.service.spot.model.command.DepositCommand;
 import open.vincentf13.service.spot.model.command.OrderCancelCommand;
@@ -27,7 +28,7 @@ public class CommandRouter {
     private final DepositProcessor depositProcessor;
 
     /** 從 RingBuffer 讀取並分發：直接處理 DirectBuffer */
-    public long route(int msgType, DirectBuffer buffer, int offset, int length, long timestamp, open.vincentf13.service.spot.model.WalProgress progress) {
+    public long route(int msgType, DirectBuffer buffer, int offset, int length, long timestamp, WalProgress progress) {
         if (length <= 0) return MSG_SEQ_NONE;
 
         final long address = getAddress(buffer, offset);
