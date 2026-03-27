@@ -43,28 +43,46 @@ public abstract class Worker implements Runnable {
     }
     
     
+    /**
+     核心執行循環：
+     1. 綁定 CPU 親和性 (Affinity) 以減少上下文切換。
+     2. 呼叫 onStart() 進行資源初始化。
+     3. 進入主循環，執行任務 (doWork) 並統計任務週期 (WorkerMetrics)。
+     4. 每秒固定觸發一次指標回報 (collectMetrics)。
+     5. 若當前無任務 (work <= 0)，執行 Busy-Spin 等待策略。
+     6. 異常處理與 finally 資源回收 (onStop)。
+     */
     public void run() {
+        // 綁定當前執行緒到指定 CPU 核心 (若環境支援)
         AffinityUtil.acquireAndBind();
         long lastMetricsNs = System.nanoTime();
         try {
             onStart();
             while (running.get() && !Thread.currentThread().isInterrupted()) {
+                // 開始統計當前任務週期
                 WorkerMetrics.startCycle();
+                
+                // 執行具體業務邏輯，並獲取處理量
                 int work = doWork();
+                
+                // 結束週期統計 (work > 0 視為有效週期)
                 WorkerMetrics.endCycle(work > 0);
                 
+                // 每秒定期執行一次自定義指標收集
                 if (System.nanoTime() - lastMetricsNs >= 1_000_000_000L) {
                     collectMetrics();
                     lastMetricsNs = System.nanoTime();
                 }
                 
+                // 若無任務，執行 Busy-Spin 策略以降低 CPU 負擔並保持低延遲回報
                 if (work <= 0)
                     Strategies.BUSY_SPIN.idle(0);
             }
         } catch (Exception e) {
             if (running.get())
-                log.error("Worker 運行異常", e);
+                log.error("Worker 運行異常: {}", e.getMessage(), e);
         } finally {
+            // 確保資源釋放並標記為已停止
             try {
                 onStop();
             } catch (Exception ex) {
