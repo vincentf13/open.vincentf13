@@ -244,6 +244,8 @@ public class OrderBook {
 
     public int getBaseAssetId() { return baseAssetId; }
     public int getQuoteAssetId() { return quoteAssetId; }
+    public boolean hasOrder(long orderId) { return orderIndex.containsKey(orderId); }
+    public int activeOrderCount() { return orderIndex.size(); }
 
     private Long2ObjectRBTreeMap<Deque<Order>> getTree(boolean buySide) {
         return buySide ? bids : asks;
@@ -251,6 +253,51 @@ public class OrderBook {
 
     private Long2ObjectHashMap<Deque<Order>> getLevels(boolean buySide) {
         return buySide ? bidLevels : askLevels;
+    }
+
+    public void validateState() {
+        validateLevels(bidLevels, OrderSide.BUY);
+        validateLevels(askLevels, OrderSide.SELL);
+
+        final int[] indexedCount = new int[1];
+        orderIndex.forEach((orderId, order) -> {
+            indexedCount[0]++;
+            if (order.isTerminal()) {
+                throw new IllegalStateException("Terminal order remains indexed, orderId=" + orderId);
+            }
+            Deque<Order> level = getLevels(order.getSide() == OrderSide.BUY).get(order.getPrice());
+            if (level == null || !level.contains(order)) {
+                throw new IllegalStateException("Indexed order missing from price level, orderId=" + orderId);
+            }
+            LongHashSet userOrders = userOrdersIndex.get(order.getUserId());
+            if (userOrders == null || !userOrders.contains(orderId)) {
+                throw new IllegalStateException("Indexed order missing from user index, orderId=" + orderId);
+            }
+        });
+
+        if (indexedCount[0] != orderIndex.size()) {
+            throw new IllegalStateException("Order index iteration mismatch");
+        }
+    }
+
+    private void validateLevels(Long2ObjectHashMap<Deque<Order>> levels, byte expectedSide) {
+        levels.forEach((price, queue) -> {
+            if (queue == null || queue.isEmpty()) {
+                throw new IllegalStateException("Empty price level retained, side=" + expectedSide + ", price=" + price);
+            }
+
+            for (Order order : queue) {
+                if (order.getSide() != expectedSide) {
+                    throw new IllegalStateException("Order side mismatch, orderId=" + order.getOrderId());
+                }
+                if (order.getPrice() != price) {
+                    throw new IllegalStateException("Order price mismatch, orderId=" + order.getOrderId());
+                }
+                if (order.isTerminal()) {
+                    throw new IllegalStateException("Terminal order present in price level, orderId=" + order.getOrderId());
+                }
+            }
+        });
     }
 
     public static void rebuildActiveOrdersIndexes() {

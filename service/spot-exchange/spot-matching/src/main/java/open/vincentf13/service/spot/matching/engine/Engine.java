@@ -25,6 +25,7 @@ public class Engine implements AeronMessageHandler {
     private final OrderProcessor orderProcessor;
     private final Ledger ledger;
     private final ExecutionReporter reporter;
+    private final CoreStateValidator coreStateValidator;
     
     private final WalProgress progress = new WalProgress();
 
@@ -37,6 +38,7 @@ public class Engine implements AeronMessageHandler {
         
         ledger.rebuildAssetIndexes();
         orderProcessor.coldStartRebuild();
+        coreStateValidator.validateOrThrow();
         OrderBook.get(1001); 
 
         WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);

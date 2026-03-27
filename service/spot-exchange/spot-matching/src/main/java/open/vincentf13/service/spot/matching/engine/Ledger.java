@@ -12,6 +12,11 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
@@ -98,6 +103,10 @@ public class Ledger {
     }
 
     public void settleTrade(long mUid, long tUid, long tradePrice, long tradeQty, byte takerSide, long mFrozenDelta, long tFrozenDelta, long seq, int baseAssetId, int quoteAssetId, long tradeId) {
+        if (tradePrice <= 0 || tradeQty <= 0) {
+            throw new IllegalArgumentException("Invalid trade payload, price=%d, qty=%d".formatted(tradePrice, tradeQty));
+        }
+
         final long floor = DecimalUtil.mulFloor(tradePrice, tradeQty), ceil = DecimalUtil.mulCeil(tradePrice, tradeQty);
 
         if (takerSide == OrderSide.BUY) {
@@ -122,6 +131,7 @@ public class Ledger {
     }
 
     public boolean freezeBalance(long userId, int assetId, long amount, long seq) {
+        if (amount < 0) throw new IllegalArgumentException("Freeze amount must be >= 0");
         Balance b = getOrCreateBalance(userId, assetId);
         if (b.getLastSeq() >= seq || b.getAvailable() < amount) return b.getLastSeq() >= seq;
 
@@ -132,10 +142,17 @@ public class Ledger {
     }
 
     public void unfreezeBalance(long userId, int assetId, long amount, long seq) {
+        if (amount < 0) throw new IllegalArgumentException("Unfreeze amount must be >= 0");
         Balance b = getOrCreateBalance(userId, assetId);
         if (b.getLastSeq() < seq) {
+            if (amount > b.getFrozen()) {
+                throw new IllegalStateException(
+                    "Unfreeze exceeds frozen balance, uid=%d, asset=%d, frozen=%d, amount=%d, seq=%d"
+                        .formatted(userId, assetId, b.getFrozen(), amount, seq)
+                );
+            }
             b.setAvailable(b.getAvailable() + amount);
-            b.setFrozen(Math.max(0, b.getFrozen() - amount));
+            b.setFrozen(b.getFrozen() - amount);
             markDirty(userId, assetId, b, seq, 0);
         }
     }
@@ -233,5 +250,40 @@ public class Ledger {
 
     public void initAccount(long userId, int assetId, long seq) {
         access(userId, assetId, 0, 0, seq, 0);
+    }
+
+    public void validateState() {
+        Map<Long, Long> expectedMasks = new HashMap<>();
+        balanceCache.forEach((combinedKey, balance) -> {
+            if (balance.getAvailable() < 0 || balance.getFrozen() < 0) {
+                throw new IllegalStateException("Negative balance cache state for key=" + combinedKey);
+            }
+
+            long combined = combinedKey.longValue();
+            long userId = combined >>> 32;
+            int assetId = (int) combined;
+            if ((balance.getAvailable() > 0 || balance.getFrozen() > 0) && assetId >= 0 && assetId < 64) {
+                expectedMasks.merge(userId, 1L << assetId, (left, right) -> left | right);
+            }
+        });
+
+        Set<Long> seenUsers = new HashSet<>();
+        bitmaskCache.forEach((userId, mask) -> {
+            long expected = expectedMasks.getOrDefault(userId, 0L);
+            if (mask != expected) {
+                throw new IllegalStateException(
+                    "User asset bitmask mismatch, uid=%d, expected=%d, actual=%d".formatted(userId, expected, mask)
+                );
+            }
+            seenUsers.add(userId);
+        });
+
+        for (Map.Entry<Long, Long> entry : expectedMasks.entrySet()) {
+            if (!seenUsers.contains(entry.getKey())) {
+                throw new IllegalStateException(
+                    "Missing user asset bitmask, uid=%d, expected=%d".formatted(entry.getKey(), entry.getValue())
+                );
+            }
+        }
     }
 }
