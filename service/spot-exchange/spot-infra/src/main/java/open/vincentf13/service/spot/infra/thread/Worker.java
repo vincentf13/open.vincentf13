@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.infra.thread;
 
 import lombok.extern.slf4j.Slf4j;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.infra.metrics.WorkerMetrics;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -103,7 +104,8 @@ public abstract class Worker implements Runnable {
      專屬統計方法：每秒觸發一次，用於回報效能指標
      */
     protected void collectMetrics() {
-        WorkerMetrics.reportThreadMetrics(cpuIdKey, currentCpuIdKey, dutyCycleKey);
+        StaticMetricsHolder.recordCpuId(cpuIdKey, currentCpuIdKey, AffinityUtil.currentCpu());
+        WorkerMetrics.reportDutyCycle(dutyCycleKey);
     }
 
     protected abstract void onStop();

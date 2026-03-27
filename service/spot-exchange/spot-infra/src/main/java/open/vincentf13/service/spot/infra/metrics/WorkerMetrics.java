@@ -41,19 +41,14 @@ public class WorkerMetrics {
     }
 
     /** 
-     * 計算並回報執行緒指標。
-     * @param cpuIdKey 存放 CPU 綁核位圖 (Affinity Bitmask) 的指標 Key
-     * @param currentCpuIdKey 存放當前 CPU ID 的指標 Key
+     * 計算並回報飽和度 (Duty Cycle)。
      * @param loadKey 存放飽和度 (Duty Cycle 0-100) 的指標 Key
      */
-    public static void reportThreadMetrics(long cpuIdKey, long currentCpuIdKey, long loadKey) {
+    public static void reportDutyCycle(long loadKey) {
         State s = STATE.get();
         long now = System.nanoTime();
         
-        // 1. 紀錄 CPU 親和力狀態 (利用位圖追蹤執行緒是否發生過跳核)
-        StaticMetricsHolder.recordCpuId(cpuIdKey, currentCpuIdKey, AffinityUtil.currentCpu());
-        
-        // 2. 計算飽和度 (Duty Cycle)
+        // 計算飽和度 (Duty Cycle)
         long totalElapsed = now - s.lastReportNanos;
         if (totalElapsed > 0) {
             // 計算工作佔比百分比 (0-100)
