@@ -155,7 +155,7 @@ public class OrderBook {
             if (!orderIndex.containsKey(maker.getOrderId())) { makers.pollFirst(); continue; } // 已被撤單
 
             long matchQty = Math.min(taker.remainingQty(), maker.remainingQty());
-            long tid = progress.getAndIncrTradeId();
+            long tid = progress.nextTradeId();
             
             Trade t = borrowTrade();
             t.setTradeId(tid); t.setOrderId(maker.getOrderId()); t.setPrice(price); t.setQty(matchQty); t.setTime(timestamp); t.setLastSeq(gwSeq);

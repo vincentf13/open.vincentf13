@@ -73,7 +73,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         if (isBufferedDuplicate(userId, clientOrderId)) return;
         if (clientOrderIdDiskMap.containsKey(cidKey)) return;
 
-        handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress.getAndIncrOrderId(), progress);
+        handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress);
     }
 
     /** 處理撤單指令 */
@@ -141,8 +141,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         reporter.reportMatch(taker, maker, trade);
     }
 
-    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, long orderId, 
-                                 open.vincentf13.service.spot.model.WalProgress progress) {
+    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp,
+                                   open.vincentf13.service.spot.model.WalProgress progress) {
         OrderBook book;
         try {
             book = OrderBook.get(symbolId);
@@ -159,6 +159,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             return;
         }
 
+        long orderId = progress.nextOrderId();
         Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, freezeAmount, progress, this);
         taker.validateState();
         appendCidMapping(userId, clientOrderId, orderId);
