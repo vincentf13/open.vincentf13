@@ -23,6 +23,9 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryWebSocketFrame> {
+    private static final int MIN_COMMAND_LENGTH = 20;
+    private static final int MIN_AUTH_LENGTH = 36;
+
     private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
     private final ThreadLocal<ExcerptAppender> appenderThreadLocal = ThreadLocal.withInitial(wal::acquireAppender);
@@ -38,7 +41,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
 
         io.netty.buffer.ByteBuf content = frame.content();
         int length = content.readableBytes();
-        if (length < 20) return;
+        if (length < MIN_COMMAND_LENGTH) return;
 
         content.setLongLE(content.readerIndex() + 12, arrivalTimeNs);
         Long authenticatedUserId = extractAuthUserId(ctx, content, length);
@@ -48,30 +51,35 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         final PointerBytesStore pointer = context.getReusablePointer();
         
         try (var dc = appender.writingDocument()) {
-            if (content.hasMemoryAddress()) {
-                pointer.set(content.memoryAddress() + content.readerIndex(), length);
-                dc.wire().bytes().write(pointer);
-            } else {
-                byte[] scratch = new byte[length]; 
-                content.getBytes(content.readerIndex(), scratch);
-                dc.wire().bytes().write(scratch);
-            }
+            writeFrameToWal(content, length, pointer, dc.wire().bytes());
             StaticMetricsHolder.addCounter(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 1);
             if (authenticatedUserId != null) sessionManager.addSession(authenticatedUserId, ctx.channel());
         } catch (Exception e) {
-            log.error("[GATEWAY-WS] WAL 直寫失敗: {}", e.getMessage());
+            log.error("[GATEWAY-WS] WAL 直寫失敗", e);
         }
     }
 
     private Long extractAuthUserId(ChannelHandlerContext ctx, io.netty.buffer.ByteBuf content, int length) {
         if (ctx.channel().attr(WsSessionManager.USER_ID_KEY).get() != null) return null;
-        if (length < 36) return null;
+        if (length < MIN_AUTH_LENGTH) return null;
 
         int readerIndex = content.readerIndex();
         if (content.getIntLE(readerIndex) != MsgType.AUTH) return null;
 
         long userId = content.getLongLE(readerIndex + 28);
         return userId > 0 ? userId : null;
+    }
+
+    private void writeFrameToWal(io.netty.buffer.ByteBuf content, int length, PointerBytesStore pointer, net.openhft.chronicle.bytes.Bytes<?> targetBytes) {
+        if (content.hasMemoryAddress()) {
+            pointer.set(content.memoryAddress() + content.readerIndex(), length);
+            targetBytes.write(pointer);
+            return;
+        }
+
+        byte[] scratch = new byte[length];
+        content.getBytes(content.readerIndex(), scratch);
+        targetBytes.write(scratch);
     }
 
     @Override

@@ -7,7 +7,10 @@ import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.springframework.stereotype.Component;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -51,17 +54,15 @@ public class WsSessionManager {
             Set<Channel> set = stripes[i].get(uid);
             if (set != null && set.remove(c) && set.isEmpty()) stripes[i].remove(uid);
         }
+        c.attr(USER_ID_KEY).set(null);
     }
 
     public Long getUserIdByChannel(Channel c) { return c.attr(USER_ID_KEY).get(); }
 
     /** 向用戶的所有連線廣播二進制訊息 */
     public void sendMessage(long uid, ByteBuf data) {
-        Set<Channel> channels;
-        int i = getIdx(uid);
-        synchronized (locks[i]) { channels = stripes[i].get(uid); }
-
-        if (channels == null || channels.isEmpty()) { data.release(); return; }
+        List<Channel> channels = snapshotChannels(uid);
+        if (channels.isEmpty()) { data.release(); return; }
 
         BinaryWebSocketFrame frame = null;
         try {
@@ -72,5 +73,14 @@ public class WsSessionManager {
             }
         } catch (Exception e) { log.error("[WS] Push failed for {}: {}", uid, e.getMessage()); } 
         finally { if (frame != null) frame.release(); else data.release(); }
+    }
+
+    private List<Channel> snapshotChannels(long uid) {
+        int i = getIdx(uid);
+        synchronized (locks[i]) {
+            Set<Channel> channels = stripes[i].get(uid);
+            if (channels == null || channels.isEmpty()) return Collections.emptyList();
+            return new ArrayList<>(channels);
+        }
     }
 }
