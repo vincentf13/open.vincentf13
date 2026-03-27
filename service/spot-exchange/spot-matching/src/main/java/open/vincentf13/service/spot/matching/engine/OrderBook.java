@@ -78,7 +78,7 @@ public class OrderBook {
     private final open.vincentf13.service.spot.infra.chronicle.LongValue kA = new open.vincentf13.service.spot.infra.chronicle.LongValue();
 
     public interface TradeFinalizer {
-        void onMatch(long tradeId, Order maker, Order taker, long price, long qty, int baseAsset, int quoteAsset);
+        void onMatch(Trade trade, Order maker, Order taker, int baseAsset, int quoteAsset);
     }
 
     private OrderBook(int symbolId, int baseAssetId, int quoteAssetId) {
@@ -163,7 +163,7 @@ public class OrderBook {
             taker.setFilled(taker.getFilled() + matchQty);
 
             StaticMetricsHolder.addCounter(MetricsKey.MATCH_COUNT, 1);
-            finalizer.onMatch(tid, maker, taker, price, matchQty, baseAssetId, quoteAssetId);
+            finalizer.onMatch(t, maker, taker, baseAssetId, quoteAssetId);
             if (maker.remainingQty() == 0) { finalizeOrder(maker, gwSeq); makers.pollFirst(); } 
             else { syncOrder(maker, gwSeq); break; }
         }

@@ -18,13 +18,13 @@ import org.springframework.stereotype.Component;
 
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import open.vincentf13.service.spot.infra.Constants.Ws;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.thread.AffinityUtil;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Component
@@ -38,6 +38,8 @@ public class NettyServer {
     private final WsCommandInboundHandler wsHandler;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
+    private final AtomicBoolean started = new AtomicBoolean(false);
+    private Thread serverThread;
 
     public NettyServer(WsCommandInboundHandler wsHandler) {
         this.wsHandler = wsHandler;
@@ -45,7 +47,9 @@ public class NettyServer {
 
     @PostConstruct
     public void start() {
-        new Thread(() -> {
+        if (!started.compareAndSet(false, true)) return;
+
+        serverThread = new Thread(() -> {
             bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss", MetricsKey.CPU_ID_NETTY_BOSS));
             workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker",
                 MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
@@ -91,13 +95,24 @@ public class NettyServer {
             } finally {
                 stop();
             }
-        }, "netty-server-starter").start();
+        }, "netty-server-starter");
+        serverThread.start();
     }
 
     @PreDestroy
     public void stop() {
-        if (bossGroup != null) bossGroup.shutdownGracefully();
-        if (workerGroup != null) workerGroup.shutdownGracefully();
+        if (!started.compareAndSet(true, false)) return;
+        shutdownGroup(bossGroup);
+        shutdownGroup(workerGroup);
+    }
+
+    private void shutdownGroup(EventLoopGroup group) {
+        if (group == null) return;
+        try {
+            group.shutdownGracefully().syncUninterruptibly();
+        } catch (Exception e) {
+            log.warn("Netty group shutdown failed: {}", e.getMessage());
+        }
     }
 
     private void scheduleMetrics(EventLoopGroup group, long[] historyKeys, long[] currentKeys) {

@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.aeron;
 
 import io.aeron.Aeron;
+import jakarta.annotation.PreDestroy;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver;
@@ -27,6 +28,11 @@ public class AeronReceiver extends AbstractAeronReceiver {
     }
 
     @PostConstruct public void init() { workerStart("matching-receiver"); }
+
+    @PreDestroy
+    public void shutdown() {
+        workerStop();
+    }
 
     @Override
     protected int doWork() {

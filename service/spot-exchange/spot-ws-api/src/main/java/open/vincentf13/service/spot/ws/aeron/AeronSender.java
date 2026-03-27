@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.ws.aeron;
 
 import io.aeron.Aeron;
+import jakarta.annotation.PreDestroy;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.wire.WireIn;
@@ -25,6 +26,11 @@ public class AeronSender extends AbstractAeronSender {
     public AeronSender(Aeron aeron) { super(Storage.self().gatewaySenderWal()); }
 
     @PostConstruct public void init() { workerStart("gw-sender"); }
+
+    @PreDestroy
+    public void shutdown() {
+        workerStop();
+    }
 
     @Override
     protected void onStart() {

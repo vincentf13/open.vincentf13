@@ -17,6 +17,10 @@ public class ExecutionReporter implements AutoCloseable {
 
     private long rejectedCount = 0;
     private long acceptedCount = 0;
+    private long matchedCount = 0;
+    private long canceledCount = 0;
+    private long authCount = 0;
+    private long depositCount = 0;
 
     public void reportAccepted(Order taker) {
         StaticMetricsHolder.addCounter(MetricsKey.ORDER_ACCEPTED_COUNT, 1);
@@ -25,9 +29,20 @@ public class ExecutionReporter implements AutoCloseable {
         }
     }
 
-    public void reportMatch(Order taker, Order maker, Trade trade) { }
+    public void reportMatch(Order taker, Order maker, Trade trade) {
+        if (++matchedCount % 1000 == 0) {
+            log.info(
+                "[MATCHING-MATCHED] (Sampled 1/1000) TradeId: {}, MakerOrderId: {}, TakerOrderId: {}, Price: {}, Qty: {}, Total: {}",
+                trade.getTradeId(), maker.getOrderId(), taker.getOrderId(), trade.getPrice(), trade.getQty(), matchedCount
+            );
+        }
+    }
 
-    public void reportCanceled(Order order) { }
+    public void reportCanceled(Order order) {
+        if (++canceledCount % 1000 == 0) {
+            log.info("[MATCHING-CANCELED] (Sampled 1/1000) OrderId: {}, UserId: {}, Total: {}", order.getOrderId(), order.getUserId(), canceledCount);
+        }
+    }
 
     public void reportRejected(long userId, long clientOrderId) {
         StaticMetricsHolder.addCounter(MetricsKey.ORDER_REJECTED_COUNT, 1);
@@ -36,9 +51,23 @@ public class ExecutionReporter implements AutoCloseable {
         }
     }
 
-    public void reportAuth(long userId) { }
-    public void reportDeposit(long userId, int assetId, long amount) { }
+    public void reportAuth(long userId) {
+        if (++authCount % 1000 == 0) {
+            log.info("[MATCHING-AUTH] (Sampled 1/1000) UserId: {}, Total: {}", userId, authCount);
+        }
+    }
+
+    public void reportDeposit(long userId, int assetId, long amount) {
+        if (++depositCount % 1000 == 0) {
+            log.info("[MATCHING-DEPOSIT] (Sampled 1/1000) UserId: {}, AssetId: {}, Amount: {}, Total: {}", userId, assetId, amount, depositCount);
+        }
+    }
 
     @Override
-    public void close() { }
+    public void close() {
+        log.info(
+            "ExecutionReporter closing: accepted={}, rejected={}, matched={}, canceled={}, auth={}, deposit={}",
+            acceptedCount, rejectedCount, matchedCount, canceledCount, authCount, depositCount
+        );
+    }
 }

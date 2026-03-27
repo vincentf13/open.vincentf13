@@ -2,10 +2,7 @@ package open.vincentf13.service.spot.matching.engine;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
-import open.vincentf13.service.spot.sbe.OrderStatus;
 import org.springframework.stereotype.Component;
-import net.openhft.chronicle.map.ChronicleMap;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -24,13 +21,12 @@ public class DepositProcessor {
       處理充值指令
      */
     public void handleDeposit(long userId, int assetId, long amount, long gwSeq) {
-        log.info("[MATCHING-ENGINE] 收到充值請求: uid={}, aid={}, amt={}, seq={}", userId, assetId, amount, gwSeq);
-        // 1. 執行帳務增加 (Ledger 內部具備 seq 冪等保護)
+        if (userId <= 0 || amount <= 0 || Asset.of(assetId) == null) {
+            log.warn("忽略非法充值請求: uid={}, aid={}, amt={}, seq={}", userId, assetId, amount, gwSeq);
+            return;
+        }
+
         ledger.increaseAvailable(userId, assetId, amount, gwSeq);
-        
-        // 2. 發送執行回報 (充值成功)
         reporter.reportDeposit(userId, assetId, amount);
-        
-        log.info("用戶 {} 充值成功：資產={}, 數量={}, gwSeq={}", userId, assetId, amount, gwSeq);
     }
 }

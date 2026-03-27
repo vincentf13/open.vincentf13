@@ -21,16 +21,17 @@ public class AuthProcessor {
       處理用戶認證 
      */
     public void handleAuth(long userId, long gwSeq) {
-        // 1. 初始化核心資產帳戶 (依照 Asset enum 遍歷，且僅在不存在時創建)
+        if (userId <= 0) {
+            log.warn("忽略非法認證請求: userId={}, gwSeq={}", userId, gwSeq);
+            return;
+        }
+
         for (Asset asset : Asset.values()) {
             if (!ledger.hasAsset(userId, asset.getId())) {
                 ledger.initAccount(userId, asset.getId(), gwSeq);
             }
         }
         
-        // 2. 發送認證成功回報
         reporter.reportAuth(userId);
-        
-        log.debug("用戶 {} 認證處理完成 (gwSeq: {})", userId, gwSeq);
     }
 }

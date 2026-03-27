@@ -97,12 +97,14 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     /** 實作 TradeFinalizer 接口以複用 */
     @Override
-    public void onMatch(long tradeId, Order maker, Order taker, long tradePrice, long tradeQty, int baseAsset, int quoteAsset) {
+    public void onMatch(open.vincentf13.service.spot.model.Trade trade, Order maker, Order taker, int baseAsset, int quoteAsset) {
+        long tradePrice = trade.getPrice();
+        long tradeQty = trade.getQty();
         long mFrozenDelta, tFrozenDelta;
         
         if (maker.getSide() == OrderSide.BUY) {
             // Maker 是買方：計算此次成交應釋放的凍結金額
-            long remainingQty = maker.getQty() - maker.getFilled(); // 注意：此時 filled 已包含此次成交量
+            long remainingQty = maker.remainingQty();
             long nextFrozen = DecimalUtil.mulCeil(maker.getPrice(), remainingQty);
             mFrozenDelta = maker.getFrozen() - nextFrozen;
             maker.setFrozen(nextFrozen);
@@ -124,7 +126,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             taker.setFrozen(taker.getFrozen() - tradeQty);
         }
 
-        ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, taker.getLastSeq(), baseAsset, quoteAsset, tradeId);
+        ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, taker.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
+        reporter.reportMatch(taker, maker, trade);
     }
 
     private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, long orderId, 

@@ -12,10 +12,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Worker implements Runnable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicBoolean stopped = new AtomicBoolean(true);
     private Thread thread;
 
     public void workerStart(String name) {
         if (running.compareAndSet(false, true)) {
+            stopped.set(false);
             thread = new Thread(this, name);
             thread.start();
             log.info("Worker {} started", name);
@@ -29,7 +31,7 @@ public abstract class Worker implements Runnable {
             if (thread.isAlive()) { thread.interrupt(); thread.join(1000); }
         } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         if (thread.isAlive()) log.error("Worker {} 停機失敗", thread.getName());
-        else { onStop(); log.info("Worker {} stopped", thread.getName()); }
+        else log.info("Worker {} stopped", thread.getName());
     }
 
     public void run() {
@@ -51,7 +53,19 @@ public abstract class Worker implements Runnable {
                 if (work <= 0) { Thread.onSpinWait(); Strategies.BUSY_SPIN.idle(0); }
             }
         } catch (Exception e) { if (!Thread.interrupted()) log.error("Worker 運行異常", e); }
-        finally { running.set(false); }
+        finally {
+            running.set(false);
+            stopSafely();
+        }
+    }
+
+    private void stopSafely() {
+        if (!stopped.compareAndSet(false, true)) return;
+        try {
+            onStop();
+        } catch (Exception e) {
+            log.error("Worker 關閉異常", e);
+        }
     }
 
     protected abstract void onStart();
