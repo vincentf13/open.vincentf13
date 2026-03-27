@@ -36,7 +36,6 @@ public class Engine implements AeronMessageHandler {
         unflushedWorkCount = 0;
         
         ledger.rebuildAssetIndexes();
-        OrderBook.rebuildActiveOrdersIndexes();
         orderProcessor.coldStartRebuild();
         OrderBook.get(1001); 
 

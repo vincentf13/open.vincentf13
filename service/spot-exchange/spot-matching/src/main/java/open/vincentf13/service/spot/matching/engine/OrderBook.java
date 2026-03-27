@@ -52,6 +52,7 @@ public class OrderBook {
     }
 
     public static Collection<OrderBook> getInstances() { return INSTANCES.values(); }
+    public static void resetForRecovery() { INSTANCES.clear(); }
 
     private final int symbolId, baseAssetId, quoteAssetId;
     
@@ -253,6 +254,7 @@ public class OrderBook {
     }
 
     public static void rebuildActiveOrdersIndexes() {
+        resetForRecovery();
         ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> all = Storage.self().orders();
         Storage.self().activeOrders().forEach((id, active) -> {
             Order o = all.getUsing(id, new Order());

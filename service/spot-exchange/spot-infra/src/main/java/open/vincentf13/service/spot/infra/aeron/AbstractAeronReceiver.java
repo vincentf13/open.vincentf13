@@ -42,8 +42,6 @@ public abstract class AbstractAeronReceiver extends Worker {
         this.controlUrl = controlUrl; this.controlStreamId = controlStreamId;
     }
 
-    public void setup() { running.set(true); onStart(); }
-
     public int poll(AeronMessageHandler handler, int limit) {
         this.externalHandler = handler;
         if (currentState == AeronState.SENDING && !subscription.isConnected()) currentState = AeronState.WAITING;
@@ -77,15 +75,12 @@ public abstract class AbstractAeronReceiver extends Worker {
     }
 
     private void fragmentHandler(org.agrona.DirectBuffer buffer, int offset, int length, io.aeron.logbuffer.Header header) {
-        final long msgSeq = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET), lastSeq = progress.getLastProcessedSeq();
-        
-        if (currentState == AeronState.WAITING) {
-            if (msgSeq < lastSeq && lastSeq != MSG_SEQ_NONE) progress.setLastProcessedSeq(MSG_SEQ_NONE);
-            currentState = AeronState.SENDING;
-        }
+        final long msgSeq = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET);
+        final long lastSeq = progress.getLastProcessedSeq();
 
+        if (!readyToConsume(msgSeq, lastSeq)) return;
         if (msgSeq <= progress.getLastProcessedSeq()) return;
-        
+
         if (msgSeq != lastSeq + 1 && lastSeq != MSG_SEQ_NONE) {
             log.error("鏈路跳號！期望: {}, 實際: {}", lastSeq + 1, msgSeq);
             currentState = AeronState.WAITING; sendResume(); return;
@@ -98,10 +93,27 @@ public abstract class AbstractAeronReceiver extends Worker {
         if (msgSeq % AeronConstants.METADATA_FLUSH_PERIOD == 0) metadata.put(metadataKey, progress);
     }
 
+    private boolean readyToConsume(long msgSeq, long lastSeq) {
+        if (currentState != AeronState.WAITING) return true;
+        if (lastSeq == MSG_SEQ_NONE || msgSeq == lastSeq + 1) {
+            currentState = AeronState.SENDING;
+            return true;
+        }
+        if (msgSeq <= lastSeq) {
+            sendResume();
+            return false;
+        }
+
+        log.warn("恢復期間收到超前訊息，等待重送。期望: {}, 實際: {}", lastSeq + 1, msgSeq);
+        sendResume();
+        return false;
+    }
+
     protected abstract void onMessage(org.agrona.DirectBuffer buffer, int offset, int length);
 
     @Override
     protected void onStop() {
+        metadata.put(metadataKey, progress);
         if (subscription != null) subscription.close();
         if (controlPub != null) controlPub.close();
         ThreadContext.cleanup();

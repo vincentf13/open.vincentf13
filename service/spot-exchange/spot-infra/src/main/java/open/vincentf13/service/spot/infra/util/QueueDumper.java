@@ -15,7 +15,7 @@ public class QueueDumper {
         // 設定絕對路徑，確保讀取正確的目錄
         System.setProperty("SPOT_WAL_DIR", "C:/iProject/open.vincentf13/data/spot-exchange/wal/");
         
-        try (ChronicleQueue queue = Storage.self().gatewaySenderWal()) {
+        try (ChronicleQueue queue = Storage.self().openGatewaySenderWal()) {
             ExcerptTailer tailer = queue.createTailer();
             System.out.println("--- 開始傾倒 Gateway WAL 內容 ---");
             int count = 0;

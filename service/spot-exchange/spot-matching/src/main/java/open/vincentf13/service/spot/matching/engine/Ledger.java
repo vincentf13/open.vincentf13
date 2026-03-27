@@ -202,10 +202,13 @@ public class Ledger {
         log.info("--- 執行帳本二級緩存預熱與索引重建 ---");
         bitmaskCache.clear();
         balanceCache.clear();
+        dirtyCount = 0;
+        dirtyBitmasks.clear();
         balancesDiskMap.forEach((key, diskVal) -> {
             // 預熱內存緩存
             Balance b = new Balance();
             b.copyFrom(diskVal);
+            b.setDirty(false);
             balanceCache.put(combine(key.getUserId(), key.getAssetId()), b);
             
             // 重建索引

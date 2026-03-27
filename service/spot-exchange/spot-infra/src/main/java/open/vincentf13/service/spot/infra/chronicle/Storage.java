@@ -17,7 +17,8 @@ import java.io.IOException;
  */
 @Slf4j
 public class Storage {
-    private static Storage INSTANCE;
+    private static volatile Storage INSTANCE;
+    private volatile boolean closed;
 
     // 單例取得改為延遲加載 (Lazy Init)，防止 Spring 啟動時因為檔案鎖定而卡死 main 線程
     public static synchronized Storage self() {
@@ -42,6 +43,7 @@ public class Storage {
     private final ChronicleQueue gatewaySenderWal;
 
     private Storage() {
+        this.closed = false;
         log.info(">>> [STORAGE] 正在啟動 Chronicle 資源加載...");
         try {
             this.orders = createMap(ChronicleMapEnum.ORDERS, LongValue.class, Order.class, 10_000_000, 128);
@@ -82,6 +84,7 @@ public class Storage {
     public ChronicleMap<Long, Long> latencyHistory() { return latencyHistory; }
     public ChronicleMap<Long, String> gcEventHistory() { return gcEventHistory; }
     public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
+    public ChronicleQueue openGatewaySenderWal() { return createQueue(ChronicleQueueEnum.CLIENT_TO_GW); }
 
     // 輔助方法：5 個引數的重載
     private <K, V> ChronicleMap<K, V> createMap(Object name, Class<K> keyCls, Class<V> valCls, int entries, int valSize) {
@@ -125,11 +128,14 @@ public class Storage {
 
     public void close() {
         synchronized (this) {
+            if (closed) return;
+            closed = true;
             safeClose(orders); safeClose(trades); safeClose(balances); safeClose(userAssets);
             safeClose(activeOrders); safeClose(cids); safeClose(userActiveOrders);
             safeClose(msgMetadata); safeClose(walMetadata); safeClose(latestMetrics);
             safeClose(tpsHistory); safeClose(latencyHistory); safeClose(gcEventHistory);
             if (gatewaySenderWal != null) gatewaySenderWal.close();
+            INSTANCE = null;
         }
     }
 
