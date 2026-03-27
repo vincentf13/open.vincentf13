@@ -20,6 +20,16 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OrderProcessor implements OrderBook.TradeFinalizer {
+    private static final class SettlementAmounts {
+        private final long quoteFloor;
+        private final long quoteCeil;
+
+        private SettlementAmounts(long quoteFloor, long quoteCeil) {
+            this.quoteFloor = quoteFloor;
+            this.quoteCeil = quoteCeil;
+        }
+    }
+
     private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> orders = Storage.self().orders();
     private final ChronicleMap<CidKey, open.vincentf13.service.spot.infra.chronicle.LongValue> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
 
@@ -135,7 +145,9 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             );
         }
 
+        SettlementAmounts settlement = validateSettlementAmounts(trade, maker, taker, mFrozenDelta, tFrozenDelta);
         ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, trade.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
+        validateTradeConservation(trade, taker.getSide(), mFrozenDelta, tFrozenDelta, settlement);
         maker.validateState();
         taker.validateState();
         reporter.reportMatch(taker, maker, trade);
@@ -186,6 +198,62 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
                 "Trade quantity exceeds remaining quantity, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
             );
         }
+    }
+
+    private SettlementAmounts validateSettlementAmounts(open.vincentf13.service.spot.model.Trade trade, Order maker, Order taker, long mFrozenDelta, long tFrozenDelta) {
+        long quoteFloor = DecimalUtil.mulFloor(trade.getPrice(), trade.getQty());
+        long quoteCeil = DecimalUtil.mulCeil(trade.getPrice(), trade.getQty());
+
+        if (maker.getSide() == OrderSide.BUY) {
+            if (mFrozenDelta < quoteCeil) {
+                throw new IllegalStateException(
+                    "Buyer frozen delta below required quote ceil, orderId=%d, required=%d, actual=%d"
+                        .formatted(maker.getOrderId(), quoteCeil, mFrozenDelta)
+                );
+            }
+            if (tFrozenDelta != trade.getQty()) {
+                throw new IllegalStateException(
+                    "Seller frozen delta must equal trade quantity, orderId=%d, expected=%d, actual=%d"
+                        .formatted(taker.getOrderId(), trade.getQty(), tFrozenDelta)
+                );
+            }
+        } else {
+            if (tFrozenDelta < quoteCeil) {
+                throw new IllegalStateException(
+                    "Buyer frozen delta below required quote ceil, orderId=%d, required=%d, actual=%d"
+                        .formatted(taker.getOrderId(), quoteCeil, tFrozenDelta)
+                );
+            }
+            if (mFrozenDelta != trade.getQty()) {
+                throw new IllegalStateException(
+                    "Seller frozen delta must equal trade quantity, orderId=%d, expected=%d, actual=%d"
+                        .formatted(maker.getOrderId(), trade.getQty(), mFrozenDelta)
+                );
+            }
+        }
+        return new SettlementAmounts(quoteFloor, quoteCeil);
+    }
+
+    private void validateTradeConservation(open.vincentf13.service.spot.model.Trade trade, byte takerSide, long mFrozenDelta, long tFrozenDelta, SettlementAmounts settlement) {
+        long baseNet;
+        long quoteNet;
+        if (takerSide == OrderSide.BUY) {
+            baseNet = trade.getQty() - trade.getQty();
+            quoteNet = (tFrozenDelta - settlement.quoteCeil) + settlement.quoteFloor + (settlement.quoteCeil - settlement.quoteFloor) - tFrozenDelta;
+        } else {
+            baseNet = trade.getQty() - tFrozenDelta + mFrozenDelta - trade.getQty();
+            quoteNet = settlement.quoteFloor + (mFrozenDelta - settlement.quoteCeil) + tradeFeeDelta(settlement) - mFrozenDelta;
+        }
+        if (baseNet != 0 || quoteNet != 0) {
+            throw new IllegalStateException(
+                "Trade conservation violated, tradeId=%d, baseNet=%d, quoteNet=%d"
+                    .formatted(trade.getTradeId(), baseNet, quoteNet)
+            );
+        }
+    }
+
+    private long tradeFeeDelta(SettlementAmounts settlement) {
+        return settlement.quoteCeil - settlement.quoteFloor;
     }
 
     private boolean isBufferedDuplicate(long userId, long clientOrderId) {
