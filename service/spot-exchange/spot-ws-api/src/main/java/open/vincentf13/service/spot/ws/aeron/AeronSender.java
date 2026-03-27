@@ -15,11 +15,9 @@ import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
 import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
-import open.vincentf13.service.spot.infra.metrics.WorkerMetrics;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.thread.Worker;
 import open.vincentf13.service.spot.model.command.AbstractSbeModel;
-import org.agrona.MutableDirectBuffer;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -58,7 +56,7 @@ public class AeronSender extends Worker {
         int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
         if (currentState == AeronState.WAITING) return work;
 
-        for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
+        for (int i = 0; i < 1000; i++) {
             long lastIdx = tailer.index();
             try (var dc = tailer.readingDocument()) {
                 if (!dc.isPresent()) break;

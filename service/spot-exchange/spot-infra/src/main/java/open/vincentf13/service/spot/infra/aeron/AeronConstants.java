@@ -4,9 +4,7 @@ package open.vincentf13.service.spot.infra.aeron;
  * Aeron 傳輸層物理常數
  */
 public class AeronConstants {
-    /** WAL 讀取批次大小 */
-    public static final int WAL_BATCH_SIZE = 1000;
-
+    
     /** 指標統計批次大小 */
     public static final int METRICS_BATCH_SIZE = 5000;
 

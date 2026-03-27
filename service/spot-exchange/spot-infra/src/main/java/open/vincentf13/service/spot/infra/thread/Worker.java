@@ -74,9 +74,12 @@ public abstract class Worker implements Runnable {
                         WorkerMetrics.recordSample(duration, SAMPLE_MASK + 1);
                     }
                     
-                    // 每 1024 次循環檢查一次是否該上報指標 (約 1 秒)
+                    // 二級採樣檢查 (每 1024 次循環，約 1-10ms 頻率)：
+                    // 為了極致性能，我們不希望在每次 128 次採樣時都去判斷 1 秒上報條件。
+                    // 透過 & 0x3FF (1023) 遮罩，我們進一步將「看錶」的次數降低到原本的 1/8。
                     if ((loopCounter & 0x3FF) == 0) {
                         long now = System.nanoTime();
+                        // 最終檢查：若已跨越 1 秒邊界，執行指標上報與重置
                         if (now - lastReportNs >= 1_000_000_000L) {
                             StaticMetricsHolder.recordCpuId(cpuIdKey, currentCpuIdKey, AffinityUtil.currentCpu());
                             WorkerMetrics.reportDutyCycle(dutyCycleKey);
@@ -84,6 +87,7 @@ public abstract class Worker implements Runnable {
                             lastReportNs = now;
                         }
                     }
+
                 } else {
                     // 快速路徑 (Fast Path / Hot Path) - 幾乎零額外開銷
                     work = doWork();
