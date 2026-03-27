@@ -284,6 +284,35 @@ public class Ledger {
         return balanceCache.containsKey(combine(userId, assetId));
     }
 
+    public long frozenBalanceOf(long userId, int assetId) {
+        Balance balance = balanceCache.get(combine(userId, assetId));
+        return balance == null ? 0 : balance.getFrozen();
+    }
+
+    public void validateFrozenBalances(Map<Long, Long> expectedFrozenByAccountAsset) {
+        for (Map.Entry<Long, Long> entry : expectedFrozenByAccountAsset.entrySet()) {
+            long combinedKey = entry.getKey();
+            long actualFrozen = frozenBalanceOf(combinedKey >>> 32, (int) (combinedKey & 0xFFFFFFFFL));
+            if (actualFrozen != entry.getValue()) {
+                throw new IllegalStateException(
+                    "Frozen balance mismatch, uid=%d, asset=%d, expected=%d, actual=%d"
+                        .formatted(combinedKey >>> 32, (int) (combinedKey & 0xFFFFFFFFL), entry.getValue(), actualFrozen)
+                );
+            }
+        }
+
+        balanceCache.forEach((combinedKey, balance) -> {
+            if (balance.getFrozen() <= 0) return;
+            long expectedFrozen = expectedFrozenByAccountAsset.getOrDefault(combinedKey.longValue(), 0L);
+            if (expectedFrozen != balance.getFrozen()) {
+                throw new IllegalStateException(
+                    "Unexpected frozen balance residue, uid=%d, asset=%d, expected=%d, actual=%d"
+                        .formatted(combinedKey.longValue() >>> 32, (int) (combinedKey.longValue() & 0xFFFFFFFFL), expectedFrozen, balance.getFrozen())
+                );
+            }
+        });
+    }
+
     public void initAccount(long userId, int assetId, long seq) {
         applySeqChange(userId, assetId, 0, 0, seq);
     }
