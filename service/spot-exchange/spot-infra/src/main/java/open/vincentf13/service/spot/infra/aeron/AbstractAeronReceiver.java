@@ -16,11 +16,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 /** 抽象 Aeron 接收基類 */
 @Slf4j
 public abstract class AbstractAeronReceiver extends Worker {
-    @FunctionalInterface
-    public interface AeronMessageHandler {
-        void onMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length);
-    }
-
     protected final ChronicleMap<Byte, MsgProgress> metadata;
     protected final byte metadataKey;
     protected final String subUrl, controlUrl;
@@ -33,7 +28,6 @@ public abstract class AbstractAeronReceiver extends Worker {
     
     protected AeronState currentState = AeronState.WAITING;
     protected long lastResumeTime = 0;
-    private AeronMessageHandler externalHandler;
 
     public AbstractAeronReceiver(ChronicleMap<Byte, MsgProgress> metadata, byte metadataKey,
                                  String subUrl, int subStreamId, String controlUrl, int controlStreamId) {
@@ -42,8 +36,7 @@ public abstract class AbstractAeronReceiver extends Worker {
         this.controlUrl = controlUrl; this.controlStreamId = controlStreamId;
     }
 
-    public int poll(AeronMessageHandler handler, int limit) {
-        this.externalHandler = handler;
+    public int poll(int limit) {
         if (currentState == AeronState.SENDING && !subscription.isConnected()) currentState = AeronState.WAITING;
         if (currentState == AeronState.WAITING && Clock.now() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
         
@@ -64,7 +57,7 @@ public abstract class AbstractAeronReceiver extends Worker {
         sendResume();
     }
 
-    @Override protected int doWork() { return poll(null, AeronConstants.AERON_POLL_LIMIT); }
+    @Override protected int doWork() { return poll(AeronConstants.AERON_POLL_LIMIT); }
 
     protected void sendResume() {
         AeronUtil.send(controlPub, AeronConstants.RESUME_SIGNAL_LENGTH, (buffer, offset) -> {
@@ -86,8 +79,7 @@ public abstract class AbstractAeronReceiver extends Worker {
             currentState = AeronState.WAITING; sendResume(); return;
         }
 
-        if (externalHandler != null) externalHandler.onMessage(buffer.getInt(offset), buffer, offset, length);
-        else onMessage(buffer, offset, length);
+        onMessage(buffer, offset, length);
         
         progress.setLastProcessedSeq(msgSeq);
         if (msgSeq % AeronConstants.METADATA_FLUSH_PERIOD == 0) metadata.put(metadataKey, progress);

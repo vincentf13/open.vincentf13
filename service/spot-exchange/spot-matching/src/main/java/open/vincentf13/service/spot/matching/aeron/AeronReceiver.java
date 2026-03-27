@@ -36,7 +36,7 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected int doWork() {
-        int done = poll(null, AeronConstants.AERON_POLL_LIMIT);
+        int done = poll(AeronConstants.AERON_POLL_LIMIT);
         engine.onPollCycle(done);
         return done;
     }
