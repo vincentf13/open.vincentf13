@@ -70,7 +70,7 @@ public abstract class AbstractAeronReceiver extends Worker {
         final long lastSeq = progress.getLastProcessedSeq();
 
         if (!readyToConsume(msgSeq, lastSeq)) return;
-        if (msgSeq <= progress.getLastProcessedSeq()) return;
+        if (msgSeq <= lastSeq) return;
 
         if (msgSeq != lastSeq + 1 && lastSeq != MSG_SEQ_NONE) {
             log.error("鏈路跳號！期望: {}, 實際: {}", lastSeq + 1, msgSeq);
@@ -78,7 +78,6 @@ public abstract class AbstractAeronReceiver extends Worker {
         }
 
         onMessage(buffer, offset, length);
-        
         progress.setLastProcessedSeq(msgSeq);
         if (msgSeq % AeronConstants.METADATA_FLUSH_PERIOD == 0) metadata.put(metadataKey, progress);
     }
@@ -89,12 +88,9 @@ public abstract class AbstractAeronReceiver extends Worker {
             currentState = AeronState.SENDING;
             return true;
         }
-        if (msgSeq <= lastSeq) {
-            sendResume();
-            return false;
+        if (msgSeq > lastSeq) {
+            log.warn("恢復期間收到超前訊息，等待重送。期望: {}, 實際: {}", lastSeq + 1, msgSeq);
         }
-
-        log.warn("恢復期間收到超前訊息，等待重送。期望: {}, 實際: {}", lastSeq + 1, msgSeq);
         sendResume();
         return false;
     }

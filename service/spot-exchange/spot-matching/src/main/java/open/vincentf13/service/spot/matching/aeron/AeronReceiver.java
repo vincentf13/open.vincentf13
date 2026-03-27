@@ -28,11 +28,13 @@ public class AeronReceiver extends AbstractAeronReceiver {
     }
 
     @PostConstruct public void init() { workerStart("matching-receiver"); }
+    @PreDestroy public void shutdown() { workerStop(); }
 
-    @PreDestroy
-    public void shutdown() {
-        workerStop();
-    }
+    @Override
+    protected void onStart() { engine.onStart(); super.onStart(); }
+
+    @Override
+    protected void onStop() { engine.onStop(); super.onStop(); }
 
     @Override
     protected int doWork() {
