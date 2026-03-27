@@ -30,10 +30,10 @@ public class WorkerMetrics {
 
     /** 
      * 標記一個處理循環的結束。
-     * @param worked 本次循環是否處理了實際任務 (如果有 Match、有 Order 則為 true)
+     * @param work 本次循環處理的任務數量 (若 > 0 視為有效工作)
      */
-    public static void endCycle(boolean worked) {
-        if (worked) {
+    public static void endCycle(int work) {
+        if (work > 0) {
             State s = STATE.get();
             // 只有在真正處理了任務時，才將消耗的時間計入「有效工作時間」
             s.accumulatedWorkNanos += (System.nanoTime() - s.cycleStartNanos);

@@ -38,7 +38,7 @@ public class AeronReceiver extends Worker {
     private long lastResumeTime = 0;
 
     public AeronReceiver(Engine engine) {
-        super("matching-receiver");
+        super("matching-receiver", MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER, MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE);
         this.engine = engine;
         this.metadata = Storage.self().msgProgressMetadata();
     }
@@ -95,11 +95,6 @@ public class AeronReceiver extends Worker {
         engine.onAeronMessage(buffer.getInt(offset), buffer, offset, length);
         progress.setLastProcessedSeq(seq);
         if (seq % AeronConstants.METADATA_FLUSH_PERIOD == 0) metadata.put(MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE, progress);
-    }
-
-    @Override
-    protected void collectMetrics() {
-        WorkerMetrics.reportThreadMetrics(MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER, MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE);
     }
 
     @Override

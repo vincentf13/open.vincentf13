@@ -37,7 +37,7 @@ public class AeronSender extends Worker {
     private long localBackPressure = 0;
 
     public AeronSender(Aeron aeron) {
-        super("gw-sender");
+        super("gw-sender", MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.CPU_ID_CURRENT_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
         this.wal = Storage.self().gatewaySenderWal();
     }
 
@@ -117,7 +117,7 @@ public class AeronSender extends Worker {
             StaticMetricsHolder.addCounter(MetricsKey.AERON_BACKPRESSURE, localBackPressure);
             localBackPressure = 0;
         }
-        WorkerMetrics.reportThreadMetrics(MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.CPU_ID_CURRENT_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
+        super.collectMetrics();
     }
 
     @Override

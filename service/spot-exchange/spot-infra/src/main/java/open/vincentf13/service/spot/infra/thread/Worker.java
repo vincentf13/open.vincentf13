@@ -13,12 +13,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Worker implements Runnable {
     protected final AtomicBoolean running = new AtomicBoolean(false);
     private final String workerName;
+    private final long cpuIdKey, currentCpuIdKey, dutyCycleKey;
     private Thread thread;
-    
-    protected Worker(String workerName) {
+
+    protected Worker(String workerName, long cpuIdKey, long currentCpuIdKey, long dutyCycleKey) {
         this.workerName = workerName;
+        this.cpuIdKey = cpuIdKey;
+        this.currentCpuIdKey = currentCpuIdKey;
+        this.dutyCycleKey = dutyCycleKey;
     }
-    
+
     public void start() {
         if (running.compareAndSet(false, true)) {
             thread = new Thread(this, workerName);
@@ -26,7 +30,7 @@ public abstract class Worker implements Runnable {
             log.info("Worker {} started", workerName);
         }
     }
-    
+
     public void stop() {
         if (!running.compareAndSet(true, false))
             return;
@@ -41,8 +45,7 @@ public abstract class Worker implements Runnable {
             log.info("Worker {} stopped", thread.getName());
         }
     }
-    
-    
+
     /**
      核心執行循環：
      1. 綁定 CPU 親和性 (Affinity) 以減少上下文切換。
@@ -61,19 +64,19 @@ public abstract class Worker implements Runnable {
             while (running.get() && !Thread.currentThread().isInterrupted()) {
                 // 開始統計當前任務週期
                 WorkerMetrics.startCycle();
-                
+
                 // 執行具體業務邏輯，並獲取處理量
                 int work = doWork();
-                
+
                 // 結束週期統計 (work > 0 視為有效週期)
-                WorkerMetrics.endCycle(work > 0);
-                
+                WorkerMetrics.endCycle(work);
+
                 // 每秒定期執行一次自定義指標收集
                 if (System.nanoTime() - lastMetricsNs >= 1_000_000_000L) {
                     collectMetrics();
                     lastMetricsNs = System.nanoTime();
                 }
-                
+
                 // 若無任務，執行 Busy-Spin 策略以降低 CPU 負擔並保持低延遲回報
                 if (work <= 0)
                     Strategies.BUSY_SPIN.idle(0);
@@ -91,16 +94,17 @@ public abstract class Worker implements Runnable {
             running.set(false);
         }
     }
-    
+
     protected abstract void onStart();
-    
+
     protected abstract int doWork();
-    
+
     /**
      專屬統計方法：每秒觸發一次，用於回報效能指標
      */
     protected void collectMetrics() {
+        WorkerMetrics.reportThreadMetrics(cpuIdKey, currentCpuIdKey, dutyCycleKey);
     }
-    
+
     protected abstract void onStop();
 }
