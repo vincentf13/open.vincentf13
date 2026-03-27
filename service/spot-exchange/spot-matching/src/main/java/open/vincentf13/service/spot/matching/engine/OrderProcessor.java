@@ -82,7 +82,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
         reusableOrderKey.set(orderId);
         Order order = orders.get(reusableOrderKey);
-        if (order == null || order.getUserId() != userId || order.isTerminal()) return;
+        if (order == null || order.getUserId() != userId || !order.isActive()) return;
+        order.validateState();
 
         OrderBook book = OrderBook.get(order.getSymbolId());
         Order canceled = book.cancel(orderId, userId, gatewaySequence);
@@ -92,6 +93,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         int assetId = (canceled.getSide() == OrderSide.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
         ledger.unfreezeBalance(canceled.getUserId(), assetId, frozenAmount, gatewaySequence);
         canceled.setFrozen(0);
+        canceled.validateState();
         reporter.reportCanceled(canceled);
     }
 
@@ -100,6 +102,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     public void onMatch(open.vincentf13.service.spot.model.Trade trade, Order maker, Order taker, int baseAsset, int quoteAsset) {
         long tradePrice = trade.getPrice();
         long tradeQty = trade.getQty();
+        validateMatchInputs(trade, maker, taker);
         long mFrozenDelta, tFrozenDelta;
         
         if (maker.getSide() == OrderSide.BUY) {
@@ -126,7 +129,15 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             taker.setFrozen(taker.getFrozen() - tradeQty);
         }
 
+        if (mFrozenDelta < 0 || tFrozenDelta < 0) {
+            throw new IllegalStateException(
+                "Negative frozen delta, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
+            );
+        }
+
         ledger.settleTrade(maker.getUserId(), taker.getUserId(), tradePrice, tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, taker.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
+        maker.validateState();
+        taker.validateState();
         reporter.reportMatch(taker, maker, trade);
     }
 
@@ -149,9 +160,31 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         }
 
         Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, freezeAmount, progress, this);
+        taker.validateState();
         appendCidMapping(userId, clientOrderId, orderId);
 
         if (taker != null) reporter.reportAccepted(taker);
+    }
+
+    private void validateMatchInputs(open.vincentf13.service.spot.model.Trade trade, Order maker, Order taker) {
+        if (trade.getQty() <= 0 || trade.getPrice() <= 0) {
+            throw new IllegalStateException("Invalid trade payload, tradeId=" + trade.getTradeId());
+        }
+        if (maker.getSide() == taker.getSide()) {
+            throw new IllegalStateException(
+                "Maker and taker have same side, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
+            );
+        }
+        if (!maker.isActive() || !taker.isActive()) {
+            throw new IllegalStateException(
+                "Matched terminal order, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
+            );
+        }
+        if (trade.getQty() > maker.remainingQty() || trade.getQty() > taker.remainingQty()) {
+            throw new IllegalStateException(
+                "Trade quantity exceeds remaining quantity, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
+            );
+        }
     }
 
     private boolean isBufferedDuplicate(long userId, long clientOrderId) {

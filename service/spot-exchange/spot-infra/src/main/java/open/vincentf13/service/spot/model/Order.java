@@ -47,6 +47,52 @@ public class Order implements BytesMarshallable {
     public boolean isTerminal() {
         return status >= 2;
     }
+
+    public boolean isActive() {
+        return !isTerminal();
+    }
+
+    public void validateState() {
+        if (orderId <= 0 || userId <= 0 || symbolId <= 0) {
+            throw new IllegalStateException("Invalid order identity, orderId=" + orderId);
+        }
+        if (qty <= 0 || price < 0) {
+            throw new IllegalStateException("Invalid order quantity or price, orderId=" + orderId);
+        }
+        if (side != 0 && side != 1) {
+            throw new IllegalStateException("Invalid order side, orderId=" + orderId);
+        }
+        if (status < 0 || status > 3) {
+            throw new IllegalStateException("Invalid order status, orderId=" + orderId);
+        }
+        if (filled < 0 || filled > qty) {
+            throw new IllegalStateException("Invalid filled amount, orderId=" + orderId);
+        }
+        if (frozen < 0) {
+            throw new IllegalStateException("Negative frozen amount, orderId=" + orderId);
+        }
+        if (status == 0 && filled != 0) {
+            throw new IllegalStateException("NEW order cannot have filled quantity, orderId=" + orderId);
+        }
+        if (status == 1 && (filled <= 0 || filled >= qty)) {
+            throw new IllegalStateException("PARTIALLY_FILLED order has invalid filled quantity, orderId=" + orderId);
+        }
+        if (status == 2 && filled != qty) {
+            throw new IllegalStateException("FILLED order must be fully filled, orderId=" + orderId);
+        }
+        if (status == 3 && frozen != 0) {
+            throw new IllegalStateException("CANCELED order must not keep frozen amount, orderId=" + orderId);
+        }
+        if (status >= 2 && remainingQty() != 0 && status != 3) {
+            throw new IllegalStateException("Terminal order has remaining quantity, orderId=" + orderId);
+        }
+        if (side == 0 && frozen > 0 && filled == qty && status == 2) {
+            throw new IllegalStateException("FILLED buy order must not keep frozen amount, orderId=" + orderId);
+        }
+        if (side == 1 && frozen > remainingQty()) {
+            throw new IllegalStateException("Sell order frozen exceeds remaining quantity, orderId=" + orderId);
+        }
+    }
     
     public void copyFrom(Order other) {
         if (other == null) return;

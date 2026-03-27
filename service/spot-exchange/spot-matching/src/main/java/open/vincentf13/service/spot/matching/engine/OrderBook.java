@@ -102,6 +102,7 @@ public class OrderBook {
 
     public void recoverOrder(Order o) {
         if (o == null || o.isTerminal()) return;
+        o.validateState();
         Order r = borrowOrder();
         r.copyFrom(o);
         add(r);
@@ -197,6 +198,7 @@ public class OrderBook {
     }
 
     private void add(Order order) {
+        order.validateState();
         final long price = order.getPrice();
         Long2ObjectHashMap<Deque<Order>> levels = getLevels(order.getSide() == OrderSide.BUY);
         Deque<Order> level = levels.get(price);
@@ -220,6 +222,9 @@ public class OrderBook {
         }
         o.setVersion(o.getVersion() + 1);
         o.setLastSeq(gwSeq);
+        if (o.getStatus() != OrderStatus.CANCELED.ordinal()) {
+            o.validateState();
+        }
         pendingOrders.put(o.getOrderId(), o);
 
         if (!o.isTerminal()) { pendingAdds.add(o.getOrderId()); pendingRemovals.remove(o.getOrderId()); } 
@@ -296,6 +301,7 @@ public class OrderBook {
                 if (order.isTerminal()) {
                     throw new IllegalStateException("Terminal order present in price level, orderId=" + order.getOrderId());
                 }
+                order.validateState();
             }
         });
     }
