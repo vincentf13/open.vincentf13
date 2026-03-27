@@ -17,6 +17,18 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class TestVerificationController {
     private static final String GC_META_SEPARATOR = "\u001F";
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+    private static final List<String> CPU_HISTORY_KEYS = List.of(
+        "matching_receiver", "gateway_sender", "netty_boss",
+        "netty_worker_1", "netty_worker_2", "netty_worker_3", "netty_worker_4"
+    );
+    private static final long[] CPU_HISTORY_METRICS = {
+        MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.CPU_ID_NETTY_BOSS,
+        MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2, MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4
+    };
+    private static final long[] CPU_CURRENT_METRICS = {
+        MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_SENDER, MetricsKey.CPU_ID_CURRENT_NETTY_BOSS,
+        MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4
+    };
 
     @GetMapping("/metrics/tps")
     public List<Map<String, Object>> getTpsHistory() {
@@ -41,44 +53,48 @@ public class TestVerificationController {
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
         Map<String, Object> m = new LinkedHashMap<>();
-        
-        m.put("netty_recv", get(MetricsKey.NETTY_RECV_COUNT));
-        m.put("wal_write", get(MetricsKey.GATEWAY_WAL_WRITE_COUNT));
-        m.put("aeron_send", get(MetricsKey.AERON_SEND_COUNT));
-        m.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
-        m.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
-        m.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
-        m.put("matching_receiver_duty_cycle", formatPercent(get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE)));
-        m.put("gateway_sender_duty_cycle", formatPercent(get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE)));
 
-        m.put("matching_jvm", formatJvm(MetricsKey.MATCHING_JVM_USED_MB, MetricsKey.MATCHING_JVM_MAX_MB));
-        m.put("matching_gc_pause", buildGcPauseInfo(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_HISTORY_START));
-        m.put("gateway_jvm", formatJvm(MetricsKey.GATEWAY_JVM_USED_MB, MetricsKey.GATEWAY_JVM_MAX_MB));
-        m.put("gateway_gc_pause",  buildGcPauseInfo(MetricsKey.GATEWAY_GC_COUNT,  MetricsKey.GATEWAY_GC_HISTORY_START));
-
-        Map<String, List<Integer>> cpuHistory = new LinkedHashMap<>();
-        cpuHistory.put("matching_receiver", parseCpuMask(get(MetricsKey.CPU_ID_AERON_RECEIVER)));
-        cpuHistory.put("gateway_sender",    parseCpuMask(get(MetricsKey.CPU_ID_AERON_SENDER)));
-        cpuHistory.put("netty_boss",        parseCpuMask(get(MetricsKey.CPU_ID_NETTY_BOSS)));
-        cpuHistory.put("netty_worker_1",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_1)));
-        cpuHistory.put("netty_worker_2",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_2)));
-        cpuHistory.put("netty_worker_3",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_3)));
-        cpuHistory.put("netty_worker_4",    parseCpuMask(get(MetricsKey.CPU_ID_NETTY_WORKER_4)));
-        m.put("cpu_affinity_history", cpuHistory);
-
-        Map<String, Object> currentCpuIds = new LinkedHashMap<>();
-        currentCpuIds.put("matching_receiver", getNullable(MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER));
-        currentCpuIds.put("gateway_sender",    getNullable(MetricsKey.CPU_ID_CURRENT_AERON_SENDER));
-        currentCpuIds.put("netty_boss",        getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_BOSS));
-        currentCpuIds.put("netty_worker_1",    getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1));
-        currentCpuIds.put("netty_worker_2",    getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2));
-        currentCpuIds.put("netty_worker_3",    getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3));
-        currentCpuIds.put("netty_worker_4",    getNullable(MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4));
-        m.put("current_cpu_id", currentCpuIds);
-        
+        putCounterMetrics(m);
+        putJvmMetrics(m);
+        m.put("cpu_affinity_history", buildCpuAffinityHistory());
+        m.put("current_cpu_id", buildCurrentCpuIds());
         m.put("latency", getCombinedLatency());
 
         return m;
+    }
+
+    private void putCounterMetrics(Map<String, Object> target) {
+        target.put("netty_recv", get(MetricsKey.NETTY_RECV_COUNT));
+        target.put("wal_write", get(MetricsKey.GATEWAY_WAL_WRITE_COUNT));
+        target.put("aeron_send", get(MetricsKey.AERON_SEND_COUNT));
+        target.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
+        target.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
+        target.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
+        target.put("matching_receiver_duty_cycle", formatPercent(get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE)));
+        target.put("gateway_sender_duty_cycle", formatPercent(get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE)));
+    }
+
+    private void putJvmMetrics(Map<String, Object> target) {
+        target.put("matching_jvm", formatJvm(MetricsKey.MATCHING_JVM_USED_MB, MetricsKey.MATCHING_JVM_MAX_MB));
+        target.put("matching_gc_pause", buildGcPauseInfo(MetricsKey.MATCHING_GC_COUNT, MetricsKey.MATCHING_GC_HISTORY_START));
+        target.put("gateway_jvm", formatJvm(MetricsKey.GATEWAY_JVM_USED_MB, MetricsKey.GATEWAY_JVM_MAX_MB));
+        target.put("gateway_gc_pause", buildGcPauseInfo(MetricsKey.GATEWAY_GC_COUNT, MetricsKey.GATEWAY_GC_HISTORY_START));
+    }
+
+    private Map<String, List<Integer>> buildCpuAffinityHistory() {
+        Map<String, List<Integer>> cpuHistory = new LinkedHashMap<>();
+        for (int i = 0; i < CPU_HISTORY_KEYS.size(); i++) {
+            cpuHistory.put(CPU_HISTORY_KEYS.get(i), parseCpuMask(get(CPU_HISTORY_METRICS[i])));
+        }
+        return cpuHistory;
+    }
+
+    private Map<String, Object> buildCurrentCpuIds() {
+        Map<String, Object> currentCpuIds = new LinkedHashMap<>();
+        for (int i = 0; i < CPU_HISTORY_KEYS.size(); i++) {
+            currentCpuIds.put(CPU_HISTORY_KEYS.get(i), getNullable(CPU_CURRENT_METRICS[i]));
+        }
+        return currentCpuIds;
     }
 
     private long get(long key) {

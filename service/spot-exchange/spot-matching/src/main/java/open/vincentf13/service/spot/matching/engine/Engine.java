@@ -34,14 +34,8 @@ public class Engine {
     public void onStart() {
         log.info("執行冷啟動最小重建，後續由 WAL 重放收斂狀態...");
         unflushedWorkCount = 0;
-
-        WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
-        if (saved != null) progress.copyFrom(saved);
-        
-        ledger.rebuildAssetIndexes();
-        OrderProcessor.RecoveryState recoveryState = orderProcessor.coldStartRebuild();
-        long maxTradeId = rebuildTradeCounterFloor();
-        progress.alignNextIds(recoveryState.maxOrderId(), maxTradeId);
+        restoreRuntimeProgress();
+        rebuildRuntimeState();
         coreStateValidator.validateOnRecovery();
         OrderBook.get(1001); 
         log.info(
@@ -50,6 +44,19 @@ public class Engine {
             progress.getOrderIdCounter(),
             progress.getTradeIdCounter()
         );
+    }
+
+    private void restoreRuntimeProgress() {
+        WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
+        if (saved != null) {
+            progress.copyFrom(saved);
+        }
+    }
+
+    private void rebuildRuntimeState() {
+        ledger.rebuildAssetIndexes();
+        OrderProcessor.RecoveryState recoveryState = orderProcessor.coldStartRebuild();
+        progress.alignNextIds(recoveryState.maxOrderId(), rebuildTradeCounterFloor());
     }
 
     public void onPollCycle(int done) {
@@ -94,18 +101,20 @@ public class Engine {
         long seq = router.route(msgType, buffer, offset, length, gatewayTimeNs, progress);
         
         final long endNs = System.nanoTime();
-
-        if (msgType == MsgType.ORDER_CREATE || msgType == MsgType.ORDER_CANCEL) {
-            StaticMetricsHolder.addCounter(MetricsKey.ORDER_PROCESSED_COUNT, 1);
-            final long transportNs = arrivalTimeNs - gatewayTimeNs;
-            final long processNs = endNs - arrivalTimeNs;
-
-            StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_TRANSPORT, transportNs);
-            StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_MATCHING, processNs);
-        }
+        recordMessageMetrics(msgType, arrivalTimeNs, gatewayTimeNs, endNs);
         if (seq != MSG_SEQ_NONE) {
             progress.advanceLastProcessedMsgSeq(seq);
         }
+    }
+
+    private void recordMessageMetrics(int msgType, long arrivalTimeNs, long gatewayTimeNs, long endNs) {
+        if (msgType != MsgType.ORDER_CREATE && msgType != MsgType.ORDER_CANCEL) {
+            return;
+        }
+
+        StaticMetricsHolder.addCounter(MetricsKey.ORDER_PROCESSED_COUNT, 1);
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_TRANSPORT, arrivalTimeNs - gatewayTimeNs);
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_MATCHING, endNs - arrivalTimeNs);
     }
 
     public void onStop() {
