@@ -58,15 +58,30 @@ public class Engine implements AeronMessageHandler {
 
         final long now = open.vincentf13.service.spot.infra.util.Clock.now();
         if (unflushedWorkCount > 0 && (unflushedWorkCount >= 100000 || now - lastFlushTime >= 1000)) {
-            flushAll(); lastFlushTime = now; unflushedWorkCount = 0;
+            flushAll();
+            lastFlushTime = now;
+            unflushedWorkCount = 0;
         }
     }
 
     private void flushAll() {
+        WalProgress checkpoint = snapshotProgress();
+        flushOrderState();
         ledger.flush();
+        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, checkpoint);
+    }
+
+    private WalProgress snapshotProgress() {
+        WalProgress checkpoint = new WalProgress();
+        checkpoint.copyFrom(progress);
+        return checkpoint;
+    }
+
+    private void flushOrderState() {
         orderProcessor.flush();
-        for (OrderBook book : OrderBook.getInstances()) book.flush();
-        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
+        for (OrderBook book : OrderBook.getInstances()) {
+            book.flush();
+        }
     }
 
     @Override
