@@ -80,6 +80,7 @@ public abstract class Worker implements Runnable {
                         if (now - lastReportNs >= 1_000_000_000L) {
                             StaticMetricsHolder.recordCpuId(cpuIdKey, currentCpuIdKey, AffinityUtil.currentCpu());
                             WorkerMetrics.reportDutyCycle(dutyCycleKey);
+                            onMetricsReport();
                             lastReportNs = now;
                         }
                     }
@@ -103,4 +104,6 @@ public abstract class Worker implements Runnable {
     protected abstract void onStart();
     protected abstract int doWork();
     protected abstract void onStop();
+    /** 選用的指標回報掛勾 (每秒調用一次) */
+    protected void onMetricsReport() {}
 }

@@ -112,12 +112,11 @@ public class AeronSender extends Worker {
     }
 
     @Override
-    protected void collectMetrics() {
+    protected void onMetricsReport() {
         if (localBackPressure > 0) {
             StaticMetricsHolder.addCounter(MetricsKey.AERON_BACKPRESSURE, localBackPressure);
             localBackPressure = 0;
         }
-        super.collectMetrics();
     }
 
     @Override
