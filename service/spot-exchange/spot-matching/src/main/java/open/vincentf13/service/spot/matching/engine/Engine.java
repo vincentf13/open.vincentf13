@@ -8,7 +8,6 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.model.WalProgress;
 import org.springframework.stereotype.Component;
-import open.vincentf13.service.spot.infra.aeron.AbstractAeronReceiver.AeronMessageHandler;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -19,7 +18,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class Engine implements AeronMessageHandler {
+public class Engine {
     private final ChronicleMap<Byte, WalProgress> metadata = Storage.self().walMetadata();
     private final CommandRouter router;
     private final OrderProcessor orderProcessor;
@@ -53,22 +52,22 @@ public class Engine implements AeronMessageHandler {
         );
     }
 
-    public void tick(int done) {
+    public void onPollCycle(int done) {
         if (done > 0) { unflushedWorkCount += done; }
 
         final long now = open.vincentf13.service.spot.infra.util.Clock.now();
         if (unflushedWorkCount > 0 && (unflushedWorkCount >= 100000 || now - lastFlushTime >= 1000)) {
-            flushAll();
+            flushDurableState();
             lastFlushTime = now;
             unflushedWorkCount = 0;
         }
     }
 
-    private void flushAll() {
+    private void flushDurableState() {
         WalProgress checkpoint = snapshotProgress();
         flushOrderState();
         ledger.flush();
-        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, checkpoint);
+        persistCheckpoint(checkpoint);
     }
 
     private WalProgress snapshotProgress() {
@@ -84,8 +83,11 @@ public class Engine implements AeronMessageHandler {
         }
     }
 
-    @Override
-    public void onMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
+    private void persistCheckpoint(WalProgress checkpoint) {
+        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, checkpoint);
+    }
+
+    public void onAeronMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
         final long arrivalTimeNs = System.nanoTime();
         final long gatewayTimeNs = buffer.getLong(offset + 12);
         
@@ -107,7 +109,7 @@ public class Engine implements AeronMessageHandler {
     }
 
     public void onStop() {
-        flushAll();
+        flushDurableState();
         reporter.close();
         ThreadContext.cleanup();
     }

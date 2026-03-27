@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.wire.WireIn;
 import open.vincentf13.service.spot.infra.aeron.AbstractAeronSender;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
+import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import open.vincentf13.service.spot.model.command.AbstractSbeModel;
@@ -59,19 +60,37 @@ public class AeronSender extends AbstractAeronSender {
 
         final long addr = bytes.addressForRead(bytes.readPosition());
         final long seq = tailer.index();
-        
-        // 原地重試直至成功，防止背壓丟包
+
         while (running.get()) {
-            if (AeronUtil.send(publication, len, (buf, off) -> {
-                UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
-                buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, seq);
-            }, running) >= 0) {
+            int sendResult = AeronUtil.send(publication, len, (buf, off) -> copyWalMessage(addr, len, seq, buf, off), running);
+            if (sendResult == 0) {
                 bytes.readSkip(len);
-                break;
-            } else {
-                localBackPressure++;
-                Thread.onSpinWait(); // 提示 CPU 此處在忙等
+                return;
+            }
+            if (handleSendFailure(sendResult)) {
+                return;
             }
         }
+    }
+
+    private void copyWalMessage(long sourceAddress, int length, long seq, org.agrona.MutableDirectBuffer buffer, int offset) {
+        UNSAFE.copyMemory(sourceAddress, OffHeapUtil.getAddress(buffer, offset), length);
+        buffer.putLong(offset + AbstractSbeModel.SEQ_OFFSET, seq);
+    }
+
+    private boolean handleSendFailure(int sendResult) {
+        if (sendResult == -2) {
+            localBackPressure++;
+            Thread.onSpinWait();
+            return false;
+        }
+        if (sendResult == -1) {
+            currentState = AeronState.WAITING;
+            return true;
+        }
+        if (sendResult == -3) {
+            throw new IllegalStateException("Aeron publication is unavailable");
+        }
+        return true;
     }
 }

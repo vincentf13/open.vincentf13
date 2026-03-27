@@ -36,8 +36,8 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected int doWork() {
-        int done = poll(engine, AeronConstants.AERON_POLL_LIMIT);
-        engine.tick(done);
+        int done = poll(null, AeronConstants.AERON_POLL_LIMIT);
+        engine.onPollCycle(done);
         return done;
     }
 
@@ -52,6 +52,6 @@ public class AeronReceiver extends AbstractAeronReceiver {
 
     @Override
     protected void onMessage(org.agrona.DirectBuffer buffer, int offset, int length) {
-        // 交由 engine 處理，這裡不實作
+        engine.onAeronMessage(buffer.getInt(offset), buffer, offset, length);
     }
 }
