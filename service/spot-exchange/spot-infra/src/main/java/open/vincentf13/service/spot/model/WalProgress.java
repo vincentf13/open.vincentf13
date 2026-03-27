@@ -43,6 +43,17 @@ public class WalProgress implements BytesMarshallable {
     public long nextOrderId() { return orderIdCounter++; }
     public long nextTradeId() { return tradeIdCounter++; }
 
+    public void alignNextIds(long maxDurableOrderId, long maxDurableTradeId) {
+        long expectedNextOrderId = Math.max(1L, maxDurableOrderId + 1);
+        long expectedNextTradeId = Math.max(1L, maxDurableTradeId + 1);
+        if (orderIdCounter < expectedNextOrderId) {
+            orderIdCounter = expectedNextOrderId;
+        }
+        if (tradeIdCounter < expectedNextTradeId) {
+            tradeIdCounter = expectedNextTradeId;
+        }
+    }
+
     public void advanceLastProcessedMsgSeq(long seq) {
         if (seq == MSG_SEQ_NONE) return;
         if (lastProcessedMsgSeq != MSG_SEQ_NONE && seq != lastProcessedMsgSeq + 1) {

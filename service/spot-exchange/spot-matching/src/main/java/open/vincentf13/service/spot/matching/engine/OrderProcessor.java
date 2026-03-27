@@ -20,6 +20,18 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OrderProcessor implements OrderBook.TradeFinalizer {
+    public static final class RecoveryState {
+        private final long maxOrderId;
+
+        private RecoveryState(long maxOrderId) {
+            this.maxOrderId = maxOrderId;
+        }
+
+        public long maxOrderId() {
+            return maxOrderId;
+        }
+    }
+
     private static final class SettlementAmounts {
         private final long quoteFloor;
         private final long quoteCeil;
@@ -32,6 +44,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> orders = Storage.self().orders();
     private final ChronicleMap<CidKey, open.vincentf13.service.spot.infra.chronicle.LongValue> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
+    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Boolean> activeOrdersDiskMap = Storage.self().activeOrders();
 
     // --- 性能優化：冪等鍵寫緩衝 (零對象分配 Circular Buffer 版) ---
     private static final int BUFFER_SIZE = 4096;
@@ -64,9 +77,30 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         }
     }
 
-    public void coldStartRebuild() {
+    public RecoveryState coldStartRebuild() {
         log.warn("未檢測到有效內存快照，正在執行耗時的全量磁碟掃描以恢復狀態...");
-        OrderBook.rebuildActiveOrdersIndexes();
+        clientOrderIdDiskMap.clear();
+        activeOrdersDiskMap.clear();
+        OrderBook.resetForRecovery();
+
+        final long[] maxOrderId = new long[1];
+        orders.forEach((orderIdKey, diskOrder) -> {
+            if (diskOrder == null) return;
+
+            Order order = new Order();
+            order.copyFrom(diskOrder);
+            order.validateState();
+            maxOrderId[0] = Math.max(maxOrderId[0], order.getOrderId());
+
+            if (order.getClientOrderId() > 0) {
+                clientOrderIdDiskMap.put(new CidKey(order.getUserId(), order.getClientOrderId()), new open.vincentf13.service.spot.infra.chronicle.LongValue(order.getOrderId()));
+            }
+            if (!order.isTerminal()) {
+                activeOrdersDiskMap.put(new open.vincentf13.service.spot.infra.chronicle.LongValue(order.getOrderId()), Boolean.TRUE);
+                OrderBook.get(order.getSymbolId()).recoverOrder(order);
+            }
+        });
+        return new RecoveryState(maxOrderId[0]);
     }
 
     /** 核心入口：處理下單指令 */

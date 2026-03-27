@@ -35,15 +35,22 @@ public class Engine implements AeronMessageHandler {
     public void onStart() {
         log.info("執行冷啟動索引重建與預熱...");
         unflushedWorkCount = 0;
-        
-        ledger.rebuildAssetIndexes();
-        orderProcessor.coldStartRebuild();
-        coreStateValidator.validateOrThrow();
-        OrderBook.get(1001); 
 
         WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
         if (saved != null) progress.copyFrom(saved);
-        log.info("Engine 啟動完成，位點: Seq={}", progress.getLastProcessedMsgSeq());
+        
+        ledger.rebuildAssetIndexes();
+        OrderProcessor.RecoveryState recoveryState = orderProcessor.coldStartRebuild();
+        long maxTradeId = rebuildTradeCounterFloor();
+        progress.alignNextIds(recoveryState.maxOrderId(), maxTradeId);
+        coreStateValidator.validateOrThrow();
+        OrderBook.get(1001); 
+        log.info(
+            "Engine 啟動完成，位點: Seq={}, nextOrderId={}, nextTradeId={}",
+            progress.getLastProcessedMsgSeq(),
+            progress.getOrderIdCounter(),
+            progress.getTradeIdCounter()
+        );
     }
 
     public void tick(int done) {
@@ -88,6 +95,16 @@ public class Engine implements AeronMessageHandler {
         flushAll();
         reporter.close();
         ThreadContext.cleanup();
+    }
+
+    private long rebuildTradeCounterFloor() {
+        final long[] maxTradeId = new long[1];
+        Storage.self().trades().forEach((tradeIdKey, trade) -> {
+            if (trade != null) {
+                maxTradeId[0] = Math.max(maxTradeId[0], trade.getTradeId());
+            }
+        });
+        return maxTradeId[0];
     }
 }
 
