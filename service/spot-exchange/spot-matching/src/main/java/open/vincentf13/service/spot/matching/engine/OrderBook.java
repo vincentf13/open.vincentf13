@@ -249,7 +249,6 @@ public class OrderBook {
 
     public int getBaseAssetId() { return baseAssetId; }
     public int getQuoteAssetId() { return quoteAssetId; }
-    public boolean hasOrder(long orderId) { return orderIndex.containsKey(orderId); }
     public int activeOrderCount() { return orderIndex.size(); }
 
     private Long2ObjectRBTreeMap<Deque<Order>> getTree(boolean buySide) {

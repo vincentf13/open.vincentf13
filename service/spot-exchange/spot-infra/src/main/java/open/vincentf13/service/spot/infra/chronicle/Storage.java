@@ -32,7 +32,6 @@ public class Storage {
     private final ChronicleMap<LongValue, LongValue> userAssets;
     private final ChronicleMap<LongValue, Boolean> activeOrders;
     private final ChronicleMap<CidKey, LongValue> cids;
-    private final ChronicleMap<LongValue, byte[]> userActiveOrders;
     private final ChronicleMap<Byte, MsgProgress> msgMetadata;
     private final ChronicleMap<Byte, WalProgress> walMetadata;
     private final ChronicleMap<Long, Long> latestMetrics;
@@ -52,7 +51,6 @@ public class Storage {
             this.userAssets = createMap(ChronicleMapEnum.USER_ASSETS, LongValue.class, LongValue.class, 1_000_000, 8);
             this.activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, LongValue.class, Boolean.class, 10_000_000, 1);
             this.cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, LongValue.class, 10_000_000, 16, 8);
-            this.userActiveOrders = createMap(ChronicleMapEnum.USER_ACTIVE_ORDERS, LongValue.class, byte[].class, 100_000, 256);
             this.msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 32);
             this.walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 32);
             
@@ -76,7 +74,6 @@ public class Storage {
     public ChronicleMap<LongValue, LongValue> userAssets() { return userAssets; }
     public ChronicleMap<LongValue, Boolean> activeOrders() { return activeOrders; }
     public ChronicleMap<CidKey, LongValue> clientOrderIdMap() { return cids; }
-    public ChronicleMap<LongValue, byte[]> userActiveOrders() { return userActiveOrders; }
     public ChronicleMap<Byte, MsgProgress> msgProgressMetadata() { return msgMetadata; }
     public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
     public ChronicleMap<Long, Long> latestMetrics() { return latestMetrics; }
@@ -131,7 +128,7 @@ public class Storage {
             if (closed) return;
             closed = true;
             safeClose(orders); safeClose(trades); safeClose(balances); safeClose(userAssets);
-            safeClose(activeOrders); safeClose(cids); safeClose(userActiveOrders);
+            safeClose(activeOrders); safeClose(cids);
             safeClose(msgMetadata); safeClose(walMetadata); safeClose(latestMetrics);
             safeClose(tpsHistory); safeClose(latencyHistory); safeClose(gcEventHistory);
             if (gatewaySenderWal != null) gatewaySenderWal.close();

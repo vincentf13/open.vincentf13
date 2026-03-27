@@ -54,7 +54,7 @@ public class WalProgress implements BytesMarshallable {
         }
     }
 
-    public void advanceLastProcessedMsgSeq(long seq) {
+    public void commitLastProcessedMsgSeq(long seq) {
         if (seq == MSG_SEQ_NONE) return;
         if (lastProcessedMsgSeq != MSG_SEQ_NONE && seq != lastProcessedMsgSeq + 1) {
             throw new IllegalStateException(

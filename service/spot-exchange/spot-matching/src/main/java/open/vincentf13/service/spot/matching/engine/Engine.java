@@ -30,6 +30,7 @@ public class Engine {
 
     private long lastFlushTime = 0;
     private long unflushedWorkCount = 0;
+    private long pendingFlushSeq = MSG_SEQ_NONE;
 
     public void onStart() {
         log.info("執行冷啟動最小重建，後續由 WAL 重放收斂狀態...");
@@ -39,7 +40,7 @@ public class Engine {
         coreStateValidator.validateOnRecovery();
         OrderBook.get(1001); 
         log.info(
-            "Engine 啟動完成，保守位點: Seq={}, nextOrderId={}, nextTradeId={}",
+            "Engine 啟動完成，durableSeq={}, nextOrderId={}, nextTradeId={}",
             progress.getLastProcessedMsgSeq(),
             progress.getOrderIdCounter(),
             progress.getTradeIdCounter()
@@ -51,12 +52,13 @@ public class Engine {
         if (saved != null) {
             progress.copyFrom(saved);
         }
+        pendingFlushSeq = MSG_SEQ_NONE;
     }
 
     private void rebuildRuntimeState() {
         ledger.rebuildAssetIndexes();
-        OrderProcessor.RecoveryState recoveryState = orderProcessor.coldStartRebuild();
-        progress.alignNextIds(recoveryState.maxOrderId(), rebuildTradeCounterFloor());
+        long maxOrderId = orderProcessor.coldStartRebuild();
+        progress.alignNextIds(maxOrderId, rebuildTradeCounterFloor());
     }
 
     public void onPollCycle(int done) {
@@ -71,16 +73,13 @@ public class Engine {
     }
 
     private void flushDurableState() {
-        WalProgress checkpoint = snapshotProgress();
         flushOrderState();
         ledger.flush();
-        persistCheckpoint(checkpoint);
-    }
-
-    private WalProgress snapshotProgress() {
-        WalProgress checkpoint = new WalProgress();
-        checkpoint.copyFrom(progress);
-        return checkpoint;
+        if (pendingFlushSeq != MSG_SEQ_NONE) {
+            progress.commitLastProcessedMsgSeq(pendingFlushSeq);
+            pendingFlushSeq = MSG_SEQ_NONE;
+        }
+        persistCheckpoint();
     }
 
     private void flushOrderState() {
@@ -90,8 +89,8 @@ public class Engine {
         }
     }
 
-    private void persistCheckpoint(WalProgress checkpoint) {
-        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, checkpoint);
+    private void persistCheckpoint() {
+        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
     }
 
     public void onAeronMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
@@ -103,8 +102,20 @@ public class Engine {
         final long endNs = System.nanoTime();
         recordMessageMetrics(msgType, arrivalTimeNs, gatewayTimeNs, endNs);
         if (seq != MSG_SEQ_NONE) {
-            progress.advanceLastProcessedMsgSeq(seq);
+            recordPendingSeq(seq);
         }
+    }
+
+    private void recordPendingSeq(long seq) {
+        if (seq == MSG_SEQ_NONE) return;
+        long previousSeq = pendingFlushSeq != MSG_SEQ_NONE ? pendingFlushSeq : progress.getLastProcessedMsgSeq();
+        if (previousSeq != MSG_SEQ_NONE && seq != previousSeq + 1) {
+            throw new IllegalStateException(
+                "Pending message sequence must advance monotonically, expected=%d, actual=%d"
+                    .formatted(previousSeq + 1, seq)
+            );
+        }
+        pendingFlushSeq = seq;
     }
 
     private void recordMessageMetrics(int msgType, long arrivalTimeNs, long gatewayTimeNs, long endNs) {

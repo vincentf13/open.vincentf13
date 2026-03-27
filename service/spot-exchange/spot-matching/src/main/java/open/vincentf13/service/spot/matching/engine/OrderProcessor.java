@@ -20,18 +20,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OrderProcessor implements OrderBook.TradeFinalizer {
-    public static final class RecoveryState {
-        private final long maxOrderId;
-
-        private RecoveryState(long maxOrderId) {
-            this.maxOrderId = maxOrderId;
-        }
-
-        public long maxOrderId() {
-            return maxOrderId;
-        }
-    }
-
     private static final class SettlementAmounts {
         private final long quoteFloor;
         private final long quoteCeil;
@@ -77,7 +65,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         }
     }
 
-    public RecoveryState coldStartRebuild() {
+    public long coldStartRebuild() {
         log.warn("未檢測到有效內存快照，正在執行耗時的全量磁碟掃描以恢復狀態...");
         clientOrderIdDiskMap.clear();
         activeOrdersDiskMap.clear();
@@ -100,7 +88,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
                 OrderBook.get(order.getSymbolId()).recoverOrder(order);
             }
         });
-        return new RecoveryState(maxOrderId[0]);
+        return maxOrderId[0];
     }
 
     /** 核心入口：處理下單指令 */
