@@ -57,14 +57,16 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
             int msgType = content.getIntLE(content.readerIndex());
             long sbeHeader = content.getLongLE(content.readerIndex() + 12);
 
-            // 按順序以 Little Endian 寫入 32 位元組標頭
-            target.writeInt(Integer.reverseBytes(msgType));           // [0-3] MsgType
-            target.writeInt(0);                                       // [4-7] Padding
-            target.writeLong(0L);                                     // [8-15] Seq
-            target.writeLong(Long.reverseBytes(arrivalTimeNs));       // [16-23] GatewayTime
-            target.writeLong(Long.reverseBytes(sbeHeader));           // [24-31] SBE Header
+            // 使用絕對偏移量寫入，確保不依賴內部 position
+            target.writeInt(0, Integer.reverseBytes(msgType));           // [0-3] MsgType
+            target.writeInt(4, 0);                                       // [4-7] Padding
+            target.writeLong(8, 0L);                                     // [8-15] Seq
+            target.writeLong(16, Long.reverseBytes(arrivalTimeNs));      // [16-23] GatewayTime
+            target.writeLong(24, Long.reverseBytes(sbeHeader));          // [24-31] SBE Header
 
-            // 寫入 Body 部分 (從舊偏移量 20 開始，映射至新偏移量 32)
+            // 推進 Position 到 32，準備寫入 Body
+            target.writePosition(32);
+
             int bodyLen = length - OLD_HEADER_SIZE;
             if (bodyLen > 0) {
                 if (content.hasMemoryAddress()) {
