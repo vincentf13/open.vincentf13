@@ -82,22 +82,23 @@ public class AeronReceiver extends Worker {
         long seq = buffer.getLong(offset + 8); 
         long last = progress.getLastProcessedSeq();
 
+        // 1. 處理狀態同步：如果是初次啟動或恢復中，接受任何有效的 WAL 索引
         if (currentState == AeronState.WAITING) {
-            if (last == MSG_SEQ_NONE || seq == last + 1) currentState = AeronState.SENDING;
-            else { 
-                if (seq > last) {
-                    log.warn("等待恢復中，收到跳號消息: {}, 當前最後位點: {}", seq, last);
-                    sendResume(); 
-                }
-                return; 
+            if (seq > last || last == MSG_SEQ_NONE) {
+                log.info("AeronReceiver 鏈路對齊成功！開始消費，起始位點: {}", seq);
+                currentState = AeronState.SENDING;
+            } else {
+                return; // 忽略舊數據
             }
         }
 
-        if (seq <= last) return;
-        if (seq != last + 1 && last != MSG_SEQ_NONE) {
-            log.error("鏈路跳號！期望: {}, 實際: {}, 原始數據(前16位元組): {} {}", 
-                last + 1, seq, Long.toHexString(buffer.getLong(offset)), Long.toHexString(buffer.getLong(offset + 8)));
-            currentState = AeronState.WAITING; sendResume(); return;
+        // 2. 嚴格遞增檢查：由於是 Chronicle WAL Index，我們只要求 seq > last
+        if (seq <= last) return; 
+
+        // 3. 診斷性日誌：如果是傳統的 +1 跳號，記錄警告但繼續處理
+        if (last != MSG_SEQ_NONE && seq != last + 1) {
+            // 注意：Chronicle WAL 索引在跨 Cycle 時會發生巨大跳轉，這是正常現象
+            if (log.isDebugEnabled()) log.debug("WAL 索引跳變: {} -> {}", last, seq);
         }
 
         engine.onAeronMessage(buffer.getInt(offset), buffer, offset, length);

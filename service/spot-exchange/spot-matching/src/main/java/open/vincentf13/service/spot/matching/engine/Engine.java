@@ -84,10 +84,10 @@ public class Engine {
         recordMessageMetrics(msgType, arrivalTimeNs, gatewayTimeNs, endNs);
         if (seq != MSG_SEQ_NONE) {
             long previousSeq = pendingFlushSeq != MSG_SEQ_NONE ? pendingFlushSeq : progress.getLastProcessedMsgSeq();
-            if (previousSeq != MSG_SEQ_NONE && seq != previousSeq + 1) {
+            if (previousSeq != MSG_SEQ_NONE && seq <= previousSeq) {
                 throw new IllegalStateException(
-                    "Pending message sequence must advance monotonically, expected=%d, actual=%d"
-                        .formatted(previousSeq + 1, seq)
+                    "Pending message sequence must advance monotonically, last=%d, actual=%d"
+                        .formatted(previousSeq, seq)
                 );
             }
             pendingFlushSeq = seq;
