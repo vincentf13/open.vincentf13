@@ -64,7 +64,9 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
             int bodyLen = length - OLD_HEADER_SIZE;
             if (bodyLen > 0) {
                 if (content.hasMemoryAddress()) {
-                    target.write(content.memoryAddress() + content.readerIndex() + OLD_HEADER_SIZE, bodyLen);
+                    final PointerBytesStore pointer = context.getReusablePointer();
+                    pointer.set(content.memoryAddress() + content.readerIndex() + OLD_HEADER_SIZE, bodyLen);
+                    target.write(pointer);
                 } else {
                     byte[] scratch = new byte[bodyLen];
                     content.getBytes(content.readerIndex() + OLD_HEADER_SIZE, scratch);
