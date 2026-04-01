@@ -23,8 +23,9 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryWebSocketFrame> {
-    private static final int MIN_COMMAND_LENGTH = 32;
-    private static final int MIN_AUTH_LENGTH = 48;
+    private static final int OLD_HEADER_SIZE = 20;
+    private static final int MIN_COMMAND_LENGTH = OLD_HEADER_SIZE;
+    private static final int MIN_AUTH_LENGTH = 36;
 
     private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
@@ -43,15 +44,34 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         int length = content.readableBytes();
         if (length < MIN_COMMAND_LENGTH) return;
 
-        content.setLongLE(content.readerIndex() + 16, arrivalTimeNs);
+        // 提取舊版 Header (20 bytes) 中的 UserId
         Long authenticatedUserId = extractAuthUserId(ctx, content, length);
 
         final ThreadContext context = ThreadContext.get();
         final ExcerptAppender appender = appenderThreadLocal.get();
-        final PointerBytesStore pointer = context.getReusablePointer();
         
         try (var dc = appender.writingDocument()) {
-            writeFrameToWal(content, length, pointer, dc.wire().bytes());
+            net.openhft.chronicle.bytes.Bytes<?> target = dc.wire().bytes();
+            int msgType = content.getIntLE(content.readerIndex());
+            
+            // 寫入新版 32-byte 標頭，並自動補齊 Padding
+            target.writeLong(msgType & 0xFFFFFFFFL); // [0-7] MsgType + Padding
+            target.writeLong(0);                      // [8-15] Seq (由發送端填寫)
+            target.writeLong(arrivalTimeNs);          // [16-23] GatewayTime
+            target.writeLong(content.getLongLE(content.readerIndex() + 12)); // [24-31] SBE Header (從舊偏移量 12 提取)
+            
+            // 寫入 Body 部分 (從舊偏移量 20 開始，映射至新偏移量 32)
+            int bodyLen = length - OLD_HEADER_SIZE;
+            if (bodyLen > 0) {
+                if (content.hasMemoryAddress()) {
+                    target.write(content.memoryAddress() + content.readerIndex() + OLD_HEADER_SIZE, bodyLen);
+                } else {
+                    byte[] scratch = new byte[bodyLen];
+                    content.getBytes(content.readerIndex() + OLD_HEADER_SIZE, scratch);
+                    target.write(scratch);
+                }
+            }
+
             StaticMetricsHolder.addCounter(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 1);
             if (authenticatedUserId != null) sessionManager.addSession(authenticatedUserId, ctx.channel());
         } catch (Exception e) {
@@ -66,21 +86,12 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         int readerIndex = content.readerIndex();
         if (content.getIntLE(readerIndex) != MsgType.AUTH) return null;
 
-        long userId = content.getLongLE(readerIndex + 40);
+        // 在舊版 20 標頭結構下，UserId 位於 28 (20 + 8)
+        long userId = content.getLongLE(readerIndex + 28);
         return userId > 0 ? userId : null;
     }
 
-    private void writeFrameToWal(io.netty.buffer.ByteBuf content, int length, PointerBytesStore pointer, net.openhft.chronicle.bytes.Bytes<?> targetBytes) {
-        if (content.hasMemoryAddress()) {
-            pointer.set(content.memoryAddress() + content.readerIndex(), length);
-            targetBytes.write(pointer);
-            return;
-        }
-
-        byte[] scratch = new byte[length];
-        content.getBytes(content.readerIndex(), scratch);
-        targetBytes.write(scratch);
-    }
+    // 移除未使用的 writeFrameToWal 函式
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
