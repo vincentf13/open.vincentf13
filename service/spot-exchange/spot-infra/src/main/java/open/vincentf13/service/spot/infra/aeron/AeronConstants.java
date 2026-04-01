@@ -12,13 +12,13 @@ public class AeronConstants {
     public static final int AERON_POLL_LIMIT = 10;
 
     /** RESUME 握手信號的總長度 */
-    public static final int RESUME_SIGNAL_LENGTH = 12;
+    public static final int RESUME_SIGNAL_LENGTH = 16;
 
     /** RESUME 握手信號發送間隔 (ms) */
     public static final int RESUME_SIGNAL_INTERVAL_MS = 200;
 
     /** 訊息序列號在 DirectBuffer 中的偏移量 */
-    public static final int MSG_SEQ_OFFSET = 4;
+    public static final int MSG_SEQ_OFFSET = 8;
 
     /** 進度持久化週期 */
     public static final int METADATA_FLUSH_PERIOD = 100;

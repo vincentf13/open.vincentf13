@@ -73,7 +73,7 @@ public class AeronReceiver extends Worker {
         AeronUtil.send(controlPub, AeronConstants.RESUME_SIGNAL_LENGTH, (buffer, offset) -> {
             buffer.putInt(offset, MsgType.RESUME);
             buffer.putLong(offset + AeronConstants.MSG_SEQ_OFFSET, progress.getLastProcessedSeq());
-        }, running);
+        });
         lastResumeTime = Clock.now();
     }
 

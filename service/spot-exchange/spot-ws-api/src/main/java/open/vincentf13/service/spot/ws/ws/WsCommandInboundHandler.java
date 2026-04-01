@@ -23,8 +23,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryWebSocketFrame> {
-    private static final int MIN_COMMAND_LENGTH = 20;
-    private static final int MIN_AUTH_LENGTH = 36;
+    private static final int MIN_COMMAND_LENGTH = 32;
+    private static final int MIN_AUTH_LENGTH = 48;
 
     private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
@@ -43,7 +43,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         int length = content.readableBytes();
         if (length < MIN_COMMAND_LENGTH) return;
 
-        content.setLongLE(content.readerIndex() + 12, arrivalTimeNs);
+        content.setLongLE(content.readerIndex() + 16, arrivalTimeNs);
         Long authenticatedUserId = extractAuthUserId(ctx, content, length);
 
         final ThreadContext context = ThreadContext.get();
@@ -66,7 +66,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         int readerIndex = content.readerIndex();
         if (content.getIntLE(readerIndex) != MsgType.AUTH) return null;
 
-        long userId = content.getLongLE(readerIndex + 28);
+        long userId = content.getLongLE(readerIndex + 40);
         return userId > 0 ? userId : null;
     }
 

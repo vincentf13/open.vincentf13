@@ -39,19 +39,21 @@ import org.agrona.concurrent.UnsafeBuffer;
  *     long price = model.getPrice();
  * }</pre>
  * 
- * 內存佈局 (20 bytes Header):
- * [0-3]   MsgType | [4-11]  Seq | [12-19] SBE Header | [20-...] Body
+ * 內存佈局 (32 bytes Header):
+ * [0-3]   MsgType | [4-7] Padding | [8-15]  Seq | [16-23] GatewayTime | [24-31] SBE Header | [32-...] Body
  */
 @Data
 public abstract class AbstractSbeModel implements BytesMarshallable {
     public static final int TYPE_SIZE = 4;
     public static final int SEQ_SIZE = 8;
+    public static final int GATEWAY_TIME_SIZE = 8;
     public static final int SBE_HEADER_SIZE = 8;
     
     public static final int TYPE_OFFSET = 0;
-    public static final int SEQ_OFFSET = TYPE_OFFSET + TYPE_SIZE;
-    public static final int SBE_HEADER_OFFSET = SEQ_OFFSET + SEQ_SIZE;
-    public static final int BODY_OFFSET = SBE_HEADER_OFFSET + SBE_HEADER_SIZE;
+    public static final int SEQ_OFFSET = 8; // 8-byte aligned
+    public static final int GATEWAY_TIME_OFFSET = 16; // 8-byte aligned
+    public static final int SBE_HEADER_OFFSET = 24; // 8-byte aligned
+    public static final int BODY_OFFSET = 32; // 8-byte aligned
 
     @Getter
     protected final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(0, 0);
