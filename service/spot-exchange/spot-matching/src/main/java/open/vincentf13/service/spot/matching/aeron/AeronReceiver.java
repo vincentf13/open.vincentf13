@@ -78,17 +78,25 @@ public class AeronReceiver extends Worker {
     }
 
     private void onFragment(DirectBuffer buffer, int offset, int length, Header header) {
-        long seq = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET);
+        // 強制使用 8 偏移量，確保與 32-byte 標頭結構對齊
+        long seq = buffer.getLong(offset + 8); 
         long last = progress.getLastProcessedSeq();
 
         if (currentState == AeronState.WAITING) {
             if (last == MSG_SEQ_NONE || seq == last + 1) currentState = AeronState.SENDING;
-            else { if (seq > last) sendResume(); return; }
+            else { 
+                if (seq > last) {
+                    log.warn("等待恢復中，收到跳號消息: {}, 當前最後位點: {}", seq, last);
+                    sendResume(); 
+                }
+                return; 
+            }
         }
 
         if (seq <= last) return;
         if (seq != last + 1 && last != MSG_SEQ_NONE) {
-            log.error("鏈路跳號！期望: {}, 實際: {}", last + 1, seq);
+            log.error("鏈路跳號！期望: {}, 實際: {}, 原始數據(前16位元組): {} {}", 
+                last + 1, seq, Long.toHexString(buffer.getLong(offset)), Long.toHexString(buffer.getLong(offset + 8)));
             currentState = AeronState.WAITING; sendResume(); return;
         }
 

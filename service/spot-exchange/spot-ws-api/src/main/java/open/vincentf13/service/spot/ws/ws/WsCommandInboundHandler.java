@@ -52,11 +52,13 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         final ExcerptAppender appender = appenderThreadLocal.get();
         try (var dc = appender.writingDocument()) {
             net.openhft.chronicle.bytes.Bytes<?> target = dc.wire().bytes();
+            target.clear(); // 確保從頭開始寫入
+            target.zeroOut(0, 32); // 預先清空 32-byte 標頭區域
 
             int msgType = content.getIntLE(content.readerIndex());
             long sbeHeader = content.getLongLE(content.readerIndex() + 12);
 
-            // 使用 reverseBytes 補償 Chronicle Bytes 的 Big Endian 預設行為，實現 Little Endian 存儲
+            // 使用 reverseBytes 補償 Chronicle Bytes 的 Big Endian 預設行為
             target.writeInt(Integer.reverseBytes(msgType));           // [0-3] MsgType
             target.writeInt(0);                                       // [4-7] Padding
             target.writeLong(0L);                                     // [8-15] Seq

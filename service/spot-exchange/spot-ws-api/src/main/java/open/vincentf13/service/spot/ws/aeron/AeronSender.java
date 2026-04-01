@@ -93,12 +93,13 @@ public class AeronSender extends Worker {
             int res = AeronUtil.send(publication, len, (buf, off) -> {
                 // 使用 Unsafe 直接從 Chronicle WAL 位址拷貝數據至 Aeron 緩衝區 (Zero Copy)
                 UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
-                // 覆寫消息內部的序號欄位 (確保與 WAL 索引一致)
-                buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, seq);
+                // 覆寫消息內部的序號欄位 (強制偏移量 8，確保對齊)
+                buf.putLong(off + 8, seq);
             });
 
             // 成功：跳過已發送字節並結束重試
             if (res == SEND_OK) { 
+                if (seq == 1) log.info("成功發送第一條消息 (seq=1)");
                 bytes.readSkip(len); return true; 
             } 
             
