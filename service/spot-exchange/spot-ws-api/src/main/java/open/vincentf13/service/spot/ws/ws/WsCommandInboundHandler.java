@@ -14,6 +14,7 @@ import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import org.springframework.stereotype.Component;
 
+import java.nio.ByteOrder;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /** 
@@ -49,18 +50,20 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
 
         final ThreadContext context = ThreadContext.get();
         final ExcerptAppender appender = appenderThreadLocal.get();
-        
         try (var dc = appender.writingDocument()) {
             net.openhft.chronicle.bytes.Bytes<?> target = dc.wire().bytes();
+
             int msgType = content.getIntLE(content.readerIndex());
-            
-            // 寫入新版 32-byte 標頭，並自動補齊 Padding
-            target.writeLong(msgType & 0xFFFFFFFFL); // [0-7] MsgType + Padding
-            target.writeLong(0);                      // [8-15] Seq (由發送端填寫)
-            target.writeLong(arrivalTimeNs);          // [16-23] GatewayTime
-            target.writeLong(content.getLongLE(content.readerIndex() + 12)); // [24-31] SBE Header (從舊偏移量 12 提取)
-            
-            // 寫入 Body 部分 (從舊偏移量 20 開始，映射至新偏移量 32)
+            long sbeHeader = content.getLongLE(content.readerIndex() + 12);
+
+            // 使用 reverseBytes 補償 Chronicle Bytes 的 Big Endian 預設行為，實現 Little Endian 存儲
+            target.writeInt(Integer.reverseBytes(msgType));           // [0-3] MsgType
+            target.writeInt(0);                                       // [4-7] Padding
+            target.writeLong(0L);                                     // [8-15] Seq
+            target.writeLong(Long.reverseBytes(arrivalTimeNs));       // [16-23] GatewayTime
+            target.writeLong(Long.reverseBytes(sbeHeader));           // [24-31] SBE Header
+
+            // 寫入 Body 部分 (映射至新偏移量 32)
             int bodyLen = length - OLD_HEADER_SIZE;
             if (bodyLen > 0) {
                 if (content.hasMemoryAddress()) {
