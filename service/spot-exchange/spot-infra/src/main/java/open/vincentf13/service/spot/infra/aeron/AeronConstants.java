@@ -26,6 +26,9 @@ public class AeronConstants {
     /** 背壓重試次數限制 */
     public static final int BACK_PRESSURE_RETRY_LIMIT = 1000;
 
+    /** Receiver 無數據超時閾值 (ms)：超時後重置為 WAITING 並發送 RESUME，打破死鎖 */
+    public static final int RECEIVER_STALL_TIMEOUT_MS = 5000;
+
     /** 預設 Term Buffer 長度 (64MB) */
     public static final int DEFAULT_TERM_BUFFER_LENGTH = 64 * 1024 * 1024;
     public static final int WAL_BATCH_SIZE = 10000;

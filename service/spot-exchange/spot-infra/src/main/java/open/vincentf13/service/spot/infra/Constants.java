@@ -121,6 +121,7 @@ public class Constants {
         public static final long AERON_BACKPRESSURE = 4L;
         public static final long GATEWAY_WAL_WRITE_COUNT = 5L;
         public static final long AERON_SEND_COUNT = 6L;
+        public static final long AERON_RECV_COUNT = 15L;
         public static final long AERON_DROPPED_COUNT = 7L; // 新增：丟包計數指標
         public static final long GATEWAY_WAL_DROP_COUNT = 8L; // 新增：網關 WAL 佇列丟失計數
         // 業務指標 (Counters)
