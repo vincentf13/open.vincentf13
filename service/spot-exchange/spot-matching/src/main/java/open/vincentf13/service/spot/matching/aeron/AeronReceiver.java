@@ -27,7 +27,6 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 public class AeronReceiver extends Worker {
     private final Engine engine;
-    private final ChronicleMap<Byte, MsgProgress> metadata;
     private final MsgProgress progress = new MsgProgress();
 
     private Subscription subscription;
@@ -40,7 +39,6 @@ public class AeronReceiver extends Worker {
     public AeronReceiver(Engine engine) {
         super("matching-receiver", MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER, MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE);
         this.engine = engine;
-        this.metadata = Storage.self().msgProgressMetadata();
     }
 
     @PostConstruct @Override public void start() { super.start(); }
@@ -53,8 +51,8 @@ public class AeronReceiver extends Worker {
         controlPub = AeronClientHolder.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
         assembler = new FragmentAssembler(this::onFragment);
 
-        MsgProgress saved = metadata.get(MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE);
-        progress.setLastProcessedSeq(saved != null ? saved.getLastProcessedSeq() : MSG_SEQ_NONE);
+        // 從 Engine 讀取恢復位點 (Engine 啟動時已載入網路進度)
+        progress.setLastProcessedSeq(engine.getNetworkProgress().getLastProcessedSeq());
         log.info("AeronReceiver 啟動，進度: {}，等待恢復...", progress.getLastProcessedSeq());
         sendResume();
     }
@@ -65,7 +63,7 @@ public class AeronReceiver extends Worker {
         if (currentState == AeronState.WAITING && Clock.now() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
 
         int done = subscription.poll(assembler, AeronConstants.AERON_POLL_LIMIT);
-        engine.onPollCycle(done);
+        engine.onPollCycle(done, progress.getLastProcessedSeq());
         return done;
     }
 
@@ -82,34 +80,25 @@ public class AeronReceiver extends Worker {
         long seq = buffer.getLong(offset + 8, java.nio.ByteOrder.LITTLE_ENDIAN); 
         long last = progress.getLastProcessedSeq();
 
-        // 1. 處理狀態同步：如果是初次啟動或恢復中，接受任何有效的 WAL 索引
+        // 1. 處理狀態同步
         if (currentState == AeronState.WAITING) {
             if (seq > last || last == MSG_SEQ_NONE) {
                 log.info("AeronReceiver 鏈路對齊成功！開始消費，起始位點: {}", seq);
                 currentState = AeronState.SENDING;
             } else {
-                return; // 忽略舊數據
+                return;
             }
         }
 
-        // 2. 嚴格遞增檢查：由於是 Chronicle WAL Index，我們只要求 seq > last
         if (seq <= last) return; 
-
-        // 3. 診斷性日誌：如果是傳統的 +1 跳號，記錄警告但繼續處理
-        if (last != MSG_SEQ_NONE && seq != last + 1) {
-            // 注意：Chronicle WAL 索引在跨 Cycle 時會發生巨大跳轉，這是正常現象
-            if (log.isDebugEnabled()) log.debug("WAL 索引跳變: {} -> {}", last, seq);
-        }
 
         engine.onAeronMessage(buffer.getInt(offset, java.nio.ByteOrder.LITTLE_ENDIAN), buffer, offset, length);
         progress.setLastProcessedSeq(seq);
-        if (seq % AeronConstants.METADATA_FLUSH_PERIOD == 0) metadata.put(MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE, progress);
     }
 
     @Override
     protected void onStop() {
         engine.onStop();
-        metadata.put(MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE, progress);
         if (subscription != null) subscription.close();
         if (controlPub != null) controlPub.close();
         ThreadContext.cleanup();

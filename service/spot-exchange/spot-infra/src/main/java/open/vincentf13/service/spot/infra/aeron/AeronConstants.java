@@ -20,8 +20,8 @@ public class AeronConstants {
     /** 訊息序列號在 DirectBuffer 中的偏移量 */
     public static final int MSG_SEQ_OFFSET = 8;
 
-    /** 進度持久化週期 */
-    public static final int METADATA_FLUSH_PERIOD = 100;
+    /** 進度持久化週期 (從 100 提高到 10000) */
+    public static final int METADATA_FLUSH_PERIOD = 10000;
 
     /** 背壓重試次數限制 */
     public static final int BACK_PRESSURE_RETRY_LIMIT = 1000;

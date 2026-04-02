@@ -20,7 +20,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Component
 @RequiredArgsConstructor
 public class Engine {
-    private final ChronicleMap<Byte, WalProgress> metadata = Storage.self().walMetadata();
+    private final ChronicleMap<Byte, WalProgress> walMetadata = Storage.self().walMetadata();
+    private final ChronicleMap<Byte, MsgProgress> msgMetadata = Storage.self().msgProgressMetadata();
     private final CommandRouter router;
     private final OrderProcessor orderProcessor;
     private final Ledger ledger;
@@ -28,16 +29,22 @@ public class Engine {
     private final CoreStateValidator coreStateValidator;
 
     private final WalProgress progress = new WalProgress();
+    @Getter private final MsgProgress networkProgress = new MsgProgress();
 
     private long lastFlushTime = 0;
     private long unflushedWorkCount = 0;
     private long pendingFlushSeq = MSG_SEQ_NONE;
+    private long lastReceivedSeq = MSG_SEQ_NONE;
 
     public void onStart() {
         log.info("執行冷啟動最小重建，後續由 WAL 重放收斂狀態...");
         unflushedWorkCount = 0;
-        WalProgress saved = metadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
-        if (saved != null) progress.copyFrom(saved);
+        WalProgress savedWal = walMetadata.get(MetaDataKey.Wal.MACHING_ENGINE_POINT);
+        if (savedWal != null) progress.copyFrom(savedWal);
+        
+        MsgProgress savedMsg = msgMetadata.get(MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE);
+        if (savedMsg != null) networkProgress.copyFrom(savedMsg);
+        
         pendingFlushSeq = MSG_SEQ_NONE;
 
         ledger.rebuildAssetIndexes();
@@ -52,26 +59,37 @@ public class Engine {
         );
     }
 
-    public void onPollCycle(int done) {
-        if (done > 0) unflushedWorkCount += done;
+    public void onPollCycle(int done, long latestSeq) {
+        if (done > 0) {
+            unflushedWorkCount += done;
+            lastReceivedSeq = latestSeq;
+        }
 
         final long now = Clock.now();
         if (unflushedWorkCount > 0 && (unflushedWorkCount >= 100000 || now - lastFlushTime >= 1000)) {
-            flushDurableState();
+            flushAll();
             lastFlushTime = now;
             unflushedWorkCount = 0;
         }
     }
 
-    private void flushDurableState() {
+    private void flushAll() {
         orderProcessor.flush();
         for (OrderBook book : OrderBook.getInstances()) book.flush();
         ledger.flush();
+        
+        // 1. 持久化業務進度 (WalProgress)
         if (pendingFlushSeq != MSG_SEQ_NONE) {
             progress.commitLastProcessedMsgSeq(pendingFlushSeq);
             pendingFlushSeq = MSG_SEQ_NONE;
         }
-        metadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
+        walMetadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
+        
+        // 2. 持久化網路接收進度 (MsgProgress)
+        if (lastReceivedSeq != MSG_SEQ_NONE) {
+            networkProgress.setLastProcessedSeq(lastReceivedSeq);
+            msgMetadata.put(MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE, networkProgress);
+        }
     }
 
     public void onAeronMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
@@ -102,7 +120,7 @@ public class Engine {
     }
 
     public void onStop() {
-        flushDurableState();
+        flushAll();
         reporter.close();
         ThreadContext.cleanup();
     }

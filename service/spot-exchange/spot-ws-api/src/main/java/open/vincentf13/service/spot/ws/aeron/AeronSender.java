@@ -59,16 +59,14 @@ public class AeronSender extends Worker {
         if (currentState == AeronState.WAITING) return work;
 
         // 3. 轉發 WAL 消息 (從 Chronicle Queue 讀取並透過 Aeron 發送)
+        // 優化：手動管理 DocumentContext，減少 try-with-resources 頻率
         for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
-            // 先獲取當前消息的 WAL 索引位點 (用於恢復鏈路時告知接收端)
-            long seq = tailer.index();
-            
-            // 開啟讀取文檔 (Excerpt)，使用 try-with-resources 確保讀取完後自動釋放檔案鎖/資源
             try (var dc = tailer.readingDocument()) {
-                // 若無新數據，或發送失敗 (例如連線中斷)，則結束本批次處理
-                if (!dc.isPresent() || !trySend(dc.wire(), seq)) break; 
+                if (!dc.isPresent()) break;
                 
-                // 發送成功，累加發送計數指標
+                long seq = dc.index();
+                if (!trySend(dc.wire(), seq)) break; 
+                
                 StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
                 work++;
             }
