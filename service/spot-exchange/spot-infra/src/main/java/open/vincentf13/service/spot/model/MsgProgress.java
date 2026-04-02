@@ -29,4 +29,8 @@ public class MsgProgress implements BytesMarshallable {
     public void readMarshallable(BytesIn<?> bytes) {
         lastProcessedSeq = bytes.readLong();
     }
+
+    public void copyFrom(MsgProgress other) {
+        this.lastProcessedSeq = other.lastProcessedSeq;
+    }
 }
