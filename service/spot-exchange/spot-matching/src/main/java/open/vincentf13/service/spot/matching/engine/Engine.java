@@ -1,5 +1,6 @@
 package open.vincentf13.service.spot.matching.engine;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
@@ -7,6 +8,7 @@ import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.infra.util.Clock;
+import open.vincentf13.service.spot.model.MsgProgress;
 import open.vincentf13.service.spot.model.WalProgress;
 import org.springframework.stereotype.Component;
 
