@@ -58,11 +58,11 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
             long sbeHeader = content.getLongLE(content.readerIndex() + 12);
 
             // 採用順序寫入 (Sequential Write)，不指定偏移量以防損壞 Wire Metadata
-            target.writeInt(Integer.reverseBytes(msgType));           // [0-3] MsgType
+            target.writeInt(msgType);                                 // [0-3] MsgType
             target.writeInt(0);                                       // [4-7] Padding
             target.writeLong(0L);                                     // [8-15] Seq
-            target.writeLong(Long.reverseBytes(arrivalTimeNs));       // [16-23] GatewayTime
-            target.writeLong(Long.reverseBytes(sbeHeader));           // [24-31] SBE Header
+            target.writeLong(arrivalTimeNs);                          // [16-23] GatewayTime
+            target.writeLong(sbeHeader);                              // [24-31] SBE Header
 
             // 此時 Position 應自然位於 32，直接追加 Body
             int bodyLen = length - OLD_HEADER_SIZE;

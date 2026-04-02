@@ -78,8 +78,8 @@ public abstract class AbstractSbeModel implements BytesMarshallable {
         refreshDecoder();
     }
 
-    public int getMsgType() { return unsafeBuffer.getInt(TYPE_OFFSET); }
-    public long getSeq() { return unsafeBuffer.getLong(SEQ_OFFSET); }
+    public int getMsgType() { return unsafeBuffer.getInt(TYPE_OFFSET, java.nio.ByteOrder.LITTLE_ENDIAN); }
+    public long getSeq() { return unsafeBuffer.getLong(SEQ_OFFSET, java.nio.ByteOrder.LITTLE_ENDIAN); }
 
     protected void refreshDecoder() {
         if (unsafeBuffer.capacity() >= BODY_OFFSET) {

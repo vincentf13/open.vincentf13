@@ -71,15 +71,15 @@ public class AeronReceiver extends Worker {
 
     private void sendResume() {
         AeronUtil.send(controlPub, AeronConstants.RESUME_SIGNAL_LENGTH, (buffer, offset) -> {
-            buffer.putInt(offset, MsgType.RESUME);
-            buffer.putLong(offset + AeronConstants.MSG_SEQ_OFFSET, progress.getLastProcessedSeq());
+            buffer.putInt(offset, MsgType.RESUME, java.nio.ByteOrder.LITTLE_ENDIAN);
+            buffer.putLong(offset + AeronConstants.MSG_SEQ_OFFSET, progress.getLastProcessedSeq(), java.nio.ByteOrder.LITTLE_ENDIAN);
         });
         lastResumeTime = Clock.now();
     }
 
     private void onFragment(DirectBuffer buffer, int offset, int length, Header header) {
         // 強制使用 8 偏移量，確保與 32-byte 標頭結構對齊
-        long seq = buffer.getLong(offset + 8); 
+        long seq = buffer.getLong(offset + 8, java.nio.ByteOrder.LITTLE_ENDIAN); 
         long last = progress.getLastProcessedSeq();
 
         // 1. 處理狀態同步：如果是初次啟動或恢復中，接受任何有效的 WAL 索引
@@ -101,7 +101,7 @@ public class AeronReceiver extends Worker {
             if (log.isDebugEnabled()) log.debug("WAL 索引跳變: {} -> {}", last, seq);
         }
 
-        engine.onAeronMessage(buffer.getInt(offset), buffer, offset, length);
+        engine.onAeronMessage(buffer.getInt(offset, java.nio.ByteOrder.LITTLE_ENDIAN), buffer, offset, length);
         progress.setLastProcessedSeq(seq);
         if (seq % AeronConstants.METADATA_FLUSH_PERIOD == 0) metadata.put(MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE, progress);
     }

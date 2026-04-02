@@ -76,7 +76,7 @@ public class Engine {
 
     public void onAeronMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
         final long arrivalTimeNs = System.nanoTime();
-        final long gatewayTimeNs = buffer.getLong(offset + 16);
+        final long gatewayTimeNs = buffer.getLong(offset + 16, java.nio.ByteOrder.LITTLE_ENDIAN);
 
         long seq = router.route(msgType, buffer, offset, length, gatewayTimeNs, progress);
 

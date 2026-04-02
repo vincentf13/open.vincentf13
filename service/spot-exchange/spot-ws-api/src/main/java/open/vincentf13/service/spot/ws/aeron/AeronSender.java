@@ -94,7 +94,7 @@ public class AeronSender extends Worker {
                 // 使用 Unsafe 直接從 Chronicle WAL 位址拷貝數據至 Aeron 緩衝區 (Zero Copy)
                 UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
                 // 覆寫消息內部的序號欄位 (強制偏移量 8，確保對齊)
-                buf.putLong(off + 8, seq);
+                buf.putLong(off + 8, seq, java.nio.ByteOrder.LITTLE_ENDIAN);
             });
 
             // 成功：跳過已發送字節並結束重試
@@ -119,8 +119,8 @@ public class AeronSender extends Worker {
     }
 
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
-        if (buffer.getInt(offset) == MsgType.RESUME && currentState == AeronState.WAITING) {
-            long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET);
+        if (buffer.getInt(offset, java.nio.ByteOrder.LITTLE_ENDIAN) == MsgType.RESUME && currentState == AeronState.WAITING) {
+            long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET, java.nio.ByteOrder.LITTLE_ENDIAN);
             log.info("✅ AeronSender 握手成功！恢復位點: {}", walIndex);
             if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !tailer.moveToIndex(walIndex)) tailer.toStart();
             currentState = AeronState.SENDING;
