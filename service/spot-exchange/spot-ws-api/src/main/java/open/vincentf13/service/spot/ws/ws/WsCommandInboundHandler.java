@@ -8,7 +8,6 @@ import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.bytes.PointerBytesStore;
 import net.openhft.chronicle.queue.ChronicleQueue;
-import net.openhft.chronicle.queue.ExcerptAppender;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
@@ -30,8 +29,6 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
 
     private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
-    // 單一 appender：Chronicle Queue 多 appender 並發會產生 hole，導致 AeronSender tailer 頻繁中斷批次
-    private final ExcerptAppender appender = wal.acquireAppender();
 
     public WsCommandInboundHandler(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;
@@ -55,9 +52,11 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         final long sbeHeader = content.getLongLE(content.readerIndex() + 12);
         final int bodyLen = length - OLD_HEADER_SIZE;
 
-        // synchronized 確保單一 DocumentContext 開啟，消除 Chronicle Queue hole
-        synchronized (appender) {
-            try (var dc = appender.writingDocument()) {
+        // synchronized 確保單一 DocumentContext 開啟，消除 Chronicle Queue hole。
+        // acquireAppender() 在鎖內呼叫：每個 thread 取得自己的 appender（Chronicle thread-local），
+        // 鎖防止多個 appender 同時持有開啟的 DocumentContext，從而杜絕 tailer 命中 hole。
+        synchronized (wal) {
+            try (var dc = wal.acquireAppender().writingDocument()) {
                 if (dc.wire() == null) return;
                 net.openhft.chronicle.bytes.Bytes<?> target = dc.wire().bytes();
 
