@@ -56,10 +56,10 @@ public class WalProgress implements BytesMarshallable {
 
     public void commitLastProcessedMsgSeq(long seq) {
         if (seq == MSG_SEQ_NONE) return;
-        if (lastProcessedMsgSeq != MSG_SEQ_NONE && seq != lastProcessedMsgSeq + 1) {
+        if (lastProcessedMsgSeq != MSG_SEQ_NONE && seq <= lastProcessedMsgSeq) {
             throw new IllegalStateException(
-                "Message sequence must advance monotonically, expected=%d, actual=%d"
-                    .formatted(lastProcessedMsgSeq + 1, seq)
+                "Message sequence must advance monotonically, last=%d, actual=%d"
+                    .formatted(lastProcessedMsgSeq, seq)
             );
         }
         lastProcessedMsgSeq = seq;
