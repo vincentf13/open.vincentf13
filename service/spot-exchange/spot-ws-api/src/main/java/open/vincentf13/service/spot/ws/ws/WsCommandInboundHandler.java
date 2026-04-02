@@ -30,7 +30,8 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
 
     private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
     private final WsSessionManager sessionManager;
-    private final ThreadLocal<ExcerptAppender> appenderThreadLocal = ThreadLocal.withInitial(wal::acquireAppender);
+    // 單一 appender：Chronicle Queue 多 appender 並發會產生 hole，導致 AeronSender tailer 頻繁中斷批次
+    private final ExcerptAppender appender = wal.acquireAppender();
 
     public WsCommandInboundHandler(WsSessionManager sessionManager) {
         this.sessionManager = sessionManager;
@@ -49,40 +50,43 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         Long authenticatedUserId = extractAuthUserId(ctx, content, length);
 
         final ThreadContext context = ThreadContext.get();
-        final ExcerptAppender appender = appenderThreadLocal.get();
-        try (var dc = appender.writingDocument()) {
-            if (dc.wire() == null) return;
-            net.openhft.chronicle.bytes.Bytes<?> target = dc.wire().bytes();
+        // 提前讀取 ByteBuf 欄位（Netty 保證 frame 在此方法內有效）
+        final int msgType = content.getIntLE(content.readerIndex());
+        final long sbeHeader = content.getLongLE(content.readerIndex() + 12);
+        final int bodyLen = length - OLD_HEADER_SIZE;
 
-            int msgType = content.getIntLE(content.readerIndex());
-            long sbeHeader = content.getLongLE(content.readerIndex() + 12);
+        // synchronized 確保單一 DocumentContext 開啟，消除 Chronicle Queue hole
+        synchronized (appender) {
+            try (var dc = appender.writingDocument()) {
+                if (dc.wire() == null) return;
+                net.openhft.chronicle.bytes.Bytes<?> target = dc.wire().bytes();
 
-            // 採用順序寫入 (Sequential Write)，不指定偏移量以防損壞 Wire Metadata
-            target.writeInt(msgType);                                 // [0-3] MsgType
-            target.writeInt(0);                                       // [4-7] Padding
-            target.writeLong(0L);                                     // [8-15] Seq
-            target.writeLong(arrivalTimeNs);                          // [16-23] GatewayTime
-            target.writeLong(sbeHeader);                              // [24-31] SBE Header
+                // 採用順序寫入 (Sequential Write)，不指定偏移量以防損壞 Wire Metadata
+                target.writeInt(msgType);                                 // [0-3] MsgType
+                target.writeInt(0);                                       // [4-7] Padding
+                target.writeLong(0L);                                     // [8-15] Seq
+                target.writeLong(arrivalTimeNs);                          // [16-23] GatewayTime
+                target.writeLong(sbeHeader);                              // [24-31] SBE Header
 
-            // 此時 Position 應自然位於 32，直接追加 Body
-            int bodyLen = length - OLD_HEADER_SIZE;
-            if (bodyLen > 0) {
-                if (content.hasMemoryAddress()) {
-                    final PointerBytesStore pointer = context.getReusablePointer();
-                    pointer.set(content.memoryAddress() + content.readerIndex() + OLD_HEADER_SIZE, bodyLen);
-                    target.write(pointer);
-                } else {
-                    byte[] scratch = new byte[bodyLen];
-                    content.getBytes(content.readerIndex() + OLD_HEADER_SIZE, scratch);
-                    target.write(scratch);
+                // 此時 Position 應自然位於 32，直接追加 Body
+                if (bodyLen > 0) {
+                    if (content.hasMemoryAddress()) {
+                        final PointerBytesStore pointer = context.getReusablePointer();
+                        pointer.set(content.memoryAddress() + content.readerIndex() + OLD_HEADER_SIZE, bodyLen);
+                        target.write(pointer);
+                    } else {
+                        byte[] scratch = new byte[bodyLen];
+                        content.getBytes(content.readerIndex() + OLD_HEADER_SIZE, scratch);
+                        target.write(scratch);
+                    }
                 }
+            } catch (Exception e) {
+                log.error("[GATEWAY-WS] WAL 直寫失敗", e);
             }
-
-            StaticMetricsHolder.addCounter(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 1);
-            if (authenticatedUserId != null) sessionManager.addSession(authenticatedUserId, ctx.channel());
-        } catch (Exception e) {
-            log.error("[GATEWAY-WS] WAL 直寫失敗", e);
         }
+
+        StaticMetricsHolder.addCounter(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 1);
+        if (authenticatedUserId != null) sessionManager.addSession(authenticatedUserId, ctx.channel());
     }
 
     private Long extractAuthUserId(ChannelHandlerContext ctx, io.netty.buffer.ByteBuf content, int length) {

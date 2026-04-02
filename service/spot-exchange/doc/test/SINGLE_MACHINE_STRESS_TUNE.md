@@ -29,7 +29,7 @@ Safe-Remove $aeron_dir
 # --- 2. 執行並行 Maven 編譯 ---
 Write-Host "正在執行並行 Maven 編譯 (Threads=1C, Skip Tests)..."
 # 使用 -T 1C 開啟並行編譯，顯著縮短構建時間
-mvn -f "$base_path\pom.xml" clean package -DskipTests -T 1C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
+mvn -f "$base_path\pom.xml" clean package -DskipTests -T 3C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
 if ($LASTEXITCODE -ne 0) { Write-Error "Maven 構建失敗，腳本終止。"; return }
 
 # --- 3. 準備運行環境 (並行 Layertools 解壓) ---
@@ -54,6 +54,7 @@ Write-Host "Starting Standalone Media Driver on CPU 8-11..."
 $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
 $aeron_jar = $aeron_jar_item.FullName
 
+# 極限優化 Aeron 緩衝區，適配 Ultra 9 高併發
 $driver_args = @(
     "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
     "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
@@ -63,19 +64,30 @@ $driver_args = @(
     "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
     "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
     "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-    "-Daeron.term.buffer.length=16m",
-    "-Daeron.ipc.term.buffer.length=32m",
-    "-Daeron.socket.so_sndbuf=2m",
-    "-Daeron.socket.so_rcvbuf=2m",
+    "-Daeron.term.buffer.length=64m",
+    "-Daeron.ipc.term.buffer.length=128m",
+    "-Daeron.socket.so_sndbuf=4m",
+    "-Daeron.socket.so_rcvbuf=4m",
     "-Daeron.dir=$aeron_dir",
     "io.aeron.driver.MediaDriver"
 )
 $driver = Start-Process java -ArgumentList $driver_args -PassThru
 $driver.ProcessorAffinity = 1792
-Write-Host "Media Driver (PID: $($driver.Id)) 啟動成功，非同步啟動後續服務..."
 
-# --- 5. 啟動 Matching Engine (CPU 5, GC: 6, Mask: 96) ---
-Write-Host "Starting Matching Engine on CPU 5 (+Core 6 for GC)..."
+# --- 智慧等待 Media Driver 初始化 (Polling cnc.dat) ---
+Write-Host "等待 Aeron 共享記憶體初始化..."
+$cnc_file = "$aeron_dir\cnc.dat"
+$retry = 0
+while (-not (Test-Path $cnc_file) -and $retry -lt 50) {
+    Start-Sleep -Milliseconds 100
+    $retry++
+}
+Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
+
+# --- 5. & 6. 並行啟動 Engine 與 Gateway ---
+Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
+
+# Matching Engine 參數
 $matching_args = @(
     "@$doc_path\jvm\matching-low-latency.args",
     "-Daeron.driver.enabled=false",
@@ -83,11 +95,8 @@ $matching_args = @(
     "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
     "open.vincentf13.service.spot.matching.MatchingApp"
 )
-$e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
-$e.ProcessorAffinity = 96
 
-# --- 6. 啟動 Gateway (WS-API) (CPU 0-4, 12, 15, Mask: 36895) ---
-Write-Host "Starting Gateway (WS-API) on CPU 0-4 (+Core 12, 15 for GC)..."
+# Gateway 參數
 $gw_args = @(
     "@$doc_path\jvm\ws-api-throughput.args",
     "-Daeron.driver.enabled=false",
@@ -95,8 +104,15 @@ $gw_args = @(
     "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
     "open.vincentf13.service.spot.ws.WsApiApp"
 )
+
+# 非同步啟動並立即綁核
+$e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
+$e.ProcessorAffinity = 96
+
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
 $g.ProcessorAffinity = 36895
+
+Write-Host "雙核服務已併發發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id))"
 
 # --- 智慧等待與狀態檢測 ---
 Write-Host "正在等待服務進入穩態 (監測 HTTP 8080)..."
@@ -104,7 +120,7 @@ $retry = 0
 while ($retry -lt 30) {
     try {
         $check = Invoke-WebRequest -Uri "http://127.0.0.1:8080/ws/spot" -Method Get -ErrorAction SilentlyContinue
-        if ($check.StatusCode -eq 400 -or $check.StatusCode -eq 101) { break } # WebSocket Upgrade 失敗通常回 400
+        if ($check.StatusCode -eq 400 -or $check.StatusCode -eq 101) { break } 
     } catch { }
     Start-Sleep -Seconds 1
     $retry++

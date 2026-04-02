@@ -33,6 +33,7 @@ public class AeronSender extends Worker {
     private ExcerptTailer tailer;
     private AeronState currentState = AeronState.WAITING;
     private long localBackPressure = 0;
+    private long resumeSkipIndex = Long.MIN_VALUE;
 
     public AeronSender(Aeron aeron) {
         super("gw-sender", MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.CPU_ID_CURRENT_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
@@ -63,10 +64,13 @@ public class AeronSender extends Worker {
         for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
             try (var dc = tailer.readingDocument()) {
                 if (!dc.isPresent()) break;
-                
+
                 long seq = dc.index();
-                if (!trySend(dc.wire(), seq)) break; 
-                
+                // 跳過 Resume 重定位後重複的已處理條目，避免 Receiver 拒絕並停留在 WAITING
+                if (seq == resumeSkipIndex) { resumeSkipIndex = Long.MIN_VALUE; continue; }
+
+                if (!trySend(dc.wire(), seq)) break;
+
                 StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
                 work++;
             }
@@ -120,7 +124,13 @@ public class AeronSender extends Worker {
         if (buffer.getInt(offset, java.nio.ByteOrder.LITTLE_ENDIAN) == MsgType.RESUME && currentState == AeronState.WAITING) {
             long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET, java.nio.ByteOrder.LITTLE_ENDIAN);
             log.info("✅ AeronSender 握手成功！恢復位點: {}", walIndex);
-            if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !tailer.moveToIndex(walIndex)) tailer.toStart();
+            if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !tailer.moveToIndex(walIndex)) {
+                tailer.toStart();
+                resumeSkipIndex = Long.MIN_VALUE;
+            } else {
+                // moveToIndex 定位到最後已處理條目，批次首條需跳過（Receiver 端 seq==last 會拒絕）
+                resumeSkipIndex = walIndex;
+            }
             currentState = AeronState.SENDING;
         }
     };

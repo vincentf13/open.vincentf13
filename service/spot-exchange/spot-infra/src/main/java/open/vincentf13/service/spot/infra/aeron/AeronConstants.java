@@ -9,7 +9,7 @@ public class AeronConstants {
     public static final int METRICS_BATCH_SIZE = 5000;
 
     /** Aeron 訂閱輪詢限制 */
-    public static final int AERON_POLL_LIMIT = 10;
+    public static final int AERON_POLL_LIMIT = 256;
 
     /** RESUME 握手信號的總長度 */
     public static final int RESUME_SIGNAL_LENGTH = 16;
@@ -28,7 +28,7 @@ public class AeronConstants {
 
     /** 預設 Term Buffer 長度 (64MB) */
     public static final int DEFAULT_TERM_BUFFER_LENGTH = 64 * 1024 * 1024;
-    public static final int WAL_BATCH_SIZE = 1000 ;
+    public static final int WAL_BATCH_SIZE = 10000;
     
     /** 
       Aeron 通訊組件工作狀態 (AeronState)
