@@ -26,23 +26,28 @@ Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 2
 Safe-Remove $aeron_dir
 
-# --- 2. 執行 Maven 編譯與打包 ---
-Write-Host "正在執行 Maven 編譯 (Skip Tests)..."
-mvn -f "$base_path\pom.xml" clean package -DskipTests -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
+# --- 2. 執行並行 Maven 編譯 ---
+Write-Host "正在執行並行 Maven 編譯 (Threads=1C, Skip Tests)..."
+# 使用 -T 1C 開啟並行編譯，顯著縮短構建時間
+mvn -f "$base_path\pom.xml" clean package -DskipTests -T 1C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
 if ($LASTEXITCODE -ne 0) { Write-Error "Maven 構建失敗，腳本終止。"; return }
 
-# --- 3. 準備運行環境 (Layertools 解壓) ---
-# Matching Engine 提取
+# --- 3. 準備運行環境 (並行 Layertools 解壓) ---
+Write-Host "正在並行提取層級化 Jar 內容 (layertools)..."
 $m_t = "$base_path\service\spot-exchange\spot-matching\target"
 $m_dest = "$m_t\extracted"
-Safe-Remove $m_dest
-java -Djarmode=layertools -jar "$m_t\spot-matching.jar" extract --destination "$m_dest/"
-
-# Gateway (WS-API) 提取
 $g_t = "$base_path\service\spot-exchange\spot-ws-api\target"
 $g_dest = "$g_t\extracted"
+
+Safe-Remove $m_dest
 Safe-Remove $g_dest
-java -Djarmode=layertools -jar "$g_t\spot-ws-api.jar" extract --destination "$g_dest/"
+
+# 並行執行解壓任務
+$job1 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-matching.jar" extract --destination "$d/" } -ArgumentList $m_t, $m_dest
+$job2 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-ws-api.jar" extract --destination "$d/" } -ArgumentList $g_t, $g_dest
+Wait-Job $job1, $job2 | Out-Null
+Receive-Job $job1, $job2
+Remove-Job $job1, $job2
 
 # --- 4. 啟動 獨立式 Media Driver (CPU 8-11, Mask: 3840) ---
 Write-Host "Starting Standalone Media Driver on CPU 8-11..."
@@ -67,8 +72,7 @@ $driver_args = @(
 )
 $driver = Start-Process java -ArgumentList $driver_args -PassThru
 $driver.ProcessorAffinity = 1792
-Write-Host "Media Driver (PID: 「**$($driver.Id)**」) 啟動成功，等待 5s..."
-Start-Sleep 5
+Write-Host "Media Driver (PID: $($driver.Id)) 啟動成功，非同步啟動後續服務..."
 
 # --- 5. 啟動 Matching Engine (CPU 5, GC: 6, Mask: 96) ---
 Write-Host "Starting Matching Engine on CPU 5 (+Core 6 for GC)..."
@@ -81,11 +85,8 @@ $matching_args = @(
 )
 $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
 $e.ProcessorAffinity = 96
-Write-Host "Matching (PID: 「**$($e.Id)**」) 啟動成功，等待 5s..."
-Start-Sleep 5
 
 # --- 6. 啟動 Gateway (WS-API) (CPU 0-4, 12, 15, Mask: 36895) ---
-# 優化：5 核心直寫 WAL 架構 (1 Boss + 4 Workers)，消除 RingBuffer 瓶頸
 Write-Host "Starting Gateway (WS-API) on CPU 0-4 (+Core 12, 15 for GC)..."
 $gw_args = @(
     "@$doc_path\jvm\ws-api-throughput.args",
@@ -96,10 +97,21 @@ $gw_args = @(
 )
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
 $g.ProcessorAffinity = 36895
-Write-Host "Gateway (PID: 「**$($g.Id)**」) 啟動成功，等待 5s..."
-Start-Sleep 5
 
-# --- 7. 啟動 k6 極限壓測 (CPU 7, 11, 13-14, Mask: 26752) ---
+# --- 智慧等待與狀態檢測 ---
+Write-Host "正在等待服務進入穩態 (監測 HTTP 8080)..."
+$retry = 0
+while ($retry -lt 30) {
+    try {
+        $check = Invoke-WebRequest -Uri "http://127.0.0.1:8080/ws/spot" -Method Get -ErrorAction SilentlyContinue
+        if ($check.StatusCode -eq 400 -or $check.StatusCode -eq 101) { break } # WebSocket Upgrade 失敗通常回 400
+    } catch { }
+    Start-Sleep -Seconds 1
+    $retry++
+}
+Write-Host "服務就緒 (耗時: $retry s)，開始壓測。"
+
+# --- 7. 啟動 k6 極限壓測 ---
 if ($e.HasExited) { Write-Error "Matching 失敗！"; return }
 if ($g.HasExited) { Write-Error "Gateway 失敗！"; return }
 
