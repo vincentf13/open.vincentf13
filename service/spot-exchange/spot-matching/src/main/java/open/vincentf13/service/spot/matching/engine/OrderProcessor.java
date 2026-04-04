@@ -167,7 +167,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         if (trade.getQty() <= 0 || trade.getPrice() <= 0) throw new IllegalStateException("Invalid trade, tradeId=" + trade.getTradeId());
         if (maker.getSide() == taker.getSide()) throw new IllegalStateException("Same side match, maker=%d, taker=%d".formatted(maker.getOrderId(), taker.getOrderId()));
         if (!maker.isActive() || !taker.isActive()) throw new IllegalStateException("Terminal match, maker=%d, taker=%d".formatted(maker.getOrderId(), taker.getOrderId()));
-        if (trade.getQty() > maker.remainingQty() || trade.getQty() > taker.remainingQty()) throw new IllegalStateException("Qty exceeds remaining, maker=%d, taker=%d".formatted(maker.getOrderId(), taker.getOrderId()));
+        // Note: filled 已在 OrderBook.executeMatchAtLevel 中更新，remainingQty() 為撮合後的值。
+        // 撮合前的 qty 保證由 OrderBook 的 Math.min(taker.remaining, maker.remaining) 確保正確。
     }
 
     private void validateSettlementAmounts(Trade trade, Order maker, Order taker, long mFrozenDelta, long tFrozenDelta) {
