@@ -30,7 +30,7 @@ function createAuthBuffer(uid) {
     view.setUint16(12, 16, true);
     view.setUint16(14, 103, true);
     view.setUint16(16, 1, true);
-    view.setUint16(18, 0, true);
+    view.setUint16(18, 1, true);
     view.setBigInt64(20, BigInt(Date.now()), true);
     view.setBigInt64(28, BigInt(uid), true);
     return buffer;
@@ -44,7 +44,7 @@ function createDepositBuffer(uid, assetId, amount) {
     view.setUint16(12, 28, true);
     view.setUint16(14, 102, true);
     view.setUint16(16, 1, true);
-    view.setUint16(18, 0, true);
+    view.setUint16(18, 1, true);
     view.setBigInt64(20, BigInt(Date.now()), true);
     view.setBigInt64(28, BigInt(uid), true);
     view.setInt32(36, assetId, true);
@@ -60,7 +60,7 @@ function createPreallocatedOrderBuffer() {
     view.setUint16(12, 45, true);
     view.setUint16(14, 100, true);
     view.setUint16(16, 1, true);
-    view.setUint16(18, 0, true);
+    view.setUint16(18, 1, true);
     view.setInt32(36, 1001, true); 
     view.setBigInt64(40, ORDER_PRICE, true);
     view.setBigInt64(48, ORDER_QTY, true);
@@ -120,8 +120,8 @@ export function teardown() {
             const data = JSON.parse(res.body);
             const metrics = data.data || data;
             console.log(`================================================`);
-            console.log(`[FINAL] 累計 Netty 接收: ${metrics.netty_recv_count || 0}`);
-            console.log(`[FINAL] 累計 Gateway WAL 寫入: ${metrics.gateway_wal_write_count || 0}`);
+            console.log(`[FINAL] 累計 Netty 接收: ${metrics.netty_recv || 0}`);
+            console.log(`[FINAL] 累計 Gateway WAL 寫入: ${metrics.wal_write || 0}`);
             console.log(`================================================`);
         } catch (e) {
             console.error(`解析監測數據失敗: ${e.message}`);

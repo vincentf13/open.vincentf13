@@ -30,7 +30,7 @@ const MSG_TYPE = {
     AUTH: 103
 };
 const SBE_SCHEMA_ID = 1;
-const SBE_VERSION = 0;
+const SBE_VERSION = 1;
 
 // 輔助函數：暫停執行以等待異步處理
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
