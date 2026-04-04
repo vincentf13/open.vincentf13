@@ -95,7 +95,6 @@ public class Order implements BytesMarshallable {
     }
     
     public void copyFrom(Order other) {
-        if (other == null) return;
         this.orderId = other.orderId;
         this.userId = other.userId;
         this.symbolId = other.symbolId;

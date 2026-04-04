@@ -19,6 +19,7 @@ import jakarta.annotation.PreDestroy;
 public class AeronConfig {
 
     private MediaDriver driver;
+    private Aeron aeron;
 
     @Value("${aeron.dir}")
     private String aeronDir;
@@ -41,23 +42,18 @@ public class AeronConfig {
                     .dirDeleteOnStart(true));
         }
 
-        Aeron aeron = Aeron.connect(new Aeron.Context()
+        aeron = Aeron.connect(new Aeron.Context()
                 .aeronDirectoryName(aeronDir)
                 .preTouchMappedMemory(true));
 
         AeronUtil.setAeron(aeron);
-
-        SigInt.register(() -> {
-            if (aeron != null) aeron.close();
-            if (driver != null) driver.close();
-        });
+        SigInt.register(this::close);
         return aeron;
     }
 
     @PreDestroy
     public void close() {
-        Aeron aeron = AeronUtil.aeron();
-        if (aeron != null) aeron.close();
-        if (driver != null) driver.close();
+        if (aeron != null) { aeron.close(); aeron = null; }
+        if (driver != null) { driver.close(); driver = null; }
     }
 }

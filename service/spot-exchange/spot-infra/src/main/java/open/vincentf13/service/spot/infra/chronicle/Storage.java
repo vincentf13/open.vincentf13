@@ -85,7 +85,6 @@ public class Storage {
     public ChronicleMap<Long, Long> latencyHistory() { return latencyHistory; }
     public ChronicleMap<Long, String> gcEventHistory() { return gcEventHistory; }
     public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
-    public ChronicleQueue openGatewaySenderWal() { return createQueue(ChronicleQueueEnum.CLIENT_TO_GW); }
 
     // 輔助方法：5 個引數的重載
     private <K, V> ChronicleMap<K, V> createMap(Object name, Class<K> keyCls, Class<V> valCls, int entries, int valSize) {

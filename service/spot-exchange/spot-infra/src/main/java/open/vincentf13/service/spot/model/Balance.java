@@ -38,7 +38,6 @@ public class Balance implements BytesMarshallable {
     }
 
     public void copyFrom(Balance other) {
-        if (other == null) return;
         this.available = other.available;
         this.frozen = other.frozen;
         this.version = other.version;
