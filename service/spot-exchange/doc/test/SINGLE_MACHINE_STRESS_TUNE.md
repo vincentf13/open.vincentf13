@@ -86,14 +86,15 @@ Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
 
 # --- 5. & 6. 並行啟動 Engine 與 Gateway ---
 # ===== CPU 核心分配表 (Arrow Lake Ultra 9, 16 Logical Processors) =====
-# Media Driver (DEDICATED 3T):  CPU 8,9,10         mask=1792
-# Matching Engine (2T):         CPU 5,6             mask=96
-# Gateway (7T):                 CPU 0,1,2,3,4,12,15 mask=36895
-#   - netty-boss          ×1
-#   - netty-worker-1..4   ×4
-#   - wal-writer          ×1  (Disruptor → Chronicle Queue 單寫者)
-#   - gw-sender           ×1  (WAL → Aeron)
-# k6 (GOMAXPROCS=4):           CPU 7,11,13,14      mask=26752
+# Media Driver (DEDICATED 3T):  CPU 8,9,10            mask=1792
+# Matching Engine (2T):         CPU 5,6                mask=96
+# Gateway (8T):                 CPU 0,1,2,3,4,11,12,15 mask=38943
+#   - netty-boss           ×1
+#   - netty-worker-1..4    ×4
+#   - wal-writer           ×1  (Disruptor → Chronicle Queue)
+#   - gw-sender            ×1  (WAL → Aeron)
+#   - report-receiver      ×1  (Aeron → WebSocket push)
+# Benchmark:                    CPU 7,13,14            mask=24704
 # =================================================================
 Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
 
@@ -120,7 +121,7 @@ $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -
 $e.ProcessorAffinity = 96
 
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
-$g.ProcessorAffinity = 36895
+$g.ProcessorAffinity = 38943
 
 Write-Host "雙核服務已併發發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id))"
 
@@ -157,7 +158,7 @@ $bench_args = @(
 )
 $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow
 Start-Sleep -Milliseconds 500
-$bench.ProcessorAffinity = 26752
+$bench.ProcessorAffinity = 24704
 Write-Host "Benchmark (PID: $($bench.Id)) 已綁核，等待完成..."
 $bench.WaitForExit()
 Write-Host "Benchmark 完成 (Exit code: $($bench.ExitCode))"
