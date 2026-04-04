@@ -86,15 +86,20 @@ Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
 
 # --- 5. & 6. 並行啟動 Engine 與 Gateway ---
 # ===== CPU 核心分配表 (Arrow Lake Ultra 9, 16 Logical Processors) =====
-# Media Driver (DEDICATED 3T):  CPU 8,9,10            mask=1792
-# Matching Engine (2T):         CPU 5,6                mask=96
-# Gateway (8T):                 CPU 0,1,2,3,4,11,12,15 mask=38943
+# 原則：每個 JVM 至少保留 1 核給 GC/Spring/JIT，不被 busy-spin 佔滿
+#
+# Media Driver (DEDICATED 3T):  CPU 8,9,10              mask=1792
+# Matching Engine (3 核):       CPU 5,6,7                mask=224
+#   - matching-receiver    ×1  (busy-spin)
+#   - (CPU 6,7 留給 GC + Spring scheduler)
+# Gateway (7 核):               CPU 0,1,2,3,11,12,15    mask=36879
 #   - netty-boss           ×1
-#   - netty-worker-1..4    ×4
-#   - wal-writer           ×1  (Disruptor → Chronicle Queue)
-#   - gw-sender            ×1  (WAL → Aeron)
-#   - report-receiver      ×1  (Aeron → WebSocket push)
-# Benchmark:                    CPU 7,13,14            mask=24704
+#   - netty-worker-1..3    ×3  (從 4 降為 3，騰出 1 核給 GC)
+#   - wal-writer           ×1
+#   - gw-sender            ×1
+#   - report-receiver      ×1
+#   - (剩餘 CPU 時間給 GC + Spring + MetricsWriter)
+# Benchmark:                    CPU 4,13,14              mask=24592
 # =================================================================
 Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
 
@@ -118,10 +123,10 @@ $gw_args = @(
 
 # 非同步啟動並立即綁核
 $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
-$e.ProcessorAffinity = 96
+$e.ProcessorAffinity = 224
 
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
-$g.ProcessorAffinity = 38943
+$g.ProcessorAffinity = 36879
 
 Write-Host "雙核服務已併發發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id))"
 
@@ -158,7 +163,7 @@ $bench_args = @(
 )
 $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow
 Start-Sleep -Milliseconds 500
-$bench.ProcessorAffinity = 24704
+$bench.ProcessorAffinity = 24592
 Write-Host "Benchmark (PID: $($bench.Id)) 已綁核，等待完成..."
 $bench.WaitForExit()
 Write-Host "Benchmark 完成 (Exit code: $($bench.ExitCode))"

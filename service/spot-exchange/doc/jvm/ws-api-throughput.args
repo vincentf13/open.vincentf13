@@ -66,4 +66,4 @@
 -Dfile.encoding=UTF-8
 -Djava.awt.headless=true
 -Djdk.nio.maxCachedBufferSize=2097152
--Dnetty.worker.count=4
+-Dnetty.worker.count=3
