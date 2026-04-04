@@ -125,6 +125,7 @@ public class Constants {
         public static final long ORDER_ACCEPTED_COUNT = 12L;
         public static final long ORDER_REJECTED_COUNT = 13L;
         public static final long ORDER_PROCESSED_COUNT = 14L;
+        public static final long REPORT_RECV_COUNT = 16L;
 
         // 延遲分佈指標 (Latencies - Nanoseconds)
         public static final long LATENCY_MATCHING = 10L;
@@ -155,6 +156,8 @@ public class Constants {
         public static final long CPU_ID_CURRENT_NETTY_WORKER_2 = 1016L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_3 = 1017L;
         public static final long CPU_ID_CURRENT_WAL_WRITER = 1019L;
+        public static final long CPU_ID_REPORT_RECEIVER = 1020L;
+        public static final long CPU_ID_CURRENT_REPORT_RECEIVER = 1021L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_4 = 1018L;
 
         // JVM 與 CPU 指標
@@ -165,6 +168,7 @@ public class Constants {
         public static final long GATEWAY_JVM_USED_MB = 210L;
         public static final long GATEWAY_JVM_MAX_MB = 211L;
         public static final long GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE = 212L;
+        public static final long GATEWAY_REPORT_RECEIVER_DUTY_CYCLE = 214L;
         public static final long GATEWAY_WAL_WRITER_DUTY_CYCLE = 213L;
 
         // GC 監控指標

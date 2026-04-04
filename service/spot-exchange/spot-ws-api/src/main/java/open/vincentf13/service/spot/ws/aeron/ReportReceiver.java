@@ -4,13 +4,13 @@ import io.aeron.Aeron;
 import io.aeron.FragmentAssembler;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.Header;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants;
 import open.vincentf13.service.spot.infra.aeron.AeronUtil;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.infra.thread.Worker;
 import open.vincentf13.service.spot.ws.ws.WsSessionManager;
 import org.agrona.DirectBuffer;
@@ -42,8 +42,8 @@ public class ReportReceiver extends Worker {
     /** @param aeron 僅用於建立 Spring Bean 依賴順序 */
     public ReportReceiver(@SuppressWarnings("unused") Aeron aeron, WsSessionManager sessionManager) {
         super("report-receiver",
-              MetricsKey.CPU_ID_WAL_WRITER, MetricsKey.CPU_ID_CURRENT_WAL_WRITER,
-              MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE);
+              MetricsKey.CPU_ID_REPORT_RECEIVER, MetricsKey.CPU_ID_CURRENT_REPORT_RECEIVER,
+              MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE);
         this.sessionManager = sessionManager;
     }
 
@@ -65,8 +65,8 @@ public class ReportReceiver extends Worker {
     private void onReport(DirectBuffer buffer, int offset, int length, Header header) {
         if (length < USER_ID_OFFSET + 8) return;
         long userId = buffer.getLong(offset + USER_ID_OFFSET, ByteOrder.LITTLE_ENDIAN);
+        StaticMetricsHolder.addCounter(MetricsKey.REPORT_RECV_COUNT, 1);
 
-        // 從 Aeron DirectBuffer 拷貝至 Netty ByteBuf，推送至 WebSocket
         byte[] bytes = new byte[length];
         buffer.getBytes(offset, bytes, 0, length);
         sessionManager.sendMessage(userId, Unpooled.wrappedBuffer(bytes));

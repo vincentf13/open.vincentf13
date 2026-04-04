@@ -68,8 +68,10 @@ public class TestVerificationController {
         target.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
         target.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
         target.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
+        target.put("report_recv", get(MetricsKey.REPORT_RECV_COUNT));
         target.put("gateway_wal_writer_duty_cycle", get(MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE) + "%");
         target.put("gateway_sender_duty_cycle", get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE) + "%");
+        target.put("gateway_report_receiver_duty_cycle", get(MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE) + "%");
         target.put("matching_receiver_duty_cycle", get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE) + "%");
     }
 
