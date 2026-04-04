@@ -155,7 +155,10 @@ $bench_args = @(
     "180",     # 180秒測量
     "10"       # 10秒預熱
 )
-$bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -Wait
+$bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow
+Start-Sleep -Milliseconds 500
 $bench.ProcessorAffinity = 26752
+Write-Host "Benchmark (PID: $($bench.Id)) 已綁核，等待完成..."
+$bench.WaitForExit()
 Write-Host "Benchmark 完成 (Exit code: $($bench.ExitCode))"
 ```
