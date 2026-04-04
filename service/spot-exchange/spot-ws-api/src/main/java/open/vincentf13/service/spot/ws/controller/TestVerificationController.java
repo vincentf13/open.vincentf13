@@ -17,49 +17,46 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 public class TestVerificationController {
     private static final String GC_META_SEPARATOR = "\u001F";
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
-    private static final List<String> CPU_HISTORY_KEYS = List.of(
-        "matching_receiver", "gateway_sender", "netty_boss",
-        "netty_worker_1", "netty_worker_2", "netty_worker_3", "netty_worker_4"
+
+    /** CPU 指標配置：消除平行陣列，保證 name/history/current 三者對齊 */
+    private record CpuMetric(String name, long historyKey, long currentKey) {}
+    private static final List<CpuMetric> CPU_METRICS = List.of(
+        new CpuMetric("matching_receiver", MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER),
+        new CpuMetric("gateway_sender",    MetricsKey.CPU_ID_AERON_SENDER,   MetricsKey.CPU_ID_CURRENT_AERON_SENDER),
+        new CpuMetric("netty_boss",        MetricsKey.CPU_ID_NETTY_BOSS,     MetricsKey.CPU_ID_CURRENT_NETTY_BOSS),
+        new CpuMetric("netty_worker_1",    MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1),
+        new CpuMetric("netty_worker_2",    MetricsKey.CPU_ID_NETTY_WORKER_2, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2),
+        new CpuMetric("netty_worker_3",    MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3),
+        new CpuMetric("netty_worker_4",    MetricsKey.CPU_ID_NETTY_WORKER_4, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4)
     );
-    private static final long[] CPU_HISTORY_METRICS = {
-        MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.CPU_ID_NETTY_BOSS,
-        MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2, MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4
-    };
-    private static final long[] CPU_CURRENT_METRICS = {
-        MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_SENDER, MetricsKey.CPU_ID_CURRENT_NETTY_BOSS,
-        MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4
-    };
 
     @GetMapping("/metrics/tps")
     public List<Map<String, Object>> getTpsHistory() {
         TreeMap<Long, Long> sorted = new TreeMap<>();
         Storage.self().tpsHistory().forEach((k, v) -> sorted.put(k, v));
-        
+
         List<Map<String, Object>> result = new ArrayList<>();
         Long lastTotal = null;
-        for (var entry : sorted.entrySet()) {
+        for (var entry : sorted.descendingMap().entrySet()) {
             if (lastTotal != null) {
-                long tps = entry.getValue() - lastTotal;
+                long tps = lastTotal - entry.getValue();
                 if (tps >= 0) {
                     result.add(Map.of("time", TIME.format(Instant.ofEpochMilli(entry.getKey())), "tps", tps, "total", entry.getValue(), "type", "order"));
                 }
             }
             lastTotal = entry.getValue();
         }
-        Collections.reverse(result);
         return result;
     }
 
     @GetMapping("/metrics/saturation")
     public Map<String, Object> getSaturation() {
         Map<String, Object> m = new LinkedHashMap<>();
-
         putCounterMetrics(m);
         putJvmMetrics(m);
         m.put("cpu_affinity_history", buildCpuAffinityHistory());
         m.put("current_cpu_id", buildCurrentCpuIds());
         m.put("latency", getCombinedLatency());
-
         return m;
     }
 
@@ -71,8 +68,8 @@ public class TestVerificationController {
         target.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
         target.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
         target.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
-        target.put("matching_receiver_duty_cycle", formatPercent(get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE)));
-        target.put("gateway_sender_duty_cycle", formatPercent(get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE)));
+        target.put("matching_receiver_duty_cycle", get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE) + "%");
+        target.put("gateway_sender_duty_cycle", get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE) + "%");
     }
 
     private void putJvmMetrics(Map<String, Object> target) {
@@ -83,20 +80,18 @@ public class TestVerificationController {
     }
 
     private Map<String, List<Integer>> buildCpuAffinityHistory() {
-        Map<String, List<Integer>> cpuHistory = new LinkedHashMap<>();
-        for (int i = 0; i < CPU_HISTORY_KEYS.size(); i++) {
-            cpuHistory.put(CPU_HISTORY_KEYS.get(i), parseCpuMask(get(CPU_HISTORY_METRICS[i])));
-        }
-        return cpuHistory;
+        Map<String, List<Integer>> result = new LinkedHashMap<>();
+        for (var cm : CPU_METRICS) result.put(cm.name(), parseCpuMask(get(cm.historyKey())));
+        return result;
     }
 
     private Map<String, Object> buildCurrentCpuIds() {
-        Map<String, Object> currentCpuIds = new LinkedHashMap<>();
-        for (int i = 0; i < CPU_HISTORY_KEYS.size(); i++) {
-            currentCpuIds.put(CPU_HISTORY_KEYS.get(i), getNullable(CPU_CURRENT_METRICS[i]));
-        }
-        return currentCpuIds;
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (var cm : CPU_METRICS) result.put(cm.name(), getNullable(cm.currentKey()));
+        return result;
     }
+
+    // ========== 工具方法 ==========
 
     private long get(long key) {
         var v = Storage.self().latestMetrics().get(key);
@@ -109,75 +104,58 @@ public class TestVerificationController {
 
     private List<Integer> parseCpuMask(long mask) {
         List<Integer> ids = new ArrayList<>();
-        if (mask == 0) return ids;
-        for (int i = 0; i < 64; i++) {
-            if (((mask >> i) & 1L) == 1L) ids.add(i);
+        for (int i = 0; mask != 0 && i < 64; i++, mask >>>= 1) {
+            if ((mask & 1) == 1) ids.add(i);
         }
         return ids;
     }
 
     private String formatJvm(long usedKey, long maxKey) {
         long u = get(usedKey), m = get(maxKey);
-        return u == 0 ? "N/A" : String.format("%dMB (%.1f%%)", u, (double) u / (m == 0 ? 1 : m) * 100);
-    }
-
-    private String formatPercent(long value) {
-        return value + "%";
+        return u == 0 ? "N/A" : "%dMB (%.1f%%)".formatted(u, (double) u / Math.max(m, 1) * 100);
     }
 
     private Map<String, Object> buildGcPauseInfo(long countKey, long historyStart) {
         long count = get(countKey);
-        if (count == 0) return Map.of("pause_count", 0, "pause_history", List.of(), "semantic", "jvm_gc_notification_pause");
+        if (count == 0) return Map.of("pause_count", 0, "pause_history", List.of());
 
         List<Map<String, Object>> history = new ArrayList<>();
         for (int i = 0; i < MetricsKey.GC_HISTORY_MAX_KEEP; i++) {
             long eventKey = historyStart + i;
             long encoded = get(eventKey);
             if (encoded == 0) continue;
-            long epochMillis  = encoded / 1_000_000L;
-            long durationUs   = encoded % 1_000_000L;
             String[] gcMeta = parseGcMeta(Storage.self().gcEventHistory().get(eventKey));
             history.add(Map.of(
-                "time",     TIME.format(Instant.ofEpochMilli(epochMillis)),
-                "duration_ms", durationUs / 1000.0d,
-                "type", "pause_notification",
-                "gc_name", gcMeta[0],
-                "gc_action", gcMeta[1],
-                "gc_cause", gcMeta[2]
+                "time", TIME.format(Instant.ofEpochMilli(encoded / 1_000_000L)),
+                "duration_ms", (encoded % 1_000_000L) / 1000.0d,
+                "gc_name", gcMeta[0], "gc_action", gcMeta[1], "gc_cause", gcMeta[2]
             ));
         }
         history.sort((a, b) -> b.get("time").toString().compareTo(a.get("time").toString()));
-        return Map.of(
-            "pause_count", count,
-            "pause_history", history,
-            "semantic", "jvm_gc_notification_pause"
-        );
+        return Map.of("pause_count", count, "pause_history", history);
     }
 
     private String[] parseGcMeta(String raw) {
         if (raw == null || raw.isEmpty()) return new String[]{"", "", ""};
-
         String[] parts = raw.split(GC_META_SEPARATOR, -1);
-        if (parts.length >= 3) return new String[]{parts[0], parts[1], parts[2]};
-        if (parts.length == 2) return new String[]{parts[0], parts[1], ""};
-        return new String[]{parts[0], "", ""};
+        return new String[]{
+            parts.length > 0 ? parts[0] : "",
+            parts.length > 1 ? parts[1] : "",
+            parts.length > 2 ? parts[2] : ""
+        };
     }
 
     private List<Map<String, Object>> getCombinedLatency() {
-        // time -> label -> percentile -> value
         TreeMap<Long, Map<String, Map<Long, Long>>> rawData = new TreeMap<>(Collections.reverseOrder());
 
         Storage.self().latencyHistory().forEach((k, v) -> {
-            long key = k;
-            long metricKey = key / 1_000_000_000_000_000L;
-            long rest = key % 1_000_000_000_000_000L;
+            long metricKey = k / 1_000_000_000_000_000L;
+            long rest = k % 1_000_000_000_000_000L;
             long p = rest / 1_000_000_000_000L;
             long t = rest % 1_000_000_000_000L;
 
-            String label = null;
-            if (metricKey == Math.abs(MetricsKey.LATENCY_MATCHING)) label = "matching";
-            else if (metricKey == Math.abs(MetricsKey.LATENCY_TRANSPORT)) label = "transport";
-
+            String label = metricKey == MetricsKey.LATENCY_MATCHING ? "matching"
+                         : metricKey == MetricsKey.LATENCY_TRANSPORT ? "transport" : null;
             if (label != null) {
                 rawData.computeIfAbsent(t, k1 -> new HashMap<>())
                        .computeIfAbsent(label, k2 -> new HashMap<>())
@@ -189,24 +167,20 @@ public class TestVerificationController {
         for (var entry : rawData.entrySet()) {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("time", TIME.format(Instant.ofEpochSecond(entry.getKey())));
-            
-            // 嚴格順序：先顯示 transport，再顯示 matching
-            addMetrics(map, "transport", entry.getValue().get("transport"));
-            addMetrics(map, "matching", entry.getValue().get("matching"));
-            
+            addLatencyPercentiles(map, "transport", entry.getValue().get("transport"));
+            addLatencyPercentiles(map, "matching", entry.getValue().get("matching"));
             result.add(map);
         }
         return result;
     }
 
-    private void addMetrics(Map<String, Object> target, String label, Map<Long, Long> pData) {
+    private void addLatencyPercentiles(Map<String, Object> target, String label, Map<Long, Long> pData) {
         if (pData == null) return;
-        // 使用 LinkedHashMap 確保 p50 -> p99 -> p100 的順序
-        Map<String, Object> sortedP = new LinkedHashMap<>();
-        if (pData.containsKey(50L))  sortedP.put("p50",  pData.get(50L) + " ns");
-        if (pData.containsKey(99L))  sortedP.put("p99",  pData.get(99L) + " ns");
-        if (pData.containsKey(100L)) sortedP.put("p100", pData.get(100L) + " ns");
-        target.put(label, sortedP);
+        Map<String, Object> sorted = new LinkedHashMap<>();
+        if (pData.containsKey(50L))  sorted.put("p50",  pData.get(50L) + " ns");
+        if (pData.containsKey(99L))  sorted.put("p99",  pData.get(99L) + " ns");
+        if (pData.containsKey(100L)) sorted.put("p100", pData.get(100L) + " ns");
+        target.put(label, sorted);
     }
 
     @GetMapping("/balance")
@@ -218,7 +192,6 @@ public class TestVerificationController {
     @GetMapping("/order_by_cid")
     public Order getOrderByCid(@RequestParam long userId, @RequestParam long cid) {
         LongValue orderId = Storage.self().clientOrderIdMap().get(new CidKey(userId, cid));
-        if (orderId == null) return null;
-        return Storage.self().orders().get(orderId);
+        return orderId == null ? null : Storage.self().orders().get(orderId);
     }
 }

@@ -127,7 +127,7 @@ public class WalWriter extends Worker {
                     writeToWal(event);
                     return true;
                 });
-            } catch (Exception ignored) {}
+            } catch (Exception e) { log.warn("[WAL-WRITER] 關閉時排空失敗", e); }
         }
         log.info("[WAL-WRITER] 已停止");
     }

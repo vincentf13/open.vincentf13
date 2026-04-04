@@ -62,17 +62,19 @@ public class WsSessionManager {
     /** 向用戶的所有連線廣播二進制訊息 */
     public void sendMessage(long uid, ByteBuf data) {
         List<Channel> channels = snapshotChannels(uid);
-        if (channels.isEmpty()) { data.release(); return; }
-
         BinaryWebSocketFrame frame = null;
         try {
+            if (channels.isEmpty()) return;
             frame = new BinaryWebSocketFrame(data);
             for (Channel c : channels) {
                 if (c.isActive()) c.writeAndFlush(frame.retainedDuplicate());
                 else removeSession(uid, c);
             }
-        } catch (Exception e) { log.error("[WS] Push failed for {}: {}", uid, e.getMessage()); } 
-        finally { if (frame != null) frame.release(); else data.release(); }
+        } catch (Exception e) {
+            log.error("[WS] Push failed for {}: {}", uid, e.getMessage());
+        } finally {
+            if (frame != null) frame.release(); else data.release();
+        }
     }
 
     private List<Channel> snapshotChannels(long uid) {
