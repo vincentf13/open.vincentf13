@@ -21,8 +21,9 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 現貨交易所 E2E 延遲基準測試工具
  *
+ * 雙用戶模式：buyer(9998) + seller(9999)，交替發送 BUY/SELL，確保撮合。
+ * 定期補充餘額防止資產耗盡。
  * clientOrderId = nanoTime 攜帶發送時間戳，收到 report 後計算 round-trip。
- * 使用預分配 DirectByteBuffer 重用，避免 GC 壓力。
  *
  * Usage: java -cp ... BenchmarkTool [rate/sec] [duration_sec] [warmup_sec]
  */
@@ -31,6 +32,11 @@ public class BenchmarkTool {
     private static final String WS_URL = "ws://127.0.0.1:8080/ws/spot";
     private static final long SCALE = 100_000_000L;
     private static final int SBE_SCHEMA_ID = 1, SBE_VERSION = 1;
+
+    private static final long BUYER_ID = 9998;
+    private static final long SELLER_ID = 9999;
+    private static final long DEPOSIT_AMOUNT = 1_000_000_000L * SCALE; // 10 億單位
+    private static final int REDEPOSIT_INTERVAL = 100_000; // 每 10 萬筆補充一次
 
     private static int targetRate = 50_000;
     private static int durationSec = 30;
@@ -52,6 +58,7 @@ public class BenchmarkTool {
         if (args.length >= 3) warmupSec = Integer.parseInt(args[2]);
 
         System.out.printf("Benchmark: rate=%d/sec, duration=%ds, warmup=%ds%n", targetRate, durationSec, warmupSec);
+        System.out.printf("Buyer=%d, Seller=%d, redeposit every %d orders%n", BUYER_ID, SELLER_ID, REDEPOSIT_INTERVAL);
 
         EventLoopGroup group = new NioEventLoopGroup(2);
         CountDownLatch connected = new CountDownLatch(1);
@@ -80,21 +87,20 @@ public class BenchmarkTool {
             }
             System.out.println("Connected to " + WS_URL);
 
-            // 1. Auth + Deposit (用 heap buffer，只跑一次)
-            long userId = 9999;
-            ch.writeAndFlush(frame(encodeAuth(userId)));
-            ch.writeAndFlush(frame(encodeDeposit(userId, 2, Long.MAX_VALUE / 2)));
-            ch.writeAndFlush(frame(encodeDeposit(userId, 1, Long.MAX_VALUE / 2)));
+            // 1. Auth + Deposit 雙用戶
+            initAccounts(ch);
             Thread.sleep(2000);
-            System.out.println("Auth + Deposit done");
+            System.out.println("Auth + Deposit done (2 users)");
 
-            // 2. Pre-allocate order buffer (Direct, 重用)
-            ByteBuffer orderBuf = ByteBuffer.allocateDirect(65).order(ByteOrder.LITTLE_ENDIAN);
-            initOrderTemplate(orderBuf, userId, 1001, 60000L * SCALE, 1000L);
+            // 2. Pre-allocate order buffers (買賣各一，Direct 重用)
+            ByteBuffer buyBuf = ByteBuffer.allocateDirect(65).order(ByteOrder.LITTLE_ENDIAN);
+            ByteBuffer sellBuf = ByteBuffer.allocateDirect(65).order(ByteOrder.LITTLE_ENDIAN);
+            initOrderTemplate(buyBuf, BUYER_ID, 1001, 60000L * SCALE, 1000L);
+            initOrderTemplate(sellBuf, SELLER_ID, 1001, 60000L * SCALE, 1000L);
 
             // 3. Warmup
             System.out.printf("Warmup %ds...%n", warmupSec);
-            sendAtRate(ch, orderBuf, targetRate, warmupSec, false);
+            sendAtRate(ch, buyBuf, sellBuf, targetRate, warmupSec, false);
 
             // 4. Measure
             histogram.reset();
@@ -102,10 +108,10 @@ public class BenchmarkTool {
             recvCount.set(0);
             measuring = true;
             System.out.printf("Measuring %ds at %d/sec...%n", durationSec, targetRate);
-            sendAtRate(ch, orderBuf, targetRate, durationSec, true);
+            sendAtRate(ch, buyBuf, sellBuf, targetRate, durationSec, true);
             measuring = false;
 
-            Thread.sleep(3000); // drain remaining reports
+            Thread.sleep(3000);
 
             // 5. Results
             printResults();
@@ -115,29 +121,46 @@ public class BenchmarkTool {
         }
     }
 
-    /** 令牌桶恆定速率發送，重用 DirectByteBuffer */
-    private static void sendAtRate(Channel ch, ByteBuffer template, int rate, int seconds, boolean count) {
+    private static void initAccounts(Channel ch) {
+        // Auth 雙用戶
+        ch.writeAndFlush(frame(encodeAuth(BUYER_ID)));
+        ch.writeAndFlush(frame(encodeAuth(SELLER_ID)));
+        // 充值：買家需要 USDT，賣家需要 BTC
+        ch.writeAndFlush(frame(encodeDeposit(BUYER_ID, 2, DEPOSIT_AMOUNT)));  // USDT
+        ch.writeAndFlush(frame(encodeDeposit(SELLER_ID, 1, DEPOSIT_AMOUNT))); // BTC
+    }
+
+    private static void redeposit(Channel ch) {
+        ch.write(frame(encodeDeposit(BUYER_ID, 2, DEPOSIT_AMOUNT)));
+        ch.writeAndFlush(frame(encodeDeposit(SELLER_ID, 1, DEPOSIT_AMOUNT)));
+    }
+
+    /** 令牌桶恆定速率發送，買賣交替，定期補充餘額 */
+    private static void sendAtRate(Channel ch, ByteBuffer buyBuf, ByteBuffer sellBuf,
+                                   int rate, int seconds, boolean count) {
         long intervalNs = 1_000_000_000L / rate;
         long total = (long) rate * seconds;
         long startNs = System.nanoTime();
         boolean isBuy = true;
 
         for (long i = 0; i < total; i++) {
+            // 定期補充餘額
+            if (i > 0 && i % REDEPOSIT_INTERVAL == 0) {
+                redeposit(ch);
+            }
+
             long sendNano = System.nanoTime();
+            ByteBuffer buf = isBuy ? buyBuf : sellBuf;
 
-            // 修改模板中的動態欄位 (zero-copy, 直接寫 DirectByteBuffer)
-            template.putLong(20, sendNano);              // timestamp
-            template.put(56, isBuy ? (byte) 0 : (byte) 1); // side
-            template.putLong(57, sendNano);               // clientOrderId = sendNano
+            buf.putLong(20, sendNano);       // timestamp
+            buf.putLong(57, sendNano);        // clientOrderId = sendNano
 
-            // 包裝為 Netty frame 發送（wrappedBuffer 不拷貝，共享 direct memory）
             ch.writeAndFlush(new BinaryWebSocketFrame(
-                    Unpooled.wrappedBuffer(template.duplicate().position(0).limit(65))));
+                    Unpooled.wrappedBuffer(buf.duplicate().position(0).limit(65))));
 
             if (count) sentCount.incrementAndGet();
             isBuy = !isBuy;
 
-            // 令牌桶：busy-spin 等到下一個時刻
             long nextNs = startNs + (i + 1) * intervalNs;
             while (System.nanoTime() < nextNs) Thread.onSpinWait();
         }
@@ -164,7 +187,7 @@ public class BenchmarkTool {
         System.out.printf("  samples = %d%n", histogram.getTotalCount());
     }
 
-    // ========== SBE encoding (init only, not hot path) ==========
+    // ========== SBE encoding ==========
 
     private static void writeSbeHeader(ByteBuffer buf, int msgType, int blockLength) {
         buf.putInt(msgType);
@@ -177,14 +200,14 @@ public class BenchmarkTool {
 
     private static void initOrderTemplate(ByteBuffer buf, long userId, int symbolId, long price, long qty) {
         buf.clear();
-        writeSbeHeader(buf, 100, 45);      // ORDER_CREATE
-        buf.putLong(0L);                    // [20] timestamp (patched per send)
-        buf.putLong(userId);                // [28] userId
-        buf.putInt(symbolId);               // [36] symbolId
-        buf.putLong(price);                 // [40] price
-        buf.putLong(qty);                   // [48] qty
-        buf.put((byte) 0);                  // [56] side (patched per send)
-        buf.putLong(0L);                    // [57] clientOrderId (patched per send)
+        writeSbeHeader(buf, 100, 45);
+        buf.putLong(0L);         // [20] timestamp
+        buf.putLong(userId);     // [28] userId (固定，不需每次修改)
+        buf.putInt(symbolId);    // [36]
+        buf.putLong(price);      // [40]
+        buf.putLong(qty);        // [48]
+        buf.put(userId == BUYER_ID ? (byte) 0 : (byte) 1); // [56] side 固定
+        buf.putLong(0L);         // [57] clientOrderId
         buf.flip();
     }
 
@@ -212,20 +235,7 @@ public class BenchmarkTool {
 
     // ========== Report Handler ==========
 
-    /**
-     * 回報處理器：解碼 report，提取 clientOrderId 計算 round-trip。
-     *
-     * Report frame: [0-3] msgType (Constants.MsgType) | [4-11] reserved | [12-19] SBE header | [20+] SBE body
-     * msgType 使用 Constants.MsgType 值 (107/108/109/110)，非 SBE templateId (201-204)。
-     *
-     * clientOrderId 在 SBE body 中的位置 (absolute = 20 + SBE offset)：
-     *   107 (Accepted):  SBE offset 24 → absolute 44
-     *   108 (Rejected):  SBE offset 16 → absolute 36
-     *   109 (Canceled):  SBE offset 32 → absolute 52
-     *   110 (Matched):   SBE offset 57 → absolute 77
-     */
     private static class ReportHandler extends SimpleChannelInboundHandler<Object> {
-        // Constants.MsgType report codes
         private static final int ACCEPTED = 107, REJECTED = 108, CANCELED = 109, MATCHED = 110;
 
         private final WebSocketClientHandshaker handshaker;
