@@ -1,7 +1,9 @@
 package open.vincentf13.service.spot.ws.ws;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -18,14 +20,17 @@ import org.springframework.stereotype.Component;
 
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import open.vincentf13.service.spot.infra.Constants.Ws;
+import open.vincentf13.service.spot.infra.thread.AffinityThreadFactory;
 import open.vincentf13.service.spot.infra.thread.AffinityUtil;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Netty WebSocket 伺服器
+ * 職責：啟動/關閉 Netty、配置 Pipeline、綁定 CPU 親和性。
+ */
 @Slf4j
 @Component
 public class NettyServer {
@@ -39,7 +44,6 @@ public class NettyServer {
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private final AtomicBoolean started = new AtomicBoolean(false);
-    private Thread serverThread;
 
     public NettyServer(WsCommandInboundHandler wsHandler) {
         this.wsHandler = wsHandler;
@@ -49,54 +53,52 @@ public class NettyServer {
     public void start() {
         if (!started.compareAndSet(false, true)) return;
 
-        serverThread = new Thread(() -> {
-            bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss", MetricsKey.CPU_ID_NETTY_BOSS));
-            workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker",
-                MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
-                MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4));
+        new Thread(() -> {
+            bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss",
+                    new long[]{MetricsKey.CPU_ID_NETTY_BOSS},
+                    new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_BOSS}));
 
-            scheduleMetrics(bossGroup,
-                new long[]{MetricsKey.CPU_ID_NETTY_BOSS},
-                new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_BOSS});
-            scheduleMetrics(workerGroup, 
-                new long[]{
-                    MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
-                    MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4
-                },
-                new long[]{
-                    MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2,
-                    MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4
-                });
+            workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker",
+                    new long[]{MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
+                               MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4},
+                    new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2,
+                               MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4}));
+
+            scheduleCpuMetrics(bossGroup,
+                    new long[]{MetricsKey.CPU_ID_NETTY_BOSS},
+                    new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_BOSS});
+            scheduleCpuMetrics(workerGroup,
+                    new long[]{MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
+                               MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4},
+                    new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2,
+                               MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4});
 
             try {
-                ServerBootstrap b = new ServerBootstrap();
-                b.group(bossGroup, workerGroup)
-                 .channel(NioServerSocketChannel.class)
-                 .option(io.netty.channel.ChannelOption.SO_BACKLOG, 8192)
-                 .option(io.netty.channel.ChannelOption.SO_REUSEADDR, true)
-                 .childOption(io.netty.channel.ChannelOption.TCP_NODELAY, true)
-                 .childOption(io.netty.channel.ChannelOption.SO_KEEPALIVE, true)
-                 .childOption(io.netty.channel.ChannelOption.ALLOCATOR, io.netty.buffer.PooledByteBufAllocator.DEFAULT)
-                 .childHandler(new ChannelInitializer<SocketChannel>() {
-                     @Override
-                     protected void initChannel(SocketChannel ch) {
-                         ch.pipeline().addLast(new HttpServerCodec());
-                         ch.pipeline().addLast(new ChunkedWriteHandler());
-                         ch.pipeline().addLast(new HttpObjectAggregator(65536));
-                         ch.pipeline().addLast(new WebSocketServerProtocolHandler(Ws.PATH));
-                         ch.pipeline().addLast(wsHandler);
-                     }
-                 });
-
+                new ServerBootstrap()
+                    .group(bossGroup, workerGroup)
+                    .channel(NioServerSocketChannel.class)
+                    .option(ChannelOption.SO_BACKLOG, 8192)
+                    .option(ChannelOption.SO_REUSEADDR, true)
+                    .childOption(ChannelOption.TCP_NODELAY, true)
+                    .childOption(ChannelOption.SO_KEEPALIVE, true)
+                    .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override protected void initChannel(SocketChannel ch) {
+                            ch.pipeline().addLast(new HttpServerCodec());
+                            ch.pipeline().addLast(new ChunkedWriteHandler());
+                            ch.pipeline().addLast(new HttpObjectAggregator(65536));
+                            ch.pipeline().addLast(new WebSocketServerProtocolHandler(Ws.PATH));
+                            ch.pipeline().addLast(wsHandler);
+                        }
+                    })
+                    .bind(port).sync().channel().closeFuture().sync();
                 log.info("Netty WebSocket Server started on port {}", port);
-                b.bind(port).sync().channel().closeFuture().sync();
             } catch (Exception e) {
                 log.error("Netty Server Error", e);
             } finally {
                 stop();
             }
-        }, "netty-server-starter");
-        serverThread.start();
+        }, "netty-server-starter").start();
     }
 
     @PreDestroy
@@ -107,57 +109,19 @@ public class NettyServer {
     }
 
     private void shutdownGroup(EventLoopGroup group) {
-        if (group == null) return;
-        try {
-            group.shutdownGracefully().syncUninterruptibly();
-        } catch (Exception e) {
-            log.warn("Netty group shutdown failed: {}", e.getMessage());
+        if (group != null) {
+            try { group.shutdownGracefully().syncUninterruptibly(); }
+            catch (Exception e) { log.warn("Netty group shutdown: {}", e.getMessage()); }
         }
     }
 
-    private void scheduleMetrics(EventLoopGroup group, long[] historyKeys, long[] currentKeys) {
+    private void scheduleCpuMetrics(EventLoopGroup group, long[] historyKeys, long[] currentKeys) {
         int i = 0;
-        for (io.netty.util.concurrent.EventExecutor executor : group) {
-            if (i >= historyKeys.length || i >= currentKeys.length) break;
-            final long historyKey = historyKeys[i];
-            final long currentKey = currentKeys[i];
+        for (var executor : group) {
+            if (i >= historyKeys.length) break;
+            final long hk = historyKeys[i], ck = currentKeys[i];
+            executor.scheduleAtFixedRate(() -> StaticMetricsHolder.recordCpuId(hk, ck, AffinityUtil.currentCpu()), 1, 1, TimeUnit.SECONDS);
             i++;
-            executor.scheduleAtFixedRate(() ->
-                StaticMetricsHolder.recordCpuId(historyKey, currentKey, AffinityUtil.currentCpu()),
-            1, 1, TimeUnit.SECONDS);
-        }
-    }
-
-    private static class AffinityThreadFactory implements ThreadFactory {
-        private final String prefix;
-        private final long[] metricKeys;
-        private final AtomicInteger counter = new AtomicInteger(0);
-
-        public AffinityThreadFactory(String prefix, long... metricKeys) {
-            this.prefix = prefix;
-            this.metricKeys = metricKeys;
-        }
-
-        @Override
-        public Thread newThread(Runnable r) {
-            int currentIdx = counter.getAndIncrement();
-            Runnable bindingTask = () -> {
-                try {
-                    int cpuId = AffinityUtil.acquireAndBind();
-                    if (metricKeys != null && currentIdx < metricKeys.length) {
-                        long currentMetricKey;
-                        if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_BOSS) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_BOSS;
-                        else if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_WORKER_1) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1;
-                        else if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_WORKER_2) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2;
-                        else if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_WORKER_3) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3;
-                        else if (metricKeys[currentIdx] == MetricsKey.CPU_ID_NETTY_WORKER_4) currentMetricKey = MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4;
-                        else currentMetricKey = metricKeys[currentIdx];
-                        StaticMetricsHolder.recordCpuId(metricKeys[currentIdx], currentMetricKey, cpuId);
-                    }
-                } catch (Throwable ignored) {}
-                r.run();
-            };
-            return new Thread(bindingTask, prefix + "-" + (currentIdx + 1));
         }
     }
 }

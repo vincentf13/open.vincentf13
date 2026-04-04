@@ -9,13 +9,16 @@ import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
 import open.vincentf13.service.spot.model.WalProgress;
-import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.Constants.OrderSide;
 import open.vincentf13.service.spot.sbe.Side;
 import org.springframework.stereotype.Component;
 
 /**
- * 訂單處理器 (Zero-GC 優化版)
+ * 訂單處理器 (Order Processor)
+ *
+ * 職責：下單/撤單指令的業務流程編排。
+ * 冪等去重委派給 {@link IdempotencyGuard}，撮合委派給 {@link OrderBook}，
+ * 資產凍結委派給 {@link Ledger}，回報委派給 {@link ExecutionReporter}。
  */
 @Slf4j
 @Component
@@ -23,39 +26,23 @@ import org.springframework.stereotype.Component;
 public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> orders = Storage.self().orders();
-    private final ChronicleMap<CidKey, open.vincentf13.service.spot.infra.chronicle.LongValue> clientOrderIdDiskMap = Storage.self().clientOrderIdMap();
     private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Boolean> activeOrdersDiskMap = Storage.self().activeOrders();
-
-    // --- 性能優化：冪等鍵寫緩衝 (零對象分配 Circular Buffer 版) ---
-    private static final int BUFFER_SIZE = 4096;
-    private final long[] pendingUids = new long[BUFFER_SIZE];
-    private final long[] pendingCidsArr = new long[BUFFER_SIZE];
-    private final long[] pendingOids = new long[BUFFER_SIZE];
-    private int bufferCount = 0;
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
+    private final IdempotencyGuard idempotencyGuard = new IdempotencyGuard();
 
-    private final CidKey reusableFlushKey = new CidKey();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableFlushValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
     private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableOrderKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private final Order reusableDiskOrder = new Order(); // getUsing() 享元，避免 ChronicleMap.get() 分配
+    private final Order reusableDiskOrder = new Order();
 
-    /** 核心落地：將緩衝的冪等鍵批量寫入磁碟，實現零分配 */
-    public void flush() {
-        if (bufferCount > 0) {
-            for (int i = 0; i < bufferCount; i++) {
-                reusableFlushKey.set(pendingUids[i], pendingCidsArr[i]);
-                reusableFlushValue.set(pendingOids[i]);
-                clientOrderIdDiskMap.put(reusableFlushKey, reusableFlushValue);
-            }
-            bufferCount = 0;
-        }
-    }
+    // ========== 公開 API ==========
 
+    public void flush() { idempotencyGuard.flush(); }
+
+    /** 冷啟動：全量磁碟掃描恢復 OrderBook + IdempotencyGuard */
     public long coldStartRebuild() {
-        log.warn("未檢測到有效內存快照，正在執行耗時的全量磁碟掃描以恢復狀態...");
-        clientOrderIdDiskMap.clear();
+        log.warn("未檢測到有效內存快照，正在執行全量磁碟掃描恢復...");
+        idempotencyGuard.clearDisk();
         activeOrdersDiskMap.clear();
         OrderBook.resetForRecovery();
 
@@ -69,33 +56,31 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             maxOrderId[0] = Math.max(maxOrderId[0], order.getOrderId());
 
             if (order.getClientOrderId() > 0) {
-                clientOrderIdDiskMap.put(new CidKey(order.getUserId(), order.getClientOrderId()), new open.vincentf13.service.spot.infra.chronicle.LongValue(order.getOrderId()));
+                idempotencyGuard.record(order.getUserId(), order.getClientOrderId(), order.getOrderId());
             }
             if (!order.isTerminal()) {
                 activeOrdersDiskMap.put(new open.vincentf13.service.spot.infra.chronicle.LongValue(order.getOrderId()), Boolean.TRUE);
                 OrderBook.get(order.getSymbolId()).recoverOrder(order);
             }
         });
+        idempotencyGuard.flush();
         return maxOrderId[0];
     }
 
-    /** 核心入口：處理下單指令 */
-    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side, long clientOrderId, long gatewaySequence, long timestamp, WalProgress progress) {
+    // ========== 指令處理 ==========
+
+    public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side,
+                                     long clientOrderId, long gatewaySequence, long timestamp, WalProgress progress) {
         if (userId <= 0 || clientOrderId <= 0 || qty <= 0 || (side == Side.BUY && price <= 0)) {
             reporter.reportRejected(userId, clientOrderId);
             return;
         }
 
-        final CidKey cidKey = ThreadContext.get().getCidKey();
-        cidKey.set(userId, clientOrderId);
-
-        if (isBufferedDuplicate(userId, clientOrderId)) return;
-        if (clientOrderIdDiskMap.containsKey(cidKey)) return;
+        if (idempotencyGuard.isDuplicate(userId, clientOrderId)) return;
 
         handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress);
     }
 
-    /** 處理撤單指令 */
     public void processCancelCommand(long userId, long orderId, long gatewaySequence) {
         if (userId <= 0 || orderId <= 0) return;
 
@@ -116,7 +101,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         reporter.reportCanceled(canceled);
     }
 
-    /** 實作 TradeFinalizer 接口 */
+    // ========== TradeFinalizer ==========
+
     @Override
     public void onMatch(Trade trade, Order maker, Order taker, int baseAsset, int quoteAsset) {
         long tradeQty = trade.getQty();
@@ -142,26 +128,24 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         }
 
         if (mFrozenDelta < 0 || tFrozenDelta < 0) {
-            throw new IllegalStateException(
-                "Negative frozen delta, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
-            );
+            throw new IllegalStateException("Negative frozen delta, maker=%d, taker=%d".formatted(maker.getOrderId(), taker.getOrderId()));
         }
 
         validateSettlementAmounts(trade, maker, taker, mFrozenDelta, tFrozenDelta);
-        ledger.settleTrade(maker.getUserId(), taker.getUserId(), trade.getPrice(), tradeQty, taker.getSide(), mFrozenDelta, tFrozenDelta, trade.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
+        ledger.settleTrade(maker.getUserId(), taker.getUserId(), trade.getPrice(), tradeQty, taker.getSide(),
+                mFrozenDelta, tFrozenDelta, trade.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
         maker.validateState();
         taker.validateState();
         reporter.reportMatch(taker, maker, trade);
     }
 
-    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side, long clientOrderId, long gatewaySequence, long timestamp, WalProgress progress) {
+    // ========== 內部方法 ==========
+
+    private void handleOrderCreate(long userId, int symbolId, long price, long quantity, Side side,
+                                   long clientOrderId, long gatewaySequence, long timestamp, WalProgress progress) {
         OrderBook book;
-        try {
-            book = OrderBook.get(symbolId);
-        } catch (IllegalArgumentException ex) {
-            reporter.reportRejected(userId, clientOrderId);
-            return;
-        }
+        try { book = OrderBook.get(symbolId); }
+        catch (IllegalArgumentException ex) { reporter.reportRejected(userId, clientOrderId); return; }
 
         int assetId = (side == Side.BUY) ? book.getQuoteAssetId() : book.getBaseAssetId();
         long freezeAmount = (side == Side.BUY) ? DecimalUtil.mulCeil(price, quantity) : quantity;
@@ -172,77 +156,28 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         }
 
         long orderId = progress.nextOrderId();
-        Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId, timestamp, gatewaySequence, freezeAmount, progress, this);
+        Order taker = book.handleCreate(orderId, userId, symbolId, price, quantity, side, clientOrderId,
+                timestamp, gatewaySequence, freezeAmount, progress, this);
         taker.validateState();
-        appendCidMapping(userId, clientOrderId, orderId);
+        idempotencyGuard.record(userId, clientOrderId, orderId);
         reporter.reportAccepted(taker);
     }
 
     private void validateMatchInputs(Trade trade, Order maker, Order taker) {
-        if (trade.getQty() <= 0 || trade.getPrice() <= 0) {
-            throw new IllegalStateException("Invalid trade payload, tradeId=" + trade.getTradeId());
-        }
-        if (maker.getSide() == taker.getSide()) {
-            throw new IllegalStateException(
-                "Maker and taker have same side, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
-            );
-        }
-        if (!maker.isActive() || !taker.isActive()) {
-            throw new IllegalStateException(
-                "Matched terminal order, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
-            );
-        }
-        if (trade.getQty() > maker.remainingQty() || trade.getQty() > taker.remainingQty()) {
-            throw new IllegalStateException(
-                "Trade quantity exceeds remaining quantity, makerOrderId=%d, takerOrderId=%d".formatted(maker.getOrderId(), taker.getOrderId())
-            );
-        }
+        if (trade.getQty() <= 0 || trade.getPrice() <= 0) throw new IllegalStateException("Invalid trade, tradeId=" + trade.getTradeId());
+        if (maker.getSide() == taker.getSide()) throw new IllegalStateException("Same side match, maker=%d, taker=%d".formatted(maker.getOrderId(), taker.getOrderId()));
+        if (!maker.isActive() || !taker.isActive()) throw new IllegalStateException("Terminal match, maker=%d, taker=%d".formatted(maker.getOrderId(), taker.getOrderId()));
+        if (trade.getQty() > maker.remainingQty() || trade.getQty() > taker.remainingQty()) throw new IllegalStateException("Qty exceeds remaining, maker=%d, taker=%d".formatted(maker.getOrderId(), taker.getOrderId()));
     }
 
     private void validateSettlementAmounts(Trade trade, Order maker, Order taker, long mFrozenDelta, long tFrozenDelta) {
         long quoteCeil = DecimalUtil.mulCeil(trade.getPrice(), trade.getQty());
-
         if (maker.getSide() == OrderSide.BUY) {
-            if (mFrozenDelta < quoteCeil) {
-                throw new IllegalStateException(
-                    "Buyer frozen delta below required quote ceil, orderId=%d, required=%d, actual=%d"
-                        .formatted(maker.getOrderId(), quoteCeil, mFrozenDelta)
-                );
-            }
-            if (tFrozenDelta != trade.getQty()) {
-                throw new IllegalStateException(
-                    "Seller frozen delta must equal trade quantity, orderId=%d, expected=%d, actual=%d"
-                        .formatted(taker.getOrderId(), trade.getQty(), tFrozenDelta)
-                );
-            }
+            if (mFrozenDelta < quoteCeil) throw new IllegalStateException("Buyer frozen < quote ceil, orderId=%d".formatted(maker.getOrderId()));
+            if (tFrozenDelta != trade.getQty()) throw new IllegalStateException("Seller frozen != qty, orderId=%d".formatted(taker.getOrderId()));
         } else {
-            if (tFrozenDelta < quoteCeil) {
-                throw new IllegalStateException(
-                    "Buyer frozen delta below required quote ceil, orderId=%d, required=%d, actual=%d"
-                        .formatted(taker.getOrderId(), quoteCeil, tFrozenDelta)
-                );
-            }
-            if (mFrozenDelta != trade.getQty()) {
-                throw new IllegalStateException(
-                    "Seller frozen delta must equal trade quantity, orderId=%d, expected=%d, actual=%d"
-                        .formatted(maker.getOrderId(), trade.getQty(), mFrozenDelta)
-                );
-            }
+            if (tFrozenDelta < quoteCeil) throw new IllegalStateException("Buyer frozen < quote ceil, orderId=%d".formatted(taker.getOrderId()));
+            if (mFrozenDelta != trade.getQty()) throw new IllegalStateException("Seller frozen != qty, orderId=%d".formatted(maker.getOrderId()));
         }
-    }
-
-    private boolean isBufferedDuplicate(long userId, long clientOrderId) {
-        for (int i = 0; i < bufferCount; i++) {
-            if (pendingUids[i] == userId && pendingCidsArr[i] == clientOrderId) return true;
-        }
-        return false;
-    }
-
-    private void appendCidMapping(long userId, long clientOrderId, long orderId) {
-        if (bufferCount >= BUFFER_SIZE) flush();
-        pendingUids[bufferCount] = userId;
-        pendingCidsArr[bufferCount] = clientOrderId;
-        pendingOids[bufferCount] = orderId;
-        bufferCount++;
     }
 }
