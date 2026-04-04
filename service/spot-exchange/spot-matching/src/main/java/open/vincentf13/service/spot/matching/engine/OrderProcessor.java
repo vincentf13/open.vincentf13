@@ -134,8 +134,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         validateSettlementAmounts(trade, maker, taker, mFrozenDelta, tFrozenDelta);
         ledger.settleTrade(maker.getUserId(), taker.getUserId(), trade.getPrice(), tradeQty, taker.getSide(),
                 mFrozenDelta, tFrozenDelta, trade.getLastSeq(), baseAsset, quoteAsset, trade.getTradeId());
-        maker.validateState();
-        taker.validateState();
+        // Note: validateState() 由 OrderBook.syncOrder() 在更新 status 後執行。
+        // 此處 filled 已更新但 status 尚未同步，呼叫 validateState 會誤報 "NEW order has filled"。
         reporter.reportMatch(taker, maker, trade);
     }
 
