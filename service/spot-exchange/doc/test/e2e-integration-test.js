@@ -43,6 +43,9 @@ function assert(condition, expected, actual, description) {
     }
 }
 
+/** 將 SCALE 化的 BigInt 格式化為人類可讀的小數 */
+function fmt(scaled) { return Number(scaled) / Number(SCALE); }
+
 async function queryBalance(userId, assetId) {
     const res = await fetch(`${API_URL}/balance?userId=${userId}&assetId=${assetId}`);
     if (!res.ok) throw new Error(`查詢餘額失敗 (${res.status})`);
@@ -138,9 +141,9 @@ ws.on('open', async () => {
 
         const bal1A = await queryBalance(USER_A, ASSET_USDT);
         const bal1B = await queryBalance(USER_B, ASSET_BTC);
-        console.log(`  結果: A USDT available=${bal1A.available / SCALE} | B BTC available=${bal1B.available / SCALE}`);
-        assert(bal1A.available === 100000n * SCALE, '100000', String(bal1A.available / SCALE), 'A USDT 餘額');
-        assert(bal1B.available === 10n * SCALE, '10', String(bal1B.available / SCALE), 'B BTC 餘額');
+        console.log(`  結果: A USDT available=${fmt(bal1A.available)} | B BTC available=${fmt(bal1B.available)}`);
+        assert(bal1A.available === 100000n * SCALE, '100000', fmt(bal1A.available), 'A USDT 餘額');
+        assert(bal1B.available === 10n * SCALE, '10', fmt(bal1B.available), 'B BTC 餘額');
         console.log('  PASS\n');
 
         // =============================================================
@@ -157,10 +160,10 @@ ws.on('open', async () => {
 
         const bal2A = await queryBalance(USER_A, ASSET_USDT);
         const order2A = await queryOrder(USER_A, cidBuy);
-        console.log(`  結果: A USDT available=${bal2A.available / SCALE}, frozen=${bal2A.frozen / SCALE} | Order status=${order2A?.status} (${order2A?.status === STATUS.NEW ? 'NEW' : 'unexpected'})`);
+        console.log(`  結果: A USDT available=${fmt(bal2A.available)}, frozen=${fmt(bal2A.frozen)} | Order status=${order2A?.status} (${order2A?.status === STATUS.NEW ? 'NEW' : 'unexpected'})`);
         assert(order2A?.status === STATUS.NEW, 'NEW(0)', order2A?.status, 'Order A 狀態');
-        assert(bal2A.frozen === 60000n * SCALE, '60000', String(bal2A.frozen / SCALE), 'A USDT 凍結');
-        assert(bal2A.available === 40000n * SCALE, '40000', String(bal2A.available / SCALE), 'A USDT 可用');
+        assert(bal2A.frozen === 60000n * SCALE, '60000', fmt(bal2A.frozen), 'A USDT 凍結');
+        assert(bal2A.available === 40000n * SCALE, '40000', fmt(bal2A.available), 'A USDT 可用');
         console.log('  PASS\n');
 
         // =============================================================
@@ -177,9 +180,9 @@ ws.on('open', async () => {
 
         const order3A = await queryOrder(USER_A, cidBuy);
         const filledQty = BigInt(order3A?.filled || 0);
-        console.log(`  結果: Order A filled=${filledQty / SCALE} BTC, status=${order3A?.status} (${order3A?.status === STATUS.PARTIALLY_FILLED ? 'PARTIALLY_FILLED' : 'unexpected'})`);
+        console.log(`  結果: Order A filled=${fmt(filledQty)} BTC, status=${order3A?.status} (${order3A?.status === STATUS.PARTIALLY_FILLED ? 'PARTIALLY_FILLED' : 'unexpected'})`);
         assert(order3A?.status === STATUS.PARTIALLY_FILLED, 'PARTIALLY_FILLED(1)', order3A?.status, 'Order A 狀態');
-        assert(filledQty === 4n * SCALE / 10n, '0.4', String(filledQty / SCALE), 'Order A 成交量');
+        assert(filledQty === 4n * SCALE / 10n, '0.4', fmt(filledQty), 'Order A 成交量');
         console.log('  PASS\n');
 
         // =============================================================
@@ -228,12 +231,12 @@ ws.on('open', async () => {
         const finalA_BTC  = await queryBalance(USER_A, ASSET_BTC);
         const finalB_USDT = await queryBalance(USER_B, ASSET_USDT);
         const finalB_BTC  = await queryBalance(USER_B, ASSET_BTC);
-        console.log(`  A: ${finalA_USDT.available / SCALE} USDT + ${finalA_BTC.available / SCALE} BTC`);
-        console.log(`  B: ${finalB_USDT.available / SCALE} USDT + ${finalB_BTC.available / SCALE} BTC`);
-        assert(finalA_BTC.available === 1n * SCALE, '1', String(finalA_BTC.available / SCALE), 'A 最終 BTC');
-        assert(finalA_USDT.available === 40000n * SCALE, '40000', String(finalA_USDT.available / SCALE), 'A 最終 USDT');
-        assert(finalA_USDT.frozen === 0n, '0', String(finalA_USDT.frozen / SCALE), 'A USDT 凍結歸零');
-        assert(finalB_BTC.frozen === 0n, '0', String(finalB_BTC.frozen / SCALE), 'B BTC 凍結歸零');
+        console.log(`  A: ${fmt(finalA_USDT.available)} USDT + ${fmt(finalA_BTC.available)} BTC`);
+        console.log(`  B: ${fmt(finalB_USDT.available)} USDT + ${fmt(finalB_BTC.available)} BTC`);
+        assert(finalA_BTC.available === 1n * SCALE, '1', fmt(finalA_BTC.available), 'A 最終 BTC');
+        assert(finalA_USDT.available === 40000n * SCALE, '40000', fmt(finalA_USDT.available), 'A 最終 USDT');
+        assert(finalA_USDT.frozen === 0n, '0', fmt(finalA_USDT.frozen), 'A USDT 凍結歸零');
+        assert(finalB_BTC.frozen === 0n, '0', fmt(finalB_BTC.frozen), 'B BTC 凍結歸零');
         console.log('  PASS\n');
 
         // 總結
