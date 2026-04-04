@@ -11,6 +11,7 @@ import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.wire.Wire;
 import open.vincentf13.service.spot.infra.aeron.*;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
+import open.vincentf13.service.spot.infra.alloc.PreTouchUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.chronicle.WalField;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
@@ -60,6 +61,7 @@ public class AeronSender extends Worker {
 
     @Override
     protected void onStart() {
+        PreTouchUtil.touchDirectory(new java.io.File(open.vincentf13.service.spot.infra.Constants.ChronicleMapEnum.WAL_BASE_DIR));
         this.publication = AeronClientHolder.aeron().addPublication(AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID);
         this.controlSub = AeronClientHolder.aeron().addSubscription(AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
         this.tailer = wal.createTailer();

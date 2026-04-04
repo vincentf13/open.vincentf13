@@ -132,11 +132,18 @@ public class Storage {
 
     private void preTouchAll() {
         long t0 = System.nanoTime();
-        long pages = 0;
-        pages += PreTouchUtil.touchDirectory(new File(ChronicleMapEnum.DEFAULT_BASE_DIR));
-        pages += PreTouchUtil.touchDirectory(new File(ChronicleMapEnum.WAL_BASE_DIR));
-        long ms = (System.nanoTime() - t0) / 1_000_000;
-        log.info(">>> [STORAGE] Pre-touch 完成：{} 頁 ({}MB)，耗時 {} ms", pages, (pages * 4096) >> 20, ms);
+        File mapDir = new File(ChronicleMapEnum.DEFAULT_BASE_DIR);
+        File walDir = new File(ChronicleMapEnum.WAL_BASE_DIR);
+
+        long pages = PreTouchUtil.touchDirectory(mapDir) + PreTouchUtil.touchDirectory(walDir);
+        long touchMs = (System.nanoTime() - t0) / 1_000_000;
+
+        // mlock：嘗試鎖定至實體 RAM，防止 swap（需 OS 權限，失敗時 graceful degrade）
+        long locked = PreTouchUtil.mlockDirectory(mapDir) + PreTouchUtil.mlockDirectory(walDir);
+        long totalMs = (System.nanoTime() - t0) / 1_000_000;
+
+        log.info(">>> [STORAGE] Pre-touch {} 頁 ({}MB, {}ms), mlock {} 頁 ({}ms)",
+                pages, (pages * 4096) >> 20, touchMs, locked, totalMs - touchMs);
     }
 
     public void close() {

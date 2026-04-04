@@ -1,7 +1,5 @@
 package open.vincentf13.service.spot.infra.metrics;
 
-import org.agrona.collections.LongArrayList;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +9,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 指標靜態門面
  * 直接持有 AtomicLong Map，消除 Spring 初始化時序問題。
- * 延遲指標使用秒級窗口統計，避免累積快照污染當前觀測。
+ * 延遲指標使用 lock-free 環形緩衝區，消除 synchronized 與 array resize GC。
  */
 public class StaticMetricsHolder {
 
@@ -51,37 +49,52 @@ public class StaticMetricsHolder {
 
     public record LatencySnapshot(long p50, long p99, long max) {}
 
-    private static class LatencyWindow {
-        private final LongArrayList samples = new LongArrayList();
+    /**
+     * Lock-free 環形延遲採樣窗口
+     *
+     * record() 由單一 hot-path 線程調用 (matching/gateway worker)，無鎖。
+     * snapshotAndReset() 由 metrics 上報線程每秒調用一次。
+     * 透過 volatile writePos 保證跨線程可見性，消除 synchronized。
+     * 固定 64K slots 預分配，消除 array resize GC。
+     */
+    static class LatencyWindow {
+        private static final int CAPACITY = 1 << 16; // 65536
+        private static final int MASK = CAPACITY - 1;
+        private final long[] ring = new long[CAPACITY];
+        private volatile int writePos = 0;
+        private int snapshotPos = 0; // 僅 snapshot 線程寫入
 
-        private synchronized void record(long nanos) {
-            samples.add(nanos);
+        void record(long nanos) {
+            ring[writePos & MASK] = nanos;
+            writePos++; // volatile write，確保 snapshot 線程可見
         }
 
-        private synchronized LatencySnapshot snapshotAndReset() {
-            if (samples.isEmpty()) {
-                return null;
+        LatencySnapshot snapshotAndReset() {
+            int wp = writePos;
+            int count = wp - snapshotPos;
+            if (count <= 0) return null;
+            if (count > CAPACITY) {
+                // 溢出：僅取最近 CAPACITY 筆
+                snapshotPos = wp - CAPACITY;
+                count = CAPACITY;
             }
 
-            long[] values = samples.toLongArray();
-            samples.clear();
-            Arrays.sort(values);
+            long[] copy = new long[count];
+            for (int i = 0; i < count; i++) {
+                copy[i] = ring[(snapshotPos + i) & MASK];
+            }
+            snapshotPos = wp;
 
+            Arrays.sort(copy);
             return new LatencySnapshot(
-                percentile(values, 0.50d),
-                percentile(values, 0.99d),
-                values[values.length - 1]
-            );
+                    percentile(copy, 0.50d),
+                    percentile(copy, 0.99d),
+                    copy[copy.length - 1]);
         }
 
-        private long percentile(long[] values, double ratio) {
-            int index = (int) Math.ceil(values.length * ratio) - 1;
-            if (index < 0) {
-                index = 0;
-            } else if (index >= values.length) {
-                index = values.length - 1;
-            }
-            return values[index];
+        private static long percentile(long[] sorted, double ratio) {
+            int index = (int) Math.ceil(sorted.length * ratio) - 1;
+            return sorted[Math.max(0, Math.min(index, sorted.length - 1))];
         }
     }
 }
