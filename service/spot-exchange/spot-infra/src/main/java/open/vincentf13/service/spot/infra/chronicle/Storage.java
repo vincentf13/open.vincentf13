@@ -37,6 +37,7 @@ public class Storage {
     private final ChronicleMap<Byte, WalProgress> walMetadata;
     private final ChronicleMap<Long, Long> latestMetrics;
     private final ChronicleMap<Long, Long> tpsHistory;
+    private final ChronicleMap<Long, Long> latencyHistory;
     private final ChronicleMap<Long, String> gcEventHistory;
 
     private final ChronicleQueue gatewaySenderWal;
@@ -56,7 +57,8 @@ public class Storage {
             
             // 重要：這些 Map 如果在 Windows 上被多個 Java 進程同時訪問且沒有設置正確的 entries 空間，會拋出 Exception
             this.latestMetrics = createMap("metrics-latest", Long.class, Long.class, 4096, 8, 8);
-            this.tpsHistory = createMap("metrics-tps-history", Long.class, Long.class, 86400 * 7, 8, 8);
+            this.tpsHistory = createMap("metrics-tps-history", Long.class, Long.class, 86400 * 7, 8, 8); 
+            this.latencyHistory = createMap("metrics-latency-history", Long.class, Long.class, 86400 * 7, 8, 8); 
             this.gcEventHistory = createMap("metrics-gc-event-history", Long.class, String.class, 2048, 8, 256);
             
             this.gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
@@ -80,6 +82,7 @@ public class Storage {
     public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
     public ChronicleMap<Long, Long> latestMetrics() { return latestMetrics; }
     public ChronicleMap<Long, Long> tpsHistory() { return tpsHistory; }
+    public ChronicleMap<Long, Long> latencyHistory() { return latencyHistory; }
     public ChronicleMap<Long, String> gcEventHistory() { return gcEventHistory; }
     public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
 
@@ -149,7 +152,7 @@ public class Storage {
             safeClose(orders); safeClose(trades); safeClose(balances); safeClose(userAssets);
             safeClose(activeOrders); safeClose(cids);
             safeClose(msgMetadata); safeClose(walMetadata); safeClose(latestMetrics);
-            safeClose(tpsHistory); safeClose(gcEventHistory);
+            safeClose(tpsHistory); safeClose(latencyHistory); safeClose(gcEventHistory);
             if (gatewaySenderWal != null) gatewaySenderWal.close();
             INSTANCE = null;
         }

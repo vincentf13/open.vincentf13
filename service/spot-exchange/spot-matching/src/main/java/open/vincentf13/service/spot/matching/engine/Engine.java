@@ -58,12 +58,12 @@ public class Engine {
     // ========== 運行時 ==========
 
     public void onAeronMessage(int msgType, org.agrona.DirectBuffer buffer, int offset, int length) {
-        long seq = router.route(msgType, buffer, offset, length,
-                buffer.getLong(offset + 16, java.nio.ByteOrder.LITTLE_ENDIAN), progress);
+        final long arrivalTimeNs = System.nanoTime();
+        final long gatewayTimeNs = buffer.getLong(offset + 16, java.nio.ByteOrder.LITTLE_ENDIAN);
 
-        if (msgType == MsgType.ORDER_CREATE || msgType == MsgType.ORDER_CANCEL) {
-            StaticMetricsHolder.addCounter(MetricsKey.ORDER_PROCESSED_COUNT, 1);
-        }
+        long seq = router.route(msgType, buffer, offset, length, gatewayTimeNs, progress);
+
+        recordMessageMetrics(msgType, arrivalTimeNs, gatewayTimeNs, System.nanoTime());
         if (seq != MSG_SEQ_NONE) {
             long previousSeq = pendingFlushSeq != MSG_SEQ_NONE ? pendingFlushSeq : progress.getLastProcessedMsgSeq();
             if (previousSeq != MSG_SEQ_NONE && seq <= previousSeq) {
@@ -102,4 +102,10 @@ public class Engine {
         }
     }
 
+    private void recordMessageMetrics(int msgType, long arrivalTimeNs, long gatewayTimeNs, long endNs) {
+        if (msgType != MsgType.ORDER_CREATE && msgType != MsgType.ORDER_CANCEL) return;
+        StaticMetricsHolder.addCounter(MetricsKey.ORDER_PROCESSED_COUNT, 1);
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_TRANSPORT, arrivalTimeNs - gatewayTimeNs);
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_MATCHING, endNs - arrivalTimeNs);
+    }
 }

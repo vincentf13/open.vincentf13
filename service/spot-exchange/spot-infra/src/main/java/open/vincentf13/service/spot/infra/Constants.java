@@ -126,6 +126,17 @@ public class Constants {
         public static final long ORDER_REJECTED_COUNT = 13L;
         public static final long ORDER_PROCESSED_COUNT = 14L;
 
+        // 延遲分佈指標 (Latencies - Nanoseconds)
+        public static final long LATENCY_MATCHING = 10L;
+        public static final long LATENCY_TRANSPORT = 11L;
+
+        // 分位數指標 (Percentiles) - 這些用於 Chronicle Map 編碼，不直接作為 Micrometer Key
+        public static final long P50 = 50L;
+        public static final long P90 = 90L;
+        public static final long P99 = 99L;
+        public static final long P999 = 999L;
+        public static final long MAX = 100L;
+
         // CPU ID 監測指標 (執行緒綁核追蹤) - 使用 1000+ 避開百分位數
         public static final long CPU_ID_WAL_WRITER = 1001L;
         public static final long CPU_ID_AERON_SENDER = 1002L;
