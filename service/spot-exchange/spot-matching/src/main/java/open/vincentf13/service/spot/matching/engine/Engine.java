@@ -45,6 +45,7 @@ public class Engine {
     public void onStart() {
         unflushedWorkCount = 0;
         pendingFlushSeq = MSG_SEQ_NONE;
+        reporter.init();
         EngineRecovery.recover(progress, networkProgress, orderProcessor, ledger, coreStateValidator);
     }
 

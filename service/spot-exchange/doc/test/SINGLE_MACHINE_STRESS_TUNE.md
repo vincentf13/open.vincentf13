@@ -137,28 +137,25 @@ while ($retry -lt 30) {
 }
 Write-Host "服務就緒 (耗時: $retry s)，開始壓測。"
 
-# --- 7. 啟動 k6 極限壓測 ---
+# --- 7. 啟動 Java Benchmark (恆定速率 + HdrHistogram) ---
 if ($e.HasExited) { Write-Error "Matching 失敗！"; return }
 if ($g.HasExited) { Write-Error "Gateway 失敗！"; return }
 
 $log_dir = "$doc_path\test\log"
 if (-not (Test-Path $log_dir)) { New-Item -ItemType Directory -Path $log_dir }
 
-Write-Host "所有服務就緒。正在啟動 k6 超級壓測模式 (100 VUs, 4-Cores Dedicated)..."
-Set-Location "$base_path\service\spot-exchange\doc\test"
+Write-Host "所有服務就緒。正在啟動 Java Benchmark..."
 
-# 設置 Go 運行時使用 4 個核心 (7, 11, 13, 14)
-$env:GOMAXPROCS = "4"
-
-# 優化 k6 運行參數
-$k6_args = @(
-    "run",
-    "--vus", "100",
-    "--duration", "300s",
-    "stress-test-ws.js"
+# Benchmark 參數：rate(orders/sec) duration(sec) warmup(sec)
+$bench_args = @(
+    "@$doc_path\jvm\ws-api-throughput.args",
+    "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
+    "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
+    "100000",  # 10萬 orders/sec
+    "60",      # 60秒測量
+    "10"       # 10秒預熱
 )
-
-$k6_proc = Start-Process k6 -ArgumentList $k6_args -RedirectStandardOutput "$log_dir\k6_out.log" -RedirectStandardError "$log_dir\k6_err.log" -PassThru
-$k6_proc.ProcessorAffinity = 26752
-Write-Host "k6 Turbo (PID: $($k6_proc.Id)) 已鎖定 Core 7, 11, 13, 14，火力全開中..."
+$bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -Wait
+$bench.ProcessorAffinity = 26752
+Write-Host "Benchmark 完成 (Exit code: $($bench.ExitCode))"
 ```

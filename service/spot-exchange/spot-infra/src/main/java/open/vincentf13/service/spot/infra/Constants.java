@@ -223,6 +223,8 @@ public class Constants {
         public static final int DATA_STREAM_ID = 10;
         /** 統一控制流 ID (用於反向握手) */
         public static final int CONTROL_STREAM_ID = 11;
+        /** 回報流 ID (Matching → Gateway 執行回報) */
+        public static final int REPORT_STREAM_ID = 12;
     }
 
     /**
