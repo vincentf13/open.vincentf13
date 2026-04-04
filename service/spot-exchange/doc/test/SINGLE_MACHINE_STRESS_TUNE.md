@@ -72,7 +72,7 @@ $driver_args = @(
     "io.aeron.driver.MediaDriver"
 )
 $driver = Start-Process java -ArgumentList $driver_args -PassThru
-$driver.ProcessorAffinity = 1792
+$driver.ProcessorAffinity = 1920
 
 # --- 智慧等待 Media Driver 初始化 (Polling cnc.dat) ---
 Write-Host "等待 Aeron 共享記憶體初始化..."
@@ -88,10 +88,12 @@ Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
 # ===== CPU 核心分配表 (Arrow Lake Ultra 9, 16 Logical Processors) =====
 # 原則：每個 JVM 至少保留 1 核給 GC/Spring/JIT，不被 busy-spin 佔滿
 #
-# Media Driver (DEDICATED 3T):  CPU 8,9,10              mask=1792
-# Matching Engine (3 核):       CPU 5,6,7                mask=224
+# Media Driver (DEDICATED 3T):  CPU 7,8,9,10            mask=1920
+#   - conductor/sender/receiver ×3 (busy-spin)
+#   - (CPU 10 空餘給 GC，heap 512MB 壓力極低)
+# Matching Engine (2 核):       CPU 5,6                  mask=96
 #   - matching-receiver    ×1  (busy-spin)
-#   - (CPU 6,7 留給 GC + Spring scheduler)
+#   - (CPU 6 給 GC + Spring scheduler)
 # Gateway (8 核, 7 workers):    CPU 0,1,2,3,4,11,12,15  mask=38943
 #   - netty-boss           ×1
 #   - netty-worker-1..3    ×3
@@ -123,7 +125,7 @@ $gw_args = @(
 
 # 非同步啟動並立即綁核
 $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
-$e.ProcessorAffinity = 224
+$e.ProcessorAffinity = 96
 
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
 $g.ProcessorAffinity = 38943
