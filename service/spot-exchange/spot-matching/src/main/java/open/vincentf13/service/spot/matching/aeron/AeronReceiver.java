@@ -45,7 +45,8 @@ public class AeronReceiver extends Worker {
     private long lastResumeTime = 0;
     private long lastMsgReceivedTime = 0;
 
-    public AeronReceiver(Engine engine) {
+    /** @param aeron 僅用於建立 Spring Bean 依賴順序 */
+    public AeronReceiver(@SuppressWarnings("unused") io.aeron.Aeron aeron, Engine engine) {
         super("matching-receiver", MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER, MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE);
         this.engine = engine;
     }

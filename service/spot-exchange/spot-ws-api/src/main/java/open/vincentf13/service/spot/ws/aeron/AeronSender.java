@@ -51,7 +51,8 @@ public class AeronSender extends Worker {
     private final DepositEncoder depositEncoder = new DepositEncoder();
     private final AuthEncoder authEncoder = new AuthEncoder();
 
-    public AeronSender() {
+    /** @param aeron 僅用於建立 Spring Bean 依賴順序，確保 AeronConfig 先初始化 */
+    public AeronSender(@SuppressWarnings("unused") io.aeron.Aeron aeron) {
         super("gw-sender", MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.CPU_ID_CURRENT_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
         this.wal = Storage.self().gatewaySenderWal();
     }
