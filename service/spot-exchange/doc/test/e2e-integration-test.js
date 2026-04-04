@@ -180,9 +180,16 @@ ws.on('open', async () => {
 
         const order3A = await queryOrder(USER_A, cidBuy);
         const filledQty = BigInt(order3A?.filled || 0);
+        const bal3A_BTC = await queryBalance(USER_A, ASSET_BTC);
+        const bal3B_USDT = await queryBalance(USER_B, ASSET_USDT);
+        const bal3B_BTC = await queryBalance(USER_B, ASSET_BTC);
         console.log(`  結果: Order A filled=${fmt(filledQty)} BTC, status=${order3A?.status} (${order3A?.status === STATUS.PARTIALLY_FILLED ? 'PARTIALLY_FILLED' : 'unexpected'})`);
+        console.log(`  餘額: A +${fmt(bal3A_BTC.available)} BTC | B +${fmt(bal3B_USDT.available)} USDT, ${fmt(bal3B_BTC.available)} BTC (凍結 ${fmt(bal3B_BTC.frozen)})`);
         assert(order3A?.status === STATUS.PARTIALLY_FILLED, 'PARTIALLY_FILLED(1)', order3A?.status, 'Order A 狀態');
         assert(filledQty === 4n * SCALE / 10n, '0.4', fmt(filledQty), 'Order A 成交量');
+        assert(bal3A_BTC.available === 4n * SCALE / 10n, '0.4', fmt(bal3A_BTC.available), 'A 獲得 BTC');
+        assert(bal3B_USDT.available === 24000n * SCALE, '24000', fmt(bal3B_USDT.available), 'B 獲得 USDT');
+        assert(bal3B_BTC.available === 96n * SCALE / 10n, '9.6', fmt(bal3B_BTC.available), 'B 剩餘 BTC');
         console.log('  PASS\n');
 
         // =============================================================
@@ -199,8 +206,18 @@ ws.on('open', async () => {
         await sleep(2000);
 
         const order4A = await queryOrder(USER_A, cidBuy);
+        const bal4A_USDT = await queryBalance(USER_A, ASSET_USDT);
+        const bal4A_BTC = await queryBalance(USER_A, ASSET_BTC);
+        const bal4B_USDT = await queryBalance(USER_B, ASSET_USDT);
+        const bal4B_BTC = await queryBalance(USER_B, ASSET_BTC);
         console.log(`  結果: Order A status=${order4A?.status} (${order4A?.status === STATUS.FILLED ? 'FILLED' : 'unexpected'})`);
+        console.log(`  餘額: A ${fmt(bal4A_USDT.available)} USDT + ${fmt(bal4A_BTC.available)} BTC | B ${fmt(bal4B_USDT.available)} USDT + ${fmt(bal4B_BTC.available)} BTC (凍結 ${fmt(bal4B_BTC.frozen)})`);
         assert(order4A?.status === STATUS.FILLED, 'FILLED(2)', order4A?.status, 'Order A 最終狀態');
+        assert(bal4A_BTC.available === 1n * SCALE, '1', fmt(bal4A_BTC.available), 'A 獲得 1 BTC');
+        assert(bal4A_USDT.available === 40000n * SCALE, '40000', fmt(bal4A_USDT.available), 'A 剩餘 USDT');
+        assert(bal4A_USDT.frozen === 0n, '0', fmt(bal4A_USDT.frozen), 'A 凍結歸零');
+        assert(bal4B_USDT.available === 60000n * SCALE, '60000', fmt(bal4B_USDT.available), 'B 累計 USDT');
+        assert(bal4B_BTC.frozen === 4n * SCALE / 10n, '0.4', fmt(bal4B_BTC.frozen), 'B 掛單凍結 0.4 BTC');
         console.log('  PASS\n');
 
         // =============================================================
@@ -217,8 +234,12 @@ ws.on('open', async () => {
         await sleep(2000);
 
         const orderB2Canceled = await queryOrder(USER_B, cidSell2);
+        const bal5B_BTC = await queryBalance(USER_B, ASSET_BTC);
         console.log(`  結果: Order B status=${orderB2Canceled?.status} (${orderB2Canceled?.status === STATUS.CANCELED ? 'CANCELED' : 'unexpected'})`);
+        console.log(`  餘額: B BTC available=${fmt(bal5B_BTC.available)}, frozen=${fmt(bal5B_BTC.frozen)}`);
         assert(orderB2Canceled?.status === STATUS.CANCELED, 'CANCELED(3)', orderB2Canceled?.status, 'B 撤單狀態');
+        assert(bal5B_BTC.frozen === 0n, '0', fmt(bal5B_BTC.frozen), 'B BTC 凍結歸零');
+        assert(bal5B_BTC.available === 9n * SCALE, '9', fmt(bal5B_BTC.available), 'B BTC 解凍後可用');
         console.log('  PASS\n');
 
         // =============================================================
