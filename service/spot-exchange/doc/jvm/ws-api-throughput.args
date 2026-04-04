@@ -44,10 +44,13 @@
 -Xmx10G
 -XX:MaxDirectMemorySize=4G
 -XX:+AlwaysPreTouch
+# Huge Pages (2MB TLB)：減少 TLB Miss，提升大量 mmap 存取效能。
+-XX:+UseLargePages
 
 # --- 物理層與吞吐量優化 ---
 -XX:+UseNUMA
 -XX:+PerfDisableSharedMem
+-XX:-RestrictContended
 
 # --- JIT 編譯與 Netty 優化 ---
 -XX:+TieredCompilation

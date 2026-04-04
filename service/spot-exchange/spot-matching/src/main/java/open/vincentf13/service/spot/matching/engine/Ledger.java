@@ -38,6 +38,7 @@ public class Ledger {
     private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
 
     private final BalanceKey reusableKey = new BalanceKey();
+    private final Balance reusableDiskBalance = new Balance(); // getUsing() 享元，避免 ChronicleMap.get() 分配
     private final open.vincentf13.service.spot.infra.chronicle.LongValue flushMaskKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
     private final open.vincentf13.service.spot.infra.chronicle.LongValue flushMaskValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
 
@@ -83,10 +84,10 @@ public class Ledger {
         Balance b = balanceCache.get(combinedKey);
         if (b == null) {
             reusableKey.set(userId, assetId);
-            Balance diskVal = balancesDiskMap.get(reusableKey);
+            Balance diskVal = balancesDiskMap.getUsing(reusableKey, reusableDiskBalance);
             if (diskVal != null) {
                 b = new Balance();
-                b.copyFrom(diskVal);
+                b.copyFrom(reusableDiskBalance);
             } else {
                 b = new Balance();
                 b.setLastSeq(-1);

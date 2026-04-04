@@ -13,7 +13,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 2. 雙路徑循環：分離採樣路徑與快速路徑，讓 Hot Loop 極度乾淨。
  */
 @Slf4j
+@SuppressWarnings("restriction")
 public abstract class Worker implements Runnable {
+    /** 控制線程 (start/stop) 與工作線程 (busy-spin loop) 共享，@Contended 防止偽共享 */
+    @jdk.internal.vm.annotation.Contended
     protected final AtomicBoolean running = new AtomicBoolean(false);
     private final String workerName;
     private final long cpuIdKey, currentCpuIdKey, dutyCycleKey;

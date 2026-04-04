@@ -8,8 +8,7 @@ import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.infra.util.Clock;
-import open.vincentf13.service.spot.model.MsgProgress;
-import open.vincentf13.service.spot.model.WalProgress;
+import open.vincentf13.service.spot.model.*;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -55,6 +54,7 @@ public class Engine {
 
         coreStateValidator.validateOnRecovery();
         OrderBook.get(1001);
+        warmupJit();
         log.info(
             "Engine 啟動完成，durableSeq={}, nextOrderId={}, nextTradeId={}",
             progress.getLastProcessedMsgSeq(), progress.getOrderIdCounter(), progress.getTradeIdCounter()
@@ -125,6 +125,42 @@ public class Engine {
         flushAll();
         reporter.close();
         ThreadContext.cleanup();
+    }
+
+    /**
+     * JIT 預熱：在接收流量前緊密循環執行模型物件的 getter/setter/validate，
+     * 確保 CompileThreshold (1000) 以上的調用次數觸發 C2 編譯，
+     * 消除前幾百筆真實訂單的解釋執行延遲。
+     */
+    private void warmupJit() {
+        final int iterations = MatchingConfig.STARTUP_PRE_ALLOCATE_COUNT;
+        Order o = new Order();
+        Trade t = new Trade();
+        Balance b = new Balance();
+        long sink = 0; // 防止 Dead Code Elimination
+
+        for (int i = 1; i <= iterations; i++) {
+            o.fill(i, i, 1001, 60000_00000000L, 1000L, (byte) (i & 1), i, System.nanoTime(), i, 60000_00000000L);
+            sink += o.remainingQty();
+            o.setFilled(500);
+            o.setStatus((byte) 1);
+            sink += o.remainingQty();
+            o.isTerminal();
+            o.isActive();
+
+            b.setAvailable(1_000_000_000L);
+            b.setFrozen(100_000_000L);
+            b.setVersion(i);
+            b.setLastSeq(i);
+            sink += b.getAvailable() + b.getFrozen();
+
+            t.setTradeId(i);
+            t.setPrice(60000_00000000L);
+            t.setQty(1000L);
+            sink += t.getPrice();
+        }
+        if (sink == Long.MIN_VALUE) log.trace("warmup sink: {}", sink); // 永不執行，僅防 DCE
+        log.info("JIT 預熱完成 ({} iterations)", iterations);
     }
 
     private long rebuildTradeCounterFloor() {

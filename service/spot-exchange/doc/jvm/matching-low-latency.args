@@ -43,12 +43,17 @@
 -Xmx8G
 -XX:MaxDirectMemorySize=8G
 -XX:+AlwaysPreTouch
+# Huge Pages (2MB TLB)：減少 TLB Miss，提升大量 mmap 存取效能。
+# 需 OS 配置：Windows「鎖定記憶體中的分頁」權限；Linux: vm.nr_hugepages
+-XX:+UseLargePages
 
 # --- Arrow Lake P-core & 物理層優化 ---
 -XX:+UseNUMA
 -XX:+PerfDisableSharedMem
 -XX:+UnlockDiagnosticVMOptions
 -XX:GuaranteedSafepointInterval=0
+# 允許 @Contended 註解在非 JDK 類別生效 (Cache Line Padding)
+-XX:-RestrictContended
 
 # --- JIT 編譯優化 (加速 BusySpin 熱點預熱) ---
 -XX:+TieredCompilation

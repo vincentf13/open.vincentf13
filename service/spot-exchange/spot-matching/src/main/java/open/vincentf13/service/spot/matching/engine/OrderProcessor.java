@@ -39,6 +39,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
     private final CidKey reusableFlushKey = new CidKey();
     private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableFlushValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
     private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableOrderKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final Order reusableDiskOrder = new Order(); // getUsing() 享元，避免 ChronicleMap.get() 分配
 
     /** 核心落地：將緩衝的冪等鍵批量寫入磁碟，實現零分配 */
     public void flush() {
@@ -99,7 +100,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         if (userId <= 0 || orderId <= 0) return;
 
         reusableOrderKey.set(orderId);
-        Order order = orders.get(reusableOrderKey);
+        Order order = orders.getUsing(reusableOrderKey, reusableDiskOrder);
         if (order == null || order.getUserId() != userId || !order.isActive()) return;
         order.validateState();
 
